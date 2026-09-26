@@ -80,9 +80,50 @@ behind the Samos ridge, and so can the AI.
 | M | Theater map | H | Rearm & refuel (stopped at a friendly base) |
 | K | Jettison tanks | J (hold) | Eject |
 | U | Level-off autopilot | Esc / P | Pause |
+| , / . | Left / centre / right display page | \\ | Cockpit cursor (click displays) |
+| ' | Next steerpoint | End | Steer to nearest friendly field |
 
 Gamepads are supported. Mouse modes (mouse-aim, virtual joystick, keyboard-only)
 are in SETTINGS.
+
+### Cockpits and avionics
+
+Each jet has its own 3D cockpit with working displays:
+
+- **F-15EX** — a 10×19 in touch-screen large-area display split into two
+  portals, up-front controller, standby display, caution panel, LOCK/SHOOT lights.
+- **F/A-18E/F** — two DDIs, the up-front controller display, 8×8 in centre MFD,
+  engine/fuel display and standby instruments.
+- **Typhoon** — three colour MHDDs, the dedicated warning panel and the
+  get-u-home standby display.
+
+Display pages: **RADAR** (B-scope, RWS/TWS/ACM/silent, track files, STT data
+block, launch zone, jammer strobes, why a lock was lost), **TSD / SA / PA**
+(heading-up moving map with coastlines, contours and the datalinked picture),
+**STORES**, **ENGINE**, **FUEL** (bingo/joker, fuel at steerpoint), **EW**
+(threats, jammer, countermeasure program), **HSI** (TACAN, ILS) and
+**FCS/DAMAGE**. Click the bezel buttons with the cockpit cursor (`\`) or cycle
+pages with `,` `/` `.`.
+
+Helmet-mounted cueing (JHMCS / JHMCS II / Striker II): look at a target in the
+cockpit and press **R** to lock it; the AIM-9X seeker follows your head.
+
+Navigation: steerpoints for every field plus bullseye (`'` next, `End` = nearest
+friendly field), HUD steerpoint cue, ILS on every runway (approach valleys keep
+the glideslope clear of the mountains), an AoA bracket, and graded touchdowns.
+
+### Logbook, debrief and replay
+
+Every sortie is logged: kills by weapon and range, missiles defeated, landings,
+G / Mach / altitude records, duel record by difficulty, best wave and 18
+decorations (LOGBOOK on the main menu). The results screen shows an engagement
+map and timeline, and **WATCH REPLAY** plays the whole mission back with
+scrubbing, 0.25–8× speed and chase / fly-by / target cameras on any aircraft.
+
+### Phones and tablets
+
+Touch controls (virtual stick, throttle slider, fire/lock/weapon/countermeasure
+buttons, drag to look) switch on automatically on touch devices.
 
 ### Flight and physiology
 
@@ -103,8 +144,9 @@ src/aircraft  specs, flight model, damage, procedural 3D models, cockpit
 src/weapons   AIM-120D / AIM-9X, guns, countermeasures
 src/sensors   radar, IRST, RWR / MAWS, signatures
 src/ai        skill levels, steering controller, AI pilot state machine
-src/game      simulation, team air picture / GCI, spawning, game modes
-src/ui        HUD, scopes, MFDs, map, menus, hangar
+src/game      simulation, team air picture / GCI, spawning, game modes, logbook, replay
+src/avionics  display pages, navigation (steerpoints, TACAN, ILS, fuel planning)
+src/ui        HUD, helmet display, scopes, map, menus, hangar, debrief, touch and replay controls
 src/audio     synthesized engine, weapon and warning audio
 ```
 
