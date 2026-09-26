@@ -604,6 +604,7 @@ export class Game implements ModeHost {
       const vis = this.combat.aircraftVis.get(p);
       const inCockpit = this.cam.mode === 'cockpit' && !!vis;
       vis?.setCockpitView(inCockpit);
+      this.cam.autoCenter = p.alive;
       this.cam.update(dt, p, this.eyeWorld());
       // refresh the view matrices now: the HUD projects through this camera
       // before the frame is rendered, and a stale matrix lags a whole frame
@@ -812,6 +813,7 @@ export class Game implements ModeHost {
     if (inp.pressed('zoomIn')) this.cam.zoom = Math.min(4, this.cam.zoom * 1.25);
     if (inp.pressed('zoomOut')) this.cam.zoom = Math.max(0.8, this.cam.zoom / 1.25);
     const looking = inp.mouseHeld(2) || inp.mouseHeld(1);
+    this.cam.lookHeld = looking || inp.touch.looking;
     const sens = 0.0025 * this.settings.input.sensitivity;
     if (looking) {
       this.cam.addLook(inp.mouseDX * sens, inp.mouseDY * sens);

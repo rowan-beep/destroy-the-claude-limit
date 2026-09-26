@@ -214,6 +214,7 @@ export class TouchControls {
 
   private lookStart(e: PointerEvent): void {
     this.lookId = e.pointerId;
+    this.input.touch.looking = true;
     this.lookLast = { x: e.clientX, y: e.clientY };
     capture(e.target as HTMLElement, e.pointerId);
   }
@@ -226,6 +227,9 @@ export class TouchControls {
   }
 
   private lookEnd(e: PointerEvent): void {
-    if (e.pointerId === this.lookId) this.lookId = null;
+    if (e.pointerId === this.lookId) {
+      this.lookId = null;
+      this.input.touch.looking = false;
+    }
   }
 }

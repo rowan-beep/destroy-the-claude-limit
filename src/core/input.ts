@@ -204,7 +204,7 @@ export class Input {
   private gpPrev: boolean[] = [];
   gp = { pitch: 0, roll: 0, yaw: 0, throttle: -1, lookX: 0, lookY: 0, active: false };
   /** on-screen touch controls */
-  touch = { active: false, pitch: 0, roll: 0, yaw: 0, throttle: null as number | null, lookX: 0, lookY: 0 };
+  touch = { active: false, pitch: 0, roll: 0, yaw: 0, throttle: null as number | null, lookX: 0, lookY: 0, looking: false };
   private virtualDown = new Set<Action>();
   private virtualPressed = new Set<Action>();
 

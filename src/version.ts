@@ -10,6 +10,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '1.9.2',
+    date: '2026-09-26',
+    title: "Chase camera auto-recenter",
+    notes: [
+      "Chase camera auto-recenter: when you look around your jet in the chase view, the camera now glides smoothly back to its normal position behind the jet after 1.8 seconds without moving it. It eases in gently, sweeps home the short way round (even after a full orbit) and settles softly, with no snapping.",
+      "It never pulls the view away while you're still looking: as long as you hold the right mouse button (or the middle button, or keep your finger on the touch look area), the camera stays exactly where you put it. The 1.8-second timer only starts once you let go.",
+      "The recenter only applies to your own jet in flight. The cockpit view, the spectator camera and replays keep the view where you leave it.",
+    ],
+  },
+  {
     version: '1.9.1',
     date: '2026-09-26',
     title: "Giant mountains",

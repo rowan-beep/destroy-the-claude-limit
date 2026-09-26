@@ -6,7 +6,10 @@ import * as THREE from 'three';
 import type { Aircraft } from '../aircraft/aircraft';
 import type { Missile } from '../weapons/missile';
 import { DEG } from '../core/constants';
-import { clamp, damp } from '../core/math';
+import { clamp, damp, smoothstep } from '../core/math';
+
+/** seconds without camera input before the chase view recenters */
+const LOOK_IDLE = 1.8;
 import { surfaceHeight } from '../world/terrain';
 
 export type CameraMode = 'cockpit' | 'chase' | 'flyby' | 'target' | 'weapon' | 'death';
@@ -25,6 +28,15 @@ export class CameraRig {
   lookPitch = 0;
   private lookYawSm = 0;
   private lookPitchSm = 0;
+  /**
+   * Chase auto-recenter: set for the frame by the player's flight update.
+   * After LOOK_IDLE s with no look input (and the look button released) the
+   * orbit eases smoothly back to the normal view behind the jet.
+   */
+  autoCenter = false;
+  /** the look button (right mouse / touch drag) is being held */
+  lookHeld = false;
+  private lookIdle = 0;
   chaseDist = 1;
   fovBase = 70;
   zoom = 1;
@@ -67,9 +79,34 @@ export class CameraRig {
   }
 
   addLook(dx: number, dy: number): void {
+    if (dx !== 0 || dy !== 0) this.lookIdle = 0;
     this.lookYaw -= dx;
     this.lookPitch = clamp(this.lookPitch - dy, -80 * DEG, 85 * DEG);
     if (this.mode === 'cockpit') this.lookYaw = clamp(this.lookYaw, -165 * DEG, 165 * DEG);
+  }
+
+  private recenter(dt: number): void {
+    if (this.lookHeld) {
+      this.lookIdle = 0;
+      return;
+    }
+    this.lookIdle += dt;
+    if (this.lookYaw === 0 && this.lookPitch === 0) return;
+    // take the short way round after a full orbit (shift both so nothing jumps)
+    const wrap = Math.round(this.lookYaw / (2 * Math.PI)) * 2 * Math.PI;
+    if (wrap !== 0) {
+      this.lookYaw -= wrap;
+      this.lookYawSm -= wrap;
+    }
+    // ease in over half a second, then glide home and settle softly
+    const k = smoothstep(LOOK_IDLE, LOOK_IDLE + 0.6, this.lookIdle);
+    if (k <= 0) return;
+    this.lookYaw = damp(this.lookYaw, 0, 2.6 * k, dt);
+    this.lookPitch = damp(this.lookPitch, 0, 2.6 * k, dt);
+    if (Math.abs(this.lookYaw) < 1e-4 && Math.abs(this.lookPitch) < 1e-4) {
+      this.lookYaw = 0;
+      this.lookPitch = 0;
+    }
   }
 
   addShake(amount: number): void {
@@ -81,6 +118,8 @@ export class CameraRig {
     const fm = ac.fm;
     this.shakeT += dt;
     this.shake = Math.max(0, this.shake - dt * 1.6);
+    if (this.autoCenter && this.mode === 'chase') this.recenter(dt);
+    this.autoCenter = false;
     this.lookYawSm = damp(this.lookYawSm, this.lookYaw, 14, dt);
     this.lookPitchSm = damp(this.lookPitchSm, this.lookPitch, 14, dt);
     let fov = this.fovBase / this.zoom;

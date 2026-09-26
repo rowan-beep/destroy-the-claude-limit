@@ -3,6 +3,12 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v1.9.2 — Chase camera auto-recenter (2026-09-26)
+
+- Chase camera auto-recenter: when you look around your jet in the chase view, the camera now glides smoothly back to its normal position behind the jet after 1.8 seconds without moving it. It eases in gently, sweeps home the short way round (even after a full orbit) and settles softly, with no snapping.
+- It never pulls the view away while you're still looking: as long as you hold the right mouse button (or the middle button, or keep your finger on the touch look area), the camera stays exactly where you put it. The 1.8-second timer only starts once you let go.
+- The recenter only applies to your own jet in flight. The cockpit view, the spectator camera and replays keep the view where you leave it.
+
 ## v1.9.1 — Giant mountains (2026-09-26)
 
 - Frostfall Strait mountains rebuilt: no more spiky knife-edge peaks. The mountains are now broad and massive, like Mount Fuji: huge snow-capped cones 20 to 40 miles across, with long sweeping concave flanks rising to a small summit crater, and gullies and ribs running down their sides.
