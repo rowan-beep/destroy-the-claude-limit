@@ -41,6 +41,13 @@ export function runModelTest(container: HTMLElement): void {
     ac.fm.rpm.fill(1);
     ac.fm.ab.fill(q.get('ab') ? 1 : 0);
     if (gearUp) ac.fm.pos.y += 3;
+    // pose the thrust-vectoring nozzles (radians): tvc=pitch,yaw,roll
+    if (q.get('tvc')) {
+      const [np, ny, nr] = q.get('tvc')!.split(',').map(Number);
+      ac.fm.nozzle.p = np || 0;
+      ac.fm.nozzle.y = ny || 0;
+      ac.fm.nozzle.roll = nr || 0;
+    }
     const t0 = performance.now();
     const v = createAirframe(ac);
     (window as unknown as { __build: number[] }).__build = [...((window as unknown as { __build?: number[] }).__build ?? []), Math.round(performance.now() - t0)];

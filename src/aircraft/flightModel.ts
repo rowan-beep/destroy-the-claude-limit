@@ -344,6 +344,9 @@ export class FlightModel {
     // limit-Mach barrier (inlet / structural limit) so the jet tops out at its spec
     const over = M - (s.maxMach - 0.04);
     if (over > 0) cd0 += 0.9 * over * over + 0.05 * over;
+    // past the rated top speed the inlets and structure say no, whatever the thrust
+    const beyond = M - s.maxMach;
+    if (beyond > 0) cd0 += 6 * beyond * beyond + 0.3 * beyond;
     // max-IAS (dynamic pressure) limit: keeps sea-level dashes realistic
     const casKts = this.cas / 0.514444;
     const iasOver = casKts - (s.maxIasKts - 25);

@@ -267,7 +267,7 @@ export class HudPainter {
     this.text(`M ${fm.mach.toFixed(2)}`, left, midY + 22, GREEN, 12);
     this.text(`G ${fm.nz.toFixed(1)}`, left, midY + 38, fm.nz > p.spec.gLimit - 0.3 ? AMBER : GREEN, 12);
     this.text(`α ${(fm.alpha / DEG).toFixed(1)}`, left, midY + 54, GREEN, 12);
-    if (g.gOverride) this.text('G LIM OVRD', left, midY + 70, AMBER, 11);
+    if (g.gOverride) this.text(p.spec.tvcDeg > 0 ? 'SMV · TVC' : 'G LIM OVRD', left, midY + 70, AMBER, 11);
     const alt = Math.round(fm.pos.y / FT);
     const altS = alt >= 1000 ? `${Math.floor(alt / 1000)},${String(alt % 1000).padStart(3, '0')}` : String(alt);
     c.strokeRect(right - 62, midY - 10, 64, 20);

@@ -75,8 +75,8 @@ const FIN: WingStation[] = [
 ];
 const RUDDER = { h0: 0.55, h1: 3.1, hinge: (h: number) => 8.45 + h * 0.06 };
 const VENTRAL: WingStation[] = [
-  { x: 0, le: 6.4, te: 8.5, t: 0.05 },
-  { x: 0.85, le: 7.25, te: 8.55, t: 0.04 },
+  { x: 0, le: 6.5, te: 8.5, t: 0.05 },
+  { x: 0.62, le: 7.15, te: 8.5, t: 0.04 },
 ];
 const BOOM_X = 2.0;
 const NAC_X = 1.25;
@@ -272,7 +272,7 @@ export function buildSu35(v: AirframeVisual): void {
   // --- engine nacelles with raked intakes: rectangular up front, round at the nozzles
   const NW = curve([[-3.4, 0.45], [-1.0, 0.47], [4.0, 0.5], [7.4, 0.55], [8.6, 0.56]]);
   const NH = curve([[-3.4, 0.56], [-1.0, 0.56], [4.0, 0.55], [7.4, 0.56], [8.6, 0.56]]);
-  const NY = curve([[-3.4, -0.86], [-1.0, -0.86], [4.0, -0.84], [8.6, -0.8]]);
+  const NY = curve([[-3.4, -0.86], [-1.0, -0.86], [3.0, -0.72], [6.0, -0.42], [8.6, -0.22]]);
   const NR = curve([[-3.4, 0.1], [0.0, 0.14], [4.0, 0.3], [7.4, 0.5], [8.6, 0.56]]);
   const nacLoop = (z: number) => rrect(NAC_X, NY(z), NW(z), NH(z), Math.min(NR(z), NW(z) - 0.001, NH(z) - 0.001), 3);
   const nac = intake({
@@ -351,7 +351,8 @@ export function buildSu35(v: AirframeVisual): void {
   const ball = new THREE.Mesh(new THREE.SphereGeometry(0.15, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2), pm.glass);
   ball.position.set(0.24, 0.5, -8.35);
   v.body.add(ball);
-  skin(lathe([[0.17, -8.6], [0.18, -8.35], [0.16, -8.1], [0.004, -7.95]], 18, 0.24, 0.47));
+  // (below the glareshield line for the pilot: hidden in the cockpit view)
+  v.hideInCockpit.push(ball, skin(lathe([[0.17, -8.6], [0.18, -8.35], [0.16, -8.1], [0.004, -7.95]], 18, 0.24, 0.47)));
 
   // --- wing: full-span leading-edge flaps, flaperons -----------------------------------
   const panels = wingPanels(
@@ -393,14 +394,14 @@ export function buildSu35(v: AirframeVisual): void {
     const top = new THREE.Vector3(3.35, 0, 0).applyMatrix4(m);
     skin(lathe([[0.004, 7.95], [0.05, 8.1], [0.06, 8.6], [0.055, 9.3], [0.004, 9.45]], 12, top.x, top.y));
     v.addNavLight(new THREE.Vector3(top.x, top.y + 0.03, 9.3), 'formation');
-    const vm = finMatrix(BOOM_X * side, -0.22, 168, side);
+    const vm = finMatrix(BOOM_X * side, -0.2, 160, side);
     skin(wing({ sections: VENTRAL, chordPts: 20, spanSub: 3, tip: 'flat', root: 'flat', matrix: vm }));
   }
 
   // --- engines: thrust-vectoring nozzles on gimbals ------------------------------------------
   for (const sx of [-1, 1] as const) {
     const pivot = new THREE.Group();
-    pivot.position.set(NAC_X * sx, -0.8, NOZZLE_Z);
+    pivot.position.set(NAC_X * sx, -0.22, NOZZLE_Z);
     v.body.add(pivot);
     const nz = nozzle({ cx: 0, cy: 0, z0: 0, z1: 1.35, r0: 0.55, r1: 0.47, petals: 16, saw: 0.05 });
     v.addMesh(nz.outer, pm.nozzle, pivot);
@@ -433,8 +434,8 @@ export function buildSu35(v: AirframeVisual): void {
   v.addMesh(join([
     formationStrip(new THREE.Vector3(0.74, 0.22, -6.5), new THREE.Vector3(1, 0.25, 0), new THREE.Vector3(0, 0, 1), 0.5, 0.035),
     formationStrip(new THREE.Vector3(-0.74, 0.22, -6.5), new THREE.Vector3(-1, 0.25, 0), new THREE.Vector3(0, 0, 1), 0.5, 0.035),
-    formationStrip(new THREE.Vector3(NAC_X + 0.46, -0.8, 5.0), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 1), 0.6, 0.035),
-    formationStrip(new THREE.Vector3(-NAC_X - 0.46, -0.8, 5.0), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 1), 0.6, 0.035),
+    formationStrip(new THREE.Vector3(NAC_X + 0.48, -0.56, 5.0), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 1), 0.6, 0.035),
+    formationStrip(new THREE.Vector3(-NAC_X - 0.48, -0.56, 5.0), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 1), 0.6, 0.035),
   ]), pm.formation, v.body, false);
   v.addNavLight(new THREE.Vector3(-7.02, 0.02, wle(7.0) - 0.3), 'red');
   v.addNavLight(new THREE.Vector3(7.02, 0.02, wle(7.0) - 0.3), 'green');
@@ -444,7 +445,7 @@ export function buildSu35(v: AirframeVisual): void {
   // --- landing gear: single nose wheel, big mains retracting forward into the centre section
   buildGearSet(v, {
     nose: { top: new THREE.Vector3(0, -0.72, -6.55), axle: new THREE.Vector3(0, -2.3 + 0.33, -6.9), r: 0.33, w: 0.22, twin: false, retract: 'forward' },
-    mains: { top: new THREE.Vector3(2.12, -0.34, 0.8), axle: new THREE.Vector3(2.2, -2.3 + 0.5, 1.3), r: 0.5, w: 0.3, retract: 'forward', outboard: 0.1 },
+    mains: { top: new THREE.Vector3(2.12, -0.34, 1.0), axle: new THREE.Vector3(2.2, -2.3 + 0.5, 1.5), r: 0.5, w: 0.3, retract: 'forward', outboard: 0.1 },
     doorColor: '#9fb3c0',
   });
 }

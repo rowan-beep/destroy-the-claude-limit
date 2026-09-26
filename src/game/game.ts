@@ -916,7 +916,16 @@ export class Game implements ModeHost {
     }
     if (inp.pressed('gOverride')) {
       this.gOverride = !this.gOverride;
-      this.message(this.gOverride ? `G-LIMITER OVERRIDE: ${p.spec.gOverride} G AVAILABLE` : `G-LIMITER ON: ${p.spec.gLimit} G`, this.gOverride ? 'warn' : 'info', 3);
+      const tvc = p.spec.tvcDeg > 0;
+      this.message(
+        this.gOverride
+          ? tvc
+            ? `SUPERMANOEUVRE: ${p.spec.gOverride} G, THRUST VECTORING TO 70° AOA`
+            : `G-LIMITER OVERRIDE: ${p.spec.gOverride} G AVAILABLE`
+          : `G-LIMITER ON: ${p.spec.gLimit} G${tvc ? `, ${p.spec.alphaMaxDeg}° AOA` : ''}`,
+        this.gOverride ? 'warn' : 'info',
+        3,
+      );
     }
     if (inp.pressed('dropTanks')) {
       if (p.dropTanks(this.sim)) this.message('FUEL TANKS JETTISONED', 'info', 2);

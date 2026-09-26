@@ -3,6 +3,19 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v1.7.1 — Su-35S complete (2026-09-26)
+
+- The Sukhoi Su-35S is now COMPLETE: physics, handling, looks, cockpit and weapons have all been checked against the real jet's numbers and against the other three jets.
+- Performance now matches the published figures: top speed Mach 2.25 (measured 2.27), service ceiling 59,060 ft (measured 59,000), about 1,950 NM of range on internal fuel. Mach 0.9 to 1.6 at 30,000 ft in 36 s; climb to 36,000 ft in about a minute.
+- Aerodynamics tuned to the Flanker: less induced and supersonic drag (it cruises and climbs high the way the real jet does) and a little more maximum lift from its big wing and leading-edge flaps. It turns with the F-15EX and Typhoon on wing alone, 18-19 deg/s sustained and about 23 deg/s instantaneous at mid speeds, and beats them all once thrust vectoring comes in at low speed.
+- Top-speed limit: every jet now hits a firm barrier just past its rated top speed (the Su-35S used to creep past Mach 2.3). The other jets are unchanged.
+- Supermanoeuvre mode: when the Su-35S pilot switches on the override (L), the message now reads SUPERMANOEUVRE and the HUD shows SMV · TVC, so you know the 70 deg angle-of-attack envelope and thrust vectoring are open. Switch it off and the jet goes back to its 34 deg limit.
+- Takeoff and landing: the Su-35S lifts off at about 190 kt (1,600 ft on afterburner, 2,900 ft on dry power), approaches at 160 kt, and the landing indexer is tuned to its 12 deg on-speed angle of attack.
+- Model fixes: the engine nacelles now slope up toward the tail like the real Flanker, so the nozzles sit at wing level and the tail clears the runway in the landing flare. Ventral fins are shorter and canted, main gear moved to match.
+- Weapons now hang where they should: every wing pylon sits under the wing at mid-chord (the outer ones used to hang ahead of the leading edge), and the wingtip R-74Ms sit on the tip launch rails.
+- Cockpit: the OLS-35 sensor ball no longer blocks the bottom of the HUD view (the glareshield hides it, as in the real jet). Checked both 15 in displays, the HUD, and the weapon and stores readouts for the R-77M, R-74M and GSh-30-1.
+- Checked: no wobble after rolling out of turns, steady aim tracking, clean recovery from 70 deg AoA in about 1.4 s, and fair duels against every jet (roughly even with the Typhoon, a little behind the F-15EX, ahead of the Super Hornet).
+
 ## v1.7.0 — Sukhoi Su-35S (2026-09-26)
 
 - New jet: SUKHOI SU-35S. Single-seat, twin-engine, super-manoeuvrable air-superiority fighter: 71.9 ft long, 49 ft span, 19.4 ft tall, 76,059 lb max takeoff weight, two Saturn AL-41F1S afterburning turbofans (32,000 lbf each), Mach 2.25, 59,060 ft ceiling, 1,944 NM range, same G limits and G effects as the other jets.

@@ -300,7 +300,7 @@ export function fmtTtg(sec: number): string {
 }
 
 /** On-speed approach angle of attack (deg) for the AoA bracket / indexer. */
-export const ONSPEED_AOA: Record<string, number> = { F15EX: 8.5, FA18EF: 8.1, TYPHOON: 11, SU35: 10 };
+export const ONSPEED_AOA: Record<string, number> = { F15EX: 8.5, FA18EF: 8.1, TYPHOON: 11, SU35: 12 };
 
 export interface LandingGrade {
   grade: 'GREASER' | 'GOOD' | 'FIRM' | 'HARD' | 'OFF RUNWAY';
