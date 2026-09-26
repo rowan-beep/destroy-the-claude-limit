@@ -27,7 +27,8 @@ export interface GciSite {
 
 export const GCI_SITES: GciSite[] = AIRFIELDS.map((f) => {
   const p = fromRunwayLocal(f, -300, 700);
-  return { team: f.team, name: f.name + ' GCI', pos: new THREE.Vector3(p.x, f.elev + 34, p.z), rangeNm: 190 };
+  // the radar head sits on high ground / a mast above the field
+  return { team: f.team, name: f.name + ' GCI', pos: new THREE.Vector3(p.x, f.elev + 260, p.z), rangeNm: 190 };
 });
 
 export class TeamPicture {

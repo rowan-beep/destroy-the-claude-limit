@@ -183,23 +183,28 @@ export class CloudSystem {
       const clusters = hash2f(i, j, 7) < this.coverage ? 1 + (hash2f(i, j, 9) < 0.35 ? 1 : 0) : 0;
       for (let c = 0; c < clusters; c++) {
         const rng = new Rng(hash2i(i, j, 100 + c));
-        const px = cx + rng.range(-0.45, 0.45) * CELL;
-        const pz = cz + rng.range(-0.45, 0.45) * CELL;
-        const base = rng.range(1700, 2700);
-        const radius = rng.range(1500, 4200);
-        const height = rng.range(500, 1500);
-        const n = Math.floor(rng.range(14, 30) * this.density);
+        const px = cx + rng.range(-0.42, 0.42) * CELL;
+        const pz = cz + rng.range(-0.42, 0.42) * CELL;
+        const base = rng.range(1800, 2600);
+        const rx = rng.range(1400, 3600);
+        const rz = rx * rng.range(0.6, 1.0);
+        const height = rng.range(700, 1700) * (rx / 2500);
+        const n = Math.floor(rng.range(26, 48) * this.density);
         for (let k = 0; k < n; k++) {
+          // sample the upper half of an ellipsoid, denser toward the core
           const a = rng.range(0, Math.PI * 2);
-          const r = Math.sqrt(rng.float()) * radius;
-          const hy = Math.pow(rng.float(), 1.4) * height * (1 - (r / radius) * 0.6);
-          const size = rng.range(420, 950) * (1 - (hy / height) * 0.35) * (0.8 + 0.4 * (1 - r / radius));
+          const rr = Math.pow(rng.float(), 0.7);
+          const hy = Math.pow(rng.float(), 1.6) * height * (1 - rr * rr * 0.7);
+          const size = rng.range(520, 1050) * (1 - (hy / height) * 0.35) * (0.75 + 0.35 * (1 - rr));
+          const ox = Math.cos(a) * rr * rx;
+          const oz = Math.sin(a) * rr * rz;
+          const hf = hy / Math.max(1, height);
           p.push({
-            x: px + Math.cos(a) * r * 1.2,
-            y: base + hy + size * 0.3,
-            z: pz + Math.sin(a) * r * 0.8,
+            x: px + ox,
+            y: base + hy + size * 0.28,
+            z: pz + oz,
             size,
-            shade: 0.8 + 0.45 * (hy / height),
+            shade: 0.62 + 0.55 * hf + 0.1 * (1 - rr),
             rot: rng.range(0, Math.PI * 2),
           });
         }

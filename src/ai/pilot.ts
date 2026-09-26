@@ -162,6 +162,23 @@ export class AIPilot {
       this.knownSource = 'own';
       return;
     }
+    // RWR: an enemy radar painting us gives away its bearing (range unknown)
+    if (!this.target || this.knownSource === 'none') {
+      for (const th of ac.rwr.threats.values()) {
+        if (!th.source.alive || th.source.team === ac.team) continue;
+        const dir = _tmp.subVectors(th.source.fm.pos, ac.fm.pos);
+        const d = dir.length();
+        dir.divideScalar(Math.max(d, 1));
+        const guess = Math.min(d, 25 * NM);
+        this.target = th.source;
+        this.knownPos.copy(ac.fm.pos).addScaledVector(dir, guess);
+        this.knownPos.y = Math.max(this.knownPos.y, ac.fm.pos.y);
+        this.knownVel.set(0, 0, 0);
+        this.knownTime = now;
+        this.knownSource = 'team';
+        break;
+      }
+    }
     // team picture (GCI / wingmen datalink)
     let pt = null as null | { target: Aircraft; pos: THREE.Vector3; vel: THREE.Vector3; time: number };
     for (const t of this.picture.tracksFor(ac.team)) {
@@ -1097,13 +1114,25 @@ export class AIPilot {
     if (V < 30) return;
     const vhat = _tmp.copy(fm.vel).divideScalar(V);
     const look = V * sk.terrainLookahead;
-    const clearance = Math.max(60, sk.minAgl * 0.45);
+    const clearance = Math.max(110, sk.minAgl * 0.5);
     let hit = sim.grid.raycast(fm.pos.x, fm.pos.y, fm.pos.z, vhat.x, vhat.y, vhat.z, look, clearance);
     // also probe along the desired direction
     if (!isFinite(hit)) {
       const d = this.desired;
       const hitD = sim.grid.raycast(fm.pos.x, fm.pos.y, fm.pos.z, d.x, d.y, d.z, look * 0.7, clearance);
       if (isFinite(hitD)) hit = hitD * 1.3;
+    }
+    // exact terrain probes along the predicted path (the coarse grid can miss cliffs)
+    if (!isFinite(hit) && fm.pos.y < 6500) {
+      for (const tAhead of [1, 2, 3.5, 5]) {
+        const px = fm.pos.x + fm.vel.x * tAhead, pz = fm.pos.z + fm.vel.z * tAhead;
+        const py = fm.pos.y + fm.vel.y * tAhead;
+        const gh = Math.max(0, terrainHeight(px, pz));
+        if (py < gh + clearance * 0.8) {
+          hit = V * tAhead;
+          break;
+        }
+      }
     }
     const low = fm.agl < clearance && vhat.y < 0.05;
     const sea = fm.pos.y < 80 && vhat.y < 0;

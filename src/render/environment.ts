@@ -248,6 +248,38 @@ export class Environment {
     };
   }
 
+  private envTarget: THREE.WebGLRenderTarget | null = null;
+
+  /** Image-based lighting from the current sky so metal and paint reflect it. */
+  buildEnvMap(renderer: THREE.WebGLRenderer): void {
+    const p = this.preset;
+    const scene = new THREE.Scene();
+    const mat = new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      uniforms: {
+        top: { value: new THREE.Color().setRGB(...p.zenith, THREE.SRGBColorSpace) },
+        mid: { value: new THREE.Color().setRGB(...p.horizon, THREE.SRGBColorSpace) },
+        bot: { value: new THREE.Color().setRGB(0.36, 0.3, 0.26, THREE.SRGBColorSpace) },
+        sunDir: { value: this.sunDir.clone() },
+        sunCol: { value: new THREE.Color().setRGB(...p.sunColor, THREE.SRGBColorSpace) },
+      },
+      vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+      fragmentShader:
+        'uniform vec3 top; uniform vec3 mid; uniform vec3 bot; uniform vec3 sunDir; uniform vec3 sunCol; varying vec3 vD;' +
+        'void main(){ vec3 d = normalize(vD); vec3 c = d.y > 0.0 ? mix(mid, top, pow(d.y, 0.5)) : mix(mid * 0.8, bot, clamp(-d.y * 4.0, 0.0, 1.0));' +
+        ' c += sunCol * pow(max(dot(d, sunDir), 0.0), 64.0) * 6.0; gl_FragColor = vec4(c, 1.0); }',
+    });
+    scene.add(new THREE.Mesh(new THREE.SphereGeometry(10, 32, 16), mat));
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const rt = pmrem.fromScene(scene, 0);
+    pmrem.dispose();
+    this.envTarget?.dispose();
+    this.envTarget = rt;
+    this.scene.environment = rt.texture;
+    this.scene.environmentIntensity = 0.55;
+    mat.dispose();
+  }
+
   /** How bright the ambient scene is (used for cloud shading). */
   get daylight(): number {
     return clamp01(this.preset.sunElev / 30) * 0.6 + 0.4;

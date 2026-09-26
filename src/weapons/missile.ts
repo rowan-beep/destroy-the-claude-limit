@@ -274,7 +274,7 @@ export class Missile {
         if (angle < 7 * DEG && dr < 450) {
           d.judged.add(this.id);
           const beaming = Math.abs(radialVelocity(t, this.pos)) < 90;
-          const p = (beaming ? 0.5 : 0.1) * d.strength * (1 - s.ccm) * (1 + t.spec.ew.jamming);
+          const p = (beaming ? 0.3 : 0.05) * d.strength * (1 - s.ccm) * (1 + t.spec.ew.jamming);
           if (Math.random() < p) {
             this.mode = 'DECOY';
             this.decoy = d;

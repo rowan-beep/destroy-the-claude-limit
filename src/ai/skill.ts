@@ -87,7 +87,7 @@ export function skillFromLevel(level: number, label: string): AISkill {
     weapons: { aim120: true, aim9x: true, gun: true },
     leadIntercept: l >= 0.3,
     teamwork: l >= 0.9 ? 1 : l >= 0.6 ? 0.4 : 0,
-    minAgl: lerp(1200, 150, l),
+    minAgl: lerp(1200, 220, l),
     terrainLookahead: lerp(12, 6, l),
     exploit: l >= 0.9,
     gentleBank: lerp(35, 80, l),

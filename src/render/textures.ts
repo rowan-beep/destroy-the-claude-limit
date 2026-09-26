@@ -114,15 +114,16 @@ export function getCloudPuffTexture(): THREE.Texture {
   const img = g.createImageData(size, size);
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      const u = (x + 0.5) / size * 2 - 1;
-      const v = (y + 0.5) / size * 2 - 1;
+      const u = ((x + 0.5) / size) * 2 - 1;
+      const v = ((y + 0.5) / size) * 2 - 1;
       const r = Math.sqrt(u * u + v * v);
-      const nn = n.fbm(u * 2.2 + 3, v * 2.2 - 1, 5) * 0.5 + 0.5;
-      let a = 1 - r * (0.85 + 0.35 * nn);
-      a = Math.max(0, Math.min(1, a * 2.2));
-      a = a * a * (3 - 2 * a);
-      // fake self-shadowing: brighter at top of the puff
-      const shade = 0.78 + 0.22 * (1 - (v * 0.5 + 0.5)) + 0.08 * nn;
+      const nn = n.fbm(u * 2.6 + 3, v * 2.6 - 1, 5) * 0.5 + 0.5;
+      // soft gaussian core with a billowy, noisy edge
+      const edge = r * (0.78 + 0.5 * nn);
+      let a = Math.exp(-edge * edge * 3.2) - 0.04;
+      a = Math.max(0, Math.min(1, a * 1.35));
+      // fake self-shadowing: lit from above, darker underneath, cauliflower texture
+      const shade = 0.72 + 0.2 * (1 - (v * 0.5 + 0.5)) + 0.12 * (nn - 0.5);
       const i = (y * size + x) * 4;
       img.data[i] = Math.min(255, shade * 255);
       img.data[i + 1] = Math.min(255, shade * 255);
