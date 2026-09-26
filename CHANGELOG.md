@@ -3,6 +3,12 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v1.7.6 — Smoother hangar camera (2026-09-26)
+
+- Hangar camera: the drag direction is reversed (both left/right and up/down).
+- Smoother camera: moves glide with gentler easing, and a quick flick keeps the view turning for a moment before it slows to a stop. Holding still before you let go stops it dead.
+- Zoom in much closer: scroll (or pinch) right up to the jet to see the cockpit, missiles and nozzles up close. The camera centres on the jet as you zoom in and never goes inside the airframe.
+
 ## v1.7.5 — Hangar camera (2026-09-26)
 
 - Look around the jet in the hangar: on the main menu (and the customize screen) drag anywhere on the empty space around the jet to orbit the camera, from low beside the jet to straight overhead. Scroll the mouse wheel (or pinch on a touch screen) to zoom in close or back out. Double-click to reset the view.

@@ -12,7 +12,7 @@ import { AircraftType } from '../../aircraft/specs';
 
 export class Hangar {
   readonly scene = new THREE.Scene();
-  readonly camera = new THREE.PerspectiveCamera(32, 1, 0.5, 600);
+  readonly camera = new THREE.PerspectiveCamera(32, 1, 0.1, 600);
   private jets = new Map<AircraftType, { vis: AirframeVisual; ac: Aircraft }>();
   private current: AircraftType = 'F15EX';
   private angle = 0.6;
@@ -30,6 +30,10 @@ export class Hangar {
   private drag: { id: number; x: number; y: number } | null = null;
   private pinch: { ids: [number, number]; d0: number; z0: number } | null = null;
   private pointers = new Map<number, { x: number; y: number }>();
+  /** drag momentum (rad/s) so the view glides to a stop after you let go */
+  private vYaw = 0;
+  private vPitch = 0;
+  private lastMove = 0;
   private turntable: THREE.Group;
   private envMap: THREE.Texture | null = null;
   loadoutId: string | null = null;
@@ -120,6 +124,8 @@ export class Hangar {
         this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
       }
       this.userView = true;
+      this.vYaw = this.vPitch = 0;
+      this.lastMove = performance.now();
       e.preventDefault();
     });
     window.addEventListener('pointermove', (e) => {
@@ -132,7 +138,7 @@ export class Hangar {
         const b = this.pointers.get(this.pinch.ids[1]);
         if (a && b) {
           const d = Math.hypot(a.x - b.x, a.y - b.y);
-          this.zoom = clampN(this.pinch.z0 * (this.pinch.d0 / Math.max(20, d)), 0.35, 2.2);
+          this.zoom = clampN(this.pinch.z0 * (this.pinch.d0 / Math.max(20, d)), ZOOM_MIN, ZOOM_MAX);
         }
         return;
       }
@@ -141,14 +147,26 @@ export class Hangar {
         const dy = e.clientY - this.drag.y;
         this.drag.x = e.clientX;
         this.drag.y = e.clientY;
-        this.yaw -= dx * 0.008;
-        this.pitch = clampN(this.pitch + dy * 0.006, -0.02, 1.45);
+        // the jet follows your hand: drag right to swing the camera left around it
+        const dyaw = dx * 0.006;
+        const dpitch = -dy * 0.005;
+        this.yaw += dyaw;
+        this.pitch = clampN(this.pitch + dpitch, -0.02, 1.45);
+        const now = performance.now();
+        const dtm = Math.max(0.008, (now - this.lastMove) / 1000);
+        this.lastMove = now;
+        this.vYaw = this.vYaw * 0.6 + (dyaw / dtm) * 0.4;
+        this.vPitch = this.vPitch * 0.6 + (dpitch / dtm) * 0.4;
       }
     });
     const up = (e: PointerEvent) => {
       this.pointers.delete(e.pointerId);
       if (this.pinch && (e.pointerId === this.pinch.ids[0] || e.pointerId === this.pinch.ids[1])) this.pinch = null;
-      if (this.drag?.id === e.pointerId) this.drag = null;
+      if (this.drag?.id === e.pointerId) {
+        this.drag = null;
+        // no fling after holding still
+        if (performance.now() - this.lastMove > 80) this.vYaw = this.vPitch = 0;
+      }
     };
     window.addEventListener('pointerup', up);
     window.addEventListener('pointercancel', up);
@@ -157,7 +175,7 @@ export class Hangar {
       (e) => {
         if (!this.onBackground(e)) return;
         this.userView = true;
-        this.zoom = clampN(this.zoom * Math.exp(e.deltaY * 0.0012), 0.35, 2.2);
+        this.zoom = clampN(this.zoom * Math.exp(clampN(e.deltaY, -120, 120) * 0.0015), ZOOM_MIN, ZOOM_MAX);
       },
       { passive: true },
     );
@@ -172,6 +190,7 @@ export class Hangar {
     this.yaw = 0.75;
     this.pitch = 0.2;
     this.zoom = 1;
+    this.vYaw = this.vPitch = 0;
   }
 
   private ensure(type: AircraftType): { vis: AirframeVisual; ac: Aircraft } {
@@ -224,16 +243,26 @@ export class Hangar {
     j.vis.root.position.set(0, j.ac.spec.gear.height + 0.12, 0);
     j.vis.root.quaternion.identity();
     const len = j.ac.spec.length;
-    // ease toward the requested view
-    const k = 1 - Math.exp(-dt * 12);
+    // momentum after a fling, fading out
+    if (!this.drag && (Math.abs(this.vYaw) > 1e-3 || Math.abs(this.vPitch) > 1e-3)) {
+      this.yaw += this.vYaw * dt;
+      this.pitch = clampN(this.pitch + this.vPitch * dt, -0.02, 1.45);
+      const f = Math.exp(-dt * 4);
+      this.vYaw *= f;
+      this.vPitch *= f;
+    }
+    // ease toward the requested view (soft, so drags and zooms glide)
+    const k = 1 - Math.exp(-dt * 7);
     this.yawS += (this.yaw - this.yawS) * k;
     this.pitchS += (this.pitch - this.pitchS) * k;
-    this.zoomS += (this.zoom - this.zoomS) * k;
-    const d = (len * 1.9 + 6) * this.zoomS;
-    // frame the jet slightly right of centre so the UI columns don't cover it
-    // (less so when zoomed in close)
-    const tx = -2 * Math.min(1, this.zoomS);
-    const ty = 1.8;
+    this.zoomS += (this.zoom - this.zoomS) * (1 - Math.exp(-dt * 6));
+    // never inside the airframe: at least ~0.42 of its length from the centre
+    const d = Math.max(len * 0.42, (len * 1.9 + 6) * this.zoomS);
+    // frame the jet slightly right of centre so the UI columns don't cover it;
+    // zooming in re-centres on the jet itself
+    const close = clampN((this.zoomS - ZOOM_MIN) / (1 - ZOOM_MIN), 0, 1);
+    const tx = -2 * close;
+    const ty = 1.8 + (j.ac.spec.gear.height - 1.8) * (1 - close);
     const bob = this.userView ? 0 : Math.sin(this.t * 0.2) * 0.6;
     const cp = Math.cos(this.pitchS);
     this.camera.position.set(tx + Math.sin(this.yawS) * cp * d, Math.max(0.4, ty + Math.sin(this.pitchS) * d + bob), -Math.cos(this.yawS) * cp * d);
@@ -247,6 +276,10 @@ export class Hangar {
     this.renderer.toneMapping = tm;
   }
 }
+
+/** zoom factor limits: right up against the jet .. well back */
+const ZOOM_MIN = 0.12;
+const ZOOM_MAX = 2.2;
 
 function clampN(v: number, a: number, b: number): number {
   return Math.max(a, Math.min(b, v));

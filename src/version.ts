@@ -10,6 +10,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '1.7.6',
+    date: '2026-09-26',
+    title: 'Smoother hangar camera',
+    notes: [
+      "Hangar camera: the drag direction is reversed (both left/right and up/down).",
+      "Smoother camera: moves glide with gentler easing, and a quick flick keeps the view turning for a moment before it slows to a stop. Holding still before you let go stops it dead.",
+      "Zoom in much closer: scroll (or pinch) right up to the jet to see the cockpit, missiles and nozzles up close. The camera centres on the jet as you zoom in and never goes inside the airframe.",
+    ],
+  },
+  {
     version: '1.7.5',
     date: '2026-09-26',
     title: 'Hangar camera',
