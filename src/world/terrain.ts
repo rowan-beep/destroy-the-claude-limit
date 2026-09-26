@@ -436,7 +436,7 @@ export function surfaceColor(x: number, z: number, info: TerrainInfo, slope: num
     out.r = 0.58 + 0.06 * vary;
     out.g = 0.4 + 0.05 * vary;
     out.b = 0.3 + 0.04 * vary;
-    mix3(out, 0.74, 0.7, 0.62, smoothstep(0.1, 0.8, n2) * 0.5);
+    mix3(out, 0.7, 0.63, 0.53, smoothstep(0.1, 0.8, n2) * 0.45);
   } else {
     // Samos: warm red-brown earth like the reference screenshots
     out.r = 0.62 + 0.06 * vary;
@@ -456,7 +456,8 @@ export function surfaceColor(x: number, z: number, info: TerrainInfo, slope: num
   // rock on steep slopes
   const rockT = smoothstep(0.42, 0.72, slope + n3 * 0.06);
   if (rockT > 0) {
-    if (isl === 'capri') mix3(out, 0.8, 0.78, 0.72, rockT);
+    // warm, weathered limestone (not snow-white)
+    if (isl === 'capri') mix3(out, 0.74 + 0.05 * n2, 0.66 + 0.04 * n2, 0.55 + 0.03 * n2, rockT);
     else if (isl === 'skye') mix3(out, 0.3, 0.3, 0.31, rockT);
     else mix3(out, 0.52, 0.47, 0.44, rockT);
   }
