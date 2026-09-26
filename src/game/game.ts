@@ -45,6 +45,9 @@ import { enemyTypesFor } from '../aircraft/specs';
 
 export type GameState = 'menu' | 'loading' | 'playing' | 'paused' | 'map' | 'results' | 'replay';
 
+const CLOUD_DENSITY: Record<string, number> = { low: 0.5, medium: 0.75, high: 1, ultra: 1.35 };
+const CLOUD_COVER: Record<string, number> = { clear: 0.12, scattered: 0.55, broken: 0.85, overcast: 0.98 };
+
 export class Game implements ModeHost {
   readonly renderer: GameRenderer;
   readonly world: World;
@@ -138,18 +141,23 @@ export class Game implements ModeHost {
 
   applySettings(): void {
     const s = this.settings;
-    this.renderer.applySettings({
-      quality: s.graphics.quality,
-      resolutionScale: s.graphics.resolutionScale,
-      shadows: s.graphics.shadows,
-      fov: s.graphics.fov,
-    });
-    this.cam.fovBase = s.graphics.fov;
+    const g = s.graphics;
+    this.renderer.applySettings(g);
+    this.cam.fovBase = g.fov;
     this.cam.followRoll = s.gameplay.cameraRoll;
     if (this.world.ready) {
-      this.world.setQuality(WORLD_QUALITY[s.graphics.quality]);
-      this.world.clouds.setCoverage(s.graphics.clouds === 'clear' ? 0.12 : s.graphics.clouds === 'broken' ? 0.85 : 0.55);
-      this.world.env.setShadowExtent(s.graphics.quality === 'low' ? 50 : 70);
+      const w = this.world;
+      this.renderer.shadowLight = w.env.sun;
+      w.setQuality(WORLD_QUALITY[g.quality]);
+      w.clouds.setDensity(CLOUD_DENSITY[g.cloudQuality]);
+      w.clouds.setCoverage(CLOUD_COVER[g.clouds]);
+      w.clouds.shadowStrength = g.cloudShadows ? 1 : 0;
+      w.clouds.setScattering(g.lightScattering);
+      w.env.scattering = g.lightScattering;
+      w.env.sun.castShadow = g.shadows !== 'off';
+      w.env.setShadowExtent(g.shadows === 'ultra' ? 90 : g.shadows === 'low' ? 50 : 70);
+      w.lightBaker.setEnabled(g.terrainLighting);
+      this.renderer.applySettings({});
     }
     this.input.settings = { ...s.input, bindings: withGamepad(s.input.bindings) };
     this.input.rebuildMap();
@@ -178,6 +186,7 @@ export class Game implements ModeHost {
     };
     this.world.env.setTimeOfDay(cfg.timeOfDay);
     this.world.env.buildEnvMap(this.renderer.renderer);
+    this.world.bakeLighting(this.renderer.renderer);
     this.sim.sunDir.copy(this.world.env.sunDir);
     this.hookEvents();
     this.newMissionProgress();

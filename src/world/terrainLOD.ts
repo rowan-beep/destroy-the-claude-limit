@@ -5,6 +5,7 @@
 // stays visible until all of its children are ready.
 
 import * as THREE from 'three';
+import { TERRAIN_LIGHT, TERRAIN_LIGHT_GLSL } from '../render/terrainLight';
 import { MAP_SIZE } from '../core/constants';
 import { WorkerPool } from './workerPool';
 import { buildChunkIndices, ChunkResult } from './terrainGen';
@@ -235,6 +236,7 @@ export function createTerrainMaterial(): THREE.MeshLambertMaterial {
   const detail = getTerrainDetailTexture();
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.detailMap = { value: detail };
+    Object.assign(shader.uniforms, TERRAIN_LIGHT);
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec2 vDetailXZ;\nvarying float vHeight;\nvarying vec3 vWNormal;')
       .replace(
@@ -244,7 +246,20 @@ export function createTerrainMaterial(): THREE.MeshLambertMaterial {
     shader.fragmentShader = shader.fragmentShader
       .replace(
         '#include <common>',
-        '#include <common>\nuniform sampler2D detailMap;\nvarying vec2 vDetailXZ;\nvarying float vHeight;\nvarying vec3 vWNormal;',
+        '#include <common>\nuniform sampler2D detailMap;\nvarying vec2 vDetailXZ;\nvarying float vHeight;\nvarying vec3 vWNormal;\n' + TERRAIN_LIGHT_GLSL,
+      )
+      .replace(
+        '#include <lights_fragment_end>',
+        /* glsl */ `#include <lights_fragment_end>
+        {
+          // baked mountain shadows + sky visibility, and drifting cloud shadows
+          vec2 tl = terrainLight( vDetailXZ, vHeight );
+          float cs = cloudShadow( vDetailXZ, vHeight );
+          reflectedLight.directDiffuse *= tl.r * ( 1.0 - 0.62 * cs );
+          reflectedLight.indirectDiffuse *= ( 0.45 + 0.55 * tl.g ) * ( 1.0 - 0.18 * cs );
+          // shadowed snow and rock pick up the blue sky
+          reflectedLight.indirectDiffuse *= mix( vec3( 1.0 ), vec3( 0.92, 0.98, 1.12 ), ( 1.0 - tl.r ) * tlGrid.w );
+        }`,
       )
       .replace(
         '#include <color_fragment>',

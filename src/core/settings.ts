@@ -4,13 +4,7 @@ import { defaultInputSettings, InputSettings, DEFAULT_BINDINGS, Action } from '.
 import type { TimeOfDay } from '../render/environment';
 
 export interface GameSettings {
-  graphics: {
-    quality: 'low' | 'medium' | 'high' | 'ultra';
-    resolutionScale: number;
-    shadows: boolean;
-    fov: number;
-    clouds: 'clear' | 'scattered' | 'broken';
-  };
+  graphics: GraphicsOptions;
   audio: { master: number; engine: number; effects: number; warnings: number; voice: boolean };
   gameplay: {
     labels: 'off' | 'dots' | 'full';
@@ -27,11 +21,76 @@ export interface GameSettings {
   lastLoadout: Record<string, string>;
 }
 
+export type Tier = 'low' | 'medium' | 'high' | 'ultra';
+export type GraphicsPreset = Tier | 'ultra4k' | 'custom';
+
+export interface GraphicsOptions {
+  /** overall preset; becomes 'custom' as soon as a preset-driven option is changed */
+  preset: GraphicsPreset;
+  /** world detail: terrain LOD, tree distance */
+  quality: Tier;
+  /** render resolution target: native screen pixels or a fixed height (2160 = 4K) */
+  resolution: 'native' | '1080' | '1440' | '2160';
+  /** extra scale on top of the resolution (0.5 - 1) */
+  resolutionScale: number;
+  /** MSAA samples */
+  antialias: 0 | 2 | 4 | 8;
+  shadows: 'off' | Tier;
+  /** mountains cast sun shadows and darken the sky light in valleys */
+  terrainLighting: boolean;
+  /** bloom strength, 0 = off */
+  bloom: number;
+  /** sun glow through the haze, silver-lined clouds */
+  lightScattering: boolean;
+  toneMapping: 'neutral' | 'aces' | 'agx';
+  /** brightness (tone-mapping exposure) */
+  exposure: number;
+  contrast: number;
+  saturation: number;
+  vignette: boolean;
+  fov: number;
+  clouds: 'clear' | 'scattered' | 'broken' | 'overcast';
+  cloudQuality: Tier;
+  cloudShadows: boolean;
+}
+
+/** What each overall preset sets (personal picture options are left alone). */
+export const GRAPHICS_PRESETS: Record<Exclude<GraphicsPreset, 'custom'>, Partial<GraphicsOptions>> = {
+  low: { quality: 'low', resolution: 'native', resolutionScale: 0.75, antialias: 0, shadows: 'off', terrainLighting: false, bloom: 0, lightScattering: false, cloudQuality: 'low', cloudShadows: false },
+  medium: { quality: 'medium', resolution: 'native', resolutionScale: 1, antialias: 2, shadows: 'medium', terrainLighting: true, bloom: 0.35, lightScattering: true, cloudQuality: 'medium', cloudShadows: false },
+  high: { quality: 'high', resolution: 'native', resolutionScale: 1, antialias: 4, shadows: 'high', terrainLighting: true, bloom: 0.55, lightScattering: true, cloudQuality: 'high', cloudShadows: true },
+  ultra: { quality: 'ultra', resolution: 'native', resolutionScale: 1, antialias: 8, shadows: 'ultra', terrainLighting: true, bloom: 0.65, lightScattering: true, cloudQuality: 'ultra', cloudShadows: true },
+  ultra4k: { quality: 'ultra', resolution: '2160', resolutionScale: 1, antialias: 4, shadows: 'ultra', terrainLighting: true, bloom: 0.65, lightScattering: true, cloudQuality: 'ultra', cloudShadows: true },
+};
+
+export function defaultGraphics(): GraphicsOptions {
+  return {
+    preset: 'high',
+    quality: 'high',
+    resolution: 'native',
+    resolutionScale: 1,
+    antialias: 4,
+    shadows: 'high',
+    terrainLighting: true,
+    bloom: 0.55,
+    lightScattering: true,
+    toneMapping: 'neutral',
+    exposure: 1,
+    contrast: 1,
+    saturation: 1,
+    vignette: true,
+    fov: 70,
+    clouds: 'scattered',
+    cloudQuality: 'high',
+    cloudShadows: true,
+  };
+}
+
 const KEY = 'triad-air-combat-settings-v1';
 
 export function defaultSettings(): GameSettings {
   return {
-    graphics: { quality: 'high', resolutionScale: 1, shadows: true, fov: 70, clouds: 'scattered' },
+    graphics: defaultGraphics(),
     audio: { master: 0.8, engine: 0.8, effects: 0.9, warnings: 0.9, voice: true },
     gameplay: {
       labels: 'dots',

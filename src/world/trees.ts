@@ -4,6 +4,7 @@
 // into a few instanced meshes around a floating origin.
 
 import * as THREE from 'three';
+import { applyTerrainLight } from '../render/terrainLight';
 import { WorkerPool } from './workerPool';
 import { TreeResult, TREE_STRIDE } from './terrainGen';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -124,6 +125,7 @@ export class TreeSystem {
     scene: THREE.Scene,
   ) {
     const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+    applyTerrainLight(mat);
     for (let k = 0; k < KINDS; k++) {
       const n = new THREE.InstancedMesh(buildTreeGeometry(k, false), mat, NEAR_CAP);
       const f = new THREE.InstancedMesh(buildTreeGeometry(k, true), mat, FAR_CAP);

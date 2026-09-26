@@ -3,6 +3,7 @@
 
 import * as THREE from 'three';
 import { clamp01, lerp, smoothstep } from '../core/math';
+import { FOG_SUN, FOG_SUN_COLOR } from './fog';
 
 const SRGB = THREE.SRGBColorSpace;
 
@@ -120,6 +121,11 @@ void main() {
   float sd = max( dot( d, sunDir ), 0.0 );
   col += sunColor * ( pow( sd, 6.0 ) * 0.22 + pow( sd, 64.0 ) * 0.35 );
   col += sunColor * smoothstep( 0.99965, 0.99985, sd ) * 18.0;
+  // a low sun paints the horizon around it warm (sunrise / sunset band)
+  float lowSun = 1.0 - smoothstep( 0.04, 0.45, sunDir.y );
+  vec2 hd = normalize( d.xz + vec2( 1e-5 ) );
+  float toward = pow( max( dot( hd, normalize( sunDir.xz + vec2( 1e-5 ) ) ), 0.0 ), 3.0 );
+  col += sunColor * toward * lowSun * ( 1.0 - smoothstep( 0.0, 0.3, abs( y ) ) ) * 0.35;
   gl_FragColor = vec4( col, 1.0 );
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
@@ -211,6 +217,8 @@ export class Environment {
 
   /** Visibility multiplier from the weather setting (1 = default). */
   hazeScale = 1;
+  /** sun glow through the haze (light scattering setting) */
+  scattering = true;
 
   /** Update per frame: move sky/sun with the camera, adapt colours to altitude. */
   update(camPos: THREE.Vector3, focus: THREE.Vector3): void {
@@ -230,6 +238,15 @@ export class Environment {
     u.horizonDip.value = Math.sqrt((2 * alt) / 6371000) * 0.9;
 
     this.fog.color.copy(this.horizonColor);
+    // sunlit haze: stronger forward scattering when the sun is low
+    FOG_SUN[0] = this.sunDir.x;
+    FOG_SUN[1] = this.sunDir.y;
+    FOG_SUN[2] = this.sunDir.z;
+    FOG_SUN[3] = this.scattering ? 1 + 0.8 * (1 - smoothstep(4, 30, p.sunElev)) : 0;
+    const sc = this.skyMat.uniforms.sunColor.value as THREE.Color;
+    FOG_SUN_COLOR[0] = sc.r;
+    FOG_SUN_COLOR[1] = sc.g;
+    FOG_SUN_COLOR[2] = sc.b;
     this.fog.density = (1 / 85000) * this.baseHaze * this.hazeScale;
 
     this.sky.position.copy(camPos);

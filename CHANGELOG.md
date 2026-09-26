@@ -3,6 +3,22 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v2.0.0 — Graphics overhaul (2026-09-26)
+
+- GRAPHICS OVERHAUL: every part of the picture is now adjustable, from one overall preset down to individual effects, and changes apply instantly while you watch.
+- Overall quality presets: LOW, MEDIUM, HIGH, ULTRA and 4K ULTRA. Pick one to set everything at once; change any single option and the preset shows CUSTOM.
+- 4K: RENDER RESOLUTION can be NATIVE, 1080p, 1440p or 4K. 4K renders a true 3840 × 2160 picture (downsampled to your screen if it is smaller) for razor-sharp jets and ridgelines. A resolution scale slider fine-tunes it, and the settings show exactly what is being rendered plus your live frame rate.
+- Anti-aliasing: OFF, MSAA 2×, 4× or 8× smooths jagged edges. The main-menu hangar now gets anti-aliasing, bloom and the picture settings too.
+- Mountain lighting: the whole theater is lit from the real sun. Mountains cast long, soft shadows across valleys, fjords and the sea (huge at dawn and dusk), and deep valleys and gorges get less sky light while peaks are fully lit. Shadowed snow picks up the blue of the sky, and the water in a mountain's shadow loses its sun glitter.
+- Cloud shadows: every cumulus casts a soft shadow that drifts across the land and the sea below it; mountains above the cloud base stay in the sun.
+- Light scattering: the haze glows around the sun like real sunlight through air, strongest at dawn and dusk, and backlit clouds get bright silver linings. A low sun warms the horizon around it.
+- Bloom: very bright light (the sun, afterburners, flares, explosions, runway lights) glows softly. Adjustable from OFF to 150%.
+- Shadows: OFF, LOW, MEDIUM, HIGH or ULTRA, from 1024 up to 8192-pixel shadow maps with softer edges on the higher tiers.
+- Picture: BRIGHTNESS, CONTRAST and SATURATION sliders, a lens VIGNETTE and three TONE MAPPING styles (Neutral, Filmic and the soft, natural AgX), with a one-click RESET PICTURE.
+- Clouds: new OVERCAST option (Clear, Scattered, Broken, Overcast), plus CLOUD QUALITY from Low to Ultra for fuller, rounder cumulus.
+- Redesigned SETTINGS: a new panel slides in from the right with a see-through backdrop so you can judge graphics changes on the jet or the world behind it. It has side tabs (Graphics, Controls, Audio, Gameplay), preset cards, clear sections and a short explanation under every option, plus sliders that show their values and on/off switches. It works from the main menu and the pause menu, and it fits phone screens too.
+- Fixed: the loading screen always said 'GENERATING THE 400 × 400 NM THEATER'; it now names the map you're loading and its size.
+
 ## v1.9.2 — Chase camera auto-recenter (2026-09-26)
 
 - Chase camera auto-recenter: when you look around your jet in the chase view, the camera now glides smoothly back to its normal position behind the jet after 1.8 seconds without moving it. It eases in gently, sweeps home the short way round (even after a full orbit) and settles softly, with no snapping.

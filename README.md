@@ -17,8 +17,8 @@ terrain against you.
 | Radar | AN/APG-82(V)1 AESA | AN/APG-79 AESA | CAPTOR-E + PIRATE IRST | N035 Irbis-E PESA + OLS-35 IRST |
 | Missiles | AIM-120D, AIM-9X | AIM-120D, AIM-9X | AIM-120D, AIM-9X | R-77M, R-74M (Su-35S only) |
 
-Current version: **v1.9.2** — see [CHANGELOG.md](CHANGELOG.md) (also in the game
-under **v1.9.2 · NOTES** on the main menu).
+Current version: **v2.0.0** — see [CHANGELOG.md](CHANGELOG.md) (also in the game
+under **v2.0.0 · NOTES** on the main menu).
 
 Each jet is a high-detail procedural model (~150k triangles): blended fuselages
 built from real cross-sections, hollow intakes with ducts and fans, airfoil
@@ -67,6 +67,15 @@ Enemy AI is never the same type as the player's jet.
   A round still going after 5 minutes ends with a point to both teams.
 
 **Customize** (main menu): solid colours, 12 wrap patterns (including Black Ice, Inferno, Aurora and Galaxy), finish and brightness for each jet.
+
+### Graphics
+
+**SETTINGS → GRAPHICS** has overall presets (Low, Medium, High, Ultra, 4K Ultra) and
+every option on its own: render resolution up to 4K (3840 × 2160) with a resolution
+scale, MSAA up to 8×, shadow quality, mountain lighting (sun shadows cast by the terrain
+across the whole map and sky occlusion in valleys), light scattering, bloom, tone
+mapping (Neutral / Filmic / AgX), brightness, contrast, saturation, vignette, world
+detail, cloud amount (up to overcast), cloud quality and drifting cloud shadows.
 
 ### The theaters
 

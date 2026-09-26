@@ -13,6 +13,7 @@ import { Environment } from '../render/environment';
 import type { HeightGrid } from './heightGrid';
 import { activeMap } from './islands';
 import { MAP_HALF } from '../core/constants';
+import { TERRAIN_LIGHT, TERRAIN_LIGHT_GLSL } from '../render/terrainLight';
 
 /** Water depth over the theater (0 = shore, 1 = 400 m or deeper), from the height grid. */
 function depthTexture(grid: HeightGrid): THREE.DataTexture {
@@ -56,6 +57,7 @@ uniform vec3 horizonColor;
 uniform vec3 zenithColor;
 uniform vec3 deepColor;
 uniform sampler2D depthMap;
+${TERRAIN_LIGHT_GLSL}
 uniform float mapHalf;
 uniform vec3 shallowColor;
 uniform vec3 midColor;
@@ -101,7 +103,11 @@ void main() {
   float broad = texture2D( normalMap, uv / 26000.0 ).r;
   float streak = texture2D( normalMap, vec2( uv.x / 70000.0, uv.y / 9000.0 ) + vec2( broad * 0.15 ) ).g;
   body *= 0.9 + 0.16 * broad + 0.08 * smoothstep( 0.55, 0.85, streak ) * smoothstep( 0.05, 0.3, dep );
-  body *= sunLit;
+  // mountain and cloud shadows on the water: no glitter, darker body
+  vec2 tlv = terrainLight( vWorldPos.xz, 0.0 );
+  float shade = tlv.r * ( 1.0 - 0.6 * cloudShadow( vWorldPos.xz, 0.0 ) );
+  spec *= shade;
+  body *= sunLit * ( 0.62 + 0.38 * shade );
   // keep the water's own colour visible from high up (less washed-out sky)
   vec3 col = mix( body, sky, fresnel * 0.8 ) + spec;
   float alpha = mix( mix( 0.55, 0.96, smoothstep( 0.0, 0.2, dep ) ), 1.0, clamp( fresnel * 1.4 + smoothstep( 4000.0, 30000.0, dist ) * 0.6, 0.0, 1.0 ) );
@@ -150,6 +156,7 @@ export class Ocean {
       fog: true,
     });
     this.mat.uniforms.normalMap.value = getWaterNormalTexture();
+    Object.assign(this.mat.uniforms, TERRAIN_LIGHT);
     void u;
     // A disc of concentric rings so vertices stay dense near the camera.
     const geo = new THREE.CircleGeometry(900000, 64);

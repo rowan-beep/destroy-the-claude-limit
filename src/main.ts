@@ -2,6 +2,7 @@
 import { CustomizeScreen } from './ui/menu/customizeScreen';
 import { SpectatorUi } from './ui/spectatorUi';
 import { AutoFlyPanel } from './ui/autoFlyPanel';
+import * as THREE from 'three';
 import './styles.css';
 import './ui/ui.css';
 import { Game } from './game/game';
@@ -19,6 +20,7 @@ import { MapView } from './ui/mapView';
 import { audio } from './audio/audio';
 import { applyMap, loadMapChoice } from './world/maps';
 import { refreshGciSites } from './game/teamPicture';
+import { activeMap } from './world/islands';
 import { XpFx, PilotCard } from './ui/xpFx';
 import { saveProgress } from './game/progression';
 import type { AircraftType } from './aircraft/specs';
@@ -41,7 +43,7 @@ async function boot(): Promise<void> {
   (window as unknown as { game: Game }).game = game;
 
   const t0 = performance.now();
-  await game.world.buildGrid((f) => loading.set(0.05 + f * 0.8, 'GENERATING THE 400 × 400 NM THEATER'));
+  await game.world.buildGrid((f) => loading.set(0.05 + f * 0.8, `GENERATING ${activeMap.name} (${activeMap.sizeNm} × ${activeMap.sizeNm} NM)`));
   await game.world.buildMapData((f) => loading.set(0.85 + f * 0.07, 'BUILDING THE DIGITAL MAP'));
   loading.set(0.93, 'BUILDING WORLD');
   game.world.init();
@@ -49,6 +51,7 @@ async function boot(): Promise<void> {
   const mapView = new MapView(document.body, () => game.setState('playing'));
   mapView.setGrid(game.world.grid);
   const hangar = new Hangar(game.renderer.renderer);
+  hangar.drawWith = (sc, cam) => game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping);
   const customize = new CustomizeScreen(document.body, hangar, () => {
     menu.root.classList.remove('hidden');
     hangar.setJet(menu.cfg.aircraft, menu.cfg.loadoutId);
@@ -60,10 +63,20 @@ async function boot(): Promise<void> {
   cfg.loadoutId = settings.lastLoadout[cfg.aircraft] ?? '';
   cfg.timeOfDay = settings.gameplay.timeOfDay;
 
-  const settingsModal = new SettingsModal(document.body, settings, game.input, () => {
-    game.applySettings();
-    hud.reset(game);
-  });
+  const settingsModal = new SettingsModal(
+    document.body,
+    settings,
+    game.input,
+    () => {
+      game.applySettings();
+      hud.reset(game);
+    },
+    () => {
+      const r = game.renderer.renderSize;
+      const aa = Math.min(settings.graphics.antialias, game.renderer.renderer.capabilities.maxSamples);
+      return `RENDERING ${r.w} × ${r.h}${aa ? ` · MSAA ${aa}×` : ''} · ${Math.round(game.fps)} FPS`;
+    },
+  );
   const controls = new ControlsModal(document.body);
   const logbook = new LogbookModal(document.body, (fresh) => (game.logbook = fresh));
   const touch = new TouchControls(document.body, game.input);

@@ -269,12 +269,19 @@ export class Hangar {
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.camera.lookAt(tx, ty, 0);
+    if (this.drawWith) {
+      this.drawWith(this.scene, this.camera);
+      return;
+    }
     this.renderer.setRenderTarget(null);
     const tm = this.renderer.toneMapping;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.render(this.scene, this.camera);
     this.renderer.toneMapping = tm;
   }
+
+  /** draw through the game's post-processing pipeline when set */
+  drawWith: ((scene: THREE.Scene, camera: THREE.Camera) => void) | null = null;
 }
 
 /** zoom factor limits: right up against the jet .. well back */

@@ -3,6 +3,7 @@
 // background workers while the main menu is visible).
 
 import * as THREE from 'three';
+import { MAP_HALF } from '../core/constants';
 import { WorkerPool } from './workerPool';
 import { HeightGrid, GRID_N } from './heightGrid';
 import { TerrainLOD } from './terrainLOD';
@@ -13,6 +14,7 @@ import { CloudSystem } from './clouds';
 import { AirfieldRenderer } from './airfieldMeshes';
 import type { GridResult } from './terrainGen';
 import { MapData } from './mapData';
+import { TerrainLightBaker } from '../render/terrainLight';
 
 export interface WorldQuality {
   terrainSplitK: number;
@@ -40,6 +42,7 @@ export class World {
   trees!: TreeSystem;
   clouds!: CloudSystem;
   airfields!: AirfieldRenderer;
+  lightBaker!: TerrainLightBaker;
   ready = false;
 
   constructor(private scene: THREE.Scene) {
@@ -79,13 +82,18 @@ export class World {
     this.trees = new TreeSystem(this.pool, this.scene);
     this.clouds = new CloudSystem(this.scene, this.env);
     this.airfields = new AirfieldRenderer(this.scene);
+    this.lightBaker = new TerrainLightBaker(this.grid, MAP_HALF);
     this.ready = true;
+  }
+
+  /** Re-bake mountain shadows and sky light for the current sun. */
+  bakeLighting(renderer: THREE.WebGLRenderer): void {
+    this.lightBaker.bake(renderer, this.env.sunDir);
   }
 
   setQuality(q: WorldQuality): void {
     this.terrain.setQuality({ splitK: q.terrainSplitK, maxLevel: q.terrainMaxLevel });
     this.trees.setRanges(q.treeNear, q.treeFar);
-    this.clouds.setDensity(q.clouds);
   }
 
   update(dt: number, camera: THREE.Camera, focus: THREE.Vector3): void {
