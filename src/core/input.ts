@@ -307,6 +307,15 @@ export class Input {
     return false;
   }
 
+  /** Raw key held / pressed this frame (spectator and free camera keys). */
+  codeHeld(code: string): boolean {
+    return this.down.has(code);
+  }
+
+  codePressed(code: string): boolean {
+    return this.pressedThisFrame.has(code);
+  }
+
   released(a: Action): boolean {
     const codes = this.settings.bindings[a];
     for (const c of codes) if (this.releasedThisFrame.has(c)) return true;

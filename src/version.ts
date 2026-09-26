@@ -10,6 +10,21 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '1.4.0',
+    date: '2026-09-26',
+    title: '5v5 Team Battle',
+    notes: [
+      "New game mode: 5v5 TEAM BATTLE. You and four AI wingmen (BLUE) against five AI bandits (RED) over Samos.",
+      "Rounds: wipe out the other team to win the round; everyone respawns fully rearmed for the next. First team to 3 round wins takes the match (choose first to 2, 3 or 4).",
+      "Your wingmen fly the same AI as the enemy, just on your side: they hunt, bracket, fire AMRAAMs and Sidewinders and defend themselves. Choose mixed wingman jets or all the same as yours.",
+      "Bandits only fly the two jets you did not pick. Pick the AI difficulty (Easy to Extreme) and weapons (all, Sidewinders + gun, or guns only).",
+      "Spectator: when you're shot down you can watch any jet on either team until the round ends. Click a jet in the list, or use the arrow keys / Tab; right-drag to orbit, wheel to zoom. It moves on to the next jet automatically when the one you're watching goes down.",
+      "Free camera: press F while spectating to fly a camera anywhere (WASD, Q/E down/up, Shift faster, right-drag to look).",
+      "Scoreboard: round number and score in the top bar, jets left on each side, round banners and voice calls. A round nobody finishes in 10 minutes goes to the team with more jets left (a tie replays the round).",
+      "Logbook: 5v5 match and round record, plus two new decorations: SQUADRON LEADER (win a match) and CLEAN SWEEP (win without losing a round).",
+    ],
+  },
+  {
     version: '1.3.0',
     date: '2026-09-26',
     title: 'Auto-Fly',

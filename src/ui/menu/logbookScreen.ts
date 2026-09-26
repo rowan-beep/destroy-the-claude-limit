@@ -90,6 +90,16 @@ export class LogbookModal {
       el('td', '', tr, d);
       el('td', '', tr, `${r.wins} W · ${r.losses} L${r.draws ? ` · ${r.draws} D` : ''}`);
     }
+    el('h3', '', dr, '5v5 TEAM BATTLE');
+    const teamTbl = el('table', 'specs', dr);
+    for (const [k, v] of [
+      ['MATCHES', `${b.team.wins} W · ${b.team.losses} L`],
+      ['ROUNDS', `${b.team.roundsWon} W · ${b.team.roundsLost} L`],
+    ]) {
+      const tr = el('tr', '', teamTbl);
+      el('td', '', tr, k);
+      el('td', '', tr, v);
+    }
     el('h3', '', dr, 'PERSONAL RECORDS');
     const rt = el('table', 'specs', dr);
     const rec = b.records;

@@ -4,7 +4,7 @@ import type { AircraftType } from '../aircraft/specs';
 import type { Difficulty } from '../ai/skill';
 import type { TimeOfDay } from '../render/environment';
 
-export type ModeId = 'free' | 'waves' | 'duel';
+export type ModeId = 'free' | 'waves' | 'duel' | 'team';
 
 export interface MissionConfig {
   mode: ModeId;
@@ -23,6 +23,9 @@ export interface MissionConfig {
   difficulty: Difficulty;
   duelStart: 'air' | 'samos';
   duelRules: 'all' | 'ir' | 'guns';
+  // 5v5 team battle
+  teamAllies: 'same' | 'mixed';
+  teamWins: number;
 }
 
 export function defaultMission(): MissionConfig {
@@ -40,6 +43,8 @@ export function defaultMission(): MissionConfig {
     difficulty: 'MEDIUM',
     duelStart: 'air',
     duelRules: 'all',
+    teamAllies: 'mixed',
+    teamWins: 3,
   };
 }
 
@@ -55,6 +60,12 @@ export const MODE_INFO: Record<ModeId, { title: string; subtitle: string; descri
     subtitle: '10 escalating waves',
     description:
       'Waves 1-3: three basic bandits. Waves 4-6: six tactical bandits that defend, dispense and terrain-mask. Waves 7-9: six aggressive bandits with afterburner discipline and AIM-120D shots. Wave 10: nine elite bandits with multi-ship tactics.',
+  },
+  team: {
+    title: '5v5 TEAM BATTLE',
+    subtitle: 'Rounds · first to 3',
+    description:
+      'You and four AI wingmen against five AI bandits over Samos. Wipe out the other team to win the round; everyone respawns rearmed for the next. First team to 3 rounds wins the match. Shot down? Spectate any jet on either side, or fly a free camera, until the round is over.',
   },
   duel: {
     title: '1v1 DUEL',

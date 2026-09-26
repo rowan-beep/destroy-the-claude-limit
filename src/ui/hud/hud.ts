@@ -208,6 +208,12 @@ export class Hud {
     this.help.classList.toggle('hidden');
   }
 
+  /** Spectating: hide the (dead) player's own instruments, keep the score, messages and labels. */
+  setSpectating(on: boolean): void {
+    setClass(this.root, 'spectating', on);
+    if (on) this.shotdownEl.classList.add('hidden');
+  }
+
   toggleHidden(): void {
     this.hidden = !this.hidden;
     setClass(this.root, 'hud-hidden', this.hidden);

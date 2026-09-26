@@ -50,6 +50,8 @@ export interface LogbookData {
   bestWaveByJet: Record<AircraftType, number>;
   wavesCleared: number;
   duel: Record<Difficulty, { wins: number; losses: number; draws: number }>;
+  /** 5v5 team battle: matches and rounds */
+  team: { wins: number; losses: number; roundsWon: number; roundsLost: number };
   records: { maxG: number; maxMach: number; maxAltFt: number; longestKillNm: number; closestGunKillM: number };
   medals: string[];
   recent: SortieSummary[];
@@ -79,6 +81,8 @@ export const MEDALS: MedalDef[] = [
   { id: 'wave10', name: 'THEATER SECURED', desc: 'Clear all ten waves.' },
   { id: 'duel-hard', name: 'TOP GUN', desc: 'Win a duel on HARD.' },
   { id: 'duel-extreme', name: 'GRANDMASTER', desc: 'Win a duel on EXTREME.' },
+  { id: 'team-win', name: 'SQUADRON LEADER', desc: 'Win a 5v5 Team Battle.' },
+  { id: 'team-sweep', name: 'CLEAN SWEEP', desc: 'Win a 5v5 Team Battle without losing a round.' },
   { id: 'all-jets', name: 'TRIAD', desc: 'Score a kill in all three aircraft.' },
 ];
 
@@ -109,6 +113,7 @@ export function emptyLogbook(): LogbookData {
       HARD: { wins: 0, losses: 0, draws: 0 },
       EXTREME: { wins: 0, losses: 0, draws: 0 },
     },
+    team: { wins: 0, losses: 0, roundsWon: 0, roundsLost: 0 },
     records: { maxG: 0, maxMach: 0, maxAltFt: 0, longestKillNm: 0, closestGunKillM: 0 },
     medals: [],
     recent: [],
@@ -130,6 +135,7 @@ export function loadLogbook(): LogbookData {
       killsOf: { ...base.killsOf, ...(d.killsOf ?? {}) },
       bestWaveByJet: { ...base.bestWaveByJet, ...(d.bestWaveByJet ?? {}) },
       duel: { ...base.duel, ...(d.duel ?? {}) },
+      team: { ...base.team, ...(d.team ?? {}) },
       records: { ...base.records, ...(d.records ?? {}) },
       medals: Array.isArray(d.medals) ? d.medals : [],
       recent: Array.isArray(d.recent) ? d.recent.slice(0, 25) : [],
@@ -290,6 +296,8 @@ export interface MissionOutcome {
   wave?: number;
   wavesCleared?: number;
   duel?: { difficulty: Difficulty; outcome: 'win' | 'loss' | 'draw' };
+  /** a finished 5v5 match: final score */
+  team?: { won: boolean; roundsWon: number; roundsLost: number };
 }
 
 /** Fold a finished sortie into the logbook; returns newly earned medal ids. */
@@ -325,6 +333,13 @@ export function commitSortie(book: LogbookData, s: SortieRecorder, outcome: Miss
     book.bestWaveByJet[p.type] = Math.max(book.bestWaveByJet[p.type] ?? 0, outcome.wave);
   }
   if (outcome.wavesCleared) book.wavesCleared = Math.max(book.wavesCleared, outcome.wavesCleared);
+  if (outcome.team) {
+    const t = book.team;
+    if (outcome.team.won) t.wins++;
+    else t.losses++;
+    t.roundsWon += outcome.team.roundsWon;
+    t.roundsLost += outcome.team.roundsLost;
+  }
   if (outcome.duel) {
     const r = book.duel[outcome.duel.difficulty];
     if (outcome.duel.outcome === 'win') r.wins++;
@@ -357,6 +372,8 @@ export function commitSortie(book: LogbookData, s: SortieRecorder, outcome: Miss
   give('wave10', (outcome.wavesCleared ?? 0) >= 10 || book.wavesCleared >= 10);
   give('duel-hard', outcome.duel?.outcome === 'win' && outcome.duel.difficulty === 'HARD');
   give('duel-extreme', outcome.duel?.outcome === 'win' && outcome.duel.difficulty === 'EXTREME');
+  give('team-win', !!outcome.team?.won);
+  give('team-sweep', !!outcome.team?.won && outcome.team.roundsLost === 0);
   give('all-jets', AIRCRAFT_TYPES.every((t) => book.byJet[t].kills > 0));
   // recent sorties
   const d = new Date();
@@ -368,7 +385,7 @@ export function commitSortie(book: LogbookData, s: SortieRecorder, outcome: Miss
     kills: s.kills.length,
     shots: s.shots,
     durationSec: Math.round(s.durationSec),
-    detail: outcome.wave ? `WAVE ${outcome.wave}` : outcome.duel ? `${outcome.duel.difficulty}` : '',
+    detail: outcome.wave ? `WAVE ${outcome.wave}` : outcome.duel ? `${outcome.duel.difficulty}` : outcome.team ? `5v5 ${outcome.team.roundsWon}-${outcome.team.roundsLost}` : '',
   });
   if (book.recent.length > 25) book.recent.length = 25;
   return earned;

@@ -16,8 +16,8 @@ terrain against you.
 | Gun | M61A1 20 mm | M61A2 20 mm | BK-27 27 mm |
 | Radar | AN/APG-82(V)1 AESA | AN/APG-79 AESA | CAPTOR-E + PIRATE IRST |
 
-Current version: **v1.3.0** — see [CHANGELOG.md](CHANGELOG.md) (also in the game
-under **v1.3.0 · NOTES** on the main menu).
+Current version: **v1.4.0** — see [CHANGELOG.md](CHANGELOG.md) (also in the game
+under **v1.4.0 · NOTES** on the main menu).
 
 Each jet is a high-detail procedural model (~150k triangles): blended fuselages
 built from real cross-sections, hollow intakes with ducts and fans, airfoil
@@ -58,6 +58,10 @@ system fonts offline); you can double-click it and play from disk.
   Sidewinders + guns, or guns only.
 
 Enemy AI is never the same type as the player's jet.
+
+- **5v5 Team Battle** — you and four AI wingmen against five AI bandits over Samos.
+  Wipe out the other team to take the round; everyone respawns; first to 3 wins.
+  When you're shot down, spectate any jet on either team or fly a free camera (F).
 
 ### The theater
 

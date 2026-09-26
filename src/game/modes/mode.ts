@@ -38,6 +38,8 @@ export interface ModeHost {
   refreshStores(a: Aircraft): void;
   playerKilledBy(killer: Aircraft | null, cause: string): void;
   voice(text: string): void;
+  /** the mode respawned the player mid-mission (team battle rounds) */
+  onPlayerRespawn?(): void;
 }
 
 export interface ModeStatus {

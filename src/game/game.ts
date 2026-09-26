@@ -18,6 +18,9 @@ import { GameMode, ModeHost, MissionResult, MsgKind } from './modes/mode';
 import { FreeFlightMode } from './modes/freeFlight';
 import { WavesMode } from './modes/waves';
 import { DuelMode } from './modes/duel';
+import { TeamBattleMode } from './modes/team';
+import { Spectator } from './spectator';
+import type { SpectatorUi } from '../ui/spectatorUi';
 import { PHYSICS_DT, DEG, FT, KT } from '../core/constants';
 import { clamp, damp } from '../core/math';
 import { steerToward } from '../ai/steering';
@@ -81,6 +84,10 @@ export class Game implements ModeHost {
   /** Auto-Fly (U): flies to a chosen destination at a chosen speed and altitude */
   readonly autoFly = new AutoFly();
   autoFlyPanel: AutoFlyPanel | null = null;
+  /** team battle: watch other jets (or a free camera) after being shot down */
+  readonly spectator = new Spectator();
+  spectatorUi: SpectatorUi | null = null;
+  private deadTime = 0;
   get autopilot(): boolean {
     return this.autoFly.engaged;
   }
@@ -175,8 +182,10 @@ export class Game implements ModeHost {
     // build the airframes this mission can spawn before the first frame
     const pre = [new Aircraft(cfg.aircraft, 'blue', 'PRE')];
     if (cfg.mode !== 'free') for (const t of enemyTypesFor(cfg.aircraft)) pre.push(new Aircraft(t, 'red', 'PRE'));
+    if (cfg.mode === 'team') for (const t of enemyTypesFor(cfg.aircraft)) pre.push(new Aircraft(t, 'blue', 'PRE'));
     prewarmAirframes(pre);
-    this.mode = cfg.mode === 'free' ? new FreeFlightMode(this) : cfg.mode === 'waves' ? new WavesMode(this) : new DuelMode(this);
+    this.stopSpectating();
+    this.mode = cfg.mode === 'free' ? new FreeFlightMode(this) : cfg.mode === 'waves' ? new WavesMode(this) : cfg.mode === 'team' ? new TeamBattleMode(this) : new DuelMode(this);
     randomizeWind();
     this.mode.start();
     this.message(`WIND ${String(Math.round(wind.fromDeg)).padStart(3, '0')}° / ${Math.round(wind.surfaceKts)} KT${wind.turbulence > 1.1 ? ' — MODERATE TURBULENCE LOW LEVEL' : ''}`, 'info', 8);
@@ -211,6 +220,7 @@ export class Game implements ModeHost {
     }
     this.combat?.clearEffects();
     this.player = null;
+    this.stopSpectating();
     this.recorder?.stop();
     this.recorder = null;
     this.renderer.setOverlay(null, null);
@@ -306,6 +316,8 @@ export class Game implements ModeHost {
     if (this.mode instanceof WavesMode) {
       outcome.wave = this.mode.wave;
       outcome.wavesCleared = this.mode.phase === 'victory' ? 10 : this.mode.wave - 1;
+    } else if (this.mode instanceof TeamBattleMode) {
+      outcome.team = { won: this.mode.score.blue > this.mode.score.red, roundsWon: this.mode.score.blue, roundsLost: this.mode.score.red };
     } else if (this.mode instanceof DuelMode) {
       outcome.duel = {
         difficulty: this.config.difficulty,
@@ -389,6 +401,53 @@ export class Game implements ModeHost {
     this.deathHandled = true;
     this.hud.shotDown(killer ? killer.callsign : null, cause);
     this.cam.setMode('death');
+  }
+
+  /** A mode respawned the player (a new team-battle round). */
+  onPlayerRespawn(): void {
+    this.stopSpectating();
+    this.syncPlayerControls();
+    this.cam.setMode('chase');
+    this.cam.resetLook();
+    this.cam.deathFocus = null;
+    this.hud?.reset(this);
+    if (this.player) this.aimDir.copy(this.player.fm.fwd);
+  }
+
+  private startSpectating(): void {
+    if (!(this.mode instanceof TeamBattleMode)) return;
+    this.spectator.start(this.mode.roster(), 'blue');
+    this.cam.setMode('chase');
+    this.cam.resetLook();
+    this.cam.chaseDist = 1.4;
+    this.hud?.setSpectating(true);
+    this.spectatorUi?.show(true);
+    this.message('YOU ARE DOWN — SPECTATING UNTIL THE ROUND ENDS', 'info', 4);
+  }
+
+  stopSpectating(): void {
+    this.spectator.stop();
+    this.deadTime = 0;
+    this.spectatorUi?.show(false);
+    this.hud?.setSpectating(false);
+  }
+
+  /** What the spectator bar needs. */
+  spectatorView() {
+    return {
+      roster: () => (this.mode instanceof TeamBattleMode ? this.mode.roster() : []),
+      watching: () => this.spectator.target,
+      isFree: () => this.spectator.free,
+      watch: (a: Aircraft) => {
+        this.spectator.watch(a);
+        this.cam.resetLook();
+      },
+      cycle: (dir: 1 | -1) => this.spectator.cycle(this.mode instanceof TeamBattleMode ? this.mode.roster() : [], dir),
+      toggleFree: () => {
+        if (this.spectator.free) this.spectator.free = false;
+        else this.spectator.enterFree(this.renderer.camera);
+      },
+    };
   }
 
   voice(text: string, key = text, cooldown = 6): void {
@@ -489,6 +548,18 @@ export class Game implements ModeHost {
     }
 
     const p = this.player;
+    // team battle: once shot down, spectate after a few seconds
+    if (p && playing && !p.alive && this.mode instanceof TeamBattleMode && this.mode.phase !== 'over') {
+      this.deadTime += dt;
+      if (!this.spectator.active && this.deadTime > 3.5) this.startSpectating();
+    }
+    if (p && this.spectator.active) {
+      this.spectatorFrame(dt, playing);
+      this.renderer.render();
+      this.onAfterFrame?.(dt);
+      this.input.endFrame();
+      return;
+    }
     if (p) {
       // camera
       this.cam.aimDir = this.settings.input.mouseMode === 'mouseaim' && p.alive ? this.aimDir : null;
@@ -514,6 +585,41 @@ export class Game implements ModeHost {
     this.renderer.render();
     this.onAfterFrame?.(dt);
     this.input.endFrame();
+  }
+
+  /** Camera, world and HUD while spectating (the player's jet is down). */
+  private spectatorFrame(dt: number, playing: boolean): void {
+    const sp = this.spectator;
+    const cam = this.renderer.camera;
+    const roster = this.mode instanceof TeamBattleMode ? this.mode.roster() : [];
+    sp.maintain(dt, roster);
+    const pv = this.player ? this.combat.aircraftVis.get(this.player) : undefined;
+    pv?.setCockpitView(false);
+    this.renderer.setOverlay(null, null);
+    let focus: THREE.Vector3;
+    if (sp.free || !sp.target) {
+      if (!sp.free) sp.enterFree(cam);
+      const inp = this.input;
+      const look = inp.mouseHeld(2) || inp.mouseHeld(0) || inp.pointerLocked;
+      sp.updateFree(dt, inp, cam, look ? inp.mouseDX : 0, look ? inp.mouseDY : 0);
+      cam.fov = this.cam.fovBase;
+      cam.updateProjectionMatrix();
+      focus = cam.position;
+    } else {
+      if (this.cam.mode !== 'chase') this.cam.setMode('chase');
+      this.cam.aimDir = null;
+      this.cam.target = null;
+      this.cam.deathFocus = null;
+      this.cam.update(dt, sp.target, null);
+      focus = sp.target.fm.pos;
+    }
+    cam.updateMatrixWorld();
+    this.world.update(dt, cam, focus);
+    this.combat.update(playing ? dt : 0, cam);
+    this.renderer.setVision(emptyVision());
+    this.hud.update(dt, this);
+    this.spectatorUi?.update();
+    audio.silenceContinuous();
   }
 
   /** Build / attach the 3D cockpit and keep its pass in sync with the world camera. */
@@ -618,6 +724,10 @@ export class Game implements ModeHost {
       return;
     }
     if (!p) return;
+    if (this.spectator.active) {
+      this.spectatorInput();
+      return;
+    }
     const ms = inp.touch.active ? 'keyboard' : this.settings.input.mouseMode;
     // touch: throttle slider and drag-to-look
     if (inp.touch.active) {
@@ -832,6 +942,18 @@ export class Game implements ModeHost {
     }
     if (inp.pressed('help')) this.hud.toggleHelp();
     if (inp.pressed('hud')) this.hud.toggleHidden();
+  }
+
+  private spectatorInput(): void {
+    const inp = this.input;
+    const v = this.spectatorView();
+    if (inp.codePressed('Tab') || inp.codePressed('ArrowRight') || inp.codePressed('Period')) v.cycle(1);
+    if (inp.codePressed('ArrowLeft') || inp.codePressed('Comma')) v.cycle(-1);
+    if (inp.codePressed('KeyF')) v.toggleFree();
+    if (!this.spectator.free) {
+      if (inp.mouseHeld(2) || inp.mouseHeld(0)) this.cam.addLook(inp.mouseDX * 0.004, inp.mouseDY * 0.004);
+      if (inp.wheel !== 0) this.cam.chaseDist = clamp(this.cam.chaseDist * (inp.wheel > 0 ? 1.12 : 0.89), 0.5, 8);
+    }
   }
 
   toggleAutoFlyPanel(): void {

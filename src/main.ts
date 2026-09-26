@@ -1,4 +1,5 @@
 // Application bootstrap: builds the theater, then shows the main menu.
+import { SpectatorUi } from './ui/spectatorUi';
 import { AutoFlyPanel } from './ui/autoFlyPanel';
 import './styles.css';
 import './ui/ui.css';
@@ -59,6 +60,7 @@ async function boot(): Promise<void> {
     () => game.disengageAutoFly(),
     () => game.autoFlyPanel?.hide(),
   );
+  game.spectatorUi = new SpectatorUi(document.body, game.spectatorView());
   game.replayUi = new ReplayUi(document.body, game.cam, () => game.exitReplay());
   const touchWanted = () => settings.gameplay.touchControls === 'on' || (settings.gameplay.touchControls === 'auto' && isTouchDevice());
 

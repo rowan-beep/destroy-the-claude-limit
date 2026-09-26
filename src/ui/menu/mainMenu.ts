@@ -176,7 +176,7 @@ export class MainMenu {
 
   private renderModes(): void {
     clearEl(this.modeGrid);
-    for (const m of ['free', 'waves', 'duel'] as ModeId[]) {
+    for (const m of ['free', 'waves', 'duel', 'team'] as ModeId[]) {
       const info = MODE_INFO[m];
       const c = el('div', 'mode-card' + (m === this.cfg.mode ? ' sel' : ''), this.modeGrid);
       el('div', 'mt', c, info.title);
@@ -199,6 +199,26 @@ export class MainMenu {
         this.renderSetup();
       });
     }
+  }
+
+  private difficultySlider(c: HTMLElement): void {
+    const cfg = this.cfg;
+    const f = el('div', 'field', c);
+    el('label', '', f, `AI DIFFICULTY: ${cfg.difficulty}`);
+    const r = el('input', '', f);
+    r.type = 'range';
+    r.min = '0';
+    r.max = '3';
+    r.step = '1';
+    r.value = String(DIFFICULTIES.indexOf(cfg.difficulty));
+    const desc = el('div', 'diff-desc', c, DIFF_TEXT[cfg.difficulty]);
+    r.addEventListener('input', () => {
+      cfg.difficulty = DIFFICULTIES[+r.value];
+      (f.firstChild as HTMLElement).textContent = `AI DIFFICULTY: ${cfg.difficulty}`;
+      desc.textContent = DIFF_TEXT[cfg.difficulty];
+    });
+    const labels = el('div', 'diff-row', c);
+    for (const d of DIFFICULTIES) el('div', 'note', labels, d);
   }
 
   private renderSetup(): void {
@@ -230,25 +250,16 @@ export class MainMenu {
       });
       this.seg(c, 'BETWEEN WAVES', [['on', 'AUTO REARM & REFUEL'], ['off', 'LAND TO REARM']], cfg.autoRearm ? 'on' : 'off', (v) => (cfg.autoRearm = v === 'on'));
       el('div', 'note', c, 'Enemies fly only the two jets you did not pick. BLUE ground radars (GCI) call bandits — unless they hide low behind terrain.');
+    } else if (cfg.mode === 'team') {
+      this.seg(c, 'YOUR WINGMEN', [['mixed', 'MIXED JETS'], ['same', `ALL ${SPECS[cfg.aircraft].shortName.toUpperCase()}`]], cfg.teamAllies, (v) => (cfg.teamAllies = v));
+      this.difficultySlider(c);
+      this.seg(c, 'FIRST TO', [['2', '2 ROUNDS'], ['3', '3 ROUNDS'], ['4', '4 ROUNDS']], String(cfg.teamWins) as '2' | '3' | '4', (v) => (cfg.teamWins = +v));
+      this.seg(c, 'WEAPONS', [['all', 'ALL'], ['ir', 'AIM-9X + GUN'], ['guns', 'GUNS ONLY']], cfg.duelRules, (v) => (cfg.duelRules = v));
+      el('div', 'note', c, `Bandits fly only the jets you did not pick (${enemyTypesFor(cfg.aircraft).map((t) => SPECS[t].shortName).join(' / ')}). Both teams use the same AI at the chosen difficulty. Shot down? Watch any jet or fly a free camera until the round ends.`);
     } else {
       const enemies = enemyTypesFor(cfg.aircraft);
       this.seg(c, 'OPPONENT AIRCRAFT', enemies.map((t) => [t, SPECS[t].shortName.toUpperCase()] as [AircraftType, string]), cfg.enemyType, (v) => (cfg.enemyType = v));
-      const f = el('div', 'field', c);
-      el('label', '', f, `AI DIFFICULTY: ${cfg.difficulty}`);
-      const r = el('input', '', f);
-      r.type = 'range';
-      r.min = '0';
-      r.max = '3';
-      r.step = '1';
-      r.value = String(DIFFICULTIES.indexOf(cfg.difficulty));
-      const desc = el('div', 'diff-desc', c, DIFF_TEXT[cfg.difficulty]);
-      r.addEventListener('input', () => {
-        cfg.difficulty = DIFFICULTIES[+r.value];
-        (f.firstChild as HTMLElement).textContent = `AI DIFFICULTY: ${cfg.difficulty}`;
-        desc.textContent = DIFF_TEXT[cfg.difficulty];
-      });
-      const labels = el('div', 'diff-row', c);
-      for (const d of DIFFICULTIES) el('div', 'note', labels, d);
+      this.difficultySlider(c);
       this.seg(c, 'START', [['air', 'HEAD-ON, 22 NM'], ['samos', 'SAMOS RUNWAYS']], cfg.duelStart, (v) => (cfg.duelStart = v));
       this.seg(c, 'WEAPONS', [['all', 'ALL'], ['ir', 'AIM-9X + GUN'], ['guns', 'GUNS ONLY']], cfg.duelRules, (v) => (cfg.duelRules = v));
     }
