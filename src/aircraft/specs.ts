@@ -1,0 +1,536 @@
+// The ONLY three aircraft in the game. Every number here comes from the
+// published specifications given in the design brief; aerodynamic
+// coefficients are engineering estimates tuned so the real top speeds,
+// ceilings and ranges fall out of the physics.
+
+import { FT, LB, LBF } from '../core/constants';
+
+export type AircraftType = 'F15EX' | 'FA18EF' | 'TYPHOON';
+export const AIRCRAFT_TYPES: AircraftType[] = ['F15EX', 'FA18EF', 'TYPHOON'];
+
+export type StoreType = 'AIM120D' | 'AIM9X' | 'TANK';
+
+export interface GunSpec {
+  name: string;
+  caliberMm: number;
+  rounds: number;
+  rpm: number;
+  muzzleVelocity: number; // m/s
+  damage: number; // per hit
+  dispersionMil: number;
+  /** gun port position in body frame (x right, y up, z forward negative) */
+  port: [number, number, number];
+}
+
+export interface StationDef {
+  id: number;
+  label: string;
+  /** body-frame position of the store's centre (metres) */
+  pos: [number, number, number];
+  /** what can hang here */
+  allowed: StoreType[];
+  /** visual: rail (wingtip / fuselage launcher) or pylon */
+  mount: 'rail' | 'pylon' | 'conformal' | 'semi-recessed';
+}
+
+export interface LoadoutPreset {
+  id: string;
+  name: string;
+  /** station id -> store */
+  stores: Record<number, StoreType>;
+}
+
+export interface RadarSpec {
+  name: string;
+  kind: 'AESA' | 'AESA/MSA';
+  /** detection range vs. a 5 m^2 fighter, nautical miles */
+  rangeNm: number;
+  azLimitDeg: number;
+  elLimitDeg: number;
+  maxTracks: number;
+  /** full-scan frame time in seconds (AESA is fast) */
+  frameTime: number;
+}
+
+export interface IrstSpec {
+  name: string;
+  rangeNm: number; // vs afterburning tail-on target
+  fovDeg: number;
+}
+
+export interface EwSpec {
+  name: string;
+  /** missile approach warning (detects IR missile launches) */
+  maws: boolean;
+  /** reduces enemy radar detection range / missile seeker robustness (0..1) */
+  jamming: number;
+  /** automatically dispenses countermeasures on launch detection */
+  autoDispense: boolean;
+}
+
+export interface AircraftSpec {
+  type: AircraftType;
+  name: string;
+  shortName: string;
+  role: string;
+  crew: number;
+  description: string;
+  // dimensions (display in feet, sim in metres)
+  lengthFt: number;
+  wingspanFt: number;
+  heightFt: number;
+  length: number;
+  span: number;
+  height: number;
+  // weights
+  emptyMass: number; // kg
+  internalFuel: number; // kg
+  maxTakeoff: number; // kg
+  maxTakeoffLb: number;
+  payloadLb: number;
+  // aerodynamics
+  wingArea: number; // m^2
+  cd0: number;
+  waveDragPeak: number; // CD0 multiplier at Mach ~1.1
+  waveDragHigh: number; // multiplier at max Mach
+  kInduced: number;
+  clAlpha: number; // per radian (subsonic)
+  clMax: number;
+  alphaMaxDeg: number; // FBW alpha limit
+  maxMach: number;
+  ceilingFt: number;
+  maxIasKts: number;
+  // engines
+  engineName: string;
+  engines: number;
+  thrustMil: number; // N per engine
+  thrustAb: number; // N per engine
+  thrustMilLbf: number;
+  thrustAbLbf: number;
+  tsfcMil: number; // kg/(N*h) equiv via lb/(lbf*h)
+  tsfcAb: number;
+  ramFactor: number; // thrust growth with Mach in AB
+  spool: number; // 1/s
+  // handling
+  gLimit: number; // FBW limit
+  gOverride: number; // with G-limiter override (paddle switch)
+  gStructural: number; // structural failure
+  gNeg: number;
+  rollRate: number; // deg/s max
+  pitchRate: number; // deg/s max
+  cornerKts: number; // best sustained / instantaneous turn speed (AI)
+  rotateKts: number;
+  approachKts: number;
+  speedbrakeCd: number;
+  // combat
+  combatRangeNm: number;
+  hardpoints: number;
+  maxAAM: number;
+  gun: GunSpec;
+  stations: StationDef[];
+  loadouts: LoadoutPreset[];
+  radar: RadarSpec;
+  irst: IrstSpec | null;
+  ew: EwSpec;
+  flightControl: string;
+  chaff: number;
+  flares: number;
+  /** radar cross section (m^2), frontal; drives detection range */
+  rcs: number;
+  /** IR signature scale */
+  irSignature: number;
+  /** gear geometry: nose z, main z (body frame), main half-track, gear height */
+  gear: { nose: number; main: number; track: number; height: number };
+  /** approximate hit-sphere layout for bullets */
+  hitRadius: number;
+  // paint
+  paint: { top: string; bottom: string; accent: string };
+}
+
+const lbf = (v: number) => v * LBF;
+const kg = (lb: number) => lb * LB;
+
+const AIM120 = 'AIM120D' as const;
+const AIM9 = 'AIM9X' as const;
+const TANK = 'TANK' as const;
+
+// ---------------------------------------------------------------------------
+// F-15EX Eagle II
+// ---------------------------------------------------------------------------
+const F15EX: AircraftSpec = {
+  type: 'F15EX',
+  name: 'F-15EX Eagle II',
+  shortName: 'F-15EX',
+  role: 'Two-seat multirole air superiority fighter',
+  crew: 2,
+  description:
+    'The heaviest hitter in the theater. Mach 2.5, a 60,000 ft ceiling and 23 hardpoints carrying up to 12 air-to-air missiles. AN/APG-82(V)1 AESA radar, EPAWSS electronic warfare suite and an all-digital fly-by-wire system.',
+  lengthFt: 63.8,
+  wingspanFt: 42.8,
+  heightFt: 18.5,
+  length: 63.8 * FT,
+  span: 42.8 * FT,
+  height: 18.5 * FT,
+  emptyMass: kg(31700),
+  internalFuel: kg(13550 + 9750), // internal + conformal fuel tanks
+  maxTakeoff: kg(81000),
+  maxTakeoffLb: 81000,
+  payloadLb: 29000,
+  wingArea: 56.5,
+  cd0: 0.0205,
+  waveDragPeak: 2.15,
+  waveDragHigh: 1.6,
+  kInduced: 0.122,
+  clAlpha: 3.9,
+  clMax: 1.85,
+  alphaMaxDeg: 30,
+  maxMach: 2.5,
+  ceilingFt: 60000,
+  maxIasKts: 800,
+  engineName: '2 x General Electric F110-GE-129',
+  engines: 2,
+  thrustMil: lbf(17155),
+  thrustAb: lbf(29500),
+  thrustMilLbf: 17155,
+  thrustAbLbf: 29500,
+  tsfcMil: 0.74,
+  tsfcAb: 1.95,
+  ramFactor: 0.62,
+  spool: 1.3,
+  gLimit: 9.0,
+  gOverride: 11.0,
+  gStructural: 13.5,
+  gNeg: -3,
+  rollRate: 250,
+  pitchRate: 28,
+  cornerKts: 350,
+  rotateKts: 150,
+  approachKts: 160,
+  speedbrakeCd: 0.07,
+  combatRangeNm: 687,
+  hardpoints: 23,
+  maxAAM: 12,
+  gun: {
+    name: 'M61A1 Vulcan 20mm rotary cannon',
+    caliberMm: 20,
+    rounds: 510,
+    rpm: 6000,
+    muzzleVelocity: 1050,
+    damage: 7,
+    dispersionMil: 4.5,
+    port: [2.0, 0.5, -3.2],
+  },
+  stations: [
+    { id: 1, label: 'LW OB', pos: [-4.6, -0.55, 0.9], allowed: [AIM9, AIM120], mount: 'rail' },
+    { id: 2, label: 'LW PYL-O', pos: [-3.5, -0.75, 0.7], allowed: [AIM120, AIM9], mount: 'pylon' },
+    { id: 3, label: 'LW PYL-I', pos: [-2.85, -0.75, 0.7], allowed: [AIM120, AIM9, TANK], mount: 'pylon' },
+    { id: 4, label: 'LW IB', pos: [-2.2, -0.75, 0.7], allowed: [AIM120, AIM9], mount: 'rail' },
+    { id: 5, label: 'L CFT-F', pos: [-1.55, -0.95, -1.4], allowed: [AIM120], mount: 'conformal' },
+    { id: 6, label: 'L CFT-A', pos: [-1.55, -0.95, 1.9], allowed: [AIM120], mount: 'conformal' },
+    { id: 7, label: 'CL', pos: [0, -1.2, 0.4], allowed: [TANK], mount: 'pylon' },
+    { id: 8, label: 'R CFT-A', pos: [1.55, -0.95, 1.9], allowed: [AIM120], mount: 'conformal' },
+    { id: 9, label: 'R CFT-F', pos: [1.55, -0.95, -1.4], allowed: [AIM120], mount: 'conformal' },
+    { id: 10, label: 'RW IB', pos: [2.2, -0.75, 0.7], allowed: [AIM120, AIM9], mount: 'rail' },
+    { id: 11, label: 'RW PYL-I', pos: [2.85, -0.75, 0.7], allowed: [AIM120, AIM9, TANK], mount: 'pylon' },
+    { id: 12, label: 'RW PYL-O', pos: [3.5, -0.75, 0.7], allowed: [AIM120, AIM9], mount: 'pylon' },
+    { id: 13, label: 'RW OB', pos: [4.6, -0.55, 0.9], allowed: [AIM9, AIM120], mount: 'rail' },
+  ],
+  loadouts: [
+    {
+      id: 'eagle-12',
+      name: 'EAGLE II "MISSILE TRUCK" — 8x AIM-120D, 4x AIM-9X',
+      stores: { 1: AIM9, 2: AIM120, 3: AIM120, 4: AIM9, 5: AIM120, 6: AIM120, 8: AIM120, 9: AIM120, 10: AIM9, 11: AIM120, 12: AIM120, 13: AIM9 },
+    },
+    {
+      id: 'eagle-bvr',
+      name: 'LONG REACH — 10x AIM-120D, 2x AIM-9X',
+      stores: { 1: AIM9, 2: AIM120, 3: AIM120, 4: AIM120, 5: AIM120, 6: AIM120, 8: AIM120, 9: AIM120, 10: AIM120, 11: AIM120, 12: AIM120, 13: AIM9 },
+    },
+    {
+      id: 'eagle-std',
+      name: 'CAP STANDARD — 6x AIM-120D, 4x AIM-9X, CL TANK',
+      stores: { 1: AIM9, 4: AIM9, 5: AIM120, 6: AIM120, 7: TANK, 8: AIM120, 9: AIM120, 10: AIM9, 13: AIM9, 3: AIM120, 11: AIM120 },
+    },
+    {
+      id: 'eagle-ferry',
+      name: 'FERRY — 3x TANKS, 4x AIM-9X',
+      stores: { 1: AIM9, 3: TANK, 4: AIM9, 7: TANK, 10: AIM9, 11: TANK, 13: AIM9 },
+    },
+  ],
+  radar: { name: 'AN/APG-82(V)1 AESA', kind: 'AESA', rangeNm: 105, azLimitDeg: 60, elLimitDeg: 60, maxTracks: 16, frameTime: 1.2 },
+  irst: null,
+  ew: { name: 'EPAWSS (Eagle Passive/Active Warning Survivability System)', maws: true, jamming: 0.3, autoDispense: true },
+  flightControl: 'Digital fly-by-wire',
+  chaff: 120,
+  flares: 60,
+  rcs: 10,
+  irSignature: 1.15,
+  gear: { nose: -5.5, main: 1.2, track: 1.4, height: 2.05 },
+  hitRadius: 5.5,
+  paint: { top: '#5d646a', bottom: '#737a80', accent: '#3e4448' },
+};
+
+// ---------------------------------------------------------------------------
+// F/A-18E/F Super Hornet
+// ---------------------------------------------------------------------------
+const FA18: AircraftSpec = {
+  type: 'FA18EF',
+  name: 'F/A-18E/F Super Hornet',
+  shortName: 'F/A-18E/F',
+  role: 'Carrier-capable two-seat strike fighter',
+  crew: 2,
+  description:
+    'Long-legged and brutally agile at low speed. 1,275 NM combat range, Mach 1.8, excellent high angle-of-attack authority from its LEX. Internal M61A2 Vulcan cannon and 11 weapon stations.',
+  lengthFt: 60.3,
+  wingspanFt: 44.9,
+  heightFt: 16,
+  length: 60.3 * FT,
+  span: 44.9 * FT,
+  height: 16 * FT,
+  emptyMass: kg(32081),
+  internalFuel: kg(14700),
+  maxTakeoff: kg(66000),
+  maxTakeoffLb: 66000,
+  payloadLb: 17750,
+  wingArea: 46.45,
+  cd0: 0.0235,
+  waveDragPeak: 2.45,
+  waveDragHigh: 2.1,
+  kInduced: 0.098,
+  clAlpha: 4.3,
+  clMax: 2.0,
+  alphaMaxDeg: 42,
+  maxMach: 1.8,
+  ceilingFt: 50000,
+  maxIasKts: 750,
+  engineName: '2 x General Electric F414-GE-400',
+  engines: 2,
+  thrustMil: lbf(14770),
+  thrustAb: lbf(22000),
+  thrustMilLbf: 14770,
+  thrustAbLbf: 22000,
+  tsfcMil: 0.78,
+  tsfcAb: 1.85,
+  ramFactor: 0.62,
+  spool: 1.5,
+  gLimit: 7.5,
+  gOverride: 10.0,
+  gStructural: 12.0,
+  gNeg: -3,
+  rollRate: 220,
+  pitchRate: 32,
+  cornerKts: 330,
+  rotateKts: 145,
+  approachKts: 145,
+  speedbrakeCd: 0.05,
+  combatRangeNm: 1275,
+  hardpoints: 11,
+  maxAAM: 10,
+  gun: {
+    name: 'M61A2 Vulcan 20mm rotary cannon',
+    caliberMm: 20,
+    rounds: 412,
+    rpm: 6000,
+    muzzleVelocity: 1050,
+    damage: 7,
+    dispersionMil: 4.5,
+    port: [0, 0.55, -8.2],
+  },
+  stations: [
+    { id: 1, label: 'LWT', pos: [-6.75, -0.1, 1.2], allowed: [AIM9], mount: 'rail' },
+    { id: 2, label: 'LW OB', pos: [-5.1, -0.85, 0.8], allowed: [AIM120, AIM9], mount: 'pylon' },
+    { id: 3, label: 'LW MID', pos: [-3.9, -0.95, 0.5], allowed: [AIM120, AIM9, TANK], mount: 'pylon' },
+    { id: 4, label: 'LW IB', pos: [-2.7, -1.05, 0.25], allowed: [AIM120, TANK], mount: 'pylon' },
+    { id: 5, label: 'L FUS', pos: [-0.85, -1.1, -1.4], allowed: [AIM120], mount: 'semi-recessed' },
+    { id: 6, label: 'CL', pos: [0, -1.35, 0.2], allowed: [TANK], mount: 'pylon' },
+    { id: 7, label: 'R FUS', pos: [0.85, -1.1, -1.4], allowed: [AIM120], mount: 'semi-recessed' },
+    { id: 8, label: 'RW IB', pos: [2.7, -1.05, 0.25], allowed: [AIM120, TANK], mount: 'pylon' },
+    { id: 9, label: 'RW MID', pos: [3.9, -0.95, 0.5], allowed: [AIM120, AIM9, TANK], mount: 'pylon' },
+    { id: 10, label: 'RW OB', pos: [5.1, -0.85, 0.8], allowed: [AIM120, AIM9], mount: 'pylon' },
+    { id: 11, label: 'RWT', pos: [6.75, -0.1, 1.2], allowed: [AIM9], mount: 'rail' },
+  ],
+  loadouts: [
+    {
+      id: 'hornet-ss',
+      name: 'SWING FIGHTER — 6x AIM-120D, 2x AIM-9X',
+      stores: { 1: AIM9, 3: AIM120, 4: AIM120, 5: AIM120, 7: AIM120, 8: AIM120, 9: AIM120, 11: AIM9 },
+    },
+    {
+      id: 'hornet-max',
+      name: 'MAX AAM — 8x AIM-120D, 2x AIM-9X',
+      stores: { 1: AIM9, 2: AIM120, 3: AIM120, 4: AIM120, 5: AIM120, 7: AIM120, 8: AIM120, 9: AIM120, 10: AIM120, 11: AIM9 },
+    },
+    {
+      id: 'hornet-dog',
+      name: 'DOGFIGHT — 2x AIM-120D, 6x AIM-9X',
+      stores: { 1: AIM9, 2: AIM9, 3: AIM9, 5: AIM120, 7: AIM120, 9: AIM9, 10: AIM9, 11: AIM9 },
+    },
+    {
+      id: 'hornet-long',
+      name: 'EXTENDED CAP — 4x AIM-120D, 2x AIM-9X, 3x TANKS',
+      stores: { 1: AIM9, 3: TANK, 5: AIM120, 6: TANK, 7: AIM120, 9: TANK, 2: AIM120, 10: AIM120, 11: AIM9 },
+    },
+  ],
+  radar: { name: 'AN/APG-79 AESA', kind: 'AESA', rangeNm: 85, azLimitDeg: 60, elLimitDeg: 60, maxTracks: 12, frameTime: 1.4 },
+  irst: null,
+  ew: { name: 'AN/ALR-67(V)3 RWR + ALQ-214 IDECM', maws: false, jamming: 0.18, autoDispense: false },
+  flightControl: 'Digital fly-by-wire (quad redundant)',
+  chaff: 60,
+  flares: 60,
+  rcs: 3.5,
+  irSignature: 1.0,
+  gear: { nose: -5.6, main: 1.0, track: 1.6, height: 1.95 },
+  hitRadius: 5.4,
+  paint: { top: '#8a9197', bottom: '#a4aaae', accent: '#5f666b' },
+};
+
+// ---------------------------------------------------------------------------
+// Eurofighter Typhoon
+// ---------------------------------------------------------------------------
+const TYPHOON: AircraftSpec = {
+  type: 'TYPHOON',
+  name: 'Eurofighter Typhoon',
+  shortName: 'Typhoon',
+  role: 'Single-seat canard-delta air superiority fighter',
+  crew: 1,
+  description:
+    'Supercruising canard-delta with the best thrust-to-weight in the theater. Mach 2.0, 55,000 ft ceiling, CAPTOR radar plus the PIRATE passive IRST that can track targets without lighting up their warning receivers. Internal 27 mm Mauser BK-27.',
+  lengthFt: 52.4,
+  wingspanFt: 35.9,
+  heightFt: 17.3,
+  length: 52.4 * FT,
+  span: 35.9 * FT,
+  height: 17.3 * FT,
+  emptyMass: kg(24250),
+  internalFuel: kg(11000),
+  maxTakeoff: kg(51800),
+  maxTakeoffLb: 51800,
+  payloadLb: 16500,
+  wingArea: 51.2,
+  cd0: 0.019,
+  waveDragPeak: 2.05,
+  waveDragHigh: 1.8,
+  kInduced: 0.16,
+  clAlpha: 3.5,
+  clMax: 1.55,
+  alphaMaxDeg: 28,
+  maxMach: 2.0,
+  ceilingFt: 55000,
+  maxIasKts: 750,
+  engineName: '2 x Eurojet EJ200',
+  engines: 2,
+  thrustMil: lbf(13490),
+  thrustAb: lbf(20233),
+  thrustMilLbf: 13490,
+  thrustAbLbf: 20233,
+  tsfcMil: 0.8,
+  tsfcAb: 1.75,
+  ramFactor: 0.55,
+  spool: 1.6,
+  gLimit: 9.0,
+  gOverride: 11.0,
+  gStructural: 13.0,
+  gNeg: -3,
+  rollRate: 270,
+  pitchRate: 30,
+  cornerKts: 340,
+  rotateKts: 135,
+  approachKts: 140,
+  speedbrakeCd: 0.055,
+  combatRangeNm: 1564,
+  hardpoints: 13,
+  maxAAM: 10,
+  gun: {
+    name: 'Mauser BK-27 27mm revolver cannon',
+    caliberMm: 27,
+    rounds: 150,
+    rpm: 1700,
+    muzzleVelocity: 1025,
+    damage: 16,
+    dispersionMil: 3.5,
+    port: [0.75, -0.3, -3.6],
+  },
+  stations: [
+    { id: 1, label: 'LW OB', pos: [-5.1, -0.35, 1.9], allowed: [AIM9], mount: 'rail' },
+    { id: 2, label: 'LW MID', pos: [-3.9, -0.6, 1.3], allowed: [AIM120, AIM9], mount: 'pylon' },
+    { id: 3, label: 'LW IB', pos: [-2.8, -0.7, 0.8], allowed: [AIM120, AIM9, TANK], mount: 'pylon' },
+    { id: 4, label: 'L FUS-F', pos: [-0.9, -1.0, -1.2], allowed: [AIM120], mount: 'semi-recessed' },
+    { id: 5, label: 'L FUS-A', pos: [-0.9, -1.0, 1.6], allowed: [AIM120], mount: 'semi-recessed' },
+    { id: 6, label: 'CL', pos: [0, -1.25, 0.4], allowed: [TANK], mount: 'pylon' },
+    { id: 7, label: 'R FUS-A', pos: [0.9, -1.0, 1.6], allowed: [AIM120], mount: 'semi-recessed' },
+    { id: 8, label: 'R FUS-F', pos: [0.9, -1.0, -1.2], allowed: [AIM120], mount: 'semi-recessed' },
+    { id: 9, label: 'RW IB', pos: [2.8, -0.7, 0.8], allowed: [AIM120, AIM9, TANK], mount: 'pylon' },
+    { id: 10, label: 'RW MID', pos: [3.9, -0.6, 1.3], allowed: [AIM120, AIM9], mount: 'pylon' },
+    { id: 11, label: 'RW OB', pos: [5.1, -0.35, 1.9], allowed: [AIM9], mount: 'rail' },
+  ],
+  loadouts: [
+    {
+      id: 'typhoon-aa',
+      name: 'AIR DOMINANCE — 6x AIM-120D, 2x AIM-9X',
+      stores: { 1: AIM9, 2: AIM120, 4: AIM120, 5: AIM120, 7: AIM120, 8: AIM120, 10: AIM120, 11: AIM9 },
+    },
+    {
+      id: 'typhoon-max',
+      name: 'MAX AAM — 8x AIM-120D, 2x AIM-9X',
+      stores: { 1: AIM9, 2: AIM120, 3: AIM120, 4: AIM120, 5: AIM120, 7: AIM120, 8: AIM120, 9: AIM120, 10: AIM120, 11: AIM9 },
+    },
+    {
+      id: 'typhoon-wvr',
+      name: 'KNIFE FIGHT — 4x AIM-120D, 6x AIM-9X',
+      stores: { 1: AIM9, 2: AIM9, 3: AIM9, 4: AIM120, 5: AIM120, 7: AIM120, 8: AIM120, 9: AIM9, 10: AIM9, 11: AIM9 },
+    },
+    {
+      id: 'typhoon-long',
+      name: 'LONG RANGE CAP — 4x AIM-120D, 2x AIM-9X, 3x TANKS',
+      stores: { 1: AIM9, 3: TANK, 4: AIM120, 5: AIM120, 6: TANK, 7: AIM120, 8: AIM120, 9: TANK, 11: AIM9 },
+    },
+  ],
+  radar: { name: 'CAPTOR-E AESA (mechanical repositioner)', kind: 'AESA/MSA', rangeNm: 90, azLimitDeg: 100, elLimitDeg: 60, maxTracks: 12, frameTime: 1.6 },
+  irst: { name: 'PIRATE passive IRST', rangeNm: 40, fovDeg: 70 },
+  ew: { name: 'Praetorian DASS', maws: true, jamming: 0.22, autoDispense: false },
+  flightControl: 'Quadruplex digital fly-by-wire, carefree handling',
+  chaff: 80,
+  flares: 60,
+  rcs: 1.2,
+  irSignature: 0.9,
+  gear: { nose: -4.4, main: 1.4, track: 1.3, height: 1.9 },
+  hitRadius: 4.8,
+  paint: { top: '#7f878d', bottom: '#98a0a5', accent: '#555c61' },
+};
+
+export const SPECS: Record<AircraftType, AircraftSpec> = {
+  F15EX: F15EX,
+  FA18EF: FA18,
+  TYPHOON: TYPHOON,
+};
+
+export function getSpec(t: AircraftType): AircraftSpec {
+  return SPECS[t];
+}
+
+// ---------------------------------------------------------------------------
+// Stores
+// ---------------------------------------------------------------------------
+
+export interface StoreSpec {
+  type: StoreType;
+  name: string;
+  mass: number; // kg
+  dragCd: number; // added CD referenced to wing area ~50 m^2
+  length: number;
+  diameter: number;
+}
+
+export const STORES: Record<StoreType, StoreSpec> = {
+  AIM120D: { type: 'AIM120D', name: 'AIM-120D AMRAAM', mass: 161.5, dragCd: 0.0011, length: 3.66, diameter: 0.178 },
+  AIM9X: { type: 'AIM9X', name: 'AIM-9X Sidewinder Block II', mass: 85.3, dragCd: 0.0008, length: 3.02, diameter: 0.127 },
+  TANK: { type: 'TANK', name: 'External fuel tank (480 gal)', mass: 220, dragCd: 0.0045, length: 5.0, diameter: 0.75 },
+};
+
+/** Fuel carried in each external tank (kg, JP-8 at 480 US gal). */
+export const TANK_FUEL = 1450;
+
+/** Enemy types the spawner may use: never the player's own type. */
+export function enemyTypesFor(player: AircraftType): AircraftType[] {
+  return AIRCRAFT_TYPES.filter((t) => t !== player);
+}
