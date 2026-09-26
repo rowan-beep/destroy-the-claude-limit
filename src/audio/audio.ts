@@ -331,7 +331,7 @@ export class AudioEngine {
   }
 
   /** Voice warnings ("Bitching Betty") via speech synthesis where available. */
-  voice(text: string, key = text, cooldown = 6): void {
+  voice(text: string, key = text, cooldown = 6, russian?: string): void {
     if (!this.levels.voice || this.muted) return;
     const now = performance.now() / 1000;
     const last = this.lastVoice.get(key) ?? -1e9;
@@ -340,11 +340,19 @@ export class AudioEngine {
     try {
       const synth = window.speechSynthesis;
       if (!synth) return;
-      const u = new SpeechSynthesisUtterance(text);
+      const voices = synth.getVoices();
+      // Russian calls in a Russian voice where the device has one
+      const ru = russian ? voices.find((vv) => /^ru/i.test(vv.lang)) : undefined;
+      const u = new SpeechSynthesisUtterance(ru ? russian! : text);
       u.rate = 1.15;
       u.pitch = 1.05;
       u.volume = Math.min(1, this.levels.master * this.levels.warnings);
-      const voices = synth.getVoices();
+      if (ru) {
+        u.voice = ru;
+        u.lang = ru.lang;
+        synth.speak(u);
+        return;
+      }
       const female = voices.find((vv) => /female|zira|samantha|victoria|karen|serena/i.test(vv.name) && /en/i.test(vv.lang));
       if (female) u.voice = female;
       synth.speak(u);

@@ -2,7 +2,7 @@
 // audio and HUD; runs the fixed-step loop and translates the player's
 // inputs into flight controls and weapon actions.
 
-import { WeaponSelect, MISSILES, isIrMissile, foxCall, spokenName } from '../weapons/weaponSpecs';
+import { WeaponSelect, MISSILES, isIrMissile, launchCall } from '../weapons/weaponSpecs';
 import * as THREE from 'three';
 import { GameRenderer } from '../render/renderer';
 import { World, WORLD_QUALITY } from '../world/world';
@@ -239,9 +239,9 @@ export class Game implements ModeHost {
       const d = this.player ? e.missile.pos.distanceTo(this.player.fm.pos) : 1e6;
       audio.missileLaunch(e.shooter === this.player, d);
       if (e.shooter === this.player) {
-        // name the weapon actually fired (R-77M, AIM-9X...), plus the brevity code
-        const t = e.missile.spec.type;
-        this.hud.feed(`${e.shooter.callsign}: ${MISSILES[t].short} AWAY (${foxCall(t)})${e.target ? ' → ' + e.target.callsign : ''}`, 'blue');
+        // NATO brevity (FOX 3 / FOX 2) for the Western jets, "Пуск!" for the Su-35S
+        const call = launchCall(e.missile.spec.type);
+        this.hud.feed(`${e.shooter.callsign}: ${call.feed}${e.target ? ' → ' + e.target.callsign : ''}`, 'blue');
       }
     });
     ev.on('destroyed', (e) => {
@@ -1021,7 +1021,8 @@ export class Game implements ModeHost {
     const m = p.fireMissile(this.sim, w, target);
     if (!m) return;
     if (!target) this.message('MADDOG LAUNCH — NO TARGET TRACK', 'warn', 2.5);
-    this.voice(`${spokenName(w)} away`);
+    const call = launchCall(w);
+    audio.voice(call.voice, 'launch', 1.5, call.voiceRu);
   }
 
   private tryRearm(): void {

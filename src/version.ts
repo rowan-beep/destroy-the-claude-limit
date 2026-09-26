@@ -10,6 +10,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '1.7.3',
+    date: '2026-09-26',
+    title: 'Correct launch calls',
+    notes: [
+      "Launch calls fixed. F-15EX, F/A-18E/F and Typhoon use the NATO brevity codes again: 'FOX 3' / 'Fox three' for the AIM-120D and 'FOX 2' / 'Fox two' for the AIM-9X.",
+      "Su-35S launch calls are now what Russian pilots actually say. They don't use 'Fox' codes: they name the missile and call 'Пуск!' ('launch!'). The feed shows 'Р-77М — ПУСК!' or 'Р-74М — ПУСК!', and the voice says it in Russian if your device has a Russian voice (otherwise 'R 77 M, pusk!').",
+    ],
+  },
+  {
     version: '1.7.2',
     date: '2026-09-26',
     title: 'Missile calls',

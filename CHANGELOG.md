@@ -3,6 +3,11 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v1.7.3 — Correct launch calls (2026-09-26)
+
+- Launch calls fixed. F-15EX, F/A-18E/F and Typhoon use the NATO brevity codes again: 'FOX 3' / 'Fox three' for the AIM-120D and 'FOX 2' / 'Fox two' for the AIM-9X.
+- Su-35S launch calls are now what Russian pilots actually say. They don't use 'Fox' codes: they name the missile and call 'Пуск!' ('launch!'). The feed shows 'Р-77М — ПУСК!' or 'Р-74М — ПУСК!', and the voice says it in Russian if your device has a Russian voice (otherwise 'R 77 M, pusk!').
+
 ## v1.7.2 — Missile calls (2026-09-26)
 
 - Launch calls now say what you actually fired. Firing an R-77M shows 'R-77M AWAY (FOX 3)' in the feed and the voice says 'R 77 M away'; an R-74M says 'R-74M AWAY (FOX 2)'. The same goes for every jet: 'AMRAAM away' for the AIM-120D and 'Sidewinder away' for the AIM-9X.

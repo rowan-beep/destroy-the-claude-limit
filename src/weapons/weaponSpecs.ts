@@ -146,10 +146,6 @@ export function isIrMissile(t: MissileType): boolean {
   return MISSILES[t].seeker === 'IR';
 }
 
-/** Brevity call for a launch. */
-export function foxCall(t: MissileType): string {
-  return isIrMissile(t) ? 'FOX 2' : 'FOX 3';
-}
 
 /** Drag coefficient vs Mach for a slender missile body. */
 export function missileCd(M: number, motorOn: boolean): number {
@@ -194,7 +190,13 @@ export function weaponCode(t: MissileType): string {
   return t === 'AIM120D' ? '120D' : t === 'AIM9X' ? '9X' : t === 'R77M' ? 'R77M' : 'R74M';
 }
 
-/** What the pilot calls on the radio when this missile leaves the rail. */
-export function spokenName(t: MissileType): string {
-  return t === 'AIM120D' ? 'AMRAAM' : t === 'AIM9X' ? 'Sidewinder' : t === 'R77M' ? 'R 77 M' : 'R 74 M';
+/**
+ * The radio call when this missile leaves the rail. NATO pilots use the
+ * brevity code (FOX 3 active radar, FOX 2 infrared). Russian pilots don't:
+ * they name the weapon and call "Пуск!" ("launch!"), e.g. "Р-77М — пуск!".
+ */
+export function launchCall(t: MissileType): { feed: string; voice: string; voiceRu?: string } {
+  if (t === 'R77M') return { feed: 'Р-77М — ПУСК! (R-77M, PUSK)', voice: 'R 77 M, pusk!', voiceRu: 'Эр семьдесят семь эм, пуск!' };
+  if (t === 'R74M') return { feed: 'Р-74М — ПУСК! (R-74M, PUSK)', voice: 'R 74 M, pusk!', voiceRu: 'Эр семьдесят четыре эм, пуск!' };
+  return isIrMissile(t) ? { feed: 'FOX 2', voice: 'Fox two' } : { feed: 'FOX 3', voice: 'Fox three' };
 }
