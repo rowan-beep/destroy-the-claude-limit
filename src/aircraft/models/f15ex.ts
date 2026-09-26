@@ -4,7 +4,7 @@
 
 import * as THREE from 'three';
 import { AirframeVisual } from './visual';
-import { loft, surface, merge, paintByNormal, paintSolid, cyl, airframeMaterials, mirrorX, Section, surfacePoint, paintBandY, SurfaceDef } from './builder';
+import { loft, surface, merge, paintByNormal, paintSolid, cyl, airframeMaterials, mirrorX, Section, surfacePoint, paintBandY, SurfaceDef, sectionAt, sectionArch } from './builder';
 
 export function buildF15EX(v: AirframeVisual): void {
   const mats = airframeMaterials();
@@ -76,37 +76,41 @@ export function buildF15EX(v: AirframeVisual): void {
   ];
   v.addMesh(paint(loft(spine, 18, 3)), mats.paint);
 
-  // canopy (tandem two-seat bubble)
+  // canopy (tandem two-seat bubble): a tall, one-piece bubble behind a
+  // steep windscreen, with the frame arch well above the pilot's eye line
   const can: Section[] = [
-    { z: -7.0, w: 0.03, top: 0.02, bot: 0.02, y: 0.56, n: 2 },
-    { z: -6.5, w: 0.4, top: 0.32, bot: 0.03, y: 0.58, n: 2.2 },
-    { z: -5.6, w: 0.5, top: 0.54, bot: 0.03, y: 0.58, n: 2.2 },
-    { z: -4.2, w: 0.5, top: 0.56, bot: 0.03, y: 0.6, n: 2.2 },
-    { z: -3.1, w: 0.42, top: 0.36, bot: 0.03, y: 0.6, n: 2.2 },
+    { z: -7.15, w: 0.03, top: 0.02, bot: 0.02, y: 0.56, n: 2 },
+    { z: -6.6, w: 0.38, top: 0.36, bot: 0.03, y: 0.58, n: 2.2 },
+    { z: -6.0, w: 0.5, top: 0.56, bot: 0.03, y: 0.58, n: 2.2 },
+    { z: -5.3, w: 0.54, top: 0.62, bot: 0.03, y: 0.6, n: 2.2 },
+    { z: -4.2, w: 0.52, top: 0.6, bot: 0.03, y: 0.6, n: 2.2 },
+    { z: -3.1, w: 0.42, top: 0.38, bot: 0.03, y: 0.6, n: 2.2 },
     { z: -2.5, w: 0.2, top: 0.1, bot: 0.03, y: 0.6, n: 2 },
   ];
   const canopy = v.addMesh(loft(can, 24, 4), mats.glass, v.body, false);
   canopy.renderOrder = 5;
   v.canopy = canopy;
-  // canopy frame bows
-  for (const z of [-6.35, -4.75]) {
-    const bow = new THREE.Mesh(new THREE.TorusGeometry(0.47, 0.035, 6, 20, Math.PI), mats.dark);
-    bow.position.set(0, 0.6, z);
-    bow.scale.set(1, 1.05, 1);
+  v.canopySections = can;
+  v.fuselageSections = fus;
+  v.windscreenArchZ = -6.05;
+  v.canopyBows = [-4.75];
+  // canopy frame: windscreen arch and the bow between the cockpits
+  for (const z of [v.windscreenArchZ, ...v.canopyBows]) {
+    const bow = new THREE.Mesh(sectionArch(sectionAt(can, z), 0.03, -0.01), mats.dark);
     v.body.add(bow);
     v.hideInCockpit.push(bow);
   }
   // ejection seats / helmets visible through the glass
   for (const z of [-5.55, -4.1]) {
-    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.55, 0.22), mats.dark);
-    seat.position.set(0, 0.8, z + 0.38);
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.62, 0.22), mats.dark);
+    seat.position.set(0, 0.74, z + 0.42);
     v.body.add(seat);
-    const helm = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 8), new THREE.MeshStandardMaterial({ color: 0x5b6150, roughness: 0.6 }));
-    helm.position.set(0, 1.02, z + 0.1);
+    const helm = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 8), new THREE.MeshStandardMaterial({ color: 0x5b6150, roughness: 0.6 }));
+    helm.position.set(0, 0.98, z + 0.08);
     v.body.add(helm);
     v.hideInCockpit.push(seat, helm);
   }
-  v.cockpitEye.set(0, 1.08, -5.55);
+  v.cockpitEye.set(0, 0.95, -5.55);
 
   // --- wings ------------------------------------------------------------
   const wingR = surface({ root: [1.45, 0.16, -1.9], rootChord: 6.4, tipChord: 1.6, span: 5.07, sweep: 45, thickness: 0.05, dihedral: -1, cn: 12, sn: 5 });

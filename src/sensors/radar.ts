@@ -56,6 +56,11 @@ export class Radar {
   /** azimuth scan half-width (deg), limited by the antenna */
   scanAz: number;
   lastLockLoss: string | null = null;
+  /**
+   * Noise-jammer strobes: a jamming target the radar cannot burn through
+   * still shows up as a bearing-only strobe (no range, cannot be locked).
+   */
+  readonly strobes = new Map<number, { target: Aircraft; az: number; time: number }>();
 
   constructor(readonly owner: Aircraft) {
     this.scanAz = owner.spec.radar.azLimitDeg;
@@ -69,7 +74,7 @@ export class Radar {
     const spec = this.owner.spec.radar;
     const rcs = rcsFrom(t, this.owner.fm.pos);
     let r = spec.rangeNm * NM * Math.pow(rcs / 5, 0.25);
-    r *= 1 - 0.5 * t.spec.ew.jamming;
+    r *= 1 - 0.5 * (t.jammerOn ? t.spec.ew.jamming : 0);
     // look-down into ground clutter costs range
     if (t.fm.pos.y < this.owner.fm.pos.y && t.fm.agl < 3000) r *= 0.8;
     return r;
@@ -169,7 +174,19 @@ export class Radar {
           t.rwr.paint(own, 'search', sim.time);
         }
         if (r.ok) this.recordContact(sim, t);
+        else if (
+          r.reason === 'range' &&
+          t.jammerOn &&
+          t.spec.ew.jamming > 0 &&
+          t.team !== own.team &&
+          Math.abs(a.az) < this.scanAz * DEG &&
+          a.range < this.detectionRange(t) * 2.2 &&
+          this.los(sim, t)
+        ) {
+          this.strobes.set(t.id, { target: t, az: a.az, time: sim.time });
+        }
       }
+      for (const [id, s] of this.strobes) if (sim.time - s.time > frame * 2.5 || !s.target.alive) this.strobes.delete(id);
     }
 
     // ACM auto-acquisition
@@ -273,6 +290,20 @@ export class Radar {
     if (next === 'OFF') this.lock = null;
     if (next === 'ACM') this.lock = null;
     return next;
+  }
+
+  /** Direct mode selection (MFD buttons). */
+  setMode(m: Exclude<RadarMode, 'STT'>): void {
+    if (m === this.mode) return;
+    // any new search mode drops a single-target track back to search
+    this.mode = m;
+    this.lock = null;
+  }
+
+  /** Antenna azimuth scan patterns available on this radar (half-width, deg). */
+  get scanPatterns(): number[] {
+    const lim = this.owner.spec.radar.azLimitDeg;
+    return [lim, Math.min(lim, 40), 20].filter((v, i, a) => a.indexOf(v) === i);
   }
 
   reset(): void {

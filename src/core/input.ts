@@ -43,7 +43,13 @@ export type Action =
   | 'zoomOut'
   | 'lookReset'
   | 'autopilot'
-  | 'scopeRange';
+  | 'scopeRange'
+  | 'mfdLeft'
+  | 'mfdCenter'
+  | 'mfdRight'
+  | 'cockpitCursor'
+  | 'stptNext'
+  | 'navRtb';
 
 export const ACTION_LABELS: Record<Action, string> = {
   pitchDown: 'Pitch down (nose down)',
@@ -89,6 +95,12 @@ export const ACTION_LABELS: Record<Action, string> = {
   lookReset: 'Reset view',
   autopilot: 'Autopilot: level off',
   scopeRange: 'Radar scope range',
+  mfdLeft: 'Left display: next page',
+  mfdCenter: 'Centre display: next page',
+  mfdRight: 'Right display: next page',
+  cockpitCursor: 'Cockpit cursor (click displays & buttons)',
+  stptNext: 'Next steerpoint',
+  navRtb: 'Steer to nearest friendly field',
 };
 
 export const DEFAULT_BINDINGS: Record<Action, string[]> = {
@@ -135,6 +147,12 @@ export const DEFAULT_BINDINGS: Record<Action, string[]> = {
   lookReset: ['Home', 'KeyX'],
   autopilot: ['KeyU'],
   scopeRange: ['Semicolon'],
+  mfdLeft: ['Comma'],
+  mfdCenter: ['Slash'],
+  mfdRight: ['Period'],
+  cockpitCursor: ['Backslash', 'Insert'],
+  stptNext: ['Quote'],
+  navRtb: ['End'],
 };
 
 export type MouseMode = 'keyboard' | 'joystick' | 'mouseaim';
@@ -166,6 +184,9 @@ export class Input {
   private codeToActions = new Map<string, Action[]>();
   mouseDX = 0;
   mouseDY = 0;
+  /** cursor position in client pixels */
+  mouseX = 0;
+  mouseY = 0;
   wheel = 0;
   mouseButtons = 0;
   private mousePressed = new Set<number>();
@@ -192,11 +213,15 @@ export class Input {
     window.addEventListener('keyup', (e) => this.onKeyUp(e), { capture: true });
     window.addEventListener('blur', () => this.down.clear());
     target.addEventListener('mousemove', (e) => {
+      this.mouseX = e.clientX;
+      this.mouseY = e.clientY;
       if (!this.enabled) return;
       this.mouseDX += e.movementX;
       this.mouseDY += e.movementY;
     });
     target.addEventListener('mousedown', (e) => {
+      this.mouseX = e.clientX;
+      this.mouseY = e.clientY;
       if (!this.enabled) return;
       this.mouseButtons |= 1 << e.button;
       this.mousePressed.add(e.button);
@@ -276,6 +301,12 @@ export class Input {
 
   mouseClicked(button: number): boolean {
     return this.mousePressed.has(button);
+  }
+
+  /** Swallow a click so nothing else acts on it this frame. */
+  consumeClick(button: number): void {
+    this.mousePressed.delete(button);
+    this.mouseButtons &= ~(1 << button);
   }
 
   mouseHeld(button: number): boolean {

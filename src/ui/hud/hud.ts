@@ -5,7 +5,6 @@ import type { MsgKind } from '../../game/modes/mode';
 import { el, setText, setClass, clearEl } from '../dom';
 import { HudPainter } from './hudDraw';
 import { drawRadarScope, drawRwr, drawMinimap, drawCompass } from './scopes';
-import { drawMfds } from './mfd';
 import { FT, KT, LB, NM } from '../../core/constants';
 import { fmtTime, clamp } from '../../core/math';
 import { ACTION_LABELS, Action } from '../../core/input';
@@ -30,6 +29,11 @@ function keyName(code: string): string {
     .replace('BracketLeft', '[')
     .replace('BracketRight', ']')
     .replace('Semicolon', ';')
+    .replace('Comma', ',')
+    .replace('Period', '.')
+    .replace('Backslash', '\\')
+    .replace('Slash', '/')
+    .replace('Quote', "'")
     .replace('Escape', 'ESC')
     .toUpperCase();
 }
@@ -71,7 +75,6 @@ export class Hud {
   private rearmFill: HTMLElement;
   private panelTimer = 0;
   private scopeTimer = 0;
-  private mfdTimer = 0;
   private sweep = 0;
   private hitMarkerT = 0;
   private damageT = 0;
@@ -182,6 +185,9 @@ export class Hud {
       ['WHEEL BRAKE', ['wheelBrake']],
       ['G-LIM OVERRIDE', ['gOverride']],
       ['CAMERA 1ST/3RD', ['camera']],
+      ['MFD L / C / R', ['mfdLeft', 'mfdCenter', 'mfdRight']],
+      ['COCKPIT CURSOR', ['cockpitCursor']],
+      ['STPT / RTB', ['stptNext', 'navRtb']],
       ['MAP', ['map']],
       ['REARM (PARKED)', ['rearm']],
       ['EJECT (HOLD)', ['eject']],
@@ -329,14 +335,6 @@ export class Hud {
       drawRwr(this.rwrCanvas, g, Math.floor(this.now * 4) % 2 === 0);
       drawMinimap(this.minimap, g);
       drawCompass(this.compass, g);
-    }
-
-    // cockpit MFDs at ~6 Hz
-    this.mfdTimer -= dt;
-    const vis = g.combat.aircraftVis.get(p);
-    if (this.mfdTimer <= 0 && vis?.cockpit && g.cam.mode === 'cockpit') {
-      this.mfdTimer = 0.16;
-      drawMfds(vis.cockpit, g, this.sweep);
     }
 
     // text panels at ~12 Hz

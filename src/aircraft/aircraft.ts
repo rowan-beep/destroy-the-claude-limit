@@ -67,6 +67,12 @@ export class Aircraft {
   shotsFired = 0;
   onRunwayStopped = false;
   lastLaunched: Missile | null = null;
+  /** gun rate selector (SMS page): low rate saves rounds */
+  gunRateLow = false;
+  /** self-protection jammer (EW page); AI jets always run theirs */
+  jammerOn = true;
+  /** countermeasure program: expendables per press */
+  cmBurst = 2;
   /** user-facing name */
   callsign: string;
 
@@ -299,7 +305,7 @@ export class Aircraft {
       this.gunAccum = 0;
       return;
     }
-    const rate = this.spec.gun.rpm / 60;
+    const rate = (this.spec.gun.rpm * (this.gunRateLow ? 0.66 : 1)) / 60;
     this.gunAccum += rate * dt;
     while (this.gunAccum >= 1 && this.gunAmmo > 0) {
       this.gunAccum -= 1;
@@ -395,7 +401,8 @@ export class Aircraft {
     return launchZone(type, fm.pos.y, fm.mach, t.fm.pos.y, aspectCos, tv);
   }
 
-  private pickStation(type: StoreType): StationState | null {
+  /** Station the next round of this store type will come off (keeps the jet balanced). */
+  pickStation(type: StoreType): StationState | null {
     const cands = this.stations.filter((s) => s.store === type);
     if (cands.length === 0) return null;
     // keep the jet balanced: release from the heavier side first

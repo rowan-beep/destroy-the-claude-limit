@@ -27,7 +27,8 @@ async function boot(): Promise<void> {
 
   const t0 = performance.now();
   await game.world.buildGrid((f) => loading.set(0.05 + f * 0.8, 'GENERATING THE 400 × 400 NM THEATER'));
-  loading.set(0.9, 'BUILDING WORLD');
+  await game.world.buildMapData((f) => loading.set(0.85 + f * 0.07, 'BUILDING THE DIGITAL MAP'));
+  loading.set(0.93, 'BUILDING WORLD');
   game.world.init();
   game.applySettings();
   const mapView = new MapView(document.body, () => game.setState('playing'));

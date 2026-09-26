@@ -23,6 +23,9 @@ import { clamp, damp } from '../core/math';
 import { steerToward } from '../ai/steering';
 import { emptyVision } from '../render/vision';
 import type { Hud } from '../ui/hud/hud';
+import { CockpitView } from '../render/cockpitView';
+import { Avionics } from '../avionics/avionics';
+import { NM } from '../core/constants';
 
 export type GameState = 'menu' | 'loading' | 'playing' | 'paused' | 'map' | 'results';
 
@@ -34,6 +37,11 @@ export class Game implements ModeHost {
   combat!: CombatRenderer;
   readonly cam: CameraRig;
   readonly input: Input;
+  readonly cockpitView = new CockpitView();
+  /** the player's avionics (displays, navigation) */
+  avionics: Avionics | null = null;
+  /** free mouse cursor in the cockpit for clicking displays */
+  cockpitCursor = false;
   hud!: Hud;
   mode: GameMode | null = null;
   player: Aircraft | null = null;
@@ -144,6 +152,9 @@ export class Game implements ModeHost {
     this.aimDir.copy(p.fm.fwd);
     this.cam.update(0.016, p, this.eyeWorld());
     await this.world.prewarm(p.fm.pos.clone(), this.renderer.camera, 12000);
+    // build the 3D cockpit now so the first switch to it doesn't hitch
+    const pv = this.combat.aircraftVis.get(p);
+    if (pv) pv.getCockpit();
     onProgress(1, 'READY');
     this.setState('playing');
     this.lastT = performance.now();
@@ -162,6 +173,11 @@ export class Game implements ModeHost {
     }
     this.combat?.clearEffects();
     this.player = null;
+    this.renderer.setOverlay(null, null);
+    this.cockpitView.attach(null);
+    this.avionics?.dispose();
+    this.avionics = null;
+    this.cockpitCursor = false;
     audio.silenceContinuous();
     this.setState('menu');
   }
@@ -202,7 +218,10 @@ export class Game implements ModeHost {
       if (d.owner === this.player) audio.countermeasure();
     });
     ev.on('lockLost', (e) => {
-      if (e.owner === this.player) this.message(`LOCK LOST (${String(e.reason).toUpperCase()})`, 'warn', 2.5);
+      if (e.owner === this.player) {
+        this.message(`LOCK LOST (${String(e.reason).toUpperCase()})`, 'warn', 2.5);
+        if (this.avionics) this.avionics.lastLockLoss = { reason: String(e.reason), time: this.sim.time };
+      }
     });
     ev.on('pitbull', (m) => {
       if (m.shooter === this.player) this.hud.feed(`${m.spec.short} PITBULL`, 'blue');
@@ -225,6 +244,9 @@ export class Game implements ModeHost {
     this.gOverride = false;
     this.aimDir.set(0, 0, -1);
     this.combat.playerAircraft = p;
+    this.avionics?.dispose();
+    this.avionics = new Avionics(this, p);
+    this.cockpitView.attach(null);
     return p;
   }
 
@@ -342,8 +364,11 @@ export class Game implements ModeHost {
       this.cam.aimDir = this.settings.input.mouseMode === 'mouseaim' && p.alive ? this.aimDir : null;
       this.cam.target = p.lockedTarget ?? p.seekerTarget ?? null;
       const vis = this.combat.aircraftVis.get(p);
-      vis?.setCockpitView(this.cam.mode === 'cockpit');
+      const inCockpit = this.cam.mode === 'cockpit' && !!vis;
+      vis?.setCockpitView(inCockpit);
       this.cam.update(dt, p, this.eyeWorld());
+      this.updateCockpit(inCockpit);
+      this.avionics?.update(dt, inCockpit);
       this.world.update(dt, this.renderer.camera, p.fm.pos);
       this.combat.update(playing ? dt : 0, this.renderer.camera);
       // pilot vision
@@ -354,6 +379,78 @@ export class Game implements ModeHost {
     this.renderer.render();
     this.onAfterFrame?.(dt);
     this.input.endFrame();
+  }
+
+  /** Build / attach the 3D cockpit and keep its pass in sync with the world camera. */
+  private updateCockpit(inCockpit: boolean): void {
+    const p = this.player;
+    const vis = p ? this.combat.aircraftVis.get(p) : undefined;
+    if (!p || !vis || !inCockpit || !this.avionics) {
+      this.renderer.setOverlay(null, null);
+      return;
+    }
+    const ck = vis.getCockpit();
+    if (this.cockpitView.active !== ck) {
+      this.cockpitView.attach(ck);
+      const ds = this.avionics.bind(ck.layout.displays.map((d) => d.def));
+      ck.setScreenTextures(ds.map((d) => d.texture));
+    }
+    const blink = Math.floor(performance.now() / 350) % 2 === 0;
+    const d = p.damage;
+    const fm = p.fm;
+    const plan = this.avionics.nav.fuelPlan(p);
+    const caution = p.alive && (d.fire > 0 || fm.engineOut.some((e) => e) || d.leak > 0 || d.hydraulics < 0.7 || plan.belowBingo || fm.overG > 0.2);
+    ck.update({
+      pitch: p.controls.pitch,
+      roll: p.controls.roll,
+      yaw: p.controls.yaw,
+      throttle: this.throttleCmd,
+      gearPos: fm.gearPos,
+      gearHandleDown: this.gearDown,
+      lock: p.alive && !!p.lockedTarget,
+      shoot: p.alive && this.shootCue(),
+      masterCaution: caution,
+      fireL: d.fire > 0 && d.fireComponent === 'engineL',
+      fireR: d.fire > 0 && (d.fireComponent === 'engineR' || (d.fireComponent !== 'engineL' && d.fireComponent !== null)),
+      blink,
+    });
+    this.cockpitView.sync(this.renderer.camera, p, this.world.env, this.renderer.scene);
+    this.renderer.setOverlay(this.cockpitView.scene, this.cockpitView.camera);
+  }
+
+  /** The SHOOT cue: selected weapon has a valid target inside its launch zone. */
+  shootCue(): boolean {
+    const p = this.player;
+    if (!p || !p.alive || p.fm.onGround) return false;
+    const w = p.selectedWeapon;
+    if (w === 'GUN') {
+      const t = p.lockedTarget;
+      return !!t && p.distanceTo(t) < 1300;
+    }
+    if (p.countOf(w) === 0) return false;
+    const t = w === 'AIM9X' ? p.seekerTarget : p.lockedTarget;
+    if (!t) return false;
+    const lz = p.launchZoneFor(w, t);
+    const r = p.distanceTo(t);
+    return r < lz.rmax && r > lz.rmin;
+  }
+
+  /** Mouse click on a cockpit display or bezel button. */
+  private clickCockpit(): boolean {
+    const av = this.avionics;
+    if (!av) return false;
+    const rect = this.renderer.canvas.getBoundingClientRect();
+    const nx = ((this.input.mouseX - rect.left) / rect.width) * 2 - 1;
+    const ny = -((this.input.mouseY - rect.top) / rect.height) * 2 + 1;
+    const hit = this.cockpitView.pick(nx, ny);
+    if (!hit) return false;
+    const ud = hit.object.userData as { slot?: number; kind?: string };
+    if (ud.slot === undefined) return false;
+    const disp = av.displays[ud.slot];
+    if (!disp) return false;
+    if (ud.kind === 'osb' && hit.instanceId !== undefined) return av.press(disp, 0, hit.instanceId);
+    if (ud.kind === 'screen' && hit.uv) return av.clickUv(disp, hit.uv.x, hit.uv.y);
+    return false;
   }
 
   eyeWorld(): THREE.Vector3 | null {
@@ -381,8 +478,36 @@ export class Game implements ModeHost {
     }
     if (!p) return;
     const ms = this.settings.input.mouseMode;
+    // cockpit cursor: free the mouse to click display buttons
+    if (inp.pressed('cockpitCursor')) {
+      this.cockpitCursor = !this.cockpitCursor;
+      if (this.cockpitCursor) {
+        inp.exitPointerLock();
+        if (this.cam.mode !== 'cockpit') this.cam.setMode('cockpit');
+        this.message('COCKPIT CURSOR — CLICK DISPLAY BUTTONS · PRESS AGAIN TO FLY', 'info', 3);
+      }
+    }
+    if (this.cam.mode !== 'cockpit') this.cockpitCursor = false;
+    if (this.cam.mode === 'cockpit' && inp.mouseClicked(0) && !inp.pointerLocked && (this.cockpitCursor || ms === 'keyboard')) {
+      if (this.clickCockpit()) inp.consumeClick(0);
+    }
     // pointer lock for mouse flying
-    if ((ms === 'joystick' || ms === 'mouseaim') && inp.mouseClicked(0) && !inp.pointerLocked) inp.requestPointerLock();
+    if ((ms === 'joystick' || ms === 'mouseaim') && inp.mouseClicked(0) && !inp.pointerLocked && !this.cockpitCursor) inp.requestPointerLock();
+    // displays and navigation
+    if (this.avionics) {
+      if (inp.pressed('mfdLeft')) this.avionics.cycle(0);
+      if (inp.pressed('mfdCenter')) this.avionics.cycle(1);
+      if (inp.pressed('mfdRight')) this.avionics.cycle(2);
+      if (inp.pressed('stptNext')) {
+        const sp = this.avionics.nav.next();
+        this.message(`STEERPOINT ${sp.num}: ${sp.name}${sp.tacan ? ' (TCN ' + sp.tacan + ')' : ''}`, 'info', 2.5);
+      }
+      if (inp.pressed('navRtb')) {
+        const sp = this.avionics.nav.selectNearestFriendly(p.fm.pos.x, p.fm.pos.z);
+        const d = this.avionics.nav.rangeTo(p.fm.pos.x, p.fm.pos.z) / NM;
+        this.message(`RTB: ${sp.name} — ${Math.round(this.avionics.nav.bearingTo(p.fm.pos.x, p.fm.pos.z))}° ${d.toFixed(0)} NM`, 'info', 3);
+      }
+    }
 
     // camera controls
     if (inp.pressed('camera')) this.cam.toggleCockpit();
@@ -462,8 +587,9 @@ export class Game implements ModeHost {
       p.cycleWeapon();
       audio.click();
     }
-    const fireHeld = inp.held('fire') || (inp.mouseHeld(0) && (inp.pointerLocked || ms === 'keyboard'));
-    const firePressed = inp.pressed('fire') || inp.mouseClicked(0);
+    const mouseFire = (inp.pointerLocked || ms === 'keyboard') && !this.cockpitCursor;
+    const fireHeld = inp.held('fire') || (inp.mouseHeld(0) && mouseFire);
+    const firePressed = inp.pressed('fire') || (inp.mouseClicked(0) && mouseFire);
     p.trigger = fireHeld && p.selectedWeapon === 'GUN';
     if (firePressed && p.selectedWeapon !== 'GUN') this.fireMissile();
 
@@ -504,8 +630,8 @@ export class Game implements ModeHost {
       }
     }
     // countermeasures
-    if (inp.pressed('flare')) p.dispense('flare', 2);
-    if (inp.pressed('chaff')) p.dispense('chaff', 2);
+    if (inp.pressed('flare')) p.dispense('flare', p.cmBurst);
+    if (inp.pressed('chaff')) p.dispense('chaff', p.cmBurst);
     // systems
     if (inp.pressed('gear')) {
       if (p.fm.onGround) this.message('WEIGHT ON WHEELS — GEAR LOCKED', 'warn', 2);

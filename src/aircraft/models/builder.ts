@@ -57,6 +57,64 @@ function sePoint(theta: number, s: Section): [number, number] {
   return [x, y];
 }
 
+/** The (spline-interpolated) cross-section of a loft at station z. */
+export function sectionAt(sections: Section[], z: number): Section {
+  const fine = interpSections(sections, 16);
+  if (z <= fine[0].z) return { ...fine[0] };
+  const last = fine[fine.length - 1];
+  if (z >= last.z) return { ...last };
+  for (let i = 0; i < fine.length - 1; i++) {
+    const a = fine[i], b = fine[i + 1];
+    if (z < a.z || z > b.z) continue;
+    const t = (z - a.z) / Math.max(1e-6, b.z - a.z);
+    const l = (u: number, v: number) => u + (v - u) * t;
+    return {
+      z,
+      w: l(a.w, b.w),
+      top: l(a.top, b.top),
+      bot: l(a.bot, b.bot),
+      y: l(a.y ?? 0, b.y ?? 0),
+      n: l(a.n ?? 2.2, b.n ?? 2.2),
+      nBot: l(a.nBot ?? a.n ?? 2.2, b.nBot ?? b.n ?? 2.2),
+    };
+  }
+  return { ...last };
+}
+
+/** A point on a section's outline; theta 0 = right, PI/2 = top, PI = left. */
+export function sectionPoint(theta: number, s: Section): [number, number] {
+  return sePoint(theta, s);
+}
+
+/** Half-width of a section at height y (upper half), found by bisection. */
+export function sectionHalfWidthAt(s: Section, y: number): number {
+  let lo = 0, hi = Math.PI / 2;
+  const [, y0] = sePoint(0, s);
+  if (y <= y0) return s.w;
+  for (let i = 0; i < 30; i++) {
+    const mid = (lo + hi) / 2;
+    const [, ym] = sePoint(mid, s);
+    if (ym < y) lo = mid;
+    else hi = mid;
+  }
+  return sePoint((lo + hi) / 2, s)[0];
+}
+
+/** A thin tube following the upper half of a section (canopy bows / arches). */
+export function sectionArch(s: Section, radius: number, inset: number, thetaFrom = 0.02, thetaTo = Math.PI - 0.02, samples = 24): THREE.BufferGeometry {
+  const pts: THREE.Vector3[] = [];
+  const cx = 0, cy = s.y ?? 0;
+  for (let i = 0; i <= samples; i++) {
+    const th = thetaFrom + ((thetaTo - thetaFrom) * i) / samples;
+    const [x, y] = sePoint(th, s);
+    const dx = x - cx, dy = y - cy;
+    const len = Math.hypot(dx, dy) || 1;
+    pts.push(new THREE.Vector3(x - (dx / len) * inset, y - (dy / len) * inset, s.z));
+  }
+  const curve = new THREE.CatmullRomCurve3(pts);
+  return new THREE.TubeGeometry(curve, samples * 2, radius, 6, false);
+}
+
 /** Lofted body through cross-sections, closed at both ends. */
 export function loft(sections: Section[], radial = 28, perSpan = 4, capEnds = true): THREE.BufferGeometry {
   const secs = interpSections(sections, perSpan);

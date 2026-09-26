@@ -12,6 +12,7 @@ import { TreeSystem } from './trees';
 import { CloudSystem } from './clouds';
 import { AirfieldRenderer } from './airfieldMeshes';
 import type { GridResult } from './terrainGen';
+import { MapData } from './mapData';
 
 export interface WorldQuality {
   terrainSplitK: number;
@@ -31,6 +32,8 @@ export const WORLD_QUALITY: Record<string, WorldQuality> = {
 export class World {
   readonly pool: WorkerPool;
   grid!: HeightGrid;
+  /** vector / raster map data for the cockpit moving maps */
+  mapData!: MapData;
   terrain!: TerrainLOD;
   ocean!: Ocean;
   env!: Environment;
@@ -59,6 +62,12 @@ export class World {
       onProgress,
     );
     this.grid = new HeightGrid(data);
+    this.mapData = new MapData(this.grid);
+  }
+
+  /** Coastlines, contours and the moving-map raster (cockpit displays). */
+  async buildMapData(onProgress: (f: number) => void): Promise<void> {
+    await this.mapData.build(onProgress);
   }
 
   /** Create render objects once the grid exists. */

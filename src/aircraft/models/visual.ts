@@ -5,12 +5,12 @@
 
 import * as THREE from 'three';
 import type { Aircraft } from '../aircraft';
-import { airframeMaterials } from './builder';
+import { airframeMaterials, Section } from './builder';
 import { storeGeometry, pylonGeometry } from './stores';
 import { DEG } from '../../core/constants';
 import { clamp } from '../../core/math';
 import { makeInsignia } from './decals';
-import { buildCockpit, CockpitDisplays } from './cockpit';
+import { Cockpit } from './cockpit';
 
 export interface ControlSurface {
   pivot: THREE.Object3D;
@@ -87,6 +87,12 @@ export class AirframeVisual {
   private strobeT = Math.random() * 2;
   private t = 0;
   canopy: THREE.Mesh | null = null;
+  /** loft sections, so the cockpit interior can follow the real canopy / fuselage shape */
+  canopySections: Section[] = [];
+  fuselageSections: Section[] = [];
+  /** body z of the windscreen frame arch and of any canopy bows */
+  windscreenArchZ = 0;
+  canopyBows: number[] = [];
   /** parts hidden in cockpit view (so the camera can sit inside) */
   hideInCockpit: THREE.Object3D[] = [];
   private insignia: THREE.Object3D[] = [];
@@ -230,12 +236,20 @@ export class AirframeVisual {
     }
   }
 
-  cockpit: CockpitDisplays | null = null;
+  cockpit: Cockpit | null = null;
+  private insideView = false;
 
+  /** Hide the parts of the exterior model the first-person camera sits inside. */
   setCockpitView(inside: boolean): void {
+    if (inside === this.insideView) return;
+    this.insideView = inside;
     for (const o of this.hideInCockpit) o.visible = !inside;
-    if (inside && !this.cockpit) this.cockpit = buildCockpit(this);
-    if (this.cockpit) this.cockpit.group.visible = inside;
+  }
+
+  /** The 3D cockpit, built on first use. */
+  getCockpit(): Cockpit {
+    if (!this.cockpit) this.cockpit = new Cockpit(this);
+    return this.cockpit;
   }
 
   update(dt: number): void {
@@ -308,11 +322,6 @@ export class AirframeVisual {
     }
     void ab;
 
-    if (this.cockpit && this.cockpit.group.visible) {
-      this.cockpit.stick.rotation.set(-c.pitch * 0.25, 0, -c.roll * 0.25);
-      this.cockpit.throttle.position.z = -0.15 - Math.min(1.1, c.throttle) * 0.12;
-    }
-
     // lights
     this.strobeT += dt;
     const strobeOn = this.strobeT % 1.4 < 0.07;
@@ -323,6 +332,8 @@ export class AirframeVisual {
   }
 
   dispose(): void {
+    this.cockpit?.dispose();
+    this.cockpit = null;
     this.root.traverse((o) => {
       const m = o as THREE.Mesh;
       if (m.isMesh && m.material instanceof THREE.ShaderMaterial) m.material.dispose();

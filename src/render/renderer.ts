@@ -23,6 +23,8 @@ export class GameRenderer {
   readonly canvas: HTMLCanvasElement;
   private composer: EffectComposer;
   private renderPass: RenderPass;
+  /** second scene pass drawn over the world (the cockpit) */
+  private overlayPass: RenderPass;
   private visionPass: ShaderPass;
   private outputPass: OutputPass;
   private width = 1;
@@ -56,9 +58,14 @@ export class GameRenderer {
     });
     this.composer = new EffectComposer(this.renderer, rt);
     this.renderPass = new RenderPass(this.scene, this.camera);
+    this.overlayPass = new RenderPass(new THREE.Scene(), this.camera);
+    this.overlayPass.clear = false;
+    this.overlayPass.clearDepth = true;
+    this.overlayPass.enabled = false;
     this.visionPass = new ShaderPass(VisionShader);
     this.outputPass = new OutputPass();
     this.composer.addPass(this.renderPass);
+    this.composer.addPass(this.overlayPass);
     this.composer.addPass(this.visionPass);
     this.composer.addPass(this.outputPass);
 
@@ -90,6 +97,15 @@ export class GameRenderer {
 
   get size(): { w: number; h: number } {
     return { w: this.width, h: this.height };
+  }
+
+  /** Draw another scene over the world with its own camera (null = off). */
+  setOverlay(scene: THREE.Scene | null, camera: THREE.Camera | null): void {
+    if (scene && camera) {
+      this.overlayPass.scene = scene;
+      this.overlayPass.camera = camera;
+      this.overlayPass.enabled = true;
+    } else this.overlayPass.enabled = false;
   }
 
   setVision(v: VisionState): void {

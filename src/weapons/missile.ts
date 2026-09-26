@@ -230,7 +230,7 @@ export class Missile {
         this.estPos.addScaledVector(this.estVel, dt);
       }
       const estRange = this.estPos.distanceTo(this.pos);
-      const pitbull = s.seekerRange * (1 - 0.25 * t.spec.ew.jamming);
+      const pitbull = s.seekerRange * (1 - 0.25 * (t.jammerOn ? t.spec.ew.jamming : 0));
       if (estRange < pitbull) {
         if (this.inGimbal(tPos) && this.losClear && range < pitbull * 1.4 && !this.inNotch(t)) {
           this.mode = 'ACTIVE';
@@ -274,7 +274,7 @@ export class Missile {
         if (angle < 7 * DEG && dr < 450) {
           d.judged.add(this.id);
           const beaming = Math.abs(radialVelocity(t, this.pos)) < 90;
-          const p = (beaming ? 0.3 : 0.05) * d.strength * (1 - s.ccm) * (1 + t.spec.ew.jamming);
+          const p = (beaming ? 0.3 : 0.05) * d.strength * (1 - s.ccm) * (1 + (t.jammerOn ? t.spec.ew.jamming : 0));
           if (Math.random() < p) {
             this.mode = 'DECOY';
             this.decoy = d;

@@ -4,7 +4,7 @@
 
 import * as THREE from 'three';
 import { AirframeVisual } from './visual';
-import { loft, surface, paintByNormal, paintSolid, cyl, airframeMaterials, mirrorX, Section, surfacePoint, paintBandY, SurfaceDef } from './builder';
+import { loft, surface, paintByNormal, paintSolid, cyl, airframeMaterials, mirrorX, Section, surfacePoint, paintBandY, SurfaceDef, sectionAt, sectionArch } from './builder';
 import { buildGear, flipIdx } from './f15ex';
 
 export function buildFA18(v: AirframeVisual): void {
@@ -57,32 +57,36 @@ export function buildFA18(v: AirframeVisual): void {
 
   // canopy (F model two-seat)
   const can: Section[] = [
-    { z: -6.9, w: 0.03, top: 0.02, bot: 0.02, y: 0.5, n: 2 },
-    { z: -6.4, w: 0.36, top: 0.3, bot: 0.03, y: 0.52, n: 2.2 },
-    { z: -5.4, w: 0.46, top: 0.5, bot: 0.03, y: 0.54, n: 2.2 },
-    { z: -3.9, w: 0.46, top: 0.52, bot: 0.03, y: 0.55, n: 2.2 },
-    { z: -2.9, w: 0.36, top: 0.3, bot: 0.03, y: 0.55, n: 2.2 },
+    { z: -6.95, w: 0.03, top: 0.02, bot: 0.02, y: 0.5, n: 2 },
+    { z: -6.45, w: 0.36, top: 0.34, bot: 0.03, y: 0.52, n: 2.2 },
+    { z: -5.9, w: 0.46, top: 0.52, bot: 0.03, y: 0.54, n: 2.2 },
+    { z: -5.1, w: 0.5, top: 0.6, bot: 0.03, y: 0.55, n: 2.2 },
+    { z: -3.9, w: 0.48, top: 0.56, bot: 0.03, y: 0.55, n: 2.2 },
+    { z: -2.9, w: 0.36, top: 0.32, bot: 0.03, y: 0.55, n: 2.2 },
     { z: -2.3, w: 0.18, top: 0.08, bot: 0.03, y: 0.55, n: 2 },
   ];
   const canopy = v.addMesh(loft(can, 24, 4), mats.glass, v.body, false);
   canopy.renderOrder = 5;
   v.canopy = canopy;
-  for (const z of [-6.25, -4.6]) {
-    const bow = new THREE.Mesh(new THREE.TorusGeometry(0.43, 0.03, 6, 20, Math.PI), mats.dark);
-    bow.position.set(0, 0.55, z);
+  v.canopySections = can;
+  v.fuselageSections = fus;
+  v.windscreenArchZ = -5.92;
+  v.canopyBows = [-4.6];
+  for (const z of [v.windscreenArchZ, ...v.canopyBows]) {
+    const bow = new THREE.Mesh(sectionArch(sectionAt(can, z), 0.028, -0.01), mats.dark);
     v.body.add(bow);
     v.hideInCockpit.push(bow);
   }
   for (const z of [-5.4, -3.95]) {
-    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.52, 0.22), mats.dark);
-    seat.position.set(0, 0.76, z + 0.38);
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.6, 0.22), mats.dark);
+    seat.position.set(0, 0.7, z + 0.42);
     v.body.add(seat);
-    const helm = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 8), new THREE.MeshStandardMaterial({ color: 0x55594e, roughness: 0.6 }));
-    helm.position.set(0, 0.98, z + 0.1);
+    const helm = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 8), new THREE.MeshStandardMaterial({ color: 0x55594e, roughness: 0.6 }));
+    helm.position.set(0, 0.93, z + 0.08);
     v.body.add(helm);
     v.hideInCockpit.push(seat, helm);
   }
-  v.cockpitEye.set(0, 1.02, -5.4);
+  v.cockpitEye.set(0, 0.9, -5.4);
 
   // spine
   const spine: Section[] = [

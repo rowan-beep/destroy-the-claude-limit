@@ -153,9 +153,9 @@ export class HudPainter {
     const pxr = this.pxPerRad(cam);
     const bore = this.projectDir(cam, fm.fwd);
     if (!bore.front) return;
-    const halfW = pxr * Math.tan(13 * DEG);
-    const top = bore.y - pxr * Math.tan(9 * DEG);
-    const bot = bore.y + pxr * Math.tan(17 * DEG);
+    const halfW = pxr * Math.tan(11.5 * DEG);
+    const top = bore.y - pxr * Math.tan(6.5 * DEG);
+    const bot = bore.y + pxr * Math.tan(14 * DEG);
     const left = bore.x - halfW, right = bore.x + halfW;
     c.save();
     c.strokeStyle = GREEN;
@@ -164,13 +164,15 @@ export class HudPainter {
     c.shadowColor = 'rgba(80,255,140,0.7)';
     c.shadowBlur = 4;
     // combiner glass hint
-    c.save();
-    c.shadowBlur = 0;
-    c.fillStyle = 'rgba(90,255,150,0.025)';
-    c.fillRect(left - 10, top - 26, right - left + 20, bot - top + 36);
-    c.restore();
+    // clip to the combiner glass of the 3D cockpit (projected corners), so the
+    // symbology lives exactly on the glass whatever the head position
+    const glass = this.glassOutline(g, cam);
     c.beginPath();
-    c.rect(left - 10, top - 26, right - left + 20, bot - top + 36);
+    if (glass) {
+      c.moveTo(glass[0], glass[1]);
+      for (let i = 2; i < glass.length; i += 2) c.lineTo(glass[i], glass[i + 1]);
+      c.closePath();
+    } else c.rect(left - 10, top - 26, right - left + 20, bot - top + 36);
     c.clip();
 
     // waterline (boresight "W")
@@ -273,6 +275,29 @@ export class HudPainter {
     // landing aid
     if (fm.gearPos > 0.5 && !fm.onGround) this.ilsCue(g, p, bx, by, halfW);
     c.restore();
+  }
+
+  /** Screen outline of the HUD combiner glass, or null outside the cockpit. */
+  private glassOutline(g: Game, cam: THREE.PerspectiveCamera): number[] | null {
+    const ck = g.cockpitView.active;
+    const p = g.player;
+    const eye = g.eyeWorld();
+    if (!ck || !p || !eye) return null;
+    const h = ck.layout.hud;
+    const pts: number[] = [];
+    const corners: [number, number][] = [
+      [-h.halfW, h.top],
+      [h.halfW, h.top],
+      [h.halfW, h.bottom + 0.035],
+      [-h.halfW, h.bottom + 0.035],
+    ];
+    for (const [x, y] of corners) {
+      _v.set(x, y, -h.dist).applyQuaternion(p.fm.quat).add(eye);
+      const sp = this.project(cam, _v.clone());
+      if (!sp.front) return null;
+      pts.push(sp.x, sp.y);
+    }
+    return pts;
   }
 
   private weaponBlock(g: Game, p: Aircraft, lx: number, ly: number, rx: number, ry: number, bx: number, by: number, cam: THREE.PerspectiveCamera, fpx: number, fpy: number): void {
