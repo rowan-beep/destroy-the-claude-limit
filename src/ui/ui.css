@@ -277,3 +277,12 @@ body.touch-mode .weapon-bar { bottom: auto; top: calc(96px + env(safe-area-inset
 .replay-bar .rlab { color: var(--menu-dim); font-size: 11px; letter-spacing: 2px; margin-left: 8px; }
 .replay-bar .rval { min-width: 44px; text-align: center; font-size: 13px; }
 .replay-bar .rval.wide { min-width: 190px; }
+
+/* What's new */
+.modal.whatsnew { max-width: 760px; }
+.wn-release { margin: 0 0 18px; }
+.wn-head { font-size: 15px; letter-spacing: 0.06em; margin-bottom: 6px; }
+.wn-head b { color: #47d18c; font-size: 18px; }
+.wn-head span { opacity: 0.75; }
+.wn-release ul { margin: 0; padding-left: 20px; line-height: 1.45; font-size: 13.5px; }
+.wn-release li { margin: 3px 0; }

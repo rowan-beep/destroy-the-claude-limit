@@ -1,6 +1,8 @@
 // Main menu: aircraft selection (3D hangar), exact specs, loadouts, game
 // mode grid and the per-mode setup (1v1 customizer, wave options...).
 
+import { WhatsNewModal } from './whatsNew';
+import { VERSION } from '../../version';
 import { el, clearEl, button } from '../dom';
 import { AIRCRAFT_TYPES, AircraftType, SPECS, enemyTypesFor, getSpec } from '../../aircraft/specs';
 import { MissionConfig, MODE_INFO, ModeId } from '../../game/mission';
@@ -44,7 +46,10 @@ export class MainMenu {
     el('h1', '', brand, 'TRIAD');
     el('div', 'sub', brand, 'AIR COMBAT SIMULATOR · SKYE · CAPRI · SAMOS · 400 × 400 NM THEATER');
     const hb = el('div', 'header-buttons', header);
+    const wn = new WhatsNewModal(document.body);
+    button(`v${VERSION} · NOTES`, '', hb, () => wn.show(true));
     button('LOGBOOK', '', hb, () => cb.onLogbook());
+    setTimeout(() => wn.showIfNew(), 1200);
     button('CONTROLS', '', hb, () => cb.onControls());
     button('SETTINGS', '', hb, () => cb.onSettings());
 

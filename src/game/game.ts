@@ -31,6 +31,8 @@ import type { ReplayUi } from '../ui/replayUi';
 import { ReplayRecorder, ReplayPlayer } from './replay';
 import { SortieRecorder, LogbookData, MissionOutcome, loadLogbook, saveLogbook, commitSortie, medalName } from './logbook';
 import { NM } from '../core/constants';
+import { prewarmAirframes } from '../aircraft/models';
+import { enemyTypesFor } from '../aircraft/specs';
 
 export type GameState = 'menu' | 'loading' | 'playing' | 'paused' | 'map' | 'results' | 'replay';
 
@@ -158,6 +160,10 @@ export class Game implements ModeHost {
     this.autopilot = false;
     this.gOverride = false;
     this.speedbrake = false;
+    // build the airframes this mission can spawn before the first frame
+    const pre = [new Aircraft(cfg.aircraft, 'blue', 'PRE')];
+    if (cfg.mode !== 'free') for (const t of enemyTypesFor(cfg.aircraft)) pre.push(new Aircraft(t, 'red', 'PRE'));
+    prewarmAirframes(pre);
     this.mode = cfg.mode === 'free' ? new FreeFlightMode(this) : cfg.mode === 'waves' ? new WavesMode(this) : new DuelMode(this);
     this.mode.start();
     this.recorder = new ReplayRecorder(this.sim, cfg.mode.toUpperCase());

@@ -96,6 +96,9 @@ export class AirframeVisual {
   /** parts hidden in cockpit view (so the camera can sit inside) */
   hideInCockpit: THREE.Object3D[] = [];
   private insignia: THREE.Object3D[] = [];
+  /** small parts hidden on distant aircraft */
+  detail: THREE.Object3D[] = [];
+  private detailOn = true;
   wreck = false;
 
   constructor(readonly ac: Aircraft) {
@@ -205,6 +208,63 @@ export class AirframeVisual {
     }
   }
 
+  /** Show / hide the small parts (pilots, ducts, burner cans, probes...). */
+  setDetail(on: boolean): void {
+    if (on === this.detailOn) return;
+    this.detailOn = on;
+    for (const o of this.detail) o.visible = on;
+  }
+
+  /** Classify small parts after building: they stop casting shadows and cull with distance. */
+  finishTemplate(detailMats: Set<THREE.Material>): void {
+    this.body.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      if (m.userData.detail || detailMats.has(m.material as THREE.Material)) {
+        m.castShadow = false;
+        if (!this.hideInCockpit.includes(m) && !this.gear.some((g) => g.pivot === m.parent)) this.detail.push(m);
+      }
+    });
+  }
+
+  /** A new visual for `ac` sharing this template's geometry and materials. */
+  cloneFor(ac: Aircraft): AirframeVisual {
+    const v = new AirframeVisual(ac);
+    const dst = this.body.clone(true);
+    const map = new Map<THREE.Object3D, THREE.Object3D>();
+    const walk = (a: THREE.Object3D, b: THREE.Object3D) => {
+      map.set(a, b);
+      a.children.forEach((c, i) => walk(c, b.children[i]));
+    };
+    walk(this.body, dst);
+    for (const c of [...dst.children]) v.body.add(c);
+    map.set(this.body, v.body);
+    const M = <T extends THREE.Object3D>(o: T): T => (map.get(o) as T) ?? o;
+    v.surfaces = this.surfaces.map((s) => ({ ...s, pivot: M(s.pivot), axis: s.axis.clone(), current: 0 }));
+    v.gear = this.gear.map((g) => ({ ...g, pivot: M(g.pivot), axis: g.axis.clone(), hideWhenUp: g.hideWhenUp.map(M) }));
+    v.speedbrake = this.speedbrake ? { ...this.speedbrake, pivot: M(this.speedbrake.pivot) } : null;
+    v.nozzles = this.nozzles.map((n) => ({ pos: n.pos.clone(), radius: n.radius }));
+    v.cockpitEye.copy(this.cockpitEye);
+    v.canopy = this.canopy ? M(this.canopy) : null;
+    v.canopySections = this.canopySections;
+    v.fuselageSections = this.fuselageSections;
+    v.windscreenArchZ = this.windscreenArchZ;
+    v.canopyBows = this.canopyBows;
+    v.hideInCockpit = this.hideInCockpit.map(M);
+    v.detail = this.detail.map(M);
+    v.navLights = this.navLights.map((l) => ({ mesh: M(l.mesh), kind: l.kind }));
+    v.insignia = this.insignia.map(M);
+    v.flames = this.flames.map((f) => {
+      const mesh = M(f.mesh);
+      const mat = f.mat.clone();
+      mesh.material = mat;
+      const glow = M(f.glow);
+      glow.material = (f.glow.material as THREE.Material).clone();
+      return { mesh, mat, glow };
+    });
+    return v;
+  }
+
   /** Put store meshes (and pylons) on the stations. */
   buildStores(): void {
     const mats = airframeMaterials();
@@ -215,12 +275,11 @@ export class AirframeVisual {
       const g = new THREE.Group();
       const p = st.def.pos;
       g.position.set(p[0], p[1], p[2]);
-      const store = new THREE.Mesh(storeGeometry(st.store), mats.white);
-      store.material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.2 });
+      const store = new THREE.Mesh(storeGeometry(st.store), storeMaterial());
       store.castShadow = true;
       g.add(store);
       const drop = st.def.mount === 'pylon' ? 0.55 : 0.1;
-      const py = new THREE.Mesh(pylonGeometry(st.def.mount, st.store, drop), mats.paint);
+      const py = new THREE.Mesh(pylonGeometry(st.def.mount, st.store, drop), storeMaterial());
       py.castShadow = true;
       g.add(py);
       this.body.add(g);
@@ -339,6 +398,12 @@ export class AirframeVisual {
       if (m.isMesh && m.material instanceof THREE.ShaderMaterial) m.material.dispose();
     });
   }
+}
+
+let _storeMat: THREE.MeshStandardMaterial | null = null;
+function storeMaterial(): THREE.MeshStandardMaterial {
+  if (!_storeMat) _storeMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.15 });
+  return _storeMat;
 }
 
 function makeTailCode(team: string, text: string, w: number, h: number): THREE.Mesh {

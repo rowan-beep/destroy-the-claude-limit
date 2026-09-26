@@ -9,6 +9,7 @@ import type { Missile } from '../weapons/missile';
 import type { Decoy } from '../weapons/countermeasures';
 import { createAirframe, AirframeVisual } from '../aircraft/models';
 import { storeGeometry } from '../aircraft/models/stores';
+import { cloneMaterial } from '../aircraft/models/kit';
 import { ParticleSystem } from './particles';
 import { TrailRenderer, Trail, TrailStyle } from './trails';
 import { getSmokeTexture, getSoftDotTexture } from './textures';
@@ -363,6 +364,7 @@ export class CombatRenderer {
     // aircraft visuals & per-aircraft effects
     for (const [a, v] of this.aircraftVis) {
       v.update(dt);
+      v.setDetail(v.root.position.distanceToSquared(cam) < 900 * 900);
       if (a.fm.crashed) continue;
       this.aircraftEffects(a, v, dt);
     }
@@ -543,7 +545,7 @@ function darkenAirframe(v: AirframeVisual): void {
   v.root.traverse((o) => {
     const m = o as THREE.Mesh;
     if (m.isMesh && m.material instanceof THREE.MeshStandardMaterial) {
-      const mat = m.material.clone();
+      const mat = cloneMaterial(m.material);
       mat.color.multiplyScalar(0.35);
       m.material = mat;
     }

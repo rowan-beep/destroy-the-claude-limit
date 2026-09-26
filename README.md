@@ -16,6 +16,15 @@ terrain against you.
 | Gun | M61A1 20 mm | M61A2 20 mm | BK-27 27 mm |
 | Radar | AN/APG-82(V)1 AESA | AN/APG-79 AESA | CAPTOR-E + PIRATE IRST |
 
+Current version: **v1.1.0** — see [CHANGELOG.md](CHANGELOG.md) (also in the game
+under **v1.1.0 · NOTES** on the main menu).
+
+Each jet is a high-detail procedural model (~150k triangles): blended fuselages
+built from real cross-sections, hollow intakes with ducts and fans, airfoil
+wings and tails with moving control surfaces, petal nozzles with burner cans,
+detailed landing gear, seated pilots and painted liveries with panel lines,
+rivets, stencils and weathering.
+
 Missiles: AIM-120D AMRAAM (active radar, datalink midcourse, loft) and AIM-9X
 (IR, high off-boresight). Countermeasures: flares and chaff.
 
@@ -140,7 +149,8 @@ buttons, drag to look) switch on automatically on touch devices.
 src/core      math, noise, atmosphere, input, settings
 src/world     terrain function, islands, LOD streaming, trees, ocean, clouds, airfields
 src/render    renderer, fog, sky, particles, G-effect post-processing, cameras
-src/aircraft  specs, flight model, damage, procedural 3D models, cockpit
+src/aircraft  specs, flight model, damage, procedural 3D models (models/kit.ts: loft,
+              wing, livery shader), cockpit
 src/weapons   AIM-120D / AIM-9X, guns, countermeasures
 src/sensors   radar, IRST, RWR / MAWS, signatures
 src/ai        skill levels, steering controller, AI pilot state machine
