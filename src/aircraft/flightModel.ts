@@ -579,7 +579,8 @@ export class FlightModel {
 
     // yaw: pedals command sideslip; otherwise the laws coordinate the turn (beta -> 0)
     const betaMax = 7 * DEG * clamp(14000 / Math.max(this.qbar, 1), 0.2, 1);
-    const betaCmd = clamp(c.yaw, -1, 1) * betaMax;
+    // right pedal yaws the nose right: the relative wind then comes from the left (beta < 0)
+    const betaCmd = -clamp(c.yaw, -1, 1) * betaMax;
     const aSide = _acc.dot(this.right);
     const rAccMax = (rEff * kYaw) / Izz;
     const kR = clamp(rAccMax / 0.5, 1, 6);

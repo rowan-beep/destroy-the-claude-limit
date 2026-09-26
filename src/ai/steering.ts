@@ -58,10 +58,25 @@ export function steerToward(ac: Aircraft, dirWorld: THREE.Vector3, opt: SteerOpt
   if (pl > 1e-6) _aTurn.divideScalar(pl);
   else if (cosA < 0) _aTurn.copy(fm.up); // straight behind: pull through the lift vector
   else _aTurn.set(0, 0, 0);
-  const tau = opt.tau ?? 1.2;
+  // slow jets roll lazily (little airflow over the surfaces): ask for gentler
+  // corrections so the lift vector never has to swing faster than it can
+  const tau = (opt.tau ?? 1.2) * clamp(128 / Math.max(fm.cas, 1), 1, 2.2);
   const maxTurnRate = (opt.gCap * G0) / V;
   const turnRate = Math.min(angle / tau, maxTurnRate);
   _aTurn.multiplyScalar(turnRate * V);
+
+  // Fine aim: for the last few degrees don't bank the lift vector sideways
+  // (as the nose sweeps through the target the required bank would flip from
+  // one side to the other, and a real roll response can't follow -- the jet
+  // would rock wing over wing). Fade the lateral demand out and let the
+  // rudder make small heading corrections with the wings steady.
+  _upPerp.copy(fm.up).addScaledVector(_v, -fm.up.dot(_v)).normalize();
+  _cross.crossVectors(_v, _upPerp).normalize(); // lateral (right) direction
+  const w = smoothstepAbs(0.05, 0.2, angle);
+  const lat = _aTurn.dot(_cross);
+  _aTurn.addScaledVector(_cross, -lat * (1 - w));
+  const latAngle = Math.asin(clamp(_d.dot(_cross), -1, 1));
+  const autoRudder = clamp(latAngle / (2.5 * DEG), -1, 1) * (1 - w) * 0.7;
 
   // gravity component perpendicular to velocity
   _gPerp.set(0, -G0, 0);
@@ -80,7 +95,9 @@ export function steerToward(ac: Aircraft, dirWorld: THREE.Vector3, opt: SteerOpt
   const liftAlongUp = _L.dot(_upPerp) / G0;
   let nCmd: number;
   let rollCmd: number;
-  if ((opt.allowPush ?? true) && Math.abs(bankErr) > 110 * DEG && gReq < 1.6) {
+  // small correction below the nose: push with the wings level instead of rolling inverted
+  const pushSmall = liftAlongUp < 0 && angle < 25 * DEG && Math.abs(fm.bank) < 100;
+  if ((opt.allowPush ?? true) && ((Math.abs(bankErr) > 110 * DEG && gReq < 1.6) || pushSmall)) {
     // small push instead of rolling inverted
     nCmd = clamp(liftAlongUp, -2, opt.gCap);
     rollCmd = 0;
@@ -94,10 +111,18 @@ export function steerToward(ac: Aircraft, dirWorld: THREE.Vector3, opt: SteerOpt
       const clamped = clamp(newBank, -lim, lim);
       desiredBankErr = clamped - fm.bank * DEG;
     }
-    const kp = 2.6 * (opt.rollGain ?? 1);
-    rollCmd = clamp(desiredBankErr * kp - fm.rollRate * DEG * 0.18, -1, 1);
-    const align = Math.cos(clamp(bankErr, -Math.PI, Math.PI));
-    nCmd = gReq * clamp(align, 0, 1) + (1 - clamp(align, 0, 1)) * Math.min(gReq, 1.5);
+    // Ask the flight controls for a roll rate proportional to the bank error
+    // (first-order roll-in / roll-out). The stick maps linearly to commanded
+    // roll rate, so size it by the FBW's rate limit; the jet's own roll lag
+    // then settles without rocking back and forth.
+    const pMax = ac.spec.rollRate * DEG * (1 - 0.55 * smoothstepAbs(15 * DEG, 38 * DEG, fm.alpha));
+    const tauBank = (0.32 * clamp(128 / Math.max(fm.cas, 1), 1, 1.6)) / (opt.rollGain ?? 1);
+    const pDes = clamp(desiredBankErr / tauBank, -pMax, pMax);
+    rollCmd = clamp(pDes / pMax, -1, 1);
+    // unload to roll: with the lift vector far from where it's needed, ease
+    // the G off so the AoA drops and the jet can roll quickly, then pull
+    const align = 1 - smoothstepAbs(12 * DEG, 45 * DEG, bankErr);
+    nCmd = gReq * align + (1 - align) * Math.min(gReq, 1.5);
     if (align < 0) nCmd = Math.min(nCmd, 1.2);
   }
   gReq = Math.min(gReq, opt.gCap);
@@ -113,9 +138,14 @@ export function steerToward(ac: Aircraft, dirWorld: THREE.Vector3, opt: SteerOpt
   else pitch = -(nNeutral - nCmd) / Math.max(0.2, nNeutral - s.gNeg);
   c.pitch = clamp(pitch, -1, 1);
   c.roll = rollCmd;
-  c.yaw = opt.rudder ?? 0;
+  c.yaw = clamp((opt.rudder ?? 0) + autoRudder, -1, 1);
   c.gOverride = !!opt.override;
   return { angleOff: angle, bankError: bankErr, gReq };
+}
+
+function smoothstepAbs(a: number, b: number, x: number): number {
+  const t = clamp((Math.abs(x) - a) / (b - a), 0, 1);
+  return t * t * (3 - 2 * t);
 }
 
 /** Throttle / afterburner / speedbrake to hold a calibrated airspeed. */

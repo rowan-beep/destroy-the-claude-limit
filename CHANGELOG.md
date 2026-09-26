@@ -3,6 +3,16 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v1.2.1 — Smooth roll-outs (2026-09-26)
+
+- Fixed the wobble after turning: when you stopped a turn the jet rocked wing over wing (roll one way, back, and back again). The mouse-aim autopilot now asks for a roll rate matched to what the flight controls can deliver, so the wings settle smoothly.
+- Fine aim: for the last few degrees near the aim point the jet no longer swings its bank from side to side; it holds the wings steady and uses the rudder for small heading corrections.
+- Unload to roll: when the jet needs to roll a long way it eases off the G first (like a real pilot), so it rolls quickly instead of fighting its angle-of-attack limit.
+- Small corrections below the nose are made by easing the stick forward instead of rolling inverted.
+- Gentler corrections at low speed, where the control surfaces have little authority.
+- Fixed reversed rudder from v1.2.0: right rudder yaws the nose right again.
+- The AI pilots use the same autopilot, so they fly smoother too.
+
 ## v1.2.0 — Realistic flight physics (2026-09-26)
 
 - Flight physics rebuilt: the jets now rotate as real rigid bodies. Pitch, roll and yaw come from aerodynamic moments and the jet's inertia instead of being set directly, so every aircraft has weight, momentum and overshoot.
