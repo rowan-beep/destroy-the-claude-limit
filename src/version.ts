@@ -10,6 +10,18 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '2.2.3',
+    date: '2026-09-26',
+    title: "Accurate missile racks",
+    notes: [
+      "Missile racks researched from the real jets (the F-15EX is unchanged):",
+      "F/A-18E/F Super Hornet: AIM-9X on the wingtip LAU-127 rails, a single missile hung under each outboard pylon, and an LAU-115 twin rack on each middle wing pylon with two AMRAAMs side by side on LAU-127 shoulder rails (as in the Navy's 'Murder Hornet' air-to-air loadout), plus the fuselage cheek AMRAAMs. A fuel tank on the middle station hangs from the pylon centre.",
+      "Eurofighter Typhoon: back to one missile per wing pylon, as on the real jet (no twin racks), with the AMRAAMs semi-recessed under the fuselage.",
+      "Su-35S: one missile per hardpoint as on the real Flanker, on chunkier Russian APU-170 / P-72 style launchers: R-74M on the wingtips and outer pylons, R-77M on the inner pylons, under the engine nacelles and in the tunnel between the engines.",
+      "Loadouts, missile counts and handling are unchanged.",
+    ],
+  },
+  {
     version: '2.2.2',
     date: '2026-09-26',
     title: "No more freeze on kills",

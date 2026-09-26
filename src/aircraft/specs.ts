@@ -175,8 +175,6 @@ const R74 = 'R74M' as const;
 /** fore-aft centre of the wing missile racks: every rack's missiles sit nose-level */
 const F15_RZ = 1.3;
 const FA18_RZ = 1.8;
-const EF_RZ = 2.9;
-const SU_RZ = 2.2;
 
 // ---------------------------------------------------------------------------
 // F-15EX Eagle II
@@ -366,15 +364,16 @@ const FA18: AircraftSpec = {
   },
   stations: [
     { id: 1, label: 'LWT', pos: [-6.75, -0.1, 2.4], allowed: [AIM9], mount: 'rail' },
-    { id: 2, label: 'LW OB-O', pos: [-4.8, -0.3, FA18_RZ], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.04, rack: -4.5 },
-    { id: 3, label: 'LW OB-I', pos: [-4.2, -0.3, FA18_RZ], allowed: [AIM120, AIM9, TANK], mount: 'pylon', hang: -0.04, rack: -4.5 },
-    { id: 4, label: 'LW IB', pos: [-2.7, -1.05, FA18_RZ], allowed: [AIM120, TANK], mount: 'pylon', hang: -0.045 },
+    { id: 2, label: 'LW OB', pos: [-5.1, -0.85, 2.0], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.035 },
+    // station 3: LAU-115 with two LAU-127 shoulder rails (a tank hangs from the pylon centre)
+    { id: 3, label: 'LW MID-O', pos: [-4.2, -0.3, FA18_RZ], allowed: [AIM120, AIM9, TANK], mount: 'pylon', hang: -0.04, rack: -3.9 },
+    { id: 4, label: 'LW MID-I', pos: [-3.6, -0.3, FA18_RZ], allowed: [AIM120, TANK], mount: 'pylon', hang: -0.04, rack: -3.9 },
     { id: 5, label: 'L FUS', pos: [-0.85, -1.1, -1.4], allowed: [AIM120], mount: 'semi-recessed' },
     { id: 6, label: 'CL', pos: [0, -1.35, 0.2], allowed: [TANK], mount: 'pylon' },
     { id: 7, label: 'R FUS', pos: [0.85, -1.1, -1.4], allowed: [AIM120], mount: 'semi-recessed' },
-    { id: 8, label: 'RW IB', pos: [2.7, -1.05, FA18_RZ], allowed: [AIM120, TANK], mount: 'pylon', hang: -0.045 },
-    { id: 9, label: 'RW OB-I', pos: [4.2, -0.3, FA18_RZ], allowed: [AIM120, AIM9, TANK], mount: 'pylon', hang: -0.04, rack: 4.5 },
-    { id: 10, label: 'RW OB-O', pos: [4.8, -0.3, FA18_RZ], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.04, rack: 4.5 },
+    { id: 8, label: 'RW MID-I', pos: [3.6, -0.3, FA18_RZ], allowed: [AIM120, TANK], mount: 'pylon', hang: -0.04, rack: 3.9 },
+    { id: 9, label: 'RW MID-O', pos: [4.2, -0.3, FA18_RZ], allowed: [AIM120, AIM9, TANK], mount: 'pylon', hang: -0.04, rack: 3.9 },
+    { id: 10, label: 'RW OB', pos: [5.1, -0.85, 2.0], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.035 },
     { id: 11, label: 'RWT', pos: [6.75, -0.1, 2.4], allowed: [AIM9], mount: 'rail' },
   ],
   loadouts: [
@@ -482,15 +481,15 @@ const TYPHOON: AircraftSpec = {
   },
   stations: [
     { id: 1, label: 'LW OB', pos: [-5.1, -0.35, 4.2], allowed: [AIM9], mount: 'rail', hang: -0.44 },
-    { id: 2, label: 'LW RK-O', pos: [-3.65, -0.7, EF_RZ], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.445, rack: -3.35 },
-    { id: 3, label: 'LW RK-I', pos: [-3.05, -0.7, EF_RZ], allowed: [AIM120, AIM9, TANK], mount: 'pylon', hang: -0.445, rack: -3.35 },
+    { id: 2, label: 'LW MID', pos: [-3.9, -0.6, 3.2], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.44 },
+    { id: 3, label: 'LW IB', pos: [-2.8, -0.7, 2.6], allowed: [AIM120, AIM9, TANK], mount: 'pylon', hang: -0.45 },
     { id: 4, label: 'L FUS-F', pos: [-0.9, -1.0, -1.2], allowed: [AIM120], mount: 'semi-recessed' },
     { id: 5, label: 'L FUS-A', pos: [-0.9, -1.0, 1.6], allowed: [AIM120], mount: 'semi-recessed' },
     { id: 6, label: 'CL', pos: [0, -1.25, 0.4], allowed: [TANK], mount: 'pylon' },
     { id: 7, label: 'R FUS-A', pos: [0.9, -1.0, 1.6], allowed: [AIM120], mount: 'semi-recessed' },
     { id: 8, label: 'R FUS-F', pos: [0.9, -1.0, -1.2], allowed: [AIM120], mount: 'semi-recessed' },
-    { id: 9, label: 'RW RK-I', pos: [3.05, -0.7, EF_RZ], allowed: [AIM120, AIM9, TANK], mount: 'pylon', hang: -0.445, rack: 3.35 },
-    { id: 10, label: 'RW RK-O', pos: [3.65, -0.7, EF_RZ], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.445, rack: 3.35 },
+    { id: 9, label: 'RW IB', pos: [2.8, -0.7, 2.6], allowed: [AIM120, AIM9, TANK], mount: 'pylon', hang: -0.45 },
+    { id: 10, label: 'RW MID', pos: [3.9, -0.6, 3.2], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.44 },
     { id: 11, label: 'RW OB', pos: [5.1, -0.35, 4.2], allowed: [AIM9], mount: 'rail', hang: -0.44 },
   ],
   loadouts: [
@@ -598,16 +597,16 @@ const SU35: AircraftSpec = {
   },
   stations: [
     { id: 1, label: 'LWT', pos: [-7.04, -0.17, 3.75], allowed: [R74], mount: 'rail' },
-    { id: 2, label: 'LW OB', pos: [-5.7, -0.3, SU_RZ + 0.25], allowed: [R74, R77], mount: 'pylon', hang: 0.0, rack: -5.4 },
-    { id: 3, label: 'LW RK-O', pos: [-4.05, -0.3, SU_RZ], allowed: [R77, R74], mount: 'pylon', hang: 0.0, rack: -3.75 },
-    { id: 4, label: 'LW RK-I', pos: [-3.45, -0.3, SU_RZ], allowed: [R77, R74], mount: 'pylon', hang: 0.0, rack: -3.75 },
+    { id: 2, label: 'LW OB', pos: [-5.7, -0.64, 3.0], allowed: [R74, R77], mount: 'pylon' },
+    { id: 3, label: 'LW MID', pos: [-4.4, -0.66, 2.5], allowed: [R77, R74], mount: 'pylon' },
+    { id: 4, label: 'LW IB', pos: [-3.1, -0.68, 1.9], allowed: [R77, R74], mount: 'pylon' },
     { id: 5, label: 'L NAC', pos: [-1.55, -1.45, 0.4], allowed: [R77], mount: 'pylon' },
     { id: 6, label: 'TUN-F', pos: [0, -0.95, -1.6], allowed: [R77], mount: 'pylon' },
     { id: 7, label: 'TUN-A', pos: [0, -0.95, 2.4], allowed: [R77], mount: 'pylon' },
     { id: 8, label: 'R NAC', pos: [1.55, -1.45, 0.4], allowed: [R77], mount: 'pylon' },
-    { id: 9, label: 'RW RK-I', pos: [3.45, -0.3, SU_RZ], allowed: [R77, R74], mount: 'pylon', hang: 0.0, rack: 3.75 },
-    { id: 10, label: 'RW RK-O', pos: [4.05, -0.3, SU_RZ], allowed: [R77, R74], mount: 'pylon', hang: 0.0, rack: 3.75 },
-    { id: 11, label: 'RW OB', pos: [5.7, -0.3, SU_RZ + 0.25], allowed: [R74, R77], mount: 'pylon', hang: 0.0, rack: 5.4 },
+    { id: 9, label: 'RW IB', pos: [3.1, -0.68, 1.9], allowed: [R77, R74], mount: 'pylon' },
+    { id: 10, label: 'RW MID', pos: [4.4, -0.66, 2.5], allowed: [R77, R74], mount: 'pylon' },
+    { id: 11, label: 'RW OB', pos: [5.7, -0.64, 3.0], allowed: [R74, R77], mount: 'pylon' },
     { id: 12, label: 'RWT', pos: [7.04, -0.17, 3.75], allowed: [R74], mount: 'rail' },
   ],
   loadouts: [

@@ -3,6 +3,14 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v2.2.3 — Accurate missile racks (2026-09-26)
+
+- Missile racks researched from the real jets (the F-15EX is unchanged):
+- F/A-18E/F Super Hornet: AIM-9X on the wingtip LAU-127 rails, a single missile hung under each outboard pylon, and an LAU-115 twin rack on each middle wing pylon with two AMRAAMs side by side on LAU-127 shoulder rails (as in the Navy's 'Murder Hornet' air-to-air loadout), plus the fuselage cheek AMRAAMs. A fuel tank on the middle station hangs from the pylon centre.
+- Eurofighter Typhoon: back to one missile per wing pylon, as on the real jet (no twin racks), with the AMRAAMs semi-recessed under the fuselage.
+- Su-35S: one missile per hardpoint as on the real Flanker, on chunkier Russian APU-170 / P-72 style launchers: R-74M on the wingtips and outer pylons, R-77M on the inner pylons, under the engine nacelles and in the tunnel between the engines.
+- Loadouts, missile counts and handling are unchanged.
+
 ## v2.2.2 — No more freeze on kills (2026-09-26)
 
 - Fixed: the game froze for a couple of seconds every time a jet was shot down. When a jet was destroyed, its paint job was copied to scorch the wreck, and each copy needlessly converted the whole livery (large texture data) to text, once for every part of the airframe. The wreck is now scorched with a lightweight copy, shared across parts: the kill that took seconds now takes about 3 thousandths of a second, so explosions play smoothly.

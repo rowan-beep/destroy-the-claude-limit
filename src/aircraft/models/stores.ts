@@ -195,9 +195,9 @@ function pylonBlade(h: number, len: number, thick: number): THREE.BufferGeometry
   });
 }
 
-/** Missile rail launcher (LAU-127/128 style) sitting above the store. */
-function launcher(len: number, r: number): THREE.BufferGeometry {
-  const body = roundBox(0.1, 0.1, len, 0.03);
+/** Missile rail launcher (LAU-127/128 style, or a chunkier Russian APU-170 / P-72) above the store. */
+function launcher(len: number, r: number, russian = false): THREE.BufferGeometry {
+  const body = russian ? roundBox(0.15, 0.14, len, 0.04) : roundBox(0.1, 0.1, len, 0.03);
   body.translate(0, r + 0.08, 0.05);
   const nose = lathe([[0.002, -len / 2 - 0.12], [0.045, -len / 2 - 0.02], [0.05, -len / 2 + 0.05]], 12);
   nose.translate(0, r + 0.08, 0.05);
@@ -260,7 +260,8 @@ export function pylonGeometry(mount: string, store: StoreType, drop: number): TH
     const blade = pylonBlade(h, store === 'TANK' ? 2.4 : 2.1, 0.12);
     blade.translate(0, r + 0.02, -0.1);
     const parts = [blade];
-    if (store !== 'TANK') parts.push(launcher(ir ? 2.0 : 2.4, r));
+    const ru = store === 'R77M' || store === 'R74M';
+    if (store !== 'TANK') parts.push(launcher(ru ? (ir ? 2.3 : 3.0) : ir ? 2.0 : 2.4, r, ru));
     else for (const z of [-0.6, 0.5]) for (const s of [-1, 1]) parts.push(rod(new THREE.Vector3(s * 0.05, r + 0.05, z), new THREE.Vector3(s * 0.16, r * 0.8, z), 0.015, 0.015, 6));
     g = col(join(parts));
   }
