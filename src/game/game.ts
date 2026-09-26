@@ -1216,13 +1216,30 @@ export class Game implements ModeHost {
     let rpm = 0;
     for (const r of p.fm.rpm) rpm += r;
     rpm /= p.fm.rpm.length;
-    let nearby = 0;
     const cp = this.renderer.camera.position;
+    // nearest other jet to the listener (Doppler flyby)
+    let fb: Aircraft | null = null;
+    let fbd = Infinity;
     for (const a of this.sim.aircraft) {
       if (a === p || !a.alive) continue;
       const d = a.fm.pos.distanceTo(cp);
-      if (d < 1500) nearby = Math.max(nearby, (0.6 + a.fm.afterburner) * (1 - d / 1500));
+      if (d < fbd) {
+        fbd = d;
+        fb = a;
+      }
     }
+    let closing = 0;
+    if (fb) {
+      const rx = fb.fm.pos.x - cp.x, ry = fb.fm.pos.y - cp.y, rz = fb.fm.pos.z - cp.z;
+      const rl = Math.max(1, Math.hypot(rx, ry, rz));
+      const vx = fb.fm.vel.x - p.fm.vel.x, vy = fb.fm.vel.y - p.fm.vel.y, vz = fb.fm.vel.z - p.fm.vel.z;
+      closing = -(vx * rx + vy * ry + vz * rz) / rl;
+    }
+    // where the camera sits relative to the jet (behind = roar, ahead = turbine)
+    const dx = cp.x - p.fm.pos.x, dy = cp.y - p.fm.pos.y, dz = cp.z - p.fm.pos.z;
+    const camDist = Math.hypot(dx, dy, dz);
+    const f = p.fm.fwd;
+    const camAspect = camDist > 1 ? (f.x * dx + f.y * dy + f.z * dz) / camDist : 0;
     const lvl = p.rwr.level;
     audio.updateFlight({
       rpm: p.alive ? rpm : 0,
@@ -1235,8 +1252,19 @@ export class Game implements ModeHost {
       gunRpm: p.spec.gun.rpm,
       tone: p.seekerTone,
       rwr: !p.alive ? 'none' : lvl === 'missile' ? 'missile' : lvl === 'lock' ? 'lock' : lvl === 'search' ? 'search' : 'none',
-      nearbyJet: nearby,
+      nearbyJet: 0,
       stall: p.fm.stallWarning,
+      type: p.type,
+      camAspect,
+      camDist,
+      g: p.fm.nz,
+      aoa: p.fm.alpha,
+      gear: p.fm.gearPos,
+      speedbrake: this.speedbrake,
+      mach: p.fm.mach,
+      flybyDist: fbd,
+      flybyClosing: closing,
+      flybyAb: fb ? fb.fm.afterburner : 0,
     });
   }
 
