@@ -5,6 +5,7 @@ import type { Sim } from '../sim';
 import type { TeamPicture } from '../teamPicture';
 import type { MissionConfig } from '../mission';
 import type { Aircraft } from '../../aircraft/aircraft';
+import type { SortieRecorder } from '../logbook';
 import { NM, FT } from '../../core/constants';
 import { bearingXZ } from '../../core/math';
 
@@ -21,6 +22,8 @@ export interface MissionResult {
   good: boolean;
   stats: [string, string][];
   buttons: ResultButton[];
+  /** filled in by the game shell: the sortie record and decorations earned */
+  debrief?: { sortie: SortieRecorder; earned: string[] };
 }
 
 export interface ModeHost {

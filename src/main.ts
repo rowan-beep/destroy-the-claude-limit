@@ -9,6 +9,7 @@ import { MainMenu } from './ui/menu/mainMenu';
 import { Hangar } from './ui/menu/hangar';
 import { LoadingScreen, PauseMenu, ResultsScreen, ControlsModal } from './ui/menu/screens';
 import { SettingsModal } from './ui/menu/settingsModal';
+import { LogbookModal } from './ui/menu/logbookScreen';
 import { MapView } from './ui/mapView';
 import { audio } from './audio/audio';
 import type { AircraftType } from './aircraft/specs';
@@ -46,6 +47,7 @@ async function boot(): Promise<void> {
     hud.reset(game);
   });
   const controls = new ControlsModal(document.body);
+  const logbook = new LogbookModal(document.body, (fresh) => (game.logbook = fresh));
 
   let menu: MainMenu;
   const fly = async (c: MissionConfig) => {
@@ -68,6 +70,7 @@ async function boot(): Promise<void> {
       settingsModal.show(true);
     },
     onControls: () => controls.show(true, settings.input),
+    onLogbook: () => logbook.show(game.logbook),
     onSelectJet: (t, l) => hangar.setJet(t, l),
   });
 
@@ -81,10 +84,14 @@ async function boot(): Promise<void> {
     },
     quit: () => game.endMission(),
   });
-  const results = new ResultsScreen(document.body, (a) => {
-    results.show(null);
-    game.handleResult(a);
-  });
+  const results = new ResultsScreen(
+    document.body,
+    (a) => {
+      results.show(null);
+      game.handleResult(a);
+    },
+    () => game.world.mapData ?? null,
+  );
   game.onResults = (r) => results.show(r);
 
   game.onStateChange = (s) => {

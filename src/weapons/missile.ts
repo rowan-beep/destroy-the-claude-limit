@@ -237,6 +237,7 @@ export class Missile {
           sim.events.emit('pitbull', this);
         } else if (estRange < 1500) {
           this.mode = 'LOST';
+          sim.events.emit('missileLost', { missile: this, reason: !this.losClear ? 'TERRAIN MASK' : !this.datalink ? 'NO DATALINK' : 'NO ACQUISITION' });
           return false;
         }
       }
@@ -253,7 +254,7 @@ export class Missile {
 
     if (this.mode === 'ACTIVE') {
       if (!this.inGimbal(tPos) || !this.losClear) {
-        return this.memory(dt);
+        return this.memory(dt, sim);
       }
       if (this.inNotch(t)) {
         this.notchTimer += dt;
@@ -262,7 +263,7 @@ export class Missile {
           sim.events.emit('missileLost', { missile: this, reason: 'NOTCH' });
           return false;
         }
-        return this.memory(dt);
+        return this.memory(dt, sim);
       }
       this.notchTimer = Math.max(0, this.notchTimer - dt * 0.5);
       // chaff
@@ -297,10 +298,10 @@ export class Missile {
     }
 
     if (this.mode === 'IR') {
-      if (!this.inGimbal(tPos) || !this.losClear) return this.memory(dt);
+      if (!this.inGimbal(tPos) || !this.losClear) return this.memory(dt, sim);
       const intensity = irIntensity(t, this.pos);
       const maxRange = s.seekerRange * intensity * 1.6;
-      if (range > maxRange) return this.memory(dt);
+      if (range > maxRange) return this.memory(dt, sim);
       // flares
       for (const d of sim.cms.decoys) {
         if (d.kind !== 'flare' || d.judged.has(this.id) || d.owner !== t) continue;
@@ -338,10 +339,11 @@ export class Missile {
   }
 
   /** Brief track memory: coast on the last estimate, then give up. */
-  private memory(dt: number): boolean {
+  private memory(dt: number, sim: Sim): boolean {
     this.memoryTimer += dt;
     if (this.memoryTimer > 2.0) {
       this.mode = 'LOST';
+      sim.events.emit('missileLost', { missile: this, reason: !this.losClear ? 'TERRAIN MASK' : 'LOST TRACK' });
       return false;
     }
     this.estPos.addScaledVector(this.estVel, dt);

@@ -19,6 +19,7 @@ export interface MainMenuCallbacks {
   onFly: (cfg: MissionConfig) => void;
   onSettings: () => void;
   onControls: () => void;
+  onLogbook: () => void;
   onSelectJet: (t: AircraftType, loadoutId: string) => void;
 }
 
@@ -43,6 +44,7 @@ export class MainMenu {
     el('h1', '', brand, 'TRIAD');
     el('div', 'sub', brand, 'AIR COMBAT SIMULATOR · SKYE · CAPRI · SAMOS · 400 × 400 NM THEATER');
     const hb = el('div', 'header-buttons', header);
+    button('LOGBOOK', '', hb, () => cb.onLogbook());
     button('CONTROLS', '', hb, () => cb.onControls());
     button('SETTINGS', '', hb, () => cb.onSettings());
 

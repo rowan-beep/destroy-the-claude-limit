@@ -1,5 +1,7 @@
 // Loading screen, pause menu, results screen, controls reference.
 
+import { renderDebrief } from './debrief';
+import type { MapData } from '../../world/mapData';
 import { el, clearEl, button } from '../dom';
 import type { MissionResult } from '../../game/modes/mode';
 import { ACTION_LABELS, Action, InputSettings } from '../../core/input';
@@ -70,6 +72,7 @@ export class ResultsScreen {
   constructor(
     parent: HTMLElement,
     private onAction: (a: string) => void,
+    private mapData: () => MapData | null = () => null,
   ) {
     this.root = el('div', 'modal-back hidden', parent);
     this.box = el('div', 'results', this.root);
@@ -78,6 +81,7 @@ export class ResultsScreen {
     this.root.classList.toggle('hidden', !r);
     if (!r) return;
     clearEl(this.box);
+    this.box.classList.toggle('wide', !!r.debrief);
     el('h1', r.good ? 'good' : 'bad', this.box, r.title);
     el('div', 'rs', this.box, r.subtitle);
     const t = el('table', 'specs', this.box);
@@ -86,6 +90,7 @@ export class ResultsScreen {
       el('td', '', tr, k);
       el('td', '', tr, v);
     }
+    if (r.debrief) renderDebrief(this.box, r.debrief.sortie, r.debrief.earned, this.mapData());
     const b = el('div', 'btns', this.box);
     for (const btn of r.buttons) {
       button(btn.label, btn.action === 'menu' ? '' : 'primary', b, () => this.onAction(btn.action));

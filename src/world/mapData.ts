@@ -88,43 +88,50 @@ export function extractContour(grid: HeightGrid, level: number): ContourSet {
   return { level, tiles };
 }
 
+/** Colour of one map pixel: dark sea, hill-shaded land lit from the north-west. */
+function shade(h: number, hx: number, hz: number, step: number, out: Uint8ClampedArray, k: number): void {
+  let r: number, gg: number, b: number;
+  if (h <= 0) {
+    const deep = clamp(-h / 250, 0, 1);
+    r = 6 + 8 * (1 - deep);
+    gg = 18 + 22 * (1 - deep);
+    b = 34 + 30 * (1 - deep);
+  } else {
+    // slopes rising to the east face the light, slopes rising to the north face away
+    const sx = (hx - h) / step;
+    const sz = (hz - h) / step;
+    const sh = clamp(0.95 + sx * 2.2 - sz * 2.2, 0.35, 1.5);
+    const t = clamp(h / 3800, 0, 1);
+    r = (40 + 50 * t) * sh;
+    gg = (46 + 38 * t) * sh;
+    b = (30 + 34 * t) * sh;
+  }
+  out[k] = r;
+  out[k + 1] = gg;
+  out[k + 2] = b;
+  out[k + 3] = 255;
+}
+
 /** Dark hill-shaded raster of the whole theater for the moving map. */
 export function renderTsdRaster(grid: HeightGrid, size: number): HTMLCanvasElement {
+  return renderRegion(grid, -MAP_HALF, -MAP_HALF, MAP_SIZE, size, size);
+}
+
+/** Hill-shaded raster of a region (x0, z0 = north-west corner, span across). */
+export function renderRegion(grid: HeightGrid, x0: number, z0: number, span: number, w: number, h: number): HTMLCanvasElement {
   const c = document.createElement('canvas');
-  c.width = c.height = size;
+  c.width = w;
+  c.height = h;
   const g = c.getContext('2d')!;
-  const img = g.createImageData(size, size);
-  const step = MAP_SIZE / size;
-  const data = img.data;
-  for (let j = 0; j < size; j++) {
-    const z = -MAP_HALF + (j + 0.5) * step;
-    for (let i = 0; i < size; i++) {
-      const x = -MAP_HALF + (i + 0.5) * step;
-      const h = grid.height(x, z);
-      let r: number, gg: number, b: number;
-      if (h <= 0) {
-        const deep = clamp(-h / 250, 0, 1);
-        r = 6 + 8 * (1 - deep);
-        gg = 18 + 22 * (1 - deep);
-        b = 34 + 30 * (1 - deep);
-      } else {
-        const hx = grid.height(x + step, z);
-        const hz = grid.height(x, z - step);
-        // light from the north-west: slopes rising to the east face the
-        // light, slopes rising to the north face away from it
-        const sx = (hx - h) / step;
-        const sz = (hz - h) / step;
-        const shade = clamp(0.95 + sx * 2.2 - sz * 2.2, 0.35, 1.5);
-        const t = clamp(h / 3800, 0, 1);
-        r = (40 + 50 * t) * shade;
-        gg = (46 + 38 * t) * shade;
-        b = (30 + 34 * t) * shade;
-      }
-      const k = (j * size + i) * 4;
-      data[k] = r;
-      data[k + 1] = gg;
-      data[k + 2] = b;
-      data[k + 3] = 255;
+  const img = g.createImageData(w, h);
+  const step = span / w;
+  const lightStep = Math.max(step, grid.spacing * 0.5);
+  for (let j = 0; j < h; j++) {
+    const z = z0 + (j + 0.5) * step;
+    for (let i = 0; i < w; i++) {
+      const x = x0 + (i + 0.5) * step;
+      const hh = grid.height(x, z);
+      shade(hh, hh > 0 ? grid.height(x + lightStep, z) : 0, hh > 0 ? grid.height(x, z - lightStep) : 0, lightStep, img.data, (j * w + i) * 4);
     }
   }
   g.putImageData(img, 0, 0);
@@ -136,7 +143,12 @@ export class MapData {
   contours: ContourSet[] = [];
   raster: HTMLCanvasElement | null = null;
 
-  constructor(private grid: HeightGrid) {}
+  constructor(readonly grid: HeightGrid) {}
+
+  /** A crisp local relief map (debrief, zoomed views). */
+  region(x0: number, z0: number, span: number, w: number, h: number): HTMLCanvasElement {
+    return renderRegion(this.grid, x0, z0, span, w, h);
+  }
 
   get ready(): boolean {
     return !!this.coast;

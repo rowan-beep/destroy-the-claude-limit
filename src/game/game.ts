@@ -26,6 +26,7 @@ import type { Hud } from '../ui/hud/hud';
 import { CockpitView } from '../render/cockpitView';
 import { Avionics } from '../avionics/avionics';
 import { gradeLanding } from '../avionics/nav';
+import { SortieRecorder, LogbookData, MissionOutcome, loadLogbook, saveLogbook, commitSortie, medalName } from './logbook';
 import { NM } from '../core/constants';
 
 export type GameState = 'menu' | 'loading' | 'playing' | 'paused' | 'map' | 'results';
@@ -44,6 +45,9 @@ export class Game implements ModeHost {
   /** free mouse cursor in the cockpit for clicking displays */
   cockpitCursor = false;
   private touchdownsSeen = 0;
+  /** career record and the sortie being flown */
+  logbook: LogbookData = loadLogbook();
+  sortie: SortieRecorder | null = null;
   hud!: Hud;
   mode: GameMode | null = null;
   player: Aircraft | null = null;
@@ -164,6 +168,7 @@ export class Game implements ModeHost {
   }
 
   endMission(): void {
+    if (this.player) this.finishSortie(this.player.alive ? (this.player.fm.onGround ? 'LANDED' : 'RTB') : 'LOST');
     this.mode?.dispose();
     this.mode = null;
     if (this.sim) {
@@ -237,6 +242,7 @@ export class Game implements ModeHost {
   // --- ModeHost ---------------------------------------------------------
 
   createPlayer(): Aircraft {
+    if (this.player) this.finishSortie(this.player.alive ? 'RECALLED' : 'LOST');
     const cfg = this.config;
     const p = new Aircraft(cfg.aircraft, 'blue', 'VIPER 1-1', cfg.loadoutId);
     p.isPlayer = true;
@@ -250,6 +256,7 @@ export class Game implements ModeHost {
     this.avionics = new Avionics(this, p);
     this.cockpitView.attach(null);
     this.touchdownsSeen = 0;
+    this.sortie = new SortieRecorder(p, cfg.mode, this.sim);
     return p;
   }
 
@@ -262,8 +269,32 @@ export class Game implements ModeHost {
   }
 
   showResults(r: MissionResult): void {
+    const outcome: MissionOutcome = {};
+    if (this.mode instanceof WavesMode) {
+      outcome.wave = this.mode.wave;
+      outcome.wavesCleared = this.mode.phase === 'victory' ? 10 : this.mode.wave - 1;
+    } else if (this.mode instanceof DuelMode) {
+      outcome.duel = {
+        difficulty: this.config.difficulty,
+        outcome: r.title === 'VICTORY' ? 'win' : r.title === 'MUTUAL KILL' ? 'draw' : 'loss',
+      };
+    }
+    const s = this.sortie;
+    const earned = this.finishSortie(r.title, outcome);
+    if (s) r.debrief = { sortie: s, earned };
     this.setState('results');
     this.onResults?.(r);
+  }
+
+  /** Close the current sortie and fold it into the logbook (once). */
+  finishSortie(result: string, outcome: MissionOutcome = {}): string[] {
+    const s = this.sortie;
+    if (!s || s.ended) return [];
+    s.end(result);
+    const earned = commitSortie(this.logbook, s, outcome);
+    saveLogbook(this.logbook);
+    if (earned.length) this.message(`DECORATION EARNED: ${earned.map(medalName).join(', ')}`, 'good', 8);
+    return earned;
   }
 
   refreshStores(a: Aircraft): void {
@@ -356,6 +387,7 @@ export class Game implements ModeHost {
         steps++;
       }
       if (steps >= 30) this.accumulator = 0;
+      this.sortie?.update(steps * PHYSICS_DT);
       this.mode?.update(dt);
       this.updateRearm(dt);
       this.updateWarnings(dt);
