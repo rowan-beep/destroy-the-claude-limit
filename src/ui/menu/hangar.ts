@@ -3,7 +3,8 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { Aircraft } from '../../aircraft/aircraft';
-import { createAirframe, AirframeVisual } from '../../aircraft/models';
+import { createAirframe, AirframeVisual, paintAirframe } from '../../aircraft/models';
+import { loadPaint, PaintConfig } from '../../aircraft/models/paint';
 import { AircraftType } from '../../aircraft/specs';
 
 export class Hangar {
@@ -90,6 +91,7 @@ export class Hangar {
       ac.fm.gearPos = 1;
       ac.fm.rpm.fill(0.25);
       const vis = createAirframe(ac);
+      paintAirframe(vis, loadPaint(type));
       vis.root.traverse((o) => {
         const m = o as THREE.Mesh;
         if (m.isMesh) m.castShadow = true;
@@ -99,6 +101,11 @@ export class Hangar {
       this.jets.set(type, j);
     }
     return j;
+  }
+
+  /** Preview a paint job on the hangar jet (not saved). */
+  previewPaint(type: AircraftType, cfg: PaintConfig | null): void {
+    paintAirframe(this.ensure(type).vis, cfg);
   }
 
   setJet(type: AircraftType, loadoutId?: string): void {

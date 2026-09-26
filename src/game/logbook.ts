@@ -297,7 +297,7 @@ export interface MissionOutcome {
   wavesCleared?: number;
   duel?: { difficulty: Difficulty; outcome: 'win' | 'loss' | 'draw' };
   /** a finished 5v5 match: final score */
-  team?: { won: boolean; roundsWon: number; roundsLost: number };
+  team?: { won: boolean; drawn?: boolean; roundsWon: number; roundsLost: number };
 }
 
 /** Fold a finished sortie into the logbook; returns newly earned medal ids. */
@@ -336,7 +336,7 @@ export function commitSortie(book: LogbookData, s: SortieRecorder, outcome: Miss
   if (outcome.team) {
     const t = book.team;
     if (outcome.team.won) t.wins++;
-    else t.losses++;
+    else if (!outcome.team.drawn) t.losses++;
     t.roundsWon += outcome.team.roundsWon;
     t.roundsLost += outcome.team.roundsLost;
   }

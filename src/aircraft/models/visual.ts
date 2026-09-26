@@ -11,6 +11,8 @@ import { DEG } from '../../core/constants';
 import { clamp } from '../../core/math';
 import { makeInsignia } from './decals';
 import { Cockpit } from './cockpit';
+import { customSkinMaterial, Livery } from './kit';
+import { PaintConfig, WRAPS, wrapMask } from './paint';
 
 export interface ControlSurface {
   pivot: THREE.Object3D;
@@ -96,6 +98,10 @@ export class AirframeVisual {
   /** parts hidden in cockpit view (so the camera can sit inside) */
   hideInCockpit: THREE.Object3D[] = [];
   private insignia: THREE.Object3D[] = [];
+  /** the airframe's livery paint material (shared with every jet of its type) */
+  paintMat: THREE.MeshStandardMaterial | null = null;
+  /** this jet's own paint job, when customised */
+  private customMat: THREE.MeshStandardMaterial | null = null;
   /** small parts hidden on distant aircraft */
   detail: THREE.Object3D[] = [];
   private detailOn = true;
@@ -208,6 +214,50 @@ export class AirframeVisual {
     }
   }
 
+  /**
+   * Apply a paint job (null / factory at full brightness = the stock scheme).
+   * `plain` is the markings-only livery to use under a custom colour.
+   */
+  applyPaint(cfg: PaintConfig | null, plain: Livery | null): void {
+    const base = this.paintMat;
+    if (!base) return;
+    const stock = !cfg || (cfg.mode === 'factory' && Math.abs(cfg.brightness - 1) < 0.01 && cfg.finish === 'satin');
+    let target: THREE.Material = base;
+    if (!stock) {
+      if (!this.customMat) this.customMat = customSkinMaterial(base, cfg!.mode === 'factory' ? null : plain);
+      const m = this.customMat;
+      const u = m.userData.skinUniforms as Record<string, THREE.IUniform>;
+      // factory mode keeps the stock markings (and the F-15's camouflage)
+      if (cfg!.mode === 'factory' || !plain) {
+        const bu = base.userData.skinUniforms as Record<string, THREE.IUniform>;
+        for (const k of ['skinTop', 'skinBot', 'skinSide', 'skinSideR']) u[k].value = bu[k].value;
+      } else {
+        const t = plain.cachedTextures();
+        u.skinTop.value = t.top;
+        u.skinBot.value = t.bot;
+        u.skinSide.value = t.side;
+        u.skinSideR.value = t.sideR;
+      }
+      const c = cfg!;
+      u.customMode.value = c.mode === 'solid' ? 1 : c.mode === 'wrap' ? 2 : 0;
+      (u.customA.value as THREE.Color).set(c.color);
+      (u.customB.value as THREE.Color).set(c.color2);
+      const w = WRAPS.find((x) => x.id === c.wrap) ?? WRAPS[0];
+      u.customTex.value = wrapMask(w.id);
+      u.customScale.value = w.tileM;
+      u.brightness.value = c.brightness;
+      const f = { matte: [0.85, 0.05], satin: [base.roughness, base.metalness], gloss: [0.22, 0.25], metallic: [0.28, 0.85] }[c.finish];
+      m.roughness = f[0];
+      m.metalness = f[1];
+      target = m;
+    }
+    const prev = target === base ? this.customMat : base;
+    this.body.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (mesh.isMesh && (mesh.material === prev || mesh.material === base || mesh.material === this.customMat)) mesh.material = target;
+    });
+  }
+
   /** Show / hide the small parts (pilots, ducts, burner cans, probes...). */
   setDetail(on: boolean): void {
     if (on === this.detailOn) return;
@@ -252,6 +302,7 @@ export class AirframeVisual {
     v.canopyBows = this.canopyBows;
     v.hideInCockpit = this.hideInCockpit.map(M);
     v.detail = this.detail.map(M);
+    v.paintMat = this.paintMat;
     v.navLights = this.navLights.map((l) => ({ mesh: M(l.mesh), kind: l.kind }));
     v.insignia = this.insignia.map(M);
     v.flames = this.flames.map((f) => {
@@ -394,6 +445,8 @@ export class AirframeVisual {
   }
 
   dispose(): void {
+    this.customMat?.dispose();
+    this.customMat = null;
     this.cockpit?.dispose();
     this.cockpit = null;
     this.root.traverse((o) => {

@@ -1,4 +1,5 @@
 // Application bootstrap: builds the theater, then shows the main menu.
+import { CustomizeScreen } from './ui/menu/customizeScreen';
 import { SpectatorUi } from './ui/spectatorUi';
 import { AutoFlyPanel } from './ui/autoFlyPanel';
 import './styles.css';
@@ -39,6 +40,10 @@ async function boot(): Promise<void> {
   const mapView = new MapView(document.body, () => game.setState('playing'));
   mapView.setGrid(game.world.grid);
   const hangar = new Hangar(game.renderer.renderer);
+  const customize = new CustomizeScreen(document.body, hangar, () => {
+    menu.root.classList.remove('hidden');
+    hangar.setJet(menu.cfg.aircraft, menu.cfg.loadoutId);
+  });
   console.info(`theater ready in ${Math.round(performance.now() - t0)} ms${game.world.pool.usingFallback ? ' (main-thread fallback)' : ''}`);
 
   const cfg: MissionConfig = defaultMission();
@@ -87,6 +92,10 @@ async function boot(): Promise<void> {
     onControls: () => controls.show(true, settings.input),
     onLogbook: () => logbook.show(game.logbook),
     onSelectJet: (t, l) => hangar.setJet(t, l),
+    onCustomize: (t) => {
+      menu.root.classList.add('hidden');
+      customize.show(t);
+    },
   });
 
   const pause = new PauseMenu(document.body, {

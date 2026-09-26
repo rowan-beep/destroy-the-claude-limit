@@ -20,8 +20,8 @@ type Phase = 'brief' | 'combat' | 'roundEnd' | 'over';
 
 const BLUE_NAMES = ['VIPER 1-1', 'VIPER 1-2', 'VIPER 1-3', 'VIPER 1-4', 'VIPER 1-5'];
 const RED_NAMES = ['COBRA 2-1', 'COBRA 2-2', 'COBRA 2-3', 'COBRA 2-4', 'COBRA 2-5'];
-/** a round that nobody finishes is decided by who has more jets left */
-const ROUND_LIMIT = 10 * 60;
+/** a round still running after 5 minutes of combat ends, and both teams score */
+const ROUND_LIMIT = 5 * 60;
 
 export class TeamBattleMode extends GameMode {
   round = 0;
@@ -34,7 +34,8 @@ export class TeamBattleMode extends GameMode {
   /** player kills summed over the match (the player jet is new each round) */
   private matchKills = 0;
   private matchShots = 0;
-  private roundWinner: Team | null = null;
+  private roundWinner: Team | 'both' | null = null;
+  private combatTime = 0;
 
   get winsNeeded(): number {
     return Math.max(1, Math.min(5, this.host.config.teamWins || 3));
@@ -161,17 +162,19 @@ export class TeamBattleMode extends GameMode {
         this.roundTime += dt;
         if (this.timer <= 0) {
           this.phase = 'combat';
+          this.combatTime = 0;
           h.message("FIGHT'S ON", 'good', 3);
           h.voice("Fight's on");
         }
         break;
       case 'combat': {
         this.roundTime += dt;
-        let winner: Team | null | 'draw' = null;
+        this.combatTime += dt;
+        let winner: Team | null | 'draw' | 'both' = null;
         if (blueAlive === 0 && redAlive === 0) winner = 'draw';
         else if (redAlive === 0) winner = 'blue';
         else if (blueAlive === 0) winner = 'red';
-        else if (this.roundTime > ROUND_LIMIT) winner = blueAlive > redAlive ? 'blue' : redAlive > blueAlive ? 'red' : 'draw';
+        else if (this.combatTime > ROUND_LIMIT) winner = 'both';
         if (winner) this.endRound(winner);
         break;
       }
@@ -185,7 +188,7 @@ export class TeamBattleMode extends GameMode {
     }
   }
 
-  private endRound(winner: Team | 'draw'): void {
+  private endRound(winner: Team | 'draw' | 'both'): void {
     const h = this.host;
     const p = h.player;
     if (p) {
@@ -197,6 +200,15 @@ export class TeamBattleMode extends GameMode {
     if (winner === 'draw') {
       h.message(`ROUND ${this.round} DRAWN — REPLAYING`, 'warn', 6);
       this.round--;
+      return;
+    }
+    if (winner === 'both') {
+      // time's up: both teams take the point
+      this.roundWinner = 'both';
+      this.score.blue++;
+      this.score.red++;
+      h.message(`ROUND ${this.round}: TIME — BOTH TEAMS SCORE — BLUE ${this.score.blue} : ${this.score.red} RED`, 'warn', 7);
+      h.voice('Time');
       return;
     }
     this.roundWinner = winner;
@@ -212,11 +224,12 @@ export class TeamBattleMode extends GameMode {
     this.phase = 'over';
     this.over = true;
     const won = this.score.blue > this.score.red;
+    const drawn = this.score.blue === this.score.red;
     const p = h.player;
     h.showResults({
-      title: won ? 'MATCH WON' : 'MATCH LOST',
+      title: drawn ? 'MATCH DRAWN' : won ? 'MATCH WON' : 'MATCH LOST',
       subtitle: `5v5 Team Battle — BLUE ${this.score.blue} : ${this.score.red} RED over ${this.round} round${this.round === 1 ? '' : 's'}.`,
-      good: won,
+      good: won || drawn,
       stats: [
         ['FINAL SCORE', `${this.score.blue} : ${this.score.red}`],
         ['YOUR KILLS (MATCH)', String(this.matchKills)],
@@ -242,8 +255,11 @@ export class TeamBattleMode extends GameMode {
     const redAlive = this.alive(this.red);
     let objective = '';
     if (this.phase === 'brief') objective = `ROUND ${this.round} — MERGE IN ${Math.ceil(this.timer)} S`;
-    else if (this.phase === 'combat') objective = `DESTROY ALL ${redAlive} BANDIT${redAlive === 1 ? '' : 'S'} · FIRST TO ${this.winsNeeded}`;
-    else if (this.phase === 'roundEnd') objective = this.roundWinner ? `${this.roundWinner === 'blue' ? 'BLUE' : 'RED'} TAKES ROUND ${this.round} — NEXT ROUND IN ${Math.ceil(this.timer)} S` : `NEXT ROUND IN ${Math.ceil(this.timer)} S`;
+    else if (this.phase === 'combat') {
+      const left = Math.max(0, ROUND_LIMIT - this.combatTime);
+      objective = `DESTROY ALL ${redAlive} BANDIT${redAlive === 1 ? '' : 'S'} · ${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')} LEFT · FIRST TO ${this.winsNeeded}`;
+    }
+    else if (this.phase === 'roundEnd') objective = this.roundWinner === 'both' ? `TIME — BOTH TEAMS SCORE — NEXT ROUND IN ${Math.ceil(this.timer)} S` : this.roundWinner ? `${this.roundWinner === 'blue' ? 'BLUE' : 'RED'} TAKES ROUND ${this.round} — NEXT ROUND IN ${Math.ceil(this.timer)} S` : `NEXT ROUND IN ${Math.ceil(this.timer)} S`;
     return {
       title: `ROUND ${Math.max(1, this.round)} · ${this.score.blue}:${this.score.red}`,
       blue: blueAlive,

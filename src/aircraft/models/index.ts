@@ -4,6 +4,8 @@ import { buildF15EX } from './f15ex';
 import { buildFA18 } from './fa18';
 import { buildTyphoon } from './typhoon';
 import { partMaterials } from './parts';
+import { f15PlainLivery } from './f15ex';
+import type { PaintConfig } from './paint';
 
 // One fully built airframe per type and coalition; every aircraft in the
 // sim is a clone sharing its geometry, livery and materials.
@@ -34,6 +36,11 @@ export function createAirframe(ac: Aircraft): AirframeVisual {
 /** Build templates ahead of time (so the first spawn of a type doesn't hitch). */
 export function prewarmAirframes(list: Aircraft[]): void {
   for (const a of list) template(a);
+}
+
+/** Put a paint job on one aircraft's visual (the player's jet, the hangar jet). */
+export function paintAirframe(v: AirframeVisual, cfg: PaintConfig | null): void {
+  v.applyPaint(cfg, v.ac.type === 'F15EX' ? f15PlainLivery(v.ac.team) : null);
 }
 
 export { AirframeVisual };

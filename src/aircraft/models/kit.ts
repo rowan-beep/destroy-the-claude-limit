@@ -671,6 +671,13 @@ export class Livery {
     this.gr.restore();
   }
 
+  private _tex: ReturnType<Livery['textures']> | null = null;
+  /** The texture set, created once. */
+  cachedTextures(): ReturnType<Livery['textures']> {
+    if (!this._tex) this._tex = this.textures();
+    return this._tex;
+  }
+
   /** Map a CanvasTexture set for the shader. */
   textures(): { top: THREE.CanvasTexture; bot: THREE.CanvasTexture; side: THREE.CanvasTexture; sideR: THREE.CanvasTexture } {
     const mk = (c: HTMLCanvasElement) => {
@@ -711,6 +718,12 @@ uniform vec4 skinBox;   // half, z0, len, y0
 uniform float skinH;    // side height
 uniform vec3 paintTop;
 uniform vec3 paintBot;
+uniform float customMode;   // 0 factory, 1 solid, 2 wrap
+uniform vec3 customA;
+uniform vec3 customB;
+uniform sampler2D customTex;
+uniform float customScale;  // metres per wrap tile
+uniform float brightness;
 varying vec3 vSkin;
 varying vec3 vSkinN;
 `;
@@ -734,15 +747,58 @@ const SKIN_FRAG = /* glsl */ `
     if ( wS > 0.01 ) { vec4 t = sn.x > 0.0 ? texture2D( skinSideR, uS ) : texture2D( skinSide, uS ); m += vec4( t.rgb * t.a, t.a ) * wS; }
     float up = smoothstep( -0.45, 0.35, sn.y );
     vec3 base = mix( paintBot, paintTop, up );
-    diffuseColor.rgb *= base * ( 1.0 - m.a ) + m.rgb;
+    if ( customMode > 0.5 ) {
+      float shade = mix( 0.86, 1.0, up );
+      base = customA * shade;
+      if ( customMode > 1.5 ) {
+        // wrap: the mask projected from above/below, the side and the front
+        float wF = aw.z / ( aw.x + aw.y + aw.z + 1e-5 );
+        float wY = aw.y / ( aw.x + aw.y + aw.z + 1e-5 );
+        float wX = 1.0 - wF - wY;
+        float t = texture2D( customTex, vSkin.xz / customScale ).r * wY
+                + texture2D( customTex, vSkin.zy / customScale ).r * wX
+                + texture2D( customTex, vSkin.xy / customScale ).r * wF;
+        base = mix( customA, customB, t ) * shade;
+      }
+    }
+    diffuseColor.rgb *= ( base * ( 1.0 - m.a ) + m.rgb ) * brightness;
   }
 `;
 
 let skinId = 0;
+let _blank: THREE.DataTexture | null = null;
+function blankTex(): THREE.DataTexture {
+  if (!_blank) {
+    _blank = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
+    _blank.needsUpdate = true;
+  }
+  return _blank;
+}
+
+/**
+ * A copy of a livery material with its own paint uniforms (the player's
+ * custom paint job) -- same livery textures, unless `plain` markings (no
+ * factory camouflage) are given.
+ */
+export function customSkinMaterial(base: THREE.MeshStandardMaterial, plain: Livery | null): THREE.MeshStandardMaterial {
+  const src = base.userData.skinUniforms as Record<string, THREE.IUniform>;
+  const u: Record<string, THREE.IUniform> = {};
+  for (const [k, v] of Object.entries(src)) u[k] = { value: v.value && typeof v.value.clone === 'function' && !(v.value instanceof THREE.Texture) ? v.value.clone() : v.value };
+  if (plain) {
+    const t = plain.cachedTextures();
+    u.skinTop.value = t.top;
+    u.skinBot.value = t.bot;
+    u.skinSide.value = t.side;
+    u.skinSideR.value = t.sideR;
+  }
+  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: base.roughness, metalness: base.metalness });
+  applySkin(mat, u);
+  return mat;
+}
 
 /** Standard PBR paint with the projected livery. */
 export function skinMaterial(p: SkinParams): THREE.MeshStandardMaterial {
-  const tex = p.livery.textures();
+  const tex = p.livery.cachedTextures();
   const b = p.livery.box;
   const uniforms = {
     skinTop: { value: tex.top },
@@ -753,6 +809,12 @@ export function skinMaterial(p: SkinParams): THREE.MeshStandardMaterial {
     skinH: { value: p.livery.sideH },
     paintTop: { value: p.top.clone() },
     paintBot: { value: p.bottom.clone() },
+    customMode: { value: 0 },
+    customA: { value: new THREE.Color(0xffffff) },
+    customB: { value: new THREE.Color(0x000000) },
+    customTex: { value: blankTex() },
+    customScale: { value: 4 },
+    brightness: { value: 1 },
   };
   const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: p.roughness ?? 0.58, metalness: p.metalness ?? 0.22 });
   applySkin(mat, uniforms);
@@ -771,7 +833,7 @@ function applySkin(mat: THREE.MeshStandardMaterial, uniforms: Record<string, THR
       .replace('#include <common>', '#include <common>\n' + SKIN_FRAG_PARS)
       .replace('#include <map_fragment>', '#include <map_fragment>\n' + SKIN_FRAG);
   };
-  mat.customProgramCacheKey = () => 'skin-v1';
+  mat.customProgramCacheKey = () => 'skin-v2';
   void id;
 }
 

@@ -3,6 +3,16 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v1.5.0 — Jet customization (2026-09-26)
+
+- Jet customization for all three jets: press CUSTOMIZE JET on the main menu to open the new customization screen, just your jet on the turntable and the paint controls.
+- Paint types: the FACTORY scheme, a SOLID COLOUR (18 colours plus a custom colour picker), or a WRAP.
+- Eight wraps: Digital, Splinter, Tiger, Hex, Woodland, Arctic, Carbon fibre and Chevron. Each comes with its own colours, and you can change the base and pattern colours.
+- Finish: Matte, Satin, Gloss or Metallic, plus a BRIGHTNESS slider (50-150%).
+- Changes preview live on the jet; nothing is saved until you press APPLY. CANCEL (or Esc) puts your saved paint back, RESET TO FACTORY starts over. Switch between the F-15EX, F/A-18E/F and Typhoon with the tabs at the top; each jet keeps its own paint.
+- Your paint job is on your jet in every mode, and panel lines, roundels, tail codes and weathering stay on top of it.
+- 5v5 Team Battle: a round still going after 5 minutes of fighting now ends and BOTH teams get a point (the time left shows in the HUD). If that puts both teams on the winning score together, the match is a draw.
+
 ## v1.4.0 — 5v5 Team Battle (2026-09-26)
 
 - New game mode: 5v5 TEAM BATTLE. You and four AI wingmen (BLUE) against five AI bandits (RED) over Samos.

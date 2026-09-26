@@ -197,6 +197,7 @@ export function buildTyphoon(v: AirframeVisual): void {
     liveries.set(team, L);
   }
   const paint = skinMaterial({ top: new THREE.Color('#7a8288'), bottom: new THREE.Color('#939b9f'), livery: L, roughness: 0.56, metalness: 0.18 });
+  v.paintMat = paint;
   const skin = (g: THREE.BufferGeometry) => v.addMesh(stamp(g), paint);
 
   const zs = mergeStations(stations(-8.06, -5.9, 30, 0.55, 0), stations(-5.9, -2.1, 50), stations(-2.1, 7.35, 80));

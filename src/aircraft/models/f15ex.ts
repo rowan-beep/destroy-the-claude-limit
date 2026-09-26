@@ -114,7 +114,7 @@ const FIN: WingStation[] = [
 const FIN_ROOT = { x: 1.62, y: 0.38, cant: 0 };
 const RUDDER = { h0: 0.12, h1: 1.95, hinge: (h: number) => 7.62 + h * 0.02 };
 
-function livery(team: string): Livery {
+function livery(team: string, withCamo = true): Livery {
   const L = new Livery({ half: 10.5, z0: -10.6, len: 21, y0: -2.4, height: 6.4 });
   const { gt, gb, gs } = L;
   const rnd = prng(15);
@@ -133,13 +133,13 @@ function livery(team: string): Livery {
     g.fill();
   };
   for (const sx of [-1, 1]) {
-    blob(gt, [T(2.1 * sx, -0.4), T(4.4 * sx, 1.6), T(5.1 * sx, 3.7), T(3.2 * sx, 4.0), T(2.2 * sx, 2.4)], camo);
-    blob(gt, [T(0.9 * sx, 3.2), T(1.9 * sx, 4.6), T(2.6 * sx, 8.4), T(1.1 * sx, 8.9), T(0.3 * sx, 6.0)], camo);
-    blob(gt, [T(1.2 * sx, -3.8), T(1.95 * sx, -1.2), T(1.5 * sx, 0.4), T(0.95 * sx, -1.4)], camo);
+    if (withCamo) blob(gt, [T(2.1 * sx, -0.4), T(4.4 * sx, 1.6), T(5.1 * sx, 3.7), T(3.2 * sx, 4.0), T(2.2 * sx, 2.4)], camo);
+    if (withCamo) blob(gt, [T(0.9 * sx, 3.2), T(1.9 * sx, 4.6), T(2.6 * sx, 8.4), T(1.1 * sx, 8.9), T(0.3 * sx, 6.0)], camo);
+    if (withCamo) blob(gt, [T(1.2 * sx, -3.8), T(1.95 * sx, -1.2), T(1.5 * sx, 0.4), T(0.95 * sx, -1.4)], camo);
   }
-  blob(gs, [S(-3.2, -0.9), S(-0.4, -0.9), S(1.8, 0.55), S(-1.6, 0.6)], camo);
-  blob(gs, [S(3.4, -0.7), S(6.8, -0.6), S(7.6, 0.5), S(4.4, 0.6)], camo);
-  blob(gs, [S(5.0, 1.0), S(7.6, 1.2), S(8.2, 3.4), S(6.4, 3.5)], camo);
+  if (withCamo) blob(gs, [S(-3.2, -0.9), S(-0.4, -0.9), S(1.8, 0.55), S(-1.6, 0.6)], camo);
+  if (withCamo) blob(gs, [S(3.4, -0.7), S(6.8, -0.6), S(7.6, 0.5), S(4.4, 0.6)], camo);
+  if (withCamo) blob(gs, [S(5.0, 1.0), S(7.6, 1.2), S(8.2, 3.4), S(6.4, 3.5)], camo);
   // radome and anti-glare panel
   gt.fillStyle = 'rgba(112,118,122,0.85)';
   gt.beginPath();
@@ -283,6 +283,17 @@ function livery(team: string): Livery {
 }
 
 const liveries = new Map<string, Livery>();
+const plain = new Map<string, Livery>();
+
+/** Markings without the factory two-tone camouflage (under a custom paint job). */
+export function f15PlainLivery(team: string): Livery {
+  let L = plain.get(team);
+  if (!L) {
+    L = livery(team, false);
+    plain.set(team, L);
+  }
+  return L;
+}
 
 export function buildF15EX(v: AirframeVisual): void {
   const pm = partMaterials();
@@ -293,6 +304,7 @@ export function buildF15EX(v: AirframeVisual): void {
     liveries.set(team, L);
   }
   const paint = skinMaterial({ top: new THREE.Color('#61686f'), bottom: new THREE.Color('#7f868c'), livery: L, roughness: 0.55, metalness: 0.2 });
+  v.paintMat = paint;
   const skin = (g: THREE.BufferGeometry) => v.addMesh(stamp(g), paint);
 
   // --- fuselage ---------------------------------------------------------------

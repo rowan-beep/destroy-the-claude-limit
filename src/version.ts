@@ -10,6 +10,20 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '1.5.0',
+    date: '2026-09-26',
+    title: 'Jet customization',
+    notes: [
+      "Jet customization for all three jets: press CUSTOMIZE JET on the main menu to open the new customization screen, just your jet on the turntable and the paint controls.",
+      "Paint types: the FACTORY scheme, a SOLID COLOUR (18 colours plus a custom colour picker), or a WRAP.",
+      "Eight wraps: Digital, Splinter, Tiger, Hex, Woodland, Arctic, Carbon fibre and Chevron. Each comes with its own colours, and you can change the base and pattern colours.",
+      "Finish: Matte, Satin, Gloss or Metallic, plus a BRIGHTNESS slider (50-150%).",
+      "Changes preview live on the jet; nothing is saved until you press APPLY. CANCEL (or Esc) puts your saved paint back, RESET TO FACTORY starts over. Switch between the F-15EX, F/A-18E/F and Typhoon with the tabs at the top; each jet keeps its own paint.",
+      "Your paint job is on your jet in every mode, and panel lines, roundels, tail codes and weathering stay on top of it.",
+      "5v5 Team Battle: a round still going after 5 minutes of fighting now ends and BOTH teams get a point (the time left shows in the HUD). If that puts both teams on the winning score together, the match is a draw.",
+    ],
+  },
+  {
     version: '1.4.0',
     date: '2026-09-26',
     title: '5v5 Team Battle',
@@ -20,7 +34,7 @@ export const RELEASES: Release[] = [
       "Bandits only fly the two jets you did not pick. Pick the AI difficulty (Easy to Extreme) and weapons (all, Sidewinders + gun, or guns only).",
       "Spectator: when you're shot down you can watch any jet on either team until the round ends. Click a jet in the list, or use the arrow keys / Tab; right-drag to orbit, wheel to zoom. It moves on to the next jet automatically when the one you're watching goes down.",
       "Free camera: press F while spectating to fly a camera anywhere (WASD, Q/E down/up, Shift faster, right-drag to look).",
-      "Scoreboard: round number and score in the top bar, jets left on each side, round banners and voice calls. A round nobody finishes in 10 minutes goes to the team with more jets left (a tie replays the round).",
+      "Scoreboard: round number and score in the top bar, jets left on each side, round banners and voice calls. A round that runs past the time limit is decided by the rules at that time (see later versions).",
       "Logbook: 5v5 match and round record, plus two new decorations: SQUADRON LEADER (win a match) and CLEAN SWEEP (win without losing a round).",
     ],
   },

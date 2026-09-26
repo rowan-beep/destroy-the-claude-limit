@@ -208,6 +208,7 @@ export function buildFA18(v: AirframeVisual): void {
     liveries.set(team, L);
   }
   const paint = skinMaterial({ top: new THREE.Color('#858c92'), bottom: new THREE.Color('#a9afb3'), livery: L, roughness: 0.6, metalness: 0.15 });
+  v.paintMat = paint;
   const skin = (g: THREE.BufferGeometry) => v.addMesh(stamp(g), paint);
 
   const zs = mergeStations(stations(-9.3, -6.9, 32, 0.55, 0), stations(-6.9, -2.3, 60), stations(-2.3, 8.4, 90));

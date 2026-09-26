@@ -317,7 +317,7 @@ export class Game implements ModeHost {
       outcome.wave = this.mode.wave;
       outcome.wavesCleared = this.mode.phase === 'victory' ? 10 : this.mode.wave - 1;
     } else if (this.mode instanceof TeamBattleMode) {
-      outcome.team = { won: this.mode.score.blue > this.mode.score.red, roundsWon: this.mode.score.blue, roundsLost: this.mode.score.red };
+      outcome.team = { won: this.mode.score.blue > this.mode.score.red, drawn: this.mode.score.blue === this.mode.score.red, roundsWon: this.mode.score.blue, roundsLost: this.mode.score.red };
     } else if (this.mode instanceof DuelMode) {
       outcome.duel = {
         difficulty: this.config.difficulty,

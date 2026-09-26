@@ -23,6 +23,7 @@ export interface MainMenuCallbacks {
   onControls: () => void;
   onLogbook: () => void;
   onSelectJet: (t: AircraftType, loadoutId: string) => void;
+  onCustomize: (t: AircraftType) => void;
 }
 
 export class MainMenu {
@@ -67,6 +68,10 @@ export class MainMenu {
       this.cb.onSelectJet(this.cfg.aircraft, this.cfg.loadoutId);
     });
     el('div', 'note', lc, 'AIM-120D AMRAAM: active radar, ~40-70 NM at altitude. AIM-9X: IR dogfight missile, 90° off-boresight. Tanks add fuel and drag.');
+    const pc = el('div', 'card', left);
+    el('h2', '', pc, 'PAINT & WRAPS');
+    button('CUSTOMIZE JET ▸', 'primary', pc, () => this.cb.onCustomize(this.cfg.aircraft));
+    el('div', 'note', pc, 'Solid colours, wrap patterns, finish and brightness for each jet.');
 
     // centre: hangar caption & fly button
     const centre = el('div', 'hangar-center', body);
