@@ -17,11 +17,16 @@ import { TouchControls, isTouchDevice } from './ui/touchControls';
 import { ReplayUi } from './ui/replayUi';
 import { MapView } from './ui/mapView';
 import { audio } from './audio/audio';
+import { applyMap, loadMapChoice } from './world/maps';
+import { refreshGciSites } from './game/teamPicture';
 import { XpFx, PilotCard } from './ui/xpFx';
 import { saveProgress } from './game/progression';
 import type { AircraftType } from './aircraft/specs';
 
 async function boot(): Promise<void> {
+  // the theater must be chosen before anything about the world is built
+  applyMap(loadMapChoice());
+  refreshGciSites();
   const app = document.getElementById('app')!;
   const settings = loadSettings();
   const loading = new LoadingScreen(document.body);

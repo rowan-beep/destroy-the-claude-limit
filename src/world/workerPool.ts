@@ -5,6 +5,7 @@
 import TerrainWorker from './terrainWorker?worker&inline';
 import type { GenRequest, GenResult } from './terrainGen';
 import { handleRequest } from './terrainGen';
+import { activeMap } from './islands';
 
 type Callback = (res: GenResult) => void;
 type DistributiveOmit<T, K extends keyof T> = T extends unknown ? Omit<T, K> : never;
@@ -31,6 +32,7 @@ export class WorkerPool {
         const w = new TerrainWorker();
         const idx = i;
         w.onmessage = (e: MessageEvent<GenResult>) => this.onResult(idx, e.data);
+        w.postMessage({ type: 'map', id: activeMap.id });
         w.onerror = (err) => {
           console.warn('terrain worker error, switching to main-thread generation', err);
           this.enableFallback();

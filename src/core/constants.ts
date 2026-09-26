@@ -16,10 +16,14 @@ export const EARTH_RADIUS = 6371000;
 /** Standard 4/3 effective-earth factor for radar refraction. */
 export const RADAR_K_FACTOR = 4 / 3;
 
-/** The theater is a 400 x 400 nautical mile square centred on the origin. */
-export const MAP_SIZE_NM = 400;
-export const MAP_SIZE = MAP_SIZE_NM * NM; // 740,800 m
-export const MAP_HALF = MAP_SIZE / 2;
+/**
+ * The theater is a square centred on the origin: 400 x 400 NM for Triad
+ * Isles, 200 x 200 NM for Frostfall Strait. Set once at start-up by the map
+ * (live bindings: every module sees the active map's values).
+ */
+export let MAP_SIZE_NM = 400;
+export let MAP_SIZE = MAP_SIZE_NM * NM; // 740,800 m
+export let MAP_HALF = MAP_SIZE / 2;
 
 /** Terrain seed. Deterministic so every worker and every run agrees. */
 export const WORLD_SEED = 1337;
@@ -31,7 +35,15 @@ export const PHYSICS_DT = 1 / PHYSICS_HZ;
 export const SEA_LEVEL = 0;
 
 /** Highest terrain point anywhere, used for fast LOS rejection. */
-export const MAX_TERRAIN_HEIGHT = 5600;
+export let MAX_TERRAIN_HEIGHT = 5600;
+
+/** Switch the theater dimensions (map change, at start-up). */
+export function setMapDimensions(sizeNm: number, maxTerrain: number): void {
+  MAP_SIZE_NM = sizeNm;
+  MAP_SIZE = sizeNm * NM;
+  MAP_HALF = MAP_SIZE / 2;
+  MAX_TERRAIN_HEIGHT = maxTerrain;
+}
 
 export type Team = 'blue' | 'red';
 

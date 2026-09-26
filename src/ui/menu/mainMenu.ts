@@ -1,6 +1,8 @@
 // Main menu: aircraft selection (3D hangar), exact specs, loadouts, game
 // mode grid and the per-mode setup (1v1 customizer, wave options...).
 
+import { activeMap, MAPS, ROLES } from '../../world/islands';
+import { switchMap } from '../../world/maps';
 import { WhatsNewModal } from './whatsNew';
 import { VERSION } from '../../version';
 import { el, clearEl, button } from '../dom';
@@ -13,7 +15,7 @@ import { MISSILES } from '../../weapons/weaponSpecs';
 const DIFF_TEXT: Record<Difficulty, string> = {
   EASY: 'Conservative, rarely uses afterburner, flies predictable straight lines and gentle arcs. Only shoots with a perfect sustained lock. Never hides behind terrain.',
   MEDIUM: 'Breaks away from missile locks, manages speed near corner velocity, uses afterburner to recover energy in climbs, pulls up to ~6 G.',
-  HARD: 'Fights for your six with high yo-yos and scissors, flares and chaff defensively, aggressive afterburner, dives behind the Samos and Skye ridges to break your radar lock.',
+  HARD: 'Fights for your six with high yo-yos and scissors, flares and chaff defensively, aggressive afterburner, dives behind mountain ridges to break your radar lock.',
   EXTREME: 'Operates at the absolute limits of the airframe: max-G snapshots, instant switching between gun and AIM-9X, perfect intercept geometry, and it punishes fuel or G-LOC mistakes.',
 };
 
@@ -45,7 +47,7 @@ export class MainMenu {
     const header = el('div', 'menu-header', this.root);
     const brand = el('div', 'brand', header);
     el('h1', '', brand, 'TRIAD');
-    el('div', 'sub', brand, 'AIR COMBAT SIMULATOR · SKYE · CAPRI · SAMOS · 400 × 400 NM THEATER');
+    el('div', 'sub', brand, `AIR COMBAT SIMULATOR · ${activeMap.name} · ${activeMap.sizeNm} × ${activeMap.sizeNm} NM THEATER`);
     const hb = el('div', 'header-buttons', header);
     const wn = new WhatsNewModal(document.body);
     button(`v${VERSION} · NOTES`, '', hb, () => wn.show(true));
@@ -82,6 +84,7 @@ export class MainMenu {
 
     // right: specs + mode + setup
     const right = el('div', 'col scroll', body);
+    this.renderTheater(el('div', 'card', right));
     this.specCard = el('div', 'card', right);
     const mc = el('div', 'card', right);
     el('h2', '', mc, 'GAME MODE');
@@ -227,6 +230,26 @@ export class MainMenu {
     for (const d of DIFFICULTIES) el('div', 'note', labels, d);
   }
 
+  /** Map picker: switching saves the choice and reloads with the new theater. */
+  private renderTheater(c: HTMLElement): void {
+    el('h2', '', c, 'THEATER');
+    const grid = el('div', 'map-grid', c);
+    for (const m of MAPS) {
+      const cur = m.id === activeMap.id;
+      const b = el('div', 'map-card' + (cur ? ' sel' : ''), grid);
+      el('div', 'mn', b, m.name);
+      el('div', 'mp', b, `${m.sizeNm} × ${m.sizeNm} NM · ${m.places}`);
+      el('div', 'md', b, m.description);
+      if (cur) el('div', 'mc', b, 'CURRENT THEATER');
+      else
+        b.addEventListener('click', () => {
+          b.classList.add('loading');
+          (b.querySelector('.mp') as HTMLElement).textContent = 'LOADING THEATER…';
+          switchMap(m.id);
+        });
+    }
+  }
+
   private renderSetup(): void {
     const c = this.setup;
     clearEl(c);
@@ -236,6 +259,7 @@ export class MainMenu {
     el('div', 'note', c, info.description);
     el('h3', '', c, 'MISSION');
     const blue = airfieldsOf('blue');
+    if (!blue.some((f) => f.id === cfg.freeBase)) cfg.freeBase = blue[0].id;
     if (cfg.mode === 'free' || cfg.mode === 'waves') {
       this.seg(c, 'HOME BASE (BLUE)', blue.map((f) => [f.id, f.name.replace(' AB', '')] as [string, string]), cfg.freeBase, (v) => (cfg.freeBase = v));
     }
@@ -266,7 +290,7 @@ export class MainMenu {
       const enemies = enemyTypesFor(cfg.aircraft);
       this.seg(c, 'OPPONENT AIRCRAFT', enemies.map((t) => [t, SPECS[t].shortName.toUpperCase()] as [AircraftType, string]), cfg.enemyType, (v) => (cfg.enemyType = v));
       this.difficultySlider(c);
-      this.seg(c, 'START', [['air', 'HEAD-ON, 22 NM'], ['samos', 'SAMOS RUNWAYS']], cfg.duelStart, (v) => (cfg.duelStart = v));
+      this.seg(c, 'START', [['air', 'HEAD-ON, 22 NM'], ['samos', `${ROLES.arena.name} RUNWAYS`]], cfg.duelStart, (v) => (cfg.duelStart = v));
       this.seg(c, 'WEAPONS', [['all', 'ALL'], ['ir', 'AIM-9X + GUN'], ['guns', 'GUNS ONLY']], cfg.duelRules, (v) => (cfg.duelRules = v));
     }
     this.seg(

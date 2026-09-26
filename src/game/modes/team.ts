@@ -1,5 +1,5 @@
 // Mode 4: 5v5 Team Battle. The player and four AI wingmen (BLUE) against
-// five AI bandits (RED) over Samos. A round ends when one team has no jets
+// five AI bandits (RED) over the contested island. A round ends when one team has no jets
 // left; everyone respawns rearmed for the next; first team to N rounds wins.
 // Both teams use the same AI pilots, just on opposite sides. Enemy jets are
 // never the player's own type; allies can be any of the three.
@@ -10,7 +10,7 @@ import { GameMode, ModeStatus, ResultButton, statsFor } from './mode';
 import { Aircraft } from '../../aircraft/aircraft';
 import { AIPilot } from '../../ai/pilot';
 import { duelSkill } from '../../ai/skill';
-import { ISLAND_BY_ID } from '../../world/islands';
+import { ROLES, mapAlt } from '../../world/islands';
 import { spawnInAir, aiStores, pickEnemyType } from '../spawn';
 import { AIRCRAFT_TYPES, AircraftType } from '../../aircraft/specs';
 import { NM } from '../../core/constants';
@@ -86,7 +86,7 @@ export class TeamBattleMode extends GameMode {
     this.round++;
     this.roundTime = 0;
     this.roundWinner = null;
-    const samos = ISLAND_BY_ID.samos;
+    const samos = ROLES.arena;
     const sep = 14 * NM;
     const skill = duelSkill(cfg.difficulty);
 
@@ -98,7 +98,7 @@ export class TeamBattleMode extends GameMode {
     const slots = [0, -1, 1, -2, 2];
     for (let i = 0; i < 5; i++) {
       const off = slots[i] * 1.2 * NM;
-      const alt = 6400 + rand(-400, 400);
+      const alt = mapAlt(6400) + rand(-400, 400);
       // BLUE
       let b: Aircraft;
       if (i === 0) b = p;
@@ -109,7 +109,7 @@ export class TeamBattleMode extends GameMode {
         this.loadout(b, false);
         this.blue.push(b);
       }
-      spawnInAir(b, new THREE.Vector3(samos.cx - sep - Math.abs(slots[i]) * 900, i === 0 ? 6400 : alt, samos.cz + off), 90, 460);
+      spawnInAir(b, new THREE.Vector3(samos.cx - sep - Math.abs(slots[i]) * 900, i === 0 ? mapAlt(6400) : alt, samos.cz + off), 90, 460);
       // RED: never the player's type
       const r = new Aircraft(pickEnemyType(p.type), 'red', RED_NAMES[i]);
       r.paint = this.paintFor(r);
@@ -117,20 +117,20 @@ export class TeamBattleMode extends GameMode {
       spawnInAir(r, new THREE.Vector3(samos.cx + sep + Math.abs(slots[i]) * 900, alt, samos.cz + off), 270, 460);
       this.red.push(r);
     }
-    // the same AI flies for both sides; each sweeps toward the other team's side of Samos
+    // the same AI flies for both sides; each sweeps toward the other team's side of the arena
     const route = (team: Team) => {
       const sx = team === 'blue' ? 1 : -1;
       return [
-        new THREE.Vector3(samos.cx + sx * sep, 6600, samos.cz + rand(-8000, 8000)),
-        new THREE.Vector3(samos.cx, 7200, samos.cz + rand(-20000, 20000)),
-        new THREE.Vector3(samos.cx - sx * sep * 0.6, 6600, samos.cz + rand(-15000, 15000)),
+        new THREE.Vector3(samos.cx + sx * sep, mapAlt(6600), samos.cz + rand(-8000, 8000)),
+        new THREE.Vector3(samos.cx, mapAlt(7200), samos.cz + rand(-20000, 20000)),
+        new THREE.Vector3(samos.cx - sx * sep * 0.6, mapAlt(6600), samos.cz + rand(-15000, 15000)),
       ];
     };
     const arm = (list: Aircraft[], team: Team) => {
       list.forEach((a, i) => {
         if (a.isPlayer) return;
         const ai = new AIPilot(a, { ...skill, weapons: { ...skill.weapons } }, h.picture);
-        ai.setRoute(route(team), 6600);
+        ai.setRoute(route(team), mapAlt(6600));
         ai.bracketSide = i % 2 === 0 ? 1 : -1;
         a.ai = ai;
       });
@@ -148,7 +148,7 @@ export class TeamBattleMode extends GameMode {
       `ROUND ${this.round} — BLUE ${this.score.blue} : ${this.score.red} RED`,
       `First to ${need}. Your flight: ${this.blue.map((a) => a.spec.shortName).join(', ')}. Bandits: ${this.red.map((a) => a.spec.shortName).join(', ')} (${cfg.difficulty}). ${
         cfg.duelRules === 'guns' ? 'GUNS ONLY.' : cfg.duelRules === 'ir' ? 'SIDEWINDERS AND GUNS ONLY.' : 'ALL WEAPONS FREE.'
-      } Merge over Samos in about a minute.`,
+      } Merge over ${ROLES.arena.name[0] + ROLES.arena.name.slice(1).toLowerCase()} in about a minute.`,
       9,
     );
     h.voice(`Round ${this.round}`);

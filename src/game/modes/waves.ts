@@ -11,7 +11,7 @@ import { GameMode, ModeStatus, ResultButton, braa, statsFor } from './mode';
 import { Aircraft } from '../../aircraft/aircraft';
 import { AIPilot } from '../../ai/pilot';
 import { waveDef, WaveDef } from '../../ai/skill';
-import { AIRFIELD_BY_ID, AIRFIELDS, airfieldsOf, fromRunwayLocal, ISLAND_BY_ID } from '../../world/islands';
+import { AIRFIELD_BY_ID, AIRFIELDS, airfieldsOf, fromRunwayLocal, ROLES, mapAlt } from '../../world/islands';
 import { spawnOnRunway, spawnInAir, pickEnemyType, aiStores, nextRedCallsign, resetCallsigns } from '../spawn';
 import { NM, FT } from '../../core/constants';
 import { rand } from '../../core/rng';
@@ -53,11 +53,11 @@ export class WavesMode extends GameMode {
     if (h.config.waveStart === 'runway') spawnOnRunway(p, f);
     else {
       // airborne a few miles off the field, pointed at the threat axis
-      const threat = ISLAND_BY_ID.capri;
+      const threat = ROLES.redHome;
       const hdg = (Math.atan2(threat.cx - f.x, -(threat.cz - f.z)) * 180) / Math.PI;
       const s = fromRunwayLocal(f, 0, 0);
       const dir = new THREE.Vector3(Math.sin((hdg * Math.PI) / 180), 0, -Math.cos((hdg * Math.PI) / 180));
-      spawnInAir(p, new THREE.Vector3(s.x, 6100, s.z).addScaledVector(dir, 20000), (hdg + 360) % 360, 430);
+      spawnInAir(p, new THREE.Vector3(s.x, mapAlt(6100), s.z).addScaledVector(dir, 20000), (hdg + 360) % 360, 430);
     }
   }
 
@@ -83,7 +83,7 @@ export class WavesMode extends GameMode {
       const type = pickEnemyType(p.type);
       // spawn airborne near the red base; first flight 42-62 NM from the player
       const bp = fromRunwayLocal(base, 0, 0);
-      const pos = new THREE.Vector3(bp.x, rand(6200, 7800), bp.z);
+      const pos = new THREE.Vector3(bp.x, rand(mapAlt(6200), mapAlt(7800)), bp.z);
       const toPlayer = new THREE.Vector3(p.fm.pos.x - pos.x, 0, p.fm.pos.z - pos.z);
       const dist = toPlayer.length();
       toPlayer.normalize();
@@ -97,7 +97,7 @@ export class WavesMode extends GameMode {
       const route = [
         new THREE.Vector3(p.fm.pos.x + rand(-30000, 30000), pos.y, p.fm.pos.z + rand(-30000, 30000)),
         new THREE.Vector3(blue[fl % blue.length].x, pos.y, blue[fl % blue.length].z),
-        new THREE.Vector3(ISLAND_BY_ID.samos.cx, pos.y, ISLAND_BY_ID.samos.cz),
+        new THREE.Vector3(ROLES.arena.cx, pos.y, ROLES.arena.cz),
       ];
       let leader: AIPilot | null = null;
       const members = Math.min(3, d.count - fl * 3);

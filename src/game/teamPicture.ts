@@ -25,11 +25,21 @@ export interface GciSite {
   rangeNm: number;
 }
 
-export const GCI_SITES: GciSite[] = AIRFIELDS.map((f) => {
+function buildSites(): GciSite[] {
+  return AIRFIELDS.map((f) => {
   const p = fromRunwayLocal(f, -300, 700);
   // the radar head sits on high ground / a mast above the field
   return { team: f.team, name: f.name + ' GCI', pos: new THREE.Vector3(p.x, f.elev + 260, p.z), rangeNm: 190 };
 });
+}
+
+/** Ground radars at every airfield of the active map (the map is chosen before first use). */
+export const GCI_SITES: GciSite[] = [];
+export function refreshGciSites(): void {
+  GCI_SITES.length = 0;
+  GCI_SITES.push(...buildSites());
+}
+refreshGciSites();
 
 export class TeamPicture {
   private tracks: Record<Team, Map<number, PictureTrack>> = { blue: new Map(), red: new Map() };

@@ -10,6 +10,7 @@
 // annunciators: LOCK / SHOOT, MASTER CAUTION, engine FIRE, gear lights.
 // Display screens get their canvas textures from the avionics.
 
+import { AIRFIELDS, activeMap } from '../../world/islands';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { AirframeVisual } from './visual';
@@ -828,6 +829,13 @@ export class Cockpit {
   }
 
   private kneeboardTexture(): THREE.CanvasTexture {
+    const fieldRows = (team: string) =>
+      AIRFIELDS.filter((f) => f.team === team).map((f) => {
+        const a = Math.round(f.heading / 10) % 36 || 36;
+        const b = ((a + 17) % 36) + 1;
+        const nm = f.name.replace(/ AB$/, '').replace('HVITØY ', 'HVIT ').slice(0, 12).padEnd(12);
+        return `${nm} ${f.icao} ${f.tacan} ${String(a).padStart(2, '0')}/${String(b).padStart(2, '0')} ${Math.round(f.elev / 0.3048)}`;
+      });
     const c = document.createElement('canvas');
     c.width = 360;
     c.height = 504;
@@ -845,16 +853,12 @@ export class Cockpit {
       `APP  ${ac.spec.approachKts} KT  ROT ${ac.spec.rotateKts} KT`,
       '',
       'FIELD        ICAO TCN RWY  ELEV',
-      'DUNVEGAN     EGDV 31X 02/20 138',
-      'BROADFORD    EGBF 44X 16/34 115',
-      'KARLOVASI    LGKV 57X 36/18 180',
+      ...fieldRows('blue'),
       '--- HOSTILE ---',
-      'ANACAPRI     LIAC 62X 09/27 197',
-      'MARINA GR.   LIMG 71X 04/22 131',
-      'VATHY        LGVT 85X 18/36 164',
+      ...fieldRows('red'),
       '',
       'BULLSEYE: THEATER CENTRE',
-      'SAMOS RIDGE: 11,600-13,800 FT',
+      `THEATER: ${activeMap.name}`,
       'GCI: OVERLORD (ALL BLUE FIELDS)',
       '',
       'G: +4 GREY  +8 TUNNEL  +10.5 LOC',

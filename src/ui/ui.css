@@ -451,3 +451,14 @@ body.touch-mode .xp-bar { bottom: 8px; }
 .xp-debrief .xd-track { flex: 1; height: 8px; background: rgba(10, 24, 34, 0.9); border: 1px solid rgba(95, 227, 255, 0.35); border-radius: 4px; overflow: hidden; }
 .xp-debrief .xd-fill { height: 100%; width: 0; background: linear-gradient(90deg, #1e8fd6, #5fe3ff); box-shadow: 0 0 10px rgba(95, 227, 255, 0.8); }
 .xp-debrief .xd-rank { font-size: 11px; letter-spacing: 0.16em; color: #c6d8e4; min-width: 150px; text-align: right; }
+
+/* theater (map) picker */
+.map-grid { display: flex; flex-direction: column; gap: 8px; }
+.map-card { position: relative; padding: 10px 12px; border: 1px solid var(--menu-line); background: rgba(12, 18, 26, 0.8); cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+.map-card:hover { border-color: rgba(140, 200, 255, 0.5); }
+.map-card.sel { border-color: #7fd6ff; background: linear-gradient(135deg, rgba(40, 90, 130, 0.55), rgba(12, 22, 34, 0.85)); cursor: default; }
+.map-card.loading { opacity: 0.6; pointer-events: none; }
+.map-card .mn { font-size: 17px; font-weight: 700; letter-spacing: 3px; color: #eef6fb; }
+.map-card .mp { font-family: var(--mono); font-size: 10px; color: #8fd0f0; margin: 2px 0 4px; letter-spacing: 1px; }
+.map-card .md { font-size: 11px; color: var(--menu-dim); line-height: 1.4; }
+.map-card .mc { position: absolute; top: 8px; right: 10px; font-size: 9px; letter-spacing: 2px; color: #7fd6ff; }

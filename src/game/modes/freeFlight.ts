@@ -2,7 +2,7 @@
 
 import * as THREE from 'three';
 import { GameMode, ModeStatus, ResultButton } from './mode';
-import { AIRFIELD_BY_ID, airfieldsOf, fromRunwayLocal } from '../../world/islands';
+import { AIRFIELD_BY_ID, airfieldsOf, fromRunwayLocal, activeMap } from '../../world/islands';
 import { spawnOnRunway, spawnInAir } from '../spawn';
 import { FT } from '../../core/constants';
 
@@ -20,8 +20,7 @@ export class FreeFlightMode extends GameMode {
     const f = this.base();
     h.order(
       'FREE FLIGHT',
-      `${p.spec.name} at ${f.name}. The whole 400 x 400 NM theater is yours: ` +
-        `Skye (BLUE), Capri (RED) and contested Samos. Watch the afterburner fuel burn. Land on any BLUE runway and press [H] to rearm & refuel.`,
+      `${p.spec.name} at ${f.name}. The whole ${activeMap.sizeNm} x ${activeMap.sizeNm} NM theater of ${activeMap.name} is yours. Watch the afterburner fuel burn. Land on any BLUE runway and press [H] to rearm & refuel.`,
       12,
     );
   }

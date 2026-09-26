@@ -5,7 +5,7 @@ import { GameMode, ModeStatus, ResultButton, statsFor } from './mode';
 import { Aircraft } from '../../aircraft/aircraft';
 import { AIPilot } from '../../ai/pilot';
 import { duelSkill } from '../../ai/skill';
-import { AIRFIELD_BY_ID, ISLAND_BY_ID } from '../../world/islands';
+import { ROLES, mapAlt } from '../../world/islands';
 import { spawnOnRunway, spawnInAir, aiStores, pickEnemyType } from '../spawn';
 import { enemyTypesFor } from '../../aircraft/specs';
 import { NM } from '../../core/constants';
@@ -40,37 +40,40 @@ export class DuelMode extends GameMode {
     const ai = new AIPilot(e, skill, h.picture);
     e.ai = ai;
     if (cfg.duelStart === 'samos') {
-      // opposite Samos runways, the dividing mountain between you
-      spawnOnRunway(p, AIRFIELD_BY_ID.karlovasi);
-      spawnOnRunway(e, AIRFIELD_BY_ID.vathy);
+      // opposite runways on the contested island, the dividing mountains between you
+      const kv = ROLES.duelBlue;
+      spawnOnRunway(p, kv);
+      spawnOnRunway(e, ROLES.duelRed);
       ai.state = 'TAKEOFF';
       // hunt: around the north end of the ridge, over the player's side, around the south end
-      const samos = ISLAND_BY_ID.samos;
-      const kv = AIRFIELD_BY_ID.karlovasi;
+      const arena = ROLES.arena;
+      const endOff = arena.id === 'samos' ? 70000 : arena.ry * 1.25;
+      const side = Math.min(20000, arena.rx * 0.45);
       ai.setRoute(
         [
-          new THREE.Vector3(samos.cx + 20000, 6400, samos.cz - 70000),
-          new THREE.Vector3(kv.x + 15000, 6000, kv.z - 20000),
-          new THREE.Vector3(kv.x - 10000, 6000, kv.z + 25000),
-          new THREE.Vector3(samos.cx + 20000, 6400, samos.cz + 70000),
-          new THREE.Vector3(samos.cx, 7600, samos.cz),
+          new THREE.Vector3(arena.cx + side, mapAlt(6400), arena.cz - endOff),
+          new THREE.Vector3(kv.x + side * 0.75, mapAlt(6000), kv.z - side),
+          new THREE.Vector3(kv.x - side * 0.5, mapAlt(6000), kv.z + side * 1.25),
+          new THREE.Vector3(arena.cx + side, mapAlt(6400), arena.cz + endOff),
+          new THREE.Vector3(arena.cx, mapAlt(7600), arena.cz),
         ],
-        6000,
+        mapAlt(6000),
       );
+      const short = (n: string) => n.replace(/ AB$/, '');
       h.order(
-        '1v1 DUEL — SAMOS',
-        `You: ${p.spec.shortName} at KARLOVASI (west). Bandit: ${e.spec.shortName} (${cfg.difficulty}) at VATHY (east). The great ridge blocks radar between you: climb above it or fly around the ends to find him.`,
+        `1v1 DUEL — ${arena.name}`,
+        `You: ${p.spec.shortName} at ${short(kv.name)} (west). Bandit: ${e.spec.shortName} (${cfg.difficulty}) at ${short(ROLES.duelRed.name)} (east). The mountains block radar between you: climb above them or fly around the ends to find him.`,
         12,
       );
     } else {
-      const samos = ISLAND_BY_ID.samos;
+      const samos = ROLES.arena;
       const half = 11 * NM;
-      spawnInAir(p, new THREE.Vector3(samos.cx - half, 6400, samos.cz + 8000), 90, 450);
-      spawnInAir(e, new THREE.Vector3(samos.cx + half, 6400, samos.cz + 8000), 270, 450);
-      ai.setRoute([new THREE.Vector3(samos.cx - half, 6400, samos.cz)], 6400);
+      spawnInAir(p, new THREE.Vector3(samos.cx - half, mapAlt(6400), samos.cz + 8000), 90, 450);
+      spawnInAir(e, new THREE.Vector3(samos.cx + half, mapAlt(6400), samos.cz + 8000), 270, 450);
+      ai.setRoute([new THREE.Vector3(samos.cx - half, mapAlt(6400), samos.cz)], mapAlt(6400));
       h.order(
         '1v1 DUEL',
-        `Head-on at 22 NM over Samos. You: ${p.spec.shortName}. Bandit: ${e.spec.shortName} flown by a ${cfg.difficulty} AI. ${cfg.duelRules === 'guns' ? 'GUNS ONLY.' : cfg.duelRules === 'ir' ? 'SIDEWINDERS AND GUNS ONLY.' : 'ALL WEAPONS FREE.'} FIGHT'S ON!`,
+        `Head-on at 22 NM over ${ROLES.arena.name[0] + ROLES.arena.name.slice(1).toLowerCase()}. You: ${p.spec.shortName}. Bandit: ${e.spec.shortName} flown by a ${cfg.difficulty} AI. ${cfg.duelRules === 'guns' ? 'GUNS ONLY.' : cfg.duelRules === 'ir' ? 'SIDEWINDERS AND GUNS ONLY.' : 'ALL WEAPONS FREE.'} FIGHT'S ON!`,
         10,
       );
     }

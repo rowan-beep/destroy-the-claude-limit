@@ -9,7 +9,7 @@ import { ACTION_LABELS, Action, InputSettings } from '../../core/input';
 
 const TIPS = [
   'Afterburner drains fuel roughly ten times faster than cruise. Use it to fight, not to commute.',
-  'Terrain blocks radar. Fly low behind the great ridge on Samos and nobody can lock you.',
+  'Terrain blocks radar. Fly low behind a mountain ridge and nobody can lock you.',
   'Beam an incoming AMRAAM (put it at your 3 or 9 o\'clock) while low to hide in the Doppler notch, and drop chaff.',
   'Past 4 G the colour drains, past 8 G the world goes black and white, at 10.5 G you pass out for ten seconds.',
   'Pushing negative G reddens your vision: -2 G is a 50% red-out, -5 G blinds you completely.',

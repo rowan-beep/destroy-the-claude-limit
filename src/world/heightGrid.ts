@@ -6,7 +6,12 @@
 import { MAP_HALF, MAP_SIZE, MAX_TERRAIN_HEIGHT, EARTH_RADIUS, RADAR_K_FACTOR } from '../core/constants';
 
 export const GRID_SPACING = 400;
-export const GRID_N = Math.round(MAP_SIZE / GRID_SPACING) + 1; // 1853
+export let GRID_N = Math.round(MAP_SIZE / GRID_SPACING) + 1; // 1853 on the 400 NM map
+
+/** Recompute the grid size for the active map. */
+export function refreshGridSize(): void {
+  GRID_N = Math.round(MAP_SIZE / GRID_SPACING) + 1;
+}
 
 export class HeightGrid {
   readonly n = GRID_N;

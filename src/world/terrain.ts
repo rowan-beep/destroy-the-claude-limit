@@ -1,4 +1,4 @@
-// The analytic terrain of the whole 400 x 400 NM theater.
+// The analytic terrain of the active theater (Triad Isles or Frostfall Strait).
 //
 // terrainHeight(x, z) is a pure deterministic function: the terrain worker
 // uses it to build render chunks and the height grid, the main thread uses it
@@ -7,6 +7,7 @@
 // and grottoes; Samos' pine hills, pebble beaches and the dividing mountain.
 
 import { NM, WORLD_SEED, MAP_HALF } from '../core/constants';
+import { hash2f } from '../core/rng';
 import { Simplex2 } from '../core/noise';
 import { smoothstep, clamp01, lerp } from '../core/math';
 import {
@@ -20,6 +21,7 @@ import {
   CAPRI_GROTTOES,
   toIslandLocal,
   fromIslandLocal,
+  activeMap,
 } from './islands';
 
 const N = new Simplex2(WORLD_SEED);
@@ -27,6 +29,8 @@ const N2 = new Simplex2(WORLD_SEED * 7 + 3);
 const N3 = new Simplex2(WORLD_SEED * 13 + 11);
 
 export const DEEP_SEA = -460;
+/** island id reported for pack-ice floes */
+export const ICE = '__ice';
 
 // ---------------------------------------------------------------------------
 // Precomputed features
@@ -72,13 +76,20 @@ interface FieldPre {
   f: AirfieldDef;
   bound: number;
 }
-const fieldPre: FieldPre[] = AIRFIELDS.map((f) => ({
-  f,
-  bound: f.length / 2 + FIELD_FLAT.alongPad + FIELD_FLAT.blend + 1500,
-}));
+let fieldPre: FieldPre[] = [];
+let fieldsByIsland: Record<IslandId, AirfieldDef[]> = {};
 
-const fieldsByIsland: Record<IslandId, AirfieldDef[]> = { skye: [], capri: [], samos: [] };
-for (const f of AIRFIELDS) fieldsByIsland[f.island].push(f);
+/** Rebuild everything derived from the active map's layout (map change). */
+export function refreshTerrainCaches(): void {
+  fieldPre = AIRFIELDS.map((f) => ({
+    f,
+    bound: f.length / 2 + FIELD_FLAT.alongPad + FIELD_FLAT.blend + 1500,
+  }));
+  fieldsByIsland = {};
+  for (const i of ISLANDS) fieldsByIsland[i.id] = [];
+  for (const f of AIRFIELDS) (fieldsByIsland[f.island] ??= []).push(f);
+  initCoves();
+}
 
 // ---------------------------------------------------------------------------
 // Coastline
@@ -98,8 +109,10 @@ function warpedRadius(isl: IslandDef, u: number, v: number, x: number, z: number
 }
 
 // Place Capri's grotto coves exactly on the (warped) coastline.
-(function initCoves() {
-  const capri = ISLANDS.find((i) => i.id === 'capri')!;
+function initCoves(): void {
+  capriCoves.length = 0;
+  const capri = ISLANDS.find((i) => i.id === 'capri');
+  if (!capri) return;
   for (const g of CAPRI_GROTTOES) {
     const a = (g.angle * Math.PI) / 180;
     let lo = 0.3,
@@ -116,10 +129,12 @@ function warpedRadius(isl: IslandDef, u: number, v: number, x: number, z: number
     const m = (lo + hi) / 2 - 0.004;
     capriCoves.push({ u: Math.cos(a) * capri.rx * m, v: Math.sin(a) * capri.ry * m, r: g.radius, name: g.name });
   }
-})();
+}
+refreshTerrainCaches();
 
 export function getGrottoes(): { x: number; z: number; r: number; name: string }[] {
-  const capri = ISLANDS.find((i) => i.id === 'capri')!;
+  const capri = ISLANDS.find((i) => i.id === 'capri');
+  if (!capri) return [];
   return capriCoves.map((c) => {
     const w = fromIslandLocal(capri, c.u, c.v);
     return { x: w.x, z: w.z, r: c.r, name: c.name };
@@ -133,6 +148,7 @@ export function getGrottoes(): { x: number; z: number; r: number; name: string }
 function fieldSuppression(isl: IslandId, x: number, z: number, inner: number, outer: number): number {
   let s = 1;
   const fs = fieldsByIsland[isl];
+  if (!fs) return s;
   for (let i = 0; i < fs.length; i++) {
     const f = fs[i];
     const dx = x - f.x;
@@ -245,6 +261,112 @@ function samosLand(x: number, z: number, u: number, v: number, d: number): numbe
 }
 
 // ---------------------------------------------------------------------------
+// Frostfall Strait
+// ---------------------------------------------------------------------------
+
+/**
+ * Arctic range: low ice cliffs at the shore, a rolling ice cap, then huge
+ * ridged mountains (knife-edge crests, deep glacial valleys) reaching well
+ * over 7,000 m. Airfields sit on flattened coastal plains.
+ */
+/**
+ * Glacial approach valleys: 1 far from any runway of this island, falling to
+ * 0 along the runway and its extended centreline for ~17 NM each way, so the
+ * big ranges never stand in the way of a 3 degree approach.
+ */
+function approachValleys(islId: IslandId, x: number, z: number): number {
+  const fs = fieldsByIsland[islId];
+  if (!fs) return 1;
+  let s = 1;
+  for (let i = 0; i < fs.length; i++) {
+    const f = fs[i];
+    const dx = x - f.x, dz = z - f.z;
+    const along = Math.abs(dx * f.ax + dz * f.az);
+    if (along > 34000) continue;
+    const across = Math.abs(dx * f.rxv + dz * f.rzv);
+    const out = Math.max(0, along - f.length / 2);
+    const inner = 2200 + out * 0.2;
+    const outer = inner + 5500 + out * 0.3;
+    const k = smoothstep(inner, outer, across);
+    // the valley closes gradually far out
+    s = Math.min(s, lerp(k, 1, smoothstep(26000, 34000, along)));
+  }
+  return s;
+}
+
+function frostLand(isl: IslandDef, x: number, z: number, u: number, v: number, d: number): number {
+  const valley = approachValleys(isl.id, x, z);
+  const coast = (22 + 38 * (0.5 + 0.5 * N.noise(x / 6000 + 2.2, z / 6000 - 5.1))) * smoothstep(0, 120, d);
+  const cap = 480 * smoothstep(0, 15000, d) * (0.5 + 0.5 * N2.fbm(x / 30000 - 8, z / 30000 + 3, 3));
+  const sup = fieldSuppression(isl.id, x, z, 6500, 21000) * valley;
+  const massif = smoothstep(-0.38, 0.22, N2.fbm(x / 42000 + 13, z / 42000 - 4, 3)) * smoothstep(1200, 10000, d);
+  const crest = N.ridged(x / 14500 + 50, z / 14500 - 20, 6, 2.1, 0.5, 1.7);
+  const peaks = massif * sup * (1000 + 7800 * Math.pow(crest, 1.6));
+  const hills = N3.billow(x / 7000, z / 7000, 4) * 260 * smoothstep(0, 4000, d) * (0.4 + 0.6 * sup);
+  const detail = N.fbm(x / 1400, z / 1400, 3) * 35 * smoothstep(0, 700, d);
+  let h = coast + cap * (0.35 + 0.65 * valley) + peaks + hills + detail;
+  if (isl.id === 'hvitoy') {
+    // a wall of peaks down the middle of the contested island, between its two airfields
+    const du = u - 2600 * Math.sin(v / 9000);
+    const prof = Math.exp(-(du * du) / (7500 * 7500));
+    const wall = (4200 + 2400 * N.ridged(v / 9000 + 3.3, 7.7, 4, 2.0, 0.5, 2.0)) * Math.pow(prof, 0.8) * smoothstep(1500, 9000, d);
+    const spurs = Math.pow(N2.ridged(x / 5200, z / 5200, 5, 2.1, 0.5, 2.0), 1.4) * 1500 * Math.exp(-(du * du) / (16000 * 16000)) * smoothstep(1000, 7000, d);
+    // the wall replaces the regular peaks where it stands (no stacking)
+    h = Math.max(h, coast + cap + (wall + spurs) * fieldSuppression(isl.id, x, z, 5000, 14000) * valley + detail);
+  }
+  // the highest summits flatten off toward ~8,000 m
+  if (h > 7000) h = 7000 + 1500 * Math.tanh((h - 7000) / 1500);
+  return h;
+}
+
+/** Small rocky islets: sheer sides and a sharp crown of peaks. */
+function isletLand(x: number, z: number, d: number): number {
+  const cliff = (40 + 50 * (0.5 + 0.5 * N.noise(x / 2500, z / 2500))) * smoothstep(0, 90, d);
+  const peak = Math.pow(N.ridged(x / 3800 - 9, z / 3800 + 4, 5, 2.1, 0.5, 1.8), 1.4) * 1700 * smoothstep(300, 3500, d);
+  return cliff + peak + N3.fbm(x / 900, z / 900, 3) * 20;
+}
+
+/**
+ * Pack ice: flat floes of all sizes with open water between them, thick near
+ * the coasts and toward the edges of the map, none in the open strait.
+ * Returns the floe surface height, or 0 for open water.
+ */
+function packIce(x: number, z: number, offshore: number): number {
+  const edge = smoothstep(MAP_HALF * 0.55, MAP_HALF * 0.92, Math.max(Math.abs(x), Math.abs(z)));
+  const coast = (1 - smoothstep(4000, 26000, offshore)) * smoothstep(0.1, 0.6, N2.noise(x / 55000 + 3, z / 55000 - 7) + 0.2) * 0.85;
+  const mask = Math.max(edge * (0.55 + 0.45 * N3.noise(x / 40000, z / 40000)), coast);
+  if (mask < 0.06) return 0;
+  const C = 6200;
+  const cx = Math.floor(x / C), cz = Math.floor(z / C);
+  let f1 = 1e9, f2 = 1e9, bi = 0, bj = 0;
+  for (let j = -1; j <= 1; j++) {
+    for (let i = -1; i <= 1; i++) {
+      const gi = cx + i, gj = cz + j;
+      const px = (gi + 0.15 + 0.7 * hash2f(gi, gj)) * C;
+      const pz = (gj + 0.15 + 0.7 * hash2f(gj + 91, gi - 37)) * C;
+      const dx = x - px, dz = z - pz;
+      const dd = dx * dx + dz * dz;
+      if (dd < f1) {
+        f2 = f1;
+        f1 = dd;
+        bi = gi;
+        bj = gj;
+      } else if (dd < f2) f2 = dd;
+    }
+  }
+  // this floe exists at all? (denser pack where the mask is strong)
+  if (hash2f(bi * 7 + 3, bj * 13 - 5) > mask * 0.95) return 0;
+  const d1 = Math.sqrt(f1), d2 = Math.sqrt(f2);
+  // leads of open water between floes, wider in looser pack
+  const gap = 110 + 520 * (1 - mask) + 120 * N3.noise(x / 1500, z / 1500);
+  if (d2 - d1 < gap) return 0;
+  // rounded, ragged floes: some shrink well inside their cell
+  const r = C * (0.34 + 0.55 * hash2f(bj - 11, bi + 17));
+  if (d1 > r * (1 + 0.14 * N.noise(x / 1400, z / 1400) + 0.05 * N2.noise(x / 300, z / 300))) return 0;
+  return 1.3 + 0.4 * hash2f(bi, bj);
+}
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -260,7 +382,9 @@ export interface TerrainInfo {
 const _loc = { u: 0, v: 0 };
 
 function seaFloor(dOut: number, x: number, z: number): number {
-  const depth = 2 + 42 * smoothstep(0, 3200, dOut) + 400 * smoothstep(3200, 42000, dOut);
+  const depth = activeMap.id === 'frost'
+    ? 3 + 70 * smoothstep(0, 4500, dOut) + 450 * smoothstep(4500, 30000, dOut)
+    : 2 + 42 * smoothstep(0, 3200, dOut) + 400 * smoothstep(3200, 42000, dOut);
   return -depth + N3.noise(x / 7000, z / 7000) * 6 * smoothstep(0, 4000, dOut);
 }
 
@@ -279,8 +403,10 @@ export function terrainInfo(x: number, z: number, out: TerrainInfo): TerrainInfo
     if (d <= 0) {
       h = seaFloor(-d, x, z);
     } else {
-      if (isl.id === 'skye') h = skyeLand(x, z, _loc.u, _loc.v, d);
-      else if (isl.id === 'capri') h = capriLand(x, z, _loc.u, _loc.v, d);
+      if (isl.style === 'frost') h = frostLand(isl, x, z, _loc.u, _loc.v, d);
+      else if (isl.style === 'islet') h = isletLand(x, z, d);
+      else if (isl.style === 'skye') h = skyeLand(x, z, _loc.u, _loc.v, d);
+      else if (isl.style === 'capri') h = capriLand(x, z, _loc.u, _loc.v, d);
       else h = samosLand(x, z, _loc.u, _loc.v, d);
       // meet the sea floor profile (-2 m at the waterline) continuously
       h -= 2 * (1 - smoothstep(0, 30, d));
@@ -293,6 +419,15 @@ export function terrainInfo(x: number, z: number, out: TerrainInfo): TerrainInfo
   }
   if (best === DEEP_SEA) {
     best = DEEP_SEA + N3.noise(x / 20000, z / 20000) * 30;
+  }
+  // Frostfall: pack ice floating on the sea
+  if (best < 0.5 && activeMap.id === 'frost') {
+    const floe = packIce(x, z, -bestInland);
+    if (floe > 0) {
+      best = floe;
+      bestIsland = ICE;
+      bestInland = 0;
+    }
   }
 
   // Approach corridors: valleys along each runway's extended centreline keep
@@ -412,6 +547,7 @@ export function surfaceColor(x: number, z: number, info: TerrainInfo, slope: num
   const n3 = N2.noise(x / 90, z / 90);
   const vary = 0.5 + 0.5 * n1;
 
+  if (activeMap.id === 'frost') return frostColor(x, z, info, slope, out, n1, n2, n3);
   if (h < 0.5) {
     // sea bed: sand shallows fading to deep blue-black
     const depth = -h;
@@ -481,8 +617,47 @@ export function surfaceColor(x: number, z: number, info: TerrainInfo, slope: num
   return out;
 }
 
+/** Frostfall: snow and ice everywhere, dark rock on the steep faces, pale floes. */
+function frostColor(x: number, z: number, info: TerrainInfo, slope: number, out: SurfaceColor, n1: number, n2: number, n3: number): SurfaceColor {
+  const h = info.h;
+  if (info.island === ICE) {
+    // sea ice: blue-white, a little grey where it is thin
+    const v = 0.5 + 0.5 * n1;
+    out.r = 0.82 + 0.08 * v;
+    out.g = 0.88 + 0.06 * v;
+    out.b = 0.93 + 0.04 * v;
+    return out;
+  }
+  if (h < 0.5) {
+    // sea bed: pale glacial silt in the shallows, fading to the deep
+    const depth = -h;
+    out.r = 0.55;
+    out.g = 0.7;
+    out.b = 0.76;
+    mix3(out, 0.2, 0.42, 0.56, smoothstep(2, 25, depth));
+    mix3(out, 0.04, 0.1, 0.2, smoothstep(25, 220, depth));
+    return out;
+  }
+  // wind-packed snow with faint blue in the hollows
+  const v = 0.5 + 0.5 * n1;
+  out.r = 0.9 + 0.05 * v;
+  out.g = 0.92 + 0.05 * v;
+  out.b = 0.96 + 0.03 * v;
+  mix3(out, 0.8, 0.86, 0.94, 0.3 * (0.5 + 0.5 * n2));
+  // exposed rock on steep faces and along the knife-edge ridges
+  const rockT = smoothstep(0.5, 0.78, slope + n3 * 0.07 + 0.05 * n2);
+  if (rockT > 0) mix3(out, 0.25 + 0.04 * n2, 0.25 + 0.035 * n2, 0.27 + 0.03 * n2, rockT);
+  // blue-grey ice cliffs at the shore
+  const shore = (1 - smoothstep(40, 220, info.inland)) * (1 - smoothstep(10, 70, h));
+  if (shore > 0) mix3(out, 0.62, 0.72, 0.8, shore * 0.7);
+  // airfields: ploughed, compacted snow and gravel
+  if (info.field > 0.3) mix3(out, 0.66, 0.68, 0.7, smoothstep(0.3, 0.9, info.field) * 0.8);
+  return out;
+}
+
 /** Tree density 0..1 at a point. Trees are scattered over every island. */
 export function treeDensity(x: number, z: number, info: TerrainInfo, slope: number): number {
+  if (activeMap.id === 'frost') return 0;
   const h = info.h;
   if (h < 3 || info.inland < 120 || info.field > 0.25) return 0;
   const clump = N2.noise(x / 2600 + 7.7, z / 2600 - 3.3);

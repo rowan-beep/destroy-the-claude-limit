@@ -65,12 +65,12 @@ export const MODE_INFO: Record<ModeId, { title: string; subtitle: string; descri
     title: '5v5 TEAM BATTLE',
     subtitle: 'Rounds · first to 3',
     description:
-      'You and four AI wingmen against five AI bandits over Samos. Wipe out the other team to win the round; everyone respawns rearmed for the next. First team to 3 rounds wins the match. Shot down? Spectate any jet on either side, or fly a free camera, until the round is over.',
+      'You and four AI wingmen against five AI bandits over the contested island. Wipe out the other team to win the round; everyone respawns rearmed for the next. First team to 3 rounds wins the match. Shot down? Spectate any jet on either side, or fly a free camera, until the round is over.',
   },
   duel: {
     title: '1v1 DUEL',
     subtitle: 'Custom dogfight',
     description:
-      'Pick your jet, the enemy jet (one of the two you did not choose) and the AI difficulty: Easy, Medium, Hard or Extreme. Start head-on in the air or on opposite Samos runways with the great ridge between you.',
+      'Pick your jet, the enemy jet (one of the two you did not choose) and the AI difficulty: Easy, Medium, Hard or Extreme. Start head-on in the air or on opposite runways of the contested island with the mountains between you.',
   },
 };

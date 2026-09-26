@@ -14,22 +14,22 @@ export interface ContourSet {
 }
 
 export const MAP_TILE = 20000;
-const TILES_PER_SIDE = Math.ceil(MAP_SIZE / MAP_TILE);
+const tilesPerSide = () => Math.ceil(MAP_SIZE / MAP_TILE);
 
 export function tileIndex(x: number, z: number): number {
-  const i = clamp(Math.floor((x + MAP_HALF) / MAP_TILE), 0, TILES_PER_SIDE - 1);
-  const j = clamp(Math.floor((z + MAP_HALF) / MAP_TILE), 0, TILES_PER_SIDE - 1);
-  return j * TILES_PER_SIDE + i;
+  const i = clamp(Math.floor((x + MAP_HALF) / MAP_TILE), 0, tilesPerSide() - 1);
+  const j = clamp(Math.floor((z + MAP_HALF) / MAP_TILE), 0, tilesPerSide() - 1);
+  return j * tilesPerSide() + i;
 }
 
 /** Tiles overlapping a world-space box. */
 export function tilesInBox(x0: number, z0: number, x1: number, z1: number): number[] {
-  const i0 = clamp(Math.floor((x0 + MAP_HALF) / MAP_TILE), 0, TILES_PER_SIDE - 1);
-  const i1 = clamp(Math.floor((x1 + MAP_HALF) / MAP_TILE), 0, TILES_PER_SIDE - 1);
-  const j0 = clamp(Math.floor((z0 + MAP_HALF) / MAP_TILE), 0, TILES_PER_SIDE - 1);
-  const j1 = clamp(Math.floor((z1 + MAP_HALF) / MAP_TILE), 0, TILES_PER_SIDE - 1);
+  const i0 = clamp(Math.floor((x0 + MAP_HALF) / MAP_TILE), 0, tilesPerSide() - 1);
+  const i1 = clamp(Math.floor((x1 + MAP_HALF) / MAP_TILE), 0, tilesPerSide() - 1);
+  const j0 = clamp(Math.floor((z0 + MAP_HALF) / MAP_TILE), 0, tilesPerSide() - 1);
+  const j1 = clamp(Math.floor((z1 + MAP_HALF) / MAP_TILE), 0, tilesPerSide() - 1);
   const out: number[] = [];
-  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) out.push(j * TILES_PER_SIDE + i);
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) out.push(j * tilesPerSide() + i);
   return out;
 }
 
