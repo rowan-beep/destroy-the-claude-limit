@@ -240,7 +240,7 @@ export class MapView {
     }
     for (const a of g.sim.aircraft) {
       if (!a.alive || !p || a === p || a.team !== p.team) continue;
-      c.fillStyle = '#7dd3ff';
+      c.fillStyle = '#5dff8a';
       c.fillRect(X(a.fm.pos.x) - 3, Y(a.fm.pos.z) - 3, 6, 6);
     }
     for (const m of g.sim.missiles) {
@@ -266,7 +266,7 @@ export class MapView {
     }
     this.legend.innerHTML =
       `THEATER 400 × 400 NM · GRID 50 NM · ZOOM ${this.zoom.toFixed(1)}×<br>` +
-      `<span style="color:#6cff9a">▲</span> YOU &nbsp; <span style="color:#7dd3ff">■</span> FRIENDLY &nbsp; <span style="color:#ff5a48">▲</span> HOSTILE TRACK (GCI / RADAR)<br>` +
+      `<span style="color:#6cff9a">▲</span> YOU &nbsp; <span style="color:#5dff8a">■</span> FRIENDLY &nbsp; <span style="color:#ff5a48">▲</span> HOSTILE TRACK (GCI / RADAR)<br>` +
       `<span style="color:#5aa9ff">○</span> BLUE AIRFIELD &nbsp; <span style="color:#ff5a48">○</span> RED AIRFIELD · FAINT RINGS: GCI RADAR RANGE<br>` +
       `WHEEL: ZOOM · DRAG: PAN · TERRAIN MASKS ALL RADARS`;
     c.textAlign = 'left';

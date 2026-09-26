@@ -217,7 +217,7 @@ export const tsdPage: MfdPage = {
       if (a === p || !a.alive || a.team !== p.team) continue;
       const [x, y] = S(a.fm.pos.x, a.fm.pos.z);
       if (!onScreen(x, y, 20)) continue;
-      pen.color = C.blueFriend;
+      pen.color = C.friend;
       pen.width(2);
       pen.track(x, y, 'friendly', 10);
       pen.leader(x, y, Math.atan2(a.fm.vel.x, -a.fm.vel.z) - hdg, leaderLen(a.fm.tas));

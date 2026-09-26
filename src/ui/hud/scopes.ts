@@ -32,7 +32,8 @@ function fit(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
 const G = '#6cff9a';
 const GD = 'rgba(108,255,154,0.35)';
 const RED = '#ff5a48';
-const FRIEND = '#7dd3ff';
+// friendly blips are green, hostiles red (per the brief)
+const FRIEND = '#5dff8a';
 
 export function drawRadarScope(canvas: HTMLCanvasElement, g: Game, sweepT: number): void {
   if (!visible(canvas)) return;

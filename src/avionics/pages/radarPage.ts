@@ -205,14 +205,14 @@ export const radarPage: MfdPage = {
       const alpha = clamp(1 - age / 8, 0.25, 1);
       pen.ctx.globalAlpha = alpha;
       const locked = r.lock === t || p.irst?.lock === t;
-      const col = hostile ? C.red : C.blueFriend;
+      const col = hostile ? C.red : C.friend;
       pen.width(2);
       if (src === 'radar' && !tws) {
         // raw RWS brick
         pen.color = C.white;
         pen.rect(x - 7, y - 4, 14, 8, true);
       } else if (src === 'dl') {
-        pen.color = hostile ? C.red : C.blueFriend;
+        pen.color = hostile ? C.red : C.friend;
         pen.dash([3, 3]);
         pen.track(x, y, hostile ? 'hostile' : 'friendly', 9);
         pen.dash();

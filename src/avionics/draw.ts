@@ -15,7 +15,7 @@ export const C = {
   red: '#ff3b2f',
   magenta: '#ff63f2',
   grey: '#7f8e9c',
-  blueFriend: '#48b4ff',
+  friend: '#5dff8a',
   sea: '#06141f',
 };
 
