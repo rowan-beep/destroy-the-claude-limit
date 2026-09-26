@@ -1,6 +1,7 @@
-// Air-to-air missile performance data (AIM-120D AMRAAM, AIM-9X Block II).
+// Air-to-air missile performance data: AIM-120D AMRAAM and AIM-9X Block II
+// for the Western jets, R-77M and R-74M for the Su-35S only.
 
-export type MissileType = 'AIM120D' | 'AIM9X';
+export type MissileType = 'AIM120D' | 'AIM9X' | 'R77M' | 'R74M';
 export type WeaponSelect = 'GUN' | MissileType;
 
 export interface MissileSpec {
@@ -86,7 +87,69 @@ export const MISSILES: Record<MissileType, MissileSpec> = {
     diameter: 0.127,
     description: 'Imaging-infrared, thrust-vectored, high off-boresight dogfight missile. Lock-on before launch; strong flare rejection.',
   },
+  R77M: {
+    type: 'R77M',
+    name: 'R-77M (izdeliye 180)',
+    short: 'R-77M',
+    seeker: 'ARH',
+    mass0: 190,
+    massBurnout: 128,
+    burnTime: 10,
+    thrust: 16800,
+    refArea: 0.0314,
+    maxG: 38,
+    qFullG: 95000,
+    gimbalDeg: 55,
+    seekerRange: 20000,
+    fuseRadius: 10,
+    lethalRadius: 16,
+    damage: 175,
+    maxTime: 110,
+    minRange: 1000,
+    navConstant: 4,
+    loft: true,
+    ccm: 0.3,
+    length: 3.71,
+    diameter: 0.2,
+    description: 'Active-radar long-range missile with a dual-pulse motor and a conventional tail (no lattice fins). Longest reach in the theater, a little easier to decoy than the AIM-120D.',
+  },
+  R74M: {
+    type: 'R74M',
+    name: 'R-74M',
+    short: 'R-74M',
+    seeker: 'IR',
+    mass0: 105,
+    massBurnout: 70,
+    burnTime: 5.5,
+    thrust: 14500,
+    refArea: 0.0227,
+    maxG: 50,
+    qFullG: 58000,
+    gimbalDeg: 75,
+    seekerRange: 11000,
+    fuseRadius: 6.5,
+    lethalRadius: 11,
+    damage: 130,
+    maxTime: 45,
+    minRange: 300,
+    navConstant: 4.3,
+    loft: false,
+    ccm: 0.5,
+    length: 2.92,
+    diameter: 0.17,
+    description: 'Infrared dogfight missile with canards and gas-dynamic thrust vectoring. High off-boresight through the helmet sight, slightly longer range than the AIM-9X.',
+  },
 };
+
+/** Infrared (Fox 2) or radar (Fox 3)? */
+export function isIrMissile(t: MissileType): boolean {
+  return MISSILES[t].seeker === 'IR';
+}
+
+/** Brevity call for a launch. */
+export function foxCall(t: MissileType): string {
+  return isIrMissile(t) ? 'FOX 2' : 'FOX 3';
+}
 
 /** Drag coefficient vs Mach for a slender missile body. */
 export function missileCd(M: number, motorOn: boolean): number {
@@ -115,12 +178,18 @@ export function launchZone(
   const speedF = 1 + 0.35 * Math.max(-0.5, Math.min(1.2, shooterMach - 0.9));
   const climbF = 1 + Math.max(-0.35, Math.min(0.25, (shooterAlt - targetAlt) / 12000));
   const closeF = 0.55 + 0.45 * ((aspectCos + 1) / 2) + (aspectCos > 0 ? (aspectCos * targetSpeed) / 1400 : (aspectCos * targetSpeed) / 900);
-  if (type === 'AIM120D') {
-    const base = 22000 + 58000 * altF;
+  const reach = type === 'R77M' ? 1.12 : type === 'R74M' ? 1.06 : 1;
+  if (!isIrMissile(type)) {
+    const base = (22000 + 58000 * altF) * reach;
     const rmax = Math.max(4000, base * speedF * climbF * closeF);
-    return { rmin: 900, rmax, rne: rmax * 0.42 };
+    return { rmin: MISSILES[type].minRange, rmax, rne: rmax * 0.42 };
   }
-  const base = 6500 + 12500 * altF;
+  const base = (6500 + 12500 * altF) * reach;
   const rmax = Math.max(1500, base * speedF * climbF * Math.max(0.55, closeF));
   return { rmin: 300, rmax, rne: rmax * 0.5 };
+}
+
+/** Short display code (HUD, MFD). */
+export function weaponCode(t: MissileType): string {
+  return t === 'AIM120D' ? '120D' : t === 'AIM9X' ? '9X' : t === 'R77M' ? 'R77M' : 'R74M';
 }

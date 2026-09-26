@@ -1,5 +1,6 @@
 // In-flight HUD: DOM instrument panels + canvas symbology + vision overlay.
 
+import { MISSILES, weaponCode } from '../../weapons/weaponSpecs';
 import type { Game } from '../../game/game';
 import type { MsgKind } from '../../game/modes/mode';
 import { el, setText, setClass, clearEl } from '../dom';
@@ -130,8 +131,8 @@ export class Hud {
     const wb = el('div', 'weapon-bar', this.root);
     for (const [id, key, name] of [
       ['GUN', '1', 'GUN'],
-      ['AIM9X', '2', 'AIM-9X'],
-      ['AIM120D', '3', 'AIM-120D'],
+      ['IR', '2', 'AIM-9X'],
+      ['RDR', '3', 'AIM-120D'],
     ] as const) {
       const s = el('div', 'wslot', wb);
       el('span', 'wkey', s, key);
@@ -177,7 +178,7 @@ export class Hud {
       ['THROTTLE +/-', ['throttleUp', 'throttleDown']],
       ['AFTERBURNER', ['afterburner']],
       ['FIRE', ['fire']],
-      ['GUN / 9X / 120D', ['weaponGun', 'weapon9x', 'weapon120']],
+      ['GUN / IR / RADAR MSL', ['weaponGun', 'weapon9x', 'weapon120']],
       ['LOCK / UNLOCK', ['lock', 'unlock']],
       ['RADAR MODE', ['radarMode']],
       ['FLARE / CHAFF', ['flare', 'chaff']],
@@ -402,11 +403,11 @@ export class Hud {
     // stores
     clearEl(this.stores);
     const sel = p.selectedWeapon;
-    const selName = sel === 'GUN' ? p.spec.gun.name.split(' ').slice(0, 2).join(' ') : sel === 'AIM9X' ? 'AIM-9X' : 'AIM-120D';
-    const lockTxt = p.lockedTarget ? `LOCK ${p.lockedTarget.spec.shortName.toUpperCase()} ${(p.distanceTo(p.lockedTarget) / NM).toFixed(1)}NM` : sel === 'AIM9X' ? (p.seekerTarget ? 'SEEKER LOCK' : 'SEEKER SEARCH') : 'NO LOCK: [R]';
+    const selName = sel === 'GUN' ? p.spec.gun.name.split(' ').slice(0, 2).join(' ') : MISSILES[sel].short;
+    const lockTxt = p.lockedTarget ? `LOCK ${p.lockedTarget.spec.shortName.toUpperCase()} ${(p.distanceTo(p.lockedTarget) / NM).toFixed(1)}NM`   : sel === p.irMissile ? (p.seekerTarget ? 'SEEKER LOCK' : 'SEEKER SEARCH') : 'NO LOCK: [R]';
     const s1 = el('div', 'pline', this.stores);
     s1.innerHTML = `${selName} x${sel === 'GUN' ? p.gunAmmo : p.countOf(sel)} &nbsp; <span class="${p.lockedTarget || p.seekerTarget ? 'good-text' : ''}">${lockTxt}</span>`;
-    el('div', 'pline', this.stores, `FLR ${p.flares}  CHF ${p.chaff}  120D ${p.countOf('AIM120D')}  9X ${p.countOf('AIM9X')}  TNK ${p.countOf('TANK')}`);
+    el('div', 'pline', this.stores, `FLR ${p.flares}  CHF ${p.chaff}  ${weaponCode(p.radarMissile)} ${p.countOf(p.radarMissile)}  ${weaponCode(p.irMissile)} ${p.countOf(p.irMissile)}${p.spec.missiles.radar === 'AIM120D' ? `  TNK ${p.countOf('TANK')}` : ''}`);
     const integ = Math.round(p.damage.integrity * 100);
     const dmg = el('div', 'pline' + (integ < 60 ? ' bad-text' : integ < 90 ? ' warn-text' : ''), this.stores, `AIRFRAME ${integ}%${p.damage.fire > 0 ? '  ENGINE FIRE!' : ''}${p.damage.leak > 0 ? '  FUEL LEAK' : ''}${fm.engineOut.some((e) => e) ? '  ENGINE OUT' : ''}`);
     void dmg;
@@ -417,9 +418,11 @@ export class Hud {
 
     // weapon slots
     for (const [id, slot] of Object.entries(this.weaponSlots)) {
-      const n = id === 'GUN' ? p.gunAmmo : p.countOf(id as 'AIM9X' | 'AIM120D');
+      const w = id === 'GUN' ? 'GUN' : id === 'IR' ? p.irMissile : p.radarMissile;
+      const n = w === 'GUN' ? p.gunAmmo : p.countOf(w);
+      setText(slot.querySelector('.wname') as HTMLElement, w === 'GUN' ? 'GUN' : MISSILES[w].short);
       setText(slot.querySelector('.wcount') as HTMLElement, String(n));
-      setClass(slot, 'sel', p.selectedWeapon === id);
+      setClass(slot, 'sel', p.selectedWeapon === w);
       setClass(slot, 'empty', n === 0);
     }
     setText(this.cmSlot, `FLR ${p.flares} · CHF ${p.chaff}${g.sim.autoCm && p.spec.ew.autoDispense ? ' · AUTO' : ''}`);

@@ -1,4 +1,4 @@
-// Cockpit layouts for the three jets, relative to the design eye point.
+// Cockpit layouts for the four jets, relative to the design eye point.
 //
 // Panel coordinates: px across (m, + right), py down the tilted panel face
 // from its top edge (m). Displays are mounted on that plane.
@@ -10,6 +10,9 @@
 //                    an 8x8 in centre MFD, engine/fuel display, standby.
 //  Typhoon           three 6.25 in colour MHDDs, dedicated warning panel
 //                    to the right, get-u-home standby display to the left.
+//  Su-35S            two 15 in MFI-35 wide-screen displays side by side
+//                    with the PUI-35 control display between and below them,
+//                    wide-angle IKSh-1M HUD, K-36D-3.5 seat.
 
 import type { AircraftType } from '../specs';
 import type { DisplayDef } from '../../avionics/avionics';
@@ -203,6 +206,48 @@ export const COCKPIT_LAYOUTS: Record<AircraftType, CockpitLayout> = {
       { def: { id: 'dwp', kind: 'dwp', w: 256, h: 512, hz: 4 }, px: 0.355, py: 0.15, sw: 0.06, sh: 0.12, bezel: 'plain' },
       { def: { id: 'guh', kind: 'standby', w: 256, h: 256, hz: 15 }, px: -0.355, py: 0.12, sw: 0.065, sh: 0.065, bezel: 'plain' },
       { def: { id: 'ufc', kind: 'ufc', w: 512, h: 160, hz: 4 }, px: 0, py: 0.3, sw: 0.14, sh: 0.044, bezel: 'plain' },
+    ],
+  },
+  SU35: {
+    panelDist: 0.64,
+    panelDrop: 0.27,
+    panelTilt: 0.3,
+    panelHalfWidth: 0.42,
+    panelHeight: 0.4,
+    glareDrop: 0.215,
+    glareLip: 0.08,
+    hud: { dist: 0.6, halfW: 0.14, top: 0.1, bottom: -0.19, style: 'wide' },
+    consoleDrop: 0.5,
+    tub: 0x3f5a63,
+    panel: 0x1d2224,
+    console: 0x26343a,
+    frame: 0x2e3a3f,
+    seat: 0x3c3a36,
+    seatKind: 'mk16',
+    label: 'SU-35S',
+    lockShoot: false,
+    displays: [
+      {
+        def: { id: 'mfi-l', kind: 'mfd', w: CANVAS_MFD, h: CANVAS_MFD, hz: 8, portals: [{ x: 0, y: 0, w: CANVAS_MFD, h: CANVAS_MFD, page: 'TSD' }], slots: [0] },
+        px: -0.16,
+        py: 0.16,
+        sw: 0.25,
+        sh: 0.25,
+        bezel: 'osb',
+        yaw: 0.08,
+      },
+      {
+        def: { id: 'mfi-r', kind: 'mfd', w: CANVAS_MFD, h: CANVAS_MFD, hz: 8, portals: [{ x: 0, y: 0, w: CANVAS_MFD, h: CANVAS_MFD, page: 'RDR' }], slots: [1] },
+        px: 0.16,
+        py: 0.16,
+        sw: 0.25,
+        sh: 0.25,
+        bezel: 'osb',
+        yaw: -0.08,
+      },
+      { def: { id: 'pui', kind: 'ufc', w: 512, h: 160, hz: 4 }, px: 0, py: 0.33, sw: 0.14, sh: 0.044, bezel: 'plain' },
+      { def: { id: 'sfd', kind: 'standby', w: 256, h: 256, hz: 15 }, px: -0.36, py: 0.1, sw: 0.065, sh: 0.065, bezel: 'plain' },
+      { def: { id: 'cau', kind: 'dwp', w: 256, h: 384, hz: 4 }, px: 0.37, py: 0.1, sw: 0.055, sh: 0.085, bezel: 'plain' },
     ],
   },
 };

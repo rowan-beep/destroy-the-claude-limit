@@ -11,11 +11,12 @@ import { Team, DEG, NM } from '../core/constants';
 import { Radar } from '../sensors/radar';
 import { Irst } from '../sensors/irst';
 import { Rwr } from '../sensors/rwr';
-import { WeaponSelect, MissileType, MISSILES, launchZone } from '../weapons/weaponSpecs';
+import { WeaponSelect, MissileType, MISSILES, launchZone, isIrMissile } from '../weapons/weaponSpecs';
 import { Missile } from '../weapons/missile';
 import { irIntensity } from '../sensors/signatures';
 import type { Sim } from '../game/sim';
 import type { AIPilot } from '../ai/pilot';
+import type { PaintConfig } from './models/paint';
 
 export interface StationState {
   def: StationDef;
@@ -42,7 +43,7 @@ export class Aircraft {
   gunAmmo: number;
   chaff: number;
   flares: number;
-  selectedWeapon: WeaponSelect = 'AIM120D';
+  selectedWeapon: WeaponSelect = 'GUN';
   alive = true;
   ejected = false;
   destroyedAt = 0;
@@ -57,7 +58,7 @@ export class Aircraft {
   private cmTimer = 0;
   private autoCmTimer = 0;
   lastHitBy: { shooter: Aircraft | null; weapon: string; time: number } | null = null;
-  /** AIM-9X seeker state before launch */
+  /** IR missile (AIM-9X / R-74M) seeker state before launch */
   seekerTarget: Aircraft | null = null;
   seekerTone: 'off' | 'search' | 'lock' = 'off';
   private seekerTimer = 0;
@@ -81,6 +82,8 @@ export class Aircraft {
   headLos: THREE.Vector3 | null = null;
   /** user-facing name */
   callsign: string;
+  /** AI paint job (waves / 5v5); the player's own comes from the customize screen */
+  paint: PaintConfig | null = null;
 
   constructor(
     type: AircraftType,
@@ -105,13 +108,23 @@ export class Aircraft {
     return this.spec.type;
   }
 
+  /** This jet's radar-guided missile (AIM-120D, or R-77M on the Su-35S). */
+  get radarMissile(): MissileType {
+    return this.spec.missiles.radar;
+  }
+
+  /** This jet's infrared missile (AIM-9X, or R-74M on the Su-35S). */
+  get irMissile(): MissileType {
+    return this.spec.missiles.ir;
+  }
+
   applyLoadout(l: LoadoutPreset): void {
     this.loadout = l;
     this.stations = this.spec.stations.map((def) => ({ def, store: l.stores[def.id] ?? null }));
     this.refreshStores();
     this.fm.fuelExternal = this.fm.fuelExternalCap;
-    if (this.countOf('AIM120D') > 0) this.selectedWeapon = 'AIM120D';
-    else if (this.countOf('AIM9X') > 0) this.selectedWeapon = 'AIM9X';
+    if (this.countOf(this.radarMissile) > 0) this.selectedWeapon = this.radarMissile;
+    else if (this.countOf(this.irMissile) > 0) this.selectedWeapon = this.irMissile;
     else this.selectedWeapon = 'GUN';
   }
 
@@ -220,7 +233,7 @@ export class Aircraft {
   simTime = 0;
 
   cycleWeapon(): WeaponSelect {
-    const order: WeaponSelect[] = ['AIM120D', 'AIM9X', 'GUN'];
+    const order: WeaponSelect[] = [this.radarMissile, this.irMissile, 'GUN'];
     let i = order.indexOf(this.selectedWeapon);
     for (let k = 0; k < 3; k++) {
       i = (i + 1) % 3;
@@ -234,6 +247,7 @@ export class Aircraft {
   }
 
   selectWeapon(w: WeaponSelect): boolean {
+    if (w !== 'GUN' && w !== this.radarMissile && w !== this.irMissile) return false;
     if (w !== 'GUN' && this.countOf(w) === 0) return false;
     this.selectedWeapon = w;
     return true;
@@ -352,7 +366,7 @@ export class Aircraft {
   // -------------------------------------------------------------------------
 
   private updateSeeker(dt: number, sim: Sim): void {
-    if (this.selectedWeapon !== 'AIM9X' || this.countOf('AIM9X') === 0) {
+    if (this.selectedWeapon !== this.irMissile || this.countOf(this.irMissile) === 0) {
       this.seekerTarget = null;
       this.seekerTone = 'off';
       return;
@@ -360,7 +374,7 @@ export class Aircraft {
     this.seekerTimer -= dt;
     if (this.seekerTimer > 0) return;
     this.seekerTimer = 0.1;
-    const spec = MISSILES.AIM9X;
+    const spec = MISSILES[this.irMissile];
     const fm = this.fm;
     const canLock = (t: Aircraft, cone: number): boolean => {
       if (!t.alive || t.team === this.team) return false;
@@ -413,7 +427,7 @@ export class Aircraft {
 
   /** Target the selected missile would be launched at, if any. */
   missileTarget(type: MissileType, sim: Sim): Aircraft | null {
-    if (type === 'AIM9X') return this.seekerTarget;
+    if (isIrMissile(type)) return this.seekerTarget;
     const lt = this.lockedTarget;
     if (lt) return lt;
     // TWS: nearest hostile track inside 30 deg of the nose
@@ -459,11 +473,12 @@ export class Aircraft {
   }
 
   fireMissile(sim: Sim, type: MissileType, forcedTarget?: Aircraft | null): Missile | null {
+    if (type !== this.radarMissile && type !== this.irMissile) return null;
     if (!this.alive || this.fm.onGround || this.missileCooldown > 0) return null;
     const st = this.pickStation(type);
     if (!st) return null;
     const target = forcedTarget !== undefined ? forcedTarget : this.missileTarget(type, sim);
-    if (type === 'AIM9X' && !target) return null;
+    if (isIrMissile(type) && !target) return null;
     st.store = null;
     this.refreshStores();
     const p = st.def.pos;
@@ -473,13 +488,13 @@ export class Aircraft {
     sim.addMissile(m);
     this.shotsFired++;
     this.lastLaunched = m;
-    this.missileCooldown = type === 'AIM120D' ? 0.9 : 0.6;
+    this.missileCooldown = isIrMissile(type) ? 0.6 : 0.9;
     sim.events.emit('launch', { missile: m, shooter: this, target, station: st.def.id });
-    if (type === 'AIM9X') this.seekerTarget = null;
+    if (isIrMissile(type)) this.seekerTarget = null;
     if (this.countOf(type) === 0) {
       // auto-step to the next weapon
-      if (type === 'AIM120D' && this.countOf('AIM9X') > 0) this.selectedWeapon = 'AIM9X';
-      else if (this.countOf('AIM120D') === 0 && this.countOf('AIM9X') === 0) this.selectedWeapon = 'GUN';
+      if (type === this.radarMissile && this.countOf(this.irMissile) > 0) this.selectedWeapon = this.irMissile;
+      else if (this.countOf(this.radarMissile) === 0 && this.countOf(this.irMissile) === 0) this.selectedWeapon = 'GUN';
     }
     return m;
   }

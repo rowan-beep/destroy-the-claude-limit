@@ -198,6 +198,7 @@ export class CombatRenderer {
     if (this.aircraftVis.has(a)) return;
     const v = createAirframe(a);
     if (a.isPlayer) paintAirframe(v, loadPaint(a.type));
+    else if (a.paint) paintAirframe(v, a.paint);
     this.aircraftVis.set(a, v);
     this.scene.add(v.root);
   }
@@ -224,7 +225,7 @@ export class CombatRenderer {
     mesh.castShadow = true;
     this.scene.add(mesh);
     const style: TrailStyle =
-      m.spec.type === 'AIM120D'
+      m.spec.seeker === 'ARH'
         ? { width0: 0.8, width1: 7, life: 16, color: WHITE_SMOKE, alpha: 0.55, spacing: 18 }
         : { width0: 0.6, width1: 5, life: 11, color: WHITE_SMOKE, alpha: 0.6, spacing: 14 };
     const trail = this.trails.create(style);

@@ -204,7 +204,7 @@ export const tsdPage: MfdPage = {
       }
       if (wez) {
         // their AMRAAM reach against us (head-on, same altitudes): mirror our own DLZ from their side
-        const rmax = t.target.launchZoneFor('AIM120D', p).rmax;
+        const rmax = t.target.launchZoneFor(t.target.radarMissile, p).rmax;
         pen.color = 'rgba(255,59,47,0.55)';
         pen.dash([6, 6]);
         pen.circle(x, y, rmax * k);

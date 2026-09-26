@@ -7,6 +7,7 @@ import { C, OsbButton } from '../draw';
 import type { AircraftType, StoreType } from '../../aircraft/specs';
 import { LB } from '../../core/constants';
 import { TANK_FUEL } from '../../aircraft/specs';
+import { MISSILES } from '../../weapons/weaponSpecs';
 
 /** Right-half planform outlines, body metres (x right, z aft positive, nose at the smallest z). */
 export const PLANFORMS: Record<AircraftType, [number, number][]> = {
@@ -22,9 +23,13 @@ export const PLANFORMS: Record<AircraftType, [number, number][]> = {
     [0, -8.05], [0.44, -6.6], [0.55, -5.3], [1.95, -4.3], [1.95, -3.8], [0.62, -4.0], [0.72, -2.6], [0.95, -2.2],
     [5.47, 4.0], [5.47, 5.0], [0.95, 7.0], [0.85, 7.9], [0, 7.9],
   ],
+  SU35: [
+    [0, -11.2], [0.5, -9.6], [0.78, -7.6], [0.9, -6.0], [2.3, -1.2], [7.0, 3.0], [7.0, 4.4], [2.5, 4.9],
+    [2.4, 6.2], [5.0, 8.8], [5.0, 9.8], [2.3, 9.9], [1.8, 10.0], [0.6, 10.0], [0.35, 10.8], [0, 10.8],
+  ],
 };
 
-const STORE_SHORT: Record<StoreType, string> = { AIM120D: '120D', AIM9X: '9X', TANK: 'TK' };
+const STORE_SHORT: Record<StoreType, string> = { AIM120D: '120D', AIM9X: '9X', R77M: 'R77M', R74M: 'R74M', TANK: 'TK' };
 
 export const smsPage: MfdPage = {
   id: 'SMS',
@@ -33,8 +38,8 @@ export const smsPage: MfdPage = {
     const p = e.p;
     const b: OsbButton[] = [
       { osb: 0, label: 'GUN', sel: p.selectedWeapon === 'GUN', act: () => e.g.selectWeapon('GUN') },
-      { osb: 1, label: '9X', sel: p.selectedWeapon === 'AIM9X', color: p.countOf('AIM9X') ? undefined : C.grey, act: () => e.g.selectWeapon('AIM9X') },
-      { osb: 2, label: '120D', sel: p.selectedWeapon === 'AIM120D', color: p.countOf('AIM120D') ? undefined : C.grey, act: () => e.g.selectWeapon('AIM120D') },
+      { osb: 1, label: STORE_SHORT[p.irMissile], sel: p.selectedWeapon === p.irMissile, color: p.countOf(p.irMissile) ? undefined : C.grey, act: () => e.g.selectWeapon(p.irMissile) },
+      { osb: 2, label: STORE_SHORT[p.radarMissile], sel: p.selectedWeapon === p.radarMissile, color: p.countOf(p.radarMissile) ? undefined : C.grey, act: () => e.g.selectWeapon(p.radarMissile) },
       { osb: 5, label: `RATE\n${p.gunRateLow ? 'LOW' : 'HIGH'}`, act: () => (p.gunRateLow = !p.gunRateLow) },
     ];
     if (p.countOf('TANK') > 0) {
@@ -98,7 +103,7 @@ export const smsPage: MfdPage = {
         pen.ctx.ellipse(x, y, 7, 22, 0, 0, Math.PI * 2);
         pen.ctx.stroke();
       } else {
-        const len = store === 'AIM120D' ? 30 : 24;
+        const len = store === p.radarMissile ? 30 : 24;
         pen.line(x, y - len / 2, x, y + len / 2);
         pen.line(x - 6, y + len / 2 - 4, x + 6, y + len / 2 - 4);
         pen.line(x - 4, y - len / 2 + 7, x + 4, y - len / 2 + 7);
@@ -114,8 +119,8 @@ export const smsPage: MfdPage = {
 
     // inventory block
     const lines: [string, string, string?][] = [
-      ['AIM-120D', String(p.countOf('AIM120D')), sel === 'AIM120D' ? C.white : undefined],
-      ['AIM-9X', String(p.countOf('AIM9X')), sel === 'AIM9X' ? C.white : undefined],
+      [MISSILES[p.radarMissile].short, String(p.countOf(p.radarMissile)), sel === p.radarMissile ? C.white : undefined],
+      [MISSILES[p.irMissile].short, String(p.countOf(p.irMissile)), sel === p.irMissile ? C.white : undefined],
       [spec.gun.name.split(' ').slice(0, 2).join(' '), `${p.gunAmmo}`, sel === 'GUN' ? C.white : undefined],
       ['FLR / CHF', `${p.flares} / ${p.chaff}`],
     ];

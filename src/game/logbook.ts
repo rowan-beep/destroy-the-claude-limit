@@ -83,7 +83,7 @@ export const MEDALS: MedalDef[] = [
   { id: 'duel-extreme', name: 'GRANDMASTER', desc: 'Win a duel on EXTREME.' },
   { id: 'team-win', name: 'SQUADRON LEADER', desc: 'Win a 5v5 Team Battle.' },
   { id: 'team-sweep', name: 'CLEAN SWEEP', desc: 'Win a 5v5 Team Battle without losing a round.' },
-  { id: 'all-jets', name: 'TRIAD', desc: 'Score a kill in all three aircraft.' },
+  { id: 'all-jets', name: 'TRIAD', desc: 'Score a kill in all four aircraft.' },
 ];
 
 function emptyJet(): JetRecord {

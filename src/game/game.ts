@@ -2,6 +2,7 @@
 // audio and HUD; runs the fixed-step loop and translates the player's
 // inputs into flight controls and weapon actions.
 
+import { WeaponSelect, MISSILES, isIrMissile, foxCall } from '../weapons/weaponSpecs';
 import * as THREE from 'three';
 import { GameRenderer } from '../render/renderer';
 import { World, WORLD_QUALITY } from '../world/world';
@@ -238,7 +239,7 @@ export class Game implements ModeHost {
       const d = this.player ? e.missile.pos.distanceTo(this.player.fm.pos) : 1e6;
       audio.missileLaunch(e.shooter === this.player, d);
       if (e.shooter === this.player) {
-        const call = e.missile.spec.type === 'AIM120D' ? 'FOX 3' : 'FOX 2';
+        const call = foxCall(e.missile.spec.type);
         this.hud.feed(`${e.shooter.callsign}: ${call}${e.target ? ' → ' + e.target.callsign : ''}`, 'blue');
       }
     });
@@ -675,7 +676,7 @@ export class Game implements ModeHost {
       return !!t && p.distanceTo(t) < 1300;
     }
     if (p.countOf(w) === 0) return false;
-    const t = w === 'AIM9X' ? p.seekerTarget : p.lockedTarget;
+    const t = w === p.irMissile ? p.seekerTarget : p.lockedTarget;
     if (!t) return false;
     const lz = p.launchZoneFor(w, t);
     const r = p.distanceTo(t);
@@ -837,8 +838,8 @@ export class Game implements ModeHost {
 
     // weapons
     if (inp.pressed('weaponGun')) this.selectWeapon('GUN');
-    if (inp.pressed('weapon9x')) this.selectWeapon('AIM9X');
-    if (inp.pressed('weapon120')) this.selectWeapon('AIM120D');
+    if (inp.pressed('weapon9x') && this.player) this.selectWeapon(this.player.irMissile);
+    if (inp.pressed('weapon120') && this.player) this.selectWeapon(this.player.radarMissile);
     if (inp.pressed('cycleWeapon')) {
       p.cycleWeapon();
       audio.click();
@@ -857,7 +858,7 @@ export class Game implements ModeHost {
       else if (p.radar.setLock(t, this.sim)) {
         audio.beep(1500, 0.08, 0.05);
         this.message(`HMD LOCK — ${t.spec.shortName.toUpperCase()}`, 'good', 2);
-      } else if (p.selectedWeapon === 'AIM9X' && p.countOf('AIM9X') > 0) {
+      } else if (p.selectedWeapon === p.irMissile && p.countOf(p.irMissile) > 0) {
         p.seekerTarget = t;
         audio.beep(1800, 0.08, 0.05);
         this.message('HMD: AIM-9X SEEKER SLAVED', 'good', 2);
@@ -880,7 +881,7 @@ export class Game implements ModeHost {
       p.radar.scopeRange = r[(r.indexOf(p.radar.scopeRange) + 1) % r.length];
     }
     if (inp.pressed('irst')) {
-      if (!p.irst) this.message('NO IRST ON THIS AIRCRAFT (TYPHOON ONLY)', 'warn', 2);
+      if (!p.irst) this.message('NO IRST ON THIS AIRCRAFT (TYPHOON AND SU-35S ONLY)', 'warn', 2);
       else {
         let best: Aircraft | null = null;
         let bd = Infinity;
@@ -987,11 +988,11 @@ export class Game implements ModeHost {
     this.autoFly.disengage();
   }
 
-  selectWeapon(w: 'GUN' | 'AIM9X' | 'AIM120D'): void {
+  selectWeapon(w: WeaponSelect): void {
     const p = this.player;
     if (!p) return;
     if (p.selectWeapon(w)) audio.click();
-    else this.message(`NO ${w === 'AIM9X' ? 'AIM-9X' : 'AIM-120D'} REMAINING`, 'warn', 2);
+    else this.message(`NO ${w === 'GUN' ? 'GUN' : MISSILES[w].short} REMAINING`, 'warn', 2);
   }
 
   private fireMissile(): void {
@@ -1002,15 +1003,15 @@ export class Game implements ModeHost {
       this.message('WEIGHT ON WHEELS — WEAPONS SAFE', 'warn', 2);
       return;
     }
-    if (w === 'AIM9X' && !p.seekerTarget) {
-      this.message('AIM-9X: NO SEEKER LOCK (LISTEN FOR THE HIGH TONE)', 'warn', 2);
+    if (isIrMissile(w) && !p.seekerTarget) {
+      this.message(`${MISSILES[w].short}: NO SEEKER LOCK (LISTEN FOR THE HIGH TONE)`, 'warn', 2);
       return;
     }
     const target = p.missileTarget(w, this.sim);
     const m = p.fireMissile(this.sim, w, target);
     if (!m) return;
     if (!target) this.message('MADDOG LAUNCH — NO TARGET TRACK', 'warn', 2.5);
-    this.voice(w === 'AIM120D' ? 'Fox three' : 'Fox two');
+    this.voice(isIrMissile(w) ? 'Fox two' : 'Fox three');
   }
 
   private tryRearm(): void {

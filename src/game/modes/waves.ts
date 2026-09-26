@@ -5,6 +5,7 @@
 //   Wave 10    : 9 elite jets, multi-ship targeting, max-G fighting
 // Enemy jets are always drawn from the two types the player did NOT pick.
 
+import { randomPaint } from '../../aircraft/models/paint';
 import * as THREE from 'three';
 import { GameMode, ModeStatus, ResultButton, braa, statsFor } from './mode';
 import { Aircraft } from '../../aircraft/aircraft';
@@ -102,6 +103,7 @@ export class WavesMode extends GameMode {
       const members = Math.min(3, d.count - fl * 3);
       for (let m = 0; m < members; m++) {
         const e = new Aircraft(type, 'red', nextRedCallsign(fl, m));
+        e.paint = randomPaint();
         e.setStores(aiStores(e, d.aim120, d.aim9x));
         const offRight = new THREE.Vector3(-toPlayer.z, 0, toPlayer.x);
         const sp = pos.clone().addScaledVector(offRight, (m % 2 === 0 ? 1 : -1) * Math.ceil(m / 2) * 900).addScaledVector(toPlayer, -m * 500);

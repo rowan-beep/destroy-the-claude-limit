@@ -2,6 +2,7 @@
 // the standby flight display (attitude, airspeed, altitude), the warning /
 // caution light panel and the Super Hornet's engine-fuel display.
 
+import { weaponCode } from '../weapons/weaponSpecs';
 import type { Avionics } from './avionics';
 import { Pen, C } from './draw';
 import { FT, KT, DEG, LB } from '../core/constants';
@@ -43,7 +44,7 @@ export function drawUfc(pen: Pen, w: number, h: number, av: Avionics): void {
   const lines = [
     `STPT ${sp.num} ${sp.short}${sp.tacan ? '  TCN ' + sp.tacan : ''}`,
     `${fmtBrg(brg)}/${(nav.rangeTo(fm.pos.x, fm.pos.z) / 1852).toFixed(1)}  BNGO ${(nav.bingoLb / 1000).toFixed(1)}`,
-    `RDR ${p.radar.mode} ${p.radar.scopeRange}  ${p.selectedWeapon === 'GUN' ? 'GUN' : p.selectedWeapon === 'AIM9X' ? '9X' : '120D'}`,
+    `RDR ${p.radar.mode} ${p.radar.scopeRange}  ${p.selectedWeapon === 'GUN' ? 'GUN' : weaponCode(p.selectedWeapon)}`,
     `FUEL ${Math.round(plan.totalLb / 100) * 100}   ${clock}`,
   ];
   const size = Math.floor(h / (lines.length + 1));

@@ -2,6 +2,7 @@
 // projected through the live camera, so the HUD is conformal (collimated)
 // in the cockpit at any FOV and remains correct while looking around.
 
+import { MISSILES, weaponCode } from '../../weapons/weaponSpecs';
 import * as THREE from 'three';
 import type { Game } from '../../game/game';
 import type { Aircraft } from '../../aircraft/aircraft';
@@ -379,7 +380,7 @@ export class HudPainter {
       [0, -1],
     ]) this.line(cx + dx * 20, cy + dy * 20, cx + dx * 28, cy + dy * 28);
     // AIM-9X seeker field around the line of sight
-    if (p.selectedWeapon === 'AIM9X') {
+    if (p.selectedWeapon === p.irMissile) {
       const r9 = this.pxPerRad(cam) * Math.tan(9 * DEG);
       c.setLineDash([6, 6]);
       this.circle(cx, cy, r9);
@@ -395,8 +396,8 @@ export class HudPainter {
     this.text(`${Math.round(fm.pos.y / FT / 100) * 100}`, cx + 120, cy, col, 15, 'left', true);
     this.text(`${fm.nz.toFixed(1)}G`, cx - 120, cy + 20, fm.nz > p.spec.gLimit - 0.3 ? AMBER : GREEN_DIM, 12, 'right');
     const w = p.selectedWeapon;
-    this.text(w === 'GUN' ? `GUN ${p.gunAmmo}` : `${w === 'AIM9X' ? '9X' : '120D'} ${p.countOf(w)}`, cx + 120, cy + 20, GREEN_DIM, 12, 'left');
-    const name = p.type === 'TYPHOON' ? 'STRIKER II' : p.type === 'F15EX' ? 'JHMCS II' : 'JHMCS';
+    this.text(w === 'GUN' ? `GUN ${p.gunAmmo}` : `${weaponCode(w)} ${p.countOf(w)}`, cx + 120, cy + 20, GREEN_DIM, 12, 'left');
+    const name = p.type === 'TYPHOON' ? 'STRIKER II' : p.type === 'F15EX' ? 'JHMCS II' : p.type === 'SU35' ? 'NSTs-T' : 'JHMCS';
     this.text(name, cx, cy - 118, GREEN_DIM, 11, 'center');
     // nose cue: where the jet is pointing
     const nose = this.projectDir(cam, fm.fwd);
@@ -462,12 +463,12 @@ export class HudPainter {
     const sim = g.sim;
     const c = this.ctx;
     const count = w === 'GUN' ? p.gunAmmo : p.countOf(w);
-    const wname = w === 'GUN' ? (p.spec.gun.caliberMm > 25 ? 'GUN 27' : 'GUN 20') : w === 'AIM9X' ? 'AIM-9X' : 'AIM-120D';
+    const wname = w === 'GUN' ? `GUN ${p.spec.gun.caliberMm}` : MISSILES[w].short;
     this.text(`${wname} ${count}`, lx, ly, GREEN, 12);
     this.text(`${p.radar.mode}${p.radar.lock ? ' STT' : ''}${p.irst?.lock ? ' IRST' : ''}`, lx, ly + 15, GREEN, 11);
     this.text(`ARM`, lx, ly + 30, GREEN, 11);
 
-    const t = p.lockedTarget ?? (w === 'AIM9X' ? p.seekerTarget : null);
+    const t = p.lockedTarget ?? (w === p.irMissile ? p.seekerTarget : null);
     if (t) {
       const range = p.distanceTo(t);
       const tp = this.project(cam, t.fm.pos);
@@ -502,14 +503,14 @@ export class HudPainter {
         c.lineTo(sx + 9, ry2 + 5);
         c.closePath();
         c.stroke();
-        const inRange = range < lz.rmax && range > lz.rmin && (w !== 'AIM9X' || p.seekerTarget === t);
+        const inRange = range < lz.rmax && range > lz.rmin && (w !== p.irMissile || p.seekerTarget === t);
         if (inRange && Math.floor(performance.now() / 300) % 2 === 0) this.text('SHOOT', bx, by + 70, GREEN, 15, 'center', true);
         else if (range < lz.rmin) this.text('MIN RNG', bx, by + 70, AMBER, 13, 'center');
       }
     }
 
     // AIM-9X seeker
-    if (w === 'AIM9X') {
+    if (w === p.irMissile) {
       if (p.seekerTarget) {
         const sp = this.project(cam, p.seekerTarget.fm.pos);
         if (sp.front) this.circle(sp.x, sp.y, 14);
@@ -645,7 +646,7 @@ export class HudPainter {
         this.edgeArrow(cx, cy, sp, RED, `${(range / NM).toFixed(1)}`, Math.min(this.w, this.h) * 0.38);
       }
     }
-    if (p.selectedWeapon === 'AIM9X') {
+    if (p.selectedWeapon === p.irMissile) {
       c.strokeStyle = p.seekerTarget ? AMBER : 'rgba(255,201,74,0.5)';
       if (p.seekerTarget) {
         const sp = this.project(cam, p.seekerTarget.fm.pos);

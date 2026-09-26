@@ -418,3 +418,26 @@ export function wrapPreview(id: WrapId, a: string, b: string, size = 64): string
   g.putImageData(img, 0, 0);
   return c.toDataURL();
 }
+
+/**
+ * A random paint job for an AI jet (waves and 5v5): now and then the
+ * factory scheme, otherwise a solid colour or a wrap, with a random finish.
+ */
+export function randomPaint(): PaintConfig {
+  const pick = <T,>(a: T[]): T => a[Math.floor(Math.random() * a.length)];
+  const r = Math.random();
+  const finish = pick<Finish>(['matte', 'satin', 'satin', 'gloss', 'metallic']);
+  const brightness = 0.85 + Math.random() * 0.3;
+  if (r < 0.2) return { ...defaultPaint(), finish, brightness };
+  if (r < 0.5) {
+    const c = pick(SOLID_COLORS)[1];
+    return { mode: 'solid', color: c, color2: c, wrap: 'digital', finish, brightness };
+  }
+  const w = pick(WRAPS);
+  // half the wraps keep their own colours, the rest get a random pair
+  const own = w.full || Math.random() < 0.5;
+  const a = own ? w.a : pick(SOLID_COLORS)[1];
+  let b = own ? w.b : pick(SOLID_COLORS)[1];
+  if (b === a) b = w.b;
+  return { mode: 'wrap', color: a, color2: b, wrap: w.id, finish, brightness };
+}

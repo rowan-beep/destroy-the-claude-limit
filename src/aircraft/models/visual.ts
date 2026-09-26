@@ -33,6 +33,8 @@ export interface GearLeg {
 export interface Nozzle {
   pos: THREE.Vector3;
   radius: number;
+  /** gimbal the nozzle (and its flame) is mounted on; pos is relative to it */
+  parent?: THREE.Object3D;
 }
 
 const FLAME_VERT = /* glsl */ `
@@ -51,6 +53,10 @@ void main() {
 
 const FLAME_FRAG = /* glsl */ `
 uniform float intensity;
+uniform vec3 cHot;
+uniform vec3 cMid;
+uniform vec3 cTail;
+uniform vec3 cDry;
 uniform float dry;
 uniform float time;
 varying vec2 vUv;
@@ -64,11 +70,11 @@ void main() {
   float flick = 0.85 + 0.15 * sin( time * 70.0 + along * 30.0 ) * sin( time * 43.0 );
   // shock diamonds
   float diamonds = 0.55 + 0.45 * pow( abs( sin( along * 18.0 - time * 2.0 ) ), 6.0 ) * ( 1.0 - along );
-  vec3 core = mix( vec3( 1.0, 0.95, 0.85 ), vec3( 1.0, 0.55, 0.18 ), smoothstep( 0.0, 0.55, along ) );
-  core = mix( core, vec3( 0.35, 0.45, 1.0 ), smoothstep( 0.55, 1.0, along ) * 0.6 );
+  vec3 core = mix( cHot, cMid, smoothstep( 0.0, 0.55, along ) );
+  core = mix( core, cTail, smoothstep( 0.55, 1.0, along ) * 0.6 );
   float a = ( 1.0 - smoothstep( 0.2, 1.0, along ) ) * intensity * diamonds * flick;
   // dry-power heat shimmer: short, dim, orange
-  vec3 dryCol = vec3( 1.0, 0.4, 0.1 );
+  vec3 dryCol = cDry;
   float da = dry * ( 1.0 - smoothstep( 0.0, 0.25, along ) ) * 0.35;
   vec3 col = core * a * 2.2 + dryCol * da;
   gl_FragColor = vec4( col, 1.0 );
@@ -82,6 +88,8 @@ export class AirframeVisual {
   gear: GearLeg[] = [];
   speedbrake: { pivot: THREE.Object3D; axis: THREE.Vector3; maxDeg: number } | null = null;
   nozzles: Nozzle[] = [];
+  /** thrust-vectoring nozzle gimbals (Su-35S) */
+  vectoring: { pivot: THREE.Object3D; side: -1 | 1 }[] = [];
   readonly cockpitEye = new THREE.Vector3();
   readonly stationMeshes = new Map<number, THREE.Object3D>();
   private flames: { mesh: THREE.Mesh; mat: THREE.ShaderMaterial; glow: THREE.Mesh }[] = [];
@@ -181,12 +189,23 @@ export class AirframeVisual {
   }
 
   /** Afterburner flames at each nozzle. */
-  buildFlames(length: number): void {
+  buildFlames(length: number, style: 'std' | 'blue' = 'std'): void {
+    // the AL-41F1S burns with a blue-violet plume; the western engines orange
+    const blue = style === 'blue';
+    const col = (r: number, g: number, b: number) => ({ value: new THREE.Color(r, g, b) });
     for (const n of this.nozzles) {
       const mat = new THREE.ShaderMaterial({
         vertexShader: FLAME_VERT,
         fragmentShader: FLAME_FRAG,
-        uniforms: { intensity: { value: 0 }, dry: { value: 0 }, time: { value: 0 } },
+        uniforms: {
+          intensity: { value: 0 },
+          dry: { value: 0 },
+          time: { value: 0 },
+          cHot: blue ? col(0.85, 0.92, 1.0) : col(1.0, 0.95, 0.85),
+          cMid: blue ? col(0.25, 0.45, 1.0) : col(1.0, 0.55, 0.18),
+          cTail: blue ? col(0.45, 0.25, 0.95) : col(0.35, 0.45, 1.0),
+          cDry: blue ? col(0.35, 0.4, 1.0) : col(1.0, 0.4, 0.1),
+        },
         transparent: true,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
@@ -202,14 +221,14 @@ export class AirframeVisual {
       mesh.position.copy(n.pos);
       mesh.frustumCulled = false;
       mesh.renderOrder = 20;
-      this.body.add(mesh);
+      (n.parent ?? this.body).add(mesh);
       // hot nozzle glow disc
       const glow = new THREE.Mesh(
         new THREE.CircleGeometry(n.radius * 0.8, 20),
-        new THREE.MeshBasicMaterial({ color: 0xff7a2a, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
+        new THREE.MeshBasicMaterial({ color: blue ? 0x6a7dff : 0xff7a2a, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
       );
       glow.position.copy(n.pos).add(new THREE.Vector3(0, 0, -0.05));
-      this.body.add(glow);
+      (n.parent ?? this.body).add(glow);
       this.flames.push({ mesh, mat, glow });
     }
   }
@@ -293,7 +312,8 @@ export class AirframeVisual {
     v.surfaces = this.surfaces.map((s) => ({ ...s, pivot: M(s.pivot), axis: s.axis.clone(), current: 0 }));
     v.gear = this.gear.map((g) => ({ ...g, pivot: M(g.pivot), axis: g.axis.clone(), hideWhenUp: g.hideWhenUp.map(M) }));
     v.speedbrake = this.speedbrake ? { ...this.speedbrake, pivot: M(this.speedbrake.pivot) } : null;
-    v.nozzles = this.nozzles.map((n) => ({ pos: n.pos.clone(), radius: n.radius }));
+    v.nozzles = this.nozzles.map((n) => ({ pos: n.pos.clone(), radius: n.radius, parent: n.parent ? M(n.parent) : undefined }));
+    v.vectoring = this.vectoring.map((g) => ({ pivot: M(g.pivot), side: g.side }));
     v.cockpitEye.copy(this.cockpitEye);
     v.canopy = this.canopy ? M(this.canopy) : null;
     v.canopySections = this.canopySections;
@@ -415,6 +435,13 @@ export class AirframeVisual {
     }
     if (this.speedbrake) {
       this.speedbrake.pivot.quaternion.setFromAxisAngle(this.speedbrake.axis, fm.speedbrakePos * this.speedbrake.maxDeg * DEG);
+    }
+
+    // thrust-vectoring nozzles: the exhaust swings opposite to the push it
+    // makes (nose up = exits tilt up), and differentially to roll
+    for (const g of this.vectoring) {
+      const nzl = fm.nozzle;
+      g.pivot.rotation.set(alive && air ? -nzl.p - nzl.roll * g.side : 0, alive && air ? nzl.y : 0, 0);
     }
 
     // flames

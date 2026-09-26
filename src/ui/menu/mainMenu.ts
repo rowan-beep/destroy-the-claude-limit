@@ -166,7 +166,7 @@ export class MainMenu {
       ['G limit (FBW / override)', `${s.gLimit} / ${s.gOverride} G`],
       ['Hardpoints', `${s.hardpoints}${t === 'F15EX' ? ' (29,000 lb ordnance)' : ''}`],
       ['Max air-to-air missiles', String(s.maxAAM)],
-      ['Missiles', `${MISSILES.AIM120D.short}, ${MISSILES.AIM9X.short}`],
+      ['Missiles', `${MISSILES[s.missiles.radar].short}, ${MISSILES[s.missiles.ir].short}${t === 'SU35' ? ' (Su-35S only)' : ''}`],
       ['Cannon', `${s.gun.name} (${s.gun.rounds} rds)`],
       ['Radar', s.radar.name],
       ['Sensors / EW', `${s.irst ? s.irst.name + ' · ' : ''}${s.ew.name}`],

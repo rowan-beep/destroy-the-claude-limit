@@ -10,6 +10,24 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '1.7.0',
+    date: '2026-09-26',
+    title: 'Sukhoi Su-35S',
+    notes: [
+      "New jet: SUKHOI SU-35S. Single-seat, twin-engine, super-manoeuvrable air-superiority fighter: 71.9 ft long, 49 ft span, 19.4 ft tall, 76,059 lb max takeoff weight, two Saturn AL-41F1S afterburning turbofans (32,000 lbf each), Mach 2.25, 59,060 ft ceiling, 1,944 NM range, same G limits and G effects as the other jets.",
+      "3D thrust vectoring: the Su-35S's nozzles swivel with the controls, so it keeps full pitch, roll and yaw control at speeds where the other jets run out of air over their control surfaces. Squeeze the G-limiter override (paddle) and it can hold the nose up to 70 degrees angle of attack without departing, for Cobra-style nose pointing and very tight slow-speed turns. Release it and the jet recovers in about a second. AI Su-35 pilots use it too.",
+      "Su-35S weapons, for the Su-35S ONLY (no other jet can carry them): R-77M active-radar long-range missile (longest reach in the game, a little easier to decoy than the AIM-120D) and R-74M infrared dogfight missile (canards and thrust vectoring, slightly longer range than the AIM-9X). Keys 2 and 3 pick the IR and radar missile of whatever jet you fly. Plus the 30 mm GSh-30-1 cannon with 150 rounds.",
+      "Su-35S sensors: N035 Irbis-E passive electronically scanned X-band radar (longest detection range in the game) and the OLS-35 optical/laser IRST for passive tracking, plus the Khibiny-M EW suite.",
+      "Twelve hardpoints and four loadouts: Air Superiority (6x R-77M, 4x R-74M), Max Load (10x R-77M, 2x R-74M), Long Reach (8x R-77M, 2x R-74M) and Dogfight (4x R-77M, 6x R-74M), including missiles between the engines and under the intakes.",
+      "High-detail Su-35S model: long drooped nose with the OLS-35 ball, big bubble canopy on a raised spine, blended lifting body with sharp leading-edge extensions, widely spaced engine nacelles with raked intakes, tail booms with straight vertical fins, ventral fins and stabilators, the centre tail 'sting', moving leading-edge flaps, flaperons, rudders and dorsal airbrake, and nozzles you can see swivel in flight. Blue-grey splinter camouflage with red stars, 'ВКС России' and blue or red side numbers.",
+      "The Su-35S's afterburner burns BLUE, like the real AL-41F1S, instead of orange.",
+      "Su-35S cockpit: two 15-inch MFI-35 wide-screen displays side by side, the PUI-35 control display and a wide-angle HUD, with its own names on the MFD pages.",
+      "The Su-35S joins every mode: fly it yourself, or meet it as a bandit in Waves, Duel and 5v5 (bandits still never fly your own type). The TRIAD decoration now needs a kill in all four jets.",
+      "AI jets now wear random paint jobs: your wingmen and the bandits in Waves and 5v5 get random wraps, solid colours and finishes (in 5v5 each pilot keeps the same paint all match).",
+      "5v5 Team Battle: the clock at the top now counts DOWN from 5:00 when the fight starts, instead of counting up. The HUD also calls out the last 60 seconds.",
+    ],
+  },
+  {
     version: '1.6.0',
     date: '2026-09-26',
     title: 'Black Ice',

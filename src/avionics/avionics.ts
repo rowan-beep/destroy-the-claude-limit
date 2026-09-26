@@ -41,6 +41,7 @@ export const PAGE_NAMES: Record<AircraftType, PageNames> = {
   F15EX: { tsd: 'TSD', ew: 'EW', sms: 'SMS' },
   FA18EF: { tsd: 'SA', ew: 'EW', sms: 'STRS' },
   TYPHOON: { tsd: 'PA', ew: 'DASS', sms: 'WPN' },
+  SU35: { tsd: 'TAC', ew: 'REB', sms: 'SUO' },
 };
 
 export type DisplayKind = 'mfd' | 'lad' | 'ufc' | 'standby' | 'dwp' | 'efd';

@@ -14,6 +14,7 @@
 // Difficulty (AISkill) scales how often it thinks, how hard it pulls and
 // which tactics it knows.
 
+import type { WeaponSelect } from '../weapons/weaponSpecs';
 import * as THREE from 'three';
 import type { Aircraft } from '../aircraft/aircraft';
 import type { Sim } from '../game/sim';
@@ -323,7 +324,7 @@ export class AIPilot {
 
   private bvrRange(): number {
     const ac = this.ac;
-    if (this.skill.weapons.aim120 && ac.countOf('AIM120D') > 0) return 30 * NM;
+    if (this.skill.weapons.aim120 && ac.countOf(ac.radarMissile) > 0) return 30 * NM;
     return 10 * NM;
   }
 
@@ -402,7 +403,7 @@ export class AIPilot {
     this.maneuverTimer -= sk.thinkInterval || 0.016;
 
     // own missile in flight on this target that still needs radar support?
-    const supporting = sim.missiles.some((m) => m.shooter === ac && m.target === t && m.mode === 'MIDCOURSE' && m.spec.type === 'AIM120D');
+    const supporting = sim.missiles.some((m) => m.shooter === ac && m.target === t && m.mode === 'MIDCOURSE' && m.spec.seeker === 'ARH');
 
     if (sk.level < 0.2) {
       this.maneuver = R < 3000 ? 'pursuit' : 'gentle';
@@ -470,21 +471,23 @@ export class AIPilot {
     const exploiting = sk.exploit && (t.pilot.unconscious || t.fm.fuelTotal < t.spec.internalFuel * 0.12);
 
     // weapon selection by range
-    const n120 = sk.weapons.aim120 ? ac.countOf('AIM120D') : 0;
-    const n9 = sk.weapons.aim9x ? ac.countOf('AIM9X') : 0;
-    const lz9 = ac.launchZoneFor('AIM9X', t);
-    const lz120 = ac.launchZoneFor('AIM120D', t);
-    let want: 'GUN' | 'AIM9X' | 'AIM120D' = 'AIM120D';
+    const RDR = ac.radarMissile;
+    const IR = ac.irMissile;
+    const n120 = sk.weapons.aim120 ? ac.countOf(RDR) : 0;
+    const n9 = sk.weapons.aim9x ? ac.countOf(IR) : 0;
+    const lz9 = ac.launchZoneFor(IR, t);
+    const lz120 = ac.launchZoneFor(RDR, t);
+    let want: WeaponSelect = RDR;
     if (R < 1300 && sk.weapons.gun && ac.gunAmmo > 0) want = 'GUN';
-    else if (n9 > 0 && R < lz9.rmax * 1.1) want = 'AIM9X';
-    else if (n120 > 0) want = 'AIM120D';
-    else if (n9 > 0) want = 'AIM9X';
+    else if (n9 > 0 && R < lz9.rmax * 1.1) want = IR;
+    else if (n120 > 0) want = RDR;
+    else if (n9 > 0) want = IR;
     else want = 'GUN';
     if (exploiting && R < 1500) want = 'GUN';
     if (ac.selectedWeapon !== want && (sk.weaponAgility || chance(0.5))) ac.selectWeapon(want);
 
-    // --- AIM-120D ---
-    if (n120 > 0 && sk.weapons.aim120 && ac.selectedWeapon === 'AIM120D') {
+    // --- radar missile (AIM-120D / R-77M) ---
+    if (n120 > 0 && sk.weapons.aim120 && ac.selectedWeapon === RDR) {
       const tracked = ac.radar.isTracking(t, now);
       const sinceShot = now - this.lastShot;
       const alreadyInFlight = sim.missiles.some((m) => m.shooter === ac && m.target === t && m.alive && m.mode !== 'LOST' && m.mode !== 'DECOY');
@@ -498,15 +501,15 @@ export class AIPilot {
         (!alreadyInFlight || R < lz120.rne) &&
         teamStagger
       ) {
-        if (ac.fireMissile(sim, 'AIM120D', t)) {
+        if (ac.fireMissile(sim, RDR, t)) {
           this.lastShot = now;
           this.lastShotAt = t;
         }
       }
     }
 
-    // --- AIM-9X ---
-    if (n9 > 0 && ac.selectedWeapon === 'AIM9X') {
+    // --- IR missile (AIM-9X / R-74M) ---
+    if (n9 > 0 && ac.selectedWeapon === IR) {
       if (ac.seekerTarget === t) this.lockTime += sk.thinkInterval || 1 / 60;
       else this.lockTime = 0;
       const cone = sk.shotConeDeg * DEG;
@@ -518,7 +521,7 @@ export class AIPilot {
         ata < cone &&
         now - this.lastShot > (sk.level < 0.2 ? 10 : 3)
       ) {
-        if (ac.fireMissile(sim, 'AIM9X', t)) {
+        if (ac.fireMissile(sim, IR, t)) {
           this.lastShot = now;
           this.lastShotAt = t;
           this.lockTime = 0;

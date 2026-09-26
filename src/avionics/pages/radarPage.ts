@@ -8,7 +8,7 @@ import { MfdPage, PageEnv, bottomRow, opt, setOpt } from './page';
 import { C, OsbButton } from '../draw';
 import { DEG, NM, FT, KT } from '../../core/constants';
 import { clamp, wrap360 } from '../../core/math';
-import { MISSILES } from '../../weapons/weaponSpecs';
+import { weaponCode } from '../../weapons/weaponSpecs';
 import type * as THREE from 'three';
 import type { Aircraft } from '../../aircraft/aircraft';
 
@@ -291,7 +291,7 @@ export const radarPage: MfdPage = {
         if (Math.abs(ta.az) <= azDisp && ta.range <= R) {
           const mr = m.pos.distanceTo(tgt.fm.pos);
           const closing = Math.max(150, m.vel.length());
-          const pit = MISSILES.AIM120D.seekerRange;
+          const pit = m.spec.seekerRange;
           const txt = m.mode === 'ACTIVE' ? `T${Math.max(0, Math.round(mr / closing))}` : `A${Math.max(0, Math.round((mr - pit) / closing))}`;
           pen.text(txt, X(ta.az) + 14, Y(ta.range) - 14, { size: 17, color: m.mode === 'ACTIVE' ? C.yellow : C.white });
         }
@@ -340,7 +340,7 @@ export const radarPage: MfdPage = {
 
     // bottom status: own speed / altitude, selected weapon
     const sel = p.selectedWeapon;
-    const wtxt = sel === 'GUN' ? `GUN ${p.gunAmmo}` : `${sel === 'AIM9X' ? '9X' : '120D'} ${p.countOf(sel)}`;
+    const wtxt = sel === 'GUN' ? `GUN ${p.gunAmmo}` : `${weaponCode(sel)} ${p.countOf(sel)}`;
     pen.text(`${Math.round(own.cas / KT)}`, x0, h - 56, { size: 18, color: C.greenDim });
     pen.text(wtxt, cx, h - 56, { size: 18, color: C.white, align: 'center' });
     pen.text(`${Math.round(own.pos.y / FT / 100) * 100}`, x1, h - 56, { size: 18, color: C.greenDim, align: 'right' });

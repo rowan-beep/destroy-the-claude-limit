@@ -4,6 +4,7 @@
 // Both teams use the same AI pilots, just on opposite sides. Enemy jets are
 // never the player's own type; allies can be any of the three.
 
+import { randomPaint, PaintConfig } from '../../aircraft/models/paint';
 import * as THREE from 'three';
 import { GameMode, ModeStatus, ResultButton, statsFor } from './mode';
 import { Aircraft } from '../../aircraft/aircraft';
@@ -36,6 +37,18 @@ export class TeamBattleMode extends GameMode {
   private matchShots = 0;
   private roundWinner: Team | 'both' | null = null;
   private combatTime = 0;
+  /** each AI pilot keeps its random paint job (per jet type) for the whole match */
+  private paints = new Map<string, PaintConfig>();
+
+  private paintFor(a: Aircraft): PaintConfig {
+    const k = `${a.callsign}:${a.type}`;
+    let p = this.paints.get(k);
+    if (!p) {
+      p = randomPaint();
+      this.paints.set(k, p);
+    }
+    return p;
+  }
 
   get winsNeeded(): number {
     return Math.max(1, Math.min(5, this.host.config.teamWins || 3));
@@ -92,12 +105,14 @@ export class TeamBattleMode extends GameMode {
       else {
         const type: AircraftType = cfg.teamAllies === 'same' ? p.type : randPick(AIRCRAFT_TYPES);
         b = new Aircraft(type, 'blue', BLUE_NAMES[i]);
+        b.paint = this.paintFor(b);
         this.loadout(b, false);
         this.blue.push(b);
       }
       spawnInAir(b, new THREE.Vector3(samos.cx - sep - Math.abs(slots[i]) * 900, i === 0 ? 6400 : alt, samos.cz + off), 90, 460);
       // RED: never the player's type
       const r = new Aircraft(pickEnemyType(p.type), 'red', RED_NAMES[i]);
+      r.paint = this.paintFor(r);
       this.loadout(r, false);
       spawnInAir(r, new THREE.Vector3(samos.cx + sep + Math.abs(slots[i]) * 900, alt, samos.cz + off), 270, 460);
       this.red.push(r);
@@ -257,14 +272,15 @@ export class TeamBattleMode extends GameMode {
     if (this.phase === 'brief') objective = `ROUND ${this.round} — MERGE IN ${Math.ceil(this.timer)} S`;
     else if (this.phase === 'combat') {
       const left = Math.max(0, ROUND_LIMIT - this.combatTime);
-      objective = `DESTROY ALL ${redAlive} BANDIT${redAlive === 1 ? '' : 'S'} · ${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')} LEFT · FIRST TO ${this.winsNeeded}`;
+      objective = `DESTROY ALL ${redAlive} BANDIT${redAlive === 1 ? '' : 'S'}${left < 60 ? ` · ${Math.ceil(left)} S LEFT` : ''} · FIRST TO ${this.winsNeeded}`;
     }
     else if (this.phase === 'roundEnd') objective = this.roundWinner === 'both' ? `TIME — BOTH TEAMS SCORE — NEXT ROUND IN ${Math.ceil(this.timer)} S` : this.roundWinner ? `${this.roundWinner === 'blue' ? 'BLUE' : 'RED'} TAKES ROUND ${this.round} — NEXT ROUND IN ${Math.ceil(this.timer)} S` : `NEXT ROUND IN ${Math.ceil(this.timer)} S`;
     return {
       title: `ROUND ${Math.max(1, this.round)} · ${this.score.blue}:${this.score.red}`,
       blue: blueAlive,
       red: redAlive,
-      timer: this.roundTime,
+      // counts down from 5:00 once the fight is on (the round limit)
+      timer: this.phase === 'combat' ? Math.max(0, ROUND_LIMIT - this.combatTime) : this.phase === 'brief' ? ROUND_LIMIT : 0,
       objective,
     };
   }

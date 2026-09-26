@@ -56,16 +56,16 @@ export function aiStores(ac: Aircraft, aim120: number, aim9x: number): Record<nu
   // wingtip / outboard rails first for Sidewinders, fuselage & inboard for AMRAAMs
   const byOut = [...ac.spec.stations].sort((a, b) => Math.abs(b.pos[0]) - Math.abs(a.pos[0]));
   for (const st of byOut) {
-    if (n9 > 0 && st.allowed.includes('AIM9X')) {
-      stores[st.id] = 'AIM9X';
+    if (n9 > 0 && st.allowed.includes(ac.irMissile)) {
+      stores[st.id] = ac.irMissile;
       n9--;
     }
   }
   const byIn = [...ac.spec.stations].sort((a, b) => Math.abs(a.pos[0]) - Math.abs(b.pos[0]));
   for (const st of byIn) {
     if (stores[st.id]) continue;
-    if (n120 > 0 && st.allowed.includes('AIM120D')) {
-      stores[st.id] = 'AIM120D';
+    if (n120 > 0 && st.allowed.includes(ac.radarMissile)) {
+      stores[st.id] = ac.radarMissile;
       n120--;
     }
   }

@@ -85,7 +85,7 @@ export class Missile {
     this.pos.copy(launchPos);
     this.prevPos.copy(launchPos);
     this.vel.copy(fm.vel);
-    if (this.spec.type === 'AIM120D') {
+    if (this.spec.seeker === 'ARH') {
       // ejected / dropped clear before motor ignition
       this.vel.addScaledVector(fm.up, -6).addScaledVector(fm.fwd, 2);
       this.mode = 'EJECT';
@@ -122,7 +122,7 @@ export class Missile {
     const q = 0.5 * _atm.rho * V * V;
 
     // --- motor ---
-    const ignite = s.type === 'AIM120D' ? 0.45 : 0;
+    const ignite = s.seeker === 'ARH' ? 0.45 : 0;
     this.motorOn = this.age >= ignite && this.age < ignite + s.burnTime;
     let thrust = 0;
     if (this.motorOn) {
@@ -151,7 +151,7 @@ export class Missile {
       _acc.addScaledVector(_vhat, -_acc.dot(_vhat));
       // G available: aerodynamic authority + thrust vectoring while burning
       let gAvail = s.maxG * clamp(q / s.qFullG, 0.05, 1);
-      if (this.motorOn && s.type === 'AIM9X') gAvail = Math.max(gAvail, 32);
+      if (this.motorOn && s.seeker === 'IR') gAvail = Math.max(gAvail, 32);
       const aMax = gAvail * G0;
       const aL = _acc.length();
       if (aL > aMax) _acc.multiplyScalar(aMax / aL);

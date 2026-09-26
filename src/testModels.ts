@@ -31,7 +31,7 @@ export function runModelTest(container: HTMLElement): void {
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   scene.add(ground);
-  const types: AircraftType[] = q.get('type') ? [q.get('type') as AircraftType] : ['F15EX', 'FA18EF', 'TYPHOON'];
+  const types: AircraftType[] = q.get('type') ? [q.get('type') as AircraftType] : ['F15EX', 'FA18EF', 'TYPHOON', 'SU35'];
   const view = q.get('view') ?? 'three';
   const gearUp = q.get('gear') === 'up';
   types.forEach((t, i) => {

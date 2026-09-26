@@ -97,6 +97,7 @@ interface AeroData {
 const AERO: Record<string, AeroData> = {
   F15EX: { refMass: 21000, ixx: 36000, iyy: 200000, izz: 225000, cyB: -1.0, cm0: 0, cmA: -0.22, cmQ: -5, cmD: 0.34, clP: -0.35, clB: -0.09, clR: 0.07, clD: 0.056, cnB: 0.13, cnR: -0.33, cnP: -0.03, cnD: 0.036, cnDa: -0.006, engineArm: 0.64, rateE: 2.6, rateA: 4, rateR: 3 },
   FA18EF: { refMass: 19000, ixx: 40000, iyy: 230000, izz: 260000, cyB: -1.0, cm0: 0, cmA: -0.12, cmQ: -5, cmD: 0.37, clP: -0.33, clB: -0.08, clR: 0.07, clD: 0.058, cnB: 0.12, cnR: -0.32, cnP: -0.03, cnD: 0.04, cnDa: -0.006, engineArm: 0.56, rateE: 2.6, rateA: 4, rateR: 3 },
+  SU35: { refMass: 24000, ixx: 42000, iyy: 235000, izz: 265000, cyB: -1.0, cm0: 0, cmA: 0.03, cmQ: -5, cmD: 0.34, clP: -0.33, clB: -0.08, clR: 0.07, clD: 0.055, cnB: 0.12, cnR: -0.32, cnP: -0.03, cnD: 0.038, cnDa: -0.006, engineArm: 1.1, rateE: 2.8, rateA: 4, rateR: 3 },
   TYPHOON: { refMass: 15000, ixx: 18000, iyy: 130000, izz: 145000, cyB: -0.95, cm0: 0, cmA: 0.08, cmQ: -4.5, cmD: 0.33, clP: -0.3, clB: -0.07, clR: 0.06, clD: 0.05, cnB: 0.11, cnR: -0.3, cnP: -0.03, cnD: 0.032, cnDa: -0.005, engineArm: 0.5, rateE: 3.0, rateA: 4.5, rateR: 3 },
 };
 
@@ -140,6 +141,11 @@ export class FlightModel {
   /** control-surface deflections the FBW is using (-1..1): stabilator, roll, rudder */
   readonly defl = { e: 0, a: 0, r: 0 };
   private dCmd = { e: 0, a: 0, r: 0 };
+  /**
+   * Thrust-vectoring nozzle deflection (radians; Su-35S only): pitch (+ nose
+   * up) and yaw (+ nose right), plus the differential that rolls the jet.
+   */
+  readonly nozzle = { p: 0, y: 0, roll: 0 };
   private nCmdF = 1;
   /** true when the jet is out of controlled flight (stalled / spinning) */
   departed = false;
@@ -516,7 +522,10 @@ export class FlightModel {
     // pitch: static stability (aerodynamic centre moves aft when supersonic), damping, pitch-up past the stall
     const cmA = A.cmA - 0.85 * sup;
     const aPu = aMax + 6 * DEG;
-    const cmNat = A.cm0 + cmA * alpha + A.cmQ * qhat + 1.6 * Math.max(0, alpha - aPu) * Math.max(0, alpha - aPu) + (this.damage.pitchBias ?? 0);
+    // the Flanker's lifting body pitches up far more gently past the stall
+    const kPu = s.tvcDeg > 0 ? 0.45 : 1.6;
+    const pitchUp = kPu * Math.max(0, alpha - aPu) * Math.max(0, alpha - aPu);
+    const cmNat = A.cm0 + cmA * alpha + A.cmQ * qhat + pitchUp + (this.damage.pitchBias ?? 0);
     // roll: damping, dihedral effect (grows with AoA), yaw-rate roll, wing rock past the stall
     const over = smoothstep(aMax, aMax + 14 * DEG, alpha);
     const rock = over * 0.018 * Math.sin(this.t * 2.6 + this.rockPhase) * (0.6 + 0.4 * Math.sin(this.t * 0.7));
@@ -534,6 +543,18 @@ export class FlightModel {
     const aEff = A.clD * (1 - 0.35 * sup) * (1 - 0.5 * smoothstep(20 * DEG, 40 * DEG, Math.abs(alpha))) * ctl;
     const rEff = A.cnD * (1 - 0.3 * sup) * (1 - 0.6 * smoothstep(25 * DEG, 45 * DEG, Math.abs(alpha))) * ctl;
     const kPitch = qS * cbar, kRoll = qS * b, kYaw = qS * b;
+    // thrust vectoring: the nozzles move with the tail surfaces, so their
+    // moment adds straight to the control power, and it does not fade with
+    // airspeed. That is what lets the Su-35S point its nose at 60-70 deg AoA
+    // or turn at near-zero speed.
+    const tvc = s.tvcDeg * DEG;
+    const T = Math.max(0, this.thrust) * ctl;
+    const tvcPitch = T * Math.sin(tvc) * 7.0;
+    const tvcYaw = T * Math.sin(tvc) * 7.0 * 0.8;
+    const tvcRoll = T * Math.sin(tvc) * A.engineArm * 0.5;
+    const powE = eEff * kPitch + tvcPitch;
+    const powA = aEff * kRoll + tvcRoll;
+    const powR = rEff * kYaw + tvcYaw;
 
     // --- fly-by-wire: commands in, surface deflections out (dynamic inversion) ---
     const gMax = c.gOverride ? s.gOverride : s.gLimit;
@@ -546,7 +567,8 @@ export class FlightModel {
     const onset = nCmd > this.nCmdF ? 12 : 20;
     this.nCmdF += clamp(nCmd - this.nCmdF, -onset * dt, onset * dt);
     const clReq = (this.nCmdF * W) / Math.max(qS, 1);
-    const aLim = c.gOverride ? aMax * 1.12 : aMax;
+    // TVC jets: the paddle switch opens the post-stall manoeuvring envelope
+    const aLim = c.gOverride ? (tvc > 0 ? 70 * DEG : aMax * 1.12) : aMax;
     const alphaCmd = clamp(this.alphaForCl(clReq, M), -12 * DEG, aLim);
     this.stallWarning = (alphaCmd >= aLim * 0.97 && stick > 0.3) || alpha > aLim;
 
@@ -554,35 +576,36 @@ export class FlightModel {
     const wPath = _acc.dot(_lift) / Veff;
     // the laws only know a nominal airframe (no damage, gusts, stall pitch-up
     // or engine asymmetry): those are corrected through feedback, with lag
-    const cmModel = A.cm0 + cmA * alpha + A.cmQ * qhat;
+    // (the Su-35S's KSU-35 does model the post-stall pitch-up: it flies there on purpose)
+    const cmModel = A.cm0 + cmA * alpha + A.cmQ * qhat + (tvc > 0 ? pitchUp : 0);
     // gain schedule: loop bandwidth follows the pitch acceleration available
-    const qAccMax = (eEff * kPitch) / Iyy;
+    const qAccMax = powE / Iyy;
     const wn = clamp(Math.sqrt(qAccMax / 0.35), 0.9, 5.5);
     const kQ = 1.6 * wn;
     const kA = wn / 1.6;
-    const qMax = s.pitchRate * DEG * 1.6;
+    const qMax = s.pitchRate * DEG * 1.6 * (tvc > 0 && c.gOverride ? 1.25 : 1);
     const qDes = wPath + clamp((alphaCmd - alpha) * kA, -qMax, qMax);
     const qDotDes = (qDes - Q) * kQ;
     const cmReq = (qDotDes * Iyy - (Izz - Ixx) * P * R) / Math.max(kPitch, 1);
-    this.dCmd.e = clamp((cmReq - cmModel) / Math.max(eEff, 1e-4), -1, 1);
+    this.dCmd.e = clamp(((cmReq - cmModel) * kPitch) / Math.max(powE, 1), -1, 1);
 
     // roll: stick commands roll rate about the velocity vector
-    let pMax = s.rollRate * DEG * (1 - 0.55 * smoothstep(15 * DEG, 38 * DEG, Math.abs(alpha)));
+    let pMax = s.rollRate * DEG * (1 - (tvc > 0 ? 0.3 : 0.55) * smoothstep(15 * DEG, 38 * DEG, Math.abs(alpha)));
     if (M > 1.3) pMax *= 0.8;
     const pStab = clamp(c.roll, -1, 1) * pMax;
     const pDes = pStab * Math.cos(alpha);
-    const pAccMax = (aEff * kRoll) / Ixx;
+    const pAccMax = powA / Ixx;
     const pDotDes = (pDes - P) * clamp(pAccMax / 1.2, 1.5, 9);
     const clModel = A.clP * phat + (A.clB - 0.25 * Math.max(0, alpha)) * beta + A.clR * rhat;
     const clReqR = (pDotDes * Ixx - (Iyy - Izz) * Q * R) / Math.max(kRoll, 1);
-    this.dCmd.a = clamp((clReqR - clModel) / Math.max(aEff, 1e-4), -1, 1);
+    this.dCmd.a = clamp(((clReqR - clModel) * kRoll) / Math.max(powA, 1), -1, 1);
 
     // yaw: pedals command sideslip; otherwise the laws coordinate the turn (beta -> 0)
     const betaMax = 7 * DEG * clamp(14000 / Math.max(this.qbar, 1), 0.2, 1);
     // right pedal yaws the nose right: the relative wind then comes from the left (beta < 0)
     const betaCmd = -clamp(c.yaw, -1, 1) * betaMax;
     const aSide = _acc.dot(this.right);
-    const rAccMax = (rEff * kYaw) / Izz;
+    const rAccMax = powR / Izz;
     const kR = clamp(rAccMax / 0.5, 1, 6);
     const betaDotDes = (betaCmd - beta) * Math.min(2.4, kR * 0.4);
     const cosA = Math.max(0.2, Math.cos(alpha));
@@ -591,7 +614,7 @@ export class FlightModel {
     const cnReq = (rDotDes * Izz - (Ixx - Iyy) * P * Q) / Math.max(kYaw, 1);
     // aileron adverse yaw is modelled; asymmetric thrust is not (the pilot / feedback trims it)
     const cnModel = cnB * beta + A.cnR * rhat + A.cnP * phat + A.cnDa * this.defl.a;
-    this.dCmd.r = clamp((cnReq - cnModel) / Math.max(rEff, 1e-4), -1, 1);
+    this.dCmd.r = clamp(((cnReq - cnModel) * kYaw) / Math.max(powR, 1), -1, 1);
 
     // actuators: rate limited
     this.defl.e += clamp(this.dCmd.e - this.defl.e, -A.rateE * dt, A.rateE * dt);
@@ -599,9 +622,12 @@ export class FlightModel {
     this.defl.r += clamp(this.dCmd.r - this.defl.r, -A.rateR * dt, A.rateR * dt);
 
     // --- rigid-body rotation (Euler's equations, body axes) ---
-    const Mp = (cmNat + eEff * this.defl.e) * kPitch;
-    const Lr = (clNat + aEff * this.defl.a) * kRoll;
-    const Ny = (cnNat + rEff * this.defl.r + A.cnDa * this.defl.a) * kYaw;
+    const Mp = (cmNat + eEff * this.defl.e) * kPitch + tvcPitch * this.defl.e;
+    const Lr = (clNat + aEff * this.defl.a) * kRoll + tvcRoll * this.defl.a;
+    const Ny = (cnNat + rEff * this.defl.r + A.cnDa * this.defl.a) * kYaw + tvcYaw * this.defl.r;
+    this.nozzle.p = tvc * this.defl.e;
+    this.nozzle.y = tvc * this.defl.r;
+    this.nozzle.roll = tvc * this.defl.a;
     // turbulence: a gust gradient across the span rolls the wings
     const gustRoll = clamp((this.windVel.y - this.lastGustY) / Math.max(dt, 1e-4), -40, 40) * 0.025;
     this.lastGustY = this.windVel.y;
@@ -636,7 +662,7 @@ export class FlightModel {
     this.yawRate = this.rRate / DEG;
     this.rollRate = this.pRate / DEG;
     this.vs = this.vel.y;
-    this.departed = alpha > aMax + 12 * DEG || Math.abs(beta) > 20 * DEG;
+    this.departed = alpha > (tvc > 0 && c.gOverride ? 75 * DEG : aMax + 12 * DEG) || Math.abs(beta) > 20 * DEG;
 
     // --- structure ---
     const absN = this.nz;

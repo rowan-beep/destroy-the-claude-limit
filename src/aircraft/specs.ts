@@ -1,14 +1,15 @@
-// The ONLY three aircraft in the game. Every number here comes from the
+// The ONLY four aircraft in the game. Every number here comes from the
 // published specifications given in the design brief; aerodynamic
 // coefficients are engineering estimates tuned so the real top speeds,
 // ceilings and ranges fall out of the physics.
 
 import { FT, LB, LBF } from '../core/constants';
+import type { MissileType } from '../weapons/weaponSpecs';
 
-export type AircraftType = 'F15EX' | 'FA18EF' | 'TYPHOON';
-export const AIRCRAFT_TYPES: AircraftType[] = ['F15EX', 'FA18EF', 'TYPHOON'];
+export type AircraftType = 'F15EX' | 'FA18EF' | 'TYPHOON' | 'SU35';
+export const AIRCRAFT_TYPES: AircraftType[] = ['F15EX', 'FA18EF', 'TYPHOON', 'SU35'];
 
-export type StoreType = 'AIM120D' | 'AIM9X' | 'TANK';
+export type StoreType = MissileType | 'TANK';
 
 export interface GunSpec {
   name: string;
@@ -42,7 +43,7 @@ export interface LoadoutPreset {
 
 export interface RadarSpec {
   name: string;
-  kind: 'AESA' | 'AESA/MSA';
+  kind: 'AESA' | 'AESA/MSA' | 'PESA';
   /** detection range vs. a 5 m^2 fighter, nautical miles */
   rangeNm: number;
   azLimitDeg: number;
@@ -126,6 +127,10 @@ export interface AircraftSpec {
   combatRangeNm: number;
   hardpoints: number;
   maxAAM: number;
+  /** the jet's own missiles: radar-guided (Fox 3) and infrared (Fox 2) */
+  missiles: { radar: MissileType; ir: MissileType };
+  /** 3D thrust vectoring: nozzle deflection limit in degrees (0 = none) */
+  tvcDeg: number;
   gun: GunSpec;
   stations: StationDef[];
   loadouts: LoadoutPreset[];
@@ -153,6 +158,8 @@ const kg = (lb: number) => lb * LB;
 const AIM120 = 'AIM120D' as const;
 const AIM9 = 'AIM9X' as const;
 const TANK = 'TANK' as const;
+const R77 = 'R77M' as const;
+const R74 = 'R74M' as const;
 
 // ---------------------------------------------------------------------------
 // F-15EX Eagle II
@@ -210,6 +217,8 @@ const F15EX: AircraftSpec = {
   combatRangeNm: 687,
   hardpoints: 23,
   maxAAM: 12,
+  missiles: { radar: AIM120, ir: AIM9 },
+  tvcDeg: 0,
   gun: {
     name: 'M61A1 Vulcan 20mm rotary cannon',
     caliberMm: 20,
@@ -326,6 +335,8 @@ const FA18: AircraftSpec = {
   combatRangeNm: 1275,
   hardpoints: 11,
   maxAAM: 10,
+  missiles: { radar: AIM120, ir: AIM9 },
+  tvcDeg: 0,
   gun: {
     name: 'M61A2 Vulcan 20mm rotary cannon',
     caliberMm: 20,
@@ -440,6 +451,8 @@ const TYPHOON: AircraftSpec = {
   combatRangeNm: 1564,
   hardpoints: 13,
   maxAAM: 10,
+  missiles: { radar: AIM120, ir: AIM9 },
+  tvcDeg: 0,
   gun: {
     name: 'Mauser BK-27 27mm revolver cannon',
     caliberMm: 27,
@@ -498,10 +511,128 @@ const TYPHOON: AircraftSpec = {
   paint: { top: '#7f878d', bottom: '#98a0a5', accent: '#555c61' },
 };
 
+// ---------------------------------------------------------------------------
+// Sukhoi Su-35S
+// ---------------------------------------------------------------------------
+const SU35: AircraftSpec = {
+  type: 'SU35',
+  name: 'Sukhoi Su-35S',
+  shortName: 'Su-35S',
+  role: 'Twin-engine super-manoeuvrable air superiority and multirole fighter',
+  crew: 1,
+  description:
+    'The Flanker. Two Saturn AL-41F1S engines with 3D thrust vectoring let it point its nose far past the stall and turn at speeds where the others fall out of the sky. Mach 2.25, 59,060 ft ceiling, N035 Irbis-E PESA radar, OLS-35 IRST and a 30 mm GSh-30-1. Carries its own R-77M and R-74M missiles.',
+  lengthFt: 71.9,
+  wingspanFt: 49,
+  heightFt: 19.4,
+  length: 71.9 * FT,
+  span: 49 * FT,
+  height: 19.4 * FT,
+  emptyMass: kg(40570),
+  internalFuel: kg(25350),
+  maxTakeoff: kg(76059),
+  maxTakeoffLb: 76059,
+  payloadLb: 17630,
+  wingArea: 62,
+  cd0: 0.0215,
+  waveDragPeak: 2.2,
+  waveDragHigh: 1.75,
+  kInduced: 0.115,
+  clAlpha: 3.9,
+  clMax: 2.1,
+  alphaMaxDeg: 34,
+  maxMach: 2.25,
+  ceilingFt: 59060,
+  maxIasKts: 760,
+  engineName: '2 x Saturn AL-41F1S (3D thrust vectoring)',
+  engines: 2,
+  thrustMil: lbf(19400),
+  thrustAb: lbf(32000),
+  thrustMilLbf: 19400,
+  thrustAbLbf: 32000,
+  tsfcMil: 0.76,
+  tsfcAb: 1.9,
+  ramFactor: 0.6,
+  spool: 1.35,
+  gLimit: 9.0,
+  gOverride: 11.0,
+  gStructural: 13.5,
+  gNeg: -3,
+  rollRate: 270,
+  pitchRate: 36,
+  cornerKts: 310,
+  rotateKts: 150,
+  approachKts: 150,
+  speedbrakeCd: 0.065,
+  combatRangeNm: 1944,
+  hardpoints: 12,
+  maxAAM: 12,
+  missiles: { radar: R77, ir: R74 },
+  tvcDeg: 15,
+  gun: {
+    name: 'GSh-30-1 30mm cannon',
+    caliberMm: 30,
+    rounds: 150,
+    rpm: 1650,
+    muzzleVelocity: 860,
+    damage: 19,
+    dispersionMil: 4,
+    port: [1.05, 0.45, -5.6],
+  },
+  stations: [
+    { id: 1, label: 'LWT', pos: [-7.3, -0.05, 2.6], allowed: [R74], mount: 'rail' },
+    { id: 2, label: 'LW OB', pos: [-5.7, -0.4, 1.9], allowed: [R74, R77], mount: 'pylon' },
+    { id: 3, label: 'LW MID', pos: [-4.4, -0.5, 1.3], allowed: [R77, R74], mount: 'pylon' },
+    { id: 4, label: 'LW IB', pos: [-3.1, -0.6, 0.8], allowed: [R77, R74], mount: 'pylon' },
+    { id: 5, label: 'L NAC', pos: [-1.55, -1.45, 0.4], allowed: [R77], mount: 'pylon' },
+    { id: 6, label: 'TUN-F', pos: [0, -0.95, -1.6], allowed: [R77], mount: 'pylon' },
+    { id: 7, label: 'TUN-A', pos: [0, -0.95, 2.4], allowed: [R77], mount: 'pylon' },
+    { id: 8, label: 'R NAC', pos: [1.55, -1.45, 0.4], allowed: [R77], mount: 'pylon' },
+    { id: 9, label: 'RW IB', pos: [3.1, -0.6, 0.8], allowed: [R77, R74], mount: 'pylon' },
+    { id: 10, label: 'RW MID', pos: [4.4, -0.5, 1.3], allowed: [R77, R74], mount: 'pylon' },
+    { id: 11, label: 'RW OB', pos: [5.7, -0.4, 1.9], allowed: [R74, R77], mount: 'pylon' },
+    { id: 12, label: 'RWT', pos: [7.3, -0.05, 2.6], allowed: [R74], mount: 'rail' },
+  ],
+  loadouts: [
+    {
+      id: 'flanker-aa',
+      name: 'AIR SUPERIORITY — 6x R-77M, 4x R-74M',
+      stores: { 1: R74, 2: R74, 3: R77, 4: R77, 5: R77, 8: R77, 9: R77, 10: R77, 11: R74, 12: R74 },
+    },
+    {
+      id: 'flanker-max',
+      name: 'MAX LOAD — 10x R-77M, 2x R-74M',
+      stores: { 1: R74, 2: R77, 3: R77, 4: R77, 5: R77, 6: R77, 7: R77, 8: R77, 9: R77, 10: R77, 11: R77, 12: R74 },
+    },
+    {
+      id: 'flanker-bvr',
+      name: 'LONG REACH — 8x R-77M, 2x R-74M',
+      stores: { 1: R74, 2: R77, 3: R77, 4: R77, 5: R77, 8: R77, 9: R77, 10: R77, 11: R77, 12: R74 },
+    },
+    {
+      id: 'flanker-dog',
+      name: 'DOGFIGHT — 4x R-77M, 6x R-74M',
+      stores: { 1: R74, 2: R74, 3: R74, 4: R77, 5: R77, 8: R77, 9: R77, 10: R74, 11: R74, 12: R74 },
+    },
+  ],
+  radar: { name: 'N035 Irbis-E PESA (X-band)', kind: 'PESA', rangeNm: 110, azLimitDeg: 100, elLimitDeg: 60, maxTracks: 16, frameTime: 1.7 },
+  irst: { name: 'OLS-35 optical/laser IRST', rangeNm: 45, fovDeg: 90 },
+  ew: { name: 'L175M Khibiny-M', maws: true, jamming: 0.25, autoDispense: false },
+  flightControl: 'KSU-35 digital fly-by-wire with integrated 3D thrust vectoring',
+  chaff: 64,
+  flares: 64,
+  rcs: 8,
+  irSignature: 1.2,
+  gear: { nose: -6.9, main: 1.3, track: 2.2, height: 2.3 },
+  hitRadius: 6,
+  paint: { top: '#6f8ea6', bottom: '#b7cad6', accent: '#40566a' },
+};
+
 export const SPECS: Record<AircraftType, AircraftSpec> = {
   F15EX: F15EX,
   FA18EF: FA18,
   TYPHOON: TYPHOON,
+  SU35: SU35,
 };
 
 export function getSpec(t: AircraftType): AircraftSpec {
@@ -525,6 +656,8 @@ export const STORES: Record<StoreType, StoreSpec> = {
   AIM120D: { type: 'AIM120D', name: 'AIM-120D AMRAAM', mass: 161.5, dragCd: 0.0011, length: 3.66, diameter: 0.178 },
   AIM9X: { type: 'AIM9X', name: 'AIM-9X Sidewinder Block II', mass: 85.3, dragCd: 0.0008, length: 3.02, diameter: 0.127 },
   TANK: { type: 'TANK', name: 'External fuel tank (480 gal)', mass: 220, dragCd: 0.0045, length: 5.0, diameter: 0.75 },
+  R77M: { type: 'R77M', name: 'R-77M', mass: 190, dragCd: 0.0013, length: 3.71, diameter: 0.2 },
+  R74M: { type: 'R74M', name: 'R-74M', mass: 105, dragCd: 0.0009, length: 2.92, diameter: 0.17 },
 };
 
 /** Fuel carried in each external tank (kg, JP-8 at 480 US gal). */
