@@ -3,8 +3,6 @@
 // inputs into flight controls and weapon actions.
 
 import { WeaponSelect, MISSILES, isIrMissile, launchCall } from '../weapons/weaponSpecs';
-import { MissionProgress, loadProgress } from './progression';
-import type { XpFx } from '../ui/xpFx';
 import * as THREE from 'three';
 import { GameRenderer } from '../render/renderer';
 import { World, WORLD_QUALITY } from '../world/world';
@@ -76,10 +74,6 @@ export class Game implements ModeHost {
   replayUi: ReplayUi | null = null;
   private lastResult: MissionResult | null = null;
   hud!: Hud;
-  /** pilot XP / level / money (saved), and this mission's tracker */
-  readonly progress = loadProgress();
-  missionProgress: MissionProgress | null = null;
-  xpFx: XpFx | null = null;
   mode: GameMode | null = null;
   player: Aircraft | null = null;
   config!: MissionConfig;
@@ -195,7 +189,6 @@ export class Game implements ModeHost {
     this.world.bakeLighting(this.renderer.renderer);
     this.sim.sunDir.copy(this.world.env.sunDir);
     this.hookEvents();
-    this.newMissionProgress();
     this.player = null;
     this.deathHandled = false;
     this.rearmTimer = -1;
@@ -242,21 +235,8 @@ export class Game implements ModeHost {
     this.accumulator = 0;
   }
 
-  /** Start tracking XP for a fresh mission (or a retry). */
-  private newMissionProgress(): void {
-    this.missionProgress?.dispose();
-    const mp = new MissionProgress(this.progress, this.sim, this.config.mode, this.config.difficulty, () => this.autoFly.engaged);
-    mp.player = this.player;
-    mp.onAward = (a) => this.xpFx?.award(a, this.progress);
-    mp.onLevelUp = (l) => this.xpFx?.levelUp(l);
-    this.missionProgress = mp;
-    this.xpFx?.reset(this.progress);
-  }
-
   endMission(): void {
     if (this.player) this.finishSortie(this.player.alive ? (this.player.fm.onGround ? 'LANDED' : 'RTB') : 'LOST');
-    this.missionProgress?.dispose();
-    this.missionProgress = null;
     this.mode?.dispose();
     this.mode = null;
     if (this.sim) {
@@ -349,7 +329,6 @@ export class Game implements ModeHost {
     this.cockpitView.attach(null);
     this.touchdownsSeen = 0;
     this.sortie = new SortieRecorder(p, cfg.mode, this.sim);
-    if (this.missionProgress) this.missionProgress.player = p;
     return p;
   }
 
@@ -380,17 +359,6 @@ export class Game implements ModeHost {
     const s = this.sortie;
     const earned = this.finishSortie(r.title, outcome);
     if (s) r.debrief = { sortie: s, earned };
-    // mission result XP, then the summary for the debrief
-    const mp = this.missionProgress;
-    if (mp) {
-      r.progress = mp.finish({
-        wavesCleared: outcome.wavesCleared,
-        victory: this.mode instanceof WavesMode && this.mode.phase === 'victory',
-        team: outcome.team,
-        duel: outcome.duel?.outcome,
-        ffa: outcome.ffa,
-      });
-    }
     if (this.recorder && this.recorder.duration > 3 && !r.buttons.some((b) => b.action === 'replay')) {
       r.buttons.splice(Math.max(0, r.buttons.length - 1), 0, { label: 'WATCH REPLAY', action: 'replay' });
     }
@@ -458,10 +426,6 @@ export class Game implements ModeHost {
 
   refreshStores(a: Aircraft): void {
     this.combat.refreshStores(a);
-  }
-
-  award(label: string, xp: number, money: number): void {
-    this.missionProgress?.award(label, xp, money, 'combat');
   }
 
   /** Free-for-all storm hurting the player: shake, red flash, crackle. */
@@ -554,8 +518,6 @@ export class Game implements ModeHost {
       return;
     }
     this.mode?.handle(action as never);
-    this.newMissionProgress();
-    if (this.missionProgress) this.missionProgress.player = this.player;
     this.recorder?.stop();
     this.recorder = new ReplayRecorder(this.sim, this.config.mode.toUpperCase());
     if (this.player) {
@@ -622,7 +584,6 @@ export class Game implements ModeHost {
       }
       if (steps >= 30) this.accumulator = 0;
       this.sortie?.update(steps * PHYSICS_DT);
-      this.missionProgress?.update(steps * PHYSICS_DT);
       this.mode?.update(dt);
       this.updateRearm(dt);
       this.updateWarnings(dt);

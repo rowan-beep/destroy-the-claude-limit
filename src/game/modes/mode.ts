@@ -1,6 +1,5 @@
 // Common interface between the game shell and a game-mode director.
 
-import type { MissionSummary } from '../progression';
 import * as THREE from 'three';
 import type { Sim } from '../sim';
 import type { TeamPicture } from '../teamPicture';
@@ -25,8 +24,6 @@ export interface MissionResult {
   buttons: ResultButton[];
   /** filled in by the game shell: the sortie record and decorations earned */
   debrief?: { sortie: SortieRecorder; earned: string[] };
-  /** XP / money earned this mission */
-  progress?: MissionSummary;
 }
 
 export interface ModeHost {
@@ -43,8 +40,6 @@ export interface ModeHost {
   voice(text: string): void;
   /** the mode respawned the player mid-mission (team battle rounds) */
   onPlayerRespawn?(): void;
-  /** mode-specific XP / money award (bounty claimed ...) */
-  award?(label: string, xp: number, money: number): void;
   /** the player's jet is being hurt by the free-for-all storm (exposure 0..1) */
   stormHit?(exposure: number): void;
 }

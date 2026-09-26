@@ -299,7 +299,7 @@ export class MainMenu {
         'div',
         'note',
         c,
-        `12 jets, you included: ${FFA_JETS - 1} AI pilots with random jets and paint jobs, every one hostile to everyone. No respawns. Stay inside the shrinking zone. Kills refill a missile of each type; the top scorer carries a bounty (+150 XP). Placing pays XP and money: top 3 pay big.`,
+        `12 jets, you included: ${FFA_JETS - 1} AI pilots with random jets and paint jobs, every one hostile to everyone. No respawns. Stay inside the shrinking zone. Kills refill a missile of each type; the top scorer carries a bounty that everyone can see. Your placing out of 12 is on the scoreboard.`,
       );
     } else {
       const enemies = enemyTypesFor(cfg.aircraft);

@@ -10,6 +10,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '2.2.0',
+    date: '2026-09-26',
+    title: "XP and levels removed",
+    notes: [
+      "Removed the pilot XP, level and money system completely: no pilot card on the main menu, no XP pop-ups or XP bar in flight, no level-up celebration, no XP section in the debrief, and its saved data is cleared. Everything else plays exactly the same.",
+      "Free-for-all: the bounty and your placing work as before, just without XP or money attached.",
+    ],
+  },
+  {
     version: '2.1.1',
     date: '2026-09-26',
     title: "Black screen fix",

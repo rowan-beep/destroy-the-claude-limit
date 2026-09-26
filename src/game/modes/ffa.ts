@@ -328,7 +328,6 @@ export class FreeForAllMode extends GameMode {
         k.bounties++;
         if (killer!.isPlayer) {
           h.message(`BOUNTY CLAIMED — ${victim.callsign} (${v.kills} KILLS)`, 'good', 6);
-          h.award?.('BOUNTY CLAIMED', 150, 600);
         } else h.message(`${killer!.callsign} CLAIMED THE BOUNTY ON ${victim.callsign}`, 'info', 5);
         RULES.bountyId = -1;
       }
@@ -398,7 +397,7 @@ export class FreeForAllMode extends GameMode {
     if (best.a.isPlayer) {
       h.message(`YOU CARRY THE BOUNTY (${best.kills} KILLS) — EVERYONE IS HUNTING YOU`, 'warn', 6);
       h.voice('Bounty on you');
-    } else h.message(`BOUNTY ON ${best.a.callsign} [${best.a.spec.shortName}] — ${best.kills} KILLS — +150 XP FOR THE KILL`, 'order', 6);
+    } else h.message(`BOUNTY ON ${best.a.callsign} [${best.a.spec.shortName}] — ${best.kills} KILLS — HUNT THEM DOWN`, 'order', 6);
   }
 
   // ---------------------------------------------------------------- loop

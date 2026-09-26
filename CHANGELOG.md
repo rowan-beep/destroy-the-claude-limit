@@ -3,6 +3,11 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v2.2.0 — XP and levels removed (2026-09-26)
+
+- Removed the pilot XP, level and money system completely: no pilot card on the main menu, no XP pop-ups or XP bar in flight, no level-up celebration, no XP section in the debrief, and its saved data is cleared. Everything else plays exactly the same.
+- Free-for-all: the bounty and your placing work as before, just without XP or money attached.
+
 ## v2.1.1 — Black screen fix (2026-09-26)
 
 - Fixed: the screen could go completely black as soon as you started flying on some graphics cards. A very bright sun glint off glossy paint or a canopy could overflow the HDR picture buffer, and the new bloom smeared that broken pixel across the whole screen. The picture is now cleaned before bloom, so this can't happen any more, and bloom still glows as before.
