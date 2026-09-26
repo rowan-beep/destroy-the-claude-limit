@@ -15,6 +15,7 @@ import { getSmokeTexture, getSoftDotTexture } from './textures';
 import { rand, randGauss } from '../core/rng';
 import { srgb } from '../core/math';
 import { terrainHeight } from '../world/terrain';
+import { EjectionEffects } from './ejection';
 
 const TRACER_VERT = /* glsl */ `
 attribute vec3 iStart;
@@ -85,6 +86,7 @@ export class CombatRenderer {
   readonly smoke: ParticleSystem;
   readonly fire: ParticleSystem;
   readonly trails = new TrailRenderer();
+  readonly eject: EjectionEffects;
   private tracerMesh: THREE.Mesh;
   private tracerGeo: THREE.InstancedBufferGeometry;
   private tracerStart: Float32Array;
@@ -110,6 +112,7 @@ export class CombatRenderer {
     this.smoke = new ParticleSystem(9000, getSmokeTexture(), false, 14);
     this.fire = new ParticleSystem(6000, getSoftDotTexture(), true, 16);
     scene.add(this.smoke.mesh, this.fire.mesh, this.trails.mesh);
+    this.eject = new EjectionEffects(scene, this.smoke, this.fire, this.trails);
 
     const MAXT = 3000;
     const quad = new THREE.PlaneGeometry(1, 2, 1, 1);
@@ -162,6 +165,7 @@ export class CombatRenderer {
     for (const u of this.unsub) u();
     for (const a of [...this.aircraftVis.keys()]) this.removeAircraft(a);
     for (const m of [...this.missileVis.keys()]) this.removeMissile(m);
+    this.eject.clear();
     this.scene.remove(this.smoke.mesh, this.fire.mesh, this.trails.mesh, this.tracerMesh, this.flash);
   }
 
@@ -174,6 +178,7 @@ export class CombatRenderer {
     this.vortices.clear();
     for (const m of [...this.missileVis.keys()]) this.removeMissile(m);
     this.decoyVis.clear();
+    this.eject.clear();
   }
 
   private addAircraft(a: Aircraft): void {
@@ -269,8 +274,10 @@ export class CombatRenderer {
   }
 
   private onEject(a: Aircraft): void {
-    const p = a.fm.pos;
-    for (let i = 0; i < 6; i++) this.fire.spawn({ x: p.x, y: p.y + 1, z: p.z, vy: 30, life: 0.4, size0: 1.5, size1: 0.5, c0: FIRE_HOT, c1: FIRE_ORANGE, a0: 1, a1: 0 });
+    const v = this.aircraftVis.get(a);
+    this.eject.eject(a, v?.canopy ? v.canopy.geometry : null);
+    if (v?.canopy) v.canopy.visible = false;
+    for (const o of v?.hideInCockpit ?? []) o.visible = false;
   }
 
   explode(pos: THREE.Vector3, scale: number, kind: 'air' | 'ground' | 'water'): void {
@@ -313,9 +320,16 @@ export class CombatRenderer {
   private onDestroyed(a: Aircraft): void {
     const p = a.fm.pos;
     if (a.fm.crashed) return; // crash handler does the fireball
+    if (a.ejected) return; // the jet flies on unmanned until it hits something
     this.explode(p, 1.3, 'air');
+    this.eject.debris(a, new THREE.Color(a.spec.paint.top));
     const v = this.aircraftVis.get(a);
     if (v) darkenAirframe(v);
+    // most crews get out of a stricken jet: a chute (or two) blossoms
+    if (!a.isPlayer && !a.damage.pilotKilled && Math.random() < 0.65) {
+      this.eject.eject(a, v?.canopy ? v.canopy.geometry : null);
+      if (v?.canopy) v.canopy.visible = false;
+    }
   }
 
   private onCrash(a: Aircraft, pos: THREE.Vector3, water: boolean): void {
@@ -393,6 +407,7 @@ export class CombatRenderer {
       if (Math.random() < 0.35) this.smoke.spawn({ x: b.pos.x + randGauss() * 3, y: b.pos.y + 3, z: b.pos.z + randGauss() * 3, vx: 2, vy: rand(6, 12), vz: 1, life: rand(10, 18), size0: 6, size1: 45, c0: DARK_SMOKE, c1: GREY_SMOKE, a0: 0.6 * k + 0.1, a1: 0, drag: 0.2 });
     }
 
+    this.eject.update(dt, this.time);
     this.updateTracers();
     this.smoke.update(dt, cam);
     this.fire.update(dt, cam);

@@ -40,6 +40,8 @@ export class CameraRig {
   /** mouse-aim direction (world) when in mouse-aim mode */
   aimDir: THREE.Vector3 | null = null;
   target: Aircraft | null = null;
+  /** what the death camera orbits instead of the wreck (the pilot's parachute) */
+  deathFocus: THREE.Vector3 | null = null;
 
   constructor(readonly camera: THREE.PerspectiveCamera) {}
 
@@ -151,8 +153,8 @@ export class CameraRig {
 
     if (this.mode === 'death') {
       this.lookYaw += dt * 0.15;
-      const d = 60 * this.chaseDist;
-      const p = fm.pos;
+      const d = (this.deathFocus ? 22 : 60) * this.chaseDist;
+      const p = this.deathFocus ?? fm.pos;
       cam.position.set(p.x + Math.sin(this.lookYaw) * d, p.y + 18, p.z + Math.cos(this.lookYaw) * d);
       this.keepAboveGround(cam);
       cam.up.set(0, 1, 0);

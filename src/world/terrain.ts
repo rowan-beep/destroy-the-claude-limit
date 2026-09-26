@@ -330,7 +330,7 @@ export function terrainInfo(x: number, z: number, out: TerrainInfo): TerrainInfo
 }
 
 const APPROACH_LEN = 13 * NM;
-const APPROACH_TAN = Math.tan((2.3 * Math.PI) / 180);
+const APPROACH_TAN = Math.tan((2.0 * Math.PI) / 180);
 
 function carveApproaches(x: number, z: number, h: number): number {
   if (h <= 0) return h;
@@ -345,12 +345,14 @@ function carveApproaches(x: number, z: number, h: number): number {
     const d = Math.abs(along) - f.length / 2;
     if (d <= -200 || d > APPROACH_LEN) continue;
     const dd = Math.max(0, d);
-    const halfW = 700 + dd * 0.13;
+    // valley width grows with distance; ragged walls so it reads as a valley, not a trench
+    const halfW = (800 + dd * 0.14) * (1 + 0.28 * N2.noise(along / 5200 + i * 7.1, across > 0 ? 1.7 : -1.7));
     const ac = Math.abs(across);
     if (ac > halfW) continue;
-    const w = (1 - smoothstep(halfW * 0.55, halfW, ac)) * (1 - smoothstep(APPROACH_LEN * 0.78, APPROACH_LEN, dd));
+    const w = (1 - smoothstep(halfW * 0.35, halfW, ac)) * (1 - smoothstep(APPROACH_LEN * 0.78, APPROACH_LEN, dd));
+    // keep a little of the relief above a 2 deg plane (well under the 3 deg glideslope)
     const cap = f.elev + APPROACH_TAN * dd - 15;
-    if (h > cap) h -= w * (h - cap);
+    if (h > cap) h -= w * (h - cap) * 0.88;
   }
   return h;
 }

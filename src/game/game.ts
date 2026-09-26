@@ -398,6 +398,7 @@ export class Game implements ModeHost {
       // camera
       this.cam.aimDir = this.settings.input.mouseMode === 'mouseaim' && p.alive ? this.aimDir : null;
       this.cam.target = p.lockedTarget ?? p.seekerTarget ?? null;
+      this.cam.deathFocus = p.ejected ? this.combat.eject.playerChute : null;
       const vis = this.combat.aircraftVis.get(p);
       const inCockpit = this.cam.mode === 'cockpit' && !!vis;
       vis?.setCockpitView(inCockpit);
