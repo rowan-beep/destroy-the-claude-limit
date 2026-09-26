@@ -89,6 +89,7 @@ export function refreshTerrainCaches(): void {
   for (const i of ISLANDS) fieldsByIsland[i.id] = [];
   for (const f of AIRFIELDS) (fieldsByIsland[f.island] ??= []).push(f);
   initCoves();
+  initVolcanoes();
 }
 
 // ---------------------------------------------------------------------------
@@ -130,7 +131,6 @@ function initCoves(): void {
     capriCoves.push({ u: Math.cos(a) * capri.rx * m, v: Math.sin(a) * capri.ry * m, r: g.radius, name: g.name });
   }
 }
-refreshTerrainCaches();
 
 export function getGrottoes(): { x: number; z: number; r: number; name: string }[] {
   const capri = ISLANDS.find((i) => i.id === 'capri');
@@ -294,35 +294,133 @@ function approachValleys(islId: IslandId, x: number, z: number): number {
   return s;
 }
 
+/**
+ * Great snow cones (Fuji-style stratovolcanoes): broad concave flanks many
+ * kilometres across rising to a small summit crater, scattered over every
+ * Frostfall landmass but kept clear of the airfields and their approaches.
+ */
+interface Volcano {
+  x: number;
+  z: number;
+  /** base radius (m) */
+  r: number;
+  /** summit height above the surrounding land (m) */
+  h: number;
+  /** flank curvature: higher = more concave (steeper top, longer skirts) */
+  k: number;
+}
+let volcanoesByIsland: Record<IslandId, Volcano[]> = {};
+
+/** Distance from (x,z) to a runway's centreline extended `reach` m each way. */
+function corridorDist(f: AirfieldDef, x: number, z: number, reach: number): number {
+  const dx = x - f.x, dz = z - f.z;
+  const along = dx * f.ax + dz * f.az;
+  const across = dx * f.rxv + dz * f.rzv;
+  const oa = Math.max(0, Math.abs(along) - f.length / 2 - reach);
+  return Math.sqrt(oa * oa + across * across);
+}
+
+function initVolcanoes(): void {
+  volcanoesByIsland = {};
+  for (const isl of ISLANDS) {
+    if (isl.style !== 'frost') continue;
+    const list: Volcano[] = [];
+    const fs = fieldsByIsland[isl.id] ?? [];
+    const small = isl.id === 'hvitoy';
+    const step = small ? 15000 : 33000;
+    const seed = isl.id.charCodeAt(0) * 31 + isl.id.charCodeAt(1) * 7 + isl.id.length;
+    for (let gv = -isl.ry; gv <= isl.ry; gv += step) {
+      for (let gu = -isl.rx; gu <= isl.rx; gu += step) {
+        const gi = Math.round(gu / step), gj = Math.round(gv / step);
+        const r1 = hash2f(gi + seed, gj - seed * 3);
+        const r2 = hash2f(gj * 5 + seed, gi * 3 - 11);
+        const r3 = hash2f(gi * 7 - seed, gj * 11 + 5);
+        const u = gu + (r1 - 0.5) * step * 0.75;
+        const v = gv + (r2 - 0.5) * step * 0.75;
+        const w = fromIslandLocal(isl, u, v);
+        const rr = warpedRadius(isl, u, v, w.x, w.z);
+        if (rr > (small ? 0.62 : 0.72)) continue;
+        const inland = (1 - rr) * isl.reff;
+        // big cones inland, smaller ones nearer the coast
+        let r = (small ? 7500 : 17000) + r3 * (small ? 4000 : 15000);
+        r = Math.min(r, inland * 1.15);
+        if (r < 6000) continue;
+        let ok = true;
+        for (const f of fs) {
+          const fd = Math.hypot(w.x - f.x, w.z - f.z);
+          if (fd < r * 0.8 + 11000 || corridorDist(f, w.x, w.z, 30000) < r * 0.7 + 6500) {
+            ok = false;
+            break;
+          }
+        }
+        if (!ok) continue;
+        const h = (small ? 5000 : 5200) + (r / (small ? 11500 : 32000)) * 2600 + r2 * 900;
+        list.push({ x: w.x, z: w.z, r, h, k: 1.55 + 0.5 * r1 });
+      }
+    }
+    volcanoesByIsland[isl.id] = list;
+  }
+}
+
+function volcanoHeight(islId: IslandId, x: number, z: number): number {
+  const list = volcanoesByIsland[islId];
+  if (!list) return 0;
+  let best = 0;
+  for (let i = 0; i < list.length; i++) {
+    const c = list[i];
+    const dx = x - c.x, dz = z - c.z;
+    const d2 = dx * dx + dz * dz;
+    if (d2 >= c.r * c.r) continue;
+    const d = Math.sqrt(d2);
+    const t = d / c.r;
+    // concave flanks with soft skirts
+    let h = c.h * Math.pow(1 - t, c.k) * (1 - 0.12 * t);
+    // small summit crater
+    if (t < 0.04) h -= c.h * 0.025 * (1 - t / 0.04) * (1 - t / 0.04);
+    // radial gullies and ribs running down the flanks (seamless around the cone)
+    const ang = d > 1 ? 1 / d : 0;
+    const gx = dx * ang * 7 + t * 1.3 + i * 13.1, gz = dz * ang * 7 - t * 0.9;
+    const gully = N2.fbm(gx, gz, 3);
+    h *= 1 + 0.045 * gully * smoothstep(0.04, 0.25, t) * (1 - smoothstep(0.75, 1, t));
+    if (h > best) best = h;
+  }
+  return best;
+}
+
 function frostLand(isl: IslandDef, x: number, z: number, u: number, v: number, d: number): number {
   const valley = approachValleys(isl.id, x, z);
   const coast = (22 + 38 * (0.5 + 0.5 * N.noise(x / 6000 + 2.2, z / 6000 - 5.1))) * smoothstep(0, 120, d);
   const cap = 480 * smoothstep(0, 15000, d) * (0.5 + 0.5 * N2.fbm(x / 30000 - 8, z / 30000 + 3, 3));
   const sup = fieldSuppression(isl.id, x, z, 6500, 21000) * valley;
+  // broad, rounded massifs (wide shoulders instead of knife-edges)
   const massif = smoothstep(-0.38, 0.22, N2.fbm(x / 42000 + 13, z / 42000 - 4, 3)) * smoothstep(1200, 10000, d);
-  const crest = N.ridged(x / 14500 + 50, z / 14500 - 20, 6, 2.1, 0.5, 1.7);
-  const peaks = massif * sup * (1000 + 7800 * Math.pow(crest, 1.6));
-  const hills = N3.billow(x / 7000, z / 7000, 4) * 260 * smoothstep(0, 4000, d) * (0.4 + 0.6 * sup);
-  const detail = N.fbm(x / 1400, z / 1400, 3) * 35 * smoothstep(0, 700, d);
-  let h = coast + cap * (0.35 + 0.65 * valley) + peaks + hills + detail;
+  const dome = 0.5 + 0.5 * N.fbm(x / 26000 + 50, z / 26000 - 20, 4);
+  const texture = N.ridged(x / 9000 + 50, z / 9000 - 20, 3, 2.0, 0.45, 1.2);
+  const peaks = massif * sup * (700 + 3600 * Math.pow(dome, 1.8) + 350 * texture);
+  const hills = N3.billow(x / 9000, z / 9000, 3) * 220 * smoothstep(0, 4000, d) * (0.4 + 0.6 * sup);
+  const detail = N.fbm(x / 1400, z / 1400, 3) * 30 * smoothstep(0, 700, d);
+  const ground = coast + cap * (0.35 + 0.65 * valley) + hills + detail;
+  let h = ground + peaks;
   if (isl.id === 'hvitoy') {
-    // a wall of peaks down the middle of the contested island, between its two airfields
+    // a broad wall of mountains down the middle of the contested island, between its two airfields
     const du = u - 2600 * Math.sin(v / 9000);
-    const prof = Math.exp(-(du * du) / (7500 * 7500));
-    const wall = (4200 + 2400 * N.ridged(v / 9000 + 3.3, 7.7, 4, 2.0, 0.5, 2.0)) * Math.pow(prof, 0.8) * smoothstep(1500, 9000, d);
-    const spurs = Math.pow(N2.ridged(x / 5200, z / 5200, 5, 2.1, 0.5, 2.0), 1.4) * 1500 * Math.exp(-(du * du) / (16000 * 16000)) * smoothstep(1000, 7000, d);
-    // the wall replaces the regular peaks where it stands (no stacking)
-    h = Math.max(h, coast + cap + (wall + spurs) * fieldSuppression(isl.id, x, z, 5000, 14000) * valley + detail);
+    const prof = Math.exp(-(du * du) / (8500 * 8500));
+    const wall = (4200 + 1800 * (0.5 + 0.5 * N.fbm(v / 12000 + 3.3, 7.7, 3))) * Math.pow(prof, 1.1) * smoothstep(1500, 9000, d);
+    h = Math.max(h, ground + wall * fieldSuppression(isl.id, x, z, 5000, 14000) * valley);
   }
+  // the great snow cones stand on the land (no stacking onto the massifs)
+  const cone = volcanoHeight(isl.id, x, z);
+  if (cone > 0) h = Math.max(h, ground + cone * sup * smoothstep(0, 3000, d));
   // the highest summits flatten off toward ~8,000 m
   if (h > 7000) h = 7000 + 1500 * Math.tanh((h - 7000) / 1500);
   return h;
 }
 
-/** Small rocky islets: sheer sides and a sharp crown of peaks. */
+/** Small rocky islets: ice cliffs and a single snow cone. */
 function isletLand(x: number, z: number, d: number): number {
   const cliff = (40 + 50 * (0.5 + 0.5 * N.noise(x / 2500, z / 2500))) * smoothstep(0, 90, d);
-  const peak = Math.pow(N.ridged(x / 3800 - 9, z / 3800 + 4, 5, 2.1, 0.5, 1.8), 1.4) * 1700 * smoothstep(300, 3500, d);
+  const t = 1 - smoothstep(0, 6000, d);
+  const peak = 1500 * Math.pow(1 - t, 1.7) * (0.8 + 0.2 * N.fbm(x / 3800 - 9, z / 3800 + 4, 2)) * smoothstep(200, 2500, d);
   return cliff + peak + N3.fbm(x / 900, z / 900, 3) * 20;
 }
 
@@ -644,6 +742,14 @@ function frostColor(x: number, z: number, info: TerrainInfo, slope: number, out:
   out.g = 0.92 + 0.05 * v;
   out.b = 0.96 + 0.03 * v;
   mix3(out, 0.8, 0.86, 0.94, 0.3 * (0.5 + 0.5 * n2));
+  // Fuji-style snow line: bare russet volcanic rock and scree on the lower
+  // mountain flanks, streaked up the gullies, snow cap above
+  const snowLine = 2600 + 700 * n2 + 350 * n3;
+  const bare = (1 - smoothstep(snowLine - 900, snowLine + 250, h)) * smoothstep(0.1, 0.24, slope + 0.05 * n1) * smoothstep(150, 700, h);
+  if (bare > 0) {
+    const streak = smoothstep(-0.3, 0.4, n3 + 0.4 * n1);
+    mix3(out, 0.36 + 0.05 * n2, 0.26 + 0.03 * n2, 0.21 + 0.02 * n2, bare * (0.55 + 0.4 * streak));
+  }
   // exposed rock on steep faces and along the knife-edge ridges
   const rockT = smoothstep(0.6, 0.86, slope + n3 * 0.07 + 0.05 * n2);
   if (rockT > 0) mix3(out, 0.25 + 0.04 * n2, 0.25 + 0.035 * n2, 0.27 + 0.03 * n2, rockT);
@@ -701,3 +807,5 @@ export function nearestIsland(x: number, z: number): { island: IslandDef; inland
   }
   return { island: best, inland: bestD };
 }
+
+refreshTerrainCaches();

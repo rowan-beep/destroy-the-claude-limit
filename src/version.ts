@@ -10,6 +10,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '1.9.1',
+    date: '2026-09-26',
+    title: "Giant mountains",
+    notes: [
+      "Frostfall Strait mountains rebuilt: no more spiky knife-edge peaks. The mountains are now broad and massive, like Mount Fuji: huge snow-capped cones 20 to 40 miles across, with long sweeping concave flanks rising to a small summit crater, and gullies and ribs running down their sides.",
+      "Lots more big mountains: every landmass is covered in these giant cones, many of them rising over 20,000 ft and the biggest above 26,000 ft, standing on wide rounded ranges instead of jagged ridges. Hvitøy's dividing wall is a broad mountain wall now too, and the rocky islets are small snow cones.",
+      "Real snow line: the lower slopes of the mountains show bare russet volcanic rock and scree streaking up the gullies, with the snow cap above, like the reference photo, so you can see how tall they really are from the air.",
+      "All six Frostfall airfields keep clear approach valleys through the new mountains.",
+    ],
+  },
+  {
     version: '1.9.0',
     date: '2026-09-26',
     title: "Frostfall Strait, new water, 3 new wraps",

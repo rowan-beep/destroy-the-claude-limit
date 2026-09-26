@@ -17,8 +17,8 @@ terrain against you.
 | Radar | AN/APG-82(V)1 AESA | AN/APG-79 AESA | CAPTOR-E + PIRATE IRST | N035 Irbis-E PESA + OLS-35 IRST |
 | Missiles | AIM-120D, AIM-9X | AIM-120D, AIM-9X | AIM-120D, AIM-9X | R-77M, R-74M (Su-35S only) |
 
-Current version: **v1.9.0** — see [CHANGELOG.md](CHANGELOG.md) (also in the game
-under **v1.9.0 · NOTES** on the main menu).
+Current version: **v1.9.1** — see [CHANGELOG.md](CHANGELOG.md) (also in the game
+under **v1.9.1 · NOTES** on the main menu).
 
 Each jet is a high-detail procedural model (~150k triangles): blended fuselages
 built from real cross-sections, hollow intakes with ducts and fans, airfoil
@@ -73,7 +73,7 @@ Enemy AI is never the same type as the player's jet.
 Pick the map on the **THEATER** card on the main menu. Every mode works on both.
 
 **Frostfall Strait** (default): 200 × 200 NM frozen arctic archipelago, with snow-covered
-ranges up to ~26,900 ft, glaciers, ice cliffs, pack ice and still, depth-shaded water.
+mountains (huge Fuji-style cones, the tallest over 26,000 ft), glaciers, ice cliffs, pack ice and still, depth-shaded water.
 Fights start around 29,500 ft.
 
 - **Nordland** and **Sørvik** (blue) — Nordhavn AB, Isvik AB.
