@@ -3,6 +3,22 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v2.1.0 — Free-for-all: Last Pilot Standing (2026-09-26)
+
+- NEW GAME MODE: FREE-FOR-ALL — LAST PILOT STANDING. 12 jets in the sky: you and 11 AI pilots, every jet hostile to every other jet. No teams, no wingmen, no respawns. Last jet flying wins.
+- Drop-in: all twelve jets start spread around a ring over the contested island, facing inward at staggered altitudes, with a short countdown before weapons are free.
+- The shrinking zone: the battle zone closes in stages toward a random final circle (40 NM down to 3 NM, then SUDDEN DEATH). Outside it the storm tears your jet apart, slowly at first and faster every stage; the screen glows purple and a countdown tells you how long you have. Back inside, the airframe slowly recovers. You see the storm as a towering wall of light in the sky, and on the minimap and the map [M] as a solid ring (the zone now) and a dashed ring (where it goes next).
+- Scavenging: every kill puts a missile of each type back on your rails and refills some gun rounds, flares, chaff and fuel. No ground crews in a free-for-all.
+- Bounty: the pilot with the most kills (2 or more) carries a gold bounty. Their position is revealed to everyone, with a gold marker on your HUD and minimap, and every AI hunts them. Claiming it pays +150 XP and $600. If you carry it, everyone is coming for you.
+- Smarter free-for-all AI: pilots pick off damaged jets, third-party fights that are already going on, hunt the bounty and reposition into the next circle before it closes. In the final circles every jet is revealed on radar and nobody can hide behind the mountains, so matches end in a fight instead of a stand-off.
+- FINAL DUEL: when two jets are left, both are fully rearmed for the showdown.
+- Shot down? Spectate the rest of the match: watch any pilot, see everyone's kills and who has the bounty, fly a free camera, press [T] to fast-forward 4×, or quit from the pause menu.
+- Results: your placing out of 12 with a full scoreboard (placing, kills and when each pilot went down), then XP and money: 1st pays 600 XP / $3,000, 2nd 350 / $1,500, 3rd 250 / $1,000, and everyone else earns XP for each pilot they outlasted.
+- Match options on the main menu: AI difficulty, opponent jets (all four types, or all the same as yours), match pace (Quick ~6 min, Standard ~9 min, Long ~13 min) and weapons (all, heaters + gun, or guns only). Works on both maps.
+- Logbook: a new FREE-FOR-ALL section (matches, wins, top-3 finishes, best placing) and three new decorations: LAST PILOT STANDING, PODIUM and BOUNTY HUNTER.
+- Fixed: Su-35S kills with the GSh-30 cannon, R-77M and R-74M never counted toward the gun-kill, long-shot and knife-fight decorations.
+- Fixed: the theater map [M] always said 400 × 400 NM; it now names the map you are flying and its real size.
+
 ## v2.0.0 — Graphics overhaul (2026-09-26)
 
 - GRAPHICS OVERHAUL: every part of the picture is now adjustable, from one overall preset down to individual effects, and changes apply instantly while you watch.

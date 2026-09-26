@@ -43,6 +43,10 @@ export interface ModeHost {
   voice(text: string): void;
   /** the mode respawned the player mid-mission (team battle rounds) */
   onPlayerRespawn?(): void;
+  /** mode-specific XP / money award (bounty claimed ...) */
+  award?(label: string, xp: number, money: number): void;
+  /** the player's jet is being hurt by the free-for-all storm (exposure 0..1) */
+  stormHit?(exposure: number): void;
 }
 
 export interface ModeStatus {
@@ -51,6 +55,11 @@ export interface ModeStatus {
   red: number;
   timer: number;
   objective: string;
+  /** score bar texts replacing FRIENDLY n / ENEMY n */
+  blueText?: string;
+  redText?: string;
+  /** centre-screen warning from the mode (below missile / terrain warnings) */
+  warning?: string;
 }
 
 export abstract class GameMode {
@@ -63,6 +72,10 @@ export abstract class GameMode {
   /** result-screen buttons route here */
   abstract handle(action: ResultButton['action']): void;
   dispose(): void {}
+  /** jets the player can spectate after being shot down (empty = no spectating) */
+  roster(): Aircraft[] {
+    return [];
+  }
 }
 
 /** GCI-style BRAA call from `from` to `target`: bearing, range, altitude, aspect. */

@@ -7,6 +7,7 @@ import type { ReplayPlayer } from '../game/replay';
 import type { CameraRig } from '../render/cameraRig';
 import type { Aircraft } from '../aircraft/aircraft';
 import { fmtTime } from '../core/math';
+import { hostile } from '../game/rules';
 
 const SPEEDS = [0.25, 0.5, 1, 2, 4, 8];
 
@@ -160,7 +161,7 @@ export class ReplayUi {
     if (this.camMode === 'chase') this.camMode = 'flyby';
     else if (this.camMode === 'flyby') {
       this.camMode = 'target';
-      const others = this.player!.present.filter((a) => a !== this.focus && !a.fm.crashed && a.team !== this.focus?.team);
+      const others = this.player!.present.filter((a) => a !== this.focus && !a.fm.crashed && (!this.focus || hostile(a, this.focus)));
       this.target = others[0] ?? null;
       if (!this.target) this.camMode = 'chase';
     } else {

@@ -52,6 +52,8 @@ export interface LogbookData {
   duel: Record<Difficulty, { wins: number; losses: number; draws: number }>;
   /** 5v5 team battle: matches and rounds */
   team: { wins: number; losses: number; roundsWon: number; roundsLost: number };
+  /** free-for-all: matches, wins, podiums, best placing (0 = none yet) */
+  ffa: { matches: number; wins: number; podiums: number; bestPlace: number };
   records: { maxG: number; maxMach: number; maxAltFt: number; longestKillNm: number; closestGunKillM: number };
   medals: string[];
   recent: SortieSummary[];
@@ -83,6 +85,9 @@ export const MEDALS: MedalDef[] = [
   { id: 'duel-extreme', name: 'GRANDMASTER', desc: 'Win a duel on EXTREME.' },
   { id: 'team-win', name: 'SQUADRON LEADER', desc: 'Win a 5v5 Team Battle.' },
   { id: 'team-sweep', name: 'CLEAN SWEEP', desc: 'Win a 5v5 Team Battle without losing a round.' },
+  { id: 'ffa-win', name: 'LAST PILOT STANDING', desc: 'Win a 12-jet free-for-all.' },
+  { id: 'ffa-podium', name: 'PODIUM', desc: 'Finish in the top 3 of a free-for-all.' },
+  { id: 'ffa-bounty', name: 'BOUNTY HUNTER', desc: 'Claim a bounty in a free-for-all.' },
   { id: 'all-jets', name: 'TRIAD', desc: 'Score a kill in all four aircraft.' },
 ];
 
@@ -114,6 +119,7 @@ export function emptyLogbook(): LogbookData {
       EXTREME: { wins: 0, losses: 0, draws: 0 },
     },
     team: { wins: 0, losses: 0, roundsWon: 0, roundsLost: 0 },
+    ffa: { matches: 0, wins: 0, podiums: 0, bestPlace: 0 },
     records: { maxG: 0, maxMach: 0, maxAltFt: 0, longestKillNm: 0, closestGunKillM: 0 },
     medals: [],
     recent: [],
@@ -136,6 +142,7 @@ export function loadLogbook(): LogbookData {
       bestWaveByJet: { ...base.bestWaveByJet, ...(d.bestWaveByJet ?? {}) },
       duel: { ...base.duel, ...(d.duel ?? {}) },
       team: { ...base.team, ...(d.team ?? {}) },
+      ffa: { ...base.ffa, ...(d.ffa ?? {}) },
       records: { ...base.records, ...(d.records ?? {}) },
       medals: Array.isArray(d.medals) ? d.medals : [],
       recent: Array.isArray(d.recent) ? d.recent.slice(0, 25) : [],
@@ -298,6 +305,8 @@ export interface MissionOutcome {
   duel?: { difficulty: Difficulty; outcome: 'win' | 'loss' | 'draw' };
   /** a finished 5v5 match: final score */
   team?: { won: boolean; drawn?: boolean; roundsWon: number; roundsLost: number };
+  /** a finished free-for-all: placing out of how many, bounties claimed */
+  ffa?: { place: number; of: number; bounties: number };
 }
 
 /** Fold a finished sortie into the logbook; returns newly earned medal ids. */
@@ -319,7 +328,7 @@ export function commitSortie(book: LogbookData, s: SortieRecorder, outcome: Miss
     book.killsOf[k.victim] = (book.killsOf[k.victim] ?? 0) + 1;
     book.killsBy[k.weapon] = (book.killsBy[k.weapon] ?? 0) + 1;
     book.records.longestKillNm = Math.max(book.records.longestKillNm, k.rangeNm);
-    if (k.weapon === 'M61' || k.weapon === 'BK-27' || k.weapon === 'GUN') {
+    if (isGun(k.weapon)) {
       const m = k.rangeNm * NM;
       book.records.closestGunKillM = book.records.closestGunKillM ? Math.min(book.records.closestGunKillM, m) : m;
     }
@@ -340,6 +349,13 @@ export function commitSortie(book: LogbookData, s: SortieRecorder, outcome: Miss
     t.roundsWon += outcome.team.roundsWon;
     t.roundsLost += outcome.team.roundsLost;
   }
+  if (outcome.ffa) {
+    const f = book.ffa;
+    f.matches++;
+    if (outcome.ffa.place === 1) f.wins++;
+    if (outcome.ffa.place <= 3) f.podiums++;
+    f.bestPlace = f.bestPlace ? Math.min(f.bestPlace, outcome.ffa.place) : outcome.ffa.place;
+  }
   if (outcome.duel) {
     const r = book.duel[outcome.duel.difficulty];
     if (outcome.duel.outcome === 'win') r.wins++;
@@ -354,12 +370,12 @@ export function commitSortie(book: LogbookData, s: SortieRecorder, outcome: Miss
       earned.push(id);
     }
   };
-  const gunKill = s.kills.some((k) => k.weapon === 'M61' || k.weapon === 'BK-27' || k.weapon === 'GUN');
+  const gunKill = s.kills.some((k) => isGun(k.weapon));
   give('first-blood', tot.kills > 0);
   give('ace', s.kills.length >= 5);
   give('guns', gunKill);
-  give('long-shot', s.kills.some((k) => k.weapon.startsWith('AIM-120') && k.rangeNm > 30));
-  give('knife', s.kills.some((k) => k.weapon.startsWith('AIM-9') && k.rangeNm < 1));
+  give('long-shot', s.kills.some((k) => (k.weapon.startsWith('AIM-120') || k.weapon.startsWith('R-77')) && k.rangeNm > 30));
+  give('knife', s.kills.some((k) => (k.weapon.startsWith('AIM-9') || k.weapon.startsWith('R-74')) && k.rangeNm < 1));
   give('notch', s.defeated.includes('NOTCH'));
   give('masker', s.defeated.includes('TERRAIN MASK'));
   give('flares', s.defeated.includes('FLARE'));
@@ -374,6 +390,9 @@ export function commitSortie(book: LogbookData, s: SortieRecorder, outcome: Miss
   give('duel-extreme', outcome.duel?.outcome === 'win' && outcome.duel.difficulty === 'EXTREME');
   give('team-win', !!outcome.team?.won);
   give('team-sweep', !!outcome.team?.won && outcome.team.roundsLost === 0);
+  give('ffa-win', outcome.ffa?.place === 1);
+  give('ffa-podium', !!outcome.ffa && outcome.ffa.place <= 3);
+  give('ffa-bounty', (outcome.ffa?.bounties ?? 0) > 0);
   give('all-jets', AIRCRAFT_TYPES.every((t) => book.byJet[t].kills > 0));
   // recent sorties
   const d = new Date();
@@ -385,10 +404,15 @@ export function commitSortie(book: LogbookData, s: SortieRecorder, outcome: Miss
     kills: s.kills.length,
     shots: s.shots,
     durationSec: Math.round(s.durationSec),
-    detail: outcome.wave ? `WAVE ${outcome.wave}` : outcome.duel ? `${outcome.duel.difficulty}` : outcome.team ? `5v5 ${outcome.team.roundsWon}-${outcome.team.roundsLost}` : '',
+    detail: outcome.wave ? `WAVE ${outcome.wave}` : outcome.duel ? `${outcome.duel.difficulty}` : outcome.team ? `5v5 ${outcome.team.roundsWon}-${outcome.team.roundsLost}` : outcome.ffa ? `FFA #${outcome.ffa.place}/${outcome.ffa.of}` : '',
   });
   if (book.recent.length > 25) book.recent.length = 25;
   return earned;
+}
+
+/** gun kills, whatever the cannon (the Su-35S's GSh-30 included) */
+function isGun(weapon: string): boolean {
+  return weapon === 'M61' || weapon === 'BK-27' || weapon === 'GSh-30' || weapon === 'GUN';
 }
 
 export function medalName(id: string): string {

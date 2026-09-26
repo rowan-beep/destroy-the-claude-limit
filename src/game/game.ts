@@ -22,6 +22,9 @@ import { FreeFlightMode } from './modes/freeFlight';
 import { WavesMode } from './modes/waves';
 import { DuelMode } from './modes/duel';
 import { TeamBattleMode } from './modes/team';
+import { FreeForAllMode } from './modes/ffa';
+import { resetRules, RULES } from './rules';
+import { ZoneWall } from '../render/zoneWall';
 import { Spectator } from './spectator';
 import type { SpectatorUi } from '../ui/spectatorUi';
 import { PHYSICS_DT, DEG, FT, KT } from '../core/constants';
@@ -41,7 +44,7 @@ import { prewarmAirframes } from '../aircraft/models';
 import { randomizeWind, wind } from '../core/weather';
 import { AutoFly } from './autoFly';
 import type { AutoFlyPanel, AutoFlyChoice } from '../ui/autoFlyPanel';
-import { enemyTypesFor } from '../aircraft/specs';
+import { enemyTypesFor, AIRCRAFT_TYPES } from '../aircraft/specs';
 
 export type GameState = 'menu' | 'loading' | 'playing' | 'paused' | 'map' | 'results' | 'replay';
 
@@ -110,6 +113,8 @@ export class Game implements ModeHost {
   private lastWarn = '';
   private deathHandled = false;
   timeScale = 1;
+  /** free-for-all battle-zone boundary */
+  private zoneWall: ZoneWall;
   onStateChange: ((s: GameState) => void) | null = null;
   onResults: ((r: MissionResult) => void) | null = null;
   onMenuFrame: ((dt: number) => void) | null = null;
@@ -126,6 +131,7 @@ export class Game implements ModeHost {
     this.renderer = new GameRenderer(container);
     this.world = new World(this.renderer.scene);
     this.cam = new CameraRig(this.renderer.camera);
+    this.zoneWall = new ZoneWall(this.renderer.scene);
     this.input = new Input(this.renderer.canvas, { ...settings.input, bindings: withGamepad(settings.input.bindings) });
     audio.levels = { ...settings.audio };
   }
@@ -200,9 +206,21 @@ export class Game implements ModeHost {
     const pre = [new Aircraft(cfg.aircraft, 'blue', 'PRE')];
     if (cfg.mode !== 'free') for (const t of enemyTypesFor(cfg.aircraft)) pre.push(new Aircraft(t, 'red', 'PRE'));
     if (cfg.mode === 'team') for (const t of enemyTypesFor(cfg.aircraft)) pre.push(new Aircraft(t, 'blue', 'PRE'));
+    if (cfg.mode === 'ffa') pre.push(new Aircraft(cfg.aircraft, 'red', 'PRE'));
     prewarmAirframes(pre);
     this.stopSpectating();
-    this.mode = cfg.mode === 'free' ? new FreeFlightMode(this) : cfg.mode === 'waves' ? new WavesMode(this) : cfg.mode === 'team' ? new TeamBattleMode(this) : new DuelMode(this);
+    resetRules();
+    this.timeScale = 1;
+    this.mode =
+      cfg.mode === 'free'
+        ? new FreeFlightMode(this)
+        : cfg.mode === 'waves'
+          ? new WavesMode(this)
+          : cfg.mode === 'team'
+            ? new TeamBattleMode(this)
+            : cfg.mode === 'ffa'
+              ? new FreeForAllMode(this)
+              : new DuelMode(this);
     randomizeWind();
     this.mode.start();
     this.message(`WIND ${String(Math.round(wind.fromDeg)).padStart(3, '0')}° / ${Math.round(wind.surfaceKts)} KT${wind.turbulence > 1.1 ? ' — MODERATE TURBULENCE LOW LEVEL' : ''}`, 'info', 8);
@@ -276,7 +294,7 @@ export class Game implements ModeHost {
     ev.on('destroyed', (e) => {
       const v = e.victim;
       const k = e.killer;
-      this.hud.feed(k ? `${k.callsign} [${k.spec.shortName}] >> ${e.weapon} >> ${v.callsign} [${v.spec.shortName}]` : `${v.callsign} [${v.spec.shortName}] — ${e.cause}`, v.team === 'red' ? 'blue' : 'red');
+      this.hud.feed(k ? `${k.callsign} [${k.spec.shortName}] >> ${e.weapon} >> ${v.callsign} [${v.spec.shortName}]` : `${v.callsign} [${v.spec.shortName}] — ${e.cause}`, RULES.ffa ? (k === this.player ? 'blue' : 'red') : v.team === 'red' ? 'blue' : 'red');
       if (k === this.player && v !== this.player) {
         this.message(`SPLASH! ${v.spec.shortName} DESTROYED (${e.weapon})`, 'good', 4);
         this.voice('Splash one');
@@ -350,6 +368,9 @@ export class Game implements ModeHost {
       outcome.wavesCleared = this.mode.phase === 'victory' ? 10 : this.mode.wave - 1;
     } else if (this.mode instanceof TeamBattleMode) {
       outcome.team = { won: this.mode.score.blue > this.mode.score.red, drawn: this.mode.score.blue === this.mode.score.red, roundsWon: this.mode.score.blue, roundsLost: this.mode.score.red };
+    } else if (this.mode instanceof FreeForAllMode) {
+      const me = this.mode.entries.find((e) => e.a.isPlayer);
+      outcome.ffa = { place: this.mode.playerPlace || 12, of: this.mode.entries.length, bounties: me?.bounties ?? 0 };
     } else if (this.mode instanceof DuelMode) {
       outcome.duel = {
         difficulty: this.config.difficulty,
@@ -367,6 +388,7 @@ export class Game implements ModeHost {
         victory: this.mode instanceof WavesMode && this.mode.phase === 'victory',
         team: outcome.team,
         duel: outcome.duel?.outcome,
+        ffa: outcome.ffa,
       });
     }
     if (this.recorder && this.recorder.duration > 3 && !r.buttons.some((b) => b.action === 'replay')) {
@@ -438,6 +460,17 @@ export class Game implements ModeHost {
     this.combat.refreshStores(a);
   }
 
+  award(label: string, xp: number, money: number): void {
+    this.missionProgress?.award(label, xp, money, 'combat');
+  }
+
+  /** Free-for-all storm hurting the player: shake, red flash, crackle. */
+  stormHit(exposure: number): void {
+    this.cam.addShake(0.25 + exposure * 0.6);
+    this.hud?.damageFlash();
+    audio.hitThud();
+  }
+
   playerKilledBy(killer: Aircraft | null, cause: string): void {
     if (this.deathHandled) return;
     this.deathHandled = true;
@@ -457,18 +490,19 @@ export class Game implements ModeHost {
   }
 
   private startSpectating(): void {
-    if (!(this.mode instanceof TeamBattleMode)) return;
-    this.spectator.start(this.mode.roster(), 'blue');
+    if (!this.mode || this.mode.roster().length === 0) return;
+    this.spectator.start(this.mode.roster(), RULES.ffa ? 'red' : 'blue');
     this.cam.setMode('chase');
     this.cam.resetLook();
     this.cam.chaseDist = 1.4;
     this.hud?.setSpectating(true);
     this.spectatorUi?.show(true);
-    this.message('YOU ARE DOWN — SPECTATING UNTIL THE ROUND ENDS', 'info', 4);
+    this.message(RULES.ffa ? 'YOU ARE OUT — SPECTATING TO THE END · [T] FAST-FORWARD' : 'YOU ARE DOWN — SPECTATING UNTIL THE ROUND ENDS', 'info', 4);
   }
 
   stopSpectating(): void {
     this.spectator.stop();
+    this.timeScale = 1;
     this.deadTime = 0;
     this.spectatorUi?.show(false);
     this.hud?.setSpectating(false);
@@ -477,14 +511,16 @@ export class Game implements ModeHost {
   /** What the spectator bar needs. */
   spectatorView() {
     return {
-      roster: () => (this.mode instanceof TeamBattleMode ? this.mode.roster() : []),
+      roster: () => this.mode?.roster() ?? [],
+      kills: (a: Aircraft) => (this.mode instanceof FreeForAllMode ? this.mode.killsOf(a) : a.kills),
+      fastForward: () => this.timeScale > 1,
       watching: () => this.spectator.target,
       isFree: () => this.spectator.free,
       watch: (a: Aircraft) => {
         this.spectator.watch(a);
         this.cam.resetLook();
       },
-      cycle: (dir: 1 | -1) => this.spectator.cycle(this.mode instanceof TeamBattleMode ? this.mode.roster() : [], dir),
+      cycle: (dir: 1 | -1) => this.spectator.cycle(this.mode?.roster() ?? [], dir),
       toggleFree: () => {
         if (this.spectator.free) this.spectator.free = false;
         else this.spectator.enterFree(this.renderer.camera);
@@ -594,7 +630,7 @@ export class Game implements ModeHost {
 
     const p = this.player;
     // team battle: once shot down, spectate after a few seconds
-    if (p && playing && !p.alive && this.mode instanceof TeamBattleMode && this.mode.phase !== 'over') {
+    if (p && playing && !p.alive && this.mode && !this.mode.over && this.mode.roster().length > 0) {
       this.deadTime += dt;
       if (!this.spectator.active && this.deadTime > 3.5) this.startSpectating();
     }
@@ -621,6 +657,7 @@ export class Game implements ModeHost {
       this.updateCockpit(inCockpit);
       this.avionics?.update(dt, inCockpit);
       this.world.update(dt, this.renderer.camera, p.fm.pos);
+      this.zoneWall.update(dt);
       this.combat.update(playing ? dt : 0, this.renderer.camera);
       // pilot vision
       this.renderer.setVision(p.alive || !p.fm.crashed ? p.pilot.vision : emptyVision());
@@ -637,7 +674,7 @@ export class Game implements ModeHost {
   private spectatorFrame(dt: number, playing: boolean): void {
     const sp = this.spectator;
     const cam = this.renderer.camera;
-    const roster = this.mode instanceof TeamBattleMode ? this.mode.roster() : [];
+    const roster = this.mode?.roster() ?? [];
     sp.maintain(dt, roster);
     const pv = this.player ? this.combat.aircraftVis.get(this.player) : undefined;
     pv?.setCockpitView(false);
@@ -661,6 +698,7 @@ export class Game implements ModeHost {
     }
     cam.updateMatrixWorld();
     this.world.update(dt, cam, focus);
+    this.zoneWall.update(dt);
     this.combat.update(playing ? dt : 0, cam);
     this.renderer.setVision(emptyVision());
     this.hud.update(dt, this);
@@ -1006,6 +1044,11 @@ export class Game implements ModeHost {
     if (inp.codePressed('Tab') || inp.codePressed('ArrowRight') || inp.codePressed('Period')) v.cycle(1);
     if (inp.codePressed('ArrowLeft') || inp.codePressed('Comma')) v.cycle(-1);
     if (inp.codePressed('KeyF')) v.toggleFree();
+    // free-for-all: fast-forward the rest of the match
+    if (RULES.ffa && inp.codePressed('KeyT')) {
+      this.timeScale = this.timeScale > 1 ? 1 : 4;
+      this.message(this.timeScale > 1 ? 'FAST-FORWARD 4×' : 'NORMAL SPEED', 'info', 2);
+    }
     if (!this.spectator.free) {
       if (inp.mouseHeld(2) || inp.mouseHeld(0)) this.cam.addLook(inp.mouseDX * 0.004, inp.mouseDY * 0.004);
       if (inp.wheel !== 0) this.cam.chaseDist = clamp(this.cam.chaseDist * (inp.wheel > 0 ? 1.12 : 0.89), 0.5, 8);
@@ -1073,6 +1116,10 @@ export class Game implements ModeHost {
   private tryRearm(): void {
     const p = this.player;
     if (!p) return;
+    if (RULES.ffa) {
+      this.message('NO GROUND CREWS IN A FREE-FOR-ALL — KILLS REARM YOU', 'warn', 3);
+      return;
+    }
     if (!p.onRunwayStopped) {
       this.message('REARM: STOP ON A FRIENDLY AIRFIELD FIRST (THROTTLE IDLE, BRAKES)', 'warn', 3);
       return;

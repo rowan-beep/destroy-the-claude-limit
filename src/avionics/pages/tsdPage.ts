@@ -11,6 +11,7 @@ import { AIRFIELDS } from '../../world/islands';
 import { GCI_SITES } from '../../game/teamPicture';
 import { tilesInBox, ContourSet } from '../../world/mapData';
 import { fmtBrg, fmtTtg } from '../nav';
+import { hostile } from '../../game/rules';
 
 const RANGES = [5, 10, 20, 40, 80, 160];
 
@@ -214,7 +215,7 @@ export const tsdPage: MfdPage = {
     }
     // friendlies
     for (const a of g.sim.aircraft) {
-      if (a === p || !a.alive || a.team !== p.team) continue;
+      if (a === p || !a.alive || hostile(a, p)) continue;
       const [x, y] = S(a.fm.pos.x, a.fm.pos.z);
       if (!onScreen(x, y, 20)) continue;
       pen.color = C.friend;

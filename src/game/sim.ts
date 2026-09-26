@@ -11,6 +11,7 @@ import { CountermeasureSystem, Decoy } from '../weapons/countermeasures';
 import { HeightGrid } from '../world/heightGrid';
 import { EventBus } from '../core/events';
 import type { LandingGrade } from '../avionics/nav';
+import { hostile } from './rules';
 
 export interface SimEvents extends Record<string, unknown> {
   launch: { missile: Missile; shooter: Aircraft; target: Aircraft | null; station: number };
@@ -160,6 +161,6 @@ export class Sim {
   }
 
   enemiesOf(a: Aircraft): Aircraft[] {
-    return this.aircraft.filter((o) => o.alive && o.team !== a.team);
+    return this.aircraft.filter((o) => o.alive && hostile(o, a));
   }
 }

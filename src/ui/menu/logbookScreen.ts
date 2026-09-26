@@ -100,6 +100,16 @@ export class LogbookModal {
       el('td', '', tr, k);
       el('td', '', tr, v);
     }
+    el('h3', '', dr, 'FREE-FOR-ALL');
+    const ffaTbl = el('table', 'specs', dr);
+    for (const [k, v] of [
+      ['MATCHES', `${b.ffa.matches} · ${b.ffa.wins} WON · ${b.ffa.podiums} TOP 3`],
+      ['BEST PLACING', b.ffa.bestPlace ? `#${b.ffa.bestPlace} OF 12` : '—'],
+    ]) {
+      const tr = el('tr', '', ffaTbl);
+      el('td', '', tr, k);
+      el('td', '', tr, v);
+    }
     el('h3', '', dr, 'PERSONAL RECORDS');
     const rt = el('table', 'specs', dr);
     const rec = b.records;

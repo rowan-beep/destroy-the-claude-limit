@@ -4,7 +4,7 @@ import type { AircraftType } from '../aircraft/specs';
 import type { Difficulty } from '../ai/skill';
 import type { TimeOfDay } from '../render/environment';
 
-export type ModeId = 'free' | 'waves' | 'duel' | 'team';
+export type ModeId = 'free' | 'waves' | 'duel' | 'team' | 'ffa';
 
 export interface MissionConfig {
   mode: ModeId;
@@ -26,6 +26,9 @@ export interface MissionConfig {
   // 5v5 team battle
   teamAllies: 'same' | 'mixed';
   teamWins: number;
+  // free-for-all
+  ffaPace: 'quick' | 'standard' | 'long';
+  ffaJets: 'mixed' | 'same';
 }
 
 export function defaultMission(): MissionConfig {
@@ -45,6 +48,8 @@ export function defaultMission(): MissionConfig {
     duelRules: 'all',
     teamAllies: 'mixed',
     teamWins: 3,
+    ffaPace: 'standard',
+    ffaJets: 'mixed',
   };
 }
 
@@ -66,6 +71,12 @@ export const MODE_INFO: Record<ModeId, { title: string; subtitle: string; descri
     subtitle: 'Rounds · first to 3',
     description:
       'You and four AI wingmen against five AI bandits over the contested island. Wipe out the other team to win the round; everyone respawns rearmed for the next. First team to 3 rounds wins the match. Shot down? Spectate any jet on either side, or fly a free camera, until the round is over.',
+  },
+  ffa: {
+    title: 'FREE-FOR-ALL',
+    subtitle: '12 jets · last one standing',
+    description:
+      'LAST PILOT STANDING: you and eleven AI pilots, every jet hostile to every other, no respawns. Everyone drops in on a ring around the contested island. The battle zone shrinks in stages: outside it the storm tears your jet apart. Kills refill a missile of each type, gun rounds, flares and fuel; the top scorer carries a bounty everyone hunts. Two left? FINAL DUEL. Last jet flying wins.',
   },
   duel: {
     title: '1v1 DUEL',

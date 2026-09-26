@@ -17,8 +17,8 @@ terrain against you.
 | Radar | AN/APG-82(V)1 AESA | AN/APG-79 AESA | CAPTOR-E + PIRATE IRST | N035 Irbis-E PESA + OLS-35 IRST |
 | Missiles | AIM-120D, AIM-9X | AIM-120D, AIM-9X | AIM-120D, AIM-9X | R-77M, R-74M (Su-35S only) |
 
-Current version: **v2.0.0** — see [CHANGELOG.md](CHANGELOG.md) (also in the game
-under **v2.0.0 · NOTES** on the main menu).
+Current version: **v2.1.0** — see [CHANGELOG.md](CHANGELOG.md) (also in the game
+under **v2.1.0 · NOTES** on the main menu).
 
 Each jet is a high-detail procedural model (~150k triangles): blended fuselages
 built from real cross-sections, hollow intakes with ducts and fans, airfoil
@@ -65,6 +65,10 @@ Enemy AI is never the same type as the player's jet.
   Wipe out the other team to take the round; everyone respawns; first to 3 wins.
   When you're shot down, spectate any jet on either team or fly a free camera (F).
   A round still going after 5 minutes ends with a point to both teams.
+- **Free-for-all (Last Pilot Standing)** — 12 jets, you and 11 AI, everyone hostile to
+  everyone, no respawns. The battle zone shrinks in stages and the storm outside it
+  destroys jets that stay out. Kills refill a missile of each type; the top scorer carries
+  a revealed bounty; the last two fight a FINAL DUEL. Placing out of 12 pays XP and money.
 
 **Customize** (main menu): solid colours, 12 wrap patterns (including Black Ice, Inferno, Aurora and Galaxy), finish and brightness for each jet.
 

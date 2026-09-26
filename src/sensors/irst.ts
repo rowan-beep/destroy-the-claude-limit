@@ -7,6 +7,7 @@ import type { Sim } from '../game/sim';
 import { NM, DEG } from '../core/constants';
 import { irIntensity } from './signatures';
 import type { Contact } from './radar';
+import { hostile } from '../game/rules';
 
 const _rel = new THREE.Vector3();
 const _q = new THREE.Quaternion();
@@ -62,7 +63,7 @@ export class Irst {
           vel: new THREE.Vector3(),
           lastSeen: 0,
           firstSeen: sim.time,
-          hostile: t.team !== this.owner.team,
+          hostile: hostile(t, this.owner),
           source: 'irst',
           az: 0,
           el: 0,

@@ -261,7 +261,7 @@ export class TeamBattleMode extends GameMode {
   }
 
   /** Every jet in the round, for the spectator list (BLUE first). */
-  roster(): Aircraft[] {
+  override roster(): Aircraft[] {
     return [...this.blue, ...this.red];
   }
 

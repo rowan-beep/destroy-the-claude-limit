@@ -17,6 +17,7 @@ import type { Sim } from './sim';
 import type { ModeId } from './mission';
 import type { Difficulty } from '../ai/skill';
 import { DEG, FT, KT, NM } from '../core/constants';
+import { hostile } from './rules';
 
 export const MAX_LEVEL = 100;
 
@@ -182,12 +183,12 @@ export class MissionProgress {
     this.unsub.push(
       ev.on('destroyed', (e) => {
         const p = this.player;
-        if (!p || e.killer !== p || e.victim === p || e.victim.team === p.team) return;
+        if (!p || e.killer !== p || e.victim === p || !hostile(e.victim, p)) return;
         this.onKill(e.victim, e.weapon);
       }),
       ev.on('missileLost', (e) => {
         const p = this.player;
-        if (p && p.alive && e.missile.target === p && e.missile.shooter.team !== p.team) this.award('MISSILE DEFEATED', 25, 100, 'combat');
+        if (p && p.alive && e.missile.target === p && hostile(e.missile.shooter, p)) this.award('MISSILE DEFEATED', 25, 100, 'combat');
       }),
       ev.on('landing', (e) => {
         if (e.aircraft !== this.player) return;
@@ -328,7 +329,7 @@ export class MissionProgress {
   }
 
   /** Mission result bonuses, then the summary for the debrief. */
-  finish(outcome: { wavesCleared?: number; victory?: boolean; team?: { won: boolean; drawn?: boolean; roundsWon: number }; duel?: 'win' | 'loss' | 'draw' }): MissionSummary {
+  finish(outcome: { wavesCleared?: number; victory?: boolean; team?: { won: boolean; drawn?: boolean; roundsWon: number }; duel?: 'win' | 'loss' | 'draw'; ffa?: { place: number; of: number } }): MissionSummary {
     const m = this.mult;
     if (outcome.wavesCleared) this.award(`${outcome.wavesCleared} WAVE${outcome.wavesCleared === 1 ? '' : 'S'} CLEARED`, 60 * outcome.wavesCleared, 250 * outcome.wavesCleared, 'mission');
     if (outcome.victory) this.award('ALL 10 WAVES — VICTORY', 500, 2500, 'mission');
@@ -336,6 +337,15 @@ export class MissionProgress {
       if (outcome.team.roundsWon) this.award(`${outcome.team.roundsWon} ROUND${outcome.team.roundsWon === 1 ? '' : 'S'} WON`, Math.round(50 * outcome.team.roundsWon * m), Math.round(200 * outcome.team.roundsWon * m), 'mission');
       if (outcome.team.won) this.award('MATCH WON', Math.round(300 * m), Math.round(1500 * m), 'mission');
       else if (outcome.team.drawn) this.award('MATCH DRAWN', Math.round(100 * m), Math.round(400 * m), 'mission');
+    }
+    if (outcome.ffa) {
+      // free-for-all placing: big rewards for the podium, something for every pilot outlasted
+      const { place, of } = outcome.ffa;
+      if (place === 1) this.award('LAST PILOT STANDING', Math.round(600 * m), Math.round(3000 * m), 'mission');
+      else if (place === 2) this.award('2ND PLACE', Math.round(350 * m), Math.round(1500 * m), 'mission');
+      else if (place === 3) this.award('3RD PLACE', Math.round(250 * m), Math.round(1000 * m), 'mission');
+      const outlasted = Math.max(0, of - place);
+      if (outlasted > 0 && place > 3) this.award(`OUTLASTED ${outlasted} PILOT${outlasted === 1 ? '' : 'S'}`, Math.round(20 * outlasted * m), Math.round(60 * outlasted * m), 'mission');
     }
     if (outcome.duel === 'win') this.award('DUEL WON', Math.round(200 * m), Math.round(800 * m), 'mission');
     else if (outcome.duel === 'draw') this.award('DUEL DRAWN', Math.round(60 * m), Math.round(200 * m), 'mission');

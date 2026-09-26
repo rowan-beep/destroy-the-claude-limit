@@ -18,6 +18,7 @@ import type { Aircraft } from '../aircraft/aircraft';
 import type { Sim } from '../game/sim';
 import { NM, DEG } from '../core/constants';
 import { rcsFrom, radialVelocity } from './signatures';
+import { hostile } from '../game/rules';
 
 export type RadarMode = 'RWS' | 'TWS' | 'STT' | 'ACM' | 'OFF';
 
@@ -178,7 +179,7 @@ export class Radar {
           r.reason === 'range' &&
           t.jammerOn &&
           t.spec.ew.jamming > 0 &&
-          t.team !== own.team &&
+          hostile(t, own) &&
           Math.abs(a.az) < this.scanAz * DEG &&
           a.range < this.detectionRange(t) * 2.2 &&
           this.los(sim, t)
@@ -194,7 +195,7 @@ export class Radar {
       let best: Aircraft | null = null;
       let bestAng = 15 * DEG;
       for (const t of sim.aircraft) {
-        if (t === own || !t.alive || t.team === own.team) continue;
+        if (t === own || !t.alive || !hostile(t, own)) continue;
         const a = this.anglesTo(t.fm.pos);
         if (a.range > 10 * NM) continue;
         const ang = Math.hypot(a.az, a.el);
@@ -217,7 +218,7 @@ export class Radar {
         vel: new THREE.Vector3(),
         lastSeen: 0,
         firstSeen: sim.time,
-        hostile: t.team !== this.owner.team,
+        hostile: hostile(t, this.owner),
         source: 'radar',
         az: 0,
         el: 0,

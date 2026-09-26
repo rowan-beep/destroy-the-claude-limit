@@ -11,6 +11,7 @@ import { clamp, dirFromHeadingPitch, wrap360, bearingXZ } from '../../core/math'
 import { gunSolution, gunLine } from '../../weapons/gunnery';
 import { AIRFIELDS, toRunwayLocal } from '../../world/islands';
 import { ONSPEED_AOA, fmtTtg } from '../../avionics/nav';
+import { hostile, RULES } from '../../game/rules';
 
 const GREEN = '#6cff9a';
 const GREEN_DIM = 'rgba(108,255,154,0.55)';
@@ -700,11 +701,38 @@ export class HudPainter {
         c.fill();
       }
       if (mode === 'full') {
-        const col = a.team === p.team ? '#7dffb0' : '#ff8a7a';
+        const col = !hostile(a, p) ? '#7dffb0' : '#ff8a7a';
         this.text(`${a.spec.shortName.toUpperCase()} ${(d / NM).toFixed(1)}`, sp.x + 8, sp.y - 10, col, 11);
         if (!a.alive) this.text('DEAD', sp.x + 8, sp.y + 2, '#999', 10);
       }
     }
+    this.drawBounty(g);
+  }
+
+  /** Free-for-all: the bounty holder is revealed to everyone, at any range. */
+  private drawBounty(g: Game): void {
+    const p = g.player;
+    if (!RULES.ffa || RULES.bountyId < 0 || !p) return;
+    const b = g.sim.aircraft.find((a) => a.id === RULES.bountyId);
+    if (!b || !b.alive || b === p) return;
+    const cam = g.renderer.camera;
+    const sp = this.project(cam, b.fm.pos);
+    if (!sp.on) return;
+    const c = this.ctx;
+    const pulse = 0.75 + 0.25 * Math.sin(performance.now() / 180);
+    c.save();
+    c.strokeStyle = `rgba(255,211,90,${pulse})`;
+    c.lineWidth = 2;
+    c.beginPath();
+    c.moveTo(sp.x, sp.y - 14);
+    c.lineTo(sp.x + 14, sp.y);
+    c.lineTo(sp.x, sp.y + 14);
+    c.lineTo(sp.x - 14, sp.y);
+    c.closePath();
+    c.stroke();
+    c.restore();
+    const d = b.fm.pos.distanceTo(cam.position);
+    this.text(`★ BOUNTY ${b.callsign} ${(d / NM).toFixed(1)} NM`, sp.x + 18, sp.y - 16, '#ffd35a', 12);
   }
 
   drawMouseAim(g: Game): void {

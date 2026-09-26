@@ -18,6 +18,7 @@ import type { Sim } from '../game/sim';
 import type { AIPilot } from '../ai/pilot';
 import type { PaintConfig } from './models/paint';
 import { storeCenterY } from './models/stores';
+import { hostile } from '../game/rules';
 
 export interface StationState {
   def: StationDef;
@@ -203,7 +204,7 @@ export class Aircraft {
     let best: Aircraft | null = null;
     let bestAng = 10 * DEG;
     for (const t of sim.aircraft) {
-      if (!t.alive || t.team === this.team) continue;
+      if (!t.alive || !hostile(t, this)) continue;
       _tmp.subVectors(t.fm.pos, this.fm.pos);
       const d = _tmp.length();
       if (d > 12 * NM || d < 50) continue;
@@ -378,7 +379,7 @@ export class Aircraft {
     const spec = MISSILES[this.irMissile];
     const fm = this.fm;
     const canLock = (t: Aircraft, cone: number): boolean => {
-      if (!t.alive || t.team === this.team) return false;
+      if (!t.alive || !hostile(t, this)) return false;
       _tmp.subVectors(t.fm.pos, fm.pos);
       const d = _tmp.length();
       if (d < spec.minRange * 0.6) return false;

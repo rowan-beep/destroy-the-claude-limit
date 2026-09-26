@@ -9,6 +9,7 @@ import type { Sim } from './sim';
 import type { Aircraft } from '../aircraft/aircraft';
 import { AIRFIELDS, fromRunwayLocal } from '../world/islands';
 import { NM, Team } from '../core/constants';
+import { RULES } from './rules';
 
 export interface PictureTrack {
   target: Aircraft;
@@ -53,6 +54,11 @@ export class TeamPicture {
     const now = sim.time;
     for (const team of ['blue', 'red'] as Team[]) {
       const map = this.tracks[team];
+      // free-for-all: no shared picture between the AI jets (each flies on its own sensors)
+      if (RULES.ffa && team === 'red') {
+        map.clear();
+        continue;
+      }
       for (const [id, t] of map) if (now - t.time > 45 || !t.target.alive) map.delete(id);
       // GCI sweeps (ground radars refresh every ~5 s)
       if (this.gciEnabled[team] && Math.floor(now) % 5 === 0) {

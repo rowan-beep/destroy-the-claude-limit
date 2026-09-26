@@ -8,6 +8,7 @@ import { VERSION } from '../../version';
 import { el, clearEl, button } from '../dom';
 import { AIRCRAFT_TYPES, AircraftType, SPECS, enemyTypesFor, getSpec } from '../../aircraft/specs';
 import { MissionConfig, MODE_INFO, ModeId } from '../../game/mission';
+import { FFA_JETS } from '../../game/modes/ffa';
 import { DIFFICULTIES, Difficulty } from '../../ai/skill';
 import { airfieldsOf } from '../../world/islands';
 import { MISSILES } from '../../weapons/weaponSpecs';
@@ -188,9 +189,9 @@ export class MainMenu {
 
   private renderModes(): void {
     clearEl(this.modeGrid);
-    for (const m of ['free', 'waves', 'duel', 'team'] as ModeId[]) {
+    for (const m of ['free', 'waves', 'duel', 'team', 'ffa'] as ModeId[]) {
       const info = MODE_INFO[m];
-      const c = el('div', 'mode-card' + (m === this.cfg.mode ? ' sel' : ''), this.modeGrid);
+      const c = el('div', 'mode-card' + (m === this.cfg.mode ? ' sel' : '') + (m === 'ffa' ? ' new' : ''), this.modeGrid);
       el('div', 'mt', c, info.title);
       el('div', 'ms', c, info.subtitle.toUpperCase());
       c.addEventListener('click', () => {
@@ -289,6 +290,17 @@ export class MainMenu {
       this.seg(c, 'FIRST TO', [['2', '2 ROUNDS'], ['3', '3 ROUNDS'], ['4', '4 ROUNDS']], String(cfg.teamWins) as '2' | '3' | '4', (v) => (cfg.teamWins = +v));
       this.seg(c, 'WEAPONS', [['all', 'ALL'], ['ir', 'AIM-9X + GUN'], ['guns', 'GUNS ONLY']], cfg.duelRules, (v) => (cfg.duelRules = v));
       el('div', 'note', c, `Bandits fly only the jets you did not pick (${enemyTypesFor(cfg.aircraft).map((t) => SPECS[t].shortName).join(' / ')}). Both teams use the same AI at the chosen difficulty. Shot down? Watch any jet or fly a free camera until the round ends.`);
+    } else if (cfg.mode === 'ffa') {
+      this.difficultySlider(c);
+      this.seg(c, 'OPPONENT JETS', [['mixed', 'ALL FOUR TYPES'], ['same', `ALL ${SPECS[cfg.aircraft].shortName.toUpperCase()}`]], cfg.ffaJets, (v) => (cfg.ffaJets = v));
+      this.seg(c, 'MATCH PACE (ZONE SPEED)', [['quick', 'QUICK ~6 MIN'], ['standard', 'STANDARD ~9 MIN'], ['long', 'LONG ~13 MIN']], cfg.ffaPace, (v) => (cfg.ffaPace = v));
+      this.seg(c, 'WEAPONS', [['all', 'ALL'], ['ir', 'HEATERS + GUN'], ['guns', 'GUNS ONLY']], cfg.duelRules, (v) => (cfg.duelRules = v));
+      el(
+        'div',
+        'note',
+        c,
+        `12 jets, you included: ${FFA_JETS - 1} AI pilots with random jets and paint jobs, every one hostile to everyone. No respawns. Stay inside the shrinking zone. Kills refill a missile of each type; the top scorer carries a bounty (+150 XP). Placing pays XP and money: top 3 pay big.`,
+      );
     } else {
       const enemies = enemyTypesFor(cfg.aircraft);
       this.seg(c, 'OPPONENT AIRCRAFT', enemies.map((t) => [t, SPECS[t].shortName.toUpperCase()] as [AircraftType, string]), cfg.enemyType, (v) => (cfg.enemyType = v));

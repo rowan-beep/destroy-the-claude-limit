@@ -27,6 +27,7 @@ import { rand, chance, randGauss } from '../core/rng';
 import { terrainHeight } from '../world/terrain';
 import { MISSILES } from '../weapons/weaponSpecs';
 import { gunSolution, gunLine } from '../weapons/gunnery';
+import { hostile, RULES } from '../game/rules';
 
 export type AIState = 'TAKEOFF' | 'PATROL' | 'FORMATION' | 'INTERCEPT' | 'ENGAGE' | 'DEFENSIVE' | 'MASKING' | 'RTB';
 
@@ -130,15 +131,21 @@ export class AIPilot {
     let best: Aircraft | null = null;
     let bestScore = Infinity;
     for (const e of sim.aircraft) {
-      if (!e.alive || e.team === ac.team) continue;
+      if (!e.alive || !hostile(e, ac)) continue;
       const seen = this.sees(e, sim);
       if (!seen) continue;
       const d = ac.distanceTo(e);
       // prefer threats pointing at us, closer targets, and (teamwork) targets not already engaged
       let score = d;
-      if (e.isPlayer) score *= 0.8;
+      if (RULES.ffa) {
+        // free-for-all: no favourites -- pick off the crippled, jump jets busy with
+        // someone else (third-partying) and hunt the bounty
+        score *= 0.55 + 0.45 * e.damage.integrity;
+        if (e.ai?.target && e.ai.target !== ac && (e.ai.state === 'ENGAGE' || e.ai.state === 'DEFENSIVE')) score *= 0.8;
+        if (e.id === RULES.bountyId) score *= 0.7;
+      } else if (e.isPlayer) score *= 0.8;
       if (this.skill.teamwork > 0.5) {
-        const engaged = sim.aircraft.filter((o) => o !== ac && o.team === ac.team && o.alive && o.ai?.target === e).length;
+        const engaged = sim.aircraft.filter((o) => o !== ac && !hostile(o, ac) && o.alive && o.ai?.target === e).length;
         score *= 1 + engaged * 0.15;
       }
       if (score < bestScore) {
@@ -166,7 +173,7 @@ export class AIPilot {
     // RWR: an enemy radar painting us gives away its bearing (range unknown)
     if (!this.target || this.knownSource === 'none') {
       for (const th of ac.rwr.threats.values()) {
-        if (!th.source.alive || th.source.team === ac.team) continue;
+        if (!th.source.alive || !hostile(th.source, ac)) continue;
         const dir = _tmp.subVectors(th.source.fm.pos, ac.fm.pos);
         const d = dir.length();
         dir.divideScalar(Math.max(d, 1));
@@ -197,6 +204,29 @@ export class AIPilot {
     } else if (this.target && now - this.knownTime > 40) {
       this.target = null;
       this.knownSource = 'none';
+    }
+    // free-for-all final circles: every jet is revealed -- go and find the nearest
+    if (RULES.revealAll && (!this.target || this.knownSource === 'none')) {
+      let near: Aircraft | null = null;
+      for (const o of sim.aircraft) if (o.alive && hostile(o, ac) && (!near || ac.distanceTo(o) < ac.distanceTo(near))) near = o;
+      if (near) {
+        this.target = near;
+        this.knownPos.copy(near.fm.pos);
+        this.knownVel.copy(near.fm.vel);
+        this.knownTime = now;
+        this.knownSource = 'team';
+      }
+    }
+    // free-for-all: everyone knows where the bounty is
+    if (RULES.ffa && RULES.bountyId >= 0 && RULES.bountyId !== ac.id && (!this.target || this.knownSource === 'none')) {
+      const b = sim.aircraft.find((a) => a.id === RULES.bountyId);
+      if (b && b.alive) {
+        this.target = b;
+        this.knownPos.copy(b.fm.pos);
+        this.knownVel.copy(b.fm.vel);
+        this.knownTime = now;
+        this.knownSource = 'team';
+      }
     }
     if (this.target && !this.target.alive) {
       this.target = null;
@@ -348,7 +378,7 @@ export class AIPilot {
   private gunThreat(sim: Sim): Aircraft | null {
     const ac = this.ac;
     for (const e of sim.aircraft) {
-      if (!e.alive || e.team === ac.team) continue;
+      if (!e.alive || !hostile(e, ac)) continue;
       const d = ac.distanceTo(e);
       if (d > 1600) continue;
       if (!this.sees(e, sim) && d > 700) continue;
@@ -531,12 +561,14 @@ export class AIPilot {
   }
 
   private teamShotsInFlight(sim: Sim, t: Aircraft): number {
-    return sim.missiles.filter((m) => m.alive && m.target === t && m.shooter.team === this.ac.team && m.mode !== 'LOST').length;
+    return sim.missiles.filter((m) => m.alive && m.target === t && !hostile(m.shooter, this.ac) && m.mode !== 'LOST').length;
   }
 
   /** Find a nearby low point hidden from the threat by terrain. */
   private findMaskPoint(sim: Sim): boolean {
     const ac = this.ac;
+    // no hiding in the final free-for-all circles
+    if (RULES.ffa && RULES.zone.active && RULES.zone.sr < 12 * NM) return false;
     let threat: Aircraft | null = ac.rwr.primaryMissile?.missile.shooter ?? null;
     if (!threat) {
       for (const th of ac.rwr.threats.values()) {
@@ -633,6 +665,7 @@ export class AIPilot {
 
     // --- safety overrides ---------------------------------------------------
     this.separation(sim);
+    this.zoneSafety();
     this.terrainSafety(dt, sim);
     this.boundarySafety();
     // G-LOC awareness: ease off before blacking out
@@ -1152,6 +1185,32 @@ export class AIPilot {
       this.useAb = true;
       this.desiredCas = Math.max(this.desiredCas, ac.spec.cornerKts * KT);
       this.triggerWanted = false;
+    }
+  }
+
+  /** Free-for-all battle zone: get (and stay) inside, whatever else is going on. */
+  private zoneSafety(): void {
+    const fm = this.ac.fm;
+    const z = RULES.zone;
+    if (z.active) {
+      // keep inside the circle the mode says is safe (already the next one when it is closing)
+      const dx = z.sx - fm.pos.x, dz = z.sz - fm.pos.z;
+      const d = Math.hypot(dx, dz);
+      const outside = Math.hypot(z.x - fm.pos.x, z.z - fm.pos.z) > z.r;
+      const edge = Math.max(z.sr * 0.45, z.sr * 0.85 - 3000);
+      if (d > edge) {
+        const k = clamp((d - edge) / Math.max(2500, z.sr * 0.12), outside || d > z.sr ? 0.85 : 0.45, 0.97);
+        // turn toward the zone horizontally; climbs and dives stay as planned
+        const y = this.desired.y;
+        _tmp.set(this.desired.x, 0, this.desired.z);
+        const hl = Math.max(1e-6, _tmp.length());
+        _tmp.divideScalar(hl).lerp(_tmp2.set(dx / d, 0, dz / d), k).normalize().multiplyScalar(hl);
+        this.desired.set(_tmp.x, y, _tmp.z).normalize();
+        if (outside || d > z.sr) {
+          this.useAb = true;
+          this.desiredCas = Math.max(this.desiredCas, this.ac.spec.cornerKts * KT * 1.3);
+        }
+      }
     }
   }
 

@@ -6,6 +6,7 @@ import { DEG, NM, FT } from '../../core/constants';
 import { wrap360, clamp } from '../../core/math';
 import { AIRFIELDS } from '../../world/islands';
 import { RWR_SYMBOL } from '../../sensors/rwr';
+import { hostile, RULES } from '../../game/rules';
 
 function visible(canvas: HTMLCanvasElement): boolean {
   return !canvas.isConnected || (canvas.clientWidth > 10 && canvas.clientHeight > 10);
@@ -212,6 +213,49 @@ export function drawMinimap(canvas: HTMLCanvasElement, g: Game): void {
     ctx.arc(cx, cy, R * rr, 0, Math.PI * 2);
     ctx.stroke();
   }
+  // free-for-all battle zone (solid) and the next circle (dashed)
+  const zn = RULES.zone;
+  if (zn.active) {
+    const [zx, zy] = toScreen(zn.x, zn.z);
+    ctx.strokeStyle = 'rgba(150,120,255,0.95)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(zx, zy, (zn.r / rangeM) * R, 0, Math.PI * 2);
+    ctx.stroke();
+    if (zn.nr > 0) {
+      const [nx, ny] = toScreen(zn.nx, zn.nz);
+      ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.arc(nx, ny, (zn.nr / rangeM) * R, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.lineWidth = 1;
+  }
+  // free-for-all final circles: every jet revealed
+  if (RULES.revealAll) {
+    ctx.fillStyle = 'rgba(255,120,100,0.85)';
+    for (const a of g.sim.aircraft) {
+      if (a === p || !a.alive) continue;
+      const [rx, ry] = toScreen(a.fm.pos.x, a.fm.pos.z);
+      ctx.beginPath();
+      ctx.arc(rx, ry, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  // free-for-all bounty: revealed to everyone
+  if (RULES.ffa && RULES.bountyId >= 0) {
+    const b = g.sim.aircraft.find((a) => a.id === RULES.bountyId);
+    if (b && b.alive && b !== p) {
+      const [bx, by] = toScreen(b.fm.pos.x, b.fm.pos.z);
+      ctx.fillStyle = '#ffd35a';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('★', bx, by + 4);
+    }
+  }
   // airfields
   for (const f of AIRFIELDS) {
     const [x, y] = toScreen(f.x, f.z);
@@ -234,7 +278,7 @@ export function drawMinimap(canvas: HTMLCanvasElement, g: Game): void {
     ctx.globalAlpha = 1;
   }
   for (const a of g.sim.aircraft) {
-    if (a === p || a.team !== p.team || !a.alive) continue;
+    if (a === p || hostile(a, p) || !a.alive) continue;
     const [x, y] = toScreen(a.fm.pos.x, a.fm.pos.z);
     ctx.fillStyle = FRIEND;
     ctx.fillRect(x - 3, y - 3, 6, 6);

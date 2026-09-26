@@ -5,10 +5,11 @@ import type { Game } from '../game/game';
 import { el, button } from './dom';
 import { HeightGrid, GRID_N } from '../world/heightGrid';
 import { MAP_HALF, MAP_SIZE, NM } from '../core/constants';
-import { AIRFIELDS, ISLANDS } from '../world/islands';
+import { AIRFIELDS, ISLANDS, activeMap } from '../world/islands';
 import { GCI_SITES } from '../game/teamPicture';
 import { getGrottoes } from '../world/terrain';
 import { clamp } from '../core/math';
+import { hostile, RULES } from '../game/rules';
 
 export function renderReliefImage(grid: HeightGrid, size: number): HTMLCanvasElement {
   const c = document.createElement('canvas');
@@ -202,8 +203,8 @@ export class MapView {
     c.fillStyle = 'rgba(80,220,255,0.8)';
     c.font = "10px 'Share Tech Mono', monospace";
     if (this.zoom > 2.5) for (const gr of getGrottoes()) c.fillText(gr.name, X(gr.x), Y(gr.z) - 6);
-    // GCI coverage rings (nominal, high altitude)
-    for (const site of GCI_SITES) {
+    // GCI coverage rings (nominal, high altitude) -- none in a free-for-all
+    for (const site of RULES.ffa ? [] : GCI_SITES) {
       c.strokeStyle = site.team === 'blue' ? 'rgba(90,169,255,0.18)' : 'rgba(255,90,72,0.18)';
       c.beginPath();
       c.arc(X(site.pos.x), Y(site.pos.z), site.rangeNm * NM * s, 0, Math.PI * 2);
@@ -227,6 +228,34 @@ export class MapView {
       c.fillStyle = '#e6f0f8';
       c.fillText(`${f.name} (${f.team.toUpperCase()})`, x, y + 22);
     }
+    // free-for-all: the storm outside the zone, the zone edge and the next circle
+    const zn = RULES.zone;
+    if (zn.active) {
+      c.save();
+      c.beginPath();
+      c.rect(0, 0, this.canvas.width, this.canvas.height);
+      c.arc(X(zn.x), Y(zn.z), zn.r * s, 0, Math.PI * 2, true);
+      c.fillStyle = 'rgba(110,70,255,0.2)';
+      c.fill('evenodd');
+      c.strokeStyle = 'rgba(170,140,255,0.95)';
+      c.lineWidth = 2.5;
+      c.beginPath();
+      c.arc(X(zn.x), Y(zn.z), zn.r * s, 0, Math.PI * 2);
+      c.stroke();
+      if (zn.nr > 0) {
+        c.strokeStyle = 'rgba(255,255,255,0.85)';
+        c.lineWidth = 1.5;
+        c.setLineDash([8, 6]);
+        c.beginPath();
+        c.arc(X(zn.nx), Y(zn.nz), zn.nr * s, 0, Math.PI * 2);
+        c.stroke();
+        c.setLineDash([]);
+        c.fillStyle = '#fff';
+        c.font = "11px 'Share Tech Mono', monospace";
+        c.fillText('NEXT ZONE', X(zn.nx), Y(zn.nz) - zn.nr * s - 6);
+      }
+      c.restore();
+    }
     if (!g.sim) return;
     const now = g.sim.time;
     // known hostile tracks
@@ -248,7 +277,7 @@ export class MapView {
       }
     }
     for (const a of g.sim.aircraft) {
-      if (!a.alive || !p || a === p || a.team !== p.team) continue;
+      if (!a.alive || !p || a === p || hostile(a, p)) continue;
       c.fillStyle = '#5dff8a';
       c.fillRect(X(a.fm.pos.x) - 3, Y(a.fm.pos.z) - 3, 6, 6);
     }
@@ -274,7 +303,7 @@ export class MapView {
       c.restore();
     }
     this.legend.innerHTML =
-      `THEATER 400 × 400 NM · GRID 50 NM · ZOOM ${this.zoom.toFixed(1)}×<br>` +
+      `${activeMap.name} ${activeMap.sizeNm} × ${activeMap.sizeNm} NM · GRID 50 NM · ZOOM ${this.zoom.toFixed(1)}×<br>` +
       `<span style="color:#6cff9a">▲</span> YOU &nbsp; <span style="color:#5dff8a">■</span> FRIENDLY &nbsp; <span style="color:#ff5a48">▲</span> HOSTILE TRACK (GCI / RADAR)<br>` +
       `<span style="color:#5aa9ff">○</span> BLUE AIRFIELD &nbsp; <span style="color:#ff5a48">○</span> RED AIRFIELD · FAINT RINGS: GCI RADAR RANGE<br>` +
       `WHEEL: ZOOM · DRAG: PAN · TERRAIN MASKS ALL RADARS`;

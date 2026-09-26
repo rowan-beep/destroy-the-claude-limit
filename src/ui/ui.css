@@ -521,3 +521,13 @@ body.touch-mode .xp-bar { bottom: 8px; }
   .st-row { grid-template-columns: 1fr; gap: 8px; }
   .st-presets { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+/* free-for-all */
+.mode-card.new { position: relative; }
+.mode-card.new::after { content: 'NEW'; position: absolute; top: 8px; right: 10px; font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: #0b1016; background: linear-gradient(90deg, #ffd35a, #ff9a3c); padding: 1px 6px; border-radius: 2px; }
+.spectator .sp-row.ffa .sp-team { color: #ffd35a; }
+.spectator .sp-row.ffa .sp-chip { border-color: rgba(255, 211, 90, 0.35); }
+.spectator .sp-chip.bounty { border-color: #ffd35a; color: #ffe39a; box-shadow: 0 0 8px rgba(255, 211, 90, 0.4); }
+.storm-overlay { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.6s; background: radial-gradient(ellipse at center, rgba(90, 60, 255, 0) 45%, rgba(110, 70, 255, 0.28) 80%, rgba(150, 90, 255, 0.5) 100%); }
+.storm-overlay.on { opacity: 1; animation: storm-pulse 1.2s ease-in-out infinite; }
+@keyframes storm-pulse { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.5); } }

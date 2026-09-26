@@ -64,6 +64,10 @@ export class Hud {
   private killfeed: HTMLElement;
   private feedItems: Msg[] = [];
   private centerWarn: HTMLElement;
+  /** purple storm vignette while outside the free-for-all zone */
+  private stormEl: HTMLElement;
+  /** centre warning supplied by the game mode (free-for-all storm) */
+  private modeWarning = '';
   private shotdownEl: HTMLElement;
   private weaponSlots: Record<string, HTMLElement> = {};
   private cmSlot: HTMLElement;
@@ -102,6 +106,7 @@ export class Hud {
     this.orderTitle = el('div', 'order-title', this.orderBox);
     this.orderBody = el('div', 'order-body', this.orderBox);
     this.msgList = el('div', 'msg-list', this.root);
+    this.stormEl = el('div', 'storm-overlay', this.root);
     this.centerWarn = el('div', 'center-warning', this.root);
     this.shotdownEl = el('div', 'shotdown hidden', this.root);
 
@@ -353,9 +358,11 @@ export class Hud {
     const st = g.mode?.status();
     if (st) {
       setText(this.scoreTitle, st.title);
-      setText(this.scoreBlue, `FRIENDLY ${st.blue}`);
+      setText(this.scoreBlue, st.blueText ?? `FRIENDLY ${st.blue}`);
       setText(this.scoreTimer, fmtTime(st.timer));
-      setText(this.scoreRed, `ENEMY ${st.red}`);
+      setText(this.scoreRed, st.redText ?? `ENEMY ${st.red}`);
+      this.modeWarning = st.warning ?? '';
+      setClass(this.stormEl, 'on', this.modeWarning.startsWith('OUTSIDE'));
       setText(this.objective, st.objective);
     }
     const metric = g.settings.gameplay.units === 'metric';
@@ -481,6 +488,7 @@ export class Hud {
         text = 'RADAR LOCK — BEAM, NOTCH OR TERRAIN MASK';
         amber = true;
       } else if (!fm.onGround && fm.gearPos < 0.5 && fm.vel.y < -5 && fm.agl / -fm.vel.y < 5 && fm.agl < 1500) text = 'PULL UP! PULL UP!';
+      else if (this.modeWarning) text = this.modeWarning;
       else if (fm.stallWarning) {
         text = 'ANGLE OF ATTACK LIMIT — UNLOAD';
         amber = true;
