@@ -10,6 +10,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '2.2.1',
+    date: '2026-09-26',
+    title: "Aligned missile racks",
+    notes: [
+      "Missile racks rebuilt on all four jets to match the real thing: missiles now ride in matched pairs on twin-rail racks, side by side on the shoulders of a shared pylon (like LAU-128s on an F-15 pylon), level with each other, parallel to the fuselage and with their noses lined up.",
+      "F-15EX: both wing pylons are twin racks, four missiles per wing in two neat pairs, plus the tandem pairs along the conformal tanks.",
+      "F/A-18E/F: the outboard wing pylon is a twin rack, level with the inboard pylon. Typhoon: the wing missiles pair up on one twin rack. Su-35S: the inner wing pair shares a twin rack and the outboard missile rides a shoulder rail at the same height.",
+      "Fuel tanks on a rack station hang from the middle of the pylon, below the shoulder missiles. Loadouts, weapon counts and handling are unchanged, and missiles launch from their new rail positions.",
+    ],
+  },
+  {
     version: '2.2.0',
     date: '2026-09-26',
     title: "XP and levels removed",

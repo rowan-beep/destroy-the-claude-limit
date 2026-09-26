@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import type { Aircraft } from '../aircraft';
 import { airframeMaterials, Section } from './builder';
-import { storeGeometry, pylonGeometry, storeCenterY, PYLON_DROP } from './stores';
+import { storeGeometry, pylonGeometry, shoulderGeometry, storeCenterY, storeCenterX, onShoulder, PYLON_DROP } from './stores';
 import { DEG } from '../../core/constants';
 import { clamp } from '../../core/math';
 import { makeInsignia } from './decals';
@@ -420,12 +420,17 @@ export class AirframeVisual {
       if (!st.store) continue;
       const g = new THREE.Group();
       const p = st.def.pos;
-      g.position.set(p[0], storeCenterY(st.def, st.store), p[2]);
+      const cx = storeCenterX(st.def, st.store);
+      const cy = storeCenterY(st.def, st.store);
+      g.position.set(cx, cy, p[2]);
       const store = new THREE.Mesh(storeGeometry(st.store), storeMaterial());
       store.castShadow = true;
       g.add(store);
       const drop = st.def.mount === 'pylon' ? (st.def.hang !== undefined ? PYLON_DROP : 0.55) : 0.1;
-      const py = new THREE.Mesh(pylonGeometry(st.def.mount, st.store, drop), storeMaterial());
+      const py = new THREE.Mesh(
+        onShoulder(st.def, st.store) ? shoulderGeometry(st.store, st.def.rack! - cx, st.def.hang! - cy) : pylonGeometry(st.def.mount, st.store, drop),
+        storeMaterial(),
+      );
       py.castShadow = true;
       g.add(py);
       this.body.add(g);

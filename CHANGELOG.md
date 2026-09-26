@@ -3,6 +3,13 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v2.2.1 — Aligned missile racks (2026-09-26)
+
+- Missile racks rebuilt on all four jets to match the real thing: missiles now ride in matched pairs on twin-rail racks, side by side on the shoulders of a shared pylon (like LAU-128s on an F-15 pylon), level with each other, parallel to the fuselage and with their noses lined up.
+- F-15EX: both wing pylons are twin racks, four missiles per wing in two neat pairs, plus the tandem pairs along the conformal tanks.
+- F/A-18E/F: the outboard wing pylon is a twin rack, level with the inboard pylon. Typhoon: the wing missiles pair up on one twin rack. Su-35S: the inner wing pair shares a twin rack and the outboard missile rides a shoulder rail at the same height.
+- Fuel tanks on a rack station hang from the middle of the pylon, below the shoulder missiles. Loadouts, weapon counts and handling are unchanged, and missiles launch from their new rail positions.
+
 ## v2.2.0 — XP and levels removed (2026-09-26)
 
 - Removed the pilot XP, level and money system completely: no pilot card on the main menu, no XP pop-ups or XP bar in flight, no level-up celebration, no XP section in the debrief, and its saved data is cleared. Everything else plays exactly the same.

@@ -213,6 +213,18 @@ export function storeRadius(store: StoreType): number {
 
 /** Pylon height below the wing for a hung store. */
 export const PYLON_DROP = 0.3;
+/** Twin-rack shoulder missiles: centre line this far below the wing underside. */
+export const SHOULDER_DROP = 0.25;
+
+/** A missile riding a shoulder rail of a twin rack (not a tank). */
+export function onShoulder(def: StationDef, store: StoreType): boolean {
+  return def.rack !== undefined && def.hang !== undefined && store !== 'TANK';
+}
+
+/** Sideways position of the store: a tank on a twin rack hangs from the pylon centre. */
+export function storeCenterX(def: StationDef, store: StoreType): number {
+  return def.rack !== undefined && store === 'TANK' ? def.rack : def.pos[0];
+}
 
 /**
  * Height of the store's centre line at a station: hung below the wing
@@ -220,6 +232,7 @@ export const PYLON_DROP = 0.3;
  */
 export function storeCenterY(def: StationDef, store: StoreType): number {
   if (def.hang === undefined) return def.pos[1];
+  if (onShoulder(def, store)) return def.hang - SHOULDER_DROP;
   const r = storeRadius(store);
   if (def.mount === 'rail') return def.hang - (r + 0.13);
   if (def.mount === 'pylon') return def.hang - (r + 0.02 + PYLON_DROP);
@@ -251,6 +264,33 @@ export function pylonGeometry(mount: string, store: StoreType, drop: number): TH
     else for (const z of [-0.6, 0.5]) for (const s of [-1, 1]) parts.push(rod(new THREE.Vector3(s * 0.05, r + 0.05, z), new THREE.Vector3(s * 0.16, r * 0.8, z), 0.015, 0.015, 6));
     g = col(join(parts));
   }
+  cache[key] = g;
+  return g;
+}
+
+/**
+ * Twin-rack shoulder mount, in the missile's frame: the shared pylon blade
+ * `dx` to one side (from the wing, `top` above, down past the missile) and a
+ * LAU-128 style launcher bridging from the pylon's flank to the missile.
+ */
+export function shoulderGeometry(store: StoreType, dx: number, top: number): THREE.BufferGeometry {
+  const key = `shoulder-${store}-${dx.toFixed(2)}-${top.toFixed(2)}`;
+  if (cache[key]) return cache[key]!;
+  const r = storeRadius(store);
+  const ir = store === 'AIM9X' || store === 'R74M';
+  const s = Math.sign(dx) || 1;
+  const bottom = r + 0.12;
+  const blade = pylonBlade(top + bottom, 2.3, 0.13);
+  blade.translate(dx, -bottom, -0.1);
+  const len = ir ? 2.0 : 2.4;
+  const reach = Math.abs(dx) - 0.06 - r * 0.35;
+  const body = roundBox(reach, 0.085, len, 0.025);
+  body.translate(s * (r * 0.35 + reach / 2), r * 0.55, 0.05);
+  const nose = lathe([[0.002, -len / 2 - 0.12], [0.04, -len / 2 - 0.02], [0.045, -len / 2 + 0.05]], 12);
+  nose.translate(s * (r * 0.35 + reach * 0.55), r * 0.55, 0.05);
+  const rail = roundBox(0.04, 0.02, len * 0.92, 0.006);
+  rail.translate(s * r * 0.55, r * 0.78, 0.05);
+  const g = colorize(join([blade, body, nose, rail]), (_p, c) => c.copy(PYLON));
   cache[key] = g;
   return g;
 }
