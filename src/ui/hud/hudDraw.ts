@@ -277,6 +277,90 @@ export class HudPainter {
     c.restore();
   }
 
+  /**
+   * Helmet-mounted display (JHMCS / Striker II): symbology fixed to the
+   * pilot's view while looking off-boresight. Blanked over the HUD.
+   */
+  drawHmd(g: Game): void {
+    const p = g.player;
+    if (!p || !p.headLos) return;
+    const cam = g.renderer.camera;
+    const offDeg = Math.acos(clamp(p.headLos.dot(p.fm.fwd), -1, 1)) / DEG;
+    if (offDeg < 12) return;
+    const c = this.ctx;
+    const cx = this.w / 2, cy = this.h / 2;
+    const fm = p.fm;
+    const col = '#7dff9a';
+    c.save();
+    c.strokeStyle = col;
+    c.fillStyle = col;
+    c.lineWidth = 1.5;
+    c.shadowColor = 'rgba(80,255,140,0.6)';
+    c.shadowBlur = 3;
+    // aiming reticle
+    this.circle(cx, cy, 16);
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]) this.line(cx + dx * 20, cy + dy * 20, cx + dx * 28, cy + dy * 28);
+    // AIM-9X seeker field around the line of sight
+    if (p.selectedWeapon === 'AIM9X') {
+      const r9 = this.pxPerRad(cam) * Math.tan(9 * DEG);
+      c.setLineDash([6, 6]);
+      this.circle(cx, cy, r9);
+      c.setLineDash([]);
+      this.text(p.seekerTarget ? 'SEEKER LOCK' : 'SEEKER SEARCH', cx, cy + r9 + 14, p.seekerTarget ? col : GREEN_DIM, 12, 'center', true);
+    }
+    // data around the reticle
+    const hdgLos = (Math.atan2(p.headLos.x, -p.headLos.z) / DEG + 360) % 360;
+    const elLos = Math.asin(clamp(p.headLos.y, -1, 1)) / DEG;
+    this.text(String(Math.round(hdgLos) % 360).padStart(3, '0'), cx, cy + 118, col, 15, 'center', true);
+    this.text(`${elLos >= 0 ? '+' : ''}${elLos.toFixed(0)}°`, cx, cy + 136, GREEN_DIM, 12, 'center');
+    this.text(String(Math.round(fm.cas / KT)), cx - 120, cy, col, 15, 'right', true);
+    this.text(`${Math.round(fm.pos.y / FT / 100) * 100}`, cx + 120, cy, col, 15, 'left', true);
+    this.text(`${fm.nz.toFixed(1)}G`, cx - 120, cy + 20, fm.nz > p.spec.gLimit - 0.3 ? AMBER : GREEN_DIM, 12, 'right');
+    const w = p.selectedWeapon;
+    this.text(w === 'GUN' ? `GUN ${p.gunAmmo}` : `${w === 'AIM9X' ? '9X' : '120D'} ${p.countOf(w)}`, cx + 120, cy + 20, GREEN_DIM, 12, 'left');
+    const name = p.type === 'TYPHOON' ? 'STRIKER II' : p.type === 'F15EX' ? 'JHMCS II' : 'JHMCS';
+    this.text(name, cx, cy - 118, GREEN_DIM, 11, 'center');
+    // nose cue: where the jet is pointing
+    const nose = this.projectDir(cam, fm.fwd);
+    let ax = nose.x - cx, ay = nose.y - cy;
+    if (!nose.front) {
+      ax = -ax;
+      ay = -ay;
+    }
+    const a = Math.atan2(ay, ax);
+    const rr = 78;
+    c.save();
+    c.translate(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
+    c.rotate(a);
+    c.beginPath();
+    c.moveTo(10, 0);
+    c.lineTo(-4, -6);
+    c.lineTo(-4, 6);
+    c.closePath();
+    c.stroke();
+    c.restore();
+    this.text(`NOSE ${Math.round(offDeg)}°`, cx + Math.cos(a) * rr, cy + Math.sin(a) * rr - 14, GREEN_DIM, 11, 'center');
+    // helmet cue: the target look-and-lock would take
+    if (!p.lockedTarget) {
+      const t = p.helmetTarget(g.sim, p.headLos);
+      if (t) {
+        const tp = this.project(cam, t.fm.pos);
+        if (tp.front) {
+          c.setLineDash([3, 3]);
+          c.strokeRect(tp.x - 12, tp.y - 12, 24, 24);
+          c.setLineDash([]);
+          this.text('R: LOCK', tp.x, tp.y + 24, GREEN_DIM, 11, 'center');
+        }
+      }
+    }
+    c.restore();
+  }
+
   /** Screen outline of the HUD combiner glass, or null outside the cockpit. */
   private glassOutline(g: Game, cam: THREE.PerspectiveCamera): number[] | null {
     const ck = g.cockpitView.active;

@@ -388,6 +388,12 @@ export class Game implements ModeHost {
   private updateCockpit(inCockpit: boolean): void {
     const p = this.player;
     const vis = p ? this.combat.aircraftVis.get(p) : undefined;
+    if (p) {
+      // helmet line of sight when looking off-boresight in the cockpit
+      const cam = this.renderer.camera;
+      const look = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
+      p.headLos = inCockpit && p.alive && look.dot(p.fm.fwd) < Math.cos(4 * DEG) ? look : null;
+    }
     if (!p || !vis || !inCockpit || !this.avionics) {
       this.renderer.setOverlay(null, null);
       return;
@@ -597,7 +603,19 @@ export class Game implements ModeHost {
     if (firePressed && p.selectedWeapon !== 'GUN') this.fireMissile();
 
     // sensors
-    if (inp.pressed('lock')) {
+    if (inp.pressed('lock') && p.headLos) {
+      // helmet look-and-lock: radar if the antenna can reach, otherwise the 9X seeker
+      const t = p.helmetTarget(this.sim, p.headLos);
+      if (!t) this.message('HMD: NO TARGET IN THE HELMET CUE', 'warn', 2);
+      else if (p.radar.setLock(t, this.sim)) {
+        audio.beep(1500, 0.08, 0.05);
+        this.message(`HMD LOCK — ${t.spec.shortName.toUpperCase()}`, 'good', 2);
+      } else if (p.selectedWeapon === 'AIM9X' && p.countOf('AIM9X') > 0) {
+        p.seekerTarget = t;
+        audio.beep(1800, 0.08, 0.05);
+        this.message('HMD: AIM-9X SEEKER SLAVED', 'good', 2);
+      } else this.message('HMD: TARGET OUTSIDE RADAR LIMITS — SELECT AIM-9X [2]', 'warn', 2.5);
+    } else if (inp.pressed('lock')) {
       const t = p.radar.cycleLock(this.sim);
       if (t) audio.beep(1500, 0.08, 0.05);
       else this.message(p.radar.mode === 'OFF' ? 'RADAR OFF (SILENT) — [Y] TO TURN ON' : 'NO RADAR CONTACT TO LOCK', 'warn', 2);

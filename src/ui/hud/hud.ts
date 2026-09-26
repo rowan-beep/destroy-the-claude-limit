@@ -280,6 +280,7 @@ export class Hud {
     if (alive && !this.hidden) {
       if (g.cam.mode === 'cockpit') {
         this.painter.drawCockpit(g);
+        this.painter.drawHmd(g);
         this.painter.contactMarkers(g, p, g.renderer.camera);
       } else if (g.cam.mode !== 'death') {
         this.painter.drawExternal(g);

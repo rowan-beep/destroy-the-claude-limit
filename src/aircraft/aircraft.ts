@@ -73,6 +73,12 @@ export class Aircraft {
   jammerOn = true;
   /** countermeasure program: expendables per press */
   cmBurst = 2;
+  /**
+   * Helmet-mounted cueing: the pilot's line of sight (world direction) while
+   * looking off-boresight. The AIM-9X seeker searches around it instead of
+   * the nose.
+   */
+  headLos: THREE.Vector3 | null = null;
   /** user-facing name */
   callsign: string;
 
@@ -169,6 +175,27 @@ export class Aircraft {
     this.fm.engineOut.fill(false);
     this.fm.overG = 0;
     this.refreshStores();
+  }
+
+  /**
+   * Helmet "look and lock": the hostile nearest the pilot's line of sight
+   * within 10 deg, visible (terrain) and inside 12 NM.
+   */
+  helmetTarget(sim: Sim, los: THREE.Vector3): Aircraft | null {
+    let best: Aircraft | null = null;
+    let bestAng = 10 * DEG;
+    for (const t of sim.aircraft) {
+      if (!t.alive || t.team === this.team) continue;
+      _tmp.subVectors(t.fm.pos, this.fm.pos);
+      const d = _tmp.length();
+      if (d > 12 * NM || d < 50) continue;
+      const ang = Math.acos(Math.max(-1, Math.min(1, _tmp.dot(los) / d)));
+      if (ang < bestAng && sim.lineOfSight(this.fm.pos, t.fm.pos)) {
+        bestAng = ang;
+        best = t;
+      }
+    }
+    return best;
   }
 
   /** Primary target from sensors (radar STT, IRST lock). */
@@ -355,11 +382,17 @@ export class Aircraft {
       this.seekerTone = 'lock';
       return;
     }
-    // boresight search
+    // boresight search, or around the helmet line of sight when cueing
+    const los = this.headLos;
+    const cosCone = Math.cos((los ? 9 : 13) * DEG);
     let best: Aircraft | null = null;
     let bestScore = 0;
     for (const t of sim.aircraft) {
-      if (!canLock(t, 13 * DEG)) continue;
+      if (!canLock(t, los ? spec.gimbalDeg * DEG : 13 * DEG)) continue;
+      if (los) {
+        _tmp.subVectors(t.fm.pos, fm.pos).normalize();
+        if (_tmp.dot(los) < cosCone) continue;
+      }
       const score = irIntensity(t, fm.pos) / Math.max(500, t.fm.pos.distanceTo(fm.pos));
       if (score > bestScore) {
         bestScore = score;
