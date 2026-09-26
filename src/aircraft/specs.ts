@@ -32,6 +32,12 @@ export interface StationDef {
   allowed: StoreType[];
   /** visual: rail (wingtip / fuselage launcher) or pylon */
   mount: 'rail' | 'pylon' | 'conformal' | 'semi-recessed';
+  /**
+   * Height of the wing underside at this station. When given, each store
+   * hangs its own radius below it (a tank lower than a missile) instead of
+   * sitting at pos[1].
+   */
+  hang?: number;
 }
 
 export interface LoadoutPreset {
@@ -230,19 +236,19 @@ const F15EX: AircraftSpec = {
     port: [2.0, 0.5, -3.2],
   },
   stations: [
-    { id: 1, label: 'LW OB', pos: [-4.6, -0.55, 0.9], allowed: [AIM9, AIM120], mount: 'rail' },
-    { id: 2, label: 'LW PYL-O', pos: [-3.5, -0.75, 0.7], allowed: [AIM120, AIM9], mount: 'pylon' },
-    { id: 3, label: 'LW PYL-I', pos: [-2.85, -0.75, 0.7], allowed: [AIM120, AIM9, TANK], mount: 'pylon' },
-    { id: 4, label: 'LW IB', pos: [-2.2, -0.75, 0.7], allowed: [AIM120, AIM9], mount: 'rail' },
+    { id: 1, label: 'LW OB', pos: [-4.6, -0.55, 1.9], allowed: [AIM9, AIM120], mount: 'rail', hang: 0.1 },
+    { id: 2, label: 'LW PYL-O', pos: [-3.5, -0.75, 1.3], allowed: [AIM120, AIM9], mount: 'pylon', hang: 0.09 },
+    { id: 3, label: 'LW PYL-I', pos: [-2.85, -0.75, 1.0], allowed: [AIM120, AIM9, TANK], mount: 'pylon', hang: 0.08 },
+    { id: 4, label: 'LW IB', pos: [-2.2, -0.75, 0.7], allowed: [AIM120, AIM9], mount: 'rail', hang: 0.07 },
     { id: 5, label: 'L CFT-F', pos: [-1.55, -0.95, -1.4], allowed: [AIM120], mount: 'conformal' },
     { id: 6, label: 'L CFT-A', pos: [-1.55, -0.95, 1.9], allowed: [AIM120], mount: 'conformal' },
     { id: 7, label: 'CL', pos: [0, -1.2, 0.4], allowed: [TANK], mount: 'pylon' },
     { id: 8, label: 'R CFT-A', pos: [1.55, -0.95, 1.9], allowed: [AIM120], mount: 'conformal' },
     { id: 9, label: 'R CFT-F', pos: [1.55, -0.95, -1.4], allowed: [AIM120], mount: 'conformal' },
-    { id: 10, label: 'RW IB', pos: [2.2, -0.75, 0.7], allowed: [AIM120, AIM9], mount: 'rail' },
-    { id: 11, label: 'RW PYL-I', pos: [2.85, -0.75, 0.7], allowed: [AIM120, AIM9, TANK], mount: 'pylon' },
-    { id: 12, label: 'RW PYL-O', pos: [3.5, -0.75, 0.7], allowed: [AIM120, AIM9], mount: 'pylon' },
-    { id: 13, label: 'RW OB', pos: [4.6, -0.55, 0.9], allowed: [AIM9, AIM120], mount: 'rail' },
+    { id: 10, label: 'RW IB', pos: [2.2, -0.75, 0.7], allowed: [AIM120, AIM9], mount: 'rail', hang: 0.07 },
+    { id: 11, label: 'RW PYL-I', pos: [2.85, -0.75, 1.0], allowed: [AIM120, AIM9, TANK], mount: 'pylon', hang: 0.08 },
+    { id: 12, label: 'RW PYL-O', pos: [3.5, -0.75, 1.3], allowed: [AIM120, AIM9], mount: 'pylon', hang: 0.09 },
+    { id: 13, label: 'RW OB', pos: [4.6, -0.55, 1.9], allowed: [AIM9, AIM120], mount: 'rail', hang: 0.1 },
   ],
   loadouts: [
     {
@@ -348,17 +354,17 @@ const FA18: AircraftSpec = {
     port: [0, 0.55, -8.2],
   },
   stations: [
-    { id: 1, label: 'LWT', pos: [-6.75, -0.1, 1.2], allowed: [AIM9], mount: 'rail' },
-    { id: 2, label: 'LW OB', pos: [-5.1, -0.85, 0.8], allowed: [AIM120, AIM9], mount: 'pylon' },
-    { id: 3, label: 'LW MID', pos: [-3.9, -0.95, 0.5], allowed: [AIM120, AIM9, TANK], mount: 'pylon' },
-    { id: 4, label: 'LW IB', pos: [-2.7, -1.05, 0.25], allowed: [AIM120, TANK], mount: 'pylon' },
+    { id: 1, label: 'LWT', pos: [-6.75, -0.1, 2.4], allowed: [AIM9], mount: 'rail' },
+    { id: 2, label: 'LW OB', pos: [-5.1, -0.85, 2.0], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.035 },
+    { id: 3, label: 'LW MID', pos: [-3.9, -0.95, 1.8], allowed: [AIM120, AIM9, TANK], mount: 'pylon', hang: -0.04 },
+    { id: 4, label: 'LW IB', pos: [-2.7, -1.05, 1.5], allowed: [AIM120, TANK], mount: 'pylon', hang: -0.045 },
     { id: 5, label: 'L FUS', pos: [-0.85, -1.1, -1.4], allowed: [AIM120], mount: 'semi-recessed' },
     { id: 6, label: 'CL', pos: [0, -1.35, 0.2], allowed: [TANK], mount: 'pylon' },
     { id: 7, label: 'R FUS', pos: [0.85, -1.1, -1.4], allowed: [AIM120], mount: 'semi-recessed' },
-    { id: 8, label: 'RW IB', pos: [2.7, -1.05, 0.25], allowed: [AIM120, TANK], mount: 'pylon' },
-    { id: 9, label: 'RW MID', pos: [3.9, -0.95, 0.5], allowed: [AIM120, AIM9, TANK], mount: 'pylon' },
-    { id: 10, label: 'RW OB', pos: [5.1, -0.85, 0.8], allowed: [AIM120, AIM9], mount: 'pylon' },
-    { id: 11, label: 'RWT', pos: [6.75, -0.1, 1.2], allowed: [AIM9], mount: 'rail' },
+    { id: 8, label: 'RW IB', pos: [2.7, -1.05, 1.5], allowed: [AIM120, TANK], mount: 'pylon', hang: -0.045 },
+    { id: 9, label: 'RW MID', pos: [3.9, -0.95, 1.8], allowed: [AIM120, AIM9, TANK], mount: 'pylon', hang: -0.04 },
+    { id: 10, label: 'RW OB', pos: [5.1, -0.85, 2.0], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.035 },
+    { id: 11, label: 'RWT', pos: [6.75, -0.1, 2.4], allowed: [AIM9], mount: 'rail' },
   ],
   loadouts: [
     {
@@ -464,17 +470,17 @@ const TYPHOON: AircraftSpec = {
     port: [0.75, -0.3, -3.6],
   },
   stations: [
-    { id: 1, label: 'LW OB', pos: [-5.1, -0.35, 1.9], allowed: [AIM9], mount: 'rail' },
-    { id: 2, label: 'LW MID', pos: [-3.9, -0.6, 1.3], allowed: [AIM120, AIM9], mount: 'pylon' },
-    { id: 3, label: 'LW IB', pos: [-2.8, -0.7, 0.8], allowed: [AIM120, AIM9, TANK], mount: 'pylon' },
+    { id: 1, label: 'LW OB', pos: [-5.1, -0.35, 4.2], allowed: [AIM9], mount: 'rail', hang: -0.44 },
+    { id: 2, label: 'LW MID', pos: [-3.9, -0.6, 3.2], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.44 },
+    { id: 3, label: 'LW IB', pos: [-2.8, -0.7, 2.6], allowed: [AIM120, AIM9, TANK], mount: 'pylon', hang: -0.45 },
     { id: 4, label: 'L FUS-F', pos: [-0.9, -1.0, -1.2], allowed: [AIM120], mount: 'semi-recessed' },
     { id: 5, label: 'L FUS-A', pos: [-0.9, -1.0, 1.6], allowed: [AIM120], mount: 'semi-recessed' },
     { id: 6, label: 'CL', pos: [0, -1.25, 0.4], allowed: [TANK], mount: 'pylon' },
     { id: 7, label: 'R FUS-A', pos: [0.9, -1.0, 1.6], allowed: [AIM120], mount: 'semi-recessed' },
     { id: 8, label: 'R FUS-F', pos: [0.9, -1.0, -1.2], allowed: [AIM120], mount: 'semi-recessed' },
-    { id: 9, label: 'RW IB', pos: [2.8, -0.7, 0.8], allowed: [AIM120, AIM9, TANK], mount: 'pylon' },
-    { id: 10, label: 'RW MID', pos: [3.9, -0.6, 1.3], allowed: [AIM120, AIM9], mount: 'pylon' },
-    { id: 11, label: 'RW OB', pos: [5.1, -0.35, 1.9], allowed: [AIM9], mount: 'rail' },
+    { id: 9, label: 'RW IB', pos: [2.8, -0.7, 2.6], allowed: [AIM120, AIM9, TANK], mount: 'pylon', hang: -0.45 },
+    { id: 10, label: 'RW MID', pos: [3.9, -0.6, 3.2], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.44 },
+    { id: 11, label: 'RW OB', pos: [5.1, -0.35, 4.2], allowed: [AIM9], mount: 'rail', hang: -0.44 },
   ],
   loadouts: [
     {

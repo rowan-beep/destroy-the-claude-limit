@@ -3,6 +3,13 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v1.7.4 — Pusk! and model fixes (2026-09-26)
+
+- Su-35S launch call is now just 'Pusk!' (Пуск, 'launch!'), for both the R-77M and the R-74M. It's spoken in Russian if your device has a Russian voice. The F-15EX, F/A-18E/F and Typhoon keep 'Fox three' (AIM-120D) and 'Fox two' (AIM-9X).
+- Model fixes for the F-15EX, F/A-18E/F and Typhoon: every wing pylon and missile rail now sits under the wing at mid-chord. Before, many hung well ahead of the leading edge; the Typhoon's outer rails started almost 3 m in front of the wingtip, and some Super Hornet pylons floated 1 m ahead of the wing.
+- Stores now hang the right distance below the wing for their size: a fuel tank sits lower than a missile on the same pylon, so tanks no longer cut into the wing and missiles no longer float below it. Missiles launch from where they visibly hang.
+- Landing indexer fixed for all four jets: its on-speed angle of attack now matches how each jet actually flies at approach speed (F-15EX 12, F/A-18E/F 10, Typhoon 13, Su-35S 12 degrees). Before, the F-15EX, Super Hornet and Typhoon always showed 'slow' on a correct approach.
+
 ## v1.7.3 — Correct launch calls (2026-09-26)
 
 - Launch calls fixed. F-15EX, F/A-18E/F and Typhoon use the NATO brevity codes again: 'FOX 3' / 'Fox three' for the AIM-120D and 'FOX 2' / 'Fox two' for the AIM-9X.

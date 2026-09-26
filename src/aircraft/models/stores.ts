@@ -4,7 +4,7 @@
 
 import * as THREE from 'three';
 import { lathe, wing, join, colorize, roundBox, rod, P2, loftProfile, stations, curve } from './kit';
-import type { StoreType } from '../specs';
+import type { StoreType, StationDef } from '../specs';
 
 let cache: Partial<Record<string, THREE.BufferGeometry>> = {};
 
@@ -206,11 +206,31 @@ function launcher(len: number, r: number): THREE.BufferGeometry {
   return join([body, nose, rail]);
 }
 
+/** Store radius (m). */
+export function storeRadius(store: StoreType): number {
+  return store === 'TANK' ? 0.38 : store === 'AIM120D' ? 0.089 : store === 'R77M' ? 0.1 : store === 'R74M' ? 0.085 : 0.064;
+}
+
+/** Pylon height below the wing for a hung store. */
+export const PYLON_DROP = 0.3;
+
+/**
+ * Height of the store's centre line at a station: hung below the wing
+ * underside by the pylon (or rail) and its own radius, or the fixed pos[1].
+ */
+export function storeCenterY(def: StationDef, store: StoreType): number {
+  if (def.hang === undefined) return def.pos[1];
+  const r = storeRadius(store);
+  if (def.mount === 'rail') return def.hang - (r + 0.13);
+  if (def.mount === 'pylon') return def.hang - (r + 0.02 + PYLON_DROP);
+  return def.hang - (r + 0.06);
+}
+
 /** Pylon / launcher between the airframe and the store. */
 export function pylonGeometry(mount: string, store: StoreType, drop: number): THREE.BufferGeometry {
   const key = `pylon-${mount}-${store}-${drop.toFixed(2)}`;
   if (cache[key]) return cache[key]!;
-  const r = store === 'TANK' ? 0.38 : store === 'AIM120D' ? 0.089 : store === 'R77M' ? 0.1 : store === 'R74M' ? 0.085 : 0.064;
+  const r = storeRadius(store);
   const ir = store === 'AIM9X' || store === 'R74M';
   const col = (g: THREE.BufferGeometry) => colorize(g, (_p, c) => c.copy(PYLON));
   let g: THREE.BufferGeometry;

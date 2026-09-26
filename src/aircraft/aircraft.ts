@@ -17,6 +17,7 @@ import { irIntensity } from '../sensors/signatures';
 import type { Sim } from '../game/sim';
 import type { AIPilot } from '../ai/pilot';
 import type { PaintConfig } from './models/paint';
+import { storeCenterY } from './models/stores';
 
 export interface StationState {
   def: StationDef;
@@ -482,7 +483,7 @@ export class Aircraft {
     st.store = null;
     this.refreshStores();
     const p = st.def.pos;
-    const launchPos = _tmp.set(p[0], p[1], p[2]).applyQuaternion(this.fm.quat).add(this.fm.pos).clone();
+    const launchPos = _tmp.set(p[0], storeCenterY(st.def, type), p[2]).applyQuaternion(this.fm.quat).add(this.fm.pos).clone();
     const stt = !!target && this.radar.lock === target;
     const m = new Missile(type, this, target, launchPos, st.def.id, stt);
     sim.addMissile(m);
