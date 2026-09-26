@@ -27,10 +27,12 @@ import { CockpitView } from '../render/cockpitView';
 import { Avionics } from '../avionics/avionics';
 import { gradeLanding } from '../avionics/nav';
 import type { TouchControls } from '../ui/touchControls';
+import type { ReplayUi } from '../ui/replayUi';
+import { ReplayRecorder, ReplayPlayer } from './replay';
 import { SortieRecorder, LogbookData, MissionOutcome, loadLogbook, saveLogbook, commitSortie, medalName } from './logbook';
 import { NM } from '../core/constants';
 
-export type GameState = 'menu' | 'loading' | 'playing' | 'paused' | 'map' | 'results';
+export type GameState = 'menu' | 'loading' | 'playing' | 'paused' | 'map' | 'results' | 'replay';
 
 export class Game implements ModeHost {
   readonly renderer: GameRenderer;
@@ -51,6 +53,11 @@ export class Game implements ModeHost {
   sortie: SortieRecorder | null = null;
   /** on-screen controls (phones / tablets), created by the app shell */
   touch: TouchControls | null = null;
+  /** track recording of the current mission and the replay viewer */
+  recorder: ReplayRecorder | null = null;
+  replay: ReplayPlayer | null = null;
+  replayUi: ReplayUi | null = null;
+  private lastResult: MissionResult | null = null;
   hud!: Hud;
   mode: GameMode | null = null;
   player: Aircraft | null = null;
@@ -153,6 +160,7 @@ export class Game implements ModeHost {
     this.speedbrake = false;
     this.mode = cfg.mode === 'free' ? new FreeFlightMode(this) : cfg.mode === 'waves' ? new WavesMode(this) : new DuelMode(this);
     this.mode.start();
+    this.recorder = new ReplayRecorder(this.sim, cfg.mode.toUpperCase());
     this.syncPlayerControls();
     this.hud.reset(this);
     onProgress(0.2, 'GENERATING TERRAIN');
@@ -183,6 +191,8 @@ export class Game implements ModeHost {
     }
     this.combat?.clearEffects();
     this.player = null;
+    this.recorder?.stop();
+    this.recorder = null;
     this.renderer.setOverlay(null, null);
     this.cockpitView.attach(null);
     this.avionics?.dispose();
@@ -285,8 +295,58 @@ export class Game implements ModeHost {
     const s = this.sortie;
     const earned = this.finishSortie(r.title, outcome);
     if (s) r.debrief = { sortie: s, earned };
+    if (this.recorder && this.recorder.duration > 3 && !r.buttons.some((b) => b.action === 'replay')) {
+      r.buttons.splice(Math.max(0, r.buttons.length - 1), 0, { label: 'WATCH REPLAY', action: 'replay' });
+    }
+    this.lastResult = r;
     this.setState('results');
     this.onResults?.(r);
+  }
+
+  // ---------------------------------------------------------------------
+  // Track replay
+  // ---------------------------------------------------------------------
+
+  private startReplay(): void {
+    if (!this.recorder) return;
+    this.recorder.stop();
+    this.combat.setVisible(false);
+    this.replay = new ReplayPlayer(this.recorder.data, this.renderer.scene, this.world.grid);
+    this.replayUi?.open(this.replay);
+    this.cam.setMode('chase');
+    this.cam.resetLook();
+    this.cam.aimDir = null;
+    this.renderer.setOverlay(null, null);
+    this.setState('replay');
+  }
+
+  exitReplay(): void {
+    this.replay?.dispose();
+    this.replay = null;
+    this.replayUi?.close();
+    this.combat.setVisible(true);
+    this.setState('results');
+    if (this.lastResult) this.onResults?.(this.lastResult);
+  }
+
+  private replayFrame(dt: number): void {
+    const rp = this.replay!;
+    const ui = this.replayUi;
+    rp.update(dt, this.renderer.camera);
+    ui?.update();
+    const focus = ui?.focus ?? rp.playerPuppet;
+    if (focus) {
+      const mode = ui?.camMode ?? 'chase';
+      this.cam.target = ui?.target ?? null;
+      if (this.cam.mode !== mode && !(mode === 'target' && !this.cam.target)) this.cam.setMode(mode);
+      this.cam.aimDir = null;
+      this.cam.update(dt, focus, null);
+      this.renderer.camera.updateMatrixWorld();
+      this.world.update(dt, this.renderer.camera, focus.fm.pos);
+    }
+    this.renderer.setVision(emptyVision());
+    this.renderer.render();
+    this.onAfterFrame?.(dt);
   }
 
   /** Close the current sortie and fold it into the logbook (once). */
@@ -328,11 +388,17 @@ export class Game implements ModeHost {
   }
 
   handleResult(action: string): void {
+    if (action === 'replay') {
+      this.startReplay();
+      return;
+    }
     if (action === 'menu') {
       this.endMission();
       return;
     }
     this.mode?.handle(action as never);
+    this.recorder?.stop();
+    this.recorder = new ReplayRecorder(this.sim, this.config.mode.toUpperCase());
     if (this.player) {
       this.syncPlayerControls();
       this.cam.setMode('chase');
@@ -373,6 +439,11 @@ export class Game implements ModeHost {
       this.input.endFrame();
       return;
     }
+    if (this.state === 'replay' && this.replay) {
+      this.replayFrame(dt);
+      this.input.endFrame();
+      return;
+    }
     const playing = this.state === 'playing';
     this.input.update(dt);
     if (playing) this.handleInput(dt);
@@ -386,6 +457,7 @@ export class Game implements ModeHost {
         this.controlPlayer(PHYSICS_DT);
         this.picture.update(PHYSICS_DT, this.sim);
         this.sim.step(PHYSICS_DT);
+        this.recorder?.update();
         this.accumulator -= PHYSICS_DT;
         steps++;
       }

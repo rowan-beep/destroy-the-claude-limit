@@ -11,6 +11,7 @@ import { LoadingScreen, PauseMenu, ResultsScreen, ControlsModal } from './ui/men
 import { SettingsModal } from './ui/menu/settingsModal';
 import { LogbookModal } from './ui/menu/logbookScreen';
 import { TouchControls, isTouchDevice } from './ui/touchControls';
+import { ReplayUi } from './ui/replayUi';
 import { MapView } from './ui/mapView';
 import { audio } from './audio/audio';
 import type { AircraftType } from './aircraft/specs';
@@ -51,6 +52,7 @@ async function boot(): Promise<void> {
   const logbook = new LogbookModal(document.body, (fresh) => (game.logbook = fresh));
   const touch = new TouchControls(document.body, game.input);
   game.touch = touch;
+  game.replayUi = new ReplayUi(document.body, game.cam, () => game.exitReplay());
   const touchWanted = () => settings.gameplay.touchControls === 'on' || (settings.gameplay.touchControls === 'auto' && isTouchDevice());
 
   let menu: MainMenu;

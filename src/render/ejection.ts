@@ -320,6 +320,12 @@ export class EjectionEffects {
     }
   }
 
+  setVisible(v: boolean): void {
+    for (const b of this.bodies) b.obj.visible = v;
+    for (const p of this.pieces) p.obj.visible = v;
+    for (const c of this.chutes) c.group.visible = v;
+  }
+
   clear(): void {
     for (const b of this.bodies) this.scene.remove(b.obj);
     for (const p of this.pieces) this.scene.remove(p.obj);

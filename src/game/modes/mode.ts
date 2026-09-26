@@ -13,7 +13,7 @@ export type MsgKind = 'info' | 'warn' | 'good' | 'bad' | 'order' | 'gci';
 
 export interface ResultButton {
   label: string;
-  action: 'retry' | 'retryWave' | 'nextWave' | 'menu' | 'respawn' | 'continue';
+  action: 'retry' | 'retryWave' | 'nextWave' | 'menu' | 'respawn' | 'continue' | 'replay';
 }
 
 export interface MissionResult {

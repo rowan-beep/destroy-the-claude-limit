@@ -169,6 +169,17 @@ export class CombatRenderer {
     this.scene.remove(this.smoke.mesh, this.fire.mesh, this.trails.mesh, this.tracerMesh, this.flash);
   }
 
+  /** Show or hide everything this renderer draws (the replay borrows the scene). */
+  setVisible(v: boolean): void {
+    for (const vis of this.aircraftVis.values()) vis.root.visible = v && !vis.wreck;
+    for (const mv of this.missileVis.values()) mv.mesh.visible = v;
+    this.smoke.mesh.visible = v;
+    this.fire.mesh.visible = v;
+    this.trails.mesh.visible = v;
+    this.tracerMesh.visible = v;
+    this.eject.setVisible(v);
+  }
+
   clearEffects(): void {
     this.smoke.clear();
     this.fire.clear();
@@ -340,6 +351,7 @@ export class CombatRenderer {
     const v = this.aircraftVis.get(a);
     if (v) {
       v.root.visible = false;
+      v.wreck = true;
     }
   }
 
