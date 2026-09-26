@@ -9,7 +9,8 @@ export default defineConfig(({ mode }) => {
   return {
     base: './',
     plugins: single ? [viteSingleFile()] : [],
-    worker: { format: 'es' },
+    // classic (non-module) workers load from blob: URLs in more hosts
+    worker: { format: 'iife' },
     build: {
       outDir: single ? 'dist-single' : 'dist',
       target: 'es2022',

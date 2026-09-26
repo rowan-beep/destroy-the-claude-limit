@@ -140,13 +140,15 @@ export class WorkerPool {
           if (done === reqs.length) resolve();
         });
       }
-      if (this.fallback) {
-        const step = () => {
-          this.tick(30);
-          if (done < reqs.length) setTimeout(step, 0);
-        };
-        step();
-      }
+      // Self-driving pump: the worker pool can drop into fallback mode at any
+      // moment (a worker's error event arrives asynchronously), and nothing
+      // else calls tick() while the game is still loading.
+      const step = () => {
+        if (done >= reqs.length) return;
+        if (this.fallback) this.tick(30);
+        setTimeout(step, this.fallback ? 0 : 20);
+      };
+      step();
     });
   }
 
