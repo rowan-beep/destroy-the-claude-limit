@@ -367,6 +367,9 @@ export class Game implements ModeHost {
       const inCockpit = this.cam.mode === 'cockpit' && !!vis;
       vis?.setCockpitView(inCockpit);
       this.cam.update(dt, p, this.eyeWorld());
+      // refresh the view matrices now: the HUD projects through this camera
+      // before the frame is rendered, and a stale matrix lags a whole frame
+      this.renderer.camera.updateMatrixWorld();
       this.updateCockpit(inCockpit);
       this.avionics?.update(dt, inCockpit);
       this.world.update(dt, this.renderer.camera, p.fm.pos);
