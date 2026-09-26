@@ -10,6 +10,21 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '1.8.0',
+    date: '2026-09-26',
+    title: 'Pilot XP & levels, realistic afterburners',
+    notes: [
+      "NEW: Pilot XP, levels and money. Everything you do in the air earns XP; XP raises your level (1 to 100) and your rank, from CADET to GENERAL OF THE AIR FORCE. Your pilot card with level badge, rank, XP bar and money is at the top of the main menu, and it counts up your gains when you come back from a sortie.",
+      "Kills pay XP and money, scaled by the enemy difficulty (Easy 60% up to Extreme 140%): 100 XP and $400 per kill at Hard, plus GUN KILL (+50 XP, $200), LONG SHOT past 20 NM (+40, $150), DOUBLE KILL within 12 s (+50, $250) and FIRST BLOOD (+25).",
+      "Combat and flying XP: defeating a missile fired at you (+25 XP, $100); manoeuvres like HIGH-G TURN (7 G for 3 s), LOOP, AILERON ROLL, LOW PASS (under 200 ft above 350 kt), INVERTED FLIGHT and SUPERMANOEUVRE (Su-35S post-stall); SUPERSONIC, MACH 1.5 and MACH 2 once per mission; distance flown (20 XP per 10 NM, more when supersonic); and landings (Greaser +100 XP / $300, Good +60 / $150).",
+      "Mission results pay out too: waves cleared, all 10 waves, 5v5 rounds and match wins, and duel wins.",
+      "Fair levelling: each level needs a little more XP than the last (500 XP for level 2, then 150 more per level), so early levels come quickly and later ones stay reachable. Every level-up pays a cash bonus ($250 × the new level). You never lose XP or money. Manoeuvres have cooldowns and a cap per mission so they can't be farmed, and distance doesn't count while Auto-Fly is flying the jet.",
+      "Animations: XP and money pop up as glowing toasts as you earn them (repeats stack, e.g. LOOP ×2), a slim XP bar above the weapons fills with a glow, and a level-up sets off a full-screen celebration with light rays, expanding rings, sparks, a gold level badge slamming in, 'PROMOTED' for a new rank, the cash bonus and a fanfare. The debrief shows everything you earned, with the totals counting up and the XP bar filling through each level-up.",
+      "Photorealistic afterburners on all four jets: each engine now has a white-hot core, a main plume with real shock diamonds and flowing turbulence, and a faint outer heat haze that fades softly at the edges instead of a solid cone. The nozzles glow white-hot in the middle and orange at the rim, and the plume stretches in thin air at altitude. Western jets burn yellow-orange fading to violet; the Su-35S keeps its blue flame with bright diamonds.",
+      "Fixed: Su-35S gun kills were credited to the 'BK-27' (the Typhoon's cannon); they now show the GSh-30.",
+    ],
+  },
+  {
     version: '1.7.6',
     date: '2026-09-26',
     title: 'Smoother hangar camera',

@@ -1,7 +1,7 @@
 {
   "name": "strike-eagle-dcs",
   "private": true,
-  "version": "1.7.6",
+  "version": "1.8.0",
   "type": "module",
   "description": "Browser combat flight simulator: F-15EX Eagle II, F/A-18E/F Super Hornet and Eurofighter Typhoon over a 400x400 NM island theater.",
   "scripts": {

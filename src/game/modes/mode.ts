@@ -1,5 +1,6 @@
 // Common interface between the game shell and a game-mode director.
 
+import type { MissionSummary } from '../progression';
 import * as THREE from 'three';
 import type { Sim } from '../sim';
 import type { TeamPicture } from '../teamPicture';
@@ -24,6 +25,8 @@ export interface MissionResult {
   buttons: ResultButton[];
   /** filled in by the game shell: the sortie record and decorations earned */
   debrief?: { sortie: SortieRecorder; earned: string[] };
+  /** XP / money earned this mission */
+  progress?: MissionSummary;
 }
 
 export interface ModeHost {

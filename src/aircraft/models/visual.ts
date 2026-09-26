@@ -37,15 +37,22 @@ export interface Nozzle {
   parent?: THREE.Object3D;
 }
 
+// Afterburner plume: three nested, shaped layers per engine (a white-hot
+// core, the main plume with shock diamonds, a faint outer heat layer), all
+// additive, with flowing fractal-noise turbulence. Each layer fades at its
+// silhouette (view-angle falloff), so the plume reads as glowing gas rather
+// than a solid cone.
 const FLAME_VERT = /* glsl */ `
 varying vec2 vUv;
-varying float vRad;
+varying vec3 vN;
+varying vec3 vV;
 #include <common>
 #include <logdepthbuf_pars_vertex>
 void main() {
   vUv = uv;
-  vRad = length( position.xy );
   vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+  vV = -mvPosition.xyz;
+  vN = normalize( normalMatrix * normal );
   gl_Position = projectionMatrix * mvPosition;
   #include <logdepthbuf_vertex>
 }
@@ -53,33 +60,87 @@ void main() {
 
 const FLAME_FRAG = /* glsl */ `
 uniform float intensity;
+uniform float dry;
+uniform float time;
+uniform float layer;
 uniform vec3 cHot;
 uniform vec3 cMid;
 uniform vec3 cTail;
 uniform vec3 cDry;
-uniform float dry;
-uniform float time;
 varying vec2 vUv;
-varying float vRad;
+varying vec3 vN;
+varying vec3 vV;
+#include <common>
+#include <logdepthbuf_pars_fragment>
+float hash3( vec3 p ) { return fract( sin( dot( p, vec3( 127.1, 311.7, 74.7 ) ) ) * 43758.5453 ); }
+float vnoise( vec3 p ) {
+  vec3 i = floor( p ); vec3 f = fract( p );
+  f = f * f * ( 3.0 - 2.0 * f );
+  return mix( mix( mix( hash3( i ), hash3( i + vec3( 1, 0, 0 ) ), f.x ), mix( hash3( i + vec3( 0, 1, 0 ) ), hash3( i + vec3( 1, 1, 0 ) ), f.x ), f.y ),
+              mix( mix( hash3( i + vec3( 0, 0, 1 ) ), hash3( i + vec3( 1, 0, 1 ) ), f.x ), mix( hash3( i + vec3( 0, 1, 1 ) ), hash3( i + vec3( 1, 1, 1 ) ), f.x ), f.y ), f.z );
+}
+float fbm( vec3 p ) { return 0.55 * vnoise( p ) + 0.3 * vnoise( p * 2.1 ) + 0.15 * vnoise( p * 4.3 ); }
+void main() {
+  #include <logdepthbuf_fragment>
+  float along = vUv.y;                                   // 0 at the nozzle, 1 at the tip
+  float ang = vUv.x * 6.2831853;
+  float facing = abs( dot( normalize( vN ), normalize( vV ) ) );
+  float soft = pow( facing, 1.4 );                       // thin, fading edges
+  // turbulence flowing downstream
+  float n = fbm( vec3( cos( ang ) * 1.6, sin( ang ) * 1.6, along * 6.0 - time * 11.0 ) );
+  float flick = 0.8 + 0.4 * n;
+  vec3 col;
+  float a;
+  if ( layer < 0.5 ) {
+    // white-hot core just behind the flame holders
+    float t = smoothstep( 0.0, 0.85, along + ( n - 0.5 ) * 0.3 );
+    col = mix( cHot, cMid, t );
+    a = ( 1.0 - t ) * intensity * 0.55 * ( 0.9 + 0.2 * n );
+  } else if ( layer < 1.5 ) {
+    // main plume: shock diamonds (bright discs) fading downstream
+    float ph = fract( along * 7.0 - 0.1 );
+    float diamond = exp( -pow( ( ph - 0.5 ) * 9.0, 2.0 ) ) * ( 1.0 - smoothstep( 0.04, 0.62, along ) );
+    float body = 1.0 - smoothstep( 0.12, 1.0, along + ( n - 0.5 ) * 0.45 );
+    col = mix( cMid, cTail, smoothstep( 0.1, 0.9, along ) );
+    col = mix( col, cHot, diamond * 0.7 );
+    a = ( body * body * 0.3 + diamond * 0.95 ) * intensity * flick;
+  } else {
+    // outer heat layer: faint at dry power, a soft halo in reheat
+    float body = 1.0 - smoothstep( 0.0, 1.0, along + ( n - 0.5 ) * 0.5 );
+    col = mix( cDry, cTail, along );
+    a = body * ( dry * 0.05 + intensity * 0.07 ) * ( 0.6 + 0.8 * n );
+  }
+  // no hard spike where a layer closes to its tip
+  a *= soft * ( 1.0 - smoothstep( 0.72, 1.0, along ) );
+  gl_FragColor = vec4( col * a, 1.0 );
+}
+`;
+
+// Hot nozzle glow: white-hot centre, glowing rim.
+const GLOW_FRAG = /* glsl */ `
+uniform float intensity;
+uniform vec3 cHot;
+uniform vec3 cMid;
+varying vec2 vUv;
+varying vec3 vN;
+varying vec3 vV;
 #include <common>
 #include <logdepthbuf_pars_fragment>
 void main() {
   #include <logdepthbuf_fragment>
-  float along = vUv.y;               // 0 at nozzle, 1 at the tip
-  float edge = 1.0 - abs( vUv.x - 0.5 ) * 2.0;  // around the cone
-  float flick = 0.85 + 0.15 * sin( time * 70.0 + along * 30.0 ) * sin( time * 43.0 );
-  // shock diamonds
-  float diamonds = 0.55 + 0.45 * pow( abs( sin( along * 18.0 - time * 2.0 ) ), 6.0 ) * ( 1.0 - along );
-  vec3 core = mix( cHot, cMid, smoothstep( 0.0, 0.55, along ) );
-  core = mix( core, cTail, smoothstep( 0.55, 1.0, along ) * 0.6 );
-  float a = ( 1.0 - smoothstep( 0.2, 1.0, along ) ) * intensity * diamonds * flick;
-  // dry-power heat shimmer: short, dim, orange
-  vec3 dryCol = cDry;
-  float da = dry * ( 1.0 - smoothstep( 0.0, 0.25, along ) ) * 0.35;
-  vec3 col = core * a * 2.2 + dryCol * da;
-  gl_FragColor = vec4( col, 1.0 );
+  float r = length( vUv - 0.5 ) * 2.0;
+  vec3 col = mix( cHot, cMid, smoothstep( 0.0, 0.85, r ) );
+  float a = ( 1.0 - smoothstep( 0.3, 1.0, r ) ) * intensity * 0.75;
+  gl_FragColor = vec4( col * a, 1.0 );
 }
 `;
+
+/** Plume layer shapes: [radius factor, position along the layer] from nozzle to tip. */
+const LAYERS: { len: number; rad: number; prof: [number, number][] }[] = [
+  { len: 0.32, rad: 0.8, prof: [[0.95, 0], [1.0, 0.1], [0.82, 0.45], [0.55, 0.8], [0.3, 1]] },
+  { len: 1.0, rad: 1.0, prof: [[0.9, 0], [1.0, 0.08], [0.96, 0.3], [0.72, 0.6], [0.36, 0.88], [0.04, 1]] },
+  { len: 1.3, rad: 1.3, prof: [[0.85, 0], [1.0, 0.15], [0.9, 0.5], [0.55, 0.85], [0.05, 1]] },
+];
 
 export class AirframeVisual {
   readonly root = new THREE.Group();
@@ -92,7 +153,7 @@ export class AirframeVisual {
   vectoring: { pivot: THREE.Object3D; side: -1 | 1 }[] = [];
   readonly cockpitEye = new THREE.Vector3();
   readonly stationMeshes = new Map<number, THREE.Object3D>();
-  private flames: { mesh: THREE.Mesh; mat: THREE.ShaderMaterial; glow: THREE.Mesh }[] = [];
+  private flames: { layers: { mesh: THREE.Mesh; mat: THREE.ShaderMaterial }[]; glow: THREE.Mesh }[] = [];
   private navLights: { mesh: THREE.Object3D; kind: 'red' | 'green' | 'strobe' | 'formation' }[] = [];
   private strobeT = Math.random() * 2;
   private t = 0;
@@ -188,48 +249,59 @@ export class AirframeVisual {
     this.body.add(m);
   }
 
-  /** Afterburner flames at each nozzle. */
+  /** Afterburner plumes at each nozzle. */
   buildFlames(length: number, style: 'std' | 'blue' = 'std'): void {
-    // the AL-41F1S burns with a blue-violet plume; the western engines orange
+    // the AL-41F1S burns with a blue-violet plume; the western engines yellow-orange
     const blue = style === 'blue';
     const col = (r: number, g: number, b: number) => ({ value: new THREE.Color(r, g, b) });
+    const colors = () => ({
+      cHot: blue ? col(0.7, 0.85, 1.0) : col(1.0, 0.82, 0.5),
+      cMid: blue ? col(0.18, 0.36, 1.0) : col(1.0, 0.45, 0.1),
+      cTail: blue ? col(0.4, 0.2, 0.9) : col(0.75, 0.3, 0.55),
+      cDry: blue ? col(0.3, 0.38, 1.0) : col(1.0, 0.38, 0.1),
+    });
     for (const n of this.nozzles) {
-      const mat = new THREE.ShaderMaterial({
-        vertexShader: FLAME_VERT,
-        fragmentShader: FLAME_FRAG,
-        uniforms: {
-          intensity: { value: 0 },
-          dry: { value: 0 },
-          time: { value: 0 },
-          cHot: blue ? col(0.85, 0.92, 1.0) : col(1.0, 0.95, 0.85),
-          cMid: blue ? col(0.25, 0.45, 1.0) : col(1.0, 0.55, 0.18),
-          cTail: blue ? col(0.45, 0.25, 0.95) : col(0.35, 0.45, 1.0),
-          cDry: blue ? col(0.35, 0.4, 1.0) : col(1.0, 0.4, 0.1),
-        },
-        transparent: true,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-        side: THREE.DoubleSide,
+      const parent = n.parent ?? this.body;
+      const layers: { mesh: THREE.Mesh; mat: THREE.ShaderMaterial }[] = [];
+      LAYERS.forEach((L, k) => {
+        const mat = new THREE.ShaderMaterial({
+          vertexShader: FLAME_VERT,
+          fragmentShader: FLAME_FRAG,
+          uniforms: { intensity: { value: 0 }, dry: { value: 0 }, time: { value: 0 }, layer: { value: k }, ...colors() },
+          transparent: true,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+          side: THREE.DoubleSide,
+        });
+        const len = length * L.len;
+        const pts = L.prof.map(([r, u]) => new THREE.Vector2(Math.max(0.002, r * n.radius * L.rad), u * len));
+        const geo = new THREE.LatheGeometry(pts, 28);
+        // lathe runs along +y (uv.y 0 at the first point): lay it along +z, aft
+        geo.rotateX(Math.PI / 2);
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.copy(n.pos);
+        mesh.frustumCulled = false;
+        mesh.renderOrder = 20 + k;
+        parent.add(mesh);
+        layers.push({ mesh, mat });
       });
-      const geo = new THREE.CylinderGeometry(n.radius * 0.35, n.radius * 0.85, length, 18, 8, true);
-      // uv.y: 0 at nozzle (+Z end is the tip)
-      geo.rotateX(-Math.PI / 2);
-      geo.translate(0, 0, length / 2);
-      const uv = geo.attributes.uv as THREE.BufferAttribute;
-      for (let i = 0; i < uv.count; i++) uv.setY(i, 1 - uv.getY(i));
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.copy(n.pos);
-      mesh.frustumCulled = false;
-      mesh.renderOrder = 20;
-      (n.parent ?? this.body).add(mesh);
-      // hot nozzle glow disc
+      // hot nozzle glow
       const glow = new THREE.Mesh(
-        new THREE.CircleGeometry(n.radius * 0.8, 20),
-        new THREE.MeshBasicMaterial({ color: blue ? 0x6a7dff : 0xff7a2a, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
+        new THREE.CircleGeometry(n.radius * 0.95, 28),
+        new THREE.ShaderMaterial({
+          vertexShader: FLAME_VERT,
+          fragmentShader: GLOW_FRAG,
+          uniforms: { intensity: { value: 0 }, ...colors() },
+          transparent: true,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+          side: THREE.DoubleSide,
+        }),
       );
       glow.position.copy(n.pos).add(new THREE.Vector3(0, 0, -0.05));
-      (n.parent ?? this.body).add(glow);
-      this.flames.push({ mesh, mat, glow });
+      glow.renderOrder = 19;
+      parent.add(glow);
+      this.flames.push({ layers, glow });
     }
   }
 
@@ -326,12 +398,15 @@ export class AirframeVisual {
     v.navLights = this.navLights.map((l) => ({ mesh: M(l.mesh), kind: l.kind }));
     v.insignia = this.insignia.map(M);
     v.flames = this.flames.map((f) => {
-      const mesh = M(f.mesh);
-      const mat = f.mat.clone();
-      mesh.material = mat;
+      const layers = f.layers.map((l) => {
+        const mesh = M(l.mesh);
+        const mat = l.mat.clone();
+        mesh.material = mat;
+        return { mesh, mat };
+      });
       const glow = M(f.glow);
       glow.material = (f.glow.material as THREE.Material).clone();
-      return { mesh, mat, glow };
+      return { layers, glow };
     });
     return v;
   }
@@ -453,12 +528,20 @@ export class AirframeVisual {
       const f = this.flames[i];
       const eng = fm.engineOut[Math.min(i, fm.engineOut.length - 1)] ? 0 : 1;
       const abI = fm.ab[Math.min(i, fm.ab.length - 1)] * eng;
-      f.mat.uniforms.intensity.value = abI;
-      f.mat.uniforms.dry.value = clamp((rpm - 0.6) / 0.4, 0, 1) * eng;
-      f.mat.uniforms.time.value = this.t + i * 1.3;
-      f.mesh.scale.set(1, 1, 0.55 + 0.45 * abI + 0.1 * Math.sin(this.t * 40 + i));
-      f.mesh.visible = abI > 0.01 || rpm > 0.6;
-      (f.glow.material as THREE.MeshBasicMaterial).opacity = clamp(abI * 0.9 + (rpm - 0.7) * 0.4, 0, 0.9);
+      const dry = clamp((rpm - 0.6) / 0.4, 0, 1) * eng;
+      // the plume grows with the burner stage and stretches in thin air
+      const thin = 1 + 0.35 * clamp(fm.pos.y / 12000, 0, 1);
+      const pulse = 1 + 0.04 * Math.sin(this.t * 37 + i * 2.1) + 0.03 * Math.sin(this.t * 23.3 + i);
+      f.layers.forEach((l, k) => {
+        const u = l.mat.uniforms;
+        u.intensity.value = abI;
+        u.dry.value = dry;
+        u.time.value = this.t + i * 1.7;
+        const grow = k === 2 ? 0.45 + 0.55 * Math.max(abI, dry * 0.5) : 0.4 + 0.6 * abI;
+        l.mesh.scale.set(1, 1, grow * thin * pulse);
+        l.mesh.visible = k === 2 ? abI > 0.01 || dry > 0.05 : abI > 0.01;
+      });
+      (f.glow.material as THREE.ShaderMaterial).uniforms.intensity.value = clamp(abI * 1.1 + dry * 0.35, 0, 1.2);
     }
     void ab;
 

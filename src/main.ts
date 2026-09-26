@@ -17,6 +17,8 @@ import { TouchControls, isTouchDevice } from './ui/touchControls';
 import { ReplayUi } from './ui/replayUi';
 import { MapView } from './ui/mapView';
 import { audio } from './audio/audio';
+import { XpFx, PilotCard } from './ui/xpFx';
+import { saveProgress } from './game/progression';
 import type { AircraftType } from './aircraft/specs';
 
 async function boot(): Promise<void> {
@@ -29,6 +31,8 @@ async function boot(): Promise<void> {
   const hud = new Hud(document.body);
   hud.setVisible(false);
   game.hud = hud;
+  const xpFx = new XpFx(document.body);
+  game.xpFx = xpFx;
   (window as unknown as { game: Game }).game = game;
 
   const t0 = performance.now();
@@ -98,6 +102,17 @@ async function boot(): Promise<void> {
     },
   });
 
+  // pilot card (level, rank, XP, money) in the main-menu header; it counts up to new gains
+  const header = menu.root.querySelector('.menu-header');
+  const pilotCard = new PilotCard(header as HTMLElement, header?.querySelector('.header-buttons') ?? null);
+  const showProgress = () =>
+    pilotCard.update(game.progress, () => {
+      game.progress.shownXp = game.progress.xp;
+      game.progress.shownMoney = game.progress.money;
+      saveProgress(game.progress);
+    });
+  showProgress();
+
   const pause = new PauseMenu(document.body, {
     resume: () => game.setState('playing'),
     settings: () => settingsModal.show(true),
@@ -121,12 +136,14 @@ async function boot(): Promise<void> {
   game.onStateChange = (s) => {
     menu.show(s === 'menu');
     hud.setVisible(s === 'playing' || s === 'paused' || s === 'results' || s === 'map');
+    xpFx.show(s === 'playing');
     pause.show(s === 'paused');
     touch.show(s === 'playing' && touchWanted());
     mapView.show(s === 'map', game);
     if (s !== 'results') results.show(null);
     if (s === 'menu') {
       loading.show(false);
+      showProgress();
       hangar.setJet(cfg.aircraft, cfg.loadoutId);
     }
   };

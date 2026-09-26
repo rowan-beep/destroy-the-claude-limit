@@ -116,7 +116,7 @@ export class Sim {
       t.damage.apply(comp, dmg);
       return;
     }
-    const weapon = shooter ? (shooter.spec.gun.caliberMm > 25 ? 'BK-27' : 'M61') : 'GUN';
+    const weapon = shooter ? (shooter.type === 'SU35' ? 'GSh-30' : shooter.spec.gun.caliberMm > 25 ? 'BK-27' : 'M61') : 'GUN';
     t.lastHitBy = { shooter, weapon, time: this.time };
     t.damage.apply(comp, dmg);
     this.events.emit('hit', { victim: t, shooter, weapon, damage: dmg, pos: pos.clone(), component: comp });

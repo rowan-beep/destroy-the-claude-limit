@@ -287,6 +287,31 @@ export class AudioEngine {
     o.stop(t + dur + 0.02);
   }
 
+  /** Small XP pick-up tick. */
+  xpTick(): void {
+    this.beep(1320, 0.05, 0.035, 'sine');
+    this.beep(1760, 0.07, 0.03, 'sine', 0.045);
+  }
+
+  /** Kill reward chime. */
+  xpKill(): void {
+    this.beep(880, 0.08, 0.05, 'triangle');
+    this.beep(1320, 0.1, 0.05, 'triangle', 0.07);
+    this.beep(1760, 0.16, 0.045, 'triangle', 0.14);
+  }
+
+  /** Level-up fanfare: a rising arpeggio with a shimmering top. */
+  levelUp(): void {
+    const notes = [523.25, 659.25, 783.99, 1046.5, 1318.5];
+    notes.forEach((f, i) => {
+      this.beep(f, 0.22, 0.06, 'triangle', i * 0.09);
+      this.beep(f * 2, 0.18, 0.02, 'sine', i * 0.09 + 0.01);
+    });
+    for (let i = 0; i < 6; i++) this.beep(2093 + i * 180, 0.12, 0.018, 'sine', 0.5 + i * 0.06);
+    this.beep(261.63, 0.9, 0.05, 'sawtooth', 0.45);
+    this.beep(392, 0.9, 0.035, 'triangle', 0.45);
+  }
+
   missileLaunch(own: boolean, distance: number): void {
     const v = own ? 0.9 : Math.max(0.02, 0.6 / (1 + distance / 300));
     const d = own ? 0 : Math.min(3, distance / 343);

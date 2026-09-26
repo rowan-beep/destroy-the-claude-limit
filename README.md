@@ -17,8 +17,8 @@ terrain against you.
 | Radar | AN/APG-82(V)1 AESA | AN/APG-79 AESA | CAPTOR-E + PIRATE IRST | N035 Irbis-E PESA + OLS-35 IRST |
 | Missiles | AIM-120D, AIM-9X | AIM-120D, AIM-9X | AIM-120D, AIM-9X | R-77M, R-74M (Su-35S only) |
 
-Current version: **v1.7.6** — see [CHANGELOG.md](CHANGELOG.md) (also in the game
-under **v1.7.6 · NOTES** on the main menu).
+Current version: **v1.8.0** — see [CHANGELOG.md](CHANGELOG.md) (also in the game
+under **v1.8.0 · NOTES** on the main menu).
 
 Each jet is a high-detail procedural model (~150k triangles): blended fuselages
 built from real cross-sections, hollow intakes with ducts and fans, airfoil
@@ -131,6 +131,10 @@ cockpit and press **R** to lock it; the AIM-9X seeker follows your head.
 Navigation: steerpoints for every field plus bullseye (`'` next, `End` = nearest
 friendly field), HUD steerpoint cue, ILS on every runway (approach valleys keep
 the glideslope clear of the mountains), an AoA bracket, and graded touchdowns.
+
+### Pilot XP, levels and money
+
+Kills, defeated missiles, manoeuvres (high-G turns, loops, rolls, low passes, inverted, post-stall), speed milestones, distance, landings and mission results earn XP; kills and results also earn money. Levels 1-100 with ranks from Cadet to General of the Air Force; every level-up pays a cash bonus. Manoeuvre awards have cooldowns and a per-mission cap, and Auto-Fly distance doesn't count.
 
 ### Logbook, debrief and replay
 

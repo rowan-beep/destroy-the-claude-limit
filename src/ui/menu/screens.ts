@@ -1,5 +1,6 @@
 // Loading screen, pause menu, results screen, controls reference.
 
+import { renderXpDebrief } from '../xpFx';
 import { renderDebrief } from './debrief';
 import type { MapData } from '../../world/mapData';
 import { el, clearEl, button } from '../dom';
@@ -90,6 +91,7 @@ export class ResultsScreen {
       el('td', '', tr, k);
       el('td', '', tr, v);
     }
+    if (r.progress) renderXpDebrief(this.box, r.progress);
     if (r.debrief) renderDebrief(this.box, r.debrief.sortie, r.debrief.earned, this.mapData());
     const b = el('div', 'btns', this.box);
     for (const btn of r.buttons) {
