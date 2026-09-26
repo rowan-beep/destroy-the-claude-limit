@@ -892,8 +892,19 @@ function applySkin(mat: THREE.MeshStandardMaterial, uniforms: Record<string, THR
 
 /** Clone a material, keeping the livery shader if it has one. */
 export function cloneMaterial<T extends THREE.Material>(m: T): T {
-  const c = m.clone() as T;
-  const u = (m as THREE.Material).userData?.skinUniforms as Record<string, THREE.IUniform> | undefined;
+  // Material.clone() deep-copies userData through JSON: with the livery's
+  // uniforms (big texture arrays) in there that took seconds per material.
+  // Detach it while cloning and share it by reference instead.
+  const ud = m.userData;
+  m.userData = {};
+  let c: T;
+  try {
+    c = m.clone() as T;
+  } finally {
+    m.userData = ud;
+  }
+  c.userData = { ...ud };
+  const u = ud?.skinUniforms as Record<string, THREE.IUniform> | undefined;
   if (u && c instanceof THREE.MeshStandardMaterial) applySkin(c, u);
   return c;
 }

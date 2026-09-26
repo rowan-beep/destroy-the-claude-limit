@@ -545,11 +545,17 @@ export class CombatRenderer {
 }
 
 function darkenAirframe(v: AirframeVisual): void {
+  // one scorched copy per distinct material (many meshes share each one)
+  const done = new Map<THREE.Material, THREE.MeshStandardMaterial>();
   v.root.traverse((o) => {
     const m = o as THREE.Mesh;
     if (m.isMesh && m.material instanceof THREE.MeshStandardMaterial) {
-      const mat = cloneMaterial(m.material);
-      mat.color.multiplyScalar(0.35);
+      let mat = done.get(m.material);
+      if (!mat) {
+        mat = cloneMaterial(m.material);
+        mat.color.multiplyScalar(0.35);
+        done.set(m.material, mat);
+      }
       m.material = mat;
     }
   });

@@ -3,6 +3,10 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v2.2.2 — No more freeze on kills (2026-09-26)
+
+- Fixed: the game froze for a couple of seconds every time a jet was shot down. When a jet was destroyed, its paint job was copied to scorch the wreck, and each copy needlessly converted the whole livery (large texture data) to text, once for every part of the airframe. The wreck is now scorched with a lightweight copy, shared across parts: the kill that took seconds now takes about 3 thousandths of a second, so explosions play smoothly.
+
 ## v2.2.1 — Aligned missile racks (2026-09-26)
 
 - Missile racks rebuilt on all four jets to match the real thing: missiles now ride in matched pairs on twin-rail racks, side by side on the shoulders of a shared pylon (like LAU-128s on an F-15 pylon), level with each other, parallel to the fuselage and with their noses lined up.

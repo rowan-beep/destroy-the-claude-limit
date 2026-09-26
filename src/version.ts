@@ -10,6 +10,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '2.2.2',
+    date: '2026-09-26',
+    title: "No more freeze on kills",
+    notes: [
+      "Fixed: the game froze for a couple of seconds every time a jet was shot down. When a jet was destroyed, its paint job was copied to scorch the wreck, and each copy needlessly converted the whole livery (large texture data) to text, once for every part of the airframe. The wreck is now scorched with a lightweight copy, shared across parts: the kill that took seconds now takes about 3 thousandths of a second, so explosions play smoothly.",
+    ],
+  },
+  {
     version: '2.2.1',
     date: '2026-09-26',
     title: "Aligned missile racks",
