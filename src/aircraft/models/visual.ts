@@ -321,9 +321,12 @@ export class AirframeVisual {
     const alive = ac.alive;
 
     // control surfaces
-    const pitch = alive ? c.pitch : 0.2;
-    const roll = alive ? c.roll : 0.6;
-    const yaw = alive ? c.yaw : 0;
+    // in the air the surfaces show what the flight-control computers command
+    // (trim, damping, coordination), on the ground the raw stick and pedals
+    const air = !fm.onGround;
+    const pitch = alive ? (air ? fm.defl.e : c.pitch) : 0.2;
+    const roll = alive ? (air ? fm.defl.a : c.roll) : 0.6;
+    const yaw = alive ? (air ? fm.defl.r : c.yaw) : 0;
     const aoa = fm.alpha / DEG;
     for (const s of this.surfaces) {
       let target = 0;

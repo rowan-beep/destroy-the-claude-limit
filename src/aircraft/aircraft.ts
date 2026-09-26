@@ -3,7 +3,7 @@
 // countermeasures, damage state and pilot physiology.
 
 import * as THREE from 'three';
-import { AircraftSpec, AircraftType, getSpec, StationDef, StoreType, TANK_FUEL, LoadoutPreset } from './specs';
+import { AircraftSpec, AircraftType, getSpec, StationDef, StoreType, TANK_FUEL, LoadoutPreset, STORES } from './specs';
 import { FlightModel, FlightControls, neutralControls } from './flightModel';
 import { PilotPhysiology } from './pilot';
 import { DamageModel } from './damage';
@@ -128,6 +128,10 @@ export class Aircraft {
       if (s.store === 'TANK') tanks++;
     }
     this.fm.setStores(list, tanks * TANK_FUEL);
+    // stores far out on the wings make the jet slower to start and stop a roll
+    let inertia = 0;
+    for (const s of this.stations) if (s.store) inertia += STORES[s.store].mass * s.def.pos[0] * s.def.pos[0] * (s.store === 'TANK' ? 1.6 : 1);
+    this.fm.storeRollInertia = inertia;
     this.fm.ammoMass = this.gunAmmo * (this.spec.gun.caliberMm > 25 ? 0.5 : 0.26);
   }
 

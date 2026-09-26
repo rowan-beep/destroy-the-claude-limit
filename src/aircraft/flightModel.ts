@@ -14,6 +14,7 @@ import { atmosphere, AtmoState, casFromTas } from '../core/atmosphere';
 import { G0, DEG, FT } from '../core/constants';
 import { clamp, smoothstep, lerp } from '../core/math';
 import { groundSurface, Surface } from '../world/ground';
+import { windAt } from '../core/weather';
 
 export interface FlightControls {
   /** +1 = full aft stick (nose up) */
@@ -37,6 +38,7 @@ export function neutralControls(): FlightControls {
 }
 
 export interface FmDamage {
+  pitchBias?: number;
   thrust: [number, number];
   lift: number;
   rollBias: number;
@@ -55,7 +57,48 @@ const _tmp2 = new THREE.Vector3();
 const _qInv = new THREE.Quaternion();
 const _dq = new THREE.Quaternion();
 const _surf: Surface = { h: 0, kind: 'terrain', field: null };
+const _air = new THREE.Vector3();
 const _euler = new THREE.Euler(0, 0, 0, 'YXZ');
+
+/**
+ * Rotational data per airframe: moments of inertia (kg m^2) at a reference
+ * mass, and non-dimensional stability / control derivatives (per radian;
+ * control powers are the coefficient at full deflection).
+ */
+interface AeroData {
+  refMass: number;
+  ixx: number;
+  iyy: number;
+  izz: number;
+  cyB: number;
+  cm0: number;
+  /** static pitch stability (negative = stable; the Typhoon is unstable) */
+  cmA: number;
+  cmQ: number;
+  cmD: number;
+  clP: number;
+  clB: number;
+  clR: number;
+  clD: number;
+  cnB: number;
+  cnR: number;
+  cnP: number;
+  cnD: number;
+  /** adverse yaw from the roll surfaces */
+  cnDa: number;
+  /** engine lateral offset (m) */
+  engineArm: number;
+  /** actuator rates (full travel per second) */
+  rateE: number;
+  rateA: number;
+  rateR: number;
+}
+
+const AERO: Record<string, AeroData> = {
+  F15EX: { refMass: 21000, ixx: 36000, iyy: 200000, izz: 225000, cyB: -1.0, cm0: 0, cmA: -0.22, cmQ: -5, cmD: 0.34, clP: -0.35, clB: -0.09, clR: 0.07, clD: 0.056, cnB: 0.13, cnR: -0.33, cnP: -0.03, cnD: 0.036, cnDa: -0.006, engineArm: 0.64, rateE: 2.6, rateA: 4, rateR: 3 },
+  FA18EF: { refMass: 19000, ixx: 40000, iyy: 230000, izz: 260000, cyB: -1.0, cm0: 0, cmA: -0.12, cmQ: -5, cmD: 0.37, clP: -0.33, clB: -0.08, clR: 0.07, clD: 0.058, cnB: 0.12, cnR: -0.32, cnP: -0.03, cnD: 0.04, cnDa: -0.006, engineArm: 0.56, rateE: 2.6, rateA: 4, rateR: 3 },
+  TYPHOON: { refMass: 15000, ixx: 18000, iyy: 130000, izz: 145000, cyB: -0.95, cm0: 0, cmA: 0.08, cmQ: -4.5, cmD: 0.33, clP: -0.3, clB: -0.07, clR: 0.06, clD: 0.05, cnB: 0.11, cnR: -0.3, cnP: -0.03, cnD: 0.032, cnDa: -0.005, engineArm: 0.5, rateE: 3.0, rateA: 4.5, rateR: 3 },
+};
 
 export class FlightModel {
   readonly pos = new THREE.Vector3();
@@ -90,7 +133,25 @@ export class FlightModel {
   rollRate = 0;
   pitchRate = 0;
   yawRate = 0;
-  private pRate = 0; // rad/s about stability axis
+  /** body angular rates (rad/s): roll right, pitch up, yaw right */
+  pRate = 0;
+  qRate = 0;
+  rRate = 0;
+  /** control-surface deflections the FBW is using (-1..1): stabilator, roll, rudder */
+  readonly defl = { e: 0, a: 0, r: 0 };
+  private dCmd = { e: 0, a: 0, r: 0 };
+  private nCmdF = 1;
+  /** true when the jet is out of controlled flight (stalled / spinning) */
+  departed = false;
+  /** wind + turbulence at the aircraft (world m/s) */
+  readonly windVel = new THREE.Vector3();
+  private t = Math.random() * 100;
+  private rockPhase = Math.random() * 6;
+  private lastGustY = 0;
+  /** per-engine thrust (N), for asymmetric-thrust yaw */
+  readonly engThrust: number[] = [0, 0];
+  /** extra roll/yaw inertia from stores far out on the wings */
+  storeRollInertia = 0;
 
   // propulsion
   readonly rpm: number[];
@@ -129,7 +190,7 @@ export class FlightModel {
   overG = 0;
   structuralFailure = false;
   stallWarning = false;
-  readonly damage: FmDamage = { thrust: [1, 1], lift: 1, rollBias: 0, control: 1, drag: 0 };
+  readonly damage: FmDamage = { thrust: [1, 1], lift: 1, rollBias: 0, control: 1, drag: 0, pitchBias: 0 };
 
   constructor(readonly spec: AircraftSpec) {
     this.fuelInternal = spec.internalFuel;
@@ -182,6 +243,7 @@ export class FlightModel {
     for (let i = 0; i < this.rpm.length; i++) this.rpm[i] = 0.85;
     this.throttleLever = 0.85;
     this.alpha = 0;
+    this.resetRates(1);
   }
 
   /** Park on the ground (runway start). */
@@ -197,6 +259,16 @@ export class FlightModel {
     this.crashed = false;
     for (let i = 0; i < this.rpm.length; i++) this.rpm[i] = 0.2;
     this.throttleLever = 0;
+  }
+
+  private resetRates(n: number): void {
+    this.pRate = 0;
+    this.qRate = 0;
+    this.rRate = 0;
+    this.defl.e = this.defl.a = this.defl.r = 0;
+    this.dCmd.e = this.dCmd.a = this.dCmd.r = 0;
+    this.nCmdF = n;
+    this.departed = false;
   }
 
   private buildGroundQuat(): void {
@@ -339,6 +411,7 @@ export class FlightModel {
         this.ab[i] += (abTarget - this.ab[i]) * Math.min(1, 3 * dt);
       }
       const e = this.engineThrust(i, alt, M0, _atm);
+      this.engThrust[i] = e.t;
       thrust += e.t;
       ff += e.ff;
     }
@@ -366,25 +439,35 @@ export class FlightModel {
 
   private stepAir(dt: number, c: FlightControls): void {
     const s = this.spec;
+    const A = AERO[s.type];
     const m = this.mass;
     const W = m * G0;
-    const V = this.vel.length();
+    this.t += dt;
+
+    // --- air mass: the aircraft flies through the wind, not the ground ---
+    windAt(this.pos.x, this.pos.y, this.pos.z, this.t, this.agl, this.groundHeight, this.windVel);
+    _air.copy(this.vel).sub(this.windVel);
+    const V = _air.length();
     this.tas = V;
     const M = V / this.soundSpeed;
     this.mach = M;
     this.qbar = 0.5 * this.rho * V * V;
     this.cas = casFromTas(V, this.pos.y);
     const qS = this.qbar * s.wingArea;
+    const b = s.span;
+    const cbar = s.wingArea / s.span;
 
-    // aero angles
+    // aero angles from the relative wind in body axes
     _qInv.copy(this.quat).invert();
-    _vb.copy(this.vel).applyQuaternion(_qInv);
+    _vb.copy(_air).applyQuaternion(_qInv);
     this.alpha = Math.atan2(-_vb.y, -_vb.z);
     this.beta = V > 1 ? Math.asin(clamp(_vb.x / V, -1, 1)) : 0;
-    if (V > 1) _vhat.copy(this.vel).divideScalar(V);
+    const alpha = this.alpha;
+    const beta = this.beta;
+    if (V > 1) _vhat.copy(_air).divideScalar(V);
     else _vhat.copy(this.fwd);
 
-    // lift & side directions (perpendicular to velocity)
+    // lift & side directions (perpendicular to the relative wind)
     _lift.crossVectors(this.right, _vhat);
     if (_lift.lengthSq() < 1e-8) _lift.copy(this.up);
     _lift.normalize();
@@ -392,13 +475,16 @@ export class FlightModel {
     if (_side.lengthSq() < 1e-8) _side.copy(this.right);
     _side.normalize();
 
-    const cl = this.clOf(this.alpha, M);
-    const cd = this.cdOf(cl, M) + 0.35 * Math.abs(Math.sin(this.alpha)) * smoothstep(0.35, 0.9, Math.abs(this.alpha));
+    // ground effect: more lift, less induced drag within a span of the ground
+    const ge = Math.pow(1 - clamp(this.agl / b, 0, 1), 2);
+    const cl = this.clOf(alpha, M) * (1 + 0.14 * ge);
+    const cdi = this.cdOf(cl, M) - this.cdOf(0, M);
+    const cd = this.cdOf(0, M) + cdi * (1 - 0.45 * ge) + 0.35 * Math.abs(Math.sin(alpha)) * smoothstep(0.35, 0.9, Math.abs(alpha));
     this.cl = cl;
     this.cd = cd;
     const L = qS * cl;
     const D = qS * cd;
-    const Y = -qS * 0.9 * this.beta;
+    const Y = qS * A.cyB * beta;
 
     _acc.set(0, 0, 0);
     _acc.addScaledVector(_lift, L);
@@ -415,65 +501,141 @@ export class FlightModel {
     this.nz = _tmp.dot(this.up) / G0;
     this.ny = _tmp.dot(this.right) / G0;
 
-    // --- fly-by-wire control laws ---
+    // --- moments of inertia: fuel and wing stores change them ---
+    const mScale = m / A.refMass;
+    const Ixx = A.ixx * mScale + this.storeRollInertia;
+    const Iyy = A.iyy * mScale;
+    const Izz = A.izz * mScale + this.storeRollInertia;
+
+    // --- natural aerodynamic moments (coefficients) ---
+    const Veff = Math.max(V, 30);
+    const P = this.pRate, Q = this.qRate, R = this.rRate;
+    const phat = (P * b) / (2 * Veff), qhat = (Q * cbar) / (2 * Veff), rhat = (R * b) / (2 * Veff);
+    const sup = smoothstep(0.88, 1.3, M);
+    const aMax = s.alphaMaxDeg * DEG;
+    // pitch: static stability (aerodynamic centre moves aft when supersonic), damping, pitch-up past the stall
+    const cmA = A.cmA - 0.85 * sup;
+    const aPu = aMax + 6 * DEG;
+    const cmNat = A.cm0 + cmA * alpha + A.cmQ * qhat + 1.6 * Math.max(0, alpha - aPu) * Math.max(0, alpha - aPu) + (this.damage.pitchBias ?? 0);
+    // roll: damping, dihedral effect (grows with AoA), yaw-rate roll, wing rock past the stall
+    const over = smoothstep(aMax, aMax + 14 * DEG, alpha);
+    const rock = over * 0.018 * Math.sin(this.t * 2.6 + this.rockPhase) * (0.6 + 0.4 * Math.sin(this.t * 0.7));
+    const clNat = A.clP * phat + (A.clB - 0.25 * Math.max(0, alpha)) * beta + A.clR * rhat + rock + this.damage.rollBias * 0.02;
+    // yaw: weathercock stability fades at high AoA and when supersonic (it can go unstable deep in the stall)
+    const cnB = A.cnB * (1 - 0.45 * sup) * (1 - 1.45 * over);
+    // asymmetric thrust (an engine out, or damage) yaws toward the dead engine
+    let asym = 0;
+    if (s.engines === 2) asym = (this.engThrust[0] - this.engThrust[1]) * A.engineArm;
+    const cnNat = cnB * beta + A.cnR * rhat + A.cnP * phat + asym / Math.max(qS * b, 1);
+
+    // --- control effectiveness (dynamic pressure is applied through qS) ---
     const ctl = this.damage.control;
+    const eEff = A.cmD * (1 - 0.3 * smoothstep(0.85, 1.05, M) * (1 - smoothstep(1.05, 1.4, M))) * (1 - 0.35 * sup) * ctl;
+    const aEff = A.clD * (1 - 0.35 * sup) * (1 - 0.5 * smoothstep(20 * DEG, 40 * DEG, Math.abs(alpha))) * ctl;
+    const rEff = A.cnD * (1 - 0.3 * sup) * (1 - 0.6 * smoothstep(25 * DEG, 45 * DEG, Math.abs(alpha))) * ctl;
+    const kPitch = qS * cbar, kRoll = qS * b, kYaw = qS * b;
+
+    // --- fly-by-wire: commands in, surface deflections out (dynamic inversion) ---
     const gMax = c.gOverride ? s.gOverride : s.gLimit;
     const gamma = Math.asin(clamp(_vhat.y, -1, 1));
-    const bankC = Math.cos(this.bank * DEG);
-    const nNeutral = Math.cos(gamma) * bankC;
-    const p = clamp(c.pitch, -1, 1);
-    let nCmd = p >= 0 ? lerp(nNeutral, gMax, p) : lerp(nNeutral, s.gNeg, -p);
+    const nNeutral = Math.cos(gamma) * Math.cos(this.bank * DEG);
+    const stick = clamp(c.pitch, -1, 1);
+    let nCmd = stick >= 0 ? lerp(nNeutral, gMax, stick) : lerp(nNeutral, s.gNeg, -stick);
     nCmd = clamp(nCmd, s.gNeg, gMax);
-    const clReq = (nCmd * W) / Math.max(qS, 1);
-    let alphaCmd = this.alphaForCl(clReq, M);
-    const aMax = s.alphaMaxDeg * DEG;
-    alphaCmd = clamp(alphaCmd, -12 * DEG, aMax);
-    this.stallWarning = alphaCmd >= aMax * 0.98 && p > 0.3;
+    // G onset is rate-limited by the control laws (about 12 G/s pulling)
+    const onset = nCmd > this.nCmdF ? 12 : 20;
+    this.nCmdF += clamp(nCmd - this.nCmdF, -onset * dt, onset * dt);
+    const clReq = (this.nCmdF * W) / Math.max(qS, 1);
+    const aLim = c.gOverride ? aMax * 1.12 : aMax;
+    const alphaCmd = clamp(this.alphaForCl(clReq, M), -12 * DEG, aLim);
+    this.stallWarning = (alphaCmd >= aLim * 0.97 && stick > 0.3) || alpha > aLim;
 
-    const authority = clamp(this.qbar / 9000, 0.2, 1) * ctl;
-    const alphaRateMax = s.pitchRate * DEG * 1.6 * authority;
-    const alphaDot = clamp((alphaCmd - this.alpha) / 0.16, -alphaRateMax, alphaRateMax);
-
-    const Veff = Math.max(V, 25);
+    // pitch: rate needed to follow the flight path plus to close the AoA error
     const wPath = _acc.dot(_lift) / Veff;
-    const wSide = _acc.dot(_side) / Veff;
-    let qRate = wPath + alphaDot;
+    // the laws only know a nominal airframe (no damage, gusts, stall pitch-up
+    // or engine asymmetry): those are corrected through feedback, with lag
+    const cmModel = A.cm0 + cmA * alpha + A.cmQ * qhat;
+    // gain schedule: loop bandwidth follows the pitch acceleration available
+    const qAccMax = (eEff * kPitch) / Iyy;
+    const wn = clamp(Math.sqrt(qAccMax / 0.35), 0.9, 5.5);
+    const kQ = 1.6 * wn;
+    const kA = wn / 1.6;
+    const qMax = s.pitchRate * DEG * 1.6;
+    const qDes = wPath + clamp((alphaCmd - alpha) * kA, -qMax, qMax);
+    const qDotDes = (qDes - Q) * kQ;
+    const cmReq = (qDotDes * Iyy - (Izz - Ixx) * P * R) / Math.max(kPitch, 1);
+    this.dCmd.e = clamp((cmReq - cmModel) / Math.max(eEff, 1e-4), -1, 1);
 
-    // rudder / sideslip
-    const betaMax = 7 * DEG * clamp(14000 / Math.max(this.qbar, 1), 0.2, 1);
-    const betaCmd = -clamp(c.yaw, -1, 1) * betaMax;
-    const betaDot = clamp((betaCmd - this.beta) / 0.35, -0.6, 0.6);
-    const rRate = wSide - betaDot;
-
-    // roll about the velocity vector
-    let pMax = s.rollRate * DEG * clamp(this.qbar / 11000, 0.12, 1) * ctl;
-    pMax *= 1 - 0.55 * smoothstep(15 * DEG, 38 * DEG, Math.abs(this.alpha));
+    // roll: stick commands roll rate about the velocity vector
+    let pMax = s.rollRate * DEG * (1 - 0.55 * smoothstep(15 * DEG, 38 * DEG, Math.abs(alpha)));
     if (M > 1.3) pMax *= 0.8;
-    const pCmd = clamp(c.roll, -1, 1) * pMax + this.damage.rollBias;
-    this.pRate += (pCmd - this.pRate) * Math.min(1, dt / 0.11);
+    const pStab = clamp(c.roll, -1, 1) * pMax;
+    const pDes = pStab * Math.cos(alpha);
+    const pAccMax = (aEff * kRoll) / Ixx;
+    const pDotDes = (pDes - P) * clamp(pAccMax / 1.2, 1.5, 9);
+    const clModel = A.clP * phat + (A.clB - 0.25 * Math.max(0, alpha)) * beta + A.clR * rhat;
+    const clReqR = (pDotDes * Ixx - (Iyy - Izz) * Q * R) / Math.max(kRoll, 1);
+    this.dCmd.a = clamp((clReqR - clModel) / Math.max(aEff, 1e-4), -1, 1);
+
+    // yaw: pedals command sideslip; otherwise the laws coordinate the turn (beta -> 0)
+    const betaMax = 7 * DEG * clamp(14000 / Math.max(this.qbar, 1), 0.2, 1);
+    const betaCmd = clamp(c.yaw, -1, 1) * betaMax;
+    const aSide = _acc.dot(this.right);
+    const rAccMax = (rEff * kYaw) / Izz;
+    const kR = clamp(rAccMax / 0.5, 1, 6);
+    const betaDotDes = (betaCmd - beta) * Math.min(2.4, kR * 0.4);
+    const cosA = Math.max(0.2, Math.cos(alpha));
+    const rDes = (P * Math.sin(alpha) + aSide / Veff - betaDotDes) / cosA;
+    const rDotDes = (rDes - R) * kR;
+    const cnReq = (rDotDes * Izz - (Ixx - Iyy) * P * Q) / Math.max(kYaw, 1);
+    // aileron adverse yaw is modelled; asymmetric thrust is not (the pilot / feedback trims it)
+    const cnModel = cnB * beta + A.cnR * rhat + A.cnP * phat + A.cnDa * this.defl.a;
+    this.dCmd.r = clamp((cnReq - cnModel) / Math.max(rEff, 1e-4), -1, 1);
+
+    // actuators: rate limited
+    this.defl.e += clamp(this.dCmd.e - this.defl.e, -A.rateE * dt, A.rateE * dt);
+    this.defl.a += clamp(this.dCmd.a - this.defl.a, -A.rateA * dt, A.rateA * dt);
+    this.defl.r += clamp(this.dCmd.r - this.defl.r, -A.rateR * dt, A.rateR * dt);
+
+    // --- rigid-body rotation (Euler's equations, body axes) ---
+    const Mp = (cmNat + eEff * this.defl.e) * kPitch;
+    const Lr = (clNat + aEff * this.defl.a) * kRoll;
+    const Ny = (cnNat + rEff * this.defl.r + A.cnDa * this.defl.a) * kYaw;
+    // turbulence: a gust gradient across the span rolls the wings
+    const gustRoll = clamp((this.windVel.y - this.lastGustY) / Math.max(dt, 1e-4), -40, 40) * 0.025;
+    this.lastGustY = this.windVel.y;
+    const Pdot = (Lr + (Iyy - Izz) * Q * R) / Ixx + gustRoll;
+    const Qdot = (Mp + (Izz - Ixx) * P * R) / Iyy;
+    const Rdot = (Ny + (Ixx - Iyy) * P * Q) / Izz;
+    this.pRate += Pdot * dt;
+    this.qRate += Qdot * dt;
+    this.rRate += Rdot * dt;
+    // sanity clamp (departed tumbling still stays bounded)
+    this.pRate = clamp(this.pRate, -8, 8);
+    this.qRate = clamp(this.qRate, -3, 3);
+    this.rRate = clamp(this.rRate, -3, 3);
 
     // integrate translation
     this.vel.addScaledVector(_acc, dt);
     this.pos.addScaledVector(this.vel, dt);
 
-    // integrate rotation (world-frame angular velocity)
-    const stab = _tmp2.copy(this.fwd).lerp(_vhat, clamp(V / 60, 0, 1)).normalize();
-    const wx = this.right.x * qRate - this.up.x * rRate + stab.x * this.pRate;
-    const wy = this.right.y * qRate - this.up.y * rRate + stab.y * this.pRate;
-    const wz = this.right.z * qRate - this.up.z * rRate + stab.z * this.pRate;
+    // integrate rotation: world angular velocity = P fwd + Q right + R down
+    const wx = this.fwd.x * this.pRate + this.right.x * this.qRate - this.up.x * this.rRate;
+    const wy = this.fwd.y * this.pRate + this.right.y * this.qRate - this.up.y * this.rRate;
+    const wz = this.fwd.z * this.pRate + this.right.z * this.qRate - this.up.z * this.rRate;
     const wl = Math.sqrt(wx * wx + wy * wy + wz * wz);
     if (wl > 1e-9) {
-      const ang = wl * dt;
       _tmp.set(wx / wl, wy / wl, wz / wl);
-      _dq.setFromAxisAngle(_tmp, ang);
+      _dq.setFromAxisAngle(_tmp, wl * dt);
       this.quat.premultiply(_dq).normalize();
     }
     this.updateAxes();
 
-    this.pitchRate = qRate / DEG;
-    this.yawRate = rRate / DEG;
+    this.pitchRate = this.qRate / DEG;
+    this.yawRate = this.rRate / DEG;
     this.rollRate = this.pRate / DEG;
     this.vs = this.vel.y;
+    this.departed = alpha > aMax + 12 * DEG || Math.abs(beta) > 20 * DEG;
 
     // --- structure ---
     const absN = this.nz;
@@ -611,7 +773,7 @@ export class FlightModel {
     this.agl = s.gear.height;
     this.nz = 1;
     this.vs = 0;
-    this.pRate = 0;
+    this.resetRates(1);
     this.rollRate = 0;
     this.pitchRate = 0;
     this.stallWarning = false;

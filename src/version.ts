@@ -10,6 +10,24 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '1.2.0',
+    date: '2026-09-26',
+    title: 'Realistic flight physics',
+    notes: [
+      "Flight physics rebuilt: the jets now rotate as real rigid bodies. Pitch, roll and yaw come from aerodynamic moments and the jet's inertia instead of being set directly, so every aircraft has weight, momentum and overshoot.",
+      "Per-jet moments of inertia that change with fuel and stores: a jet loaded with wing tanks and missiles is slower to start and stop a roll.",
+      "Real stability: pitch stability shifts aft when supersonic (less G available high and fast), the Typhoon is aerodynamically unstable like the real jet and relies on its flight-control computers, weathercock stability fades at extreme angle of attack, plus dihedral effect, adverse yaw and inertial coupling.",
+      "Fly-by-wire modelled like modern jets: the control laws compute stabilator, aileron and rudder deflections through rate-limited actuators, with G-onset limiting (about 12 G/s). Response gets sluggish at low speed because the surfaces run out of authority, and crisp at high speed.",
+      "Departures are possible: overriding the G-limiter at high angle of attack and low speed can stall the jet, with wing rock and nose slice; release the stick to recover.",
+      "Engine failure yaws the jet toward the dead engine; it has to be trimmed out with rudder.",
+      "Wind and turbulence: every mission has its own wind that strengthens and veers with height, light chop at altitude, rougher air low over land and rotor turbulence near the mountains. Gusts bump the nose and wings.",
+      "Ground effect: the jet floats in the flare and induced drag drops near the runway.",
+      "Control surfaces on the 3D models now show what the flight computers are actually doing (trim, damping, turn coordination).",
+      "Fixed the F/A-18's vertical stabilizers: both now cant outward 20 degrees symmetrically (the left fin used to lean the wrong way).",
+      "F-15EX vertical stabilizers are now perfectly straight (vertical).",
+    ],
+  },
+  {
     version: '1.1.0',
     date: '2026-09-26',
     title: 'High-detail aircraft',

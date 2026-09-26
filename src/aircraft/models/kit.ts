@@ -408,7 +408,8 @@ export function wing(spec: WingSpec): THREE.BufferGeometry {
 
 /** Matrix taking a horizontal build frame (span +x) to a fin standing at (x, y) canted outboard by `cantDeg`. */
 export function finMatrix(x: number, y: number, cantDeg: number, side: 1 | -1 = 1): THREE.Matrix4 {
-  const m = new THREE.Matrix4().makeRotationZ(Math.PI / 2 - side * cantDeg * (Math.PI / 180));
+  // build the right-hand fin (leaning out toward +x), then mirror it for the left
+  const m = new THREE.Matrix4().makeRotationZ(Math.PI / 2 - cantDeg * (Math.PI / 180));
   if (side < 0) m.premultiply(new THREE.Matrix4().makeScale(-1, 1, 1));
   m.premultiply(new THREE.Matrix4().makeTranslation(x, y, 0));
   return m;

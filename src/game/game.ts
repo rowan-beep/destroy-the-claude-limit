@@ -32,6 +32,7 @@ import { ReplayRecorder, ReplayPlayer } from './replay';
 import { SortieRecorder, LogbookData, MissionOutcome, loadLogbook, saveLogbook, commitSortie, medalName } from './logbook';
 import { NM } from '../core/constants';
 import { prewarmAirframes } from '../aircraft/models';
+import { randomizeWind, wind } from '../core/weather';
 import { enemyTypesFor } from '../aircraft/specs';
 
 export type GameState = 'menu' | 'loading' | 'playing' | 'paused' | 'map' | 'results' | 'replay';
@@ -165,7 +166,9 @@ export class Game implements ModeHost {
     if (cfg.mode !== 'free') for (const t of enemyTypesFor(cfg.aircraft)) pre.push(new Aircraft(t, 'red', 'PRE'));
     prewarmAirframes(pre);
     this.mode = cfg.mode === 'free' ? new FreeFlightMode(this) : cfg.mode === 'waves' ? new WavesMode(this) : new DuelMode(this);
+    randomizeWind();
     this.mode.start();
+    this.message(`WIND ${String(Math.round(wind.fromDeg)).padStart(3, '0')}° / ${Math.round(wind.surfaceKts)} KT${wind.turbulence > 1.1 ? ' — MODERATE TURBULENCE LOW LEVEL' : ''}`, 'info', 8);
     this.recorder = new ReplayRecorder(this.sim, cfg.mode.toUpperCase());
     this.syncPlayerControls();
     this.hud.reset(this);

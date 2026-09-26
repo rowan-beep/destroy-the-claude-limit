@@ -16,8 +16,8 @@ terrain against you.
 | Gun | M61A1 20 mm | M61A2 20 mm | BK-27 27 mm |
 | Radar | AN/APG-82(V)1 AESA | AN/APG-79 AESA | CAPTOR-E + PIRATE IRST |
 
-Current version: **v1.1.0** — see [CHANGELOG.md](CHANGELOG.md) (also in the game
-under **v1.1.0 · NOTES** on the main menu).
+Current version: **v1.2.0** — see [CHANGELOG.md](CHANGELOG.md) (also in the game
+under **v1.2.0 · NOTES** on the main menu).
 
 Each jet is a high-detail procedural model (~150k triangles): blended fuselages
 built from real cross-sections, hollow intakes with ducts and fans, airfoil
@@ -136,8 +136,16 @@ buttons, drag to look) switch on automatically on touch devices.
 
 ### Flight and physiology
 
-- Fly-by-wire: the stick commands load factor, the FCS holds angle of attack and
-  G limits (override with L for the airframe's ultimate limit).
+- Six-degree-of-freedom physics: forces *and* moments. Each jet has its own
+  moments of inertia (changing with fuel and wing stores), stability and
+  damping derivatives, and control power; rotation follows Euler's equations.
+- Fly-by-wire: the stick commands load factor and roll rate; the control laws
+  work out stabilator / aileron / rudder deflections (rate-limited actuators,
+  G-onset limiting, AoA and G limiters; override with L). Authority fades at
+  low speed, stability stiffens supersonic, the Typhoon is unstable without
+  its computers, and pushing past the limits can depart the jet.
+- Wind and turbulence (per-mission wind, chop aloft, rough air low over land,
+  mountain rotor), ground effect, and asymmetric thrust with an engine out.
 - Fuel matters. Afterburner multiplies fuel flow several times over.
 - G effects: +4.0 to +7.9 G grey-out; +8.0 to +10.4 G tunnel vision; +10.5 G and
   above G-LOC (10 s blackout, controls frozen). −2.0 to −4.9 G red-out at 50 %;

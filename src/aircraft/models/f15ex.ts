@@ -111,7 +111,7 @@ const FIN: WingStation[] = [
   { x: 0, le: 4.75, te: 8.4, t: 0.05 },
   { x: 3.18, le: 7.1, te: 8.3, t: 0.034 },
 ];
-const FIN_ROOT = { x: 1.62, y: 0.38, cant: 2 };
+const FIN_ROOT = { x: 1.62, y: 0.38, cant: 0 };
 const RUDDER = { h0: 0.12, h1: 1.95, hinge: (h: number) => 7.62 + h * 0.02 };
 
 function livery(team: string): Livery {
