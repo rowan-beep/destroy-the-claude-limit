@@ -1,4 +1,7 @@
 // 3D hangar showcase behind the main menu: the selected jet on a turntable.
+// The camera orbits freely: drag to look around the jet (above and below),
+// scroll / pinch to zoom, double-click to reset. The turntable's slow spin
+// stops as soon as you take the camera.
 
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -14,6 +17,19 @@ export class Hangar {
   private current: AircraftType = 'F15EX';
   private angle = 0.6;
   private t = 0;
+  // orbit camera (azimuth from the nose side, elevation, distance factor); targets and smoothed values
+  private yaw = 0.75;
+  private pitch = 0.2;
+  private zoom = 1;
+  private yawS = 0.75;
+  private pitchS = 0.2;
+  private zoomS = 1;
+  /** true once the user has moved the camera: the turntable stops spinning */
+  private userView = false;
+  private lastRender = 0;
+  private drag: { id: number; x: number; y: number } | null = null;
+  private pinch: { ids: [number, number]; d0: number; z0: number } | null = null;
+  private pointers = new Map<number, { x: number; y: number }>();
   private turntable: THREE.Group;
   private envMap: THREE.Texture | null = null;
   loadoutId: string | null = null;
@@ -81,6 +97,81 @@ export class Hangar {
     fill.position.set(0, 10, -30);
     s.add(fill);
     this.camera.position.set(26, 9, -24);
+    this.bindControls();
+  }
+
+  /** Is this press on empty background (not a menu panel, button or field)? */
+  private onBackground(e: Event): boolean {
+    if (performance.now() - this.lastRender > 300) return false;
+    const t = e.target as HTMLElement | null;
+    if (!t || !t.closest) return true;
+    return !t.closest('.card, button, input, select, label, a, .jet-card, .mode-card, .cz-panel, .cz-top, .cz-foot, .hangar-caption, .fly-row, .menu-header, .modal-back, .modal, .scroll');
+  }
+
+  private bindControls(): void {
+    window.addEventListener('pointerdown', (e) => {
+      if (!this.onBackground(e)) return;
+      this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (this.pointers.size === 2) {
+        const [a, b] = [...this.pointers.entries()];
+        this.pinch = { ids: [a[0], b[0]], d0: Math.hypot(a[1].x - b[1].x, a[1].y - b[1].y), z0: this.zoom };
+        this.drag = null;
+      } else {
+        this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+      }
+      this.userView = true;
+      e.preventDefault();
+    });
+    window.addEventListener('pointermove', (e) => {
+      const p = this.pointers.get(e.pointerId);
+      if (!p) return;
+      p.x = e.clientX;
+      p.y = e.clientY;
+      if (this.pinch) {
+        const a = this.pointers.get(this.pinch.ids[0]);
+        const b = this.pointers.get(this.pinch.ids[1]);
+        if (a && b) {
+          const d = Math.hypot(a.x - b.x, a.y - b.y);
+          this.zoom = clampN(this.pinch.z0 * (this.pinch.d0 / Math.max(20, d)), 0.35, 2.2);
+        }
+        return;
+      }
+      if (this.drag && this.drag.id === e.pointerId) {
+        const dx = e.clientX - this.drag.x;
+        const dy = e.clientY - this.drag.y;
+        this.drag.x = e.clientX;
+        this.drag.y = e.clientY;
+        this.yaw -= dx * 0.008;
+        this.pitch = clampN(this.pitch + dy * 0.006, -0.02, 1.45);
+      }
+    });
+    const up = (e: PointerEvent) => {
+      this.pointers.delete(e.pointerId);
+      if (this.pinch && (e.pointerId === this.pinch.ids[0] || e.pointerId === this.pinch.ids[1])) this.pinch = null;
+      if (this.drag?.id === e.pointerId) this.drag = null;
+    };
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+    window.addEventListener(
+      'wheel',
+      (e) => {
+        if (!this.onBackground(e)) return;
+        this.userView = true;
+        this.zoom = clampN(this.zoom * Math.exp(e.deltaY * 0.0012), 0.35, 2.2);
+      },
+      { passive: true },
+    );
+    window.addEventListener('dblclick', (e) => {
+      if (!this.onBackground(e)) return;
+      this.resetView();
+    });
+  }
+
+  /** Back to the default three-quarter view (the turntable stays where it is). */
+  resetView(): void {
+    this.yaw = 0.75;
+    this.pitch = 0.2;
+    this.zoom = 1;
   }
 
   private ensure(type: AircraftType): { vis: AirframeVisual; ac: Aircraft } {
@@ -124,7 +215,8 @@ export class Hangar {
 
   render(dt: number, w: number, h: number): void {
     this.t += dt;
-    this.angle += dt * 0.18;
+    this.lastRender = performance.now();
+    if (!this.userView) this.angle += dt * 0.18;
     this.turntable.rotation.y = this.angle;
     const j = this.ensure(this.current);
     j.vis.update(dt);
@@ -132,16 +224,30 @@ export class Hangar {
     j.vis.root.position.set(0, j.ac.spec.gear.height + 0.12, 0);
     j.vis.root.quaternion.identity();
     const len = j.ac.spec.length;
-    const d = len * 1.9 + 6;
-    this.camera.position.set(Math.sin(0.75) * d, 9 + Math.sin(this.t * 0.2) * 0.6, -Math.cos(0.75) * d);
+    // ease toward the requested view
+    const k = 1 - Math.exp(-dt * 12);
+    this.yawS += (this.yaw - this.yawS) * k;
+    this.pitchS += (this.pitch - this.pitchS) * k;
+    this.zoomS += (this.zoom - this.zoomS) * k;
+    const d = (len * 1.9 + 6) * this.zoomS;
+    // frame the jet slightly right of centre so the UI columns don't cover it
+    // (less so when zoomed in close)
+    const tx = -2 * Math.min(1, this.zoomS);
+    const ty = 1.8;
+    const bob = this.userView ? 0 : Math.sin(this.t * 0.2) * 0.6;
+    const cp = Math.cos(this.pitchS);
+    this.camera.position.set(tx + Math.sin(this.yawS) * cp * d, Math.max(0.4, ty + Math.sin(this.pitchS) * d + bob), -Math.cos(this.yawS) * cp * d);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
-    // frame the jet slightly right of centre so the UI columns don't cover it
-    this.camera.lookAt(-2, 1.8, 0);
+    this.camera.lookAt(tx, ty, 0);
     this.renderer.setRenderTarget(null);
     const tm = this.renderer.toneMapping;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.render(this.scene, this.camera);
     this.renderer.toneMapping = tm;
   }
+}
+
+function clampN(v: number, a: number, b: number): number {
+  return Math.max(a, Math.min(b, v));
 }

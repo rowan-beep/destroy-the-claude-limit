@@ -10,6 +10,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '1.7.5',
+    date: '2026-09-26',
+    title: 'Hangar camera',
+    notes: [
+      "Look around the jet in the hangar: on the main menu (and the customize screen) drag anywhere on the empty space around the jet to orbit the camera, from low beside the jet to straight overhead. Scroll the mouse wheel (or pinch on a touch screen) to zoom in close or back out. Double-click to reset the view.",
+      "The turntable stops its slow spin as soon as you take the camera, so the jet stays where you put it.",
+      "The loadout note on the main menu now names both missile families (the Su-35S carries R-77M and R-74M, not AIM-120D and AIM-9X).",
+    ],
+  },
+  {
     version: '1.7.4',
     date: '2026-09-26',
     title: 'Pusk! and model fixes',

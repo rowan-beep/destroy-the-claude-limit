@@ -3,6 +3,12 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v1.7.5 — Hangar camera (2026-09-26)
+
+- Look around the jet in the hangar: on the main menu (and the customize screen) drag anywhere on the empty space around the jet to orbit the camera, from low beside the jet to straight overhead. Scroll the mouse wheel (or pinch on a touch screen) to zoom in close or back out. Double-click to reset the view.
+- The turntable stops its slow spin as soon as you take the camera, so the jet stays where you put it.
+- The loadout note on the main menu now names both missile families (the Su-35S carries R-77M and R-74M, not AIM-120D and AIM-9X).
+
 ## v1.7.4 — Pusk! and model fixes (2026-09-26)
 
 - Su-35S launch call is now just 'Pusk!' (Пуск, 'launch!'), for both the R-77M and the R-74M. It's spoken in Russian if your device has a Russian voice. The F-15EX, F/A-18E/F and Typhoon keep 'Fox three' (AIM-120D) and 'Fox two' (AIM-9X).

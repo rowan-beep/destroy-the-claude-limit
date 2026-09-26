@@ -67,7 +67,7 @@ export class MainMenu {
       this.cfg.loadoutId = this.loadoutSel.value;
       this.cb.onSelectJet(this.cfg.aircraft, this.cfg.loadoutId);
     });
-    el('div', 'note', lc, 'AIM-120D AMRAAM: active radar, ~40-70 NM at altitude. AIM-9X: IR dogfight missile, 90° off-boresight. Tanks add fuel and drag.');
+    el('div', 'note', lc, 'Radar missiles (AIM-120D, or R-77M on the Su-35S): active radar, ~40-70 NM at altitude. IR missiles (AIM-9X / R-74M): dogfight missiles, high off-boresight. Tanks add fuel and drag.');
     const pc = el('div', 'card', left);
     el('h2', '', pc, 'PAINT & WRAPS');
     button('CUSTOMIZE JET ▸', 'primary', pc, () => this.cb.onCustomize(this.cfg.aircraft));
@@ -75,6 +75,7 @@ export class MainMenu {
 
     // centre: hangar caption & fly button
     const centre = el('div', 'hangar-center', body);
+    el('div', 'hangar-hint', centre, 'DRAG TO LOOK AROUND · SCROLL TO ZOOM · DOUBLE-CLICK TO RESET');
     this.caption = el('div', 'hangar-caption', centre);
     const fly = el('div', 'fly-row', centre);
     button('FLY ▸', 'primary big', fly, () => this.cb.onFly({ ...this.cfg }));

@@ -153,6 +153,9 @@ button { font-family: var(--title); }
 .hangar-center { position: relative; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; pointer-events: none; }
 .hangar-center > * { pointer-events: auto; }
 .hangar-caption { text-align: center; margin-bottom: 6px; }
+.hangar-hint { position: absolute; top: 4px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 11px; letter-spacing: 0.14em; color: rgba(200, 220, 235, 0.55); text-shadow: 0 1px 4px #000; pointer-events: none !important; }
+.customize .cz-hint { top: auto; bottom: 90px; left: 40%; }
+@media (max-width: 700px) { .hangar-hint { font-size: 9px; } }
 .hangar-caption .hn { font-size: 34px; font-weight: 700; letter-spacing: 6px; color: #fff; text-shadow: 0 2px 14px rgba(0,0,0,0.7); }
 .hangar-caption .hd { max-width: 620px; color: #c5d4df; font-size: 14px; line-height: 1.45; text-shadow: 0 1px 6px #000; }
 .fly-row { display: flex; gap: 10px; align-items: center; margin-top: 10px; }

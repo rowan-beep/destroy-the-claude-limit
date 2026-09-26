@@ -29,6 +29,7 @@ export class CustomizeScreen {
     this.panel = el('div', 'cz-panel', this.root);
     const foot = el('div', 'cz-foot', this.root);
     this.status = el('div', 'cz-status', foot, '');
+    el('div', 'hangar-hint cz-hint', this.root, 'DRAG TO LOOK AROUND · SCROLL TO ZOOM · DOUBLE-CLICK TO RESET');
     button('RESET TO FACTORY', '', foot, () => {
       this.draft = defaultPaint();
       this.render();
