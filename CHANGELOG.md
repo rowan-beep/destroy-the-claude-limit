@@ -3,6 +3,10 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v1.7.2 — Missile calls (2026-09-26)
+
+- Launch calls now say what you actually fired. Firing an R-77M shows 'R-77M AWAY (FOX 3)' in the feed and the voice says 'R 77 M away'; an R-74M says 'R-74M AWAY (FOX 2)'. The same goes for every jet: 'AMRAAM away' for the AIM-120D and 'Sidewinder away' for the AIM-9X.
+
 ## v1.7.1 — Su-35S complete (2026-09-26)
 
 - The Sukhoi Su-35S is now COMPLETE: physics, handling, looks, cockpit and weapons have all been checked against the real jet's numbers and against the other three jets.

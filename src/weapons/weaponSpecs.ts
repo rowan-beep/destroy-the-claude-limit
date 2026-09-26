@@ -193,3 +193,8 @@ export function launchZone(
 export function weaponCode(t: MissileType): string {
   return t === 'AIM120D' ? '120D' : t === 'AIM9X' ? '9X' : t === 'R77M' ? 'R77M' : 'R74M';
 }
+
+/** What the pilot calls on the radio when this missile leaves the rail. */
+export function spokenName(t: MissileType): string {
+  return t === 'AIM120D' ? 'AMRAAM' : t === 'AIM9X' ? 'Sidewinder' : t === 'R77M' ? 'R 77 M' : 'R 74 M';
+}
