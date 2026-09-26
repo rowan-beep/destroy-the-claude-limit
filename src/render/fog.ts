@@ -51,7 +51,7 @@ export function installAltitudeFog(): void {
   varying vec3 vFogRel;
   // haze lit by the sun: bright forward-scattering glow toward the sun (Mie)
   vec3 hazeColor( vec3 rel ) {
-    float mu = max( dot( normalize( rel ), fogSun.xyz ), 0.0 );
+    float mu = max( dot( rel / max( length( rel ), 1e-3 ), fogSun.xyz ), 0.0 );
     float glow = pow( mu, 5.0 ) * 0.28 + pow( mu, 24.0 ) * 0.42 + pow( mu, 180.0 ) * 0.6;
     return fogColor + fogSunColor * glow * fogSun.w;
   }

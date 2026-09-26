@@ -3,6 +3,11 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v2.1.1 — Black screen fix (2026-09-26)
+
+- Fixed: the screen could go completely black as soon as you started flying on some graphics cards. A very bright sun glint off glossy paint or a canopy could overflow the HDR picture buffer, and the new bloom smeared that broken pixel across the whole screen. The picture is now cleaned before bloom, so this can't happen any more, and bloom still glows as before.
+- Hardened the haze, cloud and free-for-all storm-wall shaders against the same kind of invalid values.
+
 ## v2.1.0 — Free-for-all: Last Pilot Standing (2026-09-26)
 
 - NEW GAME MODE: FREE-FOR-ALL — LAST PILOT STANDING. 12 jets in the sky: you and 11 AI pilots, every jet hostile to every other jet. No teams, no wingmen, no respawns. Last jet flying wins.

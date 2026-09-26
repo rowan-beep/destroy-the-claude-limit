@@ -31,9 +31,9 @@ void main() {
   // racing vertical streaks, wobbling so they never look like a fence
   float s1 = 0.5 + 0.5 * sin( u * 220.0 + sin( u * 17.0 + time * 0.4 ) * 4.0 + vUv.y * 9.0 - time * 1.7 );
   float s2 = 0.5 + 0.5 * sin( u * 71.0 - time * 0.9 + vUv.y * 3.0 );
-  float streak = pow( s1, 6.0 ) * 0.8 + s2 * 0.35;
+  float streak = pow( max( s1, 0.0 ), 6.0 ) * 0.8 + s2 * 0.35;
   // pulses climbing the wall
-  float pulse = pow( 0.5 + 0.5 * sin( vUv.y * 60.0 - time * 3.2 + sin( u * 9.0 ) * 2.0 ), 12.0 );
+  float pulse = pow( max( 0.0, 0.5 + 0.5 * sin( vUv.y * 60.0 - time * 3.2 + sin( u * 9.0 ) * 2.0 ) ), 12.0 );
   float base = 1.0 - smoothstep( 0.0, 0.16, vUv.y );
   float fade = 1.0 - smoothstep( 0.55, 1.0, vUv.y );
   float a = opacity * fade * ( 0.22 + 0.45 * streak + 0.28 * pulse + 0.8 * base );

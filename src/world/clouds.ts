@@ -87,7 +87,7 @@ void main() {
   float light = clamp( t.r * vShade, 0.0, 1.2 );
   vec3 col = mix( shadowColor, sunColor, light );
   // forward scattering: thin edges glow silver when the sun is behind the cloud
-  float mu = max( dot( normalize( vWDir ), sunDir ), 0.0 );
+  float mu = max( dot( vWDir / max( length( vWDir ), 1e-3 ), sunDir ), 0.0 );
   float thin = 1.0 - t.a;
   col += sunColor * scatter * ( pow( mu, 6.0 ) * ( 0.12 + 0.6 * thin ) + pow( mu, 40.0 ) * 0.5 * thin );
   gl_FragColor = vec4( col, a );

@@ -10,6 +10,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '2.1.1',
+    date: '2026-09-26',
+    title: "Black screen fix",
+    notes: [
+      "Fixed: the screen could go completely black as soon as you started flying on some graphics cards. A very bright sun glint off glossy paint or a canopy could overflow the HDR picture buffer, and the new bloom smeared that broken pixel across the whole screen. The picture is now cleaned before bloom, so this can't happen any more, and bloom still glows as before.",
+      "Hardened the haze, cloud and free-for-all storm-wall shaders against the same kind of invalid values.",
+    ],
+  },
+  {
     version: '2.1.0',
     date: '2026-09-26',
     title: "Free-for-all: Last Pilot Standing",

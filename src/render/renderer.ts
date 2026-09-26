@@ -48,6 +48,24 @@ const GradeShader = {
     }`,
 };
 
+/**
+ * Scrub the HDR scene buffer before bloom: half-float overflows (a sun glint
+ * off glossy paint can exceed 65504) become Infinity, and bloom would smear
+ * that -- and the NaNs it breeds -- across the whole screen as black.
+ */
+const SanitizeShader = {
+  uniforms: { tDiffuse: { value: null } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: /* glsl */ `
+    uniform sampler2D tDiffuse;
+    varying vec2 vUv;
+    void main() {
+      vec4 c = texture2D( tDiffuse, vUv );
+      if ( any( isnan( c ) ) || any( notEqual( c, c ) ) ) c = vec4( 0.0, 0.0, 0.0, 1.0 );
+      gl_FragColor = vec4( min( max( c.rgb, vec3( 0.0 ) ), vec3( 256.0 ) ), clamp( c.a, 0.0, 1.0 ) );
+    }`,
+};
+
 const SHADOW_SIZE: Record<string, number> = { low: 1024, medium: 2048, high: 4096, ultra: 8192 };
 
 export class GameRenderer {
@@ -120,6 +138,7 @@ export class GameRenderer {
     this.gradePass = new ShaderPass(GradeShader);
     this.composer.addPass(this.renderPass);
     this.composer.addPass(this.overlayPass);
+    this.composer.addPass(new ShaderPass(SanitizeShader));
     this.composer.addPass(this.bloomPass);
     this.composer.addPass(this.visionPass);
     this.composer.addPass(this.outputPass);
