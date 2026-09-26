@@ -52,7 +52,10 @@ export class MainMenu {
     const wn = new WhatsNewModal(document.body);
     button(`v${VERSION} · NOTES`, '', hb, () => wn.show(true));
     button('LOGBOOK', '', hb, () => cb.onLogbook());
-    setTimeout(() => wn.showIfNew(), 1200);
+    // only pop the notes up if the menu is still on screen (not after FLY was pressed)
+    setTimeout(() => {
+      if (!this.root.classList.contains('hidden')) wn.showIfNew();
+    }, 1200);
     button('CONTROLS', '', hb, () => cb.onControls());
     button('SETTINGS', '', hb, () => cb.onSettings());
 

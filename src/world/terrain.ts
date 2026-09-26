@@ -645,7 +645,7 @@ function frostColor(x: number, z: number, info: TerrainInfo, slope: number, out:
   out.b = 0.96 + 0.03 * v;
   mix3(out, 0.8, 0.86, 0.94, 0.3 * (0.5 + 0.5 * n2));
   // exposed rock on steep faces and along the knife-edge ridges
-  const rockT = smoothstep(0.5, 0.78, slope + n3 * 0.07 + 0.05 * n2);
+  const rockT = smoothstep(0.6, 0.86, slope + n3 * 0.07 + 0.05 * n2);
   if (rockT > 0) mix3(out, 0.25 + 0.04 * n2, 0.25 + 0.035 * n2, 0.27 + 0.03 * n2, rockT);
   // blue-grey ice cliffs at the shore
   const shore = (1 - smoothstep(40, 220, info.inland)) * (1 - smoothstep(10, 70, h));

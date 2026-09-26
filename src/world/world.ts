@@ -73,7 +73,7 @@ export class World {
   /** Create render objects once the grid exists. */
   init(): void {
     this.env = new Environment(this.scene);
-    this.ocean = new Ocean(this.scene, this.env);
+    this.ocean = new Ocean(this.scene, this.env, this.grid);
     this.terrain = new TerrainLOD(this.pool, this.grid);
     this.scene.add(this.terrain.group);
     this.trees = new TreeSystem(this.pool, this.scene);

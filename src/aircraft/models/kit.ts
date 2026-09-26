@@ -761,7 +761,7 @@ const SKIN_FRAG = /* glsl */ `
                 + texture2D( customTex, vSkin.xy / customScale ).r * wF;
         base = mix( customA, customB, t ) * shade;
       }
-      if ( customMode > 2.5 ) {
+      if ( customMode > 2.5 && customMode < 3.5 ) {
         // BLACK ICE: black to glacial teal to frosted white along the jet, with
         // crystal facets, smoky wisps and glowing cracks
         vec3 tx = texture2D( customTex, vSkin.xz / customScale ).rgb * wY
@@ -779,6 +779,38 @@ const SKIN_FRAG = /* glsl */ `
         ice += crackCol * tx.r * ( 0.2 + 0.4 * t );
         base = ice * shade * 0.6;
         skinGlow = crackCol * tx.r * ( 0.1 + 0.2 * t ) + customB * tx.g * 0.1 * t;
+      }
+      if ( customMode > 3.5 ) {
+        vec3 tx = texture2D( customTex, vSkin.xz / customScale ).rgb * wY
+                + texture2D( customTex, vSkin.zy / customScale ).rgb * wX
+                + texture2D( customTex, vSkin.xy / customScale ).rgb * wF;
+        float u = clamp( ( vSkin.z - skinBox.y ) / skinBox.z, 0.0, 1.0 );
+        vec3 col;
+        vec3 glow;
+        if ( customMode < 4.5 ) {
+          // INFERNO: charred black plates split by molten veins, hotter toward the tail
+          float heat = smoothstep( 0.2, 1.0, u + ( tx.g - 0.3 ) * 0.5 );
+          vec3 ember = mix( customB, vec3( 1.0, 0.86, 0.35 ), tx.r * 0.8 );
+          col = customA * ( 0.7 + 0.6 * tx.b ) + ember * tx.r * ( 0.3 + 0.7 * heat ) + customB * tx.g * heat * 0.4;
+          glow = ember * tx.r * ( 0.25 + 0.9 * heat ) + customB * tx.g * heat * 0.3;
+        } else if ( customMode < 5.5 ) {
+          // AURORA: night-sky navy with rippling green-to-violet light curtains and stars
+          float band = pow( tx.r, 1.6 ) * ( 0.55 + 0.45 * sin( u * 14.0 + tx.g * 6.0 ) );
+          vec3 ac = mix( customB, vec3( 0.66, 0.3, 1.0 ), smoothstep( 0.2, 0.9, tx.g + 0.4 * sin( u * 6.0 ) ) );
+          float star = pow( tx.b, 7.0 );
+          col = customA * ( 0.8 + 0.3 * tx.g ) + ac * band * 0.45 + vec3( star ) * 0.8;
+          glow = ac * band * 0.18 + vec3( star ) * 0.5;
+        } else {
+          // GALAXY: deep space, nebula clouds cut by dark dust lanes, glowing stars
+          vec3 nc = mix( vec3( 0.2, 0.45, 1.0 ), customB, smoothstep( 0.2, 0.8, tx.r ) );
+          nc = mix( nc, vec3( 1.0, 0.35, 0.6 ), smoothstep( 0.65, 1.0, tx.r ) * 0.6 );
+          float neb = smoothstep( 0.35, 1.0, tx.r ) * ( 1.0 - 0.9 * tx.g );
+          float star = pow( tx.b, 6.0 );
+          col = customA * 0.7 + nc * neb * 0.35 + vec3( star ) * 0.8;
+          glow = nc * neb * 0.08 + vec3( star ) * 0.5;
+        }
+        base = col * shade * 0.8;
+        skinGlow = glow;
       }
     }
     diffuseColor.rgb *= ( base * ( 1.0 - m.a ) + m.rgb ) * brightness;
@@ -854,7 +886,7 @@ function applySkin(mat: THREE.MeshStandardMaterial, uniforms: Record<string, THR
       .replace('#include <map_fragment>', '#include <map_fragment>\n' + SKIN_FRAG)
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += skinGlow;');
   };
-  mat.customProgramCacheKey = () => 'skin-v3';
+  mat.customProgramCacheKey = () => 'skin-v4';
   void id;
 }
 

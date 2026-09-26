@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import type { AircraftType } from '../specs';
 
 export type PaintMode = 'factory' | 'solid' | 'wrap';
-export type WrapId = 'blackice' | 'digital' | 'splinter' | 'tiger' | 'hex' | 'woodland' | 'arctic' | 'carbon' | 'chevron';
+export type WrapId = 'blackice' | 'inferno' | 'aurora' | 'galaxy' | 'digital' | 'splinter' | 'tiger' | 'hex' | 'woodland' | 'arctic' | 'carbon' | 'chevron';
 export type Finish = 'matte' | 'satin' | 'gloss' | 'metallic';
 
 export interface PaintConfig {
@@ -42,8 +42,12 @@ export const SOLID_COLORS: [string, string][] = [
   ['LIME', '#8cc63f'],
 ];
 
-export const WRAPS: { id: WrapId; name: string; a: string; b: string; tileM: number; full?: boolean }[] = [
-  { id: 'blackice', name: 'BLACK ICE', a: '#020405', b: '#2ec4d4', tileM: 5, full: true },
+/** full: the whole-jet art style drawn by the skin shader (3 Black Ice, 4 Inferno, 5 Aurora, 6 Galaxy). */
+export const WRAPS: { id: WrapId; name: string; a: string; b: string; tileM: number; full?: number }[] = [
+  { id: 'blackice', name: 'BLACK ICE', a: '#020405', b: '#2ec4d4', tileM: 5, full: 3 },
+  { id: 'inferno', name: 'INFERNO', a: '#0d0706', b: '#ff5a14', tileM: 5, full: 4 },
+  { id: 'aurora', name: 'AURORA', a: '#050d24', b: '#2effa8', tileM: 6, full: 5 },
+  { id: 'galaxy', name: 'GALAXY', a: '#04020d', b: '#a64dff', tileM: 7, full: 6 },
   { id: 'digital', name: 'DIGITAL', a: '#7d858b', b: '#4b5258', tileM: 4 },
   { id: 'splinter', name: 'SPLINTER', a: '#b39b72', b: '#6b5436', tileM: 7 },
   { id: 'tiger', name: 'TIGER', a: '#e0701e', b: '#16171a', tileM: 5 },
@@ -117,6 +121,18 @@ function tiled(g: CanvasRenderingContext2D, draw: (ox: number, oy: number) => vo
 function drawMask(id: WrapId, g: CanvasRenderingContext2D): void {
   if (id === 'blackice') {
     drawBlackIce(g);
+    return;
+  }
+  if (id === 'inferno') {
+    drawInferno(g);
+    return;
+  }
+  if (id === 'aurora') {
+    drawAurora(g);
+    return;
+  }
+  if (id === 'galaxy') {
+    drawGalaxy(g);
     return;
   }
   const r = rng(id.length * 7919 + id.charCodeAt(0));
@@ -255,26 +271,196 @@ function drawMask(id: WrapId, g: CanvasRenderingContext2D): void {
   }
 }
 
+/** One greyscale layer of a full-jet wrap texture, optionally blurred (seamlessly). */
+function layer(draw: (c: CanvasRenderingContext2D) => void, blur = 0): Uint8ClampedArray {
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const x = c.getContext('2d')!;
+  x.fillStyle = '#000';
+  x.fillRect(0, 0, S, S);
+  draw(x);
+  if (!blur) return x.getImageData(0, 0, S, S).data;
+  // blur once at the end (a canvas filter set while drawing blurs every stroke);
+  // the sharp layer is drawn 3x3 so the blur wraps and the tile stays seamless
+  const d = document.createElement('canvas');
+  d.width = d.height = S;
+  const y = d.getContext('2d')!;
+  y.filter = `blur(${blur}px)`;
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) y.drawImage(c, i * S, j * S);
+  return y.getImageData(0, 0, S, S).data;
+}
+
+/** Pack three greyscale layers into the R, G and B channels of the texture. */
+function pack(g: CanvasRenderingContext2D, r: Uint8ClampedArray, gg: Uint8ClampedArray, b: Uint8ClampedArray): void {
+  const img = g.createImageData(S, S);
+  for (let i = 0; i < S * S * 4; i += 4) {
+    img.data[i] = r[i];
+    img.data[i + 1] = gg[i];
+    img.data[i + 2] = b[i];
+    img.data[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+}
+
+/** Branching jagged lines (cracks, lava veins). */
+function veins(x: CanvasRenderingContext2D, seed: number, count: number, width: number, alpha: number, seg: number): void {
+  const rr = rng(seed);
+  x.strokeStyle = `rgba(255,255,255,${alpha})`;
+  x.lineCap = 'round';
+  x.lineJoin = 'round';
+  for (let i = 0; i < count; i++) {
+    let px = rr() * S, py = rr() * S;
+    let ang = rr() * Math.PI * 2;
+    const pts: [number, number][] = [[px, py]];
+    const n = 4 + Math.floor(rr() * 7);
+    for (let k = 0; k < n; k++) {
+      ang += (rr() - 0.5) * 1.1;
+      const len = seg * (0.5 + rr());
+      px += Math.cos(ang) * len;
+      py += Math.sin(ang) * len;
+      pts.push([px, py]);
+    }
+    x.lineWidth = width * (0.5 + rr());
+    tiled(x, (ox, oy) => {
+      x.beginPath();
+      pts.forEach(([a, b], j) => (j ? x.lineTo(a + ox, b + oy) : x.moveTo(a + ox, b + oy)));
+      x.stroke();
+    });
+  }
+}
+
+/** Soft radial blobs, optionally stretched (smoke, flames, nebulae). */
+function blobs(x: CanvasRenderingContext2D, seed: number, count: number, rMin: number, rMax: number, aMin: number, aMax: number, sx: number, sy: number): void {
+  const r = rng(seed);
+  for (let i = 0; i < count; i++) {
+    const cx = r() * S, cy = r() * S, rad = rMin + r() * (rMax - rMin);
+    const a = aMin + r() * (aMax - aMin);
+    tiled(x, (ox, oy) => {
+      const grd = x.createRadialGradient(cx + ox, cy + oy, 0, cx + ox, cy + oy, rad);
+      grd.addColorStop(0, `rgba(255,255,255,${a})`);
+      grd.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = grd;
+      x.save();
+      x.translate(cx + ox, cy + oy);
+      x.scale(sx, sy);
+      x.translate(-(cx + ox), -(cy + oy));
+      x.fillRect(cx + ox - rad, cy + oy - rad, rad * 2, rad * 2);
+      x.restore();
+    });
+  }
+}
+
+/** Star field: many tiny points, a few bright ones with a halo. */
+function stars(x: CanvasRenderingContext2D, seed: number, count: number, big: number): void {
+  const r = rng(seed);
+  for (let i = 0; i < count; i++) {
+    const cx = r() * S, cy = r() * S;
+    const v = Math.floor(90 + r() * 165);
+    x.fillStyle = `rgb(${v},${v},${v})`;
+    const s = r() < 0.8 ? 1 : 2;
+    x.fillRect(Math.floor(cx), Math.floor(cy), s, s);
+  }
+  for (let i = 0; i < big; i++) {
+    const cx = r() * S, cy = r() * S, rad = 3 + r() * 5;
+    tiled(x, (ox, oy) => {
+      const grd = x.createRadialGradient(cx + ox, cy + oy, 0, cx + ox, cy + oy, rad);
+      grd.addColorStop(0, 'rgba(255,255,255,1)');
+      grd.addColorStop(0.25, 'rgba(255,255,255,0.6)');
+      grd.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = grd;
+      x.fillRect(cx + ox - rad, cy + oy - rad, rad * 2, rad * 2);
+    });
+  }
+}
+
+/** Inferno: R = molten veins (bright cores + wide glow), G = flame licks, B = charred plates. */
+function drawInferno(g: CanvasRenderingContext2D): void {
+  const core = layer((x) => veins(x, 913, 44, 2.6, 1, 34));
+  const glow = layer((x) => veins(x, 913, 44, 11, 0.45, 34), 5);
+  const flames = layer((x) => blobs(x, 5150, 110, 14, 70, 0.08, 0.2, 2.6, 0.45), 5);
+  const r = rng(77);
+  const char = layer((x) => {
+    for (let i = 0; i < 90; i++) {
+      const cx = r() * S, cy = r() * S;
+      const pts: [number, number][] = [];
+      const k = 4 + Math.floor(r() * 3);
+      for (let j = 0; j < k; j++) {
+        const a = (j / k) * Math.PI * 2 + r() * 0.8;
+        const d = 18 + r() * 48;
+        pts.push([cx + Math.cos(a) * d, cy + Math.sin(a) * d]);
+      }
+      const v = Math.floor(70 + r() * 185);
+      x.fillStyle = `rgb(${v},${v},${v})`;
+      tiled(x, (ox, oy) => {
+        x.beginPath();
+        pts.forEach(([a, b], j) => (j ? x.lineTo(a + ox, b + oy) : x.moveTo(a + ox, b + oy)));
+        x.closePath();
+        x.fill();
+      });
+    }
+  }, 1.5);
+  const veinsL = new Uint8ClampedArray(core.length);
+  for (let i = 0; i < core.length; i++) veinsL[i] = Math.min(255, core[i] + glow[i] * 0.7);
+  pack(g, veinsL, flames, char);
+}
+
+/** Aurora: R = light curtains (rippling vertical streaks), G = soft glow, B = stars. */
+function drawAurora(g: CanvasRenderingContext2D): void {
+  const r = rng(2718);
+  const curtains = layer((x) => {
+    for (let i = 0; i < 80; i++) {
+      const x0 = r() * S;
+      const amp = 8 + r() * 26, ph = r() * 6.28, fr = 1 + Math.floor(r() * 3);
+      const w = 2 + r() * 9;
+      const a = 0.15 + r() * 0.5;
+      const top = r() * S, len = S * (0.35 + r() * 0.6);
+      x.strokeStyle = `rgba(255,255,255,${a})`;
+      x.lineWidth = w;
+      tiled(x, (ox, oy) => {
+        x.beginPath();
+        for (let k = 0; k <= 40; k++) {
+          const t = k / 40;
+          const yy = top + t * len;
+          const xx = x0 + Math.sin(ph + (yy / S) * Math.PI * 2 * fr) * amp;
+          if (k === 0) x.moveTo(xx + ox, yy + oy);
+          else x.lineTo(xx + ox, yy + oy);
+        }
+        x.stroke();
+      });
+    }
+  }, 3.5);
+  const glowL = layer((x) => blobs(x, 606, 70, 40, 140, 0.06, 0.16, 0.7, 1.9), 8);
+  const starsL = layer((x) => stars(x, 31, 260, 10));
+  pack(g, curtains, glowL, starsL);
+}
+
+/** Galaxy: R = nebula clouds, G = dark dust lanes, B = stars. */
+function drawGalaxy(g: CanvasRenderingContext2D): void {
+  const neb = layer((x) => {
+    blobs(x, 1401, 60, 50, 170, 0.08, 0.2, 1.4, 0.8);
+    blobs(x, 1402, 120, 12, 50, 0.08, 0.22, 1.2, 1.0);
+  }, 6);
+  const r = rng(99);
+  const dust = layer((x) => {
+    x.lineCap = 'round';
+    for (let i = 0; i < 24; i++) {
+      const cx = r() * S, cy = r() * S, rad = 60 + r() * 160, a0 = r() * 6.28, sweep = 0.6 + r() * 1.6;
+      x.strokeStyle = `rgba(255,255,255,${0.25 + r() * 0.4})`;
+      x.lineWidth = 6 + r() * 20;
+      tiled(x, (ox, oy) => {
+        x.beginPath();
+        x.arc(cx + ox, cy + oy, rad, a0, a0 + sweep);
+        x.stroke();
+      });
+    }
+  }, 7);
+  const starsL = layer((x) => stars(x, 57, 420, 16));
+  pack(g, neb, dust, starsL);
+}
+
 /** Black Ice layers packed in one tileable texture: R = cracks, G = smoke wisps, B = crystal facets. */
 function drawBlackIce(g: CanvasRenderingContext2D): void {
   const r = rng(4242);
-  const layer = (draw: (c: CanvasRenderingContext2D) => void, blur = 0) => {
-    const c = document.createElement('canvas');
-    c.width = c.height = S;
-    const x = c.getContext('2d')!;
-    x.fillStyle = '#000';
-    x.fillRect(0, 0, S, S);
-    draw(x);
-    if (!blur) return x.getImageData(0, 0, S, S).data;
-    // blur once at the end (a canvas filter set while drawing blurs every stroke);
-    // the sharp layer is drawn 3x3 so the blur wraps and the tile stays seamless
-    const d = document.createElement('canvas');
-    d.width = d.height = S;
-    const y = d.getContext('2d')!;
-    y.filter = `blur(${blur}px)`;
-    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) y.drawImage(c, i * S, j * S);
-    return y.getImageData(0, 0, S, S).data;
-  };
   // cracks: jagged branching lines, thin and bright, with a soft halo
   const crackDraw = (x: CanvasRenderingContext2D, width: number, alpha: number) => {
     const rr = rng(777);
@@ -383,6 +569,23 @@ export function wrapPreview(id: WrapId, a: string, b: string, size = 64): string
   const g = c.getContext('2d')!;
   const img = g.createImageData(size, size);
   const ca = hexRgb(a), cb = hexRgb(b);
+  const style = WRAPS.find((w) => w.id === id)?.full ?? 0;
+  if (style >= 4) {
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const sx = Math.floor((x / size) * S * 0.5), sy = Math.floor((y / size) * S * 0.5);
+        const o = (sy * S + sx) * 4;
+        const t0 = md[o] / 255, t1 = md[o + 1] / 255, t2 = md[o + 2] / 255;
+        const u = x / size;
+        const col = fullPreview(style, u, t0, t1, t2, ca, cb);
+        const i = (y * size + x) * 4;
+        for (let k = 0; k < 3; k++) img.data[i + k] = Math.max(0, Math.min(255, Math.round(col[k])));
+        img.data[i + 3] = 255;
+      }
+    }
+    g.putImageData(img, 0, 0);
+    return c.toDataURL();
+  }
   if (id === 'blackice') {
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
@@ -440,4 +643,28 @@ export function randomPaint(): PaintConfig {
   let b = own ? w.b : pick(SOLID_COLORS)[1];
   if (b === a) b = w.b;
   return { mode: 'wrap', color: a, color2: b, wrap: w.id, finish, brightness };
+}
+
+/** CPU copy of the skin shader's full-wrap styles, for the menu previews (0..255 RGB). */
+function fullPreview(style: number, u: number, t0: number, t1: number, t2: number, a: number[], b: number[]): number[] {
+  const mix = (p: number[], q: number[], t: number) => p.map((v, k) => v + (q[k] - v) * t);
+  const ss = (e0: number, e1: number, x: number) => {
+    const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
+    return t * t * (3 - 2 * t);
+  };
+  if (style === 4) {
+    const heat = ss(0.2, 1.0, u + (t1 - 0.3) * 0.5);
+    const ember = mix(b, [255, 220, 90], t0 * 0.8);
+    const base = a.map((v) => v * (0.7 + 0.6 * t2));
+    return base.map((v, k) => v + ember[k] * t0 * (0.35 + 0.8 * heat) + b[k] * t1 * heat * 0.45);
+  }
+  if (style === 5) {
+    const band = Math.pow(t0, 1.6) * (0.55 + 0.45 * Math.sin(u * 14 + t1 * 6));
+    const col = mix(b, [170, 80, 255], ss(0.2, 0.9, t1 + 0.4 * Math.sin(u * 6)));
+    const star = Math.pow(t2, 7) * 220;
+    return a.map((v, k) => v * (0.8 + 0.3 * t1) + col[k] * band * 0.6 + star);
+  }
+  const nebCol = mix(mix([50, 115, 255], b, ss(0.2, 0.8, t0)), [255, 90, 150], ss(0.65, 1, t0) * 0.6);
+  const star = Math.pow(t2, 6) * 220;
+  return a.map((v, k) => v * 0.7 + nebCol[k] * ss(0.35, 1, t0) * (1 - 0.9 * t1) * 0.5 + star);
 }

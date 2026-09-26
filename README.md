@@ -1,7 +1,7 @@
 # TRIAD — Air Combat Simulator
 
 A browser combat flight simulator in the spirit of DCS, built with TypeScript and
-Three.js. Four aircraft, one 400 × 400 NM theater, and an AI that uses the
+Three.js. Four aircraft, two theaters (Frostfall Strait and Triad Isles), and an AI that uses the
 terrain against you.
 
 **Aircraft (the only vehicles in the game):**
@@ -17,8 +17,8 @@ terrain against you.
 | Radar | AN/APG-82(V)1 AESA | AN/APG-79 AESA | CAPTOR-E + PIRATE IRST | N035 Irbis-E PESA + OLS-35 IRST |
 | Missiles | AIM-120D, AIM-9X | AIM-120D, AIM-9X | AIM-120D, AIM-9X | R-77M, R-74M (Su-35S only) |
 
-Current version: **v1.8.0** — see [CHANGELOG.md](CHANGELOG.md) (also in the game
-under **v1.8.0 · NOTES** on the main menu).
+Current version: **v1.9.0** — see [CHANGELOG.md](CHANGELOG.md) (also in the game
+under **v1.9.0 · NOTES** on the main menu).
 
 Each jet is a high-detail procedural model (~150k triangles): blended fuselages
 built from real cross-sections, hollow intakes with ducts and fans, airfoil
@@ -55,22 +55,32 @@ system fonts offline); you can double-click it and play from disk.
   that defend properly and terrain-mask. 7–9: 6 aggressive jets with mid-range
   AIM-120D shots. Wave 10: 9 elite jets with coordinated multi-ship targeting.
 - **1v1 Duel** — choose your jet, your opponent (one of the two you did not pick)
-  and the difficulty (Easy / Medium / Hard / Extreme). Start head-on over Samos, or
-  on opposite Samos runways with the mountain between you. Rules: all weapons,
+  and the difficulty (Easy / Medium / Hard / Extreme). Start head-on over the contested island (Hvitøy or Samos), or
+  on its opposite runways with the mountain between you. Rules: all weapons,
   Sidewinders + guns, or guns only.
 
 Enemy AI is never the same type as the player's jet.
 
-- **5v5 Team Battle** — you and four AI wingmen against five AI bandits over Samos.
+- **5v5 Team Battle** — you and four AI wingmen against five AI bandits over the contested island.
   Wipe out the other team to take the round; everyone respawns; first to 3 wins.
   When you're shot down, spectate any jet on either team or fly a free camera (F).
   A round still going after 5 minutes ends with a point to both teams.
 
-**Customize** (main menu): solid colours, 9 wrap patterns (including Black Ice), finish and brightness for each jet.
+**Customize** (main menu): solid colours, 12 wrap patterns (including Black Ice, Inferno, Aurora and Galaxy), finish and brightness for each jet.
 
-### The theater
+### The theaters
 
-400 × 400 NM of sea with three islands, all covered in forest and hills (no grass):
+Pick the map on the **THEATER** card on the main menu. Every mode works on both.
+
+**Frostfall Strait** (default): 200 × 200 NM frozen arctic archipelago, with snow-covered
+ranges up to ~26,900 ft, glaciers, ice cliffs, pack ice and still, depth-shaded water.
+Fights start around 29,500 ft.
+
+- **Nordland** and **Sørvik** (blue) — Nordhavn AB, Isvik AB.
+- **Østmark** and **Kragfjell** (red) — Kragen AB, Svalbru AB.
+- **Hvitøy** (contested) — a wall of peaks between Hvitøy West AB (blue) and Hvitøy East AB (red).
+
+**Triad Isles**: 400 × 400 NM of sea with three islands, all covered in forest and hills (no grass):
 
 - **Skye** (blue) — steep mountains, sea lochs, coastal cliffs. Dunvegan AB, Broadford AB.
 - **Capri** (red) — compact, rocky limestone crags, blue grottoes. Anacapri AB, Marina Grande AB.

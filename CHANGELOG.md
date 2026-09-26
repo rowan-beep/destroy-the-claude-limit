@@ -3,6 +3,21 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v1.9.0 — Frostfall Strait, new water, 3 new wraps (2026-09-26)
+
+- NEW MAP: FROSTFALL STRAIT, a frozen arctic archipelago of 200 × 200 NM (half the size of the first map), and the new default theater. Five big snow-covered landmasses (NORDLAND and SØRVIK for BLUE, ØSTMARK and KRAGFJELL for RED) with the contested island of HVITØY in the middle of the strait, plus scattered rocky islets (SKJÆR).
+- Really tall mountains: jagged, ridged ranges climb straight out of the sea to around 26,900 ft, with sharp knife-edge ridges, bare rock on the steep faces, snowfields and glaciers everywhere else, and ice cliffs at the shoreline. Deep glacial valleys lead into every runway so approaches stay clear, and a wall of peaks splits Hvitøy between its BLUE and RED airfields.
+- Pack ice: the sea around the coasts breaks up into white ice floes separated by dark leads of open water, just like the real Arctic.
+- Six new airfields: NORDHAVN AB, ISVIK AB and HVITØY WEST AB (BLUE); KRAGEN AB, SVALBRU AB and HVITØY EAST AB (RED), each with its own TACAN channel. The cockpit kneeboard lists the airfields of whichever map you're flying.
+- The original map is now called TRIAD ISLES (Skye, Capri and Samos, 400 × 400 NM).
+- Theater picker: choose FROSTFALL STRAIT or TRIAD ISLES on the THEATER card on the main menu. Your choice is saved; the game reloads the world when you switch.
+- Every game mode works on both maps: Free Flight from any friendly base, Waves, 1v1 Duel (head-on or from the runways on either side of the contested island's mountain wall) and 5v5 Team Battle. On Frostfall Strait the fights start around 29,500 ft, above the peaks, and the AI terrain-masks through the valleys.
+- New water on both maps: a calm, still sea designed to look good from 20,000 ft up. It is deep navy far out, blending to rich blue and bright turquoise over shallow water near the coasts, following the real sea floor, with soft broad variations and a gentle sheen instead of busy moving waves. Frostfall has colder, darker arctic blues.
+- 3 NEW WRAPS: INFERNO (charred black plates split by glowing molten veins that get hotter toward the tail), AURORA (night-sky navy with rippling green-to-violet northern-light curtains and stars) and GALAXY (deep space with purple and blue nebula clouds, dark dust lanes and glowing stars). All three glow softly in the dark. Pick them in CUSTOMIZE; you can recolour them with the base and pattern colours like any other wrap.
+- Fixed: the WHAT'S NEW window could pop up over the top of a flight that had already started.
+- Fixed: on the theater map (M), every island name after the first was drawn in tiny text instead of the large label.
+- Fixed: mode descriptions, mission briefings and the free-flight base list no longer name the old islands when you're flying the other map.
+
 ## v1.8.0 — Pilot XP & levels, realistic afterburners (2026-09-26)
 
 - NEW: Pilot XP, levels and money. Everything you do in the air earns XP; XP raises your level (1 to 100) and your rank, from CADET to GENERAL OF THE AIR FORCE. Your pilot card with level badge, rank, XP bar and money is at the top of the main menu, and it counts up your gains when you come back from a sortie.

@@ -180,8 +180,17 @@ export class MapView {
     c.strokeRect(X(-MAP_HALF), Y(-MAP_HALF), MAP_SIZE * s, MAP_SIZE * s);
     // island names
     c.textAlign = 'center';
-    c.font = "bold 16px 'Rajdhani', sans-serif";
     for (const isl of ISLANDS) {
+      if (isl.style === 'islet') {
+        // small rocky islets: just a quiet name once zoomed in, no ownership
+        if (this.zoom > 2) {
+          c.font = "11px 'Share Tech Mono', monospace";
+          c.fillStyle = 'rgba(255,255,255,0.5)';
+          c.fillText(isl.name, X(isl.cx), Y(isl.cz - isl.ry * 1.2));
+        }
+        continue;
+      }
+      c.font = "bold 16px 'Rajdhani', sans-serif";
       c.fillStyle = 'rgba(255,255,255,0.75)';
       c.fillText(isl.name, X(isl.cx), Y(isl.cz - isl.ry * 1.05));
       c.font = "11px 'Share Tech Mono', monospace";
