@@ -728,6 +728,7 @@ varying vec3 vSkin;
 varying vec3 vSkinN;
 `;
 const SKIN_FRAG = /* glsl */ `
+  vec3 skinGlow = vec3( 0.0 );
   {
     vec3 sn = normalize( vSkinN );
     vec3 aw = pow( abs( sn ), vec3( 5.0 ) );
@@ -750,15 +751,34 @@ const SKIN_FRAG = /* glsl */ `
     if ( customMode > 0.5 ) {
       float shade = mix( 0.86, 1.0, up );
       base = customA * shade;
-      if ( customMode > 1.5 ) {
-        // wrap: the mask projected from above/below, the side and the front
-        float wF = aw.z / ( aw.x + aw.y + aw.z + 1e-5 );
-        float wY = aw.y / ( aw.x + aw.y + aw.z + 1e-5 );
-        float wX = 1.0 - wF - wY;
+      // wrap weights: the mask projected from above/below, the side and the front
+      float wF = aw.z / ( aw.x + aw.y + aw.z + 1e-5 );
+      float wY = aw.y / ( aw.x + aw.y + aw.z + 1e-5 );
+      float wX = 1.0 - wF - wY;
+      if ( customMode > 1.5 && customMode < 2.5 ) {
         float t = texture2D( customTex, vSkin.xz / customScale ).r * wY
                 + texture2D( customTex, vSkin.zy / customScale ).r * wX
                 + texture2D( customTex, vSkin.xy / customScale ).r * wF;
         base = mix( customA, customB, t ) * shade;
+      }
+      if ( customMode > 2.5 ) {
+        // BLACK ICE: black to glacial teal to frosted white along the jet, with
+        // crystal facets, smoky wisps and glowing cracks
+        vec3 tx = texture2D( customTex, vSkin.xz / customScale ).rgb * wY
+                + texture2D( customTex, vSkin.zy / customScale ).rgb * wX
+                + texture2D( customTex, vSkin.xy / customScale ).rgb * wF;
+        float u = ( vSkin.z - skinBox.y ) / skinBox.z;
+        u = clamp( u + ( tx.g - 0.3 ) * 0.35, 0.0, 1.2 );
+        float t = smoothstep( 0.2, 0.85, u );
+        float w = smoothstep( 0.95, 1.2, u ) * 0.5;
+        vec3 ice = mix( customA, customB, t );
+        ice = mix( ice, mix( customB, vec3( 0.92, 0.98, 1.0 ), 0.75 ), w );
+        ice *= mix( 1.0, 0.55 + 0.6 * tx.b, t );
+        ice += customB * tx.g * 0.35 * t;
+        vec3 crackCol = mix( customB, vec3( 0.85, 1.0, 1.0 ), 0.5 );
+        ice += crackCol * tx.r * ( 0.2 + 0.4 * t );
+        base = ice * shade * 0.6;
+        skinGlow = crackCol * tx.r * ( 0.1 + 0.2 * t ) + customB * tx.g * 0.1 * t;
       }
     }
     diffuseColor.rgb *= ( base * ( 1.0 - m.a ) + m.rgb ) * brightness;
@@ -831,9 +851,10 @@ function applySkin(mat: THREE.MeshStandardMaterial, uniforms: Record<string, THR
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvSkin = skin;\nvSkinN = normal;');
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', '#include <common>\n' + SKIN_FRAG_PARS)
-      .replace('#include <map_fragment>', '#include <map_fragment>\n' + SKIN_FRAG);
+      .replace('#include <map_fragment>', '#include <map_fragment>\n' + SKIN_FRAG)
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += skinGlow;');
   };
-  mat.customProgramCacheKey = () => 'skin-v2';
+  mat.customProgramCacheKey = () => 'skin-v3';
   void id;
 }
 

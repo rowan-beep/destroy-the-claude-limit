@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import type { AircraftType } from '../specs';
 
 export type PaintMode = 'factory' | 'solid' | 'wrap';
-export type WrapId = 'digital' | 'splinter' | 'tiger' | 'hex' | 'woodland' | 'arctic' | 'carbon' | 'chevron';
+export type WrapId = 'blackice' | 'digital' | 'splinter' | 'tiger' | 'hex' | 'woodland' | 'arctic' | 'carbon' | 'chevron';
 export type Finish = 'matte' | 'satin' | 'gloss' | 'metallic';
 
 export interface PaintConfig {
@@ -42,7 +42,8 @@ export const SOLID_COLORS: [string, string][] = [
   ['LIME', '#8cc63f'],
 ];
 
-export const WRAPS: { id: WrapId; name: string; a: string; b: string; tileM: number }[] = [
+export const WRAPS: { id: WrapId; name: string; a: string; b: string; tileM: number; full?: boolean }[] = [
+  { id: 'blackice', name: 'BLACK ICE', a: '#020405', b: '#2ec4d4', tileM: 5, full: true },
   { id: 'digital', name: 'DIGITAL', a: '#7d858b', b: '#4b5258', tileM: 4 },
   { id: 'splinter', name: 'SPLINTER', a: '#b39b72', b: '#6b5436', tileM: 7 },
   { id: 'tiger', name: 'TIGER', a: '#e0701e', b: '#16171a', tileM: 5 },
@@ -114,6 +115,10 @@ function tiled(g: CanvasRenderingContext2D, draw: (ox: number, oy: number) => vo
 }
 
 function drawMask(id: WrapId, g: CanvasRenderingContext2D): void {
+  if (id === 'blackice') {
+    drawBlackIce(g);
+    return;
+  }
   const r = rng(id.length * 7919 + id.charCodeAt(0));
   g.fillStyle = '#000';
   g.fillRect(0, 0, S, S);
@@ -250,6 +255,103 @@ function drawMask(id: WrapId, g: CanvasRenderingContext2D): void {
   }
 }
 
+/** Black Ice layers packed in one tileable texture: R = cracks, G = smoke wisps, B = crystal facets. */
+function drawBlackIce(g: CanvasRenderingContext2D): void {
+  const r = rng(4242);
+  const layer = (draw: (c: CanvasRenderingContext2D) => void, blur = 0) => {
+    const c = document.createElement('canvas');
+    c.width = c.height = S;
+    const x = c.getContext('2d')!;
+    x.fillStyle = '#000';
+    x.fillRect(0, 0, S, S);
+    draw(x);
+    if (!blur) return x.getImageData(0, 0, S, S).data;
+    // blur once at the end (a canvas filter set while drawing blurs every stroke);
+    // the sharp layer is drawn 3x3 so the blur wraps and the tile stays seamless
+    const d = document.createElement('canvas');
+    d.width = d.height = S;
+    const y = d.getContext('2d')!;
+    y.filter = `blur(${blur}px)`;
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) y.drawImage(c, i * S, j * S);
+    return y.getImageData(0, 0, S, S).data;
+  };
+  // cracks: jagged branching lines, thin and bright, with a soft halo
+  const crackDraw = (x: CanvasRenderingContext2D, width: number, alpha: number) => {
+    const rr = rng(777);
+    x.strokeStyle = `rgba(255,255,255,${alpha})`;
+    x.lineCap = 'round';
+    for (let i = 0; i < 34; i++) {
+      let px = rr() * S, py = rr() * S;
+      let ang = rr() * Math.PI * 2;
+      const pts: [number, number][] = [[px, py]];
+      const n = 4 + Math.floor(rr() * 7);
+      for (let k = 0; k < n; k++) {
+        ang += (rr() - 0.5) * 1.1;
+        const len = 14 + rr() * 46;
+        px += Math.cos(ang) * len;
+        py += Math.sin(ang) * len;
+        pts.push([px, py]);
+      }
+      x.lineWidth = width * (0.5 + rr());
+      tiled(x, (ox, oy) => {
+        x.beginPath();
+        pts.forEach(([a, b], j) => (j ? x.lineTo(a + ox, b + oy) : x.moveTo(a + ox, b + oy)));
+        x.stroke();
+      });
+    }
+  };
+  const cracks = layer((x) => crackDraw(x, 1.6, 0.95));
+  const halo = layer((x) => crackDraw(x, 7, 0.35), 3);
+  // smoke: layered soft blobs, stretched into wisps
+  const smoke = layer((x) => {
+    for (let i = 0; i < 90; i++) {
+      const cx = r() * S, cy = r() * S, rad = 20 + r() * 80;
+      const a = 0.05 + r() * 0.12;
+      tiled(x, (ox, oy) => {
+        const grd = x.createRadialGradient(cx + ox, cy + oy, 0, cx + ox, cy + oy, rad);
+        grd.addColorStop(0, `rgba(255,255,255,${a})`);
+        grd.addColorStop(1, 'rgba(255,255,255,0)');
+        x.fillStyle = grd;
+        x.save();
+        x.translate(cx + ox, cy + oy);
+        x.scale(1.8, 0.7);
+        x.translate(-(cx + ox), -(cy + oy));
+        x.fillRect(cx + ox - rad, cy + oy - rad, rad * 2, rad * 2);
+        x.restore();
+      });
+    }
+  }, 6);
+  // facets: shards of random brightness
+  const facets = layer((x) => {
+    for (let i = 0; i < 70; i++) {
+      const cx = r() * S, cy = r() * S;
+      const pts: [number, number][] = [];
+      const k = 3 + Math.floor(r() * 3);
+      for (let j = 0; j < k; j++) {
+        const a = (j / k) * Math.PI * 2 + r() * 0.9;
+        const d = 20 + r() * 60;
+        pts.push([cx + Math.cos(a) * d, cy + Math.sin(a) * d]);
+      }
+      const v = Math.floor(60 + r() * 195);
+      x.fillStyle = `rgb(${v},${v},${v})`;
+      tiled(x, (ox, oy) => {
+        x.beginPath();
+        pts.forEach(([a, b], j) => (j ? x.lineTo(a + ox, b + oy) : x.moveTo(a + ox, b + oy)));
+        x.closePath();
+        x.fill();
+      });
+    }
+  }, 1);
+  const img = g.createImageData(S, S);
+  for (let i = 0; i < S * S * 4; i += 4) {
+    img.data[i] = Math.min(255, cracks[i] + halo[i] * 0.6);
+    img.data[i + 1] = smoke[i];
+    img.data[i + 2] = facets[i];
+    img.data[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+}
+
 export function wrapMask(id: WrapId): THREE.CanvasTexture {
   let t = masks.get(id);
   if (!t) {
@@ -281,6 +383,29 @@ export function wrapPreview(id: WrapId, a: string, b: string, size = 64): string
   const g = c.getContext('2d')!;
   const img = g.createImageData(size, size);
   const ca = hexRgb(a), cb = hexRgb(b);
+  if (id === 'blackice') {
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const sx = Math.floor((x / size) * S * 0.5), sy = Math.floor((y / size) * S * 0.5);
+        const o = (sy * S + sx) * 4;
+        const crack = md[o] / 255, smoke = md[o + 1] / 255, facet = md[o + 2] / 255;
+        const u = x / size + (smoke - 0.3) * 0.35;
+        const t = Math.min(1, Math.max(0, (u - 0.2) / 0.65));
+        const w = Math.min(1, Math.max(0, (u - 0.95) / 0.25)) * 0.5;
+        const i = (y * size + x) * 4;
+        for (let k = 0; k < 3; k++) {
+          let c = ca[k] * (1 - t) + cb[k] * t;
+          c = c * (1 - w) + 235 * w;
+          c *= 1 - t + t * (0.55 + 0.6 * facet);
+          c += crack * (k === 0 ? 120 : 200) * (0.25 + 0.45 * t) + smoke * 50 * t;
+          img.data[i + k] = Math.max(0, Math.min(255, Math.round(c)));
+        }
+        img.data[i + 3] = 255;
+      }
+    }
+    g.putImageData(img, 0, 0);
+    return c.toDataURL();
+  }
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       const sx = Math.floor((x / size) * S * 0.5), sy = Math.floor((y / size) * S * 0.5);

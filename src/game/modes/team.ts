@@ -74,7 +74,7 @@ export class TeamBattleMode extends GameMode {
     this.roundTime = 0;
     this.roundWinner = null;
     const samos = ISLAND_BY_ID.samos;
-    const sep = 24 * NM;
+    const sep = 14 * NM;
     const skill = duelSkill(cfg.difficulty);
 
     const p = h.createPlayer();

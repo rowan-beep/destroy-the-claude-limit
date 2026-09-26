@@ -239,7 +239,7 @@ export class AirframeVisual {
         u.skinSideR.value = t.sideR;
       }
       const c = cfg!;
-      u.customMode.value = c.mode === 'solid' ? 1 : c.mode === 'wrap' ? 2 : 0;
+      u.customMode.value = c.mode === 'solid' ? 1 : c.mode === 'wrap' ? ((WRAPS.find((x) => x.id === c.wrap)?.full) ? 3 : 2) : 0;
       (u.customA.value as THREE.Color).set(c.color);
       (u.customB.value as THREE.Color).set(c.color2);
       const w = WRAPS.find((x) => x.id === c.wrap) ?? WRAPS[0];

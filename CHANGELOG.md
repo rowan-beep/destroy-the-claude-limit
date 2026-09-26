@@ -3,6 +3,12 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v1.6.0 — Black Ice (2026-09-26)
+
+- New wrap: BLACK ICE. A black nose fades into deep glacial teal toward the tail, with faceted ice crystals, smoky teal wisps and glowing cracks that shine faintly even in shadow. It's the first tile in the WRAP list; you can still change its colours, finish and brightness.
+- 5v5 Team Battle: the teams now start closer together (14 NM instead of 24), so more rounds are won by shooting the other team down rather than running out the 5-minute clock.
+- Faster wrap previews: making a pattern no longer freezes the customize screen for a moment.
+
 ## v1.5.0 — Jet customization (2026-09-26)
 
 - Jet customization for all three jets: press CUSTOMIZE JET on the main menu to open the new customization screen, just your jet on the turntable and the paint controls.

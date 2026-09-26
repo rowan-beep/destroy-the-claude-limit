@@ -64,7 +64,7 @@ Enemy AI is never the same type as the player's jet.
   When you're shot down, spectate any jet on either team or fly a free camera (F).
   A round still going after 5 minutes ends with a point to both teams.
 
-**Customize** (main menu): solid colours, 8 wrap patterns, finish and brightness for each jet.
+**Customize** (main menu): solid colours, 9 wrap patterns (including Black Ice), finish and brightness for each jet.
 
 ### The theater
 
