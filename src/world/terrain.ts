@@ -295,6 +295,10 @@ export function terrainInfo(x: number, z: number, out: TerrainInfo): TerrainInfo
     best = DEEP_SEA + N3.noise(x / 20000, z / 20000) * 30;
   }
 
+  // Approach corridors: valleys along each runway's extended centreline keep
+  // the terrain under a 2.3 deg plane so every 3 deg ILS glideslope is flyable.
+  best = carveApproaches(x, z, best);
+
   // Airfields: level the terrain to field elevation with a smooth blend.
   let fieldW = 0;
   for (let i = 0; i < fieldPre.length; i++) {
@@ -323,6 +327,32 @@ export function terrainInfo(x: number, z: number, out: TerrainInfo): TerrainInfo
   out.inland = bestInland;
   out.field = fieldW;
   return out;
+}
+
+const APPROACH_LEN = 13 * NM;
+const APPROACH_TAN = Math.tan((2.3 * Math.PI) / 180);
+
+function carveApproaches(x: number, z: number, h: number): number {
+  if (h <= 0) return h;
+  for (let i = 0; i < fieldPre.length; i++) {
+    const f = fieldPre[i].f;
+    const dx = x - f.x, dz = z - f.z;
+    const reach = APPROACH_LEN + f.length / 2;
+    if (dx * dx + dz * dz > reach * reach) continue;
+    const along = dx * f.ax + dz * f.az;
+    const across = dx * f.rxv + dz * f.rzv;
+    // distance before whichever threshold we are beyond
+    const d = Math.abs(along) - f.length / 2;
+    if (d <= -200 || d > APPROACH_LEN) continue;
+    const dd = Math.max(0, d);
+    const halfW = 700 + dd * 0.13;
+    const ac = Math.abs(across);
+    if (ac > halfW) continue;
+    const w = (1 - smoothstep(halfW * 0.55, halfW, ac)) * (1 - smoothstep(APPROACH_LEN * 0.78, APPROACH_LEN, dd));
+    const cap = f.elev + APPROACH_TAN * dd - 15;
+    if (h > cap) h -= w * (h - cap);
+  }
+  return h;
 }
 
 const _info: TerrainInfo = { h: 0, island: null, inland: 0, field: 0 };

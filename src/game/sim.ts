@@ -10,6 +10,7 @@ import { BulletSystem } from '../weapons/gun';
 import { CountermeasureSystem, Decoy } from '../weapons/countermeasures';
 import { HeightGrid } from '../world/heightGrid';
 import { EventBus } from '../core/events';
+import type { LandingGrade } from '../avionics/nav';
 
 export interface SimEvents extends Record<string, unknown> {
   launch: { missile: Missile; shooter: Aircraft; target: Aircraft | null; station: number };
@@ -31,6 +32,7 @@ export interface SimEvents extends Record<string, unknown> {
   storeDropped: { aircraft: Aircraft; station: number };
   aircraftAdded: Aircraft;
   aircraftRemoved: Aircraft;
+  landing: { aircraft: Aircraft; grade: LandingGrade };
 }
 
 export class Sim {

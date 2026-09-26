@@ -321,14 +321,18 @@ export function drawCompass(canvas: HTMLCanvasElement, g: Game): void {
       ctx.fill();
     }
   };
-  // nearest friendly base
-  let best = null as null | { b: number; d: number };
-  for (const f of AIRFIELDS) {
-    if (f.team !== p.team) continue;
-    const d = Math.hypot(f.x - p.fm.pos.x, f.z - p.fm.pos.z);
-    if (!best || d < best.d) best = { b: (Math.atan2(f.x - p.fm.pos.x, -(f.z - p.fm.pos.z)) / DEG + 360) % 360, d };
+  // selected steerpoint (or the nearest friendly base without avionics)
+  const nav = g.avionics?.nav;
+  if (nav) mark(nav.bearingTo(p.fm.pos.x, p.fm.pos.z), '#4ad28a', 'sq');
+  else {
+    let best = null as null | { b: number; d: number };
+    for (const f of AIRFIELDS) {
+      if (f.team !== p.team) continue;
+      const d = Math.hypot(f.x - p.fm.pos.x, f.z - p.fm.pos.z);
+      if (!best || d < best.d) best = { b: (Math.atan2(f.x - p.fm.pos.x, -(f.z - p.fm.pos.z)) / DEG + 360) % 360, d };
+    }
+    if (best) mark(best.b, '#4ad28a', 'sq');
   }
-  if (best) mark(best.b, '#4ad28a', 'sq');
   const lt = p.lockedTarget;
   if (lt) mark((Math.atan2(lt.fm.pos.x - p.fm.pos.x, -(lt.fm.pos.z - p.fm.pos.z)) / DEG + 360) % 360, '#ff5a48', 'tri');
   else {

@@ -477,8 +477,8 @@ export class Hud {
       } else if (p.pilot.gSmooth > 8 && p.pilot.gSmooth < 10.5) {
         text = 'G-LOC IMMINENT — EASE THE PULL';
         amber = true;
-      } else if (fm.fuelTotal < p.spec.internalFuel * 0.15) {
-        text = fm.fuelTotal <= 0 ? 'FUEL EXHAUSTED' : 'BINGO FUEL — RTB';
+      } else if (fm.fuelTotal <= 0 || (g.avionics && g.avionics.nav.fuelPlan(p).belowBingo)) {
+        text = fm.fuelTotal <= 0 ? 'FUEL EXHAUSTED' : 'BINGO FUEL — RTB [END] FOR NEAREST FIELD';
         amber = true;
       } else if (fm.gearPos > 0.5 && fm.cas / KT > 300 && !fm.onGround) {
         text = 'GEAR OVERSPEED';

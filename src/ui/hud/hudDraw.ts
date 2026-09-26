@@ -9,6 +9,7 @@ import { DEG, NM, FT, KT } from '../../core/constants';
 import { clamp, dirFromHeadingPitch, wrap360, bearingXZ } from '../../core/math';
 import { gunSolution, gunLine } from '../../weapons/gunnery';
 import { AIRFIELDS, toRunwayLocal } from '../../world/islands';
+import { ONSPEED_AOA, fmtTtg } from '../../avionics/nav';
 
 const GREEN = '#6cff9a';
 const GREEN_DIM = 'rgba(108,255,154,0.55)';
@@ -242,6 +243,20 @@ export class HudPainter {
     }
     this.line(bx, tapeY + 9, bx - 4, tapeY + 15);
     this.line(bx, tapeY + 9, bx + 4, tapeY + 15);
+    // steerpoint bearing caret on the tape
+    const nav = g.avionics?.nav;
+    if (nav) {
+      let d = nav.bearingTo(fm.pos.x, fm.pos.z) - hdg;
+      d = ((d + 540) % 360) - 180;
+      const x = bx + (clamp(d, -span, span) / span) * halfW;
+      c.beginPath();
+      c.moveTo(x, tapeY - 1);
+      c.lineTo(x - 4, tapeY - 7);
+      c.lineTo(x + 4, tapeY - 7);
+      c.closePath();
+      if (Math.abs(d) <= span) c.fill();
+      else c.stroke();
+    }
 
     // speed & altitude boxes
     const midY = by + 10;
@@ -272,9 +287,67 @@ export class HudPainter {
       c.lineWidth = 1.5;
     }
 
-    // landing aid
-    if (fm.gearPos > 0.5 && !fm.onGround) this.ilsCue(g, p, bx, by, halfW);
+    // steerpoint: conformal diamond and distance / time-to-go
+    if (nav) {
+      const sp = nav.current;
+      _v2.set(sp.x, sp.elev, sp.z);
+      const spt = this.project(cam, _v2.clone());
+      if (spt.front) this.diamond(spt.x, spt.y, 7);
+      const dist = nav.rangeTo(fm.pos.x, fm.pos.z) / NM;
+      const plan = nav.fuelPlan(p);
+      this.text(`${sp.num} ${sp.short}`, right, midY + 58, GREEN, 11, 'right');
+      this.text(`${dist.toFixed(1)} ${fmtTtg(plan.ttgSec)}`, right, midY + 72, GREEN, 11, 'right');
+      if (plan.belowBingo) this.text('BINGO', bx, top + 18, Math.floor(performance.now() / 400) % 2 ? AMBER : GREEN, 14, 'center', true);
+    }
+
+    // landing aids: ILS needles and the AoA bracket
+    if (fm.gearPos > 0.5 && !fm.onGround) this.approachCues(g, p, bx, by, fpx, fpy, halfW, top);
     c.restore();
+  }
+
+  private approachCues(g: Game, p: Aircraft, bx: number, by: number, fpx: number, fpy: number, halfW: number, top: number): void {
+    const c = this.ctx;
+    const nav = g.avionics?.nav;
+    const ils = nav ? nav.ils(p) : null;
+    if (ils) {
+      const r = halfW * 0.45;
+      const dot = r / 2;
+      c.save();
+      c.strokeStyle = GREEN;
+      // scales
+      for (const k of [-2, -1, 1, 2]) {
+        this.circle(bx + k * dot, by + r + 10, 2.5);
+        this.circle(bx + r + 10, by + k * dot, 2.5);
+      }
+      // localizer needle: + dots = runway to the right
+      c.lineWidth = 2;
+      c.setLineDash([7, 4]);
+      const lx = bx + clamp(ils.locDots, -2.2, 2.2) * dot;
+      this.line(lx, by - r, lx, by + r);
+      // glideslope needle: above the slope -> needle below centre
+      const gy = by + clamp(ils.gsDots, -2.2, 2.2) * dot;
+      this.line(bx - r, gy, bx + r, gy);
+      c.setLineDash([]);
+      c.restore();
+      this.text(`ILS ${ils.field.icao} ${ils.runway}  ${(ils.distThr / NM).toFixed(1)}`, bx, top + 34, ils.captured ? GREEN : GREEN_DIM, 11, 'center');
+    }
+    // AoA bracket beside the flight path marker: centred on the FPM when on speed
+    const on = ONSPEED_AOA[p.type] ?? 8.5;
+    const alpha = p.fm.alpha / DEG;
+    const dev = clamp(alpha - on, -4, 4);
+    const k = 7;
+    const ex = fpx - 26;
+    const ey = fpy + dev * k;
+    c.save();
+    c.strokeStyle = GREEN;
+    c.lineWidth = 2;
+    this.line(ex, ey - 14, ex, ey + 14);
+    this.line(ex, ey - 14, ex + 6, ey - 14);
+    this.line(ex, ey + 14, ex + 6, ey + 14);
+    this.line(ex, ey, ex + 5, ey);
+    c.restore();
+    const state = dev > 1.2 ? 'SLOW' : dev < -1.2 ? 'FAST' : 'ON SPEED';
+    this.text(state, ex - 6, ey - 20, state === 'ON SPEED' ? GREEN : AMBER, 10, 'right');
   }
 
   /**
@@ -476,38 +549,6 @@ export class HudPainter {
     void fpy;
   }
 
-  private ilsCue(g: Game, p: Aircraft, bx: number, by: number, halfW: number): void {
-    // nearest friendly runway ahead within 15 NM
-    let best = null as null | { f: (typeof AIRFIELDS)[number]; along: number; across: number; recip: boolean };
-    for (const f of AIRFIELDS) {
-      if (f.team !== p.team) continue;
-      const loc = toRunwayLocal(f, p.fm.pos.x, p.fm.pos.z);
-      for (const recip of [false, true]) {
-        const along = recip ? -loc.along : loc.along;
-        const across = recip ? -loc.across : loc.across;
-        const d = -along - f.length / 2; // distance before the threshold
-        if (d < -200 || d > 15 * NM) continue;
-        const hdgRw = recip ? f.heading + 180 : f.heading;
-        let dh = wrap360(p.fm.heading - hdgRw);
-        if (dh > 180) dh -= 360;
-        if (Math.abs(dh) > 60) continue;
-        if (!best || Math.abs(across) < Math.abs(best.across)) best = { f, along: d, across, recip };
-      }
-    }
-    if (!best) return;
-    const dist = Math.max(1, best.along);
-    const gs = Math.atan2(p.fm.pos.y - best.f.elev, dist + 300) / DEG;
-    const locDev = clamp(best.across / Math.max(200, dist * 0.05), -1, 1);
-    const gsDev = clamp((gs - 3) / 1.2, -1, 1);
-    const r = halfW * 0.55;
-    this.ctx.setLineDash([5, 4]);
-    this.line(bx - locDev * r, by - r, bx - locDev * r, by + r);
-    this.line(bx - r, by - gsDev * r * -1, bx + r, by - gsDev * r * -1);
-    this.ctx.setLineDash([]);
-    this.text(`ILS ${best.f.icao} ${(dist / NM).toFixed(1)}`, bx, by + r + 16, GREEN, 11, 'center');
-    void g;
-  }
-
   // -------------------------------------------------------------------------
   // External-view overlay
   // -------------------------------------------------------------------------
@@ -537,6 +578,18 @@ export class HudPainter {
       }
     }
     this.contactMarkers(g, p, cam);
+    // steerpoint marker
+    const nav = g.avionics?.nav;
+    if (nav) {
+      const sp = nav.current;
+      const spt = this.project(cam, new THREE.Vector3(sp.x, sp.elev, sp.z));
+      const dist = nav.rangeTo(fm.pos.x, fm.pos.z) / NM;
+      c.strokeStyle = 'rgba(230,240,255,0.8)';
+      if (spt.on) {
+        this.diamond(spt.x, spt.y, 7);
+        this.text(`${sp.short} ${dist.toFixed(1)}`, spt.x, spt.y + 16, 'rgba(230,240,255,0.85)', 11, 'center');
+      }
+    }
     // gun pipper
     if (p.selectedWeapon === 'GUN') {
       const gt = p.lockedTarget ?? p.seekerTarget;

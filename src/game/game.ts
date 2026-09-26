@@ -25,6 +25,7 @@ import { emptyVision } from '../render/vision';
 import type { Hud } from '../ui/hud/hud';
 import { CockpitView } from '../render/cockpitView';
 import { Avionics } from '../avionics/avionics';
+import { gradeLanding } from '../avionics/nav';
 import { NM } from '../core/constants';
 
 export type GameState = 'menu' | 'loading' | 'playing' | 'paused' | 'map' | 'results';
@@ -42,6 +43,7 @@ export class Game implements ModeHost {
   avionics: Avionics | null = null;
   /** free mouse cursor in the cockpit for clicking displays */
   cockpitCursor = false;
+  private touchdownsSeen = 0;
   hud!: Hud;
   mode: GameMode | null = null;
   player: Aircraft | null = null;
@@ -247,6 +249,7 @@ export class Game implements ModeHost {
     this.avionics?.dispose();
     this.avionics = new Avionics(this, p);
     this.cockpitView.attach(null);
+    this.touchdownsSeen = 0;
     return p;
   }
 
@@ -815,6 +818,13 @@ export class Game implements ModeHost {
     const p = this.player;
     if (!p || !p.alive) return;
     const fm = p.fm;
+    // touchdown grading (a runway spawn is not a touchdown)
+    if (fm.touchdowns !== this.touchdownsSeen) {
+      this.touchdownsSeen = fm.touchdowns;
+      const gl = gradeLanding(p);
+      this.message(gl.text, gl.grade === 'HARD' || gl.grade === 'OFF RUNWAY' ? 'warn' : 'good', 7);
+      this.sim.events.emit('landing', { aircraft: p, grade: gl });
+    }
     // RWR tones
     const lvl = p.rwr.level;
     if (lvl !== this.prevRwr) {
@@ -830,8 +840,8 @@ export class Game implements ModeHost {
       if (tti < 5 && fm.agl < 1500) this.voice('Pull up', 'pullup', 2.5);
       else if (fm.agl < 150 && vs < -3) this.voice('Altitude', 'alt', 4);
     }
-    const fuelFrac = fm.fuelTotal / p.spec.internalFuel;
-    if (fuelFrac < 0.15 && fuelFrac > 0) this.voice('Bingo fuel', 'bingo', 60);
+    const plan = this.avionics?.nav.fuelPlan(p);
+    if (plan && plan.belowBingo && fm.fuelTotal > 0) this.voice('Bingo, bingo', 'bingo', 60);
     if (fm.fuelTotal <= 0) this.voice('Fuel low, engines out', 'fuelout', 30);
     if (fm.overG > 0.5) this.voice('Over G', 'overg', 8);
     if (p.damage.fire > 0) this.voice('Engine fire', 'fire', 10);

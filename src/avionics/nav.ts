@@ -203,7 +203,7 @@ export class NavSystem {
 
   /**
    * ILS for the selected airfield (or, failing that, the nearest friendly one)
-   * when the aircraft is within 15 NM of a threshold, roughly lined up.
+   * when the aircraft is within 10 NM of a threshold (glideslope service volume), roughly lined up.
    */
   ils(p: Aircraft): IlsState | null {
     if (!this.ilsEnabled) return null;
@@ -218,7 +218,7 @@ export class NavSystem {
         const along = recip ? -loc.along : loc.along;
         const across = recip ? -loc.across : loc.across;
         const distThr = -along - f.length / 2;
-        if (distThr < -f.length || distThr > 15 * NM) continue;
+        if (distThr < -f.length || distThr > 10 * NM) continue;
         const course = wrap360(recip ? f.heading + 180 : f.heading);
         let dh = wrap360(p.fm.heading - course);
         if (dh > 180) dh -= 360;
@@ -297,4 +297,61 @@ export function fmtTtg(sec: number): string {
   const s = Math.floor(sec % 60);
   if (m >= 60) return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+/** On-speed approach angle of attack (deg) for the AoA bracket / indexer. */
+export const ONSPEED_AOA: Record<string, number> = { F15EX: 8.5, FA18EF: 8.1, TYPHOON: 11 };
+
+export interface LandingGrade {
+  grade: 'GREASER' | 'GOOD' | 'FIRM' | 'HARD' | 'OFF RUNWAY';
+  sinkFpm: number;
+  speedKts: number;
+  speedDelta: number;
+  centreline: number;
+  pastThreshold: number;
+  field: AirfieldDef | null;
+  text: string;
+}
+
+/** Grade a touchdown: sink rate, speed vs. approach speed, centreline and touchdown zone. */
+export function gradeLanding(p: Aircraft): LandingGrade {
+  const td = p.fm.lastTouchdown;
+  const sinkFpm = (td.sink / 0.3048) * 60;
+  const speedKts = td.tas / 0.514444;
+  const speedDelta = speedKts - p.spec.approachKts;
+  // nearest runway end we landed on
+  let field: AirfieldDef | null = null;
+  let centre = Infinity;
+  let past = 0;
+  for (const f of AIRFIELDS) {
+    const loc = toRunwayLocal(f, td.x, td.z);
+    if (Math.abs(loc.along) > f.length / 2 + 200 || Math.abs(loc.across) > 150) continue;
+    let dh = wrap360(td.heading - f.heading);
+    if (dh > 180) dh -= 360;
+    const recip = Math.abs(dh) > 90;
+    const along = recip ? -loc.along : loc.along;
+    if (Math.abs(loc.across) < Math.abs(centre)) {
+      field = f;
+      centre = recip ? -loc.across : loc.across;
+      past = along + f.length / 2;
+    }
+  }
+  let grade: LandingGrade['grade'];
+  if (!field || Math.abs(centre) > 25 || past < -20) grade = 'OFF RUNWAY';
+  else if (sinkFpm < 300 && Math.abs(centre) < 6 && past > 100 && past < 700) grade = 'GREASER';
+  else if (sinkFpm < 600) grade = 'GOOD';
+  else if (sinkFpm < 900) grade = 'FIRM';
+  else grade = 'HARD';
+  const parts = [`${Math.round(sinkFpm)} FPM`, `${Math.round(speedKts)} KT (${speedDelta >= 0 ? '+' : ''}${Math.round(speedDelta)})`];
+  if (field) parts.push(`CL ${Math.abs(centre).toFixed(0)} M ${centre > 0.5 ? 'R' : centre < -0.5 ? 'L' : ''}`.trim(), `${Math.round(past)} M PAST THR`);
+  return {
+    grade,
+    sinkFpm,
+    speedKts,
+    speedDelta,
+    centreline: isFinite(centre) ? centre : 0,
+    pastThreshold: past,
+    field,
+    text: `TOUCHDOWN ${field ? field.icao + ' ' : ''}— ${parts.join(' · ')} — ${grade}${grade === 'GREASER' ? '!' : ''}`,
+  };
 }

@@ -123,6 +123,9 @@ export class FlightModel {
   crashed = false;
   crashCause = '';
   hardLanding = 0;
+  /** incremented on every touchdown; details of the last one */
+  touchdowns = 0;
+  lastTouchdown = { sink: 0, tas: 0, bank: 0, pitch: 0, x: 0, z: 0, heading: 0 };
   overG = 0;
   structuralFailure = false;
   stallWarning = false;
@@ -506,6 +509,15 @@ export class FlightModel {
       // touchdown
       this.onGround = true;
       if (sink > 3.5) this.hardLanding = sink;
+      this.touchdowns++;
+      const td = this.lastTouchdown;
+      td.sink = sink;
+      td.tas = this.vel.length();
+      td.bank = bankDeg;
+      td.pitch = pitchDeg;
+      td.x = this.pos.x;
+      td.z = this.pos.z;
+      td.heading = this.headingFromFwd();
       const hv = Math.sqrt(this.vel.x * this.vel.x + this.vel.z * this.vel.z);
       this.heading = this.headingFromFwd();
       this.groundPitch = Math.max(0, pitchDeg);
