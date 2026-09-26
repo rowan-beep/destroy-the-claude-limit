@@ -20,6 +20,7 @@ export interface GameSettings {
     showHelp: boolean;
     realisticFuel: boolean;
     cameraRoll: boolean;
+    touchControls: 'auto' | 'on' | 'off';
   };
   input: InputSettings;
   lastAircraft: string;
@@ -40,6 +41,7 @@ export function defaultSettings(): GameSettings {
       showHelp: true,
       realisticFuel: true,
       cameraRoll: false,
+      touchControls: 'auto',
     },
     input: defaultInputSettings(),
     lastAircraft: 'F15EX',

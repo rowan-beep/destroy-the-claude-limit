@@ -203,6 +203,10 @@ export class Input {
   gamepadIndex: number | null = null;
   private gpPrev: boolean[] = [];
   gp = { pitch: 0, roll: 0, yaw: 0, throttle: -1, lookX: 0, lookY: 0, active: false };
+  /** on-screen touch controls */
+  touch = { active: false, pitch: 0, roll: 0, yaw: 0, throttle: null as number | null, lookX: 0, lookY: 0 };
+  private virtualDown = new Set<Action>();
+  private virtualPressed = new Set<Action>();
 
   constructor(
     private target: HTMLElement,
@@ -281,13 +285,23 @@ export class Input {
 
   /** Is an action currently held? */
   held(a: Action): boolean {
+    if (this.virtualDown.has(a)) return true;
     const codes = this.settings.bindings[a];
     for (const c of codes) if (this.down.has(c)) return true;
     return false;
   }
 
+  /** On-screen button pressed / released (touch controls). */
+  virtual(a: Action, down: boolean): void {
+    if (down) {
+      if (!this.virtualDown.has(a)) this.virtualPressed.add(a);
+      this.virtualDown.add(a);
+    } else this.virtualDown.delete(a);
+  }
+
   /** Was an action pressed since the last endFrame()? */
   pressed(a: Action): boolean {
+    if (this.virtualPressed.has(a)) return true;
     const codes = this.settings.bindings[a];
     for (const c of codes) if (this.pressedThisFrame.has(c)) return true;
     return false;
@@ -372,6 +386,9 @@ export class Input {
 
   endFrame(): void {
     this.pressedThisFrame.clear();
+    this.virtualPressed.clear();
+    this.touch.lookX = 0;
+    this.touch.lookY = 0;
     this.releasedThisFrame.clear();
     this.mousePressed.clear();
     this.mouseDX = 0;

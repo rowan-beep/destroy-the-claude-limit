@@ -10,6 +10,7 @@ import { Hangar } from './ui/menu/hangar';
 import { LoadingScreen, PauseMenu, ResultsScreen, ControlsModal } from './ui/menu/screens';
 import { SettingsModal } from './ui/menu/settingsModal';
 import { LogbookModal } from './ui/menu/logbookScreen';
+import { TouchControls, isTouchDevice } from './ui/touchControls';
 import { MapView } from './ui/mapView';
 import { audio } from './audio/audio';
 import type { AircraftType } from './aircraft/specs';
@@ -48,6 +49,9 @@ async function boot(): Promise<void> {
   });
   const controls = new ControlsModal(document.body);
   const logbook = new LogbookModal(document.body, (fresh) => (game.logbook = fresh));
+  const touch = new TouchControls(document.body, game.input);
+  game.touch = touch;
+  const touchWanted = () => settings.gameplay.touchControls === 'on' || (settings.gameplay.touchControls === 'auto' && isTouchDevice());
 
   let menu: MainMenu;
   const fly = async (c: MissionConfig) => {
@@ -98,6 +102,7 @@ async function boot(): Promise<void> {
     menu.show(s === 'menu');
     hud.setVisible(s === 'playing' || s === 'paused' || s === 'results' || s === 'map');
     pause.show(s === 'paused');
+    touch.show(s === 'playing' && touchWanted());
     mapView.show(s === 'map', game);
     if (s !== 'results') results.show(null);
     if (s === 'menu') {

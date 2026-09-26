@@ -159,5 +159,6 @@ export class SettingsModal {
     this.seg(b, 'AUTO COUNTERMEASURES (EPAWSS)', [['on', 'ON'], ['off', 'OFF']], g.autoCountermeasures ? 'on' : 'off', (v) => (g.autoCountermeasures = v === 'on'));
     this.seg(b, 'CHASE CAMERA', [['level', 'HORIZON LEVEL'], ['roll', 'FOLLOWS ROLL']], g.cameraRoll ? 'roll' : 'level', (v) => (g.cameraRoll = v === 'roll'));
     this.seg(b, 'CONTROLS PANEL IN FLIGHT', [['on', 'SHOW'], ['off', 'HIDE']], g.showHelp ? 'on' : 'off', (v) => (g.showHelp = v === 'on'));
+    this.seg(b, 'TOUCH CONTROLS', [['auto', 'AUTO'], ['on', 'ON'], ['off', 'OFF']], g.touchControls, (v) => (g.touchControls = v as typeof g.touchControls));
   }
 }

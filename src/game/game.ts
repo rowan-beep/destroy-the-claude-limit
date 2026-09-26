@@ -26,6 +26,7 @@ import type { Hud } from '../ui/hud/hud';
 import { CockpitView } from '../render/cockpitView';
 import { Avionics } from '../avionics/avionics';
 import { gradeLanding } from '../avionics/nav';
+import type { TouchControls } from '../ui/touchControls';
 import { SortieRecorder, LogbookData, MissionOutcome, loadLogbook, saveLogbook, commitSortie, medalName } from './logbook';
 import { NM } from '../core/constants';
 
@@ -48,6 +49,8 @@ export class Game implements ModeHost {
   /** career record and the sortie being flown */
   logbook: LogbookData = loadLogbook();
   sortie: SortieRecorder | null = null;
+  /** on-screen controls (phones / tablets), created by the app shell */
+  touch: TouchControls | null = null;
   hud!: Hud;
   mode: GameMode | null = null;
   player: Aircraft | null = null;
@@ -413,6 +416,7 @@ export class Game implements ModeHost {
       // pilot vision
       this.renderer.setVision(p.alive || !p.fm.crashed ? p.pilot.vision : emptyVision());
       this.hud.update(dt, this);
+      this.touch?.sync(this.throttleCmd);
       this.updateAudio(p);
     }
     this.renderer.render();
@@ -522,7 +526,12 @@ export class Game implements ModeHost {
       return;
     }
     if (!p) return;
-    const ms = this.settings.input.mouseMode;
+    const ms = inp.touch.active ? 'keyboard' : this.settings.input.mouseMode;
+    // touch: throttle slider and drag-to-look
+    if (inp.touch.active) {
+      if (inp.touch.throttle !== null) this.throttleCmd = inp.touch.throttle;
+      if (inp.touch.lookX || inp.touch.lookY) this.cam.addLook(inp.touch.lookX * 0.004, inp.touch.lookY * 0.004);
+    }
     // cockpit cursor: free the mouse to click display buttons
     if (inp.pressed('cockpitCursor')) {
       this.cockpitCursor = !this.cockpitCursor;
@@ -793,12 +802,17 @@ export class Game implements ModeHost {
     if (!p || !p.alive) return;
     const c = p.controls;
     const inp = this.input;
-    const ms = this.settings.input.mouseMode;
+    const ms = inp.touch.active ? 'keyboard' : this.settings.input.mouseMode;
     const inv = this.settings.input.invertPitch ? -1 : 1;
     let pitch = inp.kbPitch * inv;
     let roll = inp.kbRoll;
     let yaw = inp.kbYaw;
-    const kbActive = Math.abs(inp.kbPitch) > 0.02 || Math.abs(inp.kbRoll) > 0.02;
+    if (inp.touch.active) {
+      pitch += inp.touch.pitch * inv;
+      roll += inp.touch.roll;
+      yaw += inp.touch.yaw;
+    }
+    const kbActive = Math.abs(inp.kbPitch) > 0.02 || Math.abs(inp.kbRoll) > 0.02 || (inp.touch.active && (Math.abs(inp.touch.pitch) > 0.02 || Math.abs(inp.touch.roll) > 0.02));
     if (inp.gp.active) {
       pitch += inp.gp.pitch * inv;
       roll += inp.gp.roll;
