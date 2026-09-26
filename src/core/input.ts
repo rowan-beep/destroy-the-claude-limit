@@ -93,7 +93,7 @@ export const ACTION_LABELS: Record<Action, string> = {
   zoomIn: 'Zoom in',
   zoomOut: 'Zoom out',
   lookReset: 'Reset view',
-  autopilot: 'Autopilot: level off',
+  autopilot: 'Auto-Fly panel (destination, speed, altitude)',
   scopeRange: 'Radar scope range',
   mfdLeft: 'Left display: next page',
   mfdCenter: 'Centre display: next page',

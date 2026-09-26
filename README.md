@@ -16,8 +16,8 @@ terrain against you.
 | Gun | M61A1 20 mm | M61A2 20 mm | BK-27 27 mm |
 | Radar | AN/APG-82(V)1 AESA | AN/APG-79 AESA | CAPTOR-E + PIRATE IRST |
 
-Current version: **v1.2.1** — see [CHANGELOG.md](CHANGELOG.md) (also in the game
-under **v1.2.1 · NOTES** on the main menu).
+Current version: **v1.3.0** — see [CHANGELOG.md](CHANGELOG.md) (also in the game
+under **v1.3.0 · NOTES** on the main menu).
 
 Each jet is a high-detail procedural model (~150k triangles): blended fuselages
 built from real cross-sections, hollow intakes with ducts and fans, airfoil
@@ -88,7 +88,7 @@ behind the Samos ridge, and so can the AI.
 | RMB drag | Look around | [ / ] | Zoom |
 | M | Theater map | H | Rearm & refuel (stopped at a friendly base) |
 | K | Jettison tanks | J (hold) | Eject |
-| U | Level-off autopilot | Esc / P | Pause |
+| U | Auto-Fly (destination, speed, altitude) | Esc / P | Pause |
 | , / . | Left / centre / right display page | \\ | Cockpit cursor (click displays) |
 | ' | Next steerpoint | End | Steer to nearest friendly field |
 

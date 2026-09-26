@@ -33,6 +33,8 @@ import { SortieRecorder, LogbookData, MissionOutcome, loadLogbook, saveLogbook, 
 import { NM } from '../core/constants';
 import { prewarmAirframes } from '../aircraft/models';
 import { randomizeWind, wind } from '../core/weather';
+import { AutoFly } from './autoFly';
+import type { AutoFlyPanel, AutoFlyChoice } from '../ui/autoFlyPanel';
 import { enemyTypesFor } from '../aircraft/specs';
 
 export type GameState = 'menu' | 'loading' | 'playing' | 'paused' | 'map' | 'results' | 'replay';
@@ -76,7 +78,15 @@ export class Game implements ModeHost {
   gOverride = false;
   speedbrake = false;
   gearDown = false;
-  autopilot = false;
+  /** Auto-Fly (U): flies to a chosen destination at a chosen speed and altitude */
+  readonly autoFly = new AutoFly();
+  autoFlyPanel: AutoFlyPanel | null = null;
+  get autopilot(): boolean {
+    return this.autoFly.engaged;
+  }
+  set autopilot(on: boolean) {
+    if (!on) this.autoFly.disengage();
+  }
   private ejectHold = 0;
   rearmTimer = -1;
   private prevRwr: string | null = null;
@@ -105,6 +115,7 @@ export class Game implements ModeHost {
 
   setState(s: GameState): void {
     this.state = s;
+    if (s !== 'playing') this.autoFlyPanel?.hide();
     this.input.enabled = s === 'playing';
     audio.setPaused(s !== 'playing');
     if (s !== 'playing') this.input.exitPointerLock();
@@ -799,9 +810,11 @@ export class Game implements ModeHost {
     if (inp.pressed('dropTanks')) {
       if (p.dropTanks(this.sim)) this.message('FUEL TANKS JETTISONED', 'info', 2);
     }
-    if (inp.pressed('autopilot')) {
-      this.autopilot = !this.autopilot;
-      this.message(this.autopilot ? 'AUTOPILOT: LEVEL FLIGHT' : 'AUTOPILOT OFF', 'info', 2);
+    if (inp.pressed('autopilot')) this.toggleAutoFlyPanel();
+    // a real mouse movement in mouse-aim flying takes control back
+    if (this.autoFly.engaged && inp.pointerLocked && ms === 'mouseaim' && Math.abs(inp.mouseDX) + Math.abs(inp.mouseDY) > 40) {
+      this.autoFly.disengage();
+      this.message('AUTO-FLY DISENGAGED', 'warn', 2);
     }
     if (inp.pressed('rearm')) this.tryRearm();
     if (inp.held('eject')) {
@@ -819,6 +832,37 @@ export class Game implements ModeHost {
     }
     if (inp.pressed('help')) this.hud.toggleHelp();
     if (inp.pressed('hud')) this.hud.toggleHidden();
+  }
+
+  toggleAutoFlyPanel(): void {
+    const panel = this.autoFlyPanel;
+    if (!panel || !this.avionics || !this.player) return;
+    if (panel.open) {
+      panel.hide();
+      return;
+    }
+    this.input.exitPointerLock();
+    const af = this.autoFly;
+    panel.show(this.avionics.nav.points, af.engaged, { dest: af.dest, speedKts: af.speedKts, altFt: af.altFt });
+  }
+
+  engageAutoFly(ch: AutoFlyChoice): void {
+    const p = this.player;
+    this.autoFlyPanel?.hide();
+    if (!p || !p.alive) return;
+    if (p.fm.onGround) {
+      this.message('AUTO-FLY: TAKE OFF FIRST', 'warn', 2.5);
+      return;
+    }
+    this.autoFly.engage(p, ch.dest, ch.speedKts, ch.altFt);
+    if (ch.dest && this.avionics) this.avionics.nav.select(ch.dest.id);
+    this.message(`AUTO-FLY ENGAGED → ${ch.dest ? ch.dest.name : 'HOLDING HEADING'} · ${ch.speedKts} KT · ${ch.altFt.toLocaleString('en-US')} FT`, 'good', 4);
+  }
+
+  disengageAutoFly(): void {
+    this.autoFlyPanel?.hide();
+    if (this.autoFly.engaged) this.message('AUTO-FLY DISENGAGED — YOU HAVE CONTROL', 'info', 2.5);
+    this.autoFly.disengage();
   }
 
   selectWeapon(w: 'GUN' | 'AIM9X' | 'AIM120D'): void {
@@ -906,14 +950,19 @@ export class Game implements ModeHost {
     c.gearDown = this.gearDown;
     c.wheelBrake = inp.held('wheelBrake') || (p.fm.onGround && this.speedbrake) ? 1 : 0;
 
-    if (this.autopilot && !kbActive) {
-      const d = new THREE.Vector3(p.fm.fwd.x, 0, p.fm.fwd.z).normalize();
-      steerToward(p, d, { gCap: 3, tau: 1.5, maxBank: 30 });
-      c.throttle = this.throttleCmd;
-      c.gOverride = false;
-      return;
+    if (this.autoFly.engaged) {
+      if (kbActive || (inp.gp.active && (Math.abs(inp.gp.pitch) + Math.abs(inp.gp.roll) > 0.15)) || p.fm.onGround) {
+        this.autoFly.disengage();
+        this.message('AUTO-FLY DISENGAGED — YOU HAVE CONTROL', 'warn', 2.5);
+      } else {
+        this.autoFly.control(p, dt);
+        this.throttleCmd = c.throttle;
+        this.gearDown = false;
+        this.aimDir.copy(p.fm.fwd);
+        c.gOverride = false;
+        return;
+      }
     }
-    if (kbActive) this.autopilot = false;
 
     if (ms === 'mouseaim' && !p.fm.onGround && !kbActive && !inp.gp.active) {
       steerToward(p, this.aimDir, {

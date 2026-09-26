@@ -189,6 +189,7 @@ export class Hud {
       ['COCKPIT CURSOR', ['cockpitCursor']],
       ['STPT / RTB', ['stptNext', 'navRtb']],
       ['MAP', ['map']],
+      ['AUTO-FLY', ['autopilot']],
       ['REARM (PARKED)', ['rearm']],
       ['EJECT (HOLD)', ['eject']],
       ['PAUSE', ['pause']],
@@ -384,7 +385,7 @@ export class Hud {
     tf.style.width = `${clamp(fm.throttleLever / 1.1, 0, 1) * 100}%`;
     el('div', 'mil', tb);
     const gearTxt = fm.gearPos > 0.95 ? 'DOWN' : fm.gearPos < 0.05 ? 'UP' : 'TRANSIT';
-    el('div', 'pline', this.engine, `[GEAR ${gearTxt}]${fm.speedbrakePos > 0.1 ? ' [SPDBRK]' : ''}${g.gOverride ? ' [G-OVRD]' : ''}${g.autopilot ? ' [A/P]' : ''}`);
+    el('div', 'pline', this.engine, `[GEAR ${gearTxt}]${fm.speedbrakePos > 0.1 ? ' [SPDBRK]' : ''}${g.gOverride ? ' [G-OVRD]' : ''}${g.autopilot && g.player ? ' [' + g.autoFly.label(g.player) + ']' : ''}`);
     const fl = el('div', 'pline' + (fuelLow ? ' bad-text' : ''), this.engine, `FUEL MAIN ${fuelPct.toFixed(1)} %  | DROP ${fm.fuelExternal > 0 ? Math.round(fm.fuelExternal / LB) + ' lb' : 'NONE'}`);
     void fl;
     el('div', 'pline' + (abOn ? ' warn-text' : ''), this.engine, `TOTAL ${Math.round(fuelTot / LB).toLocaleString('en-US')} lb  FF ${Math.round((fm.fuelFlow / LB) * 3600).toLocaleString('en-US')} pph  ~${mins > 600 ? '--' : mins.toFixed(1)} min`);

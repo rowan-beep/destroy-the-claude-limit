@@ -3,6 +3,14 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v1.3.0 — Auto-Fly (2026-09-26)
+
+- Auto-Fly replaces the old level-off autopilot. Press U to open a small panel, pick a destination (any airfield or the bullseye, or hold your current heading), a speed (300-650 kt) and an altitude (2,000-40,000 ft), then ENGAGE.
+- The jet flies itself there: it turns onto course, holds your speed with the throttle (afterburner if needed), climbs over any mountains in its path, and circles overhead when it arrives.
+- The destination becomes your HUD steerpoint, and the HUD shows where Auto-Fly is taking you and how far is left.
+- Move the stick (or the mouse in mouse-aim) to take control back instantly; press U again to change the destination, speed or altitude, or to disengage.
+- Steering fix: turns with a bank limit no longer over-pull and slowly climb (AI patrols benefit too).
+
 ## v1.2.1 — Smooth roll-outs (2026-09-26)
 
 - Fixed the wobble after turning: when you stopped a turn the jet rocked wing over wing (roll one way, back, and back again). The mouse-aim autopilot now asks for a roll rate matched to what the flight controls can deliver, so the wings settle smoothly.

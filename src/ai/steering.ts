@@ -105,11 +105,13 @@ export function steerToward(ac: Aircraft, dirWorld: THREE.Vector3, opt: SteerOpt
     rollCmd = clamp(-fm.bank * DEG * 0.8, -0.4, 0.4);
   } else {
     let desiredBankErr = bankErr;
+    let bankLimited = false;
     if (opt.maxBank !== undefined) {
       const newBank = fm.bank * DEG + bankErr;
       const lim = opt.maxBank * DEG;
       const clamped = clamp(newBank, -lim, lim);
       desiredBankErr = clamped - fm.bank * DEG;
+      bankLimited = Math.abs(clamped - newBank) > 1e-3;
     }
     // Ask the flight controls for a roll rate proportional to the bank error
     // (first-order roll-in / roll-out). The stick maps linearly to commanded
@@ -124,6 +126,13 @@ export function steerToward(ac: Aircraft, dirWorld: THREE.Vector3, opt: SteerOpt
     const align = 1 - smoothstepAbs(12 * DEG, 45 * DEG, bankErr);
     nCmd = gReq * align + (1 - align) * Math.min(gReq, 1.5);
     if (align < 0) nCmd = Math.min(nCmd, 1.2);
+    if (bankLimited) {
+      // bank is capped short of the lift direction: only pull what holds the
+      // wanted vertical path at this bank, or the extra lift just climbs
+      const vert = _L.y / G0; // required lift along world up (per G)
+      const cb = Math.max(0.3, Math.cos(fm.bank * DEG));
+      nCmd = Math.min(nCmd, Math.max(0.3, vert / cb));
+    }
   }
   gReq = Math.min(gReq, opt.gCap);
   nCmd = clamp(nCmd, -2.5, opt.gCap);

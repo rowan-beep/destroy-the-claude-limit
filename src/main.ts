@@ -1,4 +1,5 @@
 // Application bootstrap: builds the theater, then shows the main menu.
+import { AutoFlyPanel } from './ui/autoFlyPanel';
 import './styles.css';
 import './ui/ui.css';
 import { Game } from './game/game';
@@ -52,6 +53,12 @@ async function boot(): Promise<void> {
   const logbook = new LogbookModal(document.body, (fresh) => (game.logbook = fresh));
   const touch = new TouchControls(document.body, game.input);
   game.touch = touch;
+  game.autoFlyPanel = new AutoFlyPanel(
+    document.body,
+    (c) => game.engageAutoFly(c),
+    () => game.disengageAutoFly(),
+    () => game.autoFlyPanel?.hide(),
+  );
   game.replayUi = new ReplayUi(document.body, game.cam, () => game.exitReplay());
   const touchWanted = () => settings.gameplay.touchControls === 'on' || (settings.gameplay.touchControls === 'auto' && isTouchDevice());
 
