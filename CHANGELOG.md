@@ -3,6 +3,10 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.3.2 — Smaller rain drops (2026-09-27)
+
+- Rain drops on the screen are a third of the size and land only along the very left and right edges, so the middle of the screen stays clear.
+
 ## v4.3.1 — Rain on the canopy (2026-09-27)
 
 - Rain now beads on the screen like water on a window: drops land, grow and refract a blurred, flipped view of what's behind them. At speed the airflow sweeps them sideways off the edges of the screen; when you're slow they run down and slide off.

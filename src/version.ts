@@ -10,6 +10,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.3.2',
+    date: '2026-09-27',
+    title: "Smaller rain drops",
+    notes: [
+      "Rain drops on the screen are a third of the size and land only along the very left and right edges, so the middle of the screen stays clear.",
+    ],
+  },
+  {
     version: '4.3.1',
     date: '2026-09-27',
     title: "Rain on the canopy",
