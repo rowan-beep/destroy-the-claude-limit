@@ -611,6 +611,86 @@ export class HudPainter {
     c.restore();
   }
 
+  /**
+   * Lead marker (War Thunder style): a small circle ahead of the enemy you are
+   * lining up on, inside gun range. Put the gun cross on it and the rounds
+   * meet the target. Shown for the locked target, or else the enemy nearest
+   * the gun line, whatever weapon is selected.
+   */
+  leadMarker(g: Game, p: Aircraft, cam: THREE.PerspectiveCamera, drawGunCross: boolean): void {
+    const MAX = 2000;
+    const gdir = gunLine(p, new THREE.Vector3());
+    let t: Aircraft | null = null;
+    const lock = p.lockedTarget;
+    if (lock && lock.alive && hostile(p, lock) && p.distanceTo(lock) < MAX) t = lock;
+    else {
+      let best = Math.cos(40 * DEG);
+      for (const a of g.sim.aircraft) {
+        if (!a.alive || a === p || !hostile(p, a)) continue;
+        _v.subVectors(a.fm.pos, p.fm.pos);
+        const r = _v.length();
+        if (r > MAX || r < 30) continue;
+        const cosA = _v.dot(gdir) / r;
+        if (cosA > best) {
+          best = cosA;
+          t = a;
+        }
+      }
+    }
+    if (!t) return;
+    const aim = new THREE.Vector3();
+    const sol = gunSolution(p, t, aim);
+    const dir = aim.sub(p.fm.pos).normalize();
+    const m = this.projectDir(cam, dir);
+    const tp = this.project(cam, t.fm.pos);
+    if (!m.on || !tp.front) return;
+    const gl = this.projectDir(cam, gdir);
+    const c = this.ctx;
+    c.save();
+    // fade in as the target comes into range
+    c.globalAlpha = clamp((MAX - sol.range) / 500, 0, 1) * 0.95;
+    // on target when the gun cross sits on the marker (within the target's size)
+    const size = Math.max(7, (12 / Math.max(sol.range, 1)) * this.pxPerRad(cam));
+    const onTgt = gl.front && Math.hypot(gl.x - m.x, gl.y - m.y) < size;
+    const col = onTgt ? RED : WHITE;
+    c.shadowColor = 'rgba(0,0,0,0.85)';
+    c.shadowBlur = 3;
+    c.strokeStyle = col;
+    c.fillStyle = col;
+    c.lineWidth = 1.5;
+    // thin line from the enemy to where to shoot
+    const dx = m.x - tp.x, dy = m.y - tp.y;
+    const d = Math.hypot(dx, dy);
+    if (d > 12) {
+      c.setLineDash([3, 4]);
+      c.beginPath();
+      c.moveTo(tp.x + (dx / d) * 6, tp.y + (dy / d) * 6);
+      c.lineTo(m.x - (dx / d) * 8, m.y - (dy / d) * 8);
+      c.stroke();
+      c.setLineDash([]);
+    }
+    c.beginPath();
+    c.arc(m.x, m.y, 7, 0, Math.PI * 2);
+    c.stroke();
+    c.beginPath();
+    c.arc(m.x, m.y, 1.8, 0, Math.PI * 2);
+    c.fill();
+    if (onTgt) {
+      c.beginPath();
+      c.arc(m.x, m.y, 11, 0, Math.PI * 2);
+      c.stroke();
+    }
+    // a gun cross to aim with when the HUD isn't showing one
+    if (drawGunCross && gl.front) {
+      c.strokeStyle = GREEN;
+      this.line(gl.x - 7, gl.y, gl.x - 2, gl.y);
+      this.line(gl.x + 2, gl.y, gl.x + 7, gl.y);
+      this.line(gl.x, gl.y - 7, gl.x, gl.y - 2);
+      this.line(gl.x, gl.y + 2, gl.x, gl.y + 7);
+    }
+    c.restore();
+  }
+
   /** Radar / IRST / visual contact boxes, lock diamond and seeker circle. */
   contactMarkers(g: Game, p: Aircraft, cam: THREE.PerspectiveCamera): void {
     const c = this.ctx;

@@ -10,6 +10,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.4.0',
+    date: '2026-09-27',
+    title: "Gun lead marker",
+    notes: [
+      "NEW: gun lead marker, like War Thunder. When an enemy is inside gun range (about 1 NM), a small circle appears ahead of them, with a dotted line from the jet, showing exactly where to shoot. Put your gun cross on the circle and your rounds meet the target: it allows for the target's motion, your own speed, the rounds slowing down and bullet drop. It turns red when you're on target. It works for the locked target, or else for the enemy nearest your gun line, with any weapon selected, in cockpit and outside views.",
+    ],
+  },
+  {
     version: '4.3.2',
     date: '2026-09-27',
     title: "Smaller rain drops",

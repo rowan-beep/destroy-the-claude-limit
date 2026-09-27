@@ -3,6 +3,10 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.4.0 — Gun lead marker (2026-09-27)
+
+- NEW: gun lead marker, like War Thunder. When an enemy is inside gun range (about 1 NM), a small circle appears ahead of them, with a dotted line from the jet, showing exactly where to shoot. Put your gun cross on the circle and your rounds meet the target: it allows for the target's motion, your own speed, the rounds slowing down and bullet drop. It turns red when you're on target. It works for the locked target, or else for the enemy nearest your gun line, with any weapon selected, in cockpit and outside views.
+
 ## v4.3.2 — Smaller rain drops (2026-09-27)
 
 - Rain drops on the screen are a third of the size and land only along the very left and right edges, so the middle of the screen stays clear.

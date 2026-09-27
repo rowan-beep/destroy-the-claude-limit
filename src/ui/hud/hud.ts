@@ -295,8 +295,10 @@ export class Hud {
         this.painter.drawCockpit(g);
         this.painter.drawHmd(g);
         this.painter.contactMarkers(g, p, g.renderer.camera);
+        this.painter.leadMarker(g, p, g.renderer.camera, p.selectedWeapon !== 'GUN');
       } else if (g.cam.mode !== 'death') {
         this.painter.drawExternal(g);
+        if (g.cam.mode !== 'weapon') this.painter.leadMarker(g, p, g.renderer.camera, false);
       }
       if (g.settings.input.mouseMode === 'mouseaim' && g.cam.mode !== 'weapon') this.painter.drawMouseAim(g);
     }
