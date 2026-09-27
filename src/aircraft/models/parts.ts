@@ -11,6 +11,8 @@ import { lathe, rod, tube, skinRings, offsetLoop, resample, colorize, join, P2, 
 
 export interface PartMaterials {
   nozzle: THREE.MeshStandardMaterial;
+  /** inside of the nozzle and burner can: sooty, and blind to the sky it cannot see */
+  nozzleIn: THREE.MeshStandardMaterial;
   duct: THREE.MeshStandardMaterial;
   darkMetal: THREE.MeshStandardMaterial;
   strut: THREE.MeshStandardMaterial;
@@ -30,10 +32,28 @@ export interface PartMaterials {
 
 let PM: PartMaterials | null = null;
 
+/**
+ * The inside of a nozzle is a deep tube the sun barely reaches: most direct
+ * light is dropped so the liner reads as a dark, sooty hole rather than a
+ * sunlit pipe (the shadow map is far too coarse to catch it).
+ */
+function nozzleInterior(): THREE.MeshStandardMaterial {
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0.3, envMapIntensity: 0.35 });
+  m.onBeforeCompile = (sh) => {
+    sh.fragmentShader = sh.fragmentShader.replace(
+      '#include <lights_fragment_end>',
+      '#include <lights_fragment_end>\n  reflectedLight.directDiffuse *= 0.14;\n  reflectedLight.directSpecular *= 0.14;',
+    );
+  };
+  m.customProgramCacheKey = () => 'nozzle-interior';
+  return m;
+}
+
 export function partMaterials(): PartMaterials {
   if (PM) return PM;
   PM = {
-    nozzle: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.42, metalness: 0.85 }),
+    nozzle: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.58, metalness: 0.62 }),
+    nozzleIn: nozzleInterior(),
     duct: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75, metalness: 0.1, side: THREE.DoubleSide }),
     darkMetal: new THREE.MeshStandardMaterial({ color: 0x2b2d30, roughness: 0.5, metalness: 0.8 }),
     strut: new THREE.MeshStandardMaterial({ color: 0xd9dcdf, roughness: 0.35, metalness: 0.55 }),
@@ -70,26 +90,37 @@ export interface NozzleSpec {
   petals: number;
   /** sawtooth depth of the exit (m) */
   saw: number;
+  /**
+   * z of a closed bulkhead just ahead of the nozzle (a fuselage loft capped at
+   * the nacelle end): the burner can is then built short, aft of it
+   */
+  floor?: number;
 }
 
 export function nozzle(s: NozzleSpec): { outer: THREE.BufferGeometry; inner: THREE.BufferGeometry } {
   const seg = s.petals * 6;
   const rings: P3[][] = [];
-  const N = 14;
+  const N = 18;
   const L = s.z1 - s.z0;
-  // outer: gentle boat-tail with petal facets (a faint scallop per petal)
+  const per = 6;
+  // outer: actuator ring at the root, then overlapping petal plates that
+  // shingle over each other (a small ledge at every plate edge, growing aft)
   for (let i = 0; i <= N; i++) {
     const u = i / N;
-    const r = s.r0 + (s.r1 - s.r0) * (u * u * 0.4 + u * 0.6);
+    let r = s.r0 + (s.r1 - s.r0) * (u * u * 0.4 + u * 0.6);
+    // actuator / sync ring: a raised band just behind the nacelle joint
+    r *= 1 + 0.035 * Math.exp(-Math.pow((u - 0.07) / 0.05, 2));
     const ring: P3[] = [];
     for (let j = 0; j < seg; j++) {
       const a = (j / seg) * Math.PI * 2;
-      const ph = ((j % 6) / 6) * Math.PI * 2;
-      const facet = 1 - 0.012 * (1 - Math.cos(ph)) * u;
-      // sawtooth exit: petal tips trail, gaps lead
-      const tri = Math.abs(((j % 6) / 6) * 2 - 1); // 1 at seams, 0 mid-petal
+      const k = j % per;
+      // plate ledge: each plate rises across its width and drops at the next plate's edge
+      const ledge = u > 0.14 ? 1 + (0.004 + 0.016 * u) * (k / (per - 1)) : 1;
+      // alternate plates are narrower seals sitting slightly lower
+      const seal = u > 0.14 && Math.floor(j / per) % 2 === 1 ? 0.994 : 1;
+      const tri = Math.abs((k / per) * 2 - 1); // 1 at seams, 0 mid-plate
       const z = s.z0 + L * u - (u > 0.999 ? s.saw * tri : s.saw * tri * Math.pow(u, 8));
-      ring.push([s.cx + Math.cos(a) * r * facet, s.cy + Math.sin(a) * r * facet, z]);
+      ring.push([s.cx + Math.cos(a) * r * ledge * seal, s.cy + Math.sin(a) * r * ledge * seal, z]);
     }
     rings.push(ring);
   }
@@ -104,67 +135,124 @@ export function nozzle(s: NozzleSpec): { outer: THREE.BufferGeometry; inner: THR
   rings.push(inset(0.985, 0.012));
   rings.push(inset(0.955, 0.0));
   const outerRings = rings.slice();
+  const hash = (n: number) => {
+    const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+    return x - Math.floor(x);
+  };
   const outer = colorize(skinRings(outerRings), (p, c) => {
     const u = Math.min(1, Math.max(0, (p.z - s.z0) / L));
-    // burnt titanium: warm straw near the nacelle, blue-grey toward the exit
-    c.setRGB(0.42 - 0.12 * u, 0.4 - 0.1 * u, 0.38 - 0.02 * u);
+    const a = Math.atan2(p.y - s.cy, p.x - s.cx);
+    const plate = Math.floor((((a / (Math.PI * 2)) + 1) % 1) * s.petals);
+    const v = 0.9 + 0.2 * hash(plate + s.petals * 7);
+    // heat-stained titanium: pale bronze at the root, straw, then blue-violet toward the exit
+    const straw = Math.exp(-Math.pow((u - 0.35) / 0.25, 2));
+    const blue = Math.max(0, Math.min(1, (u - 0.45) / 0.4));
+    let rr = 0.3 + 0.06 * straw - 0.085 * blue;
+    let gg = 0.29 + 0.03 * straw - 0.075 * blue;
+    let bb = 0.28 - 0.04 * straw - 0.015 * blue;
+    // soot at the lip, the ring a little darker
+    const soot = Math.max(0, (u - 0.9) / 0.1);
+    const ringDark = Math.exp(-Math.pow((u - 0.07) / 0.05, 2)) * 0.12;
+    const k2 = v * (1 - 0.45 * soot - ringDark);
+    rr *= k2;
+    gg *= k2;
+    bb *= k2;
+    c.setRGB(rr, gg, bb);
   });
+  // actuator rods: from the ring onto the petals
+  const acts: THREE.BufferGeometry[] = [];
+  const nAct = s.petals >= 14 ? 8 : 6;
+  for (let k = 0; k < nAct; k++) {
+    const a = ((k + 0.5) / nAct) * Math.PI * 2;
+    const rA = s.r0 * 1.03;
+    const uB = 0.55;
+    const rB = (s.r0 + (s.r1 - s.r0) * (uB * uB * 0.4 + uB * 0.6)) * 1.012;
+    const g = rod(
+      new THREE.Vector3(s.cx + Math.cos(a) * rA, s.cy + Math.sin(a) * rA, s.z0 + L * 0.08),
+      new THREE.Vector3(s.cx + Math.cos(a) * rB, s.cy + Math.sin(a) * rB, s.z0 + L * uB),
+      0.016,
+      0.012,
+      6,
+    );
+    acts.push(colorize(g, (_p, c) => c.setRGB(0.22, 0.21, 0.2)));
+  }
+  const outerAll = join([outer, ...acts]);
   // inside: divergent flaps, throat, liner with rings, flame holders, turbine
-  const prof: P2[] = [
-    [s.r1 * 0.95, s.z1],
-    [s.r1 * 0.86, s.z1 - L * 0.45],
-    [s.r1 * 0.8, s.z1 - L * 0.7],
-    [s.r0 * 0.9, s.z0 - 0.05],
-    [s.r0 * 0.9, s.z0 - 1.1],
-    [s.r0 * 0.86, s.z0 - 1.6],
-  ];
+  const capped = s.floor !== undefined;
+  const zF = s.floor ?? s.z0 - 1.6;
+  const deep = s.z1 - zF;
+  const prof: P2[] = capped
+    ? [
+        [s.r1 * 0.95, s.z1],
+        [s.r1 * 0.86, s.z1 - deep * 0.45],
+        [s.r1 * 0.8, s.z1 - deep * 0.72],
+        [s.r0 * 0.84, zF + 0.01],
+      ]
+    : [
+        [s.r1 * 0.95, s.z1],
+        [s.r1 * 0.86, s.z1 - L * 0.45],
+        [s.r1 * 0.8, s.z1 - L * 0.7],
+        [s.r0 * 0.9, s.z0 - 0.05],
+        [s.r0 * 0.9, s.z0 - 1.1],
+        [s.r0 * 0.86, s.z0 - 1.6],
+      ];
   const liner = colorize(lathe(prof, seg, s.cx, s.cy), (p, c) => {
-    const d = (s.z1 - p.z) / (L + 1.6);
-    const k = Math.max(0.05, 0.36 - d * 0.42);
-    c.setRGB(k, k * 0.95, k * 0.92);
+    // heat-stained flaps at the exit, sooting over quickly toward the burner can
+    // (linear values: 0.08 is a mid grey on screen, 0.012 near black)
+    const d = (s.z1 - p.z) / deep;
+    const k = 0.012 + 0.07 * Math.exp(-d * 4);
+    c.setRGB(k, k * 0.94, k * 0.86);
   });
   const parts: THREE.BufferGeometry[] = [liner];
-  // liner rings
-  for (let k = 0; k < 4; k++) {
-    const z = s.z0 - 0.15 - k * 0.28;
-    const t = new THREE.TorusGeometry(s.r0 * 0.88, 0.012, 5, seg);
-    t.translate(s.cx, s.cy, z);
-    parts.push(colorize(strip(t), (_p, c) => c.setRGB(0.1, 0.1, 0.1)));
+  // liner rings (only where the can runs deep)
+  if (!capped) {
+    for (let k = 0; k < 4; k++) {
+      const z = s.z0 - 0.15 - k * 0.28;
+      const t = new THREE.TorusGeometry(s.r0 * 0.88, 0.012, 5, seg);
+      t.translate(s.cx, s.cy, z);
+      parts.push(colorize(strip(t), (_p, c) => c.setRGB(0.03, 0.03, 0.03)));
+    }
   }
   // flame holders (concentric V-gutters) and radial spokes
+  const zH = capped ? zF + 0.1 : s.z0 - 1.25;
   for (const rr of [0.35, 0.62]) {
     const t = new THREE.TorusGeometry(s.r0 * rr, 0.02, 5, seg);
-    t.translate(s.cx, s.cy, s.z0 - 1.25);
-    parts.push(colorize(strip(t), (_p, c) => c.setRGB(0.16, 0.15, 0.14)));
+    t.translate(s.cx, s.cy, zH);
+    parts.push(colorize(strip(t), (_p, c) => c.setRGB(0.05, 0.047, 0.044)));
   }
   for (let k = 0; k < 10; k++) {
     const a = (k / 10) * Math.PI * 2;
     const g = rod(
-      new THREE.Vector3(s.cx + Math.cos(a) * s.r0 * 0.12, s.cy + Math.sin(a) * s.r0 * 0.12, s.z0 - 1.25),
-      new THREE.Vector3(s.cx + Math.cos(a) * s.r0 * 0.8, s.cy + Math.sin(a) * s.r0 * 0.8, s.z0 - 1.25),
+      new THREE.Vector3(s.cx + Math.cos(a) * s.r0 * 0.12, s.cy + Math.sin(a) * s.r0 * 0.12, zH),
+      new THREE.Vector3(s.cx + Math.cos(a) * s.r0 * 0.8, s.cy + Math.sin(a) * s.r0 * 0.8, zH),
       0.012,
       0.012,
       4,
     );
-    parts.push(colorize(g, (_p, c) => c.setRGB(0.14, 0.13, 0.12)));
+    parts.push(colorize(g, (_p, c) => c.setRGB(0.045, 0.042, 0.04)));
   }
-  // turbine face and tail cone
+  // turbine exit cone and the dark face behind it (facing aft, out of the nozzle)
   const cone = lathe(
-    [
-      [0.001, s.z0 - 0.95],
-      [s.r0 * 0.18, s.z0 - 1.2],
-      [s.r0 * 0.24, s.z0 - 1.55],
-    ],
+    capped
+      ? [
+          [0.001, zF + 0.3],
+          [s.r0 * 0.16, zF + 0.14],
+          [s.r0 * 0.22, zF + 0.02],
+        ]
+      : [
+          [0.001, s.z0 - 0.95],
+          [s.r0 * 0.18, s.z0 - 1.2],
+          [s.r0 * 0.24, s.z0 - 1.55],
+        ],
     24,
     s.cx,
     s.cy,
   );
-  parts.push(colorize(cone, (_p, c) => c.setRGB(0.08, 0.08, 0.08)));
-  const disc = new THREE.CircleGeometry(s.r0 * 0.86, seg);
-  disc.rotateY(Math.PI);
-  disc.translate(s.cx, s.cy, s.z0 - 1.58);
-  parts.push(colorize(strip(disc), (_p, c) => c.setRGB(0.03, 0.03, 0.03)));
-  return { outer, inner: join(parts.map((g) => g)) };
+  parts.push(colorize(cone, (_p, c) => c.setRGB(0.025, 0.025, 0.025)));
+  const disc = new THREE.CircleGeometry(capped ? s.r0 * 0.85 : s.r0 * 0.86, seg);
+  disc.translate(s.cx, s.cy, capped ? zF + 0.005 : s.z0 - 1.58);
+  parts.push(colorize(strip(disc), (_p, c) => c.setRGB(0.008, 0.008, 0.008)));
+  return { outer: outerAll, inner: join(parts.map((g) => g)) };
 }
 
 // ---------------------------------------------------------------------------

@@ -726,9 +726,25 @@ uniform float customScale;  // metres per wrap tile
 uniform float brightness;
 varying vec3 vSkin;
 varying vec3 vSkinN;
+// value noise for paint mottling (airframe coordinates, metres)
+float skinHash( vec3 p ) {
+  p = fract( p * 0.3183099 + 0.1 );
+  p *= 17.0;
+  return fract( p.x * p.y * p.z * ( p.x + p.y + p.z ) );
+}
+float skinNoise( vec3 x ) {
+  vec3 i = floor( x );
+  vec3 f = fract( x );
+  f = f * f * ( 3.0 - 2.0 * f );
+  return mix( mix( mix( skinHash( i ), skinHash( i + vec3( 1, 0, 0 ) ), f.x ), mix( skinHash( i + vec3( 0, 1, 0 ) ), skinHash( i + vec3( 1, 1, 0 ) ), f.x ), f.y ),
+              mix( mix( skinHash( i + vec3( 0, 0, 1 ) ), skinHash( i + vec3( 1, 0, 1 ) ), f.x ), mix( skinHash( i + vec3( 0, 1, 1 ) ), skinHash( i + vec3( 1, 1, 1 ) ), f.x ), f.y ), f.z );
+}
 `;
 const SKIN_FRAG = /* glsl */ `
   vec3 skinGlow = vec3( 0.0 );
+  // engraved seam depth (m) and paint roughness offset, used by the lighting stages
+  float skinDepth = 0.0;
+  float skinRough = 0.0;
   {
     vec3 sn = normalize( vSkinN );
     vec3 aw = pow( abs( sn ), vec3( 5.0 ) );
@@ -743,9 +759,16 @@ const SKIN_FRAG = /* glsl */ `
     float us = ( vSkin.z - skinBox.y ) / skinBox.z;
     vec2 uS = vec2( us, ( vSkin.y - skinBox.w ) / skinH );
     vec4 m = vec4( 0.0 );
-    if ( wT > 0.01 ) { vec4 t = texture2D( skinTop, uT ); m += vec4( t.rgb * t.a, t.a ) * wT; }
-    if ( wB > 0.01 ) { vec4 t = texture2D( skinBot, uB ); m += vec4( t.rgb * t.a, t.a ) * wB; }
-    if ( wS > 0.01 ) { vec4 t = sn.x > 0.0 ? texture2D( skinSideR, uS ) : texture2D( skinSide, uS ); m += vec4( t.rgb * t.a, t.a ) * wS; }
+    // mb: the same overlay heavily blurred (a low mip) -- thin strokes stand out against it
+    vec4 mb = vec4( 0.0 );
+    if ( wT > 0.01 ) { vec4 t = texture2D( skinTop, uT ); m += vec4( t.rgb * t.a, t.a ) * wT; vec4 b = texture2D( skinTop, uT, 3.5 ); mb += vec4( b.rgb * b.a, b.a ) * wT; }
+    if ( wB > 0.01 ) { vec4 t = texture2D( skinBot, uB ); m += vec4( t.rgb * t.a, t.a ) * wB; vec4 b = texture2D( skinBot, uB, 3.0 ); mb += vec4( b.rgb * b.a, b.a ) * wB; }
+    if ( wS > 0.01 ) {
+      vec4 t = sn.x > 0.0 ? texture2D( skinSideR, uS ) : texture2D( skinSide, uS );
+      vec4 b = sn.x > 0.0 ? texture2D( skinSideR, uS, 3.5 ) : texture2D( skinSide, uS, 3.5 );
+      m += vec4( t.rgb * t.a, t.a ) * wS;
+      mb += vec4( b.rgb * b.a, b.a ) * wS;
+    }
     float up = smoothstep( -0.45, 0.35, sn.y );
     vec3 base = mix( paintBot, paintTop, up );
     if ( customMode > 0.5 ) {
@@ -813,7 +836,39 @@ const SKIN_FRAG = /* glsl */ `
         skinGlow = glow;
       }
     }
+    // --- realism: engraved panel lines, paint mottling, grime ---------------
+    // dark livery strokes (panel lines, rivets, access doors) are recessed seams
+    // (high-pass: only thin dark strokes -- not camouflage or roundels -- become seams)
+    float lumA = dot( base * ( 1.0 - m.a ) + m.rgb, vec3( 0.3333 ) );
+    float lumB = dot( base * ( 1.0 - mb.a ) + mb.rgb, vec3( 0.3333 ) );
+    float dark = clamp( ( lumB - lumA ) * 3.0, 0.0, 1.0 );
+    skinDepth = dark * 0.004;
+    // paint that has been sprayed and touched up panel by panel: gentle tone and sheen variation
+    float n1 = skinNoise( vSkin * 1.3 );
+    float n2 = skinNoise( vSkin * 4.7 + 11.0 );
+    float n3 = skinNoise( vSkin * 0.35 - 7.0 );
+    base *= 0.955 + 0.06 * n1 + 0.03 * n3;
+    skinRough = ( n2 - 0.5 ) * 0.12 + ( n1 - 0.5 ) * 0.08 + dark * 0.12;
+    // exhaust and hydraulic grime collects underneath and aft
+    float under = smoothstep( 0.1, -0.7, sn.y );
+    float aft = smoothstep( 0.45, 1.0, ( vSkin.z - skinBox.y ) / skinBox.z );
+    base *= 1.0 - ( under * 0.1 + aft * 0.12 ) * ( 0.6 + 0.4 * n2 );
     diffuseColor.rgb *= ( base * ( 1.0 - m.a ) + m.rgb ) * brightness;
+  }
+`;
+
+/** Recessed seams: screen-space bump from the seam depth (in metres, so it fades with distance). */
+const SKIN_NORMAL = /* glsl */ `
+  {
+    vec2 dh = vec2( dFdx( skinDepth ), dFdy( skinDepth ) );
+    vec3 sx = dFdx( -vViewPosition );
+    vec3 sy = dFdy( -vViewPosition );
+    vec3 r1 = cross( sy, normal );
+    vec3 r2 = cross( normal, sx );
+    float det = dot( sx, r1 ) * faceDirection;
+    vec3 grad = sign( det ) * ( dh.x * r1 + dh.y * r2 );
+    vec3 bumped = normalize( abs( det ) * normal - grad );
+    normal = normalize( mix( normal, bumped, step( 1e-12, abs( det ) ) ) );
   }
 `;
 
@@ -884,9 +939,11 @@ function applySkin(mat: THREE.MeshStandardMaterial, uniforms: Record<string, THR
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', '#include <common>\n' + SKIN_FRAG_PARS)
       .replace('#include <map_fragment>', '#include <map_fragment>\n' + SKIN_FRAG)
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = clamp( roughnessFactor + skinRough, 0.05, 1.0 );')
+      .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n' + SKIN_NORMAL)
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += skinGlow;');
   };
-  mat.customProgramCacheKey = () => 'skin-v4';
+  mat.customProgramCacheKey = () => 'skin-v5';
   void id;
 }
 

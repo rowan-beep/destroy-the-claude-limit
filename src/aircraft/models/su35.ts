@@ -5,6 +5,8 @@
 // rectangular intakes, a tunnel between them, tail booms outboard carrying
 // the vertical fins, ventral fins and all-moving stabilators, a central
 // "sting" tail cone, and two AL-41F1S nozzles that swivel (3D thrust vectoring).
+// Unlike the earlier Flankers there is no dorsal airbrake: the rudders splay
+// outward to brake.
 
 import * as THREE from 'three';
 import { AirframeVisual } from './visual';
@@ -24,10 +26,11 @@ function circ(R: number, yc: number): P2[] {
 // Right half, 12 control points, bottom centre -> top centre. Points 5-7 are
 // the chine / LERX edge / wing-root line.
 const BODY = keyedProfile([
-  { z: -11.2, pts: circ(0.012, -0.05) },
-  { z: -10.8, pts: circ(0.17, -0.05) },
-  { z: -10.0, pts: circ(0.37, -0.04) },
-  { z: -9.0, pts: circ(0.53, -0.03) },
+  // the long radome droops a little below the cockpit line
+  { z: -11.2, pts: circ(0.012, -0.2) },
+  { z: -10.8, pts: circ(0.17, -0.18) },
+  { z: -10.0, pts: circ(0.37, -0.12) },
+  { z: -9.0, pts: circ(0.53, -0.06) },
   { z: -8.0, pts: [[0, -0.66], [0.34, -0.64], [0.54, -0.5], [0.63, -0.3], [0.66, -0.1], [0.665, -0.03], [0.66, 0.04], [0.63, 0.22], [0.55, 0.4], [0.42, 0.5], [0.22, 0.54], [0, 0.55]] },
   { z: -7.3, pts: [[0, -0.72], [0.38, -0.71], [0.6, -0.56], [0.7, -0.33], [0.73, -0.1], [0.74, -0.03], [0.735, 0.05], [0.7, 0.24], [0.62, 0.42], [0.52, 0.48], [0.4, 0.3], [0, 0.16]] },
   { z: -6.0, pts: [[0, -0.76], [0.42, -0.75], [0.66, -0.6], [0.78, -0.36], [0.83, -0.1], [0.88, -0.02], [0.85, 0.07], [0.78, 0.28], [0.66, 0.45], [0.55, 0.5], [0.42, 0.3], [0, 0.14]] },
@@ -82,9 +85,58 @@ const BOOM_X = 2.0;
 const NAC_X = 1.25;
 const NOZZLE_Z = 8.6;
 
-// Su-35S blue-grey splinter scheme
-const CAMO_DARK = 'rgba(78,103,124,0.78)';
-const CAMO_LIGHT = 'rgba(176,196,208,0.55)';
+// Su-35S splinter scheme: hard-edged, angular fields of a pale and a dark
+// blue-grey over the mid-tone base, stretched along the airframe
+const CAMO_DARK = 'rgb(96,118,136)';
+const CAMO_LIGHT = 'rgb(182,199,210)';
+
+/** Clip a convex polygon to the half-plane (p - m) . n <= 0. */
+function clipHalf(poly: P2[], mx: number, my: number, nx: number, ny: number): P2[] {
+  const out: P2[] = [];
+  for (let k = 0; k < poly.length; k++) {
+    const a = poly[k], b = poly[(k + 1) % poly.length];
+    const da = (a[0] - mx) * nx + (a[1] - my) * ny;
+    const db = (b[0] - mx) * nx + (b[1] - my) * ny;
+    if (da <= 0) out.push(a);
+    if (da <= 0 !== db <= 0) {
+      const t = da / (da - db);
+      out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+    }
+  }
+  return out;
+}
+
+/**
+ * Splinter camouflage cells: a jittered Voronoi tiling of the (a, b) box in a
+ * sheared, stretched space, so every shard is straight-edged, the shards
+ * interlock with no gaps or overlaps, and they run long and diagonal.
+ */
+function splinterCells(
+  rnd: () => number, a0: number, a1: number, b0: number, b1: number, cell: number, shear: number, stretch: number,
+): { pts: P2[]; tone: number }[] {
+  // space: u = a * stretch, v = b + a * shear  (both straight-line preserving)
+  const U = (a: number, b: number): P2 => [a * stretch, b + a * shear];
+  const A = (u: number, v: number): P2 => [u / stretch, v - (u / stretch) * shear];
+  const corners = [U(a0, b0), U(a1, b0), U(a0, b1), U(a1, b1)];
+  const u0 = Math.min(...corners.map((c) => c[0])) - cell, u1 = Math.max(...corners.map((c) => c[0])) + cell;
+  const v0 = Math.min(...corners.map((c) => c[1])) - cell, v1 = Math.max(...corners.map((c) => c[1])) + cell;
+  const seeds: P2[] = [];
+  for (let u = u0; u < u1; u += cell) for (let v = v0; v < v1; v += cell) seeds.push([u + rnd() * cell * 0.9, v + rnd() * cell * 0.9]);
+  const cells: { pts: P2[]; tone: number }[] = [];
+  seeds.forEach((s, i) => {
+    let poly: P2[] = [[u0, v0], [u1, v0], [u1, v1], [u0, v1]];
+    for (let j = 0; j < seeds.length && poly.length > 2; j++) {
+      if (j === i) continue;
+      const o = seeds[j];
+      if (Math.abs(o[0] - s[0]) > cell * 3 || Math.abs(o[1] - s[1]) > cell * 3) continue;
+      poly = clipHalf(poly, (s[0] + o[0]) / 2, (s[1] + o[1]) / 2, o[0] - s[0], o[1] - s[1]);
+    }
+    if (poly.length < 3) return;
+    const r = rnd();
+    cells.push({ pts: poly.map(([u, v]) => A(u, v)), tone: r < 0.36 ? 0 : r < 0.7 ? 2 : 1 });
+  });
+  return cells;
+}
 
 function livery(team: string, withCamo = true): Livery {
   const L = new Livery({ half: 11.5, z0: -11.6, len: 23, y0: -2.6, height: 7.0 });
@@ -101,25 +153,19 @@ function livery(team: string, withCamo = true): Livery {
     g.closePath();
     g.fill();
   };
-  // --- splinter camouflage: angular shards over the top and sides -----------
+  // --- splinter camouflage: interlocking angular fields over the top and sides --
   if (withCamo) {
     const cr = prng(351);
-    const shards = (g: CanvasRenderingContext2D, M: (a: number, b: number) => P2, a0: number, a1: number, b0: number, b1: number, n: number, size: number) => {
-      for (let i = 0; i < n; i++) {
-        const ca = a0 + cr() * (a1 - a0), cb = b0 + cr() * (b1 - b0);
-        const k = 4 + Math.floor(cr() * 3);
-        const rot = cr() * Math.PI;
-        const pts: P2[] = [];
-        for (let j = 0; j < k; j++) {
-          const ang = rot + (j / k) * Math.PI * 2 + (cr() - 0.5) * 0.7;
-          const d = size * (0.45 + cr() * 0.8);
-          pts.push(M(ca + Math.cos(ang) * d * 1.6, cb + Math.sin(ang) * d));
-        }
-        poly(g, pts, cr() < 0.62 ? CAMO_DARK : CAMO_LIGHT);
+    const paintCells = (g: CanvasRenderingContext2D, M: (a: number, b: number) => P2, cells: { pts: P2[]; tone: number }[]) => {
+      for (const c of cells) {
+        if (c.tone === 1) continue; // the base tone shows through
+        poly(g, c.pts.map(([a, b]) => M(a, b)), c.tone === 0 ? CAMO_DARK : CAMO_LIGHT);
       }
     };
-    shards(gt, T, -7.5, 7.5, -9, 10.5, 70, 0.9);
-    shards(gs, (z, y) => S(z, y), -9.5, 10.5, -1.5, 3.8, 34, 0.55);
+    // plan view: shards swept back and outboard like the real scheme
+    paintCells(gt, (x, z) => T(x, z), splinterCells(cr, -8, 8, -11.6, 11.4, 1.7, 0.42, 0.62));
+    // sides: long shards sloping down and aft
+    paintCells(gs, (z, y) => S(z, y), splinterCells(cr, -11.6, 11.4, -2.6, 4.4, 1.1, -0.18, 0.5));
   }
   // radome: grey-blue
   gt.fillStyle = 'rgba(96,112,124,0.9)';
@@ -130,7 +176,7 @@ function livery(team: string, withCamo = true): Livery {
   gb.beginPath();
   gb.ellipse(...B(0, -10.1), 0.55 * L.pb, 1.2 * L.pb, 0, 0, Math.PI * 2);
   gb.fill();
-  poly(gs, [S(-11.25, -0.05), S(-8.95, 0.5), S(-8.95, -0.56)], 'rgba(96,112,124,0.9)');
+  poly(gs, [S(-11.25, -0.2), S(-8.95, 0.47), S(-8.95, -0.59)], 'rgba(96,112,124,0.9)');
   // cockpit well
   gt.fillStyle = 'rgba(40,52,56,1)';
   gt.fillRect(...T(-0.5, -7.4), 1.0 * pt, 3.0 * pt);
@@ -145,13 +191,15 @@ function livery(team: string, withCamo = true): Livery {
   line(gs, [S(-4.0, 0.42), S(2.0, 0.4), S(8.4, 0.3)], 1.3, LINE);
   line(gs, [S(-3.3, -1.36), S(8.5, -1.3)], 1.3, LINE);
   for (const sx of [-1, 1]) {
-    line(gt, [T(0.55 * sx, -3.7), T(0.55 * sx, -1.8)], 1.4, LINE); // airbrake
     line(gt, [T(0.4 * sx, -1.4), T(0.35 * sx, 8.4)], 1.2, LINE_LIGHT);
     line(gt, [T(1.2 * sx, -3.0), T(1.35 * sx, 7.2)], 1.2, LINE_LIGHT);
     line(gt, [T(0.88 * sx, -6.0), T(2.3 * sx, -1.0)], 1.2, LINE_LIGHT); // LERX
   }
-  line(gt, [T(-0.55, -3.7), T(0.55, -3.7)], 1.4, LINE);
-  line(gt, [T(-0.55, -1.8), T(0.55, -1.8)], 1.4, LINE);
+  // spine access panels (the Su-35S has no dorsal airbrake)
+  const spine = (z0: number, z1: number, w: number) => line(gt, [T(-w, z0), T(w, z0), T(w, z1), T(-w, z1)], 1.2, LINE, true);
+  spine(-3.6, -2.5, 0.32);
+  spine(-1.2, 0.0, 0.26);
+  spine(3.8, 4.9, 0.22);
   const rect = (g: CanvasRenderingContext2D, a: P2, b: P2) => line(g, [a, [b[0], a[1]], b, [a[0], b[1]]], 1.3, LINE, true);
   rect(gs, S(-7.0, -0.5), S(-6.2, -0.15));
   rect(gs, S(-2.8, 0.1), S(-2.0, 0.4));
@@ -282,7 +330,7 @@ export function buildSu35(v: AirframeVisual): void {
     depth: 2.4,
     n: 80,
     // the lower lip leads: the mouth faces forward and a little down
-    rake: (_x, y) => 0.36 * (y + 0.86),
+    rake: (_x, y) => 0.5 * (y + 0.86),
     fan: { cx: NAC_X, cy: -0.84, r: 0.42 },
   });
   skin(both(nac.skin));
@@ -321,16 +369,8 @@ export function buildSu35(v: AirframeVisual): void {
   });
   skin(both(boom));
 
-  // --- dorsal airbrake behind the canopy --------------------------------------------
-  const SB = keyedProfile([
-    { z: -3.5, pts: [[0, 0.955], [0.3, 0.92], [0.5, 0.84], [0.55, 0.82], [0.5, 0.855], [0.3, 0.955], [0, 0.99]] },
-    { z: -2.6, pts: [[0, 0.935], [0.32, 0.9], [0.52, 0.81], [0.57, 0.79], [0.52, 0.825], [0.32, 0.935], [0, 0.97]] },
-    { z: -1.7, pts: [[0, 0.895], [0.32, 0.86], [0.52, 0.77], [0.57, 0.75], [0.52, 0.785], [0.32, 0.895], [0, 0.93]] },
-  ]);
-  const sbGeo = stamp(loftProfile({ stations: stations(-3.5, -1.7, 20), profile: SB, sub: 4, capStart: true, capEnd: true }));
-  const sb = v.addSurface(sbGeo, paint, new THREE.Vector3(0, 0.96, -3.5), new THREE.Vector3(1, 0, 0), 'rudder', 0, 0);
-  v.surfaces.splice(v.surfaces.indexOf(sb), 1);
-  v.speedbrake = { pivot: sb.pivot, axis: new THREE.Vector3(-1, 0, 0), maxDeg: 50 };
+  // --- no dorsal airbrake on the Su-35S: the rudders splay outward instead ---------
+  v.rudderBrake = 0.75;
 
   // --- canopy, seat, pilot ----------------------------------------------------------
   v.cockpitEye.set(0, 1.0, -6.4);
@@ -405,7 +445,7 @@ export function buildSu35(v: AirframeVisual): void {
     v.body.add(pivot);
     const nz = nozzle({ cx: 0, cy: 0, z0: 0, z1: 1.35, r0: 0.55, r1: 0.47, petals: 16, saw: 0.05 });
     v.addMesh(nz.outer, pm.nozzle, pivot);
-    v.addMesh(nz.inner, pm.nozzle, pivot).userData.detail = true;
+    v.addMesh(nz.inner, pm.nozzleIn, pivot).userData.detail = true;
     // the actuator ring around the gimbal
     v.addMesh(lathe([[0.565, -0.12], [0.585, -0.05], [0.585, 0.08], [0.56, 0.14]], 32), pm.darkMetal, pivot);
     v.nozzles.push({ pos: new THREE.Vector3(0, 0, 1.3), radius: 0.44, parent: pivot });
@@ -421,7 +461,7 @@ export function buildSu35(v: AirframeVisual): void {
   v.body.add(muzzle);
   skin(lathe([[0.004, -4.3], [0.07, -4.1], [0.08, -3.6], [0.05, -3.2], [0.004, -3.0]], 12, 1.05, 0.08));
   v.addMesh(join([
-    probe(new THREE.Vector3(0, -0.05, -11.15), 1.1, 0.018, new THREE.Vector3(0, 0, -1)),
+    probe(new THREE.Vector3(0, -0.2, -11.15), 1.1, 0.018, new THREE.Vector3(0, 0, -1)),
     probe(new THREE.Vector3(0.42, 0.1, -9.6), 0.3, 0.01, new THREE.Vector3(0.15, 0, -1).normalize()),
     probe(new THREE.Vector3(-0.42, 0.1, -9.6), 0.3, 0.01, new THREE.Vector3(-0.15, 0, -1).normalize()),
   ]), pm.antenna);

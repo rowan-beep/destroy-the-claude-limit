@@ -157,7 +157,7 @@ export function buildCanopy(v: AirframeVisual, can: Section[], archZ: number, bo
   v.windscreenArchZ = archZ;
   v.canopyBows = bows;
   const frame: THREE.BufferGeometry[] = [];
-  for (const z of [archZ, ...bows]) frame.push(strip(sectionArch(sectionAt(can, z), 0.032, -0.012, 0.02, Math.PI - 0.02, 36)));
+  for (const z of [archZ, ...bows]) frame.push(strip(sectionArch(sectionAt(can, z), 0.022, -0.006, 0.02, Math.PI - 0.02, 36)));
   // sill rails along both sides
   for (const sx of [-1, 1]) {
     const pts: THREE.Vector3[] = [];

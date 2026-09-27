@@ -38,9 +38,10 @@ export function runModelTest(container: HTMLElement): void {
     const ac = new Aircraft(t, i === 1 ? 'red' : 'blue', 'T' + i);
     ac.fm.pos.set((i - (types.length - 1) / 2) * 24, ac.spec.gear.height, 0);
     ac.fm.gearPos = gearUp ? 0 : 1;
-    ac.fm.rpm.fill(1);
+    ac.fm.rpm.fill(q.get('rpm') ? +q.get('rpm')! : 1);
     ac.fm.ab.fill(q.get('ab') ? 1 : 0);
     if (gearUp) ac.fm.pos.y += 3;
+    if (q.get('sb')) ac.fm.speedbrakePos = 1;
     // pose the thrust-vectoring nozzles (radians): tvc=pitch,yaw,roll
     if (q.get('tvc')) {
       const [np, ny, nr] = q.get('tvc')!.split(',').map(Number);

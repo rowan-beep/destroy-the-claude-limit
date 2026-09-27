@@ -207,7 +207,7 @@ export function buildTyphoon(v: AirframeVisual): void {
   // chin intake with a diverter gap, splitter and variable lip
   const IW = curve([[-3.9, 0.72], [-1.0, 0.8], [2.5, 0.8], [4.0, 0.5]]);
   const IT = curve([[-3.9, -0.74], [-1.0, -0.74], [2.5, -0.72], [4.0, -0.6]]);
-  const IB = curve([[-3.9, -1.2], [-1.0, -1.2], [2.5, -1.06], [4.0, -0.8]]);
+  const IB = curve([[-3.9, -1.27], [-1.0, -1.26], [2.5, -1.08], [4.0, -0.8]]);
   const IS = curve([[-3.9, 0.07], [-2.0, 0.04], [0.5, 0.0]]);
   const loop = (z: number) => ring(mirrorHalf(IHALF(IW(z), IT(z), IB(z), IS(z))), [3, 3, 2, 2, 2, 3, 3, 3, 3, 3, 2, 2, 2, 3]);
   const ci = intake({
@@ -216,14 +216,14 @@ export function buildTyphoon(v: AirframeVisual): void {
     lip: 0.05,
     depth: 2.2,
     n: 96,
-    rake: (_x, y) => 0.4 * (y + 1.2) - 0.08,
+    rake: (_x, y) => 0.4 * (y + 1.27) - 0.08,
     fan: { cx: 0, cy: -0.95, r: 0.42 },
   });
   skin(ci.skin);
   v.addMesh(ci.duct, pm.duct);
   const splitter = roundBox(0.03, 0.44, 1.8, 0.01);
   splitter.translate(0, -0.97, -2.9);
-  v.addMesh(splitter, pm.duct);
+  skin(splitter);
   // diverter pillars between the fuselage and the intake roof
   v.addMesh(stamp(join([-0.4, 0.4].map((x) => { const g = roundBox(0.04, 0.1, 1.2, 0.015); g.translate(x, -0.68, -3.1); return g; }))), paint);
 
@@ -299,9 +299,9 @@ export function buildTyphoon(v: AirframeVisual): void {
 
   // --- engines, brake-chute fairing
   for (const sx of [-1, 1]) {
-    const nz = nozzle({ cx: 0.5 * sx, cy: -0.1, z0: 7.3, z1: 8.05, r0: 0.47, r1: 0.4, petals: 12, saw: 0.06 });
+    const nz = nozzle({ cx: 0.5 * sx, cy: -0.1, z0: 7.3, z1: 8.05, r0: 0.47, r1: 0.4, petals: 12, saw: 0.06, floor: 7.37 });
     v.addMesh(nz.outer, pm.nozzle);
-    v.addMesh(nz.inner, pm.nozzle).userData.detail = true;
+    v.addMesh(nz.inner, pm.nozzleIn).userData.detail = true;
     v.nozzles.push({ pos: new THREE.Vector3(0.5 * sx, -0.1, 8.0), radius: 0.38 });
   }
   v.buildFlames(5.0);
@@ -316,6 +316,24 @@ export function buildTyphoon(v: AirframeVisual): void {
   const ab = v.addSurface(stamp(loftProfile({ stations: stations(-1.9, -0.5, 10), profile: AB, sub: 4, capStart: true, capEnd: true })), paint, new THREE.Vector3(0, 0.66, -1.9), new THREE.Vector3(1, 0, 0), 'rudder', 0, 0);
   v.surfaces.splice(v.surfaces.indexOf(ab), 1);
   v.speedbrake = { pivot: ab.pivot, axis: new THREE.Vector3(-1, 0, 0), maxDeg: 55 };
+
+  // --- PIRATE infra-red search and track: a glazed turret ahead of the
+  // windscreen on the port side
+  const pirateFair = lathe([[0.004, -6.62], [0.07, -6.5], [0.095, -6.3], [0.09, -6.1], [0.05, -5.98], [0.004, -5.92]], 16, -0.24, 0.33);
+  v.hideInCockpit.push(skin(pirateFair));
+  const pirate = new THREE.Mesh(new THREE.SphereGeometry(0.085, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), pm.glass);
+  pirate.position.set(-0.24, 0.39, -6.36);
+  pirate.rotation.x = -0.35;
+  v.body.add(pirate);
+  v.hideInCockpit.push(pirate);
+  // BK-27 cannon blister in the starboard wing root, muzzle facing forward
+  skin(lathe([[0.004, -2.55], [0.06, -2.42], [0.075, -2.1], [0.07, -1.6], [0.004, -1.3]], 14, 0.93, -0.3));
+  const muzzle = new THREE.Mesh(new THREE.CircleGeometry(0.035, 12), pm.darkMetal);
+  muzzle.position.set(0.93, -0.3, -2.44);
+  muzzle.rotation.y = Math.PI;
+  v.body.add(muzzle);
+  // the retractable refuelling probe's fairing on the starboard side of the cockpit
+  skin(lathe([[0.004, -6.45], [0.045, -6.25], [0.05, -5.4], [0.035, -4.95], [0.004, -4.8]], 12, 0.49, 0.22));
 
   // --- probes, antennas, lights
   v.addMesh(join([

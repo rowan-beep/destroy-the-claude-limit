@@ -3,6 +3,26 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v3.0.0 — New sound engine and realistic jet models (2026-09-27)
+
+- ALL-NEW SOUND ENGINE: every sound in the game has been rebuilt from scratch. It is all generated live (no recordings), so it follows exactly what your jet is doing.
+- Fixed: the constant 'fan' drone is gone. It came from the old gun sound, which kept humming quietly in the background even when you were not firing.
+- Jet engines: a layered engine sound (deep exhaust rumble, roar and jet hiss) that breathes with natural turbulence instead of a steady hum, plus a faint turbine whine that rises with the throttle. Each jet sounds different: F-15EX (F110), Super Hornet (F414), Typhoon (EJ200, the highest-pitched) and a deeper, heavier Su-35S (AL-41F1S).
+- Where you listen from matters: behind a jet you hear the roar, in front of it the turbine whine, and in the cockpit everything is muffled through the canopy. In the outside views the sound fades with distance.
+- Afterburner: a deep rumble with popping crackle, and a 'whump' when it lights.
+- Airflow: wind rush that grows with speed, a canopy whistle, buffet when you pull hard or fly at high angle of attack, a rumble with the gear down, and the hiss of the cockpit air conditioning.
+- Other jets that pass close by roar past with a Doppler pitch shift.
+- Guns are rendered shot by shot at each gun's real rate of fire: the M61's BRRRT spins up and down, and the Typhoon's 27 mm and the Su-35S's 30 mm cannons thump.
+- Also new: missile launches, explosions (delayed and muffled with distance), hits, flares and chaff, gear and mechanical clunks, the Sidewinder growl, RWR tones and warnings. A limiter keeps loud moments from distorting.
+- MORE REALISTIC JET MODELS, all four jets:
+- Paint: panel seams are now engraved into the skin and catch the light, with subtle paint mottling, varying gloss, and grime along the belly and toward the tail.
+- Engine nozzles rebuilt: overlapping petal plates, the actuator ring and rods, and heat-stained metal (pale bronze at the root, straw, then blue toward the exit, sooty at the lip). Inside they are now dark and sooty with the afterburner flame holders visible, instead of a bright pale tube. At normal power they no longer glow in daylight; only the afterburner lights them up.
+- Thinner, more realistic canopy frames.
+- Su-35S: a proper interlocking splinter camouflage in three blue-greys (replacing the patchy see-through shapes), a slightly drooped radome like the real Flanker, and more raked intakes. The dorsal airbrake is gone, as on the real Su-35S; the rudders now splay outward to act as the airbrake.
+- Typhoon: the PIRATE infrared sensor ahead of the windscreen, the BK-27 cannon blister in the right wing root, the refuelling probe fairing, and a deeper chin intake. Its splitter plate is now painted (it used to show as a black block).
+- F/A-18E/F: the refuelling probe hump on the right side of the nose.
+- F-15EX: gets the new paint, nozzles and canopy; its shape is unchanged.
+
 ## v2.2.3 — Accurate missile racks (2026-09-26)
 
 - Missile racks researched from the real jets (the F-15EX is unchanged):

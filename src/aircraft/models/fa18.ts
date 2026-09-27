@@ -294,9 +294,9 @@ export function buildFA18(v: AirframeVisual): void {
 
   // --- engines, tail hook
   for (const sx of [-1, 1]) {
-    const nz = nozzle({ cx: 0.56 * sx, cy: -0.08, z0: 8.35, z1: 9.08, r0: 0.53, r1: 0.45, petals: 12, saw: 0.07 });
+    const nz = nozzle({ cx: 0.56 * sx, cy: -0.08, z0: 8.35, z1: 9.08, r0: 0.53, r1: 0.45, petals: 12, saw: 0.07, floor: 8.42 });
     v.addMesh(nz.outer, pm.nozzle);
-    v.addMesh(nz.inner, pm.nozzle).userData.detail = true;
+    v.addMesh(nz.inner, pm.nozzleIn).userData.detail = true;
     v.nozzles.push({ pos: new THREE.Vector3(0.56 * sx, -0.08, 9.0), radius: 0.42 });
   }
   v.buildFlames(5.4);
@@ -315,6 +315,8 @@ export function buildFA18(v: AirframeVisual): void {
   v.speedbrake = { pivot: sp.pivot, axis: new THREE.Vector3(-1, 0, 0), maxDeg: 60 };
 
   // --- gun, probes, antennas, lights
+  // the retractable refuelling probe lives under a hump on the right of the nose
+  skin(lathe([[0.004, -7.65], [0.05, -7.45], [0.065, -7.0], [0.06, -6.55], [0.004, -6.35]], 14, 0.3, 0.38));
   const gun = new THREE.Mesh(new THREE.CircleGeometry(0.03, 10), pm.darkMetal);
   gun.position.set(0, 0.44, -7.32);
   gun.rotation.x = -1.2;

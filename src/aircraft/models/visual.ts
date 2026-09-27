@@ -148,6 +148,8 @@ export class AirframeVisual {
   surfaces: ControlSurface[] = [];
   gear: GearLeg[] = [];
   speedbrake: { pivot: THREE.Object3D; axis: THREE.Vector3; maxDeg: number } | null = null;
+  /** airframes that brake by splaying both rudders outward (Su-35S): how far, 0..1 */
+  rudderBrake = 0;
   nozzles: Nozzle[] = [];
   /** thrust-vectoring nozzle gimbals (Su-35S) */
   vectoring: { pivot: THREE.Object3D; side: -1 | 1 }[] = [];
@@ -298,7 +300,7 @@ export class AirframeVisual {
           side: THREE.DoubleSide,
         }),
       );
-      glow.position.copy(n.pos).add(new THREE.Vector3(0, 0, -0.05));
+      glow.position.copy(n.pos).add(new THREE.Vector3(0, 0, -0.3));
       glow.renderOrder = 19;
       parent.add(glow);
       this.flames.push({ layers, glow });
@@ -384,6 +386,7 @@ export class AirframeVisual {
     v.surfaces = this.surfaces.map((s) => ({ ...s, pivot: M(s.pivot), axis: s.axis.clone(), current: 0 }));
     v.gear = this.gear.map((g) => ({ ...g, pivot: M(g.pivot), axis: g.axis.clone(), hideWhenUp: g.hideWhenUp.map(M) }));
     v.speedbrake = this.speedbrake ? { ...this.speedbrake, pivot: M(this.speedbrake.pivot) } : null;
+    v.rudderBrake = this.rudderBrake;
     v.nozzles = this.nozzles.map((n) => ({ pos: n.pos.clone(), radius: n.radius, parent: n.parent ? M(n.parent) : undefined }));
     v.vectoring = this.vectoring.map((g) => ({ pivot: M(g.pivot), side: g.side }));
     v.cockpitEye.copy(this.cockpitEye);
@@ -489,7 +492,7 @@ export class AirframeVisual {
           target = pitch * 0.9;
           break;
         case 'rudder':
-          target = yaw;
+          target = yaw + this.rudderBrake * fm.speedbrakePos * s.side;
           break;
         case 'aileron':
           target = roll * s.side;
@@ -546,7 +549,8 @@ export class AirframeVisual {
         l.mesh.scale.set(1, 1, grow * thin * pulse);
         l.mesh.visible = k === 2 ? abI > 0.01 || dry > 0.05 : abI > 0.01;
       });
-      (f.glow.material as THREE.ShaderMaterial).uniforms.intensity.value = clamp(abI * 1.1 + dry * 0.35, 0, 1.2);
+      // at dry power the burner can is only a dull glow deep inside, lost in daylight
+      (f.glow.material as THREE.ShaderMaterial).uniforms.intensity.value = clamp(abI * 1.1 + dry * 0.1, 0, 1.2);
     }
     void ab;
 
