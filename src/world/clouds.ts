@@ -176,6 +176,7 @@ export class CloudSystem {
   flash = 0;
   private camBelowDeck = true;
   private fadeTarget = RANGE * 0.9;
+  private sortKeys = new Float64Array(MAX_PUFFS);
   private clusterCache = new Map<string, Cluster[]>();
   private visibleClusters: Cluster[] = [];
   private shadowCanvas: HTMLCanvasElement;
@@ -578,19 +579,22 @@ export class CloudSystem {
     this.origin.set(Math.round(cam.x / 1000) * 1000, 0, Math.round(cam.z / 1000) * 1000);
     const arr = this.visible;
     const hideAbove = this.deck.solid > 0.8 && cam.y < this.deck.base;
-    const dist = new Float32Array(arr.length);
-    const idx = new Array<number>(arr.length);
+    // back to front: pack (distance in metres, index) into one number and let
+    // the native numeric sort do the work (a comparator sort of 20k puffs stutters)
+    const keys = this.sortKeys.length >= arr.length ? this.sortKeys.subarray(0, arr.length) : (this.sortKeys = new Float64Array(arr.length * 2)).subarray(0, arr.length);
+    const maxD = RANGE * Math.sqrt(1.3);
     for (let i = 0; i < arr.length; i++) {
       const p = arr[i];
       const dx = p.x - cam.x, dy = p.y - cam.y, dz = p.z - cam.z;
-      dist[i] = dx * dx + dy * dy + dz * dz;
-      idx[i] = i;
+      const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      keys[i] = d > maxD ? 4e9 : Math.floor(d) * 32768 + i;
     }
-    idx.sort((a, b) => dist[b] - dist[a]);
+    keys.sort();
     let n = 0;
-    for (const i of idx) {
-      const p = arr[i];
-      if (dist[i] > RANGE * RANGE * 1.3) continue;
+    for (let k = arr.length - 1; k >= 0; k--) {
+      const key = keys[k];
+      if (key >= 4e9) continue;
+      const p = arr[key % 32768];
       // below a solid deck the clouds on top of it can't be seen
       if (hideAbove && p.y - p.size * 0.3 > this.deck.base + 200) continue;
       this.offsets[n * 3] = p.x - this.origin.x;

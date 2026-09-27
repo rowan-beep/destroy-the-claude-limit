@@ -528,3 +528,4 @@ body.touch-mode .weapon-bar { bottom: auto; top: calc(96px + env(safe-area-inset
 .wx-tab { margin-top: 0; width: 22px; height: 44px; padding: 0; background: rgba(8, 16, 24, 0.82); border: 1px solid rgba(120, 180, 255, 0.3); border-left: none; color: #cfe3f5; font-size: 11px; cursor: pointer; }
 .wx-tab:hover { color: #fff; background: rgba(20, 36, 50, 0.9); }
 @media (max-width: 700px) { .wx-widget { --wx-w: 206px; } }
+@media (max-height: 819px) { .wx-widget { transform-origin: top left; zoom: 0.85; } }

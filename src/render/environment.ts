@@ -306,15 +306,23 @@ export class Environment {
   /** Image-based lighting from the current sky so metal and paint reflect it. */
   buildEnvMap(renderer: THREE.WebGLRenderer): void {
     const p = this.preset;
+    // under a cloud deck the sky that paint and glass reflect is flat grey
+    const wx = this.weather;
+    const grey = Math.max(wx.deckSolid * (0.55 + 0.45 * wx.gloom), wx.gloom * 0.25);
+    const g = 0.62 - 0.3 * wx.gloom;
+    const cloud = new THREE.Color().setRGB(g, g * 1.02, g * 1.07, THREE.SRGBColorSpace);
+    const top = new THREE.Color().setRGB(...p.zenith, THREE.SRGBColorSpace).lerp(cloud.clone().multiplyScalar(0.85), grey);
+    const mid = new THREE.Color().setRGB(...p.horizon, THREE.SRGBColorSpace).lerp(cloud, grey);
+    const sunCol = new THREE.Color().setRGB(...p.sunColor, THREE.SRGBColorSpace).multiplyScalar(1 - 0.95 * wx.deckSolid);
     const scene = new THREE.Scene();
     const mat = new THREE.ShaderMaterial({
       side: THREE.BackSide,
       uniforms: {
-        top: { value: new THREE.Color().setRGB(...p.zenith, THREE.SRGBColorSpace) },
-        mid: { value: new THREE.Color().setRGB(...p.horizon, THREE.SRGBColorSpace) },
+        top: { value: top },
+        mid: { value: mid },
         bot: { value: new THREE.Color().setRGB(0.36, 0.3, 0.26, THREE.SRGBColorSpace) },
         sunDir: { value: this.sunDir.clone() },
-        sunCol: { value: new THREE.Color().setRGB(...p.sunColor, THREE.SRGBColorSpace) },
+        sunCol: { value: sunCol },
       },
       vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
       fragmentShader:

@@ -95,6 +95,7 @@ export class ScreenDroplets {
   readonly texture: THREE.CanvasTexture;
   private drops: Drop[] = [];
   private spawn = 0;
+  private dirty = false;
   /** 0..1 how visible the drops are (fades them in and out) */
   amount = 0;
 
@@ -124,6 +125,16 @@ export class ScreenDroplets {
       this.drops.push({ x: Math.random() < 0.5 ? edge : W - edge, y: Math.random() * H, r: (2 + Math.random() * 5.5) * SIZE, vx: 0, vy: 0, life: 4 + Math.random() * 8 });
     }
     if (this.spawn > 1) this.spawn = 1;
+    // dry and nothing on the screen: leave the (already clear) canvas alone
+    if (this.drops.length === 0 && rain <= 0.01) {
+      if (this.dirty) {
+        this.g.clearRect(0, 0, W, H);
+        this.texture.needsUpdate = true;
+        this.dirty = false;
+      }
+      return this.amount > 0.01;
+    }
+    this.dirty = true;
     const fast = Math.min(1, speed / 120);
     const cx = W / 2, cy = H * 0.55;
     for (const d of this.drops) {

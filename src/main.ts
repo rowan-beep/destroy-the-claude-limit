@@ -46,7 +46,11 @@ async function boot(): Promise<void> {
 
   const game = new Game(app, settings);
   const hud = new Hud(document.body);
-  const weather = new WeatherWidget(document.body, game.world.weather, (w) => game.world.setWeather(w));
+  const weather = new WeatherWidget(document.body, game.world.weather, (w) => {
+    game.world.setWeather(w);
+    // reflections follow the sky (grey under an overcast)
+    if (game.world.ready) game.world.env.buildEnvMap(game.renderer.renderer);
+  });
   hud.setVisible(false);
   game.hud = hud;
   (window as unknown as { game: Game }).game = game;

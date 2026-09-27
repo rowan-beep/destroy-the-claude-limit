@@ -3,6 +3,13 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.4.1 — Fixes: clouds, reflections, weather panel (2026-09-28)
+
+- Fixed: a regular micro-stutter in cloudy weather. Up to 20,000 cloud puffs were re-sorted five times a second with a slow sort; they now use a fast native sort.
+- Fixed: jets reflected a bright blue sky in rain, storms and overcast. Paint and canopy reflections now match the weather, so they're grey under the clouds.
+- Fixed: on smaller screens the weather panel covered the FLIGHT panel. On short screens it now starts tucked away as just the arrow tab, and it's a little smaller. It remembers whether you left it open.
+- Performance: when it isn't raining, the screen-droplet layer no longer redraws and re-uploads its texture every frame.
+
 ## v4.4.0 — Gun lead marker (2026-09-27)
 
 - NEW: gun lead marker, like War Thunder. When an enemy is inside gun range (about 1 NM), a small circle appears ahead of them, with a dotted line from the jet, showing exactly where to shoot. Put your gun cross on the circle and your rounds meet the target: it allows for the target's motion, your own speed, the rounds slowing down and bullet drop. It turns red when you're on target. It works for the locked target, or else for the enemy nearest your gun line, with any weapon selected, in cockpit and outside views.

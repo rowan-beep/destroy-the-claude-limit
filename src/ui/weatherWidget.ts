@@ -75,9 +75,11 @@ export class WeatherWidget {
     });
     // keep clicks and keys on the widget away from the flight controls
     for (const ev of ['mousedown', 'pointerdown', 'wheel', 'contextmenu']) this.root.addEventListener(ev, (e) => e.stopPropagation());
-    let open = true;
+    // short screens: start tucked away (it would cover the flight panel)
+    let open = window.innerHeight >= 820;
     try {
-      open = localStorage.getItem(OPEN_KEY) !== '0';
+      const saved = localStorage.getItem(OPEN_KEY);
+      if (saved !== null) open = saved !== '0';
     } catch {
       /* storage unavailable */
     }
