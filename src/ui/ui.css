@@ -428,3 +428,18 @@ body.touch-mode .weapon-bar { bottom: auto; top: calc(96px + env(safe-area-inset
 .storm-overlay { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.6s; background: radial-gradient(ellipse at center, rgba(90, 60, 255, 0) 45%, rgba(110, 70, 255, 0.28) 80%, rgba(150, 90, 255, 0.5) 100%); }
 .storm-overlay.on { opacity: 1; animation: storm-pulse 1.2s ease-in-out infinite; }
 @keyframes storm-pulse { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.5); } }
+
+/* multiplayer server browser */
+.modal.mp-modal { max-width: 820px; }
+.mp-row { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; margin: 8px 0; }
+.mp-row .field { flex: 1 1 220px; }
+.mp-input { width: 100%; box-sizing: border-box; background: #071018; color: #dfe8ee; border: 1px solid var(--menu-line); padding: 8px 10px; font: inherit; letter-spacing: 1px; }
+.mp-input.wide { flex: 1 1 360px; width: auto; }
+.mp-jet { padding: 8px 0; opacity: 0.85; }
+.mp-list { display: flex; flex-direction: column; gap: 6px; }
+.mp-server { display: grid; grid-template-columns: 1.3fr 1.4fr 0.8fr 0.9fr auto; gap: 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--menu-line); background: rgba(255, 255, 255, 0.02); }
+.mp-server.off { opacity: 0.5; }
+.mp-name { font-weight: bold; letter-spacing: 2px; }
+.mp-count, .mp-state { font-size: 12px; opacity: 0.85; }
+.mp-status { min-height: 1.2em; color: #f0c060; }
+@media (max-width: 640px) { .mp-server { grid-template-columns: 1fr 1fr auto; } .mp-map, .mp-state { display: none; } }

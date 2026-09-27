@@ -10,6 +10,22 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.0.0',
+    date: '2026-09-27',
+    title: "Multiplayer",
+    notes: [
+      "NEW: MULTIPLAYER. Press MULTIPLAYER ▸ on the main menu to fly LAST PILOT STANDING against real people. It's free-for-all only, and there is no AI on any server.",
+      "Official servers OFFICIAL 1 to 5 (1-3 on Triad Isles, 4-5 on Frostfall Strait) are listed with live pilot counts. You can also join any server by typing its address.",
+      "Host your own server: 'cd server && npm install && npm start' (options: --name, --map triad|frost, --port, --max). Up to 12 pilots per room.",
+      "How a match works: between matches everyone flies around the arena with weapons on hold. When two or more pilots are in, a 15-second countdown starts, then everyone drops in on a ring facing the middle. Weapons are free after 8 seconds, the zone shrinks in stages and the storm outside takes you down, each kill rearms you with a missile of each type, gun rounds, flares and fuel, and the last jet flying wins. Results show for a few seconds, then the next match starts by itself.",
+      "Join during a match and you spectate until the next one ([TAB] next pilot, [F] free camera). If you're shot down, you watch the rest of the match.",
+      "Everything is shared between players: jets with their own paint jobs and loadouts, afterburner, gear and damage smoke, missiles in flight (with RWR and missile warnings), flares and chaff (they can decoy your missiles), gunfire tracers, and radar locks on your RWR.",
+      "What the shooter sees decides a hit, and the pilot who was hit takes the damage and reports the kill, so the kill feed and scores match for everyone. Other jets are smoothed over the network so they fly smoothly.",
+      "Joining a server on a different theater loads that theater, then joins automatically. Pausing doesn't stop an online match. The HUD shows your ping.",
+      "Play online from the website version: browsers only allow secure (wss://) connections from a web page.",
+    ],
+  },
+  {
     version: '3.1.0',
     date: '2026-09-27',
     title: "Physics update and bug fixes",

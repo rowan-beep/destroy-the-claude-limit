@@ -17,8 +17,8 @@ terrain against you.
 | Radar | AN/APG-82(V)1 AESA | AN/APG-79 AESA | CAPTOR-E + PIRATE IRST | N035 Irbis-E PESA + OLS-35 IRST |
 | Missiles | AIM-120D, AIM-9X | AIM-120D, AIM-9X | AIM-120D, AIM-9X | R-77M, R-74M (Su-35S only) |
 
-Current version: **v3.1.0** — see [CHANGELOG.md](CHANGELOG.md) (also in the game
-under **v3.1.0 · NOTES** on the main menu).
+Current version: **v4.0.0** — see [CHANGELOG.md](CHANGELOG.md) (also in the game
+under **v4.0.0 · NOTES** on the main menu).
 
 Each jet is a high-detail procedural model (~150k triangles): blended fuselages
 built from real cross-sections, hollow intakes with ducts and fans, airfoil
@@ -206,3 +206,51 @@ src/audio     synthesized engine, weapon and warning audio
 
 `.github/workflows/deploy.yml` builds and publishes to GitHub Pages on every push
 to `main` (enable Pages with source "GitHub Actions" in the repository settings).
+
+## Multiplayer
+
+**MULTIPLAYER ▸** on the main menu opens the server browser: the official
+servers **OFFICIAL 1-5** with live pilot counts, or any server by address.
+Online play is LAST PILOT STANDING between real players only — there is no AI
+on any server. Between matches everyone flies with weapons on hold; a match
+starts when two or more pilots are in (15 s countdown), everyone drops in on a
+ring around the arena, the zone shrinks, kills rearm you, the last jet flying
+wins, and the next match starts by itself. Pilots who join mid-match spectate
+until the next one. Each room is up to 12 pilots and has a fixed theater (the
+game loads it when you join).
+
+Play online from the website build (GitHub Pages): browsers only allow secure
+`wss://` connections from an `https://` page.
+
+### Official servers (OFFICIAL 1-5)
+
+One server process hosts all five rooms (OFFICIAL 1-3 on Triad Isles,
+OFFICIAL 4-5 on Frostfall Strait):
+
+    cd server && npm install && node server.mjs --official
+
+`render.yaml` deploys exactly that on Render (New → Blueprint → this repo),
+which gives `wss://triad-servers.onrender.com` — the address the game looks
+for (`src/net/servers.ts`; a build can point elsewhere with the
+`VITE_TRIAD_SERVER` environment variable). Any Node 18+ host or
+`server/Dockerfile` works too; it listens on `$PORT` (default 8080) and
+`GET /status` lists the rooms.
+
+### Host your own
+
+    cd server && npm install
+    node server.mjs --name "MY SERVER" --map triad --port 8080   # or --map frost, --max 8
+
+Friends join with **JOIN A SERVER BY ADDRESS**. Over the internet the server
+needs a secure address (a free Cloudflare Tunnel, Render, or a TLS reverse
+proxy); on your own network `192.168.x.x:8080` works from the offline build
+(`triad-offline.html`, opened from disk).
+
+### How it works
+
+Each client flies its own jet and its own weapons; the server relays jet
+state (20 Hz), missiles, countermeasures and hits, and runs the match and the
+zone. What the shooter sees decides a hit (its gun rounds and missiles hit the
+other jet on its screen), the hit is sent to that pilot, and their client
+takes the damage and reports the kill. Other jets are shown 0.12 s behind real
+time and interpolated so they move smoothly.

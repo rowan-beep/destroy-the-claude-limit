@@ -87,6 +87,15 @@ export class Aircraft {
   callsign: string;
   /** AI paint job (waves / 5v5); the player's own comes from the customize screen */
   paint: PaintConfig | null = null;
+  /**
+   * Multiplayer: flown by another player on another computer. Its state comes
+   * over the network; locally it is only dead-reckoned between updates, and
+   * nothing done to it here (damage, crashes) counts -- its own client decides.
+   */
+  remote = false;
+  /** multiplayer player id (0 = not networked) */
+  netId = 0;
+  private remoteGunAcc = 0;
 
   constructor(
     type: AircraftType,
@@ -263,6 +272,10 @@ export class Aircraft {
   step(dt: number, sim: Sim): void {
     this.simTime = sim.time;
     const fm = this.fm;
+    if (this.remote) {
+      this.stepRemote(dt, sim);
+      return;
+    }
     if (this.missileCooldown > 0) this.missileCooldown -= dt;
 
     if (this.alive) {
@@ -317,6 +330,25 @@ export class Aircraft {
     this.onRunwayStopped = fm.onGround && fm.gs < 2 && !!fm.surfaceField && fm.surfaceField.team === this.team;
   }
   crashHandled = false;
+
+  /** Remote jet: dead-reckon between network updates, show its gunfire. */
+  private stepRemote(dt: number, sim: Sim): void {
+    const fm = this.fm;
+    if (!fm.crashed) fm.pos.addScaledVector(fm.vel, dt);
+    if (this.gunFiring && this.alive) {
+      // tracers only: its own client decides what they hit
+      this.remoteGunAcc += (this.spec.gun.rpm / 60) * dt;
+      while (this.remoteGunAcc >= 1) {
+        this.remoteGunAcc -= 1;
+        this.roundCounter++;
+        sim.bullets.spawn(this, this.roundCounter % 4 === 0);
+      }
+    } else this.remoteGunAcc = 0;
+    if (fm.crashed && !this.crashHandled) {
+      this.crashHandled = true;
+      sim.events.emit('crash', { aircraft: this, pos: fm.pos.clone(), water: fm.surfaceKind === 'water' });
+    }
+  }
 
   destroy(sim: Sim, cause: string, killer: Aircraft | null): void {
     if (!this.alive) return;

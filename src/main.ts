@@ -22,6 +22,11 @@ import { applyMap, loadMapChoice } from './world/maps';
 import { refreshGciSites } from './game/teamPicture';
 import { activeMap } from './world/islands';
 import type { AircraftType } from './aircraft/specs';
+import { MultiplayerScreen, connectTo, JoinRequest } from './ui/menu/multiplayerScreen';
+import { setPendingJoin, takePendingJoin, loadNetPrefs } from './net/servers';
+import { switchMap } from './world/maps';
+import { loadPaint } from './aircraft/models/paint';
+import type { MapId } from './world/islands';
 
 async function boot(): Promise<void> {
   // the theater must be chosen before anything about the world is built
@@ -120,7 +125,42 @@ async function boot(): Promise<void> {
       menu.root.classList.add('hidden');
       customize.show(t);
     },
+    onMultiplayer: () => {
+      audio.init();
+      mp.jet = menu.cfg.aircraft;
+      mp.show(true);
+    },
   });
+
+  // --- multiplayer ---------------------------------------------------------
+  const join = async (j: JoinRequest): Promise<void> => {
+    // every pilot in a room flies the same theater: load the server's first
+    const reloadFor = (map: string) => {
+      setPendingJoin({ url: j.url, room: j.room });
+      mp.setStatus('LOADING THE SERVER\'S THEATER…');
+      switchMap(map as MapId);
+    };
+    if (j.map && j.map !== activeMap.id) {
+      reloadFor(j.map);
+      return;
+    }
+    const jet = menu.cfg.aircraft;
+    const net = await connectTo(j.url, j.room, j.callsign, jet, loadPaint(jet));
+    if (net.room && net.room.map !== activeMap.id) {
+      net.close();
+      reloadFor(net.room.map);
+      return;
+    }
+    mp.show(false);
+    game.pendingNet = net;
+    await fly({ ...menu.cfg, mode: 'online' });
+  };
+  const mp = new MultiplayerScreen(document.body, join);
+  game.onNetLost = (reason) => {
+    mp.jet = menu.cfg.aircraft;
+    mp.show(true);
+    mp.setStatus(`DISCONNECTED: ${reason}`);
+  };
 
   const pause = new PauseMenu(document.body, {
     resume: () => game.setState('playing'),
@@ -181,6 +221,14 @@ async function boot(): Promise<void> {
   loading.show(false);
   game.setState('menu');
   game.startLoop();
+  // came back from loading a server's theater: finish joining
+  const pj = takePendingJoin();
+  if (pj) {
+    mp.jet = menu.cfg.aircraft;
+    mp.show(true);
+    mp.setStatus('CONNECTING…');
+    join({ url: pj.url, room: pj.room, map: activeMap.id, callsign: loadNetPrefs().callsign || 'PILOT' }).catch((e) => mp.setStatus(`COULD NOT JOIN: ${(e as Error).message}`));
+  }
 }
 
 const q = new URLSearchParams(location.search);

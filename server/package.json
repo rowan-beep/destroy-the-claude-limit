@@ -1,0 +1,15 @@
+{
+  "name": "triad-server",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "TRIAD multiplayer game server (free-for-all rooms, official servers 1-5 or your own).",
+  "scripts": {
+    "start": "node server.mjs",
+    "official": "node server.mjs --official"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "engines": { "node": ">=18" }
+}

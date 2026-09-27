@@ -21,6 +21,8 @@ import { WavesMode } from './modes/waves';
 import { DuelMode } from './modes/duel';
 import { TeamBattleMode } from './modes/team';
 import { FreeForAllMode } from './modes/ffa';
+import { OnlineMode } from './modes/online';
+import type { NetClient } from '../net/client';
 import { resetRules, RULES } from './rules';
 import { ZoneWall } from '../render/zoneWall';
 import { Spectator } from './spectator';
@@ -111,6 +113,10 @@ export class Game implements ModeHost {
   /** free-for-all battle-zone boundary */
   private zoneWall: ZoneWall;
   onStateChange: ((s: GameState) => void) | null = null;
+  /** multiplayer: the connected server, handed over before startMission('online') */
+  pendingNet: NetClient | null = null;
+  /** multiplayer: the connection dropped (the mission has already ended) */
+  onNetLost: ((reason: string) => void) | null = null;
   onResults: ((r: MissionResult) => void) | null = null;
   onMenuFrame: ((dt: number) => void) | null = null;
   onAfterFrame: ((dt: number) => void) | null = null;
@@ -198,15 +204,19 @@ export class Game implements ModeHost {
     this.speedbrake = false;
     // build the airframes this mission can spawn before the first frame
     const pre = [new Aircraft(cfg.aircraft, 'blue', 'PRE')];
-    if (cfg.mode !== 'free') for (const t of enemyTypesFor(cfg.aircraft)) pre.push(new Aircraft(t, 'red', 'PRE'));
+    if (cfg.mode === 'online') for (const t of AIRCRAFT_TYPES) pre.push(new Aircraft(t, 'red', 'PRE'));
+    else if (cfg.mode !== 'free') for (const t of enemyTypesFor(cfg.aircraft)) pre.push(new Aircraft(t, 'red', 'PRE'));
     if (cfg.mode === 'team') for (const t of enemyTypesFor(cfg.aircraft)) pre.push(new Aircraft(t, 'blue', 'PRE'));
     if (cfg.mode === 'ffa') pre.push(new Aircraft(cfg.aircraft, 'red', 'PRE'));
     prewarmAirframes(pre);
     this.stopSpectating();
     resetRules();
     this.timeScale = 1;
+    if (cfg.mode === 'online' && !this.pendingNet) throw new Error('not connected to a server');
     this.mode =
-      cfg.mode === 'free'
+      cfg.mode === 'online'
+        ? this.makeOnline(this.pendingNet!)
+        : cfg.mode === 'free'
         ? new FreeFlightMode(this)
         : cfg.mode === 'waves'
           ? new WavesMode(this)
@@ -234,6 +244,21 @@ export class Game implements ModeHost {
     this.setState('playing');
     this.lastT = performance.now();
     this.accumulator = 0;
+  }
+
+  private makeOnline(net: NetClient): OnlineMode {
+    this.pendingNet = null;
+    const m = new OnlineMode(this, net);
+    m.onLost = (reason) => {
+      this.endMission();
+      this.onNetLost?.(reason);
+    };
+    return m;
+  }
+
+  /** In a multiplayer match the world keeps going while the pause menu or map is up. */
+  get online(): boolean {
+    return this.mode instanceof OnlineMode;
   }
 
   endMission(): void {
@@ -463,7 +488,7 @@ export class Game implements ModeHost {
     this.cam.chaseDist = 1.4;
     this.hud?.setSpectating(true);
     this.spectatorUi?.show(true);
-    this.message(RULES.ffa ? 'YOU ARE OUT — SPECTATING TO THE END · [T] FAST-FORWARD' : 'YOU ARE DOWN — SPECTATING UNTIL THE ROUND ENDS', 'info', 4);
+    this.message(this.online ? 'SPECTATING — [TAB] NEXT PILOT · [F] FREE CAMERA' : RULES.ffa ? 'YOU ARE OUT — SPECTATING TO THE END · [T] FAST-FORWARD' : 'YOU ARE DOWN — SPECTATING UNTIL THE ROUND ENDS', 'info', 4);
   }
 
   stopSpectating(): void {
@@ -478,7 +503,7 @@ export class Game implements ModeHost {
   spectatorView() {
     return {
       roster: () => this.mode?.roster() ?? [],
-      kills: (a: Aircraft) => (this.mode instanceof FreeForAllMode ? this.mode.killsOf(a) : a.kills),
+      kills: (a: Aircraft) => (this.mode instanceof FreeForAllMode || this.mode instanceof OnlineMode ? this.mode.killsOf(a) : a.kills),
       fastForward: () => this.timeScale > 1,
       watching: () => this.spectator.target,
       isFree: () => this.spectator.free,
@@ -572,7 +597,8 @@ export class Game implements ModeHost {
     if (playing) this.handleInput(dt);
     else if (this.input.pressed('pause') && this.state === 'map') this.setState('playing');
 
-    if (playing && this.player) {
+    const simOn = playing || (this.online && (this.state === 'paused' || this.state === 'map'));
+    if (simOn && this.player) {
       const simDt = dt * this.timeScale;
       this.accumulator += simDt;
       let steps = 0;
@@ -593,12 +619,12 @@ export class Game implements ModeHost {
 
     const p = this.player;
     // team battle: once shot down, spectate after a few seconds
-    if (p && playing && !p.alive && this.mode && !this.mode.over && this.mode.roster().length > 0) {
+    if (p && simOn && !p.alive && this.mode && !this.mode.over && this.mode.roster().length > 0) {
       this.deadTime += dt;
       if (!this.spectator.active && this.deadTime > 3.5) this.startSpectating();
     }
     if (p && this.spectator.active) {
-      this.spectatorFrame(dt, playing);
+      this.spectatorFrame(dt, simOn);
       this.renderer.render();
       this.onAfterFrame?.(dt);
       this.input.endFrame();
@@ -621,7 +647,7 @@ export class Game implements ModeHost {
       this.avionics?.update(dt, inCockpit);
       this.world.update(dt, this.renderer.camera, p.fm.pos);
       this.zoneWall.update(dt);
-      this.combat.update(playing ? dt : 0, this.renderer.camera);
+      this.combat.update(simOn ? dt : 0, this.renderer.camera);
       // pilot vision
       this.renderer.setVision(p.alive || !p.fm.crashed ? p.pilot.vision : emptyVision());
       this.hud.update(dt, this);
@@ -1012,7 +1038,8 @@ export class Game implements ModeHost {
     if (inp.codePressed('ArrowLeft') || inp.codePressed('Comma')) v.cycle(-1);
     if (inp.codePressed('KeyF')) v.toggleFree();
     // free-for-all: fast-forward the rest of the match
-    if (RULES.ffa && inp.codePressed('KeyT')) {
+    // (never online: everyone shares one clock)
+    if (RULES.ffa && !this.online && inp.codePressed('KeyT')) {
       this.timeScale = this.timeScale > 1 ? 1 : 4;
       this.message(this.timeScale > 1 ? 'FAST-FORWARD 4×' : 'NORMAL SPEED', 'info', 2);
     }

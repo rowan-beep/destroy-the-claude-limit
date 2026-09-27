@@ -4,7 +4,7 @@ import type { AircraftType } from '../aircraft/specs';
 import type { Difficulty } from '../ai/skill';
 import type { TimeOfDay } from '../render/environment';
 
-export type ModeId = 'free' | 'waves' | 'duel' | 'team' | 'ffa';
+export type ModeId = 'free' | 'waves' | 'duel' | 'team' | 'ffa' | 'online';
 
 export interface MissionConfig {
   mode: ModeId;
@@ -54,6 +54,11 @@ export function defaultMission(): MissionConfig {
 }
 
 export const MODE_INFO: Record<ModeId, { title: string; subtitle: string; description: string }> = {
+  online: {
+    title: 'ONLINE',
+    subtitle: 'Real pilots, free-for-all',
+    description: 'Multiplayer LAST PILOT STANDING on the official servers or your own: real players only, no AI.',
+  },
   free: {
     title: 'FREE FLIGHT',
     subtitle: 'Sandbox',

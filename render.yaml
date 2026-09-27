@@ -1,0 +1,12 @@
+# One-click deploy of the official TRIAD servers (rooms OFFICIAL 1-5) on Render:
+# New > Blueprint > pick this repository. The game looks for them at
+# wss://triad-servers.onrender.com (src/net/servers.ts, or VITE_TRIAD_SERVER).
+services:
+  - type: web
+    name: triad-servers
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: node server.mjs --official
+    plan: free
+    healthCheckPath: /status

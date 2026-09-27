@@ -68,6 +68,10 @@ export class Missile {
   warnedTarget = false;
   gLoad = 0;
   mach = 0;
+  /** multiplayer: another player's missile, moved by their updates (never guides or fuses here) */
+  remote = false;
+  /** the shooting client's own id for it */
+  netMid = 0;
 
   constructor(
     type: MissileType,
@@ -114,6 +118,15 @@ export class Missile {
     if (!this.alive) return;
     const s = this.spec;
     this.age += dt;
+    if (this.remote) {
+      // coast on the last update; the shooter's client says when it goes off
+      this.prevPos.copy(this.pos);
+      this.pos.addScaledVector(this.vel, dt);
+      this.motorOn = this.age < s.burnTime + (s.seeker === 'ARH' ? 0.45 : 0);
+      this.mach = this.vel.length() / 330;
+      if (this.age > s.maxTime + 6) this.alive = false;
+      return;
+    }
     this.prevPos.copy(this.pos);
     atmosphere(this.pos.y, _atm);
     const V = this.vel.length();

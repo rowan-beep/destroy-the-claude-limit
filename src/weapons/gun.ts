@@ -102,9 +102,10 @@ export class BulletSystem {
       this.pz[i] += this.vz[i] * dt;
       _p1.set(this.px[i], this.py[i], this.pz[i]);
 
-      // hit test against airframes
+      // hit test against airframes (another player's rounds are only tracers here)
       let hitSomething = false;
-      for (let a = 0; a < aircraft.length; a++) {
+      const own = this.owner[i];
+      for (let a = 0; own && !own.remote && a < aircraft.length; a++) {
         const t = aircraft[a];
         if (t === this.owner[i] || (!t.alive && t.fm.crashed)) continue;
         const fm = t.fm;

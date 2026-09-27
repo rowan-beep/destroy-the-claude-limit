@@ -27,6 +27,7 @@ export interface MainMenuCallbacks {
   onLogbook: () => void;
   onSelectJet: (t: AircraftType, loadoutId: string) => void;
   onCustomize: (t: AircraftType) => void;
+  onMultiplayer: () => void;
 }
 
 export class MainMenu {
@@ -50,6 +51,7 @@ export class MainMenu {
     el('h1', '', brand, 'TRIAD');
     el('div', 'sub', brand, `AIR COMBAT SIMULATOR · ${activeMap.name} · ${activeMap.sizeNm} × ${activeMap.sizeNm} NM THEATER`);
     const hb = el('div', 'header-buttons', header);
+    button('MULTIPLAYER ▸', 'primary', hb, () => cb.onMultiplayer());
     const wn = new WhatsNewModal(document.body);
     button(`v${VERSION} · NOTES`, '', hb, () => wn.show(true));
     button('LOGBOOK', '', hb, () => cb.onLogbook());

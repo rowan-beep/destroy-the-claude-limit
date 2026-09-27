@@ -36,6 +36,11 @@ export interface SimEvents extends Record<string, unknown> {
   landing: { aircraft: Aircraft; grade: LandingGrade };
 }
 
+/** Multiplayer: hits on another player's jet are sent to them, not applied here. */
+export interface SimNet {
+  hit(victim: Aircraft, h: Record<string, unknown>): void;
+}
+
 export class Sim {
   readonly aircraft: Aircraft[] = [];
   readonly missiles: Missile[] = [];
@@ -47,6 +52,8 @@ export class Sim {
   /** player preference: EPAWSS auto-dispense */
   autoCm = true;
   paused = false;
+  /** multiplayer link (null offline) */
+  net: SimNet | null = null;
 
   constructor(readonly grid: HeightGrid) {
     this.bullets = new BulletSystem(this);
@@ -101,18 +108,30 @@ export class Sim {
         const b = list[j];
         if (b.fm.crashed || b.fm.onGround) continue;
         if (!a.alive && !b.alive) continue;
+        if (a.remote && b.remote) continue;
         const r = (a.spec.length + b.spec.length) * 0.22;
         if (a.fm.pos.distanceToSquared(b.fm.pos) < r * r) {
-          a.damage.apply('fuselage', 400);
-          b.damage.apply('fuselage', 400);
-          a.destroy(this, 'MID-AIR COLLISION', null);
-          b.destroy(this, 'MID-AIR COLLISION', null);
+          // (a remote jet is wrecked by its own client, which sees the same collision)
+          for (const c of [a, b]) {
+            if (c.remote) continue;
+            c.damage.apply('fuselage', 400);
+            c.destroy(this, 'MID-AIR COLLISION', null);
+          }
         }
       }
     }
   }
 
   applyBulletHit(t: Aircraft, shooter: Aircraft | null, comp: Component, dmg: number, pos: THREE.Vector3): void {
+    if (t.remote) {
+      // another player's jet: our view decides the hit, their client takes the damage
+      if (t.alive && shooter && !shooter.remote) {
+        const weapon = shooter.type === 'SU35' ? 'GSh-30' : shooter.spec.gun.caliberMm > 25 ? 'BK-27' : 'M61';
+        this.net?.hit(t, { k: 'g', c: comp, d: dmg, w: weapon });
+        this.events.emit('hit', { victim: t, shooter, weapon, damage: dmg, pos: pos.clone(), component: comp });
+      }
+      return;
+    }
     if (!t.alive) {
       t.damage.apply(comp, dmg);
       return;
@@ -130,6 +149,11 @@ export class Sim {
     m.pos.copy(point);
     const s = m.spec;
     let hitAc: Aircraft | null = direct;
+    // another player's missile: the explosion is only for show here
+    if (m.remote) {
+      this.events.emit('detonate', { missile: m, pos: point.clone(), kind, hit: null, dist: directDist });
+      return;
+    }
     if (kind === 'proximity' || kind === 'selfdestruct') {
       for (const a of this.aircraft) {
         if (!a.alive && a.fm.crashed) continue;
@@ -137,6 +161,17 @@ export class Sim {
         const reach = s.lethalRadius * 2.5;
         if (d > reach) continue;
         const local = a.toLocal(point);
+        if (a.remote) {
+          // their client works out the damage from where the blast was
+          if (a.alive) {
+            const close = d < s.lethalRadius * 0.4 && Math.random() < 0.85;
+            const amt = close ? 1000 : s.damage * Math.pow(Math.max(0, 1 - d / reach), 1.6) * (0.8 + 0.4 * Math.random());
+            this.net?.hit(a, { k: 'b', x: +local.x.toFixed(2), y: +local.y.toFixed(2), z: +local.z.toFixed(2), a: Math.round(amt), w: s.short });
+            this.events.emit('hit', { victim: a, shooter: m.shooter, weapon: s.short, damage: s.damage, pos: point.clone(), component: null });
+            if (!hitAc) hitAc = a;
+          }
+          continue;
+        }
         const wasAlive = a.alive;
         if (a.alive) a.lastHitBy = { shooter: m.shooter, weapon: s.short, time: this.time };
         if (d < s.lethalRadius * 0.4 && Math.random() < 0.85) {
