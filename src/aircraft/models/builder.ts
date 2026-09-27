@@ -4,6 +4,7 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { dense } from './kit';
 
 export interface Section {
   /** station along the body (m, -Z is forward) */
@@ -102,6 +103,7 @@ export function sectionHalfWidthAt(s: Section, y: number): number {
 
 /** A thin tube following the upper half of a section (canopy bows / arches). */
 export function sectionArch(s: Section, radius: number, inset: number, thetaFrom = 0.02, thetaTo = Math.PI - 0.02, samples = 24): THREE.BufferGeometry {
+  samples = dense(samples);
   const pts: THREE.Vector3[] = [];
   const cx = 0, cy = s.y ?? 0;
   for (let i = 0; i <= samples; i++) {
@@ -117,6 +119,8 @@ export function sectionArch(s: Section, radius: number, inset: number, thetaFrom
 
 /** Lofted body through cross-sections, closed at both ends. */
 export function loft(sections: Section[], radial = 28, perSpan = 4, capEnds = true): THREE.BufferGeometry {
+  radial = dense(radial);
+  perSpan = dense(perSpan);
   const secs = interpSections(sections, perSpan);
   const pos: number[] = [];
   const uv: number[] = [];

@@ -31,7 +31,7 @@ export function runModelTest(container: HTMLElement): void {
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   scene.add(ground);
-  const types: AircraftType[] = q.get('type') ? [q.get('type') as AircraftType] : ['F15EX', 'FA18EF', 'TYPHOON', 'SU35'];
+  const types: AircraftType[] = q.get('type') ? [q.get('type') as AircraftType] : ['F15EX', 'FA18EF', 'TYPHOON', 'SU35', 'RAFALE'];
   const view = q.get('view') ?? 'three';
   const gearUp = q.get('gear') === 'up';
   types.forEach((t, i) => {
@@ -50,7 +50,7 @@ export function runModelTest(container: HTMLElement): void {
       ac.fm.nozzle.roll = nr || 0;
     }
     const t0 = performance.now();
-    const v = createAirframe(ac);
+    const v = createAirframe(ac, q.get('hero') === '1');
     (window as unknown as { __build: number[] }).__build = [...((window as unknown as { __build?: number[] }).__build ?? []), Math.round(performance.now() - t0)];
     v.update(0.016);
     for (let k = 0; k < 30; k++) v.update(0.05);

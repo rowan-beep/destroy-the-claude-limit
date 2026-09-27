@@ -40,7 +40,7 @@ import type { ReplayUi } from '../ui/replayUi';
 import { ReplayRecorder, ReplayPlayer } from './replay';
 import { SortieRecorder, LogbookData, MissionOutcome, loadLogbook, saveLogbook, commitSortie, medalName } from './logbook';
 import { NM } from '../core/constants';
-import { prewarmAirframes } from '../aircraft/models';
+import { prewarmAirframes, setHeroDetail } from '../aircraft/models';
 import { randomizeWind, wind } from '../core/weather';
 import { AutoFly } from './autoFly';
 import type { AutoFlyPanel, AutoFlyChoice } from '../ui/autoFlyPanel';
@@ -150,6 +150,7 @@ export class Game implements ModeHost {
     const s = this.settings;
     const g = s.graphics;
     this.renderer.applySettings(g);
+    setHeroDetail(g.quality);
     this.cam.fovBase = g.fov;
     this.cam.followRoll = s.gameplay.cameraRoll;
     if (this.world.ready) {

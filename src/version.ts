@@ -10,6 +10,18 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.2.0',
+    date: '2026-09-27',
+    title: "Hero-detail jets",
+    notes: [
+      "Every jet now has a HERO model with about 10 times the polygons: 2.5 to 4 million triangles per airframe (F-15EX 3.3M, F/A-18E/F 2.9M, Typhoon 2.5M, Su-35S 4.0M, Rafale 2.6M), up from 250,000 to 390,000.",
+      "The whole airframe is rebuilt at the higher density: fuselage lofts, intakes and ducts, canopies and frames, wings, canards, fins and control surfaces, nozzles and petals, landing gear and every turned part. Curves are smooth all the way round and silhouettes stay clean however close the camera gets.",
+      "You get the hero model for your own jet and in the hangar. The jets around you keep the standard model so a 12-jet fight still runs smoothly.",
+      "Hero density follows GRAPHICS QUALITY in the settings: about 10x on HIGH and ULTRA, about 4x on MEDIUM and about 1.5x on LOW.",
+      "Memory: the hangar now keeps only the jet on the turntable built and frees the others. A hero model is freed when nothing uses it any more.",
+    ],
+  },
+  {
     version: '4.1.0',
     date: '2026-09-27',
     title: "The Rafale is coming",

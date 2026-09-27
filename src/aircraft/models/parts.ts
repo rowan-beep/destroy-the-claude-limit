@@ -3,7 +3,7 @@
 // All built in the body frame (x right, y up, z aft).
 
 import * as THREE from 'three';
-import { lathe, rod, tube, skinRings, offsetLoop, resample, colorize, join, P2, P3, roundBox, strip, stamp } from './kit';
+import { dense, lathe, rod, tube, skinRings, offsetLoop, resample, colorize, join, P2, P3, roundBox, strip, stamp } from './kit';
 
 // ---------------------------------------------------------------------------
 // Materials shared by every airframe (non-livery parts)
@@ -98,11 +98,11 @@ export interface NozzleSpec {
 }
 
 export function nozzle(s: NozzleSpec): { outer: THREE.BufferGeometry; inner: THREE.BufferGeometry } {
-  const seg = s.petals * 6;
+  const per = dense(6);
+  const seg = s.petals * per;
   const rings: P3[][] = [];
-  const N = 18;
+  const N = dense(18);
   const L = s.z1 - s.z0;
-  const per = 6;
   // outer: actuator ring at the root, then overlapping petal plates that
   // shingle over each other (a small ledge at every plate edge, growing aft)
   for (let i = 0; i <= N; i++) {
@@ -277,7 +277,7 @@ export interface IntakeSpec {
 }
 
 export function intake(s: IntakeSpec): { skin: THREE.BufferGeometry; duct: THREE.BufferGeometry } {
-  const n = s.n ?? 64;
+  const n = dense(s.n ?? 64);
   const rake = s.rake ?? (() => 0);
   const zl = s.outer[0];
   const at = (z: number) => resample(s.loop(z), n);

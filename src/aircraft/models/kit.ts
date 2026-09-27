@@ -75,8 +75,28 @@ export function sstep(a: number, b: number, x: number): number {
   return t * t * (3 - 2 * t);
 }
 
+// Mesh density for the model being built: 1 = the standard airframe used for
+// every jet in the air; the "hero" build (your own jet, the hangar) raises it
+// so every loft, airfoil and turned part gets proportionally more samples.
+let density = 1;
+
+/** Set the mesh density for the models built next (1 = standard). */
+export function setModelDensity(d: number): void {
+  density = Math.max(1, d);
+}
+
+export function modelDensity(): number {
+  return density;
+}
+
+/** A sample count scaled by the current density. */
+export function dense(n: number): number {
+  return Math.max(n, Math.round(n * density));
+}
+
 /** Station list from z0 to z1: `n` intervals, optionally clustered toward either end. */
 export function stations(z0: number, z1: number, n: number, clusterStart = 0, clusterEnd = 0): number[] {
+  n = dense(n);
   const out: number[] = [];
   for (let i = 0; i <= n; i++) {
     let u = i / n;
@@ -134,7 +154,9 @@ export function ring(ctrl: P2[], sub: number[]): P2[] {
     const p1 = ctrl[i];
     const p2 = ctrl[(i + 1) % n];
     const p3 = ctrl[(i + 2) % n];
-    const s = Math.max(1, sub[i] ?? 1);
+    // (a single sample is a deliberate crease: keep it sharp)
+    const s0 = Math.max(1, sub[i] ?? 1);
+    const s = s0 === 1 ? 1 : dense(s0);
     for (let k = 0; k < s; k++) out.push(crSeg(p0, p1, p2, p3, k / s, [0, 0]));
   }
   return out;
@@ -272,8 +294,8 @@ function halfThick(c: number, thickPos: number): number {
 
 /** A tapered, swept lifting surface with a real section. */
 export function wing(spec: WingSpec): THREE.BufferGeometry {
-  const N = spec.chordPts ?? 30;
-  const sub = spec.spanSub ?? 6;
+  const N = dense(spec.chordPts ?? 30);
+  const sub = dense(spec.spanSub ?? 6);
   const tp = spec.thickPos ?? 0.38;
   const camber = spec.camber ?? 0;
   const secs = spec.sections;
@@ -421,6 +443,9 @@ export function finMatrix(x: number, y: number, cantDeg: number, side: 1 | -1 = 
 
 /** Surface of revolution about an axis parallel to z through (cx, cy). profile: [radius, z]. */
 export function lathe(profile: P2[], segs = 32, cx = 0, cy = 0, closeStart = false, closeEnd = false): THREE.BufferGeometry {
+  segs = dense(segs);
+  // smooth the profile too: Catmull-Rom samples between the given points
+  if (density > 1 && profile.length > 2) profile = smoothOpen(profile, Math.round(density));
   const pos: number[] = [];
   const idx: number[] = [];
   for (const [r, z] of profile) {
@@ -1178,6 +1203,18 @@ export function rrect(cx: number, cy: number, hw: number, hh: number, r: number,
 }
 
 /** Resample a closed polyline to `n` points evenly by arc length. */
+/** Catmull-Rom resample of an open polyline (ends kept), `k` samples per segment. */
+function smoothOpen(pts: P2[], k: number): P2[] {
+  const out: P2[] = [];
+  const n = pts.length;
+  for (let i = 0; i < n - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(n - 1, i + 2)];
+    for (let j = 0; j < k; j++) out.push(crSeg(p0, p1, p2, p3, j / k, [0, 0]));
+  }
+  out.push(pts[n - 1]);
+  return out;
+}
+
 export function resample(loop: P2[], n: number): P2[] {
   const m = loop.length;
   const acc: number[] = [0];

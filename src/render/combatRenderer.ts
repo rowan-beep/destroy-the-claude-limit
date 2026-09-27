@@ -7,7 +7,7 @@ import type { Sim } from '../game/sim';
 import type { Aircraft } from '../aircraft/aircraft';
 import type { Missile } from '../weapons/missile';
 import type { Decoy } from '../weapons/countermeasures';
-import { createAirframe, AirframeVisual, paintAirframe } from '../aircraft/models';
+import { createAirframe, releaseAirframe, AirframeVisual, paintAirframe } from '../aircraft/models';
 import { loadPaint } from '../aircraft/models/paint';
 import { storeGeometry } from '../aircraft/models/stores';
 import { cloneMaterial } from '../aircraft/models/kit';
@@ -196,7 +196,7 @@ export class CombatRenderer {
 
   private addAircraft(a: Aircraft): void {
     if (this.aircraftVis.has(a)) return;
-    const v = createAirframe(a);
+    const v = createAirframe(a, a.isPlayer);
     if (a.isPlayer) paintAirframe(v, loadPaint(a.type));
     else if (a.paint) paintAirframe(v, a.paint);
     this.aircraftVis.set(a, v);
@@ -207,7 +207,7 @@ export class CombatRenderer {
     const v = this.aircraftVis.get(a);
     if (!v) return;
     this.scene.remove(v.root);
-    v.dispose();
+    releaseAirframe(v);
     this.aircraftVis.delete(a);
     this.contrails.delete(a);
     this.vortices.delete(a);

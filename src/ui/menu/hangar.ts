@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { Aircraft } from '../../aircraft/aircraft';
-import { createAirframe, AirframeVisual, paintAirframe } from '../../aircraft/models';
+import { createAirframe, releaseAirframe, AirframeVisual, paintAirframe } from '../../aircraft/models';
 import { loadPaint, PaintConfig } from '../../aircraft/models/paint';
 import { AircraftType } from '../../aircraft/specs';
 
@@ -200,12 +200,13 @@ export class Hangar {
       ac.fm.pos.set(0, ac.spec.gear.height + 0.12, 0);
       ac.fm.gearPos = 1;
       ac.fm.rpm.fill(0.25);
-      const vis = createAirframe(ac);
+      const vis = createAirframe(ac, true);
       paintAirframe(vis, loadPaint(type));
       vis.root.traverse((o) => {
         const m = o as THREE.Mesh;
         if (m.isMesh) m.castShadow = true;
       });
+      vis.root.visible = type === this.current;
       this.turntable.add(vis.root);
       j = { vis, ac };
       this.jets.set(type, j);
@@ -220,8 +221,9 @@ export class Hangar {
 
   setJet(type: AircraftType, loadoutId?: string): void {
     this.current = type;
+    const fresh = !this.jets.has(type);
     const j = this.ensure(type);
-    if (loadoutId && loadoutId !== this.loadoutId) {
+    if (loadoutId && (fresh || loadoutId !== this.loadoutId)) {
       const l = j.ac.spec.loadouts.find((x) => x.id === loadoutId);
       if (l) {
         j.ac.applyLoadout(l);
@@ -229,7 +231,14 @@ export class Hangar {
       }
       this.loadoutId = loadoutId;
     }
-    for (const [t, v] of this.jets) v.vis.root.visible = t === type;
+    // only the jet on the turntable stays built (hero airframes are heavy)
+    for (const [t, v] of [...this.jets]) {
+      if (t === type) continue;
+      this.turntable.remove(v.vis.root);
+      releaseAirframe(v.vis);
+      this.jets.delete(t);
+    }
+    j.vis.root.visible = true;
   }
 
   render(dt: number, w: number, h: number): void {
