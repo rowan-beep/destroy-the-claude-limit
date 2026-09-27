@@ -3,6 +3,12 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.3.1 — Rain on the canopy (2026-09-27)
+
+- Rain now beads on the screen like water on a window: drops land, grow and refract a blurred, flipped view of what's behind them. At speed the airflow sweeps them sideways off the edges of the screen; when you're slow they run down and slide off.
+- The falling rain no longer streaks past like you're jumping to lightspeed: the streaks are short, and they thin out the faster you fly, so the drops on the canopy take over.
+- Fixed: clouds popping in and out at the horizon. The far edge of the cloud field now fades out smoothly instead of cutting off, and the cloud deck reaches well past the horizon.
+
 ## v4.3.0 — Weather (2026-09-27)
 
 - NEW: WEATHER. A weather panel sits at the top left while you fly: pick CLEAR, CLOUDY, OVERCAST, RAIN, STORM or SNOW, then fine-tune CLOUD COVER, RAIN / SNOW and VISIBILITY (shown in NM). The arrow tab slides the panel off the screen and back. Your choice is saved.

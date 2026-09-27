@@ -10,6 +10,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import type { GraphicsOptions } from '../core/settings';
 import { installAltitudeFog } from './fog';
 import { VisionShader, VisionState } from './vision';
+import { DropletShader, ScreenDroplets } from './droplets';
 
 export type GraphicsSettings = Pick<
   GraphicsOptions,
@@ -74,6 +75,9 @@ export class GameRenderer {
   readonly camera: THREE.PerspectiveCamera;
   readonly canvas: HTMLCanvasElement;
   private composer: EffectComposer;
+  /** rain beads on the canopy / lens */
+  readonly droplets = new ScreenDroplets();
+  private dropletPass: ShaderPass;
   private renderPass: RenderPass;
   /** second scene pass drawn over the world (the cockpit) */
   private overlayPass: RenderPass;
@@ -138,6 +142,10 @@ export class GameRenderer {
     this.gradePass = new ShaderPass(GradeShader);
     this.composer.addPass(this.renderPass);
     this.composer.addPass(this.overlayPass);
+    this.dropletPass = new ShaderPass(DropletShader);
+    this.dropletPass.uniforms.tDrops.value = this.droplets.texture;
+    this.dropletPass.enabled = false;
+    this.composer.addPass(this.dropletPass);
     this.composer.addPass(new ShaderPass(SanitizeShader));
     this.composer.addPass(this.bloomPass);
     this.composer.addPass(this.visionPass);
@@ -255,6 +263,14 @@ export class GameRenderer {
     u.time.value = performance.now() / 1000;
   }
 
+  /** Rain on the screen: how hard it rains on us (0..1) and our airspeed (m/s). */
+  updateDroplets(dt: number, rain: number, speed: number): void {
+    const on = this.droplets.update(dt, rain, speed);
+    this.dropletPass.enabled = on;
+    this.dropletPass.uniforms.amount.value = this.droplets.amount;
+    (this.dropletPass.uniforms.texel.value as THREE.Vector2).set(1 / Math.max(1, this.width), 1 / Math.max(1, this.height));
+  }
+
   render(): void {
     this.composer.render();
   }
@@ -265,7 +281,8 @@ export class GameRenderer {
    */
   renderScene(scene: THREE.Scene, camera: THREE.Camera, toneMapping?: THREE.ToneMapping): void {
     const s = this.renderPass.scene, c = this.renderPass.camera;
-    const ov = this.overlayPass.enabled, vis = this.visionPass.enabled;
+    const ov = this.overlayPass.enabled, vis = this.visionPass.enabled, drp = this.dropletPass.enabled;
+    this.dropletPass.enabled = false;
     const tm = this.renderer.toneMapping;
     this.renderPass.scene = scene;
     this.renderPass.camera = camera;
@@ -278,5 +295,6 @@ export class GameRenderer {
     this.renderPass.camera = c;
     this.overlayPass.enabled = ov;
     this.visionPass.enabled = vis;
+    this.dropletPass.enabled = drp;
   }
 }

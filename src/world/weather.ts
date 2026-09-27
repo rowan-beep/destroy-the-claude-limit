@@ -182,7 +182,7 @@ class Precip {
         uTime: { value: 0 },
         uBox: { value: snow ? 60 : 80 },
         uLen: { value: snow ? 0.012 : 0.07 },
-        uMaxLen: { value: snow ? 3 : 7 },
+        uMaxLen: { value: snow ? 1.2 : 1.6 },
         uWidth: { value: snow ? 0.08 : 0.028 },
         uSnow: { value: snow ? 1 : 0 },
         uColor: { value: new THREE.Color() },
@@ -218,6 +218,9 @@ export class PrecipitationFx {
   private boltT = 6;
   private flashT = 0;
   flash = 0;
+  /** how hard rain is falling on the camera 0..1, and the camera speed (m/s) */
+  rainOnCamera = 0;
+  camSpeed = 0;
   /** called when a lightning bolt strikes, with its distance (m) */
   onThunder: ((distance: number) => void) | null = null;
   private w: Weather = { ...WEATHER_PRESETS.clear };
@@ -248,7 +251,11 @@ export class PrecipitationFx {
     const under = 1 - smoothstep(this.deck.base - 150, this.deck.base + 250, cam.y);
     const amount = w.precip * under;
     const snowy = w.kind === 'snow';
-    this.rain.count = snowy ? 0 : amount * this.rain.max;
+    const speed = this.camVel.length();
+    this.camSpeed = speed;
+    this.rainOnCamera = snowy ? 0 : amount;
+    // at speed the drops are on the canopy, not streaking past: thin the falling rain
+    this.rain.count = snowy ? 0 : (amount * this.rain.max) / (1 + speed / 45);
     this.snow.count = snowy ? amount * this.snow.max : 0;
     for (const p of [this.rain, this.snow]) {
       const u = p.mat.uniforms;

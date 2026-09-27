@@ -10,6 +10,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.3.1',
+    date: '2026-09-27',
+    title: "Rain on the canopy",
+    notes: [
+      "Rain now beads on the screen like water on a window: drops land, grow and refract a blurred, flipped view of what's behind them. At speed the airflow sweeps them sideways off the edges of the screen; when you're slow they run down and slide off.",
+      "The falling rain no longer streaks past like you're jumping to lightspeed: the streaks are short, and they thin out the faster you fly, so the drops on the canopy take over.",
+      "Fixed: clouds popping in and out at the horizon. The far edge of the cloud field now fades out smoothly instead of cutting off, and the cloud deck reaches well past the horizon.",
+    ],
+  },
+  {
     version: '4.3.0',
     date: '2026-09-27',
     title: "Weather",

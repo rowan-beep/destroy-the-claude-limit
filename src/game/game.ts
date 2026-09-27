@@ -435,6 +435,7 @@ export class Game implements ModeHost {
       this.cam.update(dt, focus, null);
       this.renderer.camera.updateMatrixWorld();
       this.world.update(dt, this.renderer.camera, focus.fm.pos);
+      this.renderer.updateDroplets(dt, this.world.precip.rainOnCamera, this.world.precip.camSpeed);
     }
     this.renderer.setVision(emptyVision());
     this.renderer.render();
@@ -647,6 +648,7 @@ export class Game implements ModeHost {
       this.updateCockpit(inCockpit);
       this.avionics?.update(dt, inCockpit);
       this.world.update(dt, this.renderer.camera, p.fm.pos);
+      this.renderer.updateDroplets(dt, this.world.precip.rainOnCamera, this.world.precip.camSpeed);
       this.zoneWall.update(dt);
       this.combat.update(simOn ? dt : 0, this.renderer.camera);
       // pilot vision
@@ -688,6 +690,7 @@ export class Game implements ModeHost {
     }
     cam.updateMatrixWorld();
     this.world.update(dt, cam, focus);
+    this.renderer.updateDroplets(dt, this.world.precip.rainOnCamera, this.world.precip.camSpeed);
     this.zoneWall.update(dt);
     this.combat.update(playing ? dt : 0, cam);
     this.renderer.setVision(emptyVision());

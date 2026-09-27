@@ -50,6 +50,7 @@ varying float vFade;
 varying float vHeightF;
 varying vec3 vWDir;
 uniform float camInside;
+uniform vec2 farFade;
 #include <common>
 #include <fog_pars_vertex>
 #include <logdepthbuf_pars_vertex>
@@ -60,7 +61,8 @@ void main() {
   float dist = length( mvPosition.xyz );
   float size = iParams.x;
   // fade puffs that the camera is flying through
-  vFade = smoothstep( size * 0.25, size * 0.9, dist );
+  // and fade out smoothly toward the edge of the cloud field (no popping at the horizon)
+  vFade = smoothstep( size * 0.25, size * 0.9, dist ) * ( 1.0 - smoothstep( farFade.x, farFade.y, length( ( modelMatrix * vec4( iOffset, 1.0 ) ).xz - cameraPosition.xz ) ) );
   vHeightF = position.y + 0.5;
   vWDir = ( modelMatrix * vec4( iOffset, 1.0 ) ).xyz - cameraPosition;
   float c = cos( iParams.z ), s = sin( iParams.z );
@@ -173,6 +175,7 @@ export class CloudSystem {
   /** lightning flash 0..1 */
   flash = 0;
   private camBelowDeck = true;
+  private fadeTarget = RANGE * 0.9;
   private clusterCache = new Map<string, Cluster[]>();
   private visibleClusters: Cluster[] = [];
   private shadowCanvas: HTMLCanvasElement;
@@ -213,6 +216,7 @@ export class CloudSystem {
           sunDir: { value: new THREE.Vector3(0, 1, 0) },
           scatter: { value: 1 },
           camInside: { value: 0 },
+          farFade: { value: new THREE.Vector2(RANGE * 0.62, RANGE * 0.9) },
         },
       ]),
       transparent: true,
@@ -291,7 +295,7 @@ export class CloudSystem {
     this.deckBotMat = deckMat();
     this.deckTopMat.uniforms.noiseMap.value = noiseTex;
     this.deckBotMat.uniforms.noiseMap.value = noiseTex;
-    const plane = new THREE.PlaneGeometry(400000, 400000, 1, 1);
+    const plane = new THREE.PlaneGeometry(1600000, 1600000, 1, 1);
     plane.rotateX(-Math.PI / 2);
     this.deckTop = new THREE.Mesh(plane, this.deckTopMat);
     this.deckBot = new THREE.Mesh(plane, this.deckBotMat);
@@ -492,13 +496,18 @@ export class CloudSystem {
       const cells: [number, number][] = [];
       for (let dj = -rc; dj <= rc; dj++) for (let di = -rc; di <= rc; di++) if (di * di + dj * dj <= rc * rc + 1) cells.push([di, dj]);
       cells.sort((a, b) => a[0] * a[0] + a[1] * a[1] - (b[0] * b[0] + b[1] * b[1]));
+      // distance out to which every cloud made the budget (fade out before it)
+      let complete = RANGE;
       for (const [di, dj] of cells) {
-        for (const p of this.cellPuffs(ci + di, cj + dj)) {
+        const puffs = this.cellPuffs(ci + di, cj + dj);
+        if (this.visible.length + puffs.length > MAX_PUFFS && complete === RANGE) complete = Math.max(15000, Math.hypot(di, dj) * CELL - CELL);
+        for (const p of puffs) {
           if (this.visible.length < MAX_PUFFS) this.visible.push(p);
         }
         const cl = this.clusterCache.get(ci + di + ',' + (cj + dj));
         if (cl) this.visibleClusters.push(...cl);
       }
+      this.fadeTarget = Math.min(RANGE * 0.9, complete);
       this.sortTimer = 0;
       this.shadowCentre.set(ci * CELL, cj * CELL);
       this.drawShadows();
@@ -516,6 +525,9 @@ export class CloudSystem {
     }
     const u = this.mat.uniforms;
     const e = this.env.uniformsForWater;
+    const ff = u.farFade.value as THREE.Vector2;
+    ff.y += (this.fadeTarget - ff.y) * Math.min(1, dt * 0.8);
+    ff.x = ff.y * 0.7;
     const gloom = this.gloom;
     const lit = 1.05 * (1 - 0.45 * gloom) + this.flash * 1.5;
     (u.sunColor.value as THREE.Color).copy(e.sunColor).multiplyScalar(lit);
