@@ -3,6 +3,10 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.0.1 — Intakes the right way up (2026-09-27)
+
+- Fixed: the Su-35S and Typhoon engine intakes were raked upside down, with the bottom lip sticking out in front. Now the top edge leads and the mouth leans back underneath, as on the real jets: the Flanker's intakes are cut back underneath, and the Typhoon's upper lip (by the splitter) sits ahead of its lower lip.
+
 ## v4.0.0 — Multiplayer (2026-09-27)
 
 - NEW: MULTIPLAYER. Press MULTIPLAYER ▸ on the main menu to fly LAST PILOT STANDING against real people. It's free-for-all only, and there is no AI on any server.

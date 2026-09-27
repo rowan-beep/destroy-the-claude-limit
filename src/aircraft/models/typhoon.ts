@@ -216,7 +216,8 @@ export function buildTyphoon(v: AirframeVisual): void {
     lip: 0.05,
     depth: 2.2,
     n: 96,
-    rake: (_x, y) => 0.4 * (y + 1.27) - 0.08,
+    // the upper lip (splitter side) leads; the variable lower lip sits back
+    rake: (_x, y) => -0.4 * (y + 0.74),
     fan: { cx: 0, cy: -0.95, r: 0.42 },
   });
   skin(ci.skin);

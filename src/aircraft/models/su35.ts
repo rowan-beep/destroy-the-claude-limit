@@ -329,8 +329,9 @@ export function buildSu35(v: AirframeVisual): void {
     lip: 0.05,
     depth: 2.4,
     n: 80,
-    // the lower lip leads: the mouth faces forward and a little down
-    rake: (_x, y) => 0.5 * (y + 0.86),
+    // the upper edge leads and the mouth leans back going down (a Flanker's
+    // intakes are cut back underneath, facing forward and a little down)
+    rake: (_x, y) => -0.4 * (y + 0.3),
     fan: { cx: NAC_X, cy: -0.84, r: 0.42 },
   });
   skin(both(nac.skin));

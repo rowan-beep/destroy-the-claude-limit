@@ -10,6 +10,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.0.1',
+    date: '2026-09-27',
+    title: "Intakes the right way up",
+    notes: [
+      "Fixed: the Su-35S and Typhoon engine intakes were raked upside down, with the bottom lip sticking out in front. Now the top edge leads and the mouth leans back underneath, as on the real jets: the Flanker's intakes are cut back underneath, and the Typhoon's upper lip (by the splitter) sits ahead of its lower lip.",
+    ],
+  },
+  {
     version: '4.0.0',
     date: '2026-09-27',
     title: "Multiplayer",
