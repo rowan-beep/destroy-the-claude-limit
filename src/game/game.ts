@@ -50,7 +50,6 @@ export type GameState = 'menu' | 'loading' | 'playing' | 'paused' | 'map' | 'res
 
 const GUN_WEAPONS = new Set(['M61', 'BK-27', 'GSh-30', '30M791', 'GUN']);
 const CLOUD_DENSITY: Record<string, number> = { low: 0.5, medium: 0.75, high: 1, ultra: 1.35 };
-const CLOUD_COVER: Record<string, number> = { clear: 0.12, scattered: 0.55, broken: 0.85, overcast: 0.98 };
 
 export class Game implements ModeHost {
   readonly renderer: GameRenderer;
@@ -131,6 +130,8 @@ export class Game implements ModeHost {
   ) {
     this.renderer = new GameRenderer(container);
     this.world = new World(this.renderer.scene);
+    // thunder from storm lightning (the audio delays it by the distance)
+    this.world.onThunder = (d) => audio.explosion(d, 12);
     this.cam = new CameraRig(this.renderer.camera);
     this.zoneWall = new ZoneWall(this.renderer.scene);
     this.input = new Input(this.renderer.canvas, { ...settings.input, bindings: withGamepad(settings.input.bindings) });
@@ -158,7 +159,6 @@ export class Game implements ModeHost {
       this.renderer.shadowLight = w.env.sun;
       w.setQuality(WORLD_QUALITY[g.quality]);
       w.clouds.setDensity(CLOUD_DENSITY[g.cloudQuality]);
-      w.clouds.setCoverage(CLOUD_COVER[g.clouds]);
       w.clouds.shadowStrength = g.cloudShadows ? 1 : 0;
       w.clouds.setScattering(g.lightScattering);
       w.env.scattering = g.lightScattering;

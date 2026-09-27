@@ -9,6 +9,7 @@ import { Game } from './game/game';
 import { loadSettings, saveSettings } from './core/settings';
 import { defaultMission, MissionConfig } from './game/mission';
 import { Hud } from './ui/hud/hud';
+import { WeatherWidget } from './ui/weatherWidget';
 import { MainMenu } from './ui/menu/mainMenu';
 import { Hangar } from './ui/menu/hangar';
 import { LoadingScreen, PauseMenu, ResultsScreen, ControlsModal } from './ui/menu/screens';
@@ -45,6 +46,7 @@ async function boot(): Promise<void> {
 
   const game = new Game(app, settings);
   const hud = new Hud(document.body);
+  const weather = new WeatherWidget(document.body, game.world.weather, (w) => game.world.setWeather(w));
   hud.setVisible(false);
   game.hud = hud;
   (window as unknown as { game: Game }).game = game;
@@ -186,6 +188,7 @@ async function boot(): Promise<void> {
     menu.show(s === 'menu');
     hud.setVisible(s === 'playing' || s === 'paused' || s === 'results' || s === 'map');
     pause.show(s === 'paused');
+    weather.show(s === 'playing' || s === 'paused');
     touch.show(s === 'playing' && touchWanted());
     mapView.show(s === 'map', game);
     if (s !== 'results') results.show(null);

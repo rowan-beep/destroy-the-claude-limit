@@ -217,12 +217,32 @@ export class Environment {
 
   /** Visibility multiplier from the weather setting (1 = default). */
   hazeScale = 1;
+  /**
+   * Weather: how grey the day is under the clouds (0..1), the cloud deck the
+   * camera may be under, in or above, visibility (0 murk .. 1 clear) and a
+   * lightning flash (0..1).
+   */
+  weather = { gloom: 0, deckBase: 2000, deckTop: 2600, deckSolid: 0, vis: 1, flash: 0 };
+  /** 0 above the deck .. 1 below it (for rain, sound, etc.) */
+  underDeck = 0;
+  /** 0..1 while the camera is inside the cloud deck */
+  inCloud = 0;
   /** sun glow through the haze (light scattering setting) */
   scattering = true;
 
   /** Update per frame: move sky/sun with the camera, adapt colours to altitude. */
   update(camPos: THREE.Vector3, focus: THREE.Vector3): void {
     const p = this.preset;
+    const wx = this.weather;
+    // under the deck the sun is hidden and the day goes grey; above it the
+    // sky is clear and bright; inside it everything whites out
+    const under = (1 - smoothstep(wx.deckBase, wx.deckTop, camPos.y)) * wx.deckSolid;
+    this.underDeck = under;
+    this.inCloud = wx.deckSolid * smoothstep(wx.deckBase - 60, wx.deckBase + 150, camPos.y) * (1 - smoothstep(wx.deckTop - 150, wx.deckTop + 60, camPos.y));
+    const grey = Math.max(under * (0.55 + 0.45 * wx.gloom), wx.gloom * 0.25);
+    const flash = wx.flash;
+    this.sun.intensity = p.sunIntensity * (1 - 0.72 * under);
+    this.hemi.intensity = p.hemiIntensity * (1 - 0.12 * under - 0.2 * wx.gloom * under) + flash * 2.5;
     const alt = Math.max(0, camPos.y);
     // Sky darkens toward deep blue with altitude (thin air at 50,000 ft).
     const a = smoothstep(0, 16000, alt);
@@ -230,9 +250,22 @@ export class Environment {
     this.horizonColor.setRGB(...p.horizon, SRGB);
     const hz = smoothstep(4000, 18000, alt);
     this.horizonColor.lerp(new THREE.Color().setRGB(0.5, 0.64, 0.86, SRGB), hz * 0.6);
+    if (grey > 0 || flash > 0) {
+      // overcast sky: flat grey, darker the heavier the weather
+      const g = 0.62 - 0.3 * wx.gloom;
+      const cloudGrey = new THREE.Color().setRGB(g, g * 1.02, g * 1.07, SRGB);
+      this.zenithColor.lerp(cloudGrey.clone().multiplyScalar(0.85), grey);
+      this.horizonColor.lerp(cloudGrey, grey);
+      if (flash > 0) {
+        this.zenithColor.addScalar(flash * 0.5);
+        this.horizonColor.addScalar(flash * 0.4);
+      }
+    }
     const u = this.skyMat.uniforms;
     (u.zenithColor.value as THREE.Color).copy(this.zenithColor);
     (u.horizonColor.value as THREE.Color).copy(this.horizonColor);
+    // no sun disc or glow through the cloud
+    (u.sunColor.value as THREE.Color).setRGB(...p.sunColor, SRGB).multiplyScalar(1 - 0.97 * under);
     (u.groundHaze.value as THREE.Color).copy(this.horizonColor).multiplyScalar(0.82);
     // Horizon dips below the horizontal as altitude increases (geometric dip).
     u.horizonDip.value = Math.sqrt((2 * alt) / 6371000) * 0.9;
@@ -242,12 +275,15 @@ export class Environment {
     FOG_SUN[0] = this.sunDir.x;
     FOG_SUN[1] = this.sunDir.y;
     FOG_SUN[2] = this.sunDir.z;
-    FOG_SUN[3] = this.scattering ? 1 + 0.8 * (1 - smoothstep(4, 30, p.sunElev)) : 0;
+    FOG_SUN[3] = this.scattering ? (1 + 0.8 * (1 - smoothstep(4, 30, p.sunElev))) * (1 - under) : 0;
     const sc = this.skyMat.uniforms.sunColor.value as THREE.Color;
     FOG_SUN_COLOR[0] = sc.r;
     FOG_SUN_COLOR[1] = sc.g;
     FOG_SUN_COLOR[2] = sc.b;
-    this.fog.density = (1 / 85000) * this.baseHaze * this.hazeScale;
+    // visibility: rain, snow and mist thicken the haze; inside cloud it is a whiteout
+    const murk = 1 + Math.pow(1 - wx.vis, 1.6) * 40 * (0.35 + 0.65 * under);
+    this.fog.density = (1 / 85000) * this.baseHaze * this.hazeScale * murk + this.inCloud * (1 / 260);
+    if (this.inCloud > 0) this.fog.color.lerp(new THREE.Color().setRGB(0.78, 0.8, 0.84, SRGB).multiplyScalar(1 - 0.4 * wx.gloom), this.inCloud);
 
     this.sky.position.copy(camPos);
     this.sun.target.position.copy(focus);

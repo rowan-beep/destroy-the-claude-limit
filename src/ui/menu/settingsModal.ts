@@ -316,19 +316,6 @@ export class SettingsModal {
     );
     this.seg(
       w,
-      'CLOUDS',
-      'How much of the sky is covered by cumulus.',
-      [
-        ['clear', 'CLEAR'],
-        ['scattered', 'SCATTERED'],
-        ['broken', 'BROKEN'],
-        ['overcast', 'OVERCAST'],
-      ],
-      g.clouds,
-      (v) => (g.clouds = v),
-    );
-    this.seg(
-      w,
       'CLOUD QUALITY',
       'Puffs per cloud: higher is fuller, rounder cumulus.',
       [

@@ -502,3 +502,29 @@ body.touch-mode .weapon-bar { bottom: auto; top: calc(96px + env(safe-area-inset
 .br-gate { position: absolute; left: 0; right: 0; top: 48%; text-align: center; color: #7a110d; letter-spacing: 0.5em; font-size: 14px; cursor: pointer; animation: br-gate 2.4s ease-in-out infinite; text-shadow: 0 0 12px rgba(150, 10, 5, 0.7); }
 .br-gate.hidden { display: none; }
 @keyframes br-gate { 0%, 100% { opacity: 0.25; } 50% { opacity: 0.9; } }
+
+/* ---- weather widget (top left, slides off to the left) ---- */
+.wx-widget { position: fixed; left: 0; top: 46px; z-index: 40; display: flex; align-items: flex-start; font-family: var(--mono); color: #cfe3f5; transition: transform 0.35s cubic-bezier(0.3, 0.8, 0.3, 1); pointer-events: auto; }
+.wx-widget.hidden { display: none; }
+.wx-widget.closed { transform: translateX(calc(-1 * var(--wx-w))); }
+.wx-widget { --wx-w: 236px; }
+.wx-panel { width: var(--wx-w); box-sizing: border-box; background: rgba(8, 16, 24, 0.82); border: 1px solid rgba(120, 180, 255, 0.3); border-left: none; padding: 9px 11px 10px; backdrop-filter: blur(3px); }
+.wx-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 7px; }
+.wx-title { font-size: 12px; letter-spacing: 0.22em; color: #e6f2ff; }
+.wx-sub { margin-top: 6px; font-size: 9px; letter-spacing: 0.06em; color: rgba(190, 215, 235, 0.45); }
+.wx-kind-name { font-size: 11px; letter-spacing: 0.16em; color: #9fe8bb; }
+.wx-kinds { display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; margin-bottom: 6px; }
+.wx-kind { display: flex; align-items: center; justify-content: center; padding: 5px 0; background: rgba(30, 45, 60, 0.6); border: 1px solid rgba(120, 180, 255, 0.18); color: #a9c3d8; font: inherit; font-size: 9px; letter-spacing: 0.1em; cursor: pointer; }
+.wx-kind svg { width: 22px; height: 22px; }
+.wx-kind span { display: none; }
+.wx-kind:hover { border-color: rgba(140, 200, 255, 0.55); color: #e6f2ff; }
+.wx-kind.on { background: rgba(60, 130, 90, 0.35); border-color: rgba(120, 255, 170, 0.7); color: #c9ffdc; }
+.wx-row { margin-top: 5px; }
+.wx-row.off { opacity: 0.4; }
+.wx-row-top { display: flex; justify-content: space-between; font-size: 10px; letter-spacing: 0.1em; }
+.wx-label { color: #a9c3d8; }
+.wx-value { color: #e6f2ff; }
+.wx-range { width: 100%; margin: 3px 0 0; accent-color: #6fd49a; height: 14px; cursor: pointer; }
+.wx-tab { margin-top: 0; width: 22px; height: 44px; padding: 0; background: rgba(8, 16, 24, 0.82); border: 1px solid rgba(120, 180, 255, 0.3); border-left: none; color: #cfe3f5; font-size: 11px; cursor: pointer; }
+.wx-tab:hover { color: #fff; background: rgba(20, 36, 50, 0.9); }
+@media (max-width: 700px) { .wx-widget { --wx-w: 206px; } }

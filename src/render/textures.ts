@@ -108,7 +108,7 @@ let cloudPuff: THREE.Texture | null = null;
 /** Soft cauliflower cloud puff sprite (alpha in A, shading in RGB). */
 export function getCloudPuffTexture(): THREE.Texture {
   if (cloudPuff) return cloudPuff;
-  const size = 128;
+  const size = 256;
   const n = new Simplex2(77);
   const { c, g } = makeCanvas(size, size);
   const img = g.createImageData(size, size);
@@ -117,13 +117,15 @@ export function getCloudPuffTexture(): THREE.Texture {
       const u = ((x + 0.5) / size) * 2 - 1;
       const v = ((y + 0.5) / size) * 2 - 1;
       const r = Math.sqrt(u * u + v * v);
-      const nn = n.fbm(u * 2.6 + 3, v * 2.6 - 1, 5) * 0.5 + 0.5;
-      // soft gaussian core with a billowy, noisy edge
-      const edge = r * (0.78 + 0.5 * nn);
-      let a = Math.exp(-edge * edge * 3.2) - 0.04;
-      a = Math.max(0, Math.min(1, a * 1.35));
+      const nn = n.fbm(u * 2.2 + 3, v * 2.2 - 1, 6) * 0.5 + 0.5;
+      const fine = n.fbm(u * 7 - 5, v * 7 + 2, 3) * 0.5 + 0.5;
+      // soft, wide core with a billowy, torn edge: neighbouring puffs melt
+      // into one cloud instead of reading as separate balls
+      const edge = r * (0.62 + 0.62 * nn + 0.18 * fine);
+      let a = Math.exp(-edge * edge * 2.3) - 0.05;
+      a = Math.max(0, Math.min(1, a * 1.3));
       // fake self-shadowing: lit from above, darker underneath, cauliflower texture
-      const shade = 0.72 + 0.2 * (1 - (v * 0.5 + 0.5)) + 0.12 * (nn - 0.5);
+      const shade = 0.7 + 0.22 * (1 - (v * 0.5 + 0.5)) + 0.14 * (nn - 0.5) + 0.06 * (fine - 0.5);
       const i = (y * size + x) * 4;
       img.data[i] = Math.min(255, shade * 255);
       img.data[i + 1] = Math.min(255, shade * 255);

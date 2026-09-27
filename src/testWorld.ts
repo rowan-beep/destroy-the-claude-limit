@@ -4,6 +4,7 @@ import { GameRenderer } from './render/renderer';
 import { World } from './world/world';
 import { emptyVision } from './render/vision';
 import { dirFromHeadingPitch } from './core/math';
+import { WEATHER_PRESETS, WeatherKind } from './world/weather';
 
 export async function runWorldTest(container: HTMLElement): Promise<void> {
   const q = new URLSearchParams(location.search);
@@ -19,6 +20,7 @@ export async function runWorldTest(container: HTMLElement): Promise<void> {
   const dir = dirFromHeadingPitch(hdg, pitch);
   gr.camera.lookAt(pos.clone().add(dir));
   if (q.get('tod')) world.env.setTimeOfDay(q.get('tod') as never);
+  if (q.get('wx')) world.setWeather({ ...WEATHER_PRESETS[q.get('wx') as WeatherKind], ...(q.get('cover') ? { cover: +q.get('cover')! } : {}) });
   await world.prewarm(pos, gr.camera, 20000);
   let frames = 0;
   const loop = () => {

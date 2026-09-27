@@ -11,6 +11,7 @@ import { Ocean } from './ocean';
 import { Environment } from '../render/environment';
 import { TreeSystem } from './trees';
 import { CloudSystem } from './clouds';
+import { PrecipitationFx, Weather, loadWeather } from './weather';
 import { AirfieldRenderer } from './airfieldMeshes';
 import type { GridResult } from './terrainGen';
 import { MapData } from './mapData';
@@ -41,6 +42,10 @@ export class World {
   env!: Environment;
   trees!: TreeSystem;
   clouds!: CloudSystem;
+  precip!: PrecipitationFx;
+  weather: Weather = loadWeather();
+  /** a lightning strike's thunder, with its distance (m) */
+  onThunder: ((distance: number) => void) | null = null;
   airfields!: AirfieldRenderer;
   lightBaker!: TerrainLightBaker;
   ready = false;
@@ -81,9 +86,23 @@ export class World {
     this.scene.add(this.terrain.group);
     this.trees = new TreeSystem(this.pool, this.scene);
     this.clouds = new CloudSystem(this.scene, this.env);
+    this.precip = new PrecipitationFx(this.scene);
+    this.precip.onThunder = (d) => this.onThunder?.(d);
+    this.setWeather(this.weather);
     this.airfields = new AirfieldRenderer(this.scene);
     this.lightBaker = new TerrainLightBaker(this.grid, MAP_HALF);
     this.ready = true;
+  }
+
+  /** Change the weather (clouds, deck, rain / snow, light and visibility). */
+  setWeather(w: Weather): void {
+    this.weather = { ...w };
+    if (!this.clouds) return; // applied when the world is built
+    this.clouds.setWeather(w);
+    this.precip.set(w);
+    const d = this.clouds.deck;
+    const gloom = w.kind === 'storm' ? 0.8 : w.kind === 'rain' ? 0.45 + 0.25 * w.precip : w.kind === 'snow' ? 0.25 : w.kind === 'overcast' ? 0.2 : 0;
+    Object.assign(this.env.weather, { gloom, deckBase: d.base, deckTop: d.top, deckSolid: d.solid, vis: w.vis });
   }
 
   /** Re-bake mountain shadows and sky light for the current sun. */
@@ -98,7 +117,10 @@ export class World {
 
   update(dt: number, camera: THREE.Camera, focus: THREE.Vector3): void {
     const cp = camera.position;
+    this.env.weather.flash = this.precip.flash;
+    this.clouds.flash = this.precip.flash;
     this.env.update(cp, focus);
+    this.precip.update(dt, camera, this.env.daylight * (1 - 0.45 * this.env.underDeck) + this.precip.flash);
     this.ocean.update(dt, cp);
     this.terrain.update(cp);
     this.trees.update(cp);

@@ -10,6 +10,18 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.3.0',
+    date: '2026-09-27',
+    title: "Weather",
+    notes: [
+      "NEW: WEATHER. A weather panel sits at the top left while you fly: pick CLEAR, CLOUDY, OVERCAST, RAIN, STORM or SNOW, then fine-tune CLOUD COVER, RAIN / SNOW and VISIBILITY (shown in NM). The arrow tab slides the panel off the screen and back. Your choice is saved.",
+      "New clouds: big, full cumulus built from overlapping puffs and spread across the whole theater, from a few fair-weather clouds on a clear day to a sky full of towering cumulus. They no longer look like small clumps of dots.",
+      "Overcast, rain and snow bring a solid cloud deck. Under it the sun is hidden and the day goes grey. Fly up into it and you're in whiteout, then break out on top into sunshine over a sea of cloud.",
+      "RAIN: a dark deck, rain streaks that stretch into lines at speed and lower visibility. STORM: heavier rain, darker cloud, thunderheads, and lightning that lights up the sky, followed by thunder. SNOW: drifting flakes in grey murk. Rain and snow fall only below the cloud base.",
+      "Weather only changes your own screen: in multiplayer, other pilots see their own weather. The old CLOUDS option in Settings is replaced by the weather panel. CLOUD QUALITY still sets how full each cloud is.",
+    ],
+  },
+  {
     version: '4.2.0',
     date: '2026-09-27',
     title: "Hero-detail jets",
