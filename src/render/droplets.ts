@@ -13,8 +13,13 @@ interface Drop {
   life: number;
 }
 
-const W = 480;
-const H = 270;
+// the drop canvas (twice the old resolution so the small beads stay crisp)
+const W = 960;
+const H = 540;
+/** canvas pixels per old-canvas pixel (keeps the motion the same on screen) */
+const K = 2;
+/** drops are a third of their old size */
+const SIZE = K / 3;
 const MAX = 140;
 
 function dropSprite(): HTMLCanvasElement {
@@ -114,7 +119,9 @@ export class ScreenDroplets {
     this.spawn += dt * rain * (18 + Math.min(speed, 250) * 0.12);
     while (this.spawn >= 1 && this.drops.length < MAX) {
       this.spawn -= 1;
-      this.drops.push({ x: Math.random() * W, y: Math.random() * H, r: 2 + Math.random() * 5.5, vx: 0, vy: 0, life: 4 + Math.random() * 8 });
+      // they land only along the very left and right edges of the screen
+      const edge = Math.random() * W * 0.07;
+      this.drops.push({ x: Math.random() < 0.5 ? edge : W - edge, y: Math.random() * H, r: (2 + Math.random() * 5.5) * SIZE, vx: 0, vy: 0, life: 4 + Math.random() * 8 });
     }
     if (this.spawn > 1) this.spawn = 1;
     const fast = Math.min(1, speed / 120);
@@ -122,20 +129,20 @@ export class ScreenDroplets {
     for (const d of this.drops) {
       d.life -= dt * (rain > 0.01 ? 1 : 2.5);
       // big drops start to run; at speed the airflow blows them off to the edges
-      const run = d.r > 5 || fast > 0.3;
+      const run = d.r > 5 * SIZE || fast > 0.3;
       if (run) {
         const ax = (d.x - cx) / W, ay = (d.y - cy) / H;
         // the airflow sweeps them sideways off the left and right edges
-        d.vx += (Math.sign(ax || 1) * (160 + Math.abs(ax) * 1400) * fast + Math.sign(ax || 1) * 12 * (1 - fast)) * dt;
-        d.vy += (ay * 300 * fast + 26 * (1 - fast)) * dt;
+        d.vx += (Math.sign(ax || 1) * (160 + Math.abs(ax) * 1400) * fast + Math.sign(ax || 1) * 12 * (1 - fast)) * K * dt;
+        d.vy += (ay * 300 * fast + 26 * (1 - fast)) * K * dt;
       }
       d.vx *= 1 - Math.min(1, dt * 2);
       d.vy *= 1 - Math.min(1, dt * 2);
       d.x += d.vx * dt;
       d.y += d.vy * dt;
-      if (!run) d.r = Math.min(7, d.r + dt * 0.25 * rain);
+      if (!run) d.r = Math.min(7 * SIZE, d.r + dt * 0.25 * rain * SIZE);
     }
-    this.drops = this.drops.filter((d) => d.life > 0 && d.x > -10 && d.x < W + 10 && d.y > -10 && d.y < H + 10);
+    this.drops = this.drops.filter((d) => d.life > 0 && d.x > -20 && d.x < W + 20 && d.y > -20 && d.y < H + 20);
     const g = this.g;
     g.clearRect(0, 0, W, H);
     for (const d of this.drops) {
@@ -143,7 +150,7 @@ export class ScreenDroplets {
       g.globalAlpha = a;
       // running drops stretch along their path
       const sp = Math.hypot(d.vx, d.vy);
-      const stretch = Math.min(2.2, 1 + sp / 120);
+      const stretch = Math.min(2.2, 1 + sp / (120 * K));
       g.save();
       g.translate(d.x, d.y);
       if (sp > 1) g.rotate(Math.atan2(d.vy, d.vx) - Math.PI / 2);
