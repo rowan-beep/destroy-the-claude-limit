@@ -10,6 +10,23 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.1.0',
+    date: '2026-09-27',
+    title: "The Rafale is coming",
+    notes: [
+      "It's here. NEW JET: the DASSAULT RAFALE C. You don't hear it coming. Your radar warning receiver is the first thing that knows, and by then it's already too late.",
+      "It sees you first: RBE2 AESA radar out to 90 NM, OSF passive infrared search and track out to 42 NM, and SPECTRA self-protection that jams your missiles and dumps chaff and flares on its own.",
+      "METEOR: a ramjet air-to-air missile that stays under power all the way to you. It reaches about 92 NM from 40,000 ft (about 52 NM at 20,000 ft), more than double the AIM-120D. Inside about 34 NM there is no escape: no turn, no dive and no afterburner outruns it.",
+      "MICA IR: an imaging heat-seeker with thrust vectoring that reaches about 27 NM, out-reaching every other heat-seeker in the game. It rides on the wingtips and pylons.",
+      "14 hardpoints and 20,900 lb of payload: up to 10 air-to-air missiles, plus a 30 mm Nexter 30M791 cannon with 125 rounds at 2,500 rounds a minute.",
+      "Two Safran M88-2 engines (11,240 lbf dry and 16,860 lbf with afterburner each) push the lightest jet in the theater to Mach 1.8 and 50,000 ft. Its close-coupled canard delta holds energy in the turn, pulls +9 G and keeps flying at 30 degrees angle of attack. Combat range is 2,000 NM with tanks.",
+      "Dimensions: 50.2 ft long, 35.8 ft span, 17.4 ft tall. Empty weight 21,700 lb, max takeoff 54,000 lb, g limits +9 / -3.2.",
+      "New 3D model: the long pointed radome, OSF sensors ahead of the windscreen, the fixed refuelling probe curving forward on the right side, bubble canopy, big canards over the D-shaped side intakes, cropped delta wing with slats and elevons, wingtip missile rails, and the single fin with its squared SPECTRA fairing. Two close-set nozzles, twin nose wheels and French grey paint. It has its own engine sound, cockpit displays and stores page.",
+      "Loadouts: AIR SUPERIORITY (4 Meteor, 4 MICA), COMBAT AIR PATROL (2 Meteor, 4 MICA, 3 tanks), MAX AAM (6 Meteor, 4 MICA) and DOGFIGHT (2 Meteor, 6 MICA).",
+      "The Rafale is in every mode, including multiplayer on the official servers. Pick it in the hangar... if you'd rather be the one hunting.",
+    ],
+  },
+  {
     version: '4.0.1',
     date: '2026-09-27',
     title: "Intakes the right way up",

@@ -1,24 +1,24 @@
 # TRIAD — Air Combat Simulator
 
 A browser combat flight simulator in the spirit of DCS, built with TypeScript and
-Three.js. Four aircraft, two theaters (Frostfall Strait and Triad Isles), and an AI that uses the
+Three.js. Five aircraft, two theaters (Frostfall Strait and Triad Isles), and an AI that uses the
 terrain against you.
 
 **Aircraft (the only vehicles in the game):**
 
-| | F-15EX Eagle II | F/A-18E/F Super Hornet | Eurofighter Typhoon | Sukhoi Su-35S |
-|---|---|---|---|---|
-| Crew | 2 | 2 | 1 | 1 |
-| Max speed | Mach 2.5 | Mach 1.8 | Mach 2.0 | Mach 2.25 |
-| Ceiling | 60,000 ft | 50,000 ft | 55,000 ft | 59,060 ft |
-| Engines | 2 × F110-GE-129 (29,500 lbf AB) | 2 × F414-GE-400 (22,000 lbf AB) | 2 × EJ200 (20,233 lbf AB) | 2 × AL-41F1S, 3D thrust vectoring (32,000 lbf AB) |
-| MTOW | 81,000 lb | 66,000 lb | 51,800 lb | 76,059 lb |
-| Gun | M61A1 20 mm | M61A2 20 mm | BK-27 27 mm | GSh-30-1 30 mm (150 rds) |
-| Radar | AN/APG-82(V)1 AESA | AN/APG-79 AESA | CAPTOR-E + PIRATE IRST | N035 Irbis-E PESA + OLS-35 IRST |
-| Missiles | AIM-120D, AIM-9X | AIM-120D, AIM-9X | AIM-120D, AIM-9X | R-77M, R-74M (Su-35S only) |
+| | F-15EX Eagle II | F/A-18E/F Super Hornet | Eurofighter Typhoon | Sukhoi Su-35S | Dassault Rafale C |
+|---|---|---|---|---|---|
+| Crew | 2 | 2 | 1 | 1 | 1 |
+| Max speed | Mach 2.5 | Mach 1.8 | Mach 2.0 | Mach 2.25 | Mach 1.8 |
+| Ceiling | 60,000 ft | 50,000 ft | 55,000 ft | 59,060 ft | 50,000 ft |
+| Engines | 2 × F110-GE-129 (29,500 lbf AB) | 2 × F414-GE-400 (22,000 lbf AB) | 2 × EJ200 (20,233 lbf AB) | 2 × AL-41F1S, 3D thrust vectoring (32,000 lbf AB) | 2 × M88-2 (16,860 lbf AB) |
+| MTOW | 81,000 lb | 66,000 lb | 51,800 lb | 76,059 lb | 54,000 lb |
+| Gun | M61A1 20 mm | M61A2 20 mm | BK-27 27 mm | GSh-30-1 30 mm (150 rds) | 30M791 30 mm (125 rds) |
+| Radar | AN/APG-82(V)1 AESA | AN/APG-79 AESA | CAPTOR-E + PIRATE IRST | N035 Irbis-E PESA + OLS-35 IRST | RBE2 AESA + OSF IRST, SPECTRA |
+| Missiles | AIM-120D, AIM-9X | AIM-120D, AIM-9X | AIM-120D, AIM-9X | R-77M, R-74M (Su-35S only) | Meteor, MICA IR (Rafale only) |
 
-Current version: **v4.0.1** — see [CHANGELOG.md](CHANGELOG.md) (also in the game
-under **v4.0.1 · NOTES** on the main menu).
+Current version: **v4.1.0** — see [CHANGELOG.md](CHANGELOG.md) (also in the game
+under **v4.1.0 · NOTES** on the main menu).
 
 Each jet is a high-detail procedural model (~150k triangles): blended fuselages
 built from real cross-sections, hollow intakes with ducts and fans, airfoil
@@ -27,8 +27,10 @@ detailed landing gear, seated pilots and painted liveries with panel lines,
 rivets, stencils and weathering.
 
 Missiles: AIM-120D AMRAAM (active radar, datalink midcourse, loft) and AIM-9X
-(IR, high off-boresight) on the Western jets; R-77M (active radar, dual-pulse,
-longest reach) and R-74M (IR, canards + thrust vectoring) on the Su-35S only. Countermeasures: flares and chaff.
+(IR, high off-boresight) on the F-15EX, Super Hornet and Typhoon; R-77M (active
+radar, dual-pulse) and R-74M (IR, canards + thrust vectoring) on the Su-35S only;
+Meteor (ramjet, about 92 NM reach and a 34 NM no-escape zone, the longest in the
+game) and MICA IR (imaging IR, thrust vectoring, about 27 NM) on the Rafale only. Countermeasures: flares and chaff.
 
 ## Playing
 
@@ -139,6 +141,8 @@ Each jet has its own 3D cockpit with working displays:
   get-u-home standby display.
 - **Su-35S** — two 15 in MFI-35 wide-screen displays side by side, the PUI-35
   control display and a wide-angle HUD.
+- **Rafale** — a head-level display between two lateral displays,
+  and the wide HUD.
 
 Display pages: **RADAR** (B-scope, RWS/TWS/ACM/silent, track files, STT data
 block, launch zone, jammer strobes, why a lock was lost), **TSD / SA / PA**

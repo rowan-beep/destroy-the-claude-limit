@@ -44,6 +44,13 @@ const TANKS: Record<AircraftType, TankDef[]> = {
     { name: 'WING R', frac: 0.17, box: [0.64, 0.4, 0.2, 0.24] },
     { name: 'FEED', frac: 0.16, box: [0.41, 0.3, 0.18, 0.32] },
   ],
+  RAFALE: [
+    { name: 'FUS FWD', frac: 0.24, box: [0.41, 0.06, 0.18, 0.2] },
+    { name: 'FUS AFT', frac: 0.22, box: [0.41, 0.66, 0.18, 0.2] },
+    { name: 'WING L', frac: 0.19, box: [0.16, 0.4, 0.2, 0.24] },
+    { name: 'WING R', frac: 0.19, box: [0.64, 0.4, 0.2, 0.24] },
+    { name: 'FEED', frac: 0.16, box: [0.41, 0.3, 0.18, 0.32] },
+  ],
   SU35: [
     { name: 'TK 1', frac: 0.2, box: [0.41, 0.06, 0.18, 0.18] },
     { name: 'TK 3', frac: 0.2, box: [0.41, 0.66, 0.18, 0.2] },

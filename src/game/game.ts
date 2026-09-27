@@ -48,7 +48,7 @@ import { enemyTypesFor, AIRCRAFT_TYPES } from '../aircraft/specs';
 
 export type GameState = 'menu' | 'loading' | 'playing' | 'paused' | 'map' | 'results' | 'replay';
 
-const GUN_WEAPONS = new Set(['M61', 'BK-27', 'GSh-30', 'GUN']);
+const GUN_WEAPONS = new Set(['M61', 'BK-27', 'GSh-30', '30M791', 'GUN']);
 const CLOUD_DENSITY: Record<string, number> = { low: 0.5, medium: 0.75, high: 1, ultra: 1.35 };
 const CLOUD_COVER: Record<string, number> = { clear: 0.12, scattered: 0.55, broken: 0.85, overcast: 0.98 };
 
@@ -957,7 +957,7 @@ export class Game implements ModeHost {
       p.radar.scopeRange = r[(r.indexOf(p.radar.scopeRange) + 1) % r.length];
     }
     if (inp.pressed('irst')) {
-      if (!p.irst) this.message('NO IRST ON THIS AIRCRAFT (TYPHOON AND SU-35S ONLY)', 'warn', 2);
+      if (!p.irst) this.message('NO IRST ON THIS AIRCRAFT (TYPHOON, SU-35S AND RAFALE ONLY)', 'warn', 2);
       else {
         let best: Aircraft | null = null;
         let bd = Infinity;
@@ -970,7 +970,7 @@ export class Game implements ModeHost {
             best = c.target;
           }
         }
-        const irst = p.type === 'SU35' ? 'OLS-35' : 'PIRATE';
+        const irst = p.type === 'SU35' ? 'OLS-35' : p.type === 'RAFALE' ? 'OSF' : 'PIRATE';
         if (best && p.irst.setLock(best, this.sim)) this.message(`${irst} IRST LOCK (PASSIVE)`, 'good', 2);
         else this.message(`${irst}: NO IR TRACK`, 'warn', 2);
       }

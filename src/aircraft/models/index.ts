@@ -4,6 +4,7 @@ import { buildF15EX } from './f15ex';
 import { buildFA18 } from './fa18';
 import { buildTyphoon } from './typhoon';
 import { buildSu35, su35PlainLivery } from './su35';
+import { buildRafale } from './rafale';
 import { partMaterials } from './parts';
 import { f15PlainLivery } from './f15ex';
 import type { PaintConfig } from './paint';
@@ -20,6 +21,7 @@ function template(ac: Aircraft): AirframeVisual {
     if (ac.type === 'F15EX') buildF15EX(t);
     else if (ac.type === 'FA18EF') buildFA18(t);
     else if (ac.type === 'SU35') buildSu35(t);
+    else if (ac.type === 'RAFALE') buildRafale(t);
     else buildTyphoon(t);
     const pm = partMaterials();
     t.finishTemplate(new Set([pm.duct, pm.seat, pm.flight, pm.helmet, pm.visor, pm.antenna, pm.formation, pm.darkMetal, pm.lens, pm.frame]));
@@ -28,7 +30,7 @@ function template(ac: Aircraft): AirframeVisual {
   return t;
 }
 
-/** Build the full visual model for an aircraft (one of the four allowed types). */
+/** Build the full visual model for an aircraft (one of the five allowed types). */
 export function createAirframe(ac: Aircraft): AirframeVisual {
   const v = template(ac).cloneFor(ac);
   v.buildStores();

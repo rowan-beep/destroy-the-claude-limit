@@ -122,7 +122,7 @@ export class Missile {
       // coast on the last update; the shooter's client says when it goes off
       this.prevPos.copy(this.pos);
       this.pos.addScaledVector(this.vel, dt);
-      this.motorOn = this.age < s.burnTime + (s.seeker === 'ARH' ? 0.45 : 0);
+      this.motorOn = this.age < s.burnTime + (s.sustain?.time ?? 0) + (s.seeker === 'ARH' ? 0.45 : 0);
       this.mach = this.vel.length() / 330;
       if (this.age > s.maxTime + 6) this.alive = false;
       return;
@@ -136,13 +136,24 @@ export class Missile {
 
     // --- motor ---
     const ignite = s.seeker === 'ARH' ? 0.45 : 0;
-    this.motorOn = this.age >= ignite && this.age < ignite + s.burnTime;
+    const sus = s.sustain;
+    const boosting = this.age >= ignite && this.age < ignite + s.burnTime;
+    const sustaining = !!sus && !boosting && this.age >= ignite && this.age < ignite + s.burnTime + sus.time;
+    this.motorOn = boosting || sustaining;
     let thrust = 0;
-    if (this.motorOn) {
+    // the booster burns most of the propellant; a ramjet sustainer burns the rest slowly
+    const burnMass = s.mass0 - s.massBurnout;
+    const boostShare = sus ? 0.6 : 1;
+    if (boosting) {
       // a rocket nozzle works better in thin air: no outside pressure pushing
       // back on the exit, so thrust grows by several percent up high
       thrust = s.thrust * (1 + 0.09 * (1 - _atm.delta));
-      this.mass -= ((s.mass0 - s.massBurnout) / s.burnTime) * dt;
+      this.mass -= ((burnMass * boostShare) / s.burnTime) * dt;
+    } else if (sustaining && sus) {
+      // an air-breathing ramjet needs speed and air: it loses thrust in thin air and when slow
+      const ram = Math.min(1, Math.max(0, (M - 0.8) / 1.2));
+      thrust = sus.thrust * ram * (0.35 + 0.65 * Math.sqrt(_atm.sigma));
+      this.mass -= ((burnMass * (1 - boostShare)) / sus.time) * dt;
     }
     if (this.mode === 'EJECT' && this.age >= ignite) this.mode = this.target ? 'MIDCOURSE' : 'LOST';
 
@@ -193,7 +204,7 @@ export class Missile {
       sim.detonateMissile(this, this.pos, ground <= 0 ? 'water' : 'ground');
       return;
     }
-    if (this.age > s.maxTime || (!this.motorOn && this.age > s.burnTime + 3 && V < 140)) {
+    if (this.age > s.maxTime || (!this.motorOn && this.age > s.burnTime + (s.sustain?.time ?? 0) + 3 && V < 140)) {
       sim.detonateMissile(this, this.pos, 'selfdestruct');
     }
   }

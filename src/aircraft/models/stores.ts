@@ -1,4 +1,4 @@
-// Store meshes: AIM-120D AMRAAM, AIM-9X Sidewinder, R-77M, R-74M, external fuel tank,
+// Store meshes: AIM-120D AMRAAM, AIM-9X Sidewinder, R-77M, R-74M, Meteor, MICA IR, external fuel tank,
 // plus pylons, LAU-128/LAU-127 style rail launchers and conformal / semi-
 // recessed ejector mounts. Vertex-coloured, built along z (nose to -z).
 
@@ -158,6 +158,82 @@ function r74m(): THREE.BufferGeometry {
   return join(parts);
 }
 
+const EU_BODY = new THREE.Color('#dcdcd6');
+const EU_GREY = new THREE.Color('#a7abab');
+const EU_BAND = new THREE.Color('#c9a43a');
+const EU_BAND2 = new THREE.Color('#7a5b2d');
+
+/**
+ * Meteor: ogive radome, a smooth body with no mid wings, and the ducted
+ * rocket's two box air intakes low on its flanks, feeding the ramjet in the
+ * tail. Four small tail control fins.
+ */
+function meteor(): THREE.BufferGeometry {
+  const L = 3.65, r = 0.089;
+  const z0 = -L / 2;
+  const prof: P2[] = [[0.003, z0]];
+  for (let k = 1; k <= 14; k++) {
+    const u = k / 14;
+    prof.push([r * Math.sqrt(1 - (1 - u) * (1 - u)), z0 + u * 0.66]);
+  }
+  prof.push([r, L / 2 - 0.08], [r * 0.9, L / 2 - 0.01], [r * 0.74, L / 2]);
+  const body = paintBands(lathe(prof, 30, 0, 0, false, true), EU_BODY, [[z0 + 0.84, z0 + 0.9, EU_BAND], [-0.4, -0.35, EU_BAND2], [z0 + 0.66, z0 + 0.7, EU_GREY]], [z0 + 0.66, RADOME]);
+  const parts: THREE.BufferGeometry[] = [body];
+  // the two ramjet air intakes: boxes on the lower flanks with ramped fronts
+  for (const s of [-1, 1]) {
+    const a = s * (Math.PI * 0.5 + 0.62); // about 4 and 8 o'clock
+    const cx = Math.cos(a) * (r + 0.02), cy = Math.sin(a) * (r + 0.02);
+    const duct = loftProfile({
+      stations: stations(-0.1, 1.25, 12),
+      profile: (z) => {
+        const u = Math.min(1, (z + 0.1) / 0.3);
+        const w = 0.048, h = 0.05 * (0.35 + 0.65 * u);
+        return [[-w, -h], [w, -h], [w, h], [-w, h]] as P2[];
+      },
+      sub: 1,
+      full: true,
+      capStart: true,
+      capEnd: true,
+    });
+    duct.rotateZ(a + Math.PI / 2);
+    duct.translate(cx, cy, 0);
+    parts.push(paintBands(duct, EU_GREY, []));
+  }
+  // tail control fins, in the gaps between the intakes
+  for (const f of cruciform(L / 2 - 0.4, 0.36, 0.2, 0.17, 0.16, r, 0.045)) parts.push(paintBands(f, EU_BODY, []));
+  const conduit = roundBox(0.03, 0.022, 2.0, 0.008);
+  conduit.translate(0, r + 0.008, -0.2);
+  parts.push(paintBands(conduit, EU_GREY, []));
+  for (const z of [-0.6, 0.45]) {
+    const h = roundBox(0.03, 0.03, 0.06, 0.008);
+    h.translate(0, r + 0.02, z);
+    parts.push(paintBands(h, EU_GREY, []));
+  }
+  return join(parts);
+}
+
+/** MICA IR: glass imaging-IR dome, long low strakes along the body, four tail fins. */
+function micaIr(): THREE.BufferGeometry {
+  const L = 3.1, r = 0.08;
+  const z0 = -L / 2;
+  const prof: P2[] = [];
+  for (let k = 0; k <= 10; k++) {
+    const a = (k / 10) * (Math.PI / 2);
+    prof.push([Math.max(0.003, Math.sin(a) * r * 0.82), z0 + (1 - Math.cos(a)) * r * 0.82]);
+  }
+  prof.push([r * 0.88, z0 + 0.14], [r, z0 + 0.34], [r, L / 2 - 0.05], [r * 0.88, L / 2]);
+  const body = paintBands(lathe(prof, 26, 0, 0, false, true), EU_BODY, [[z0 + 0.46, z0 + 0.52, EU_BAND], [0.2, 0.25, EU_BAND2], [z0 + 0.34, z0 + 0.38, EU_GREY]], [z0 + r * 0.75, GLASS]);
+  const parts: THREE.BufferGeometry[] = [body];
+  // long, very low strakes from the seeker section to the tail fins
+  for (const f of cruciform(z0 + 0.55, 1.75, 1.35, 0.06, 0.35, r, 0.03)) parts.push(paintBands(f, EU_BODY, []));
+  // tail control fins
+  for (const f of cruciform(L / 2 - 0.36, 0.33, 0.18, 0.17, 0.15, r, 0.045)) parts.push(paintBands(f, EU_BODY, []));
+  const conduit = roundBox(0.026, 0.02, 1.7, 0.006);
+  conduit.translate(0, r + 0.006, 0.05);
+  parts.push(paintBands(conduit, EU_GREY, []));
+  return join(parts);
+}
+
 function tank(): THREE.BufferGeometry {
   const L = 5.0, r = 0.38;
   const R = curve([[-2.5, 0.01], [-2.1, 0.2], [-1.4, 0.34], [-0.6, r], [1.0, r], [1.9, 0.27], [2.4, 0.1], [2.5, 0.02]]);
@@ -174,7 +250,7 @@ function tank(): THREE.BufferGeometry {
 export function storeGeometry(t: StoreType): THREE.BufferGeometry {
   const key = t;
   if (cache[key]) return cache[key]!;
-  const g = t === 'AIM120D' ? aim120() : t === 'AIM9X' ? aim9x() : t === 'R77M' ? r77m() : t === 'R74M' ? r74m() : tank();
+  const g = t === 'AIM120D' ? aim120() : t === 'AIM9X' ? aim9x() : t === 'R77M' ? r77m() : t === 'R74M' ? r74m() : t === 'METEOR' ? meteor() : t === 'MICAIR' ? micaIr() : tank();
   cache[key] = g;
   return g;
 }
@@ -208,7 +284,7 @@ function launcher(len: number, r: number, russian = false): THREE.BufferGeometry
 
 /** Store radius (m). */
 export function storeRadius(store: StoreType): number {
-  return store === 'TANK' ? 0.38 : store === 'AIM120D' ? 0.089 : store === 'R77M' ? 0.1 : store === 'R74M' ? 0.085 : 0.064;
+  return store === 'TANK' ? 0.38 : store === 'AIM120D' ? 0.089 : store === 'R77M' ? 0.1 : store === 'R74M' ? 0.085 : store === 'METEOR' ? 0.089 : store === 'MICAIR' ? 0.08 : 0.064;
 }
 
 /** Pylon height below the wing for a hung store. */
@@ -244,7 +320,7 @@ export function pylonGeometry(mount: string, store: StoreType, drop: number): TH
   const key = `pylon-${mount}-${store}-${drop.toFixed(2)}`;
   if (cache[key]) return cache[key]!;
   const r = storeRadius(store);
-  const ir = store === 'AIM9X' || store === 'R74M';
+  const ir = store === 'AIM9X' || store === 'R74M' || store === 'MICAIR';
   const col = (g: THREE.BufferGeometry) => colorize(g, (_p, c) => c.copy(PYLON));
   let g: THREE.BufferGeometry;
   if (mount === 'rail') {
@@ -278,7 +354,7 @@ export function shoulderGeometry(store: StoreType, dx: number, top: number): THR
   const key = `shoulder-${store}-${dx.toFixed(2)}-${top.toFixed(2)}`;
   if (cache[key]) return cache[key]!;
   const r = storeRadius(store);
-  const ir = store === 'AIM9X' || store === 'R74M';
+  const ir = store === 'AIM9X' || store === 'R74M' || store === 'MICAIR';
   const s = Math.sign(dx) || 1;
   const bottom = r + 0.12;
   const blade = pylonBlade(top + bottom, 2.3, 0.13);

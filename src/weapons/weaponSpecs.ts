@@ -1,7 +1,8 @@
 // Air-to-air missile performance data: AIM-120D AMRAAM and AIM-9X Block II
-// for the Western jets, R-77M and R-74M for the Su-35S only.
+// for the US / European jets, R-77M and R-74M for the Su-35S, and Meteor and
+// MICA IR for the Rafale.
 
-export type MissileType = 'AIM120D' | 'AIM9X' | 'R77M' | 'R74M';
+export type MissileType = 'AIM120D' | 'AIM9X' | 'R77M' | 'R74M' | 'METEOR' | 'MICAIR';
 export type WeaponSelect = 'GUN' | MissileType;
 
 export interface MissileSpec {
@@ -32,6 +33,11 @@ export interface MissileSpec {
   length: number;
   diameter: number;
   description: string;
+  /**
+   * Air-breathing sustainer after the boost (Meteor's throttleable ramjet):
+   * thrust (N) for this many seconds after the booster burns out.
+   */
+  sustain?: { thrust: number; time: number };
 }
 
 export const MISSILES: Record<MissileType, MissileSpec> = {
@@ -139,6 +145,60 @@ export const MISSILES: Record<MissileType, MissileSpec> = {
     diameter: 0.17,
     description: 'Infrared dogfight missile with canards and gas-dynamic thrust vectoring. High off-boresight through the helmet sight, slightly longer range than the AIM-9X.',
   },
+  METEOR: {
+    type: 'METEOR',
+    name: 'MBDA Meteor',
+    short: 'METEOR',
+    seeker: 'ARH',
+    mass0: 190,
+    massBurnout: 150,
+    // solid booster, then the throttleable ducted rocket (ramjet) cruises for most of the flight
+    burnTime: 3.2,
+    thrust: 17000,
+    sustain: { thrust: 2500, time: 85 },
+    refArea: 0.0249,
+    maxG: 38,
+    qFullG: 90000,
+    gimbalDeg: 60,
+    seekerRange: 19500,
+    fuseRadius: 9,
+    lethalRadius: 15,
+    damage: 175,
+    maxTime: 240,
+    minRange: 1200,
+    navConstant: 4,
+    loft: true,
+    ccm: 0.4,
+    length: 3.65,
+    diameter: 0.178,
+    description: 'Ramjet-powered beyond-visual-range missile: a short rocket boost, then an air-breathing ducted rocket that keeps it powered and fast to the end. Reaches about 92 NM from 40,000 ft at Mach 1.3 (about 52 NM at 20,000 ft) with a no-escape zone of about 34 NM, the biggest in the theater. Rafale only.',
+  },
+  MICAIR: {
+    type: 'MICAIR',
+    name: 'MBDA MICA IR',
+    short: 'MICA IR',
+    seeker: 'IR',
+    mass0: 112,
+    massBurnout: 72,
+    burnTime: 5.8,
+    thrust: 14000,
+    refArea: 0.0201,
+    maxG: 50,
+    qFullG: 58000,
+    gimbalDeg: 60,
+    seekerRange: 12000,
+    fuseRadius: 6.5,
+    lethalRadius: 11,
+    damage: 128,
+    maxTime: 55,
+    minRange: 300,
+    navConstant: 4.4,
+    loft: false,
+    ccm: 0.55,
+    length: 3.1,
+    diameter: 0.16,
+    description: 'Imaging-infrared missile with thrust vectoring and long body strakes. Reaches about 27 NM from 40,000 ft and 18 NM at 20,000 ft, longer than the other heat-seekers (it doubles as a medium-range missile), launched from the Rafale\'s wingtips and pylons. Rafale only.',
+  },
 };
 
 /** Infrared (Fox 2) or radar (Fox 3)? */
@@ -174,11 +234,12 @@ export function launchZone(
   const speedF = 1 + 0.35 * Math.max(-0.5, Math.min(1.2, shooterMach - 0.9));
   const climbF = 1 + Math.max(-0.35, Math.min(0.25, (shooterAlt - targetAlt) / 12000));
   const closeF = 0.55 + 0.45 * ((aspectCos + 1) / 2) + (aspectCos > 0 ? (aspectCos * targetSpeed) / 1400 : (aspectCos * targetSpeed) / 900);
-  const reach = type === 'R77M' ? 1.12 : type === 'R74M' ? 1.06 : 1;
+  const reach = type === 'R77M' ? 1.12 : type === 'R74M' ? 1.06 : type === 'METEOR' ? 1.6 : type === 'MICAIR' ? 1.2 : 1;
   if (!isIrMissile(type)) {
     const base = (22000 + 58000 * altF) * reach;
     const rmax = Math.max(4000, base * speedF * climbF * closeF);
-    return { rmin: MISSILES[type].minRange, rmax, rne: rmax * 0.42 };
+    // the ramjet keeps Meteor powered to the end: a far bigger no-escape zone
+    return { rmin: MISSILES[type].minRange, rmax, rne: rmax * (type === 'METEOR' ? 0.36 : 0.42) };
   }
   const base = (6500 + 12500 * altF) * reach;
   const rmax = Math.max(1500, base * speedF * climbF * Math.max(0.55, closeF));
@@ -187,7 +248,7 @@ export function launchZone(
 
 /** Short display code (HUD, MFD). */
 export function weaponCode(t: MissileType): string {
-  return t === 'AIM120D' ? '120D' : t === 'AIM9X' ? '9X' : t === 'R77M' ? 'R77M' : 'R74M';
+  return t === 'AIM120D' ? '120D' : t === 'AIM9X' ? '9X' : t === 'R77M' ? 'R77M' : t === 'R74M' ? 'R74M' : t === 'METEOR' ? 'MTR' : 'MICA';
 }
 
 /**

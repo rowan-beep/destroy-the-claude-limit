@@ -1,4 +1,4 @@
-// The ONLY four aircraft in the game. Every number here comes from the
+// The five aircraft in the game. Every number here comes from the
 // published specifications given in the design brief; aerodynamic
 // coefficients are engineering estimates tuned so the real top speeds,
 // ceilings and ranges fall out of the physics.
@@ -6,8 +6,8 @@
 import { FT, LB, LBF } from '../core/constants';
 import type { MissileType } from '../weapons/weaponSpecs';
 
-export type AircraftType = 'F15EX' | 'FA18EF' | 'TYPHOON' | 'SU35';
-export const AIRCRAFT_TYPES: AircraftType[] = ['F15EX', 'FA18EF', 'TYPHOON', 'SU35'];
+export type AircraftType = 'F15EX' | 'FA18EF' | 'TYPHOON' | 'SU35' | 'RAFALE';
+export const AIRCRAFT_TYPES: AircraftType[] = ['F15EX', 'FA18EF', 'TYPHOON', 'SU35', 'RAFALE'];
 
 export type StoreType = MissileType | 'TANK';
 
@@ -172,6 +172,8 @@ const AIM9 = 'AIM9X' as const;
 const TANK = 'TANK' as const;
 const R77 = 'R77M' as const;
 const R74 = 'R74M' as const;
+const MTR = 'METEOR' as const;
+const MICA = 'MICAIR' as const;
 /** fore-aft centre of the wing missile racks: every rack's missiles sit nose-level */
 const F15_RZ = 1.3;
 const FA18_RZ = 1.8;
@@ -644,11 +646,131 @@ const SU35: AircraftSpec = {
   paint: { top: '#6f8ea6', bottom: '#b7cad6', accent: '#40566a' },
 };
 
+// ---------------------------------------------------------------------------
+// Dassault Rafale C
+// ---------------------------------------------------------------------------
+const RAFALE: AircraftSpec = {
+  type: 'RAFALE',
+  name: 'Dassault Rafale C',
+  shortName: 'Rafale',
+  role: 'Twin-engine canard-delta omnirole fighter',
+  crew: 1,
+  description:
+    'The lightest and most agile jet in the theater: a close-coupled canard delta that keeps its energy in the turn and flies happily at high angle of attack. Two Safran M88-2 engines, Mach 1.8, 50,000 ft, RBE2 AESA radar, OSF passive IRST and the SPECTRA self-protection suite. RBE2 radar reach 90 NM, combat range 2,000 NM with tanks. Carries its own Meteor ramjet missiles (about 92 NM reach and a 34 NM no-escape zone, the biggest in the theater) and MICA IR. 30 mm Nexter 30M791 cannon.',
+  lengthFt: 50.2,
+  wingspanFt: 35.8,
+  heightFt: 17.4,
+  length: 50.2 * FT,
+  span: 35.8 * FT,
+  height: 17.4 * FT,
+  emptyMass: 9850,
+  internalFuel: 4700,
+  maxTakeoff: 24500,
+  maxTakeoffLb: 54000,
+  payloadLb: 20900,
+  wingArea: 45.7,
+  cd0: 0.0188,
+  waveDragPeak: 2.0,
+  waveDragHigh: 1.85,
+  kInduced: 0.15,
+  clAlpha: 3.5,
+  // the close-coupled canards keep the delta lifting to high angles of attack
+  clMax: 1.65,
+  alphaMaxDeg: 30,
+  maxMach: 1.8,
+  ceilingFt: 50000,
+  maxIasKts: 750,
+  engineName: '2 x Safran M88-2',
+  engines: 2,
+  thrustMil: 50000,
+  thrustAb: 75000,
+  thrustMilLbf: 11240,
+  thrustAbLbf: 16860,
+  tsfcMil: 0.8,
+  tsfcAb: 1.72,
+  ramFactor: 0.5,
+  spool: 1.75,
+  gLimit: 9.0,
+  gOverride: 11.0,
+  gStructural: 13.0,
+  gNeg: -3.2,
+  rollRate: 280,
+  pitchRate: 32,
+  cornerKts: 320,
+  rotateKts: 130,
+  approachKts: 125,
+  speedbrakeCd: 0.045,
+  combatRangeNm: 2000,
+  hardpoints: 14,
+  maxAAM: 10,
+  missiles: { radar: MTR, ir: MICA },
+  tvcDeg: 0,
+  gun: {
+    name: 'Nexter 30M791 30mm revolver cannon',
+    caliberMm: 30,
+    rounds: 125,
+    rpm: 2500,
+    muzzleVelocity: 1025,
+    damage: 18,
+    dispersionMil: 3.5,
+    port: [0.8, -0.35, -2.4],
+  },
+  stations: [
+    { id: 1, label: 'LWT', pos: [-5.4, -0.34, 4.15], allowed: [MICA], mount: 'rail' },
+    { id: 2, label: 'LW OB', pos: [-4.25, -0.62, 3.45], allowed: [MICA, MTR], mount: 'pylon', hang: -0.4 },
+    { id: 3, label: 'LW MID', pos: [-3.15, -0.7, 3.0], allowed: [MTR, MICA, TANK], mount: 'pylon', hang: -0.41 },
+    { id: 4, label: 'LW IB', pos: [-2.1, -0.75, 2.5], allowed: [TANK, MTR], mount: 'pylon', hang: -0.42 },
+    { id: 5, label: 'L FUS-F', pos: [-0.72, -1.02, -0.9], allowed: [MTR, MICA], mount: 'pylon' },
+    { id: 6, label: 'L FUS-A', pos: [-0.72, -1.0, 2.6], allowed: [MTR, MICA], mount: 'pylon' },
+    { id: 7, label: 'CL', pos: [0, -1.2, 0.9], allowed: [TANK], mount: 'pylon' },
+    { id: 8, label: 'R FUS-A', pos: [0.72, -1.0, 2.6], allowed: [MTR, MICA], mount: 'pylon' },
+    { id: 9, label: 'R FUS-F', pos: [0.72, -1.02, -0.9], allowed: [MTR, MICA], mount: 'pylon' },
+    { id: 10, label: 'RW IB', pos: [2.1, -0.75, 2.5], allowed: [TANK, MTR], mount: 'pylon', hang: -0.42 },
+    { id: 11, label: 'RW MID', pos: [3.15, -0.7, 3.0], allowed: [MTR, MICA, TANK], mount: 'pylon', hang: -0.41 },
+    { id: 12, label: 'RW OB', pos: [4.25, -0.62, 3.45], allowed: [MICA, MTR], mount: 'pylon', hang: -0.4 },
+    { id: 13, label: 'RWT', pos: [5.4, -0.34, 4.15], allowed: [MICA], mount: 'rail' },
+  ],
+  loadouts: [
+    {
+      id: 'rafale-aa',
+      name: 'AIR SUPERIORITY — 4x METEOR, 4x MICA IR',
+      stores: { 1: MICA, 2: MICA, 5: MTR, 6: MTR, 8: MTR, 9: MTR, 12: MICA, 13: MICA },
+    },
+    {
+      id: 'rafale-cap',
+      name: 'COMBAT AIR PATROL — 2x METEOR, 4x MICA IR, 3x TANKS',
+      stores: { 1: MICA, 2: MICA, 3: TANK, 5: MTR, 7: TANK, 9: MTR, 11: TANK, 12: MICA, 13: MICA },
+    },
+    {
+      id: 'rafale-max',
+      name: 'MAX AAM — 6x METEOR, 4x MICA IR',
+      stores: { 1: MICA, 2: MICA, 3: MTR, 5: MTR, 6: MTR, 8: MTR, 9: MTR, 11: MTR, 12: MICA, 13: MICA },
+    },
+    {
+      id: 'rafale-dog',
+      name: 'DOGFIGHT — 2x METEOR, 6x MICA IR',
+      stores: { 1: MICA, 2: MICA, 3: MICA, 5: MTR, 9: MTR, 11: MICA, 12: MICA, 13: MICA },
+    },
+  ],
+  radar: { name: 'Thales RBE2 AESA', kind: 'AESA', rangeNm: 90, azLimitDeg: 70, elLimitDeg: 60, maxTracks: 40, frameTime: 1.1 },
+  irst: { name: 'OSF Optronique Secteur Frontal (IRST)', rangeNm: 42, fovDeg: 70 },
+  ew: { name: 'SPECTRA', maws: true, jamming: 0.3, autoDispense: true },
+  flightControl: 'Triplex digital fly-by-wire (carefree handling, no G/AoA exceedance)',
+  chaff: 112,
+  flares: 32,
+  rcs: 1.0,
+  irSignature: 0.85,
+  gear: { nose: -4.7, main: 1.1, track: 1.35, height: 1.75 },
+  hitRadius: 4.6,
+  paint: { top: '#7b8388', bottom: '#949ca1', accent: '#4f575c' },
+};
+
 export const SPECS: Record<AircraftType, AircraftSpec> = {
   F15EX: F15EX,
   FA18EF: FA18,
   TYPHOON: TYPHOON,
   SU35: SU35,
+  RAFALE: RAFALE,
 };
 
 export function getSpec(t: AircraftType): AircraftSpec {
@@ -674,6 +796,8 @@ export const STORES: Record<StoreType, StoreSpec> = {
   TANK: { type: 'TANK', name: 'External fuel tank (480 gal)', mass: 220, dragCd: 0.0045, length: 5.0, diameter: 0.75 },
   R77M: { type: 'R77M', name: 'R-77M', mass: 190, dragCd: 0.0013, length: 3.71, diameter: 0.2 },
   R74M: { type: 'R74M', name: 'R-74M', mass: 105, dragCd: 0.0009, length: 2.92, diameter: 0.17 },
+  METEOR: { type: 'METEOR', name: 'MBDA Meteor', mass: 190, dragCd: 0.0012, length: 3.65, diameter: 0.178 },
+  MICAIR: { type: 'MICAIR', name: 'MBDA MICA IR', mass: 112, dragCd: 0.0009, length: 3.1, diameter: 0.16 },
 };
 
 /** Fuel carried in each external tank (kg, JP-8 at 480 US gal). */

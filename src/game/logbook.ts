@@ -374,8 +374,8 @@ export function commitSortie(book: LogbookData, s: SortieRecorder, outcome: Miss
   give('first-blood', tot.kills > 0);
   give('ace', s.kills.length >= 5);
   give('guns', gunKill);
-  give('long-shot', s.kills.some((k) => (k.weapon.startsWith('AIM-120') || k.weapon.startsWith('R-77')) && k.rangeNm > 30));
-  give('knife', s.kills.some((k) => (k.weapon.startsWith('AIM-9') || k.weapon.startsWith('R-74')) && k.rangeNm < 1));
+  give('long-shot', s.kills.some((k) => (k.weapon.startsWith('AIM-120') || k.weapon.startsWith('R-77') || k.weapon.startsWith('METEOR')) && k.rangeNm > 30));
+  give('knife', s.kills.some((k) => (k.weapon.startsWith('AIM-9') || k.weapon.startsWith('R-74') || k.weapon.startsWith('MICA')) && k.rangeNm < 1));
   give('notch', s.defeated.includes('NOTCH'));
   give('masker', s.defeated.includes('TERRAIN MASK'));
   give('flares', s.defeated.includes('FLARE'));
@@ -412,7 +412,7 @@ export function commitSortie(book: LogbookData, s: SortieRecorder, outcome: Miss
 
 /** gun kills, whatever the cannon (the Su-35S's GSh-30 included) */
 function isGun(weapon: string): boolean {
-  return weapon === 'M61' || weapon === 'BK-27' || weapon === 'GSh-30' || weapon === 'GUN';
+  return weapon === 'M61' || weapon === 'BK-27' || weapon === 'GSh-30' || weapon === '30M791' || weapon === 'GUN';
 }
 
 export function medalName(id: string): string {

@@ -23,7 +23,7 @@ import { WebSocketServer } from 'ws';
 const PROTOCOL = 1;
 const NM = 1852;
 const TICK = 0.1; // match logic (s)
-const JETS = ['F15EX', 'FA18EF', 'TYPHOON', 'SU35'];
+const JETS = ['F15EX', 'FA18EF', 'TYPHOON', 'SU35', 'RAFALE'];
 const MAPS = ['triad', 'frost'];
 
 // ---------------------------------------------------------------- options
