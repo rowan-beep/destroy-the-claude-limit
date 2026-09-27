@@ -6,6 +6,7 @@ import { buildFA18 } from './fa18';
 import { buildTyphoon } from './typhoon';
 import { buildSu35, su35PlainLivery } from './su35';
 import { buildRafale } from './rafale';
+import { buildF22 } from './f22';
 import { partMaterials } from './parts';
 import { f15PlainLivery } from './f15ex';
 import type { PaintConfig } from './paint';
@@ -33,7 +34,8 @@ export function setHeroDetail(q: Tier): void {
 }
 
 function template(ac: Aircraft, hero: boolean): AirframeVisual {
-  const d = hero ? heroDensity : 1;
+  // the Raptor gets an extra-dense hero build: the showpiece jet
+  const d = hero ? heroDensity * (ac.type === 'F22' ? 1.25 : 1) : 1;
   const key = `${ac.type}:${ac.team}:${d}`;
   let t = templates.get(key);
   if (!t) {
@@ -44,6 +46,7 @@ function template(ac: Aircraft, hero: boolean): AirframeVisual {
       else if (ac.type === 'FA18EF') buildFA18(t);
       else if (ac.type === 'SU35') buildSu35(t);
       else if (ac.type === 'RAFALE') buildRafale(t);
+      else if (ac.type === 'F22') buildF22(t);
       else buildTyphoon(t);
     } finally {
       setModelDensity(1);
@@ -56,7 +59,7 @@ function template(ac: Aircraft, hero: boolean): AirframeVisual {
 }
 
 /**
- * Build the full visual model for an aircraft (one of the five allowed types).
+ * Build the full visual model for an aircraft (one of the six allowed types).
  * `hero` builds the high-density airframe (the player's jet, the hangar).
  */
 export function createAirframe(ac: Aircraft, hero = false): AirframeVisual {

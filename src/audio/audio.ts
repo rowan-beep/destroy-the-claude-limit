@@ -79,6 +79,7 @@ const VOICES: Record<string, EngineVoice> = {
   // EJ200: the Typhoon's distinctive high turbine song
   TYPHOON: { tone: [340, 1480], partials: [1, 1.33, 1.98, 2.9], roar: [450, 1380], rumble: [170, 480], crackle: 1800, abWeight: 0.85, toneWeight: 1.5 },
   // Safran M88-2: small, fast-spooling engines -- a bright, snarling whine over a lighter roar
+  F22: { tone: [300, 1350], partials: [1, 1.41, 2.1, 2.8], roar: [380, 1250], rumble: [140, 420], crackle: 1700, abWeight: 0.95, toneWeight: 1.2 },
   RAFALE: { tone: [360, 1560], partials: [1, 1.38, 2.05, 2.7], roar: [470, 1450], rumble: [180, 500], crackle: 1900, abWeight: 0.8, toneWeight: 1.4 },
   // AL-41F1S: deep, heavy Flanker thunder
   SU35: { tone: [220, 960], partials: [1, 1.61, 2.44], roar: [320, 980], rumble: [120, 360], crackle: 1250, abWeight: 1.2, toneWeight: 0.8 },

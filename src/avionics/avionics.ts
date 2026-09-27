@@ -43,6 +43,7 @@ export const PAGE_NAMES: Record<AircraftType, PageNames> = {
   TYPHOON: { tsd: 'PA', ew: 'DASS', sms: 'WPN' },
   SU35: { tsd: 'TAC', ew: 'REB', sms: 'SUO' },
   RAFALE: { tsd: 'TAC', ew: 'SPECTRA', sms: 'ARM' },
+  F22: { tsd: 'SA', ew: 'EW', sms: 'SMS' },
 };
 
 export type DisplayKind = 'mfd' | 'lad' | 'ufc' | 'standby' | 'dwp' | 'efd';

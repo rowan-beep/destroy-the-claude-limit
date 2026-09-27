@@ -420,7 +420,8 @@ export class AirframeVisual {
     for (const [, obj] of this.stationMeshes) this.body.remove(obj);
     this.stationMeshes.clear();
     for (const st of this.ac.stations) {
-      if (!st.store) continue;
+      // internal-bay stores are hidden behind closed doors
+      if (!st.store || st.def.mount === 'internal') continue;
       const g = new THREE.Group();
       const p = st.def.pos;
       const cx = storeCenterX(st.def, st.store);

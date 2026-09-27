@@ -1,24 +1,24 @@
 # TRIAD — Air Combat Simulator
 
 A browser combat flight simulator in the spirit of DCS, built with TypeScript and
-Three.js. Five aircraft, two theaters (Frostfall Strait and Triad Isles), and an AI that uses the
+Three.js. Six aircraft, two theaters (Frostfall Strait and Triad Isles), and an AI that uses the
 terrain against you.
 
 **Aircraft (the only vehicles in the game):**
 
-| | F-15EX Eagle II | F/A-18E/F Super Hornet | Eurofighter Typhoon | Sukhoi Su-35S | Dassault Rafale C |
-|---|---|---|---|---|---|
-| Crew | 2 | 2 | 1 | 1 | 1 |
-| Max speed | Mach 2.5 | Mach 1.8 | Mach 2.0 | Mach 2.25 | Mach 1.8 |
-| Ceiling | 60,000 ft | 50,000 ft | 55,000 ft | 59,060 ft | 50,000 ft |
-| Engines | 2 × F110-GE-129 (29,500 lbf AB) | 2 × F414-GE-400 (22,000 lbf AB) | 2 × EJ200 (20,233 lbf AB) | 2 × AL-41F1S, 3D thrust vectoring (32,000 lbf AB) | 2 × M88-2 (16,860 lbf AB) |
-| MTOW | 81,000 lb | 66,000 lb | 51,800 lb | 76,059 lb | 54,000 lb |
-| Gun | M61A1 20 mm | M61A2 20 mm | BK-27 27 mm | GSh-30-1 30 mm (150 rds) | 30M791 30 mm (125 rds) |
-| Radar | AN/APG-82(V)1 AESA | AN/APG-79 AESA | CAPTOR-E + PIRATE IRST | N035 Irbis-E PESA + OLS-35 IRST | RBE2 AESA + OSF IRST, SPECTRA |
-| Missiles | AIM-120D, AIM-9X | AIM-120D, AIM-9X | AIM-120D, AIM-9X | R-77M, R-74M (Su-35S only) | Meteor, MICA IR (Rafale only) |
+| | F-15EX Eagle II | F/A-18E/F Super Hornet | Eurofighter Typhoon | Sukhoi Su-35S | Dassault Rafale C | Lockheed Martin F-22A Raptor |
+|---|---|---|---|---|---|---|
+| Crew | 2 | 2 | 1 | 1 | 1 | 1 |
+| Max speed | Mach 2.5 | Mach 1.8 | Mach 2.0 | Mach 2.25 | Mach 1.8 | Mach 2.25 (supercruise Mach 1.8) |
+| Ceiling | 60,000 ft | 50,000 ft | 55,000 ft | 59,060 ft | 50,000 ft | 65,000 ft |
+| Engines | 2 × F110-GE-129 (29,500 lbf AB) | 2 × F414-GE-400 (22,000 lbf AB) | 2 × EJ200 (20,233 lbf AB) | 2 × AL-41F1S, 3D thrust vectoring (32,000 lbf AB) | 2 × M88-2 (16,860 lbf AB) | 2 × F119-PW-100, 2D thrust vectoring (35,000 lbf AB) |
+| MTOW | 81,000 lb | 66,000 lb | 51,800 lb | 76,059 lb | 54,000 lb | 83,500 lb |
+| Gun | M61A1 20 mm | M61A2 20 mm | BK-27 27 mm | GSh-30-1 30 mm (150 rds) | 30M791 30 mm (125 rds) | M61A2 20 mm (480 rds) |
+| Radar | AN/APG-82(V)1 AESA | AN/APG-79 AESA | CAPTOR-E + PIRATE IRST | N035 Irbis-E PESA + OLS-35 IRST | RBE2 AESA + OSF IRST, SPECTRA | AN/APG-77 AESA |
+| Missiles | AIM-120D, AIM-9X | AIM-120D, AIM-9X | AIM-120D, AIM-9X | R-77M, R-74M (Su-35S only) | Meteor, MICA IR (Rafale only) | AIM-120D, AIM-9X (internal bays) |
 
-Current version: **v4.4.1** — see [CHANGELOG.md](CHANGELOG.md) (also in the game
-under **v4.4.1 · NOTES** on the main menu).
+Current version: **v4.5.0** — see [CHANGELOG.md](CHANGELOG.md) (also in the game
+under **v4.5.0 · NOTES** on the main menu).
 
 Each jet is a high-detail procedural model: about 250k-390k triangles for the jets
 around you, and a hero build with about 10x that (2.5-4 million triangles) for your

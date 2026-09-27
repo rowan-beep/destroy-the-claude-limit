@@ -10,6 +10,20 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.5.0',
+    date: '2026-09-28',
+    title: "F-22A Raptor",
+    notes: [
+      "NEW JET: the LOCKHEED MARTIN F-22A RAPTOR, the first fifth-generation fighter in the game, and the fastest.",
+      "Speed: supercruise at Mach 1.8 with no afterburner, Mach 2.25 flat out, a 65,000 ft ceiling, and a climb that goes straight up at around 60,000 ft a minute. It's the quickest jet in the game from Mach 0.9 to 1.6 and to 36,000 ft.",
+      "Engines: 2x Pratt & Whitney F119-PW-100, 70,000 lbf total with afterburner. The 2D nozzles vector 20 degrees up and down (pitch only) for tight flips and post-stall moves with G-limiter override.",
+      "Kept fair on purpose: the radar is F-15EX-class, the radar signature is normal (no stealth advantage), and it carries only 8 missiles, all in internal bays: 6 AIM-120D and 2 AIM-9X. M61A2 20 mm gun, 480 rounds. Missiles in the bays add weight but no drag.",
+      "Dimensions: 62 ft long, 44.5 ft span, 16.7 ft tall, empty weight 43,300 lb.",
+      "New 3D model, the most detailed in the game (your own jet and the hangar get an even denser build than the others). It has the chined diamond nose, a frameless gold-tinted bubble canopy, caret intakes, a diamond wing with a forward-swept trailing edge, big all-moving tailplanes, twin fins canted out 28 degrees, flat two-dimensional nozzles that move as you vector, and the two-tone Raptor grey with its darker patches.",
+      "The F-22A is in every mode, including multiplayer on the official servers.",
+    ],
+  },
+  {
     version: '4.4.1',
     date: '2026-09-28',
     title: "Fixes: clouds, reflections, weather panel",

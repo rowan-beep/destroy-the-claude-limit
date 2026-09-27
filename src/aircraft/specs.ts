@@ -1,4 +1,4 @@
-// The five aircraft in the game. Every number here comes from the
+// The six aircraft in the game. Every number here comes from the
 // published specifications given in the design brief; aerodynamic
 // coefficients are engineering estimates tuned so the real top speeds,
 // ceilings and ranges fall out of the physics.
@@ -6,8 +6,8 @@
 import { FT, LB, LBF } from '../core/constants';
 import type { MissileType } from '../weapons/weaponSpecs';
 
-export type AircraftType = 'F15EX' | 'FA18EF' | 'TYPHOON' | 'SU35' | 'RAFALE';
-export const AIRCRAFT_TYPES: AircraftType[] = ['F15EX', 'FA18EF', 'TYPHOON', 'SU35', 'RAFALE'];
+export type AircraftType = 'F15EX' | 'FA18EF' | 'TYPHOON' | 'SU35' | 'RAFALE' | 'F22';
+export const AIRCRAFT_TYPES: AircraftType[] = ['F15EX', 'FA18EF', 'TYPHOON', 'SU35', 'RAFALE', 'F22'];
 
 export type StoreType = MissileType | 'TANK';
 
@@ -31,7 +31,8 @@ export interface StationDef {
   /** what can hang here */
   allowed: StoreType[];
   /** visual: rail (wingtip / fuselage launcher) or pylon */
-  mount: 'rail' | 'pylon' | 'conformal' | 'semi-recessed';
+  /** internal: carried in a closed weapons bay (not drawn, no drag) */
+  mount: 'rail' | 'pylon' | 'conformal' | 'semi-recessed' | 'internal';
   /**
    * Height of the wing underside at this station. When given, each store
    * hangs its own radius below it (a tank lower than a missile) instead of
@@ -143,6 +144,8 @@ export interface AircraftSpec {
   missiles: { radar: MissileType; ir: MissileType };
   /** 3D thrust vectoring: nozzle deflection limit in degrees (0 = none) */
   tvcDeg: number;
+  /** thrust vectoring in pitch only (2D nozzles) instead of pitch, yaw and roll */
+  tvcPitchOnly?: boolean;
   gun: GunSpec;
   stations: StationDef[];
   loadouts: LoadoutPreset[];
@@ -765,12 +768,126 @@ const RAFALE: AircraftSpec = {
   paint: { top: '#7b8388', bottom: '#949ca1', accent: '#4f575c' },
 };
 
+
+// ---------------------------------------------------------------------------
+// Lockheed Martin F-22A Raptor
+// ---------------------------------------------------------------------------
+// The first fifth-generation jet in the game, here for its speed: supercruise
+// at Mach 1.8 without afterburner, Mach 2.25 flat out, 65,000 ft and a climb
+// that goes straight up. Everything else is kept level with the rest: an
+// F-15-class radar, a conventional radar signature, and only eight missiles.
+const F22: AircraftSpec = {
+  type: 'F22',
+  name: 'Lockheed Martin F-22A Raptor',
+  shortName: 'F-22A',
+  role: 'Fifth-generation air superiority fighter',
+  crew: 1,
+  description:
+    'The fastest jet in the theater. Two Pratt & Whitney F119s supercruise it at Mach 1.8 with no afterburner, push it to Mach 2.25 and 65,000 ft, and climb at over 60,000 ft a minute. The nozzles vector 20 degrees up and down for post-stall flips. Its radar is F-15-class and everything rides inside the weapons bays, so it carries only 6 AIM-120s and 2 AIM-9s. M61A2 20 mm gun, 480 rounds.',
+  lengthFt: 62.0,
+  wingspanFt: 44.5,
+  heightFt: 16.7,
+  length: 62.0 * FT,
+  span: 44.5 * FT,
+  height: 16.7 * FT,
+  emptyMass: kg(43300),
+  internalFuel: kg(18000),
+  maxTakeoff: kg(83500),
+  maxTakeoffLb: 83500,
+  payloadLb: 5600,
+  wingArea: 78.04,
+  cd0: 0.0172,
+  waveDragPeak: 1.85,
+  waveDragHigh: 1.35,
+  kInduced: 0.14,
+  clAlpha: 3.6,
+  clMax: 1.8,
+  alphaMaxDeg: 30,
+  maxMach: 2.25,
+  ceilingFt: 65000,
+  maxIasKts: 800,
+  engineName: '2 x Pratt & Whitney F119-PW-100',
+  engines: 2,
+  // tuned so the jet supercruises at Mach 1.8 in the game's engine model
+  // (the display figure below is the real F119's)
+  thrustMil: lbf(33000),
+  thrustAb: lbf(35000),
+  thrustMilLbf: 26000,
+  thrustAbLbf: 35000,
+  tsfcMil: 0.72,
+  tsfcAb: 1.9,
+  ramFactor: 0.62,
+  spool: 1.5,
+  gLimit: 9.0,
+  gOverride: 11.0,
+  gStructural: 13.5,
+  gNeg: -3,
+  rollRate: 240,
+  pitchRate: 30,
+  cornerKts: 330,
+  rotateKts: 140,
+  approachKts: 140,
+  speedbrakeCd: 0.06,
+  combatRangeNm: 1600,
+  hardpoints: 8,
+  maxAAM: 8,
+  missiles: { radar: AIM120, ir: AIM9 },
+  tvcDeg: 20,
+  tvcPitchOnly: true,
+  gun: {
+    name: 'M61A2 Vulcan 20mm rotary cannon',
+    caliberMm: 20,
+    rounds: 480,
+    rpm: 6000,
+    muzzleVelocity: 1050,
+    damage: 7,
+    dispersionMil: 4.5,
+    port: [1.35, 0.2, -2.2],
+  },
+  stations: [
+    { id: 1, label: 'L SIDE BAY', pos: [-1.2, -0.3, -1.3], allowed: [AIM9], mount: 'internal' },
+    { id: 2, label: 'MAIN BAY 1', pos: [-0.7, -0.62, 0.6], allowed: [AIM120], mount: 'internal' },
+    { id: 3, label: 'MAIN BAY 2', pos: [-0.42, -0.62, 0.6], allowed: [AIM120], mount: 'internal' },
+    { id: 4, label: 'MAIN BAY 3', pos: [-0.14, -0.62, 0.6], allowed: [AIM120], mount: 'internal' },
+    { id: 5, label: 'MAIN BAY 4', pos: [0.14, -0.62, 0.6], allowed: [AIM120], mount: 'internal' },
+    { id: 6, label: 'MAIN BAY 5', pos: [0.42, -0.62, 0.6], allowed: [AIM120], mount: 'internal' },
+    { id: 7, label: 'MAIN BAY 6', pos: [0.7, -0.62, 0.6], allowed: [AIM120], mount: 'internal' },
+    { id: 8, label: 'R SIDE BAY', pos: [1.2, -0.3, -1.3], allowed: [AIM9], mount: 'internal' },
+  ],
+  loadouts: [
+    {
+      id: 'raptor-std',
+      name: 'AIR DOMINANCE — 6x AIM-120D, 2x AIM-9X (internal)',
+      stores: { 1: AIM9, 2: AIM120, 3: AIM120, 4: AIM120, 5: AIM120, 6: AIM120, 7: AIM120, 8: AIM9 },
+    },
+    {
+      id: 'raptor-light',
+      name: 'LIGHT — 4x AIM-120D, 2x AIM-9X (internal)',
+      stores: { 1: AIM9, 3: AIM120, 4: AIM120, 5: AIM120, 6: AIM120, 8: AIM9 },
+    },
+  ],
+  // kept to F-15EX performance on purpose: the Raptor is here for its speed
+  radar: { name: 'AN/APG-77 AESA', kind: 'AESA', rangeNm: 105, azLimitDeg: 60, elLimitDeg: 60, maxTracks: 16, frameTime: 1.2 },
+  irst: null,
+  ew: { name: 'AN/ALR-94 EW suite', maws: true, jamming: 0.3, autoDispense: true },
+  flightControl: 'Digital fly-by-wire with integrated thrust vectoring',
+  chaff: 60,
+  flares: 60,
+  // a conventional signature (no stealth advantage in the game)
+  rcs: 8,
+  irSignature: 1.05,
+  gear: { nose: -5.6, main: 1.0, track: 1.6, height: 1.85 },
+  hitRadius: 5.8,
+  paint: { top: '#8b9196', bottom: '#9ba1a5', accent: '#6b7176' },
+};
+
 export const SPECS: Record<AircraftType, AircraftSpec> = {
   F15EX: F15EX,
   FA18EF: FA18,
   TYPHOON: TYPHOON,
   SU35: SU35,
   RAFALE: RAFALE,
+  F22: F22,
 };
 
 export function getSpec(t: AircraftType): AircraftSpec {

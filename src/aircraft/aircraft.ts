@@ -148,11 +148,15 @@ export class Aircraft {
   refreshStores(): void {
     const list: StoreType[] = [];
     let tanks = 0;
+    let bayMass = 0;
     for (const s of this.stations) {
-      if (s.store) list.push(s.store);
+      // stores in a closed internal bay add weight but no drag
+      if (s.store && s.def.mount === 'internal') bayMass += STORES[s.store].mass;
+      else if (s.store) list.push(s.store);
       if (s.store === 'TANK') tanks++;
     }
     this.fm.setStores(list, tanks * TANK_FUEL);
+    this.fm.storeMass += bayMass;
     // stores far out on the wings make the jet slower to start and stop a roll
     let inertia = 0;
     for (const s of this.stations) if (s.store) inertia += STORES[s.store].mass * s.def.pos[0] * s.def.pos[0] * (s.store === 'TANK' ? 1.6 : 1);

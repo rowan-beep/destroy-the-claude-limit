@@ -131,6 +131,7 @@ export const RWR_SYMBOL: Record<string, string> = {
   TYPHOON: 'EF',
   SU35: '35',
   RAFALE: 'RF',
+  F22: '22',
 };
 
 export function bearingDeg(rad: number): number {

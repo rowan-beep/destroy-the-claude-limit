@@ -72,7 +72,7 @@ async function boot(): Promise<void> {
   console.info(`theater ready in ${Math.round(performance.now() - t0)} ms${game.world.pool.usingFallback ? ' (main-thread fallback)' : ''}`);
 
   const cfg: MissionConfig = defaultMission();
-  if (settings.lastAircraft === 'F15EX' || settings.lastAircraft === 'FA18EF' || settings.lastAircraft === 'TYPHOON' || settings.lastAircraft === 'SU35' || settings.lastAircraft === 'RAFALE') cfg.aircraft = settings.lastAircraft as AircraftType;
+  if (settings.lastAircraft === 'F15EX' || settings.lastAircraft === 'FA18EF' || settings.lastAircraft === 'TYPHOON' || settings.lastAircraft === 'SU35' || settings.lastAircraft === 'RAFALE' || settings.lastAircraft === 'F22') cfg.aircraft = settings.lastAircraft as AircraftType;
   cfg.loadoutId = settings.lastLoadout[cfg.aircraft] ?? '';
   cfg.timeOfDay = settings.gameplay.timeOfDay;
 
