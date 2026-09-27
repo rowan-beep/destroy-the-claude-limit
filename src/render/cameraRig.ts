@@ -252,7 +252,7 @@ export class CameraRig {
 
   private applyShake(cam: THREE.PerspectiveCamera, ac: Aircraft): void {
     const fm = ac.fm;
-    const buffet = clamp((Math.abs(fm.alpha) / DEG - 18) / 15, 0, 1) * 0.5 + (fm.onGround ? clamp(fm.tas / 80, 0, 1) * 0.15 : 0);
+    const buffet = clamp((Math.abs(fm.alpha) / DEG - 18) / 15, 0, 1) * 0.5 + (fm.onGround ? clamp(fm.gs / 80, 0, 1) * 0.15 : 0);
     const gunShake = ac.gunFiring ? 0.25 : 0;
     const ab = fm.afterburner * 0.06;
     const s = this.shake + buffet + gunShake + ab;

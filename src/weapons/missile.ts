@@ -126,7 +126,9 @@ export class Missile {
     this.motorOn = this.age >= ignite && this.age < ignite + s.burnTime;
     let thrust = 0;
     if (this.motorOn) {
-      thrust = s.thrust;
+      // a rocket nozzle works better in thin air: no outside pressure pushing
+      // back on the exit, so thrust grows by several percent up high
+      thrust = s.thrust * (1 + 0.09 * (1 - _atm.delta));
       this.mass -= ((s.mass0 - s.massBurnout) / s.burnTime) * dt;
     }
     if (this.mode === 'EJECT' && this.age >= ignite) this.mode = this.target ? 'MIDCOURSE' : 'LOST';

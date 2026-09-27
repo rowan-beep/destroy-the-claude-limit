@@ -68,7 +68,7 @@ export class FreeFlightMode extends GameMode {
       return;
     }
     // landing / rearm hints
-    if (p.fm.onGround && p.fm.surfaceField && p.fm.tas < 30 && !this.landedAnnounced && this.elapsed > 20) {
+    if (p.fm.onGround && p.fm.surfaceField && p.fm.gs < 30 && !this.landedAnnounced && this.elapsed > 20) {
       this.landedAnnounced = true;
       const f = p.fm.surfaceField;
       h.message(`WELCOME TO ${f.name}${f.team === 'blue' ? ' — STOP AND PRESS [H] TO REARM & REFUEL' : ' (ENEMY FIELD)'}`, f.team === 'blue' ? 'good' : 'warn', 8);

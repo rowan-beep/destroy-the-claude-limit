@@ -7,6 +7,8 @@
 // jets: the stick commands load factor (limited by the G limiter and the AoA
 // limiter), roll rate about the velocity vector, and sideslip via rudder.
 // The FBW holds 1G-corrected flight path with the stick released.
+// The aircraft flies through the air mass: wind and turbulence (and on the
+// runway the headwind), plus the wake and jet wash of other aircraft.
 
 import * as THREE from 'three';
 import { AircraftSpec, STORES, StoreType } from './specs';
@@ -130,6 +132,8 @@ export class FlightModel {
   agl = 1000;
   cl = 0;
   cd = 0;
+  /** ground speed (m/s, horizontal) */
+  gs = 0;
   // rates (deg/s)
   rollRate = 0;
   pitchRate = 0;
@@ -158,6 +162,14 @@ export class FlightModel {
   readonly engThrust: number[] = [0, 0];
   /** extra roll/yaw inertia from stores far out on the wings */
   storeRollInertia = 0;
+  /** gun recoil while firing (N, acts aft along the gun line) */
+  gunRecoil = 0;
+  /**
+   * Another jet's wake / jet wash at this aircraft, set every step by the
+   * simulation: vertical gust (m/s) and rolling acceleration (rad/s^2).
+   */
+  wakeGust = 0;
+  wakeRoll = 0;
 
   // propulsion
   readonly rpm: number[];
@@ -351,7 +363,8 @@ export class FlightModel {
     const casKts = this.cas / 0.514444;
     const iasOver = casKts - (s.maxIasKts - 25);
     if (iasOver > 0) cd0 += 0.00004 * iasOver * iasOver;
-    cd0 += this.storeCd * (M > 1 ? 1.4 : 1);
+    // stores (pylons, fins, tanks) add their own drag rise through the transonic
+    cd0 += this.storeCd * (1 + 0.4 * smoothstep(0.85, 1.15, M));
     cd0 += 0.028 * this.gearPos + s.speedbrakeCd * this.speedbrakePos + this.damage.drag;
     const k = s.kInduced * (M > 1 ? 1 + 0.9 * (M - 1) : 1);
     return cd0 + k * cl * cl;
@@ -407,7 +420,9 @@ export class FlightModel {
     const M0 = this.tas / _atm.a;
     for (let i = 0; i < this.rpm.length; i++) {
       const target = fuelOk && !this.engineOut[i] ? Math.min(lever, 1) : 0;
-      const k = target > this.rpm[i] ? s.spool * (0.55 + 0.45 * this.rpm[i]) : s.spool * 1.3;
+      // thin air: less mass flow through the core, so the engines spool more slowly up high
+      const thin = 0.55 + 0.45 * Math.sqrt(_atm.sigma);
+      const k = (target > this.rpm[i] ? s.spool * (0.55 + 0.45 * this.rpm[i]) : s.spool * 1.3) * thin;
       this.rpm[i] += (target - this.rpm[i]) * Math.min(1, k * dt);
       const abTarget = lever > 1.001 && fuelOk && !this.engineOut[i] && this.rpm[i] > 0.9 ? clamp((lever - 1) / 0.1, 0.2, 1) : 0;
       if (abTarget > 0 && this.ab[i] === 0) {
@@ -455,7 +470,10 @@ export class FlightModel {
 
     // --- air mass: the aircraft flies through the wind, not the ground ---
     windAt(this.pos.x, this.pos.y, this.pos.z, this.t, this.agl, this.groundHeight, this.windVel);
+    // another jet's wake: the downwash between its trailing vortices and its jet wash
+    this.windVel.y += this.wakeGust;
     _air.copy(this.vel).sub(this.windVel);
+    this.gs = Math.sqrt(this.vel.x * this.vel.x + this.vel.z * this.vel.z);
     const V = _air.length();
     this.tas = V;
     const M = V / this.soundSpeed;
@@ -488,7 +506,8 @@ export class FlightModel {
     const ge = Math.pow(1 - clamp(this.agl / b, 0, 1), 2);
     const cl = this.clOf(alpha, M) * (1 + 0.14 * ge);
     const cdi = this.cdOf(cl, M) - this.cdOf(0, M);
-    const cd = this.cdOf(0, M) + cdi * (1 - 0.45 * ge) + 0.35 * Math.abs(Math.sin(alpha)) * smoothstep(0.35, 0.9, Math.abs(alpha));
+    // flying sideways costs energy: sideslip drag grows with the square of beta
+    const cd = this.cdOf(0, M) + cdi * (1 - 0.45 * ge) + 0.35 * Math.abs(Math.sin(alpha)) * smoothstep(0.35, 0.9, Math.abs(alpha)) + 0.55 * beta * beta;
     this.cl = cl;
     this.cd = cd;
     const L = qS * cl;
@@ -499,7 +518,7 @@ export class FlightModel {
     _acc.addScaledVector(_lift, L);
     _acc.addScaledVector(_vhat, -D);
     _acc.addScaledVector(this.right, Y);
-    _acc.addScaledVector(this.fwd, this.thrust);
+    _acc.addScaledVector(this.fwd, this.thrust - this.gunRecoil);
     _acc.divideScalar(m);
     _acc.y -= G0;
     this.accel.copy(_acc);
@@ -634,7 +653,7 @@ export class FlightModel {
     // turbulence: a gust gradient across the span rolls the wings
     const gustRoll = clamp((this.windVel.y - this.lastGustY) / Math.max(dt, 1e-4), -40, 40) * 0.025;
     this.lastGustY = this.windVel.y;
-    const Pdot = (Lr + (Iyy - Izz) * Q * R) / Ixx + gustRoll;
+    const Pdot = (Lr + (Iyy - Izz) * Q * R) / Ixx + gustRoll + this.wakeRoll;
     const Qdot = (Mp + (Izz - Ixx) * P * R) / Iyy;
     const Rdot = (Ny + (Ixx - Iyy) * P * Q) / Izz;
     this.pRate += Pdot * dt;
@@ -668,9 +687,13 @@ export class FlightModel {
     this.departed = alpha > (tvc > 0 && c.gOverride ? 75 * DEG : aMax + 12 * DEG) || Math.abs(beta) > 20 * DEG;
 
     // --- structure ---
-    const absN = this.nz;
-    if (absN > s.gOverride + 0.4) this.overG += (absN - s.gOverride) * dt;
-    if (absN > s.gStructural) this.structuralFailure = true;
+    // over-stress both ways: past the override limit pulling, or well past the
+    // negative limit pushing (the structure is much weaker in negative G)
+    const nz = this.nz;
+    if (nz > s.gOverride + 0.4) this.overG += (nz - s.gOverride) * dt;
+    const negLim = s.gNeg - 1.5;
+    if (nz < negLim) this.overG += (negLim - nz) * dt;
+    if (nz > s.gStructural || nz < s.gNeg * 2) this.structuralFailure = true;
 
     // --- ground contact ---
     groundSurface(this.pos.x, this.pos.z, _surf);
@@ -704,7 +727,7 @@ export class FlightModel {
       this.touchdowns++;
       const td = this.lastTouchdown;
       td.sink = sink;
-      td.tas = this.vel.length();
+      td.tas = this.tas; // airspeed over the threshold, not ground speed
       td.bank = bankDeg;
       td.pitch = pitchDeg;
       td.x = this.pos.x;
@@ -742,11 +765,18 @@ export class FlightModel {
 
     const hRad = this.heading * DEG;
     const fx = Math.sin(hRad), fz = -Math.cos(hRad);
-    let V = this.vel.x * fx + this.vel.z * fz; // along heading (can be slightly negative)
-    this.tas = Math.abs(V);
+    let V = this.vel.x * fx + this.vel.z * fz; // ground speed along heading (can be slightly negative)
+    // the wings feel the air, not the runway: a headwind gives lift and drag
+    // before the wheels roll, so into the wind you lift off and stop shorter
+    this.t += dt;
+    windAt(this.pos.x, this.pos.y, this.pos.z, this.t, s.gear.height, _surf.h, this.windVel);
+    const head = -(this.windVel.x * fx + this.windVel.z * fz);
+    const Va = V + head;
+    this.gs = Math.abs(V);
+    this.tas = Math.abs(Va);
     this.mach = this.tas / this.soundSpeed;
-    this.qbar = 0.5 * this.rho * V * V;
-    this.cas = this.tas;
+    this.qbar = 0.5 * this.rho * Va * Va;
+    this.cas = casFromTas(this.tas, this.pos.y);
     const qS = this.qbar * s.wingArea;
     this.alpha = this.groundPitch * DEG;
     this.beta = 0;
@@ -767,7 +797,8 @@ export class FlightModel {
     const brake = clamp(c.wheelBrake, 0, 1) * (rough ? 0.35 : 0.55);
     const fric = (muRoll + brake) * normal;
     const thrustH = this.thrust * Math.cos(this.alpha);
-    let a = (thrustH - D) / m;
+    // drag acts along the relative wind (a tailwind pushes, a headwind holds back)
+    let a = (thrustH - Math.sign(Va) * D) / m;
     const fdec = fric / m;
     if (Math.abs(V) < fdec * dt && Math.abs(a) < fdec) {
       V = 0;
@@ -784,12 +815,12 @@ export class FlightModel {
     const wheelbase = Math.abs(s.gear.main - s.gear.nose);
     const yawRate = (V * Math.tan(-steer)) / wheelbase; // rad/s, right positive
     // rudder aerodynamic yaw at speed
-    const rudderYaw = clamp(c.yaw, -1, 1) * 0.08 * smoothstep(20, 60, Math.abs(V));
+    const rudderYaw = clamp(c.yaw, -1, 1) * 0.08 * smoothstep(20, 60, Math.abs(Va));
     this.heading = (this.heading + (yawRate + rudderYaw) * dt / DEG + 360) % 360;
 
     // rotation: elevator authority builds with speed
     const vr = s.rotateKts * 0.5144;
-    const auth = smoothstep(0.62 * vr, 0.95 * vr, Math.abs(V));
+    const auth = smoothstep(0.62 * vr, 0.95 * vr, Math.abs(Va));
     const pitchTarget = c.pitch > 0 ? c.pitch * 14 * auth : 0;
     this.groundPitch += clamp(pitchTarget - this.groundPitch, -5 * dt, 4.5 * dt);
     if (this.groundPitch < 0) this.groundPitch = 0;

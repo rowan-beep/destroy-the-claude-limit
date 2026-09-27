@@ -15,6 +15,7 @@ export class DuelMode extends GameMode {
   private endTimer = -1;
   private rounds = 0;
   private wins = 0;
+  private draws = 0;
 
   start(): void {
     this.setup();
@@ -100,16 +101,18 @@ export class DuelMode extends GameMode {
       if (this.endTimer <= 0) {
         this.over = true;
         const won = p.alive && !e.alive;
+        const mutual = !p.alive && !e.alive;
         if (won) this.wins++;
+        if (mutual) this.draws++;
         h.showResults({
-          title: won ? 'VICTORY' : !p.alive && !e.alive ? 'MUTUAL KILL' : 'DEFEAT',
+          title: won ? 'VICTORY' : mutual ? 'MUTUAL KILL' : 'DEFEAT',
           subtitle: won
             ? `${e.spec.shortName} (${h.config.difficulty}) destroyed: ${e.damage.destroyCause || e.fm.crashCause || 'splash one'}.`
             : `You were lost: ${p.damage.destroyCause || p.fm.crashCause || 'shot down'}.`,
           good: won,
           stats: statsFor(p, [
             ['DUEL TIME', `${Math.floor(this.elapsed / 60)}:${String(Math.floor(this.elapsed % 60)).padStart(2, '0')}`],
-            ['RECORD', `${this.wins} W / ${this.rounds - this.wins} L`],
+            ['RECORD', `${this.wins} W / ${this.rounds - this.wins - this.draws} L${this.draws ? ` / ${this.draws} D` : ''}`],
           ]),
           buttons: [
             { label: 'REMATCH', action: 'retry' },
@@ -138,6 +141,7 @@ export class DuelMode extends GameMode {
       for (const a of [...h.sim.aircraft]) h.sim.remove(a);
       h.sim.missiles.length = 0;
       h.sim.bullets.clear();
+      h.sim.cms.clear();
       h.picture.clear();
       this.over = false;
       this.setup();

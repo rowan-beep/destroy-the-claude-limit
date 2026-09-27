@@ -245,10 +245,14 @@ export class WavesMode extends GameMode {
       for (const a of [...h.sim.aircraft]) h.sim.remove(a);
       h.sim.missiles.length = 0;
       h.sim.bullets.clear();
+      h.sim.cms.clear();
       h.picture.clear();
       const w = action === 'retry' ? 1 : this.wave;
       this.over = false;
       this.deadTimer = 0;
+      this.gciTimer = 20;
+      // a full restart starts the clock again
+      if (action === 'retry') this.elapsed = 0;
       const p = h.createPlayer();
       this.placePlayer();
       h.sim.add(p);

@@ -7,7 +7,7 @@ import { AircraftSpec, AircraftType, getSpec, StationDef, StoreType, TANK_FUEL, 
 import { FlightModel, FlightControls, neutralControls } from './flightModel';
 import { PilotPhysiology } from './pilot';
 import { DamageModel } from './damage';
-import { Team, DEG, NM } from '../core/constants';
+import { Team, DEG, NM, G0 } from '../core/constants';
 import { Radar } from '../sensors/radar';
 import { Irst } from '../sensors/irst';
 import { Rwr } from '../sensors/rwr';
@@ -18,7 +18,8 @@ import type { Sim } from '../game/sim';
 import type { AIPilot } from '../ai/pilot';
 import type { PaintConfig } from './models/paint';
 import { storeCenterY, storeCenterX } from './models/stores';
-import { hostile } from '../game/rules';
+import { hostile, RULES } from '../game/rules';
+import { clamp } from '../core/math';
 
 export interface StationState {
   def: StationDef;
@@ -285,6 +286,7 @@ export class Aircraft {
       fm.damage.lift = Math.min(fm.damage.lift, 0.35);
     }
 
+    this.updateWake(sim);
     fm.step(dt, this.controls);
     this.pilot.update(dt, this.alive ? fm.nz : 1);
     if (this.pilot.justBlackedOut) sim.events.emit('gloc', { aircraft: this });
@@ -312,7 +314,7 @@ export class Aircraft {
       this.updateGun(dt, sim);
       this.updateCountermeasures(dt, sim);
     }
-    this.onRunwayStopped = fm.onGround && fm.tas < 2 && !!fm.surfaceField && fm.surfaceField.team === this.team;
+    this.onRunwayStopped = fm.onGround && fm.gs < 2 && !!fm.surfaceField && fm.surfaceField.team === this.team;
   }
   crashHandled = false;
 
@@ -323,6 +325,7 @@ export class Aircraft {
     this.deaths++;
     this.trigger = false;
     this.gunFiring = false;
+    this.fm.gunRecoil = 0;
     this.radar.lock = null;
     if (this.irst) this.irst.lock = null;
     const weapon = this.lastHitBy && killer === this.lastHitBy.shooter ? this.lastHitBy.weapon : 'CRASH';
@@ -339,20 +342,71 @@ export class Aircraft {
   }
 
   // -------------------------------------------------------------------------
+  // Wake turbulence
+  // -------------------------------------------------------------------------
+
+  /**
+   * Flying through another jet's wake: its two trailing vortices sink slowly
+   * and spread behind it. Between them the air flows down, outside them up,
+   * and a wing near one core is rolled hard. Strongest close behind a heavy,
+   * slow, hard-pulling jet; gone about a kilometre back.
+   */
+  private updateWake(sim: Sim): void {
+    const fm = this.fm;
+    let gust = 0, roll = 0;
+    if (!fm.onGround) {
+      for (const o of sim.aircraft) {
+        if (o === this || o.fm.crashed || o.fm.onGround) continue;
+        const ov = o.fm.vel;
+        const V = ov.length();
+        if (V < 60) continue;
+        _tmp.subVectors(fm.pos, o.fm.pos);
+        if (_tmp.lengthSq() > 1200 * 1200) continue;
+        const behind = -_tmp.dot(ov) / V;
+        if (behind < 12 || behind > 1100) continue;
+        // offset from the wake axis, which sinks about 1.5 m/s behind the jet
+        const age = behind / V;
+        _tmp.addScaledVector(ov, age);
+        _tmp.y += Math.min(age, 20) * 1.5;
+        const R = o.spec.span * 0.55 + behind * 0.02;
+        const r2 = _tmp.lengthSq();
+        if (r2 > 9 * R * R) continue;
+        // vortex strength follows the lift the other jet is making: load factor x weight / (rho V span)
+        const lift = Math.max(0.5, Math.abs(o.fm.nz)) * o.fm.mass * G0;
+        const circ = lift / (Math.max(0.3, o.fm.rho) * V * o.spec.span);
+        const I = (circ / 75) * Math.exp(-behind / 700) * Math.exp(-r2 / (R * R));
+        const side = clamp(_tmp.dot(o.fm.right) / R, -1.4, 1.4);
+        gust += -I * 3.2 * Math.cos((side * Math.PI) / 1.4);
+        roll += -I * 1.5 * Math.sin((side * Math.PI) / 1.4);
+      }
+    }
+    // it is choppy, not a steady push
+    const t = sim.time;
+    const chop = 0.65 + 0.35 * Math.sin(t * 11.3 + this.id * 1.7) * Math.sin(t * 4.1 + this.id);
+    fm.wakeGust = clamp(gust * chop, -8, 8);
+    fm.wakeRoll = clamp(roll * chop, -3, 3);
+  }
+
+  // -------------------------------------------------------------------------
   // Gun
   // -------------------------------------------------------------------------
 
   private updateGun(dt: number, sim: Sim): void {
-    const firing = this.trigger && this.selectedWeapon === 'GUN' && this.gunAmmo > 0 && !this.fm.onGround;
+    const firing = this.trigger && this.selectedWeapon === 'GUN' && this.gunAmmo > 0 && !this.fm.onGround && !RULES.holdFire;
     if (firing !== this.gunFiring) {
       this.gunFiring = firing;
       sim.events.emit('gunfire', { shooter: this, firing });
     }
+    const rate = (this.spec.gun.rpm * (this.gunRateLow ? 0.66 : 1)) / 60;
+    // recoil: the momentum of the rounds (plus the propellant gas) shoved
+    // back through the airframe, a few percent of the engines' thrust
+    const cal = this.spec.gun.caliberMm;
+    const shell = cal > 28 ? 0.39 : cal > 25 ? 0.26 : 0.1;
+    this.fm.gunRecoil = firing ? rate * shell * this.spec.gun.muzzleVelocity * 1.5 : 0;
     if (!firing) {
       this.gunAccum = 0;
       return;
     }
-    const rate = (this.spec.gun.rpm * (this.gunRateLow ? 0.66 : 1)) / 60;
     this.gunAccum += rate * dt;
     while (this.gunAccum >= 1 && this.gunAmmo > 0) {
       this.gunAccum -= 1;
@@ -476,7 +530,7 @@ export class Aircraft {
 
   fireMissile(sim: Sim, type: MissileType, forcedTarget?: Aircraft | null): Missile | null {
     if (type !== this.radarMissile && type !== this.irMissile) return null;
-    if (!this.alive || this.fm.onGround || this.missileCooldown > 0) return null;
+    if (!this.alive || this.fm.onGround || this.missileCooldown > 0 || RULES.holdFire) return null;
     const st = this.pickStation(type);
     if (!st) return null;
     const target = forcedTarget !== undefined ? forcedTarget : this.missileTarget(type, sim);

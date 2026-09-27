@@ -46,6 +46,7 @@ import { enemyTypesFor, AIRCRAFT_TYPES } from '../aircraft/specs';
 
 export type GameState = 'menu' | 'loading' | 'playing' | 'paused' | 'map' | 'results' | 'replay';
 
+const GUN_WEAPONS = new Set(['M61', 'BK-27', 'GSh-30', 'GUN']);
 const CLOUD_DENSITY: Record<string, number> = { low: 0.5, medium: 0.75, high: 1, ultra: 1.35 };
 const CLOUD_COVER: Record<string, number> = { clear: 0.12, scattered: 0.55, broken: 0.85, overcast: 0.98 };
 
@@ -286,7 +287,8 @@ export class Game implements ModeHost {
         audio.hitThud();
         this.cam.addShake(0.5);
         this.hud.damageFlash();
-      } else if (e.shooter === this.player && !e.weapon.startsWith('AIM')) {
+      } else if (e.shooter === this.player && GUN_WEAPONS.has(e.weapon)) {
+        // hit markers are for gun hits (missile hits read 'AIM-..' or 'R-..')
         this.hud.hitMarker();
       }
     });
@@ -835,7 +837,9 @@ export class Game implements ModeHost {
     if (inp.gp.active) this.cam.addLook(inp.gp.lookX * dt * 2.5, inp.gp.lookY * dt * 2.5);
 
     if (!p.alive) {
-      if (inp.pressed('fire') && this.mode instanceof FreeFlightMode) this.mode.handle('respawn');
+      // respawn through the same path as the results button, so the camera,
+      // HUD, gear handle and throttle are reset along with the jet
+      if (inp.pressed('fire') && this.mode instanceof FreeFlightMode) this.handleResult('respawn');
       return;
     }
 
@@ -893,6 +897,7 @@ export class Game implements ModeHost {
     const fireHeld = inp.held('fire') || (inp.mouseHeld(0) && mouseFire);
     const firePressed = inp.pressed('fire') || (inp.mouseClicked(0) && mouseFire);
     p.trigger = fireHeld && p.selectedWeapon === 'GUN';
+    if (p.trigger && RULES.holdFire && inp.pressed('fire')) this.message('WEAPONS HOLD — WAIT FOR WEAPONS FREE', 'warn', 2);
     if (firePressed && p.selectedWeapon !== 'GUN') this.fireMissile();
 
     // sensors
@@ -906,8 +911,8 @@ export class Game implements ModeHost {
       } else if (p.selectedWeapon === p.irMissile && p.countOf(p.irMissile) > 0) {
         p.seekerTarget = t;
         audio.beep(1800, 0.08, 0.05);
-        this.message('HMD: AIM-9X SEEKER SLAVED', 'good', 2);
-      } else this.message('HMD: TARGET OUTSIDE RADAR LIMITS — SELECT AIM-9X [2]', 'warn', 2.5);
+        this.message(`HMD: ${MISSILES[p.irMissile].short} SEEKER SLAVED`, 'good', 2);
+      } else this.message(`HMD: TARGET OUTSIDE RADAR LIMITS — SELECT ${MISSILES[p.irMissile].short} [2]`, 'warn', 2.5);
     } else if (inp.pressed('lock')) {
       const t = p.radar.cycleLock(this.sim);
       if (t) audio.beep(1500, 0.08, 0.05);
@@ -939,8 +944,9 @@ export class Game implements ModeHost {
             best = c.target;
           }
         }
-        if (best && p.irst.setLock(best, this.sim)) this.message('PIRATE IRST LOCK (PASSIVE)', 'good', 2);
-        else this.message('PIRATE: NO IR TRACK', 'warn', 2);
+        const irst = p.type === 'SU35' ? 'OLS-35' : 'PIRATE';
+        if (best && p.irst.setLock(best, this.sim)) this.message(`${irst} IRST LOCK (PASSIVE)`, 'good', 2);
+        else this.message(`${irst}: NO IR TRACK`, 'warn', 2);
       }
     }
     // countermeasures
@@ -1060,6 +1066,10 @@ export class Game implements ModeHost {
     if (w === 'GUN') return;
     if (p.fm.onGround) {
       this.message('WEIGHT ON WHEELS — WEAPONS SAFE', 'warn', 2);
+      return;
+    }
+    if (RULES.holdFire) {
+      this.message('WEAPONS HOLD — WAIT FOR WEAPONS FREE', 'warn', 2);
       return;
     }
     if (isIrMissile(w) && !p.seekerTarget) {

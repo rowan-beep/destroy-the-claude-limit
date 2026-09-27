@@ -10,6 +10,30 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '3.1.0',
+    date: '2026-09-27',
+    title: "Physics update and bug fixes",
+    notes: [
+      "PHYSICS: the wings now feel the wind on the runway too. Into a headwind you lift off sooner and roll shorter (about 20% less runway with a 20 kt headwind); with a tailwind it takes longer.",
+      "Jet wash and wake turbulence: flying close behind another jet puts you in its trailing vortices, so you get bumps, sink and a roll kick near a vortex core. It's strongest right behind a heavy, slow, hard-pulling jet and fades out about a kilometre back.",
+      "Gun recoil: firing the cannon pushes back on the jet (about 16 kN for the F-15's M61), so long bursts cost some speed.",
+      "Sideslip drag: flying sideways on the rudder now costs energy, as it does on a real jet.",
+      "Negative-G overstress: pushing well past the negative G limit now over-stresses the airframe, and extreme negative G breaks it.",
+      "Engines spool up and down more slowly in thin air at high altitude.",
+      "External stores now add drag gradually through the transonic range, instead of jumping suddenly at Mach 1.",
+      "Missile rocket motors produce a little more thrust at altitude, where there's less air pressure pushing back on the nozzle.",
+      "Chaff clouds and flares slow down and drift with the wind.",
+      "Fixed: cannon rounds could pass straight through a wing without hitting.",
+      "Landing grades now use your airspeed at touchdown, not your ground speed.",
+      "Fixed: in free-for-all, the drop-in countdown said 'weapons free in 6 s' but nothing held fire; nobody can shoot until weapons free now.",
+      "Fixed: AI pilots low on fuel in free-for-all flew 'home', straight out of the zone and into the storm; they now fight on.",
+      "Fixed: respawning in Free Flight with the fire key left the camera stuck on the death view, with the old gear and HUD state.",
+      "Fixed: hit markers appeared for Su-35S missile hits; they're for gun hits only.",
+      "Fixed: Su-35S messages named the AIM-9X and PIRATE; they now say R-74M and OLS-35.",
+      "Fixed: the Duel record counted mutual kills as losses (now shown as draws); restarting a Duel or Waves mission left decoys in the air; restarting Waves from wave 1 didn't reset the mission clock.",
+    ],
+  },
+  {
     version: '3.0.0',
     date: '2026-09-27',
     title: "New sound engine and realistic jet models",

@@ -100,6 +100,10 @@ export class FreeForAllMode extends GameMode {
     RULES.ffa = true;
     RULES.bountyId = -1;
     RULES.revealAll = false;
+    // weapons hold until the drop-in countdown runs out
+    RULES.holdFire = true;
+    this.stormWarnT = 0;
+    this.lastStormHit = 0;
     h.picture.gciEnabled.blue = false;
     h.picture.gciEnabled.red = false;
 
@@ -414,6 +418,7 @@ export class FreeForAllMode extends GameMode {
       this.timer -= dt;
       if (this.timer <= 0) {
         this.phase = 'combat';
+        RULES.holdFire = false;
         h.message("WEAPONS FREE — IT'S EVERY PILOT FOR THEMSELVES", 'good', 4);
         h.voice("Fight's on");
       }
@@ -522,5 +527,6 @@ export class FreeForAllMode extends GameMode {
     RULES.zone.active = false;
     RULES.bountyId = -1;
     RULES.revealAll = false;
+    RULES.holdFire = false;
   }
 }

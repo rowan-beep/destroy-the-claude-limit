@@ -6,6 +6,9 @@ import type { Sim } from '../game/sim';
 import type { Aircraft } from '../aircraft/aircraft';
 import { G0 } from '../core/constants';
 import { rand } from '../core/rng';
+import { windAt } from '../core/weather';
+
+const _wind = new THREE.Vector3();
 
 export interface Decoy {
   id: number;
@@ -61,9 +64,12 @@ export class CountermeasureSystem {
         this.decoys.splice(i, 1);
         continue;
       }
-      // heavy drag: decoys decelerate to the local air mass quickly
+      // heavy drag: decoys slow to the local air mass quickly, then drift
+      // downwind with it (a chaff cloud blows away with the wind)
       const k = d.kind === 'flare' ? 1.1 : 3.5;
-      d.vel.multiplyScalar(Math.exp(-k * dt));
+      windAt(d.pos.x, d.pos.y, d.pos.z, this.sim.time, d.pos.y, 0, _wind);
+      _wind.y = 0;
+      d.vel.sub(_wind).multiplyScalar(Math.exp(-k * dt)).add(_wind);
       d.vel.y -= (d.kind === 'flare' ? G0 * 0.8 : G0 * 0.05) * dt;
       d.pos.addScaledVector(d.vel, dt);
       if (d.kind === 'flare') d.strength *= Math.exp(-0.25 * dt);

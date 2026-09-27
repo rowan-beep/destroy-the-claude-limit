@@ -322,7 +322,9 @@ export class AIPilot {
 
     // --- fuel -----------------------------------------------------------
     const fuelFrac = fm.fuelTotal / ac.spec.internalFuel;
-    if (fuelFrac < 0.06 && this.state !== 'RTB') this.state = 'RTB';
+    // (never in a free-for-all: there is nowhere to go home to, and leaving the
+    // zone is certain death -- fight on what is left)
+    if (fuelFrac < 0.06 && this.state !== 'RTB' && !RULES.ffa) this.state = 'RTB';
 
     // --- target / state ---------------------------------------------------
     if (this.state === 'FORMATION' && this.leader) {

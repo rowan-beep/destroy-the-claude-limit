@@ -148,8 +148,10 @@ export class BulletSystem {
     a1.applyQuaternion(_q);
     const halfL = s.length / 2;
     const fusR = 1.25;
-    // fuselage capsule along z
-    const N = 12;
+    // fuselage capsule along z; sample finely enough (every 0.3 m of relative
+    // travel) that a round can't skip through the thin wing between samples
+    const seg = Math.hypot(a1.x - a0.x, a1.y - a0.y, a1.z - a0.z);
+    const N = Math.min(96, Math.max(8, Math.ceil(seg / 0.3)));
     for (let k = 0; k <= N; k++) {
       const u = k / N;
       const x = a0.x + (a1.x - a0.x) * u;

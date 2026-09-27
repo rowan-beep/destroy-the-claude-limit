@@ -492,6 +492,7 @@ export class ReplayPlayer {
       fm.updateAxes();
       fm.vel.set(L(A_VX), L(A_VY), L(A_VZ));
       fm.tas = fm.vel.length();
+      fm.gs = Math.hypot(fm.vel.x, fm.vel.z);
       fm.gearPos = L(A_GEAR);
       fm.speedbrakePos = L(A_SB);
       const ab = L(A_AB);

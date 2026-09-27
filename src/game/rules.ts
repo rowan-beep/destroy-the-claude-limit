@@ -26,6 +26,8 @@ export const RULES = {
   bountyId: -1,
   /** free-for-all final circles: every jet's position is broadcast to everyone */
   revealAll: false,
+  /** weapons hold (free-for-all drop-in): nobody can fire */
+  holdFire: false,
 };
 
 /** Are these two aircraft enemies under the current rules? */
@@ -43,4 +45,5 @@ export function resetRules(): void {
   RULES.zone.active = false;
   RULES.bountyId = -1;
   RULES.revealAll = false;
+  RULES.holdFire = false;
 }
