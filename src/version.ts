@@ -10,6 +10,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.5.1',
+    date: '2026-09-28',
+    title: "F-22A model rebuilt",
+    notes: [
+      "F-22A model rebuilt from the ground up. The flat, faceted fuselage now has a sharp chine running from the nose to the tail and the wide flat deck over the intakes and wing roots. The caret intakes are built into the sides of the fuselage, with dark ducts. It also has the frameless gold canopy on a raised sill, broad trapezoidal fins canted out 28 degrees, the tail booms that carry the all-moving tailplanes, and square 2D nozzles with serrated upper and lower flaps that swing as you vector.",
+      "Correct stance: the F-22 now stands 16.7 ft tall on its gear, with the nose leg behind the radome.",
+      "Your own F-22 and the hangar jet are built at about 3.8 million triangles, the most detailed jet in the game.",
+    ],
+  },
+  {
     version: '4.5.0',
     date: '2026-09-28',
     title: "F-22A Raptor",

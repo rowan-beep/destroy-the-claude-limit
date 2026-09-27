@@ -876,7 +876,7 @@ const F22: AircraftSpec = {
   // a conventional signature (no stealth advantage in the game)
   rcs: 8,
   irSignature: 1.05,
-  gear: { nose: -5.6, main: 1.0, track: 1.6, height: 1.85 },
+  gear: { nose: -6.1, main: 0.95, track: 1.55, height: 2.05 },
   hitRadius: 5.8,
   paint: { top: '#8b9196', bottom: '#9ba1a5', accent: '#6b7176' },
 };
