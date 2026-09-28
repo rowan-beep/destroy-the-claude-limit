@@ -3,6 +3,10 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.6.1 — Rafale intro removed (2026-09-28)
+
+- Removed the Rafale intro that played the first time the update notes opened: its music, the animation and all of its code are gone. The update notes now just open. The Rafale itself is unchanged.
+
 ## v4.6.0 — New menu, F-22A handling, fixes (2026-09-28)
 
 - New main menu. A slim top bar replaces the crowded header: Multiplayer, Logbook, Controls and Settings on one line. On the left is a compact aircraft list. The jet in the hangar gets the middle of the screen, with its name and key numbers underneath. On the right, one panel with three tabs: Mission (game mode and its options), Aircraft (loadout and full specifications) and Theater (map choice). FLY is always at the bottom of that panel with a summary of what you're about to fly, so nothing is pushed off the screen any more.

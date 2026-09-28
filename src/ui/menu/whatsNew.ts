@@ -3,7 +3,6 @@
 
 import { el, clearEl, button } from '../dom';
 import { RELEASES, VERSION } from '../../version';
-import { bossRevealPending, playBossReveal } from './bossReveal';
 
 const SEEN_KEY = 'triad.seenVersion';
 
@@ -23,19 +22,7 @@ export class WhatsNewModal {
     });
   }
 
-  private revealing = false;
-
   show(on: boolean): void {
-    if (on && bossRevealPending()) {
-      // the first time only: the Rafale's entrance, then the notes
-      if (this.revealing) return;
-      this.revealing = true;
-      void playBossReveal().then(() => {
-        this.revealing = false;
-        this.show(true);
-      });
-      return;
-    }
     this.root.classList.toggle('hidden', !on);
     if (!on) return;
     clearEl(this.body);

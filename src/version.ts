@@ -10,6 +10,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.6.1',
+    date: '2026-09-28',
+    title: "Rafale intro removed",
+    notes: [
+      "Removed the Rafale intro that played the first time the update notes opened: its music, the animation and all of its code are gone. The update notes now just open. The Rafale itself is unchanged.",
+    ],
+  },
+  {
     version: '4.6.0',
     date: '2026-09-28',
     title: "New menu, F-22A handling, fixes",
