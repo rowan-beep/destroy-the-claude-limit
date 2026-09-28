@@ -10,6 +10,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.12.1',
+    date: '2026-09-28',
+    title: "Less crackle",
+    notes: [
+      "Jet crackle turned down by 90 %: the ripping sound at high power and in afterburner is now a subtle edge under the roar, on your jet and on the jets around you.",
+    ],
+  },
+  {
     version: '4.12.0',
     date: '2026-09-28',
     title: "Real jet sound",

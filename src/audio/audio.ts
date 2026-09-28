@@ -89,6 +89,9 @@ export interface FlightSound {
   vs?: number;
 }
 
+/** overall crackle level (1 = the original mix; players wanted it far subtler) */
+const CRACKLE = 0.1;
+
 interface EngineVoice {
   /** low-pressure (fan) and high-pressure spool speeds at 100 % (Hz) */
   n1: number;
@@ -177,7 +180,7 @@ function renderJet(n: number, sr: number, r: Rng): Float32Array {
   crackleInto(c, sr, 50, 1, r, 2);
   Biquad.hp(sr, 500, 0.7).apply(c);
   onePole(c, sr, 9000);
-  const k = (0.12 * rms(d)) / Math.max(1e-9, rms(c));
+  const k = (0.12 * CRACKLE * rms(d)) / Math.max(1e-9, rms(c));
   return mixInto(d, c, k);
 }
 
@@ -220,7 +223,7 @@ function renderAb(n: number, sr: number, r: Rng): Float32Array {
   crackleInto(c, sr, 170, 1, r, 5);
   Biquad.hp(sr, 300, 0.7).apply(c);
   onePole(c, sr, 7000);
-  return mixInto(d, c, (0.3 * base) / Math.max(1e-9, rms(c)));
+  return mixInto(d, c, (0.3 * CRACKLE * base) / Math.max(1e-9, rms(c)));
 }
 
 /** Airflow: boundary-layer rush with gusts. */
@@ -797,7 +800,7 @@ export class AudioEngine {
       P(this.roar.gain.gain, on * (0.03 + 0.16 * r2) * (1 + 0.5 * ab) * sup);
       P(this.roar.f[0].frequency, 480, 0.2);
       P(this.body.gain.gain, on * (0.07 + 0.22 * r2) * (1 + 0.4 * ab));
-      P(this.crack.gain.gain, on * v.crackle * 0.05 * ab);
+      P(this.crack.gain.gain, on * v.crackle * CRACKLE * 0.05 * ab);
       P(this.crack.f[1].frequency, 1400, 0.2);
     } else {
       const roarG = on * (0.05 + 0.55 * r2) * (0.25 + 0.75 * rear) * dk * (1 + 0.3 * ab);
@@ -805,7 +808,7 @@ export class AudioEngine {
       P(this.roar.f[0].frequency, Math.min(absorb, 1300 + 7000 * Math.pow(rpm, 1.5) + 3000 * ab), 0.2);
       P(this.body.gain.gain, on * (0.08 + 0.35 * r2) * (0.5 + 0.5 * rear) * dk);
       // crackle: only near full power, violently in reheat, beamed aft
-      P(this.crack.gain.gain, on * v.crackle * (0.35 * Math.pow(rpm, 4) + 0.8 * ab) * Math.pow(0.15 + 0.85 * rear, 1.3) * dk);
+      P(this.crack.gain.gain, on * v.crackle * CRACKLE * (0.35 * Math.pow(rpm, 4) + 0.8 * ab) * Math.pow(0.15 + 0.85 * rear, 1.3) * dk);
       P(this.crack.f[1].frequency, Math.min(absorb, 12000), 0.2);
     }
 
@@ -977,7 +980,7 @@ export class AudioEngine {
       sl.ab.src.playbackRate.setTargetAtTime(dop, t, 0.06);
       sl.roar.gain.gain.setTargetAtTime(dk * (0.1 + 0.6 * rpm * rpm) * (0.3 + 0.7 * rear) * (1 + 0.4 * o.ab), t, 0.06);
       sl.roar.f[0].frequency.setTargetAtTime(absorb, t, 0.08);
-      sl.crack.gain.gain.setTargetAtTime(dk * v.crackle * (0.3 * Math.pow(rpm, 4) + 0.9 * o.ab) * Math.pow(0.1 + 0.9 * rear, 1.3), t, 0.06);
+      sl.crack.gain.gain.setTargetAtTime(dk * v.crackle * CRACKLE * (0.3 * Math.pow(rpm, 4) + 0.9 * o.ab) * Math.pow(0.1 + 0.9 * rear, 1.3), t, 0.06);
       sl.crack.f[1].frequency.setTargetAtTime(Math.min(absorb, 10000), t, 0.08);
       sl.ab.gain.gain.setTargetAtTime(dk * o.ab * v.ab * 0.8 * (0.5 + 0.5 * rear), t, 0.06);
       sl.ab.f[0].frequency.setTargetAtTime(Math.min(absorb, 1400), t, 0.08);

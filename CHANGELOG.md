@@ -3,6 +3,10 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.12.1 — Less crackle (2026-09-28)
+
+- Jet crackle turned down by 90 %: the ripping sound at high power and in afterburner is now a subtle edge under the roar, on your jet and on the jets around you.
+
 ## v4.12.0 — Real jet sound (2026-09-28)
 
 - ALL-NEW JET SOUND: every engine, afterburner and weapon sound rebuilt around how real fighters sound. The exhaust is proper jet mixing noise with its deep hump, breathing with the turbulence, and at high power it CRACKLES: the ripping, tearing shock waves you hear from a real fighter at full power, beamed out behind the jet.
