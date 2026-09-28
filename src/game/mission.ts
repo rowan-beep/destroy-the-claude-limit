@@ -63,13 +63,13 @@ export const MODE_INFO: Record<ModeId, { title: string; subtitle: string; descri
     title: 'FREE FLIGHT',
     subtitle: 'Sandbox',
     description:
-      'Take any of the three jets from a BLUE runway and fly the whole 400 x 400 NM theater. No enemies: practise take-offs, landings, high-G handling and see how fast the afterburner drains your tanks.',
+      'Take any jet from a BLUE runway and fly the whole theater. No enemies: practise take-offs, landings, high-G handling and see how fast the afterburner drains your tanks.',
   },
   waves: {
     title: 'WAVE COMBAT',
     subtitle: '10 escalating waves',
     description:
-      'Waves 1-3: three basic bandits. Waves 4-6: six tactical bandits that defend, dispense and terrain-mask. Waves 7-9: six aggressive bandits with afterburner discipline and AIM-120D shots. Wave 10: nine elite bandits with multi-ship tactics.',
+      'Waves 1-3: three basic bandits. Waves 4-6: six tactical bandits that defend, dispense and terrain-mask. Waves 7-9: six aggressive bandits with afterburner discipline and long radar-missile shots. Wave 10: nine elite bandits with multi-ship tactics.',
   },
   team: {
     title: '5v5 TEAM BATTLE',
@@ -87,6 +87,6 @@ export const MODE_INFO: Record<ModeId, { title: string; subtitle: string; descri
     title: '1v1 DUEL',
     subtitle: 'Custom dogfight',
     description:
-      'Pick your jet, the enemy jet (one of the two you did not choose) and the AI difficulty: Easy, Medium, Hard or Extreme. Start head-on in the air or on opposite runways of the contested island with the mountains between you.',
+      'Pick your jet, the enemy jet (any type but yours) and the AI difficulty: Easy, Medium, Hard or Extreme. Start head-on in the air or on opposite runways of the contested island with the mountains between you.',
   },
 };

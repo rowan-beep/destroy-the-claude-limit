@@ -10,6 +10,18 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.6.0',
+    date: '2026-09-28',
+    title: "New menu, F-22A handling, fixes",
+    notes: [
+      "New main menu. A slim top bar replaces the crowded header: Multiplayer, Logbook, Controls and Settings on one line. On the left is a compact aircraft list. The jet in the hangar gets the middle of the screen, with its name and key numbers underneath. On the right, one panel with three tabs: Mission (game mode and its options), Aircraft (loadout and full specifications) and Theater (map choice). FLY is always at the bottom of that panel with a summary of what you're about to fly, so nothing is pushed off the screen any more.",
+      "F-22A handling: the 2D nozzles now also deflect in opposite directions to roll the jet, as on the real Raptor, so it stays controllable rolling at high angle of attack. They still can't yaw. The post-stall limit with the G override is now 60 degrees (the Su-35S keeps 70), and it recovers from a high-alpha pull faster (1.3 s instead of 1.8 s).",
+      "F-22A performance: its high-detail model is back to the same density as the other jets (about 2.4 million triangles, down from 3.8 million), so the frame rate, and the feel of the controls, is steadier on laptops.",
+      "Fixed: outdated text from when there were fewer jets. The Free Flight description said 'any of the three jets' and '400 x 400 NM', the duel and wave descriptions said 'the two jets you did not pick', the free-for-all option said 'ALL FOUR TYPES', the loadout note only mentioned two missile families, and the TRIAD medal said 'all four aircraft'.",
+      "Flatter, cleaner buttons across the menus (no more gradients).",
+    ],
+  },
+  {
     version: '4.5.1',
     date: '2026-09-28',
     title: "F-22A model rebuilt",

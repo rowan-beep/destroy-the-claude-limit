@@ -17,8 +17,8 @@ terrain against you.
 | Radar | AN/APG-82(V)1 AESA | AN/APG-79 AESA | CAPTOR-E + PIRATE IRST | N035 Irbis-E PESA + OLS-35 IRST | RBE2 AESA + OSF IRST, SPECTRA | AN/APG-77 AESA |
 | Missiles | AIM-120D, AIM-9X | AIM-120D, AIM-9X | AIM-120D, AIM-9X | R-77M, R-74M (Su-35S only) | Meteor, MICA IR (Rafale only) | AIM-120D, AIM-9X (internal bays) |
 
-Current version: **v4.5.1** — see [CHANGELOG.md](CHANGELOG.md) (also in the game
-under **v4.5.1 · NOTES** on the main menu).
+Current version: **v4.6.0** — see [CHANGELOG.md](CHANGELOG.md) (also in the game
+under **v4.6.0 · NOTES** on the main menu).
 
 Each jet is a high-detail procedural model: about 250k-390k triangles for the jets
 around you, and a hero build with about 10x that (2.5-4 million triangles) for your

@@ -574,9 +574,10 @@ export class FlightModel {
     const tvc = s.tvcDeg * DEG;
     const T = Math.max(0, this.thrust) * ctl;
     const tvcPitch = T * Math.sin(tvc) * 7.0;
-    // 2D nozzles (F-22) vector in pitch only
+    // 2D nozzles (F-22) cannot yaw, but they deflect differentially (one up,
+    // one down) to roll the jet, which is what keeps it controllable post-stall
     const tvcYaw = s.tvcPitchOnly ? 0 : T * Math.sin(tvc) * 7.0 * 0.8;
-    const tvcRoll = s.tvcPitchOnly ? 0 : T * Math.sin(tvc) * A.engineArm * 0.5;
+    const tvcRoll = T * Math.sin(tvc) * A.engineArm * (s.tvcPitchOnly ? 0.8 : 0.5);
     const powE = eEff * kPitch + tvcPitch;
     const powA = aEff * kRoll + tvcRoll;
     const powR = rEff * kYaw + tvcYaw;
@@ -593,7 +594,7 @@ export class FlightModel {
     this.nCmdF += clamp(nCmd - this.nCmdF, -onset * dt, onset * dt);
     const clReq = (this.nCmdF * W) / Math.max(qS, 1);
     // TVC jets: the paddle switch opens the post-stall manoeuvring envelope
-    const aLim = c.gOverride ? (tvc > 0 ? 70 * DEG : aMax * 1.12) : aMax;
+    const aLim = c.gOverride ? (tvc > 0 ? (s.tvcAlphaMaxDeg ?? 70) * DEG : aMax * 1.12) : aMax;
     const alphaCmd = clamp(this.alphaForCl(clReq, M), -12 * DEG, aLim);
     this.stallWarning = (alphaCmd >= aLim * 0.97 && stick > 0.3) || alpha > aLim;
 
@@ -652,7 +653,7 @@ export class FlightModel {
     const Ny = (cnNat + rEff * this.defl.r + A.cnDa * this.defl.a) * kYaw + tvcYaw * this.defl.r;
     this.nozzle.p = tvc * this.defl.e;
     this.nozzle.y = s.tvcPitchOnly ? 0 : tvc * this.defl.r;
-    this.nozzle.roll = s.tvcPitchOnly ? 0 : tvc * this.defl.a;
+    this.nozzle.roll = tvc * this.defl.a;
     // turbulence: a gust gradient across the span rolls the wings
     const gustRoll = clamp((this.windVel.y - this.lastGustY) / Math.max(dt, 1e-4), -40, 40) * 0.025;
     this.lastGustY = this.windVel.y;

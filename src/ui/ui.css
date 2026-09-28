@@ -118,7 +118,7 @@ button { font-family: var(--title); }
 
 /* ------------------------------------------------------------------ MENUS */
 .screen { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; }
-.menu-root { background: radial-gradient(ellipse at 30% 20%, rgba(40, 70, 100, 0.25), transparent 60%), linear-gradient(180deg, rgba(5, 10, 16, 0.25), rgba(5, 10, 16, 0.85)); pointer-events: none; }
+.menu-root { background: linear-gradient(90deg, rgba(6, 10, 14, 0.72) 0, rgba(6, 10, 14, 0) 22%, rgba(6, 10, 14, 0) 70%, rgba(6, 10, 14, 0.72) 100%); pointer-events: none; }
 .menu-root > * { pointer-events: auto; }
 .menu-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 26px 6px; }
 .brand { display: flex; align-items: baseline; gap: 14px; }
@@ -127,8 +127,8 @@ button { font-family: var(--title); }
 .header-buttons { display: flex; gap: 8px; }
 .btn { background: rgba(20, 30, 40, 0.85); border: 1px solid var(--menu-line); color: var(--menu-text); padding: 8px 16px; font-size: 14px; letter-spacing: 2px; cursor: pointer; border-radius: 2px; transition: background 0.15s, border-color 0.15s; }
 .btn:hover { background: rgba(40, 60, 80, 0.9); border-color: rgba(140, 200, 255, 0.45); }
-.btn.primary { background: linear-gradient(180deg, #2fb877, #1d8a55); border-color: #5ff0a8; color: #04140b; font-weight: 700; }
-.btn.primary:hover { background: linear-gradient(180deg, #45d08c, #22a064); }
+.btn.primary { background: #2f9a64; border-color: #3fb277; color: #06140c; font-weight: 700; }
+.btn.primary:hover { background: #38ad72; }
 .btn.big { font-size: 22px; padding: 12px 34px; letter-spacing: 4px; }
 .btn.small { padding: 4px 10px; font-size: 12px; letter-spacing: 1px; }
 .btn.active { border-color: var(--accent); color: #d6ffe9; box-shadow: 0 0 10px rgba(71, 209, 140, 0.35) inset; }
@@ -529,3 +529,78 @@ body.touch-mode .weapon-bar { bottom: auto; top: calc(96px + env(safe-area-inset
 .wx-tab:hover { color: #fff; background: rgba(20, 36, 50, 0.9); }
 @media (max-width: 700px) { .wx-widget { --wx-w: 206px; } }
 @media (max-height: 819px) { .wx-widget { transform-origin: top left; zoom: 0.85; } }
+
+
+/* ---- main menu (v4.6): top bar, aircraft list, hangar, one tabbed panel ---- */
+.mn-top { display: flex; align-items: center; justify-content: space-between; height: 52px; padding: 0 22px; border-bottom: 1px solid rgba(255, 255, 255, 0.07); background: rgba(8, 12, 16, 0.78); }
+.mn-brand { display: flex; align-items: baseline; gap: 16px; }
+.mn-word { font-size: 24px; font-weight: 700; letter-spacing: 7px; color: #eef3f6; }
+.mn-theater { font-size: 13px; color: #7f909d; letter-spacing: 0.5px; }
+.mn-nav { display: flex; align-items: center; gap: 2px; }
+.btn.mn-link { background: none; border: 1px solid transparent; color: #b8c6d0; font-size: 15px; letter-spacing: 1px; padding: 6px 12px; border-radius: 2px; }
+.btn.mn-link:hover { color: #fff; background: rgba(255, 255, 255, 0.06); }
+.btn.mn-link.strong { color: #e9f2ec; border-color: rgba(71, 209, 140, 0.55); margin-right: 8px; }
+.btn.mn-link.strong:hover { background: rgba(71, 209, 140, 0.12); }
+.btn.mn-link.dim { color: #6f808c; font-family: var(--mono); font-size: 12px; }
+.mn-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 250px 1fr 350px; gap: 0; }
+.mn-panel { background: rgba(9, 13, 18, 0.9); min-height: 0; display: flex; flex-direction: column; }
+.mn-left { border-right: 1px solid rgba(255, 255, 255, 0.07); padding: 16px 0 12px; }
+.mn-right { border-left: 1px solid rgba(255, 255, 255, 0.07); }
+.mn-label { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: #74858f; margin: 0 0 8px; }
+.mn-left > .mn-label { padding: 0 18px; }
+.mn-jets { display: flex; flex-direction: column; overflow: auto; }
+.mn-jet { padding: 9px 18px 9px 15px; border-left: 3px solid transparent; cursor: pointer; }
+.mn-jet:hover { background: rgba(255, 255, 255, 0.04); }
+.mn-jet.sel { border-left-color: var(--accent); background: rgba(71, 209, 140, 0.07); }
+.mn-jet-r1 { display: flex; justify-content: space-between; align-items: baseline; }
+.mn-jet-name { font-size: 18px; font-weight: 700; letter-spacing: 1px; color: #e8eef2; }
+.mn-jet-mach { font-family: var(--mono); font-size: 12px; color: #7f909d; }
+.mn-jet-sub { font-size: 13px; color: #7f909d; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mn-jet.sel .mn-jet-mach { color: #9fd8b6; }
+.mn-left-foot { margin-top: auto; padding: 12px 18px 0; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+.btn.mn-ghost { width: 100%; background: none; border: 1px solid rgba(255, 255, 255, 0.14); color: #c9d5dd; font-size: 14px; letter-spacing: 1px; padding: 8px 10px; }
+.btn.mn-ghost:hover { border-color: rgba(255, 255, 255, 0.3); color: #fff; }
+.mn-centre { justify-content: flex-end; align-items: flex-start; padding: 0 0 26px 30px; }
+.mn-caption { max-width: 560px; text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8); }
+.mn-cap-name { font-size: 30px; font-weight: 700; letter-spacing: 1.5px; color: #fff; line-height: 1.1; }
+.mn-cap-role { font-size: 15px; color: #aebcc6; margin-top: 2px; }
+.mn-cap-stats { display: flex; gap: 26px; margin-top: 12px; }
+.mn-stat { display: flex; flex-direction: column; }
+.mn-stat span { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: #8494a0; }
+.mn-stat b { font-family: var(--mono); font-weight: 400; font-size: 16px; color: #eef3f6; }
+.mn-tabs { display: flex; border-bottom: 1px solid rgba(255, 255, 255, 0.07); }
+.mn-tab { flex: 1; background: none; border: none; border-bottom: 2px solid transparent; color: #7f909d; font-family: var(--title); font-size: 15px; letter-spacing: 1px; padding: 13px 0 11px; cursor: pointer; }
+.mn-tab:hover { color: #d7e1e8; }
+.mn-tab.on { color: #eef3f6; border-bottom-color: var(--accent); }
+.mn-pages { flex: 1; min-height: 0; overflow: auto; padding: 16px 18px; }
+.mn-page.hidden { display: none; }
+.mn-modes { display: flex; flex-direction: column; margin-bottom: 18px; border: 1px solid rgba(255, 255, 255, 0.07); }
+.mn-mode { padding: 8px 12px; cursor: pointer; border-left: 3px solid transparent; }
+.mn-mode + .mn-mode { border-top: 1px solid rgba(255, 255, 255, 0.05); }
+.mn-mode:hover { background: rgba(255, 255, 255, 0.04); }
+.mn-mode.sel { border-left-color: var(--accent-2); background: rgba(74, 163, 255, 0.08); }
+.mn-mode-t { font-size: 16px; font-weight: 700; letter-spacing: 1px; color: #e3eaef; }
+.mn-mode-s { font-size: 12.5px; color: #7f909d; }
+.mn-setup .field label { font-size: 12px; letter-spacing: 1px; color: #8494a0; }
+.mn-setup .seg .btn { font-size: 12.5px; padding: 5px 4px; background: rgba(255, 255, 255, 0.03); border-color: rgba(255, 255, 255, 0.1); color: #b8c6d0; }
+.mn-setup .seg .btn.active { background: rgba(74, 163, 255, 0.16); border-color: rgba(74, 163, 255, 0.6); color: #fff; }
+.mn-desc { margin-bottom: 12px; }
+.mn-select { width: 100%; margin-bottom: 8px; background: #0e151c; border-color: rgba(255, 255, 255, 0.14); }
+.mn-specs { margin-top: 16px; }
+.mn-specs .specs { font-size: 12px; }
+.mn-specs .specs td { padding: 4px 2px; }
+.mn-right .map-card { margin-bottom: 8px; }
+.mn-foot { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-top: 1px solid rgba(255, 255, 255, 0.07); background: rgba(6, 9, 12, 0.6); }
+.mn-foot-info { flex: 1; min-width: 0; }
+.mn-foot-a { font-size: 14px; color: #dfe7ec; letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mn-foot-b { font-size: 12px; color: #7f909d; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.btn.mn-fly { background: #2f9a64; border: 1px solid #3fb277; color: #06140c; font-size: 20px; font-weight: 700; letter-spacing: 4px; padding: 10px 30px; text-transform: uppercase; }
+.btn.mn-fly:hover { background: #38ad72; }
+@media (max-width: 1100px) { .mn-body { grid-template-columns: 210px 1fr 310px; } .mn-cap-stats { gap: 16px; } .mn-theater { display: none; } }
+@media (max-width: 760px) {
+  .mn-body { grid-template-columns: 1fr; overflow: auto; }
+  .mn-centre { min-height: 280px; padding: 0 0 16px 16px; }
+  .mn-nav .btn.mn-link { padding: 6px 7px; font-size: 13px; }
+  .mn-jets { flex-direction: row; overflow-x: auto; }
+  .mn-jet { min-width: 150px; }
+}

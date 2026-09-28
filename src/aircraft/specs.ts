@@ -146,6 +146,8 @@ export interface AircraftSpec {
   tvcDeg: number;
   /** thrust vectoring in pitch only (2D nozzles) instead of pitch, yaw and roll */
   tvcPitchOnly?: boolean;
+  /** post-stall AoA limit with the G-limiter overridden (TVC jets; default 70 deg) */
+  tvcAlphaMaxDeg?: number;
   gun: GunSpec;
   stations: StationDef[];
   loadouts: LoadoutPreset[];
@@ -834,6 +836,7 @@ const F22: AircraftSpec = {
   missiles: { radar: AIM120, ir: AIM9 },
   tvcDeg: 20,
   tvcPitchOnly: true,
+  tvcAlphaMaxDeg: 60,
   gun: {
     name: 'M61A2 Vulcan 20mm rotary cannon',
     caliberMm: 20,

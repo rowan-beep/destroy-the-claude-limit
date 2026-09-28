@@ -3,6 +3,14 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.6.0 — New menu, F-22A handling, fixes (2026-09-28)
+
+- New main menu. A slim top bar replaces the crowded header: Multiplayer, Logbook, Controls and Settings on one line. On the left is a compact aircraft list. The jet in the hangar gets the middle of the screen, with its name and key numbers underneath. On the right, one panel with three tabs: Mission (game mode and its options), Aircraft (loadout and full specifications) and Theater (map choice). FLY is always at the bottom of that panel with a summary of what you're about to fly, so nothing is pushed off the screen any more.
+- F-22A handling: the 2D nozzles now also deflect in opposite directions to roll the jet, as on the real Raptor, so it stays controllable rolling at high angle of attack. They still can't yaw. The post-stall limit with the G override is now 60 degrees (the Su-35S keeps 70), and it recovers from a high-alpha pull faster (1.3 s instead of 1.8 s).
+- F-22A performance: its high-detail model is back to the same density as the other jets (about 2.4 million triangles, down from 3.8 million), so the frame rate, and the feel of the controls, is steadier on laptops.
+- Fixed: outdated text from when there were fewer jets. The Free Flight description said 'any of the three jets' and '400 x 400 NM', the duel and wave descriptions said 'the two jets you did not pick', the free-for-all option said 'ALL FOUR TYPES', the loadout note only mentioned two missile families, and the TRIAD medal said 'all four aircraft'.
+- Flatter, cleaner buttons across the menus (no more gradients).
+
 ## v4.5.1 — F-22A model rebuilt (2026-09-28)
 
 - F-22A model rebuilt from the ground up. The flat, faceted fuselage now has a sharp chine running from the nose to the tail and the wide flat deck over the intakes and wing roots. The caret intakes are built into the sides of the fuselage, with dark ducts. It also has the frameless gold canopy on a raised sill, broad trapezoidal fins canted out 28 degrees, the tail booms that carry the all-moving tailplanes, and square 2D nozzles with serrated upper and lower flaps that swing as you vector.

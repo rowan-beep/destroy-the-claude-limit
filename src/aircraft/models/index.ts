@@ -34,8 +34,7 @@ export function setHeroDetail(q: Tier): void {
 }
 
 function template(ac: Aircraft, hero: boolean): AirframeVisual {
-  // the Raptor gets an extra-dense hero build: the showpiece jet
-  const d = hero ? heroDensity * (ac.type === 'F22' ? 1.25 : 1) : 1;
+  const d = hero ? heroDensity : 1;
   const key = `${ac.type}:${ac.team}:${d}`;
   let t = templates.get(key);
   if (!t) {

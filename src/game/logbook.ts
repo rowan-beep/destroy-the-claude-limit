@@ -88,7 +88,7 @@ export const MEDALS: MedalDef[] = [
   { id: 'ffa-win', name: 'LAST PILOT STANDING', desc: 'Win a 12-jet free-for-all.' },
   { id: 'ffa-podium', name: 'PODIUM', desc: 'Finish in the top 3 of a free-for-all.' },
   { id: 'ffa-bounty', name: 'BOUNTY HUNTER', desc: 'Claim a bounty in a free-for-all.' },
-  { id: 'all-jets', name: 'TRIAD', desc: 'Score a kill in all four aircraft.' },
+  { id: 'all-jets', name: 'TRIAD', desc: 'Score a kill in every aircraft.' },
 ];
 
 function emptyJet(): JetRecord {
