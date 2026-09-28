@@ -10,6 +10,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.7.1',
+    date: '2026-09-28',
+    title: "Smooth at 165 / 240 Hz, FPS counter",
+    notes: [
+      "High refresh rate displays: the game was never capped at 60 fps, but physics runs at a fixed 120 Hz, so above 120 fps some frames showed the same position twice and motion stuttered. Jets and missiles are now drawn part-way between physics steps, so motion is smooth on every frame at 144, 165 and 240 Hz.",
+      "FPS counter is now always shown at the very bottom of the screen in flight.",
+    ],
+  },
+  {
     version: '4.7.0',
     date: '2026-09-28',
     title: "Faster combat, more realistic jets",

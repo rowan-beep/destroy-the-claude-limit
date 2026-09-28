@@ -101,7 +101,7 @@ button { font-family: var(--title); }
 .info-card { width: 250px; font-size: 11px; }
 .vision-overlay { position: absolute; inset: 0; pointer-events: none; background: transparent; }
 .gloc-text { position: absolute; top: 45%; width: 100%; text-align: center; color: #333; font-size: 14px; letter-spacing: 3px; }
-.fps { position: absolute; left: 290px; bottom: 10px; font-size: 10px; color: #7a9; }
+.fps { position: fixed; left: 50%; bottom: 1px; transform: translateX(-50%); font-size: 11px; line-height: 1; color: #9fe8b8; text-shadow: 0 0 3px #000, 0 0 2px #000; pointer-events: none; z-index: 5; white-space: nowrap; }
 .rearm-bar { position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%); width: 300px; background: rgba(10,18,24,0.8); border: 1px solid var(--panel-border); padding: 6px; font-size: 12px; text-align: center; }
 .rearm-bar .fill { height: 6px; background: var(--accent); margin-top: 4px; }
 

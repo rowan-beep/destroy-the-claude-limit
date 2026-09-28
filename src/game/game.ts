@@ -2,6 +2,7 @@
 // audio and HUD; runs the fixed-step loop and translates the player's
 // inputs into flight controls and weapon actions.
 
+import { RenderInterp } from './interp';
 import { WeaponSelect, MISSILES, isIrMissile, launchCall } from '../weapons/weaponSpecs';
 import * as THREE from 'three';
 import { GameRenderer } from '../render/renderer';
@@ -81,6 +82,7 @@ export class Game implements ModeHost {
   config!: MissionConfig;
   state: GameState = 'menu';
   private accumulator = 0;
+  private readonly interp = new RenderInterp();
   private lastT = 0;
   private running = false;
   /** mouse-aim direction (world) */
@@ -576,6 +578,7 @@ export class Game implements ModeHost {
   }
 
   private frame(dt: number): void {
+    this.interp.restore();
     this.fpsAcc += dt;
     this.fpsFrames++;
     if (this.fpsAcc > 0.5) {
@@ -607,6 +610,7 @@ export class Game implements ModeHost {
       while (this.accumulator >= PHYSICS_DT && steps < 30) {
         this.controlPlayer(PHYSICS_DT);
         this.picture.update(PHYSICS_DT, this.sim);
+        this.interp.beforeStep(this.sim);
         this.sim.step(PHYSICS_DT);
         this.recorder?.update();
         this.accumulator -= PHYSICS_DT;
@@ -619,6 +623,8 @@ export class Game implements ModeHost {
       this.updateWarnings(dt);
     }
 
+    // high-refresh displays: draw everything part-way to the next physics step
+    if (this.player) this.interp.apply(this.sim, this.accumulator / PHYSICS_DT);
     const p = this.player;
     // team battle: once shot down, spectate after a few seconds
     if (p && simOn && !p.alive && this.mode && !this.mode.over && this.mode.roster().length > 0) {
@@ -628,6 +634,7 @@ export class Game implements ModeHost {
     if (p && this.spectator.active) {
       this.spectatorFrame(dt, simOn);
       this.renderer.render();
+      this.interp.restore();
       this.onAfterFrame?.(dt);
       this.input.endFrame();
       return;
@@ -658,6 +665,7 @@ export class Game implements ModeHost {
       this.updateAudio(p);
     }
     this.renderer.render();
+    this.interp.restore();
     this.onAfterFrame?.(dt);
     this.input.endFrame();
   }

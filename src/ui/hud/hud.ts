@@ -85,7 +85,7 @@ export class Hud {
   private damageT = 0;
   private hidden = false;
   private now = 0;
-  showFps = false;
+  showFps = true;
 
   constructor(parent: HTMLElement) {
     this.root = el('div', '', parent);

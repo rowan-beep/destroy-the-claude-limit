@@ -3,6 +3,11 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.7.1 — Smooth at 165 / 240 Hz, FPS counter (2026-09-28)
+
+- High refresh rate displays: the game was never capped at 60 fps, but physics runs at a fixed 120 Hz, so above 120 fps some frames showed the same position twice and motion stuttered. Jets and missiles are now drawn part-way between physics steps, so motion is smooth on every frame at 144, 165 and 240 Hz.
+- FPS counter is now always shown at the very bottom of the screen in flight.
+
 ## v4.7.0 — Faster combat, more realistic jets (2026-09-28)
 
 - Much faster in combat. Every jet now has a distance model: past a couple of hundred metres the full airframe is swapped for a merged copy that takes a handful of draw calls instead of about sixty, and looks the same at that range. In a 5v5 this cut draw calls by about a third and the triangles drawn per frame from 4 million to 2.5 million.
