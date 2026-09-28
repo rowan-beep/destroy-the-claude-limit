@@ -10,6 +10,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.6.2',
+    date: '2026-09-28',
+    title: "Old menu back, auto-update",
+    notes: [
+      "Back to the previous main menu layout. The text fixes from 4.6.0 stay (mode descriptions, loadout notes, F-22A internal bays).",
+      "The game now checks for a newer version when it loads and reloads itself once if one is live, so updates show up without a hard refresh.",
+    ],
+  },
+  {
     version: '4.6.1',
     date: '2026-09-28',
     title: "Rafale intro removed",

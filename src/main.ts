@@ -5,6 +5,7 @@ import { AutoFlyPanel } from './ui/autoFlyPanel';
 import * as THREE from 'three';
 import './styles.css';
 import './ui/ui.css';
+import { checkForNewBuild } from './core/freshness';
 import { Game } from './game/game';
 import { loadSettings, saveSettings } from './core/settings';
 import { defaultMission, MissionConfig } from './game/mission';
@@ -249,3 +250,5 @@ if (q.get('test') === 'world') {
     document.body.innerHTML = `<pre style="color:#f88;padding:20px;font-family:monospace">Failed to start: ${String(err?.stack ?? err)}</pre>`;
   });
 }
+
+checkForNewBuild();

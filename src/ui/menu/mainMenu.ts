@@ -13,16 +13,6 @@ import { DIFFICULTIES, Difficulty } from '../../ai/skill';
 import { airfieldsOf } from '../../world/islands';
 import { MISSILES } from '../../weapons/weaponSpecs';
 
-/** the second line under each jet in the list */
-const JET_SUB: Record<AircraftType, string> = {
-  F15EX: 'Boeing Eagle II',
-  FA18EF: 'Boeing Super Hornet',
-  TYPHOON: 'Eurofighter',
-  SU35: 'Sukhoi Flanker-E',
-  RAFALE: 'Dassault',
-  F22: 'Lockheed Martin Raptor',
-};
-
 const DIFF_TEXT: Record<Difficulty, string> = {
   EASY: 'Conservative, rarely uses afterburner, flies predictable straight lines and gentle arcs. Only shoots with a perfect sustained lock. Never hides behind terrain.',
   MEDIUM: 'Breaks away from missile locks, manages speed near corner velocity, uses afterburner to recover energy in climbs, pulls up to ~6 G.',
@@ -50,106 +40,66 @@ export class MainMenu {
   private loadoutSel!: HTMLSelectElement;
   private hovered: AircraftType | null = null;
 
-  private tab: 'mission' | 'aircraft' | 'theater' = 'mission';
-  private tabs = new Map<string, { btn: HTMLElement; page: HTMLElement }>();
-  private theaterPage!: HTMLElement;
-
   constructor(
     parent: HTMLElement,
     public cfg: MissionConfig,
     private cb: MainMenuCallbacks,
   ) {
     this.root = el('div', 'screen menu-root', parent);
-
-    // --- top bar: wordmark and theater on the left, navigation on the right
-    const top = el('div', 'mn-top', this.root);
-    const brand = el('div', 'mn-brand', top);
-    el('div', 'mn-word', brand, 'TRIAD');
-    el('div', 'mn-theater', brand, `${activeMap.name} · ${activeMap.sizeNm} × ${activeMap.sizeNm} NM`);
-    const nav = el('div', 'mn-nav', top);
-    button('Multiplayer', 'mn-link strong', nav, () => cb.onMultiplayer());
-    button('Logbook', 'mn-link', nav, () => cb.onLogbook());
-    button('Controls', 'mn-link', nav, () => cb.onControls());
-    button('Settings', 'mn-link', nav, () => cb.onSettings());
+    const header = el('div', 'menu-header', this.root);
+    const brand = el('div', 'brand', header);
+    el('h1', '', brand, 'TRIAD');
+    el('div', 'sub', brand, `AIR COMBAT SIMULATOR · ${activeMap.name} · ${activeMap.sizeNm} × ${activeMap.sizeNm} NM THEATER`);
+    const hb = el('div', 'header-buttons', header);
+    button('MULTIPLAYER ▸', 'primary', hb, () => cb.onMultiplayer());
     const wn = new WhatsNewModal(document.body);
-    button(`v${VERSION}`, 'mn-link dim', nav, () => wn.show(true)).title = "What's new";
+    button(`v${VERSION} · NOTES`, '', hb, () => wn.show(true));
+    button('LOGBOOK', '', hb, () => cb.onLogbook());
     // only pop the notes up if the menu is still on screen (not after FLY was pressed)
     setTimeout(() => {
       if (!this.root.classList.contains('hidden')) wn.showIfNew();
     }, 1200);
+    button('CONTROLS', '', hb, () => cb.onControls());
+    button('SETTINGS', '', hb, () => cb.onSettings());
 
-    const body = el('div', 'mn-body', this.root);
-
-    // --- left: the aircraft list
-    const left = el('div', 'mn-panel mn-left', body);
-    el('div', 'mn-label', left, 'Aircraft');
-    this.jetList = el('div', 'mn-jets', left);
-    const paint = el('div', 'mn-left-foot', left);
-    button('Paint & wraps', 'mn-ghost', paint, () => this.cb.onCustomize(this.cfg.aircraft));
-
-    // --- centre: the hangar (the 3D jet renders behind), caption bottom-left
-    const centre = el('div', 'hangar-center mn-centre', body);
-    el('div', 'hangar-hint', centre, 'Drag to look around · scroll to zoom · double-click to reset');
-    this.caption = el('div', 'mn-caption', centre);
-
-    // --- right: one panel, three tabs, FLY pinned at the bottom
-    const right = el('div', 'mn-panel mn-right', body);
-    const tabBar = el('div', 'mn-tabs', right);
-    const pages = el('div', 'mn-pages', right);
-    const addTab = (id: 'mission' | 'aircraft' | 'theater', label: string): HTMLElement => {
-      const btn = el('button', 'mn-tab', tabBar, label);
-      btn.type = 'button';
-      const page = el('div', 'mn-page', pages);
-      btn.addEventListener('click', () => this.showTab(id));
-      this.tabs.set(id, { btn, page });
-      return page;
-    };
-    const mission = addTab('mission', 'Mission');
-    const aircraft = addTab('aircraft', 'Aircraft');
-    this.theaterPage = addTab('theater', 'Theater');
-
-    el('div', 'mn-label', mission, 'Game mode');
-    this.modeGrid = el('div', 'mn-modes', mission);
-    this.setup = el('div', 'mn-setup', mission);
-
-    el('div', 'mn-label', aircraft, 'Loadout');
-    this.loadoutSel = el('select', 'mn-select', aircraft);
+    const body = el('div', 'menu-body', this.root);
+    // left: aircraft + loadout
+    const left = el('div', 'col scroll', body);
+    const jc = el('div', 'card', left);
+    el('h2', '', jc, 'SELECT AIRCRAFT');
+    this.jetList = el('div', 'jet-list', jc);
+    const lc = el('div', 'card', left);
+    el('h2', '', lc, 'LOADOUT');
+    this.loadoutSel = el('select', '', lc);
     this.loadoutSel.addEventListener('change', () => {
       this.cfg.loadoutId = this.loadoutSel.value;
       this.cb.onSelectJet(this.cfg.aircraft, this.cfg.loadoutId);
-      this.renderFoot();
     });
-    el('div', 'note', aircraft, 'Radar missiles (AIM-120D, R-77M, Meteor) are for long range; heat-seekers (AIM-9X, R-74M, MICA IR) for the dogfight. Tanks add fuel and drag. The F-22A carries everything in internal bays.');
-    this.specCard = el('div', 'mn-specs', aircraft);
-    this.renderTheater(this.theaterPage);
+    el('div', 'note', lc, 'Radar missiles (AIM-120D, R-77M, Meteor) are for long range; heat-seekers (AIM-9X, R-74M, MICA IR) for the dogfight. Tanks add fuel and drag. The F-22A carries everything in internal bays.');
+    const pc = el('div', 'card', left);
+    el('h2', '', pc, 'PAINT & WRAPS');
+    button('CUSTOMIZE JET ▸', 'primary', pc, () => this.cb.onCustomize(this.cfg.aircraft));
+    el('div', 'note', pc, 'Solid colours, wrap patterns, finish and brightness for each jet.');
 
-    const foot = el('div', 'mn-foot', right);
-    this.footInfo = el('div', 'mn-foot-info', foot);
-    button('Fly', 'mn-fly', foot, () => this.cb.onFly({ ...this.cfg }));
+    // centre: hangar caption & fly button
+    const centre = el('div', 'hangar-center', body);
+    el('div', 'hangar-hint', centre, 'DRAG TO LOOK AROUND · SCROLL TO ZOOM · DOUBLE-CLICK TO RESET');
+    this.caption = el('div', 'hangar-caption', centre);
+    const fly = el('div', 'fly-row', centre);
+    button('FLY ▸', 'primary big', fly, () => this.cb.onFly({ ...this.cfg }));
+
+    // right: specs + mode + setup
+    const right = el('div', 'col scroll', body);
+    this.renderTheater(el('div', 'card', right));
+    this.specCard = el('div', 'card', right);
+    const mc = el('div', 'card', right);
+    el('h2', '', mc, 'GAME MODE');
+    this.modeGrid = el('div', 'mode-grid', mc);
+    this.setup = el('div', 'card', right);
 
     this.renderJets();
     this.renderModes();
     this.selectJet(cfg.aircraft);
-    this.showTab('mission');
-  }
-
-  private footInfo!: HTMLElement;
-
-  private showTab(id: 'mission' | 'aircraft' | 'theater'): void {
-    this.tab = id;
-    for (const [k, t] of this.tabs) {
-      t.btn.classList.toggle('on', k === id);
-      t.page.classList.toggle('hidden', k !== id);
-    }
-  }
-
-  /** The line above FLY: what you are about to fly. */
-  private renderFoot(): void {
-    const s = SPECS[this.cfg.aircraft];
-    const lo = s.loadouts.find((l) => l.id === this.cfg.loadoutId);
-    clearEl(this.footInfo);
-    el('div', 'mn-foot-a', this.footInfo, `${MODE_INFO[this.cfg.mode].title} · ${s.shortName}`);
-    el('div', 'mn-foot-b', this.footInfo, lo ? lo.name.split(' — ')[0] : '');
   }
 
   show(v: boolean): void {
@@ -160,11 +110,14 @@ export class MainMenu {
     clearEl(this.jetList);
     for (const t of AIRCRAFT_TYPES) {
       const s = SPECS[t];
-      const c = el('div', 'mn-jet' + (t === this.cfg.aircraft ? ' sel' : ''), this.jetList);
-      const r1 = el('div', 'mn-jet-r1', c);
-      el('span', 'mn-jet-name', r1, s.shortName);
-      el('span', 'mn-jet-mach', r1, `M${s.maxMach.toFixed(2).replace(/0$/, '')}`);
-      el('div', 'mn-jet-sub', c, JET_SUB[t]);
+      const c = el('div', 'jet-card' + (t === this.cfg.aircraft ? ' sel' : ''), this.jetList);
+      el('div', 'jn', c, s.shortName.toUpperCase());
+      el('div', 'jr', c, s.name);
+      const q = el('div', 'jq', c);
+      el('span', '', q, `M${s.maxMach.toFixed(1)}`);
+      el('span', '', q, `${(s.ceilingFt / 1000).toFixed(0)}K FT`);
+      el('span', '', q, `${s.combatRangeNm} NM`);
+      el('span', '', q, `${s.crew} CREW`);
       c.addEventListener('mouseenter', () => {
         this.hovered = t;
         this.renderSpecs(t);
@@ -194,32 +147,20 @@ export class MainMenu {
     this.renderSpecs(t);
     this.renderCaption(t);
     this.renderSetup();
-    this.renderFoot();
     this.cb.onSelectJet(t, this.cfg.loadoutId);
   }
 
   private renderCaption(t: AircraftType): void {
     const s = SPECS[t];
     clearEl(this.caption);
-    el('div', 'mn-cap-name', this.caption, s.name);
-    el('div', 'mn-cap-role', this.caption, s.role);
-    const q = el('div', 'mn-cap-stats', this.caption);
-    for (const [k, v] of [
-      ['Top speed', `Mach ${s.maxMach}`],
-      ['Ceiling', `${s.ceilingFt.toLocaleString('en-US')} ft`],
-      ['Range', `${s.combatRangeNm.toLocaleString('en-US')} NM`],
-      ['Missiles', String(s.maxAAM)],
-    ]) {
-      const d = el('div', 'mn-stat', q);
-      el('span', '', d, k);
-      el('b', '', d, v);
-    }
+    el('div', 'hn', this.caption, s.name.toUpperCase());
+    el('div', 'hd', this.caption, s.description);
   }
 
   private renderSpecs(t: AircraftType): void {
     const s = SPECS[t];
     clearEl(this.specCard);
-    el('div', 'mn-label', this.specCard, `${s.shortName} specifications${this.hovered && this.hovered !== this.cfg.aircraft ? ' (preview)' : ''}`);
+    el('h2', '', this.specCard, `${s.shortName.toUpperCase()} — SPECIFICATIONS${this.hovered && this.hovered !== this.cfg.aircraft ? ' (PREVIEW)' : ''}`);
     const tbl = el('table', 'specs', this.specCard);
     const rows: [string, string][] = [
       ['Crew', String(s.crew)],
@@ -233,7 +174,7 @@ export class MainMenu {
       ['Service ceiling', `${s.ceilingFt.toLocaleString('en-US')} ft`],
       ['Combat range', `${s.combatRangeNm.toLocaleString('en-US')} NM`],
       ['G limit (FBW / override)', `${s.gLimit} / ${s.gOverride} G`],
-      ['Hardpoints', `${s.hardpoints}${t === 'F15EX' ? ' (29,000 lb ordnance)' : t === 'F22' ? ' (internal)' : ''}`],
+      ['Hardpoints', `${s.hardpoints}${t === 'F15EX' ? ' (29,000 lb ordnance)' : ''}`],
       ['Max air-to-air missiles', String(s.maxAAM)],
       ['Missiles', `${MISSILES[s.missiles.radar].short}, ${MISSILES[s.missiles.ir].short}${t === 'SU35' ? ' (Su-35S only)' : t === 'RAFALE' ? ' (Rafale only)' : t === 'F22' ? ' (internal bays)' : ''}`],
       ['Cannon', `${s.gun.name} (${s.gun.rounds} rds)`],
@@ -252,14 +193,13 @@ export class MainMenu {
     clearEl(this.modeGrid);
     for (const m of ['free', 'waves', 'duel', 'team', 'ffa'] as ModeId[]) {
       const info = MODE_INFO[m];
-      const c = el('div', 'mn-mode' + (m === this.cfg.mode ? ' sel' : ''), this.modeGrid);
-      el('div', 'mn-mode-t', c, info.title);
-      el('div', 'mn-mode-s', c, info.subtitle);
+      const c = el('div', 'mode-card' + (m === this.cfg.mode ? ' sel' : '') + (m === 'ffa' ? ' new' : ''), this.modeGrid);
+      el('div', 'mt', c, info.title);
+      el('div', 'ms', c, info.subtitle.toUpperCase());
       c.addEventListener('click', () => {
         this.cfg.mode = m;
         this.renderModes();
         this.renderSetup();
-        this.renderFoot();
       });
     }
   }
@@ -298,7 +238,7 @@ export class MainMenu {
 
   /** Map picker: switching saves the choice and reloads with the new theater. */
   private renderTheater(c: HTMLElement): void {
-    el('div', 'mn-label', c, 'Theater');
+    el('h2', '', c, 'THEATER');
     const grid = el('div', 'map-grid', c);
     for (const m of MAPS) {
       const cur = m.id === activeMap.id;
@@ -321,8 +261,9 @@ export class MainMenu {
     clearEl(c);
     const cfg = this.cfg;
     const info = MODE_INFO[cfg.mode];
-    el('div', 'mn-label', c, `${info.title} setup`);
-    el('div', 'note mn-desc', c, info.description);
+    el('h2', '', c, `${info.title} — SETUP`);
+    el('div', 'note', c, info.description);
+    el('h3', '', c, 'MISSION');
     const blue = airfieldsOf('blue');
     if (!blue.some((f) => f.id === cfg.freeBase)) cfg.freeBase = blue[0].id;
     if (cfg.mode === 'free' || cfg.mode === 'waves') {

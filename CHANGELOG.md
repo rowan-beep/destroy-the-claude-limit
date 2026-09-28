@@ -3,6 +3,11 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.6.2 — Old menu back, auto-update (2026-09-28)
+
+- Back to the previous main menu layout. The text fixes from 4.6.0 stay (mode descriptions, loadout notes, F-22A internal bays).
+- The game now checks for a newer version when it loads and reloads itself once if one is live, so updates show up without a hard refresh.
+
 ## v4.6.1 — Rafale intro removed (2026-09-28)
 
 - Removed the Rafale intro that played the first time the update notes opened: its music, the animation and all of its code are gone. The update notes now just open. The Rafale itself is unchanged.
