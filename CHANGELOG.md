@@ -3,6 +3,13 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.16.0 — Jet Library (2026-09-28)
+
+- New section of the menu: the JET LIBRARY (orange JET LIBRARY button at the top of the menu, or BROWSE THE JET LIBRARY above the aircraft list). It has its own full-screen look: a shelf of studio portraits of every jet along the bottom (rendered from the real 3D models in your own paint), the focused jet big in the hangar behind, and a dossier on the right.
+- Filter the shelf by region (USA, Europe, Russia), generation, thrust vectoring, IRST, carrier-capable or two-seat, and sort it by name, top speed, thrust-to-weight, range, roll rate, missile count or newest. Arrow keys step through the jets; Esc goes back.
+- The dossier has five tabs. OVERVIEW: the real aircraft's history, maker, first flight, service entry, number built and operators, its strengths and weaknesses in the game, how to fly it, and your own record in it from the logbook. PERFORMANCE: bars ranking it against the whole library (top speed, thrust-to-weight, wing loading, roll and pitch rate, G, ceiling, range). WEAPONS: its missiles, gun and countermeasures, and every loadout (click one to see it on the jet). SENSORS: radar, IRST and EW. COMPARE: head-to-head against any other jet, line by line with the difference in percent.
+- SELECT puts the jet and the loadout you picked into the main menu, ready to fly; CUSTOMIZE goes straight to its paint shop.
+
 ## v4.15.0 — Daily Mission (2026-09-28)
 
 - New game mode: DAILY MISSION (top of the mode list). Every day there is a new mission built from real aviation news. Pick it, press FLY, and a briefing box in the middle of the screen tells you the real story and exactly what to do; the mission starts when you press OKAY (or Enter). You scramble from your home base, fly to where the story put the bandits (steerpoint 1 on your nav, marked on the map), and they wait there circling, radar silent, until you come within 20 NM or shoot at them. Then it is a fight. Shoot them all down and fly back within 10 NM of a friendly field to complete it. The menu shows a tick once you have finished today's mission.

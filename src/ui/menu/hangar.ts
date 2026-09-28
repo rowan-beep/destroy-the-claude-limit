@@ -64,7 +64,7 @@ export class Hangar {
     if (performance.now() - this.lastRender > 300) return false;
     const t = e.target as HTMLElement | null;
     if (!t || !t.closest) return true;
-    return !t.closest('.card, button, input, select, label, a, .jet-card, .mode-card, .cz-panel, .cz-top, .cz-foot, .hangar-caption, .fly-row, .menu-header, .modal-back, .modal, .scroll');
+    return !t.closest('.card, button, input, select, label, a, .jet-card, .mode-card, .cz-panel, .cz-top, .cz-foot, .hangar-caption, .fly-row, .menu-header, .modal-back, .modal, .scroll, .lib-top, .lib-shelf, .lib-panel, .lib-hero');
   }
 
   private bindControls(): void {
@@ -254,6 +254,74 @@ export class Hangar {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.render(this.scene, this.camera);
     this.renderer.toneMapping = tm;
+  }
+
+  /**
+   * A studio portrait of a jet (three-quarter front view, gear up, in its
+   * current paint) as an image URL, for the JET LIBRARY cards. Drawn into a
+   * corner of the main canvas and copied out in the same task.
+   */
+  thumbnail(type: AircraftType, w = 360, h = 200): string {
+    const r = this.renderer;
+    const ac = new Aircraft(type, 'blue', 'THUMB');
+    ac.fm.pos.set(0, 0, 0);
+    ac.fm.gearPos = 0;
+    ac.fm.rpm.fill(0.25);
+    const vis = createAirframe(ac, false);
+    paintAirframe(vis, loadPaint(type));
+    const sc = new THREE.Scene();
+    sc.background = new THREE.Color(0x0d1620);
+    sc.environment = this.envMap;
+    sc.environmentIntensity = 0.9;
+    const key = new THREE.DirectionalLight(0xfff1dd, 3.2);
+    key.position.set(-6, 10, -8);
+    sc.add(key);
+    const rim = new THREE.DirectionalLight(0x9cc8ff, 1.6);
+    rim.position.set(8, 3, 10);
+    sc.add(rim);
+    sc.add(new THREE.HemisphereLight(0xcfe0f0, 0x202830, 0.6));
+    vis.update(0.016);
+    vis.root.position.set(0, 0, 0);
+    vis.root.quaternion.identity();
+    vis.root.rotation.set(0, 0, -0.12);
+    sc.add(vis.root);
+    const len = ac.spec.length;
+    const cam = new THREE.PerspectiveCamera(24, w / h, 0.1, 500);
+    cam.position.set(len * 1.1, len * 0.44, -len * 1.06);
+    cam.lookAt(0, -len * 0.02, -len * 0.04);
+    let url = '';
+    const size = r.getSize(new THREE.Vector2());
+    const pr = r.getPixelRatio();
+    const tw = Math.min(w, size.x), th = Math.min(h, size.y);
+    const tm = r.toneMapping, exp = r.toneMappingExposure;
+    try {
+      r.setRenderTarget(null);
+      r.toneMapping = THREE.ACESFilmicToneMapping;
+      r.toneMappingExposure = 1;
+      r.setViewport(0, 0, tw, th);
+      r.setScissor(0, 0, tw, th);
+      r.setScissorTest(true);
+      r.render(sc, cam);
+      const c = document.createElement('canvas');
+      c.width = Math.round(tw * pr);
+      c.height = Math.round(th * pr);
+      const g = c.getContext('2d');
+      if (g) {
+        const src = r.domElement;
+        g.drawImage(src, 0, src.height - c.height, c.width, c.height, 0, 0, c.width, c.height);
+        url = c.toDataURL('image/jpeg', 0.86);
+      }
+    } catch {
+      url = '';
+    } finally {
+      r.setScissorTest(false);
+      r.setViewport(0, 0, size.x, size.y);
+      r.toneMapping = tm;
+      r.toneMappingExposure = exp;
+      sc.remove(vis.root);
+      releaseAirframe(vis);
+    }
+    return url;
   }
 
   /** draw through the game's post-processing pipeline when set */

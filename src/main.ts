@@ -1,5 +1,6 @@
 // Application bootstrap: builds the theater, then shows the main menu.
 import { CustomizeScreen } from './ui/menu/customizeScreen';
+import { JetLibrary } from './ui/menu/jetLibrary';
 import { SpectatorUi } from './ui/spectatorUi';
 import { AutoFlyPanel } from './ui/autoFlyPanel';
 import * as THREE from 'three';
@@ -116,6 +117,19 @@ async function boot(): Promise<void> {
     await game.startMission(c, (f, l) => loading.set(0.1 + f * 0.9, l));
     loading.show(false);
   };
+  const library = new JetLibrary(document.body, {
+    onSelect: (t, l) => {
+      menu.cfg.loadoutId = l;
+      menu.selectJet(t);
+    },
+    onPreview: (t, l) => hangar.setJet(t, l),
+    onCustomize: (t) => customize.show(t),
+    onClose: () => {
+      menu.root.classList.remove('hidden');
+      hangar.setJet(menu.cfg.aircraft, menu.cfg.loadoutId);
+    },
+    thumbnail: (t) => hangar.thumbnail(t),
+  });
   menu = new MainMenu(document.body, cfg, {
     onFly: (c) => void fly(c),
     onSettings: () => {
@@ -128,6 +142,11 @@ async function boot(): Promise<void> {
     onCustomize: (t) => {
       menu.root.classList.add('hidden');
       customize.show(t);
+    },
+    onLibrary: () => {
+      audio.init();
+      menu.root.classList.add('hidden');
+      library.show(menu.cfg.aircraft, menu.cfg.loadoutId);
     },
     onMultiplayer: () => {
       audio.init();

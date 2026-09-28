@@ -29,6 +29,7 @@ export interface MainMenuCallbacks {
   onSelectJet: (t: AircraftType, loadoutId: string) => void;
   onCustomize: (t: AircraftType) => void;
   onMultiplayer: () => void;
+  onLibrary: () => void;
 }
 
 export class MainMenu {
@@ -52,6 +53,7 @@ export class MainMenu {
     el('h1', '', brand, 'TRIAD');
     el('div', 'sub', brand, `AIR COMBAT SIMULATOR · ${activeMap.name} · ${activeMap.sizeNm} × ${activeMap.sizeNm} NM THEATER`);
     const hb = el('div', 'header-buttons', header);
+    button('JET LIBRARY ▸', 'lib-open', hb, () => cb.onLibrary());
     button('MULTIPLAYER ▸', 'primary', hb, () => cb.onMultiplayer());
     const wn = new WhatsNewModal(document.body);
     button(`v${VERSION} · NOTES`, '', hb, () => wn.show(true));
@@ -68,6 +70,7 @@ export class MainMenu {
     const left = el('div', 'col scroll', body);
     const jc = el('div', 'card', left);
     el('h2', '', jc, 'SELECT AIRCRAFT');
+    button('BROWSE THE JET LIBRARY ▸', 'lib-open wide', jc, () => cb.onLibrary());
     this.jetList = el('div', 'jet-list', jc);
     const lc = el('div', 'card', left);
     el('h2', '', lc, 'LOADOUT');
