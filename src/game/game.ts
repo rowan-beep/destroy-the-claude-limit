@@ -20,6 +20,7 @@ import { GameMode, ModeHost, MissionResult, MsgKind } from './modes/mode';
 import { FreeFlightMode } from './modes/freeFlight';
 import { WavesMode } from './modes/waves';
 import { DuelMode } from './modes/duel';
+import { TutorialMode } from './modes/tutorial';
 import { TeamBattleMode } from './modes/team';
 import { FreeForAllMode } from './modes/ffa';
 import { OnlineMode } from './modes/online';
@@ -227,7 +228,9 @@ export class Game implements ModeHost {
             ? new TeamBattleMode(this)
             : cfg.mode === 'ffa'
               ? new FreeForAllMode(this)
-              : new DuelMode(this);
+              : cfg.mode === 'tutorial'
+                ? new TutorialMode(this)
+                : new DuelMode(this);
     randomizeWind();
     this.mode.start();
     this.message(`WIND ${String(Math.round(wind.fromDeg)).padStart(3, '0')}° / ${Math.round(wind.surfaceKts)} KT${wind.turbulence > 1.1 ? ' — MODERATE TURBULENCE LOW LEVEL' : ''}`, 'info', 8);
@@ -360,6 +363,14 @@ export class Game implements ModeHost {
     this.touchdownsSeen = 0;
     this.sortie = new SortieRecorder(p, cfg.mode, this.sim);
     return p;
+  }
+
+  cameraMode(): string {
+    return this.cam.mode;
+  }
+
+  throttle(): number {
+    return this.throttleCmd;
   }
 
   message(text: string, kind: MsgKind = 'info', seconds = 5): void {

@@ -4,7 +4,7 @@ import type { AircraftType } from '../aircraft/specs';
 import type { Difficulty } from '../ai/skill';
 import type { TimeOfDay } from '../render/environment';
 
-export type ModeId = 'free' | 'waves' | 'duel' | 'team' | 'ffa' | 'online';
+export type ModeId = 'free' | 'waves' | 'duel' | 'team' | 'ffa' | 'online' | 'tutorial';
 
 export interface MissionConfig {
   mode: ModeId;
@@ -54,6 +54,12 @@ export function defaultMission(): MissionConfig {
 }
 
 export const MODE_INFO: Record<ModeId, { title: string; subtitle: string; description: string }> = {
+  tutorial: {
+    title: 'FLIGHT SCHOOL',
+    subtitle: 'Tutorial + checkride',
+    description:
+      'New here? An instructor walks you through flying the jet (views, climbing and diving, turning, throttle and afterburner, pulling G) and fighting with it (radar lock, radar missile, heat-seeker, gun with the lead circle, flares and chaff) against target drones that never shoot back. Then the checkride: 3 drones and a manoeuvring bandit in 5 minutes, graded A to C.',
+  },
   online: {
     title: 'ONLINE',
     subtitle: 'Real pilots, free-for-all',

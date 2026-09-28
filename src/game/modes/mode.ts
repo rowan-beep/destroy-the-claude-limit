@@ -42,6 +42,10 @@ export interface ModeHost {
   onPlayerRespawn?(): void;
   /** the player's jet is being hurt by the free-for-all storm (exposure 0..1) */
   stormHit?(exposure: number): void;
+  /** current camera view (cockpit, chase, ...) */
+  cameraMode?(): string;
+  /** throttle lever command 0..1.1 (above 1 = afterburner) */
+  throttle?(): number;
 }
 
 export interface ModeStatus {

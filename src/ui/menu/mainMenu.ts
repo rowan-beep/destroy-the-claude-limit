@@ -191,7 +191,7 @@ export class MainMenu {
 
   private renderModes(): void {
     clearEl(this.modeGrid);
-    for (const m of ['free', 'waves', 'duel', 'team', 'ffa'] as ModeId[]) {
+    for (const m of ['tutorial', 'free', 'waves', 'duel', 'team', 'ffa'] as ModeId[]) {
       const info = MODE_INFO[m];
       const c = el('div', 'mode-card' + (m === this.cfg.mode ? ' sel' : ''), this.modeGrid);
       el('div', 'mt', c, info.title);
@@ -292,6 +292,8 @@ export class MainMenu {
       this.seg(c, 'FIRST TO', [['2', '2 ROUNDS'], ['3', '3 ROUNDS'], ['4', '4 ROUNDS']], String(cfg.teamWins) as '2' | '3' | '4', (v) => (cfg.teamWins = +v));
       this.seg(c, 'WEAPONS', [['all', 'ALL'], ['ir', 'AIM-9X + GUN'], ['guns', 'GUNS ONLY']], cfg.duelRules, (v) => (cfg.duelRules = v));
       el('div', 'note', c, `Bandits fly only the jets you did not pick (${enemyTypesFor(cfg.aircraft).map((t) => SPECS[t].shortName).join(' / ')}). Both teams use the same AI at the chosen difficulty. Shot down? Watch any jet or fly a free camera until the round ends.`);
+    } else if (cfg.mode === 'tutorial') {
+      el('div', 'note', c, `12 short lessons in the air over ${ROLES.arena.name}, then the checkride. Each step completes itself as soon as you have done it; press ENTER to skip one. The instructor uses your own key bindings and mouse mode (change them in SETTINGS).`);
     } else if (cfg.mode === 'ffa') {
       this.difficultySlider(c);
       this.seg(c, 'OPPONENT JETS', [['mixed', 'MIXED TYPES'], ['same', `ALL ${SPECS[cfg.aircraft].shortName.toUpperCase()}`]], cfg.ffaJets, (v) => (cfg.ffaJets = v));

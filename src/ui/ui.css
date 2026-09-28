@@ -470,3 +470,22 @@ body.touch-mode .weapon-bar { bottom: auto; top: calc(96px + env(safe-area-inset
 @media (max-height: 819px) { .wx-widget { transform-origin: top left; zoom: 0.85; } }
 
 
+
+/* ---- flight school instructor panel ---- */
+.tut { position: fixed; top: 212px; right: 18px; width: min(360px, calc(100vw - 36px)); z-index: 30; pointer-events: none;
+  background: rgba(8, 14, 20, 0.82); border: 1px solid rgba(120, 190, 150, 0.35); border-left: 3px solid #47d18c; border-radius: 4px;
+  padding: 12px 14px 10px; color: #dfe8e4; font: 13px/1.45 system-ui, sans-serif; box-shadow: 0 6px 24px rgba(0,0,0,0.35); transition: border-color 0.2s; }
+.tut.done { border-left-color: #ffd35a; }
+.tut-head { display: flex; justify-content: space-between; font: 10px/1 var(--mono, monospace); letter-spacing: 2px; color: #7fb99a; margin-bottom: 6px; }
+.tut-badge { color: #ffd35a; opacity: 0; transition: opacity 0.2s; }
+.tut-badge.on { opacity: 1; }
+.tut-title { font: 600 15px/1.25 var(--mono, monospace); letter-spacing: 1px; color: #fff; margin-bottom: 8px; }
+.tut-body { color: #cfdad5; }
+.tut-body b { color: #fff; }
+.tut kbd { display: inline-block; min-width: 1.4em; padding: 0 5px; margin: 0 1px; border: 1px solid rgba(255,255,255,0.35); border-bottom-width: 2px; border-radius: 3px;
+  background: rgba(255,255,255,0.08); font: 600 11px/1.5 var(--mono, monospace); color: #fff; text-align: center; }
+.tut-bar { height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin: 10px 0 7px; overflow: hidden; }
+.tut-bar > div { height: 100%; width: 0; background: linear-gradient(90deg, #2fb877, #7ff0b6); transition: width 0.15s; }
+.tut.done .tut-bar > div { background: #ffd35a; }
+.tut-foot { font: 10px/1 var(--mono, monospace); letter-spacing: 1.5px; color: #8a9a93; }
+.tut-foot kbd { font-size: 9px; }

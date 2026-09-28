@@ -82,6 +82,10 @@ export class AIPilot {
   private aimNoise = new THREE.Vector3();
   private aimNoiseTimer = 0;
   debugText = '';
+  /** target drone: flies its route, radar silent, never hunts, fights or defends */
+  passive = false;
+  /** manoeuvres and defends like a real bandit but never fires (training) */
+  weaponsHold = false;
 
   constructor(
     readonly ac: Aircraft,
@@ -108,6 +112,10 @@ export class AIPilot {
     this.weaveT += dt;
 
     this.perceiveTimer -= dt;
+    if (this.passive) {
+      this.target = null;
+      this.perceiveTimer = 1;
+    }
     if (this.perceiveTimer <= 0) {
       this.perceiveTimer = Math.max(0.05, this.skill.thinkInterval * 0.5);
       this.perceive(sim);
@@ -275,6 +283,12 @@ export class AIPilot {
         this.state = 'PATROL';
         ac.controls.gearDown = false;
       }
+      return;
+    }
+    if (this.passive) {
+      this.state = 'PATROL';
+      this.triggerWanted = false;
+      ac.radar.mode = 'OFF';
       return;
     }
 
@@ -489,6 +503,10 @@ export class AIPilot {
   }
 
   private employWeapons(sim: Sim): void {
+    if (this.weaponsHold) {
+      this.triggerWanted = false;
+      return;
+    }
     const ac = this.ac;
     const t = this.target;
     const sk = this.skill;
@@ -686,7 +704,7 @@ export class AIPilot {
     });
     void res;
     holdSpeed(ac, this.desiredCas, this.useAb, dt);
-    if (this.triggerWanted && ac.selectedWeapon === 'GUN') ac.trigger = true;
+    if (this.triggerWanted && ac.selectedWeapon === 'GUN' && !this.weaponsHold) ac.trigger = true;
     this.debugText = `${this.state}/${this.maneuver}`;
   }
 

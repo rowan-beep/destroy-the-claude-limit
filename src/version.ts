@@ -10,6 +10,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.10.0',
+    date: '2026-09-28',
+    title: "Flight School",
+    notes: [
+      "New game mode: FLIGHT SCHOOL, first on the mode list. An instructor panel walks you through flying and fighting in 12 short lessons, in the air over the contested island: switching views, climbing and diving, turning, throttle and afterburner (in and out of burner), pulling 6 G, radar lock, a radar missile shot, a heat-seeker shot, the gun with the lead circle, and flares and chaff. The target drones fly steady and never shoot back.",
+      "Each lesson finishes by itself as soon as you have done it (a progress bar fills as you go); press ENTER to skip one. The instructions show your own key bindings and change with your mouse mode (mouse aim, mouse stick or keyboard). Crash, and you are put straight back in the air to carry on. Missed shots are reloaded.",
+      "Then the CHECKRIDE, the demo test: 3 drones and a manoeuvring bandit that turns, dodges and drops flares but never fires. Destroy all four within 5 minutes. You get a grade (A, B or C) from your time and missiles used; RETAKE CHECKRIDE or RESTART LESSONS from the results screen.",
+    ],
+  },
+  {
     version: '4.9.0',
     date: '2026-09-28',
     title: "A real hangar",
