@@ -66,7 +66,7 @@ export class Hangar {
     if (performance.now() - this.lastRender > 300) return false;
     const t = e.target as HTMLElement | null;
     if (!t || !t.closest) return true;
-    return !t.closest('.card, button, input, select, label, a, .jet-card, .mode-card, .cz-panel, .cz-top, .cz-foot, .hangar-caption, .fly-row, .menu-header, .modal-back, .modal, .scroll, .lib-top, .lib-shelf, .lib-panel, .lib-hero');
+    return !t.closest('.card, button, input, select, label, a, .jet-card, .mode-card, .cz-panel, .cz-top, .cz-foot, .hangar-caption, .fly-row, .menu-header, .modal-back, .modal, .scroll, .lib-top, .lib-shelf, .lib-panel, .lib-hero, .mm-block');
   }
 
   private bindControls(): void {
@@ -263,7 +263,17 @@ export class Hangar {
    * current paint) as an image URL, for the JET LIBRARY cards. Drawn into a
    * corner of the main canvas and copied out in the same task.
    */
+  private thumbCache = new Map<string, string>();
   thumbnail(type: AircraftType, w = 360, h = 200): string {
+    const ck = `${type}:${w}x${h}:${JSON.stringify(loadPaint(type))}`;
+    const hit = this.thumbCache.get(ck);
+    if (hit) return hit;
+    const url = this.drawThumbnail(type, w, h);
+    if (url) this.thumbCache.set(ck, url);
+    return url;
+  }
+
+  private drawThumbnail(type: AircraftType, w: number, h: number): string {
     const r = this.renderer;
     const ac = new Aircraft(type, 'blue', 'THUMB');
     ac.fm.pos.set(0, 0, 0);

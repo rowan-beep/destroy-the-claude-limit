@@ -10,6 +10,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.18.0',
+    date: '2026-09-28',
+    title: "New menu",
+    notes: [
+      "A completely new main menu, the \"command deck\". A navigation rail on the left has three sections, PLAY (game modes and mission setup), HANGAR (aircraft with studio portraits, loadouts and performance bars) and THEATER (map and time of day), plus the Jet Library, the Paint Shop, Multiplayer, the Logbook, Settings, Controls and the release notes. Floating glass panels sit around the 3D jet, a pilot card top right shows your rank, sorties, kills, hours and medals from the logbook, and the launch bar bottom right is always there with your mode, jet, loadout, theater and time of day. New look throughout: dark navy glass with an electric-cyan accent, big numbered sections and time-of-day swatches.",
+      "Hangar: the long tan bar across the floor is really gone this time. It was the runway and taxiway lines from the new outdoor airfield: a bug turned those kilometre-long painted lines on their edge, and they ran straight through the hangar under the jet. They now lie flat on the runway where they belong.",
+      "Jet portraits are rendered once and shared between the menu and the Jet Library.",
+    ],
+  },
+  {
     version: '4.17.2',
     date: '2026-09-28',
     title: "Hangar floor fix",

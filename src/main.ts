@@ -65,7 +65,7 @@ async function boot(): Promise<void> {
   const mapView = new MapView(document.body, () => game.setState('playing'));
   mapView.setGrid(game.world.grid);
   const hangar = new Hangar(game.renderer.renderer);
-  if (import.meta.env.DEV) (window as unknown as { __hangar: Hangar }).__hangar = hangar;
+  if (import.meta.env.DEV) Object.assign(window, { __hangar: hangar, __THREE: THREE });
   hangar.drawWith = (sc, cam) => game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping);
   const customize = new CustomizeScreen(document.body, hangar, () => {
     menu.root.classList.remove('hidden');
@@ -143,6 +143,7 @@ async function boot(): Promise<void> {
       menu.root.classList.add('hidden');
       customize.show(t);
     },
+    thumbnail: (t) => hangar.thumbnail(t),
     onLibrary: () => {
       audio.init();
       menu.root.classList.add('hidden');

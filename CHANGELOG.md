@@ -3,6 +3,12 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.18.0 — New menu (2026-09-28)
+
+- A completely new main menu, the "command deck". A navigation rail on the left has three sections, PLAY (game modes and mission setup), HANGAR (aircraft with studio portraits, loadouts and performance bars) and THEATER (map and time of day), plus the Jet Library, the Paint Shop, Multiplayer, the Logbook, Settings, Controls and the release notes. Floating glass panels sit around the 3D jet, a pilot card top right shows your rank, sorties, kills, hours and medals from the logbook, and the launch bar bottom right is always there with your mode, jet, loadout, theater and time of day. New look throughout: dark navy glass with an electric-cyan accent, big numbered sections and time-of-day swatches.
+- Hangar: the long tan bar across the floor is really gone this time. It was the runway and taxiway lines from the new outdoor airfield: a bug turned those kilometre-long painted lines on their edge, and they ran straight through the hangar under the jet. They now lie flat on the runway where they belong.
+- Jet portraits are rendered once and shared between the menu and the Jet Library.
+
 ## v4.17.2 — Hangar floor fix (2026-09-28)
 
 - Hangar: fixed the long tan band across the floor, and the whitish haze when looking toward the doors. Both came from the sunbeam effect for the big door opening, a flat sheet of glow that sloped down through the whole bay and read as a stripe on the floor from low angles. That sheet is gone, and the window sunbeams now fade out well above the floor.

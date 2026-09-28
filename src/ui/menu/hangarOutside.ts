@@ -395,7 +395,12 @@ export function buildOutside(parent: THREE.Group, scene: THREE.Scene, sunTo: THR
   /** painted line from a to b on the ground */
   const line = (mat: THREE.Material, x0: number, z0: number, x1: number, z1: number, w: number, y = 0.02) => {
     const len = Math.hypot(x1 - x0, z1 - z0);
-    B.add(mat, new THREE.PlaneGeometry(w, len).applyMatrix4(at((x0 + x1) / 2, y, (z0 + z1) / 2, Math.atan2(x1 - x0, z1 - z0), -Math.PI / 2)));
+    // lay the strip flat first, then turn it to its heading (the other order stands it on edge)
+    const g = new THREE.PlaneGeometry(w, len);
+    g.rotateX(-Math.PI / 2);
+    g.rotateY(Math.atan2(x1 - x0, z1 - z0));
+    g.translate((x0 + x1) / 2, y, (z0 + z1) / 2);
+    B.add(mat, g);
   };
 
   // --- ground --------------------------------------------------------------------------------------------------
