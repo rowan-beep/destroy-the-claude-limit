@@ -405,7 +405,6 @@ export class SettingsModal {
     this.seg(h, 'AIRCRAFT LABELS', 'Help spotting other jets at range.', [['off', 'OFF'], ['dots', 'DOTS'], ['full', 'FULL LABELS']], g.labels, (v) => (g.labels = v));
     this.seg(h, 'UNITS', undefined, [['imperial', 'KNOTS / FEET'], ['metric', 'KM/H / METRES']], g.units, (v) => (g.units = v));
     this.toggle(h, 'CONTROLS PANEL IN FLIGHT', 'The key reference panel on the right of the screen.', g.showHelp, (v) => (g.showHelp = v));
-    this.seg(h, 'TOUCH CONTROLS', undefined, [['auto', 'AUTO'], ['on', 'ON'], ['off', 'OFF']], g.touchControls, (v) => (g.touchControls = v as typeof g.touchControls));
     const f = this.section('FLIGHT');
     this.toggle(f, 'AUTO COUNTERMEASURES', 'EPAWSS pops flares and chaff automatically against incoming missiles.', g.autoCountermeasures, (v) => (g.autoCountermeasures = v));
     this.seg(f, 'CHASE CAMERA', undefined, [['level', 'HORIZON LEVEL'], ['roll', 'FOLLOWS ROLL']], g.cameraRoll ? 'roll' : 'level', (v) => (g.cameraRoll = v === 'roll'));

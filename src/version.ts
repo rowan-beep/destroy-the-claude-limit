@@ -10,6 +10,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.12.2',
+    date: '2026-09-28',
+    title: "Keyboard and mouse only",
+    notes: [
+      "Touch-screen controls removed. Every device now plays exactly like a PC with keyboard and mouse (WASD, mouse aim and so on); touching the screen no longer brings up on-screen sticks or buttons, and the TOUCH CONTROLS setting is gone.",
+    ],
+  },
+  {
     version: '4.12.1',
     date: '2026-09-28',
     title: "Less crackle",

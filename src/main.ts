@@ -16,7 +16,6 @@ import { Hangar } from './ui/menu/hangar';
 import { LoadingScreen, PauseMenu, ResultsScreen, ControlsModal } from './ui/menu/screens';
 import { SettingsModal } from './ui/menu/settingsModal';
 import { LogbookModal } from './ui/menu/logbookScreen';
-import { TouchControls, isTouchDevice } from './ui/touchControls';
 import { ReplayUi } from './ui/replayUi';
 import { MapView } from './ui/mapView';
 import { audio } from './audio/audio';
@@ -94,8 +93,6 @@ async function boot(): Promise<void> {
   );
   const controls = new ControlsModal(document.body);
   const logbook = new LogbookModal(document.body, (fresh) => (game.logbook = fresh));
-  const touch = new TouchControls(document.body, game.input);
-  game.touch = touch;
   game.autoFlyPanel = new AutoFlyPanel(
     document.body,
     (c) => game.engageAutoFly(c),
@@ -104,7 +101,6 @@ async function boot(): Promise<void> {
   );
   game.spectatorUi = new SpectatorUi(document.body, game.spectatorView());
   game.replayUi = new ReplayUi(document.body, game.cam, () => game.exitReplay());
-  const touchWanted = () => settings.gameplay.touchControls === 'on' || (settings.gameplay.touchControls === 'auto' && isTouchDevice());
 
   let menu: MainMenu;
   const fly = async (c: MissionConfig) => {
@@ -195,7 +191,6 @@ async function boot(): Promise<void> {
     hud.setVisible(s === 'playing' || s === 'paused' || s === 'results' || s === 'map');
     pause.show(s === 'paused');
     weather.show(s === 'playing' || s === 'paused');
-    touch.show(s === 'playing' && touchWanted());
     mapView.show(s === 'map', game);
     if (s !== 'results') results.show(null);
     if (s === 'menu') {

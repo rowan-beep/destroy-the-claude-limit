@@ -3,6 +3,10 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.12.2 — Keyboard and mouse only (2026-09-28)
+
+- Touch-screen controls removed. Every device now plays exactly like a PC with keyboard and mouse (WASD, mouse aim and so on); touching the screen no longer brings up on-screen sticks or buttons, and the TOUCH CONTROLS setting is gone.
+
 ## v4.12.1 — Less crackle (2026-09-28)
 
 - Jet crackle turned down by 90 %: the ripping sound at high power and in afterburner is now a subtle edge under the roar, on your jet and on the jets around you.
