@@ -16,6 +16,7 @@
 // Body frame everywhere: x right, y up, z aft (the nose points to -z).
 
 import * as THREE from 'three';
+import { blankAo } from './ao';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 export type P2 = [number, number];
@@ -82,7 +83,7 @@ let density = 1;
 
 /** Set the mesh density for the models built next (1 = standard). */
 export function setModelDensity(d: number): void {
-  density = Math.max(1, d);
+  density = Math.max(0.3, d);
 }
 
 export function modelDensity(): number {
@@ -91,7 +92,11 @@ export function modelDensity(): number {
 
 /** A sample count scaled by the current density. */
 export function dense(n: number): number {
-  return Math.max(n, Math.round(n * density));
+  if (density >= 1) return Math.max(n, Math.round(n * density));
+  // below 1 (the distance LOD): fewer samples, keeping even counts even
+  let m = Math.max(Math.min(n, 3), Math.round(n * density));
+  if (n % 2 === 0 && m % 2) m++;
+  return Math.min(n, m);
 }
 
 /** Station list from z0 to z1: `n` intervals, optionally clustered toward either end. */
@@ -749,6 +754,10 @@ uniform vec3 customB;
 uniform sampler2D customTex;
 uniform float customScale;  // metres per wrap tile
 uniform float brightness;
+uniform sampler3D aoTex;
+uniform vec3 aoMin;
+uniform vec3 aoSize;
+uniform float aoOn;
 varying vec3 vSkin;
 varying vec3 vSkinN;
 // value noise for paint mottling (airframe coordinates, metres)
@@ -767,6 +776,19 @@ float skinNoise( vec3 x ) {
 `;
 const SKIN_FRAG = /* glsl */ `
   vec3 skinGlow = vec3( 0.0 );
+  // ambient occlusion from the airframe's own volume (1 = open sky)
+  float skinAO = 1.0;
+  if ( aoOn > 0.5 ) {
+    vec3 an = normalize( vSkinN );
+    float o = 0.0;
+    o += texture( aoTex, ( vSkin + an * 0.22 - aoMin ) / aoSize ).r * 0.55;
+    o += texture( aoTex, ( vSkin + an * 0.5 - aoMin ) / aoSize ).r * 0.8;
+    o += texture( aoTex, ( vSkin + an * 0.95 - aoMin ) / aoSize ).r * 0.7;
+    o += texture( aoTex, ( vSkin + an * 1.7 - aoMin ) / aoSize ).r * 0.5;
+    o += texture( aoTex, ( vSkin + an * 2.8 - aoMin ) / aoSize ).r * 0.35;
+    skinAO = clamp( 1.0 - o * 0.42, 0.3, 1.0 );
+    skinAO = skinAO * skinAO * ( 3.0 - 2.0 * skinAO );
+  }
   // engraved seam depth (m) and paint roughness offset, used by the lighting stages
   float skinDepth = 0.0;
   float skinRough = 0.0;
@@ -882,6 +904,14 @@ const SKIN_FRAG = /* glsl */ `
   }
 `;
 
+/** Occlusion: sky light and reflections fade in the airframe's nooks; direct sun a little. */
+const SKIN_AO = /* glsl */ `
+  reflectedLight.indirectDiffuse *= skinAO;
+  reflectedLight.indirectSpecular *= mix( skinAO, 1.0, 0.25 ) * skinAO;
+  reflectedLight.directDiffuse *= mix( 1.0, skinAO, 0.3 );
+  reflectedLight.directSpecular *= mix( 1.0, skinAO, 0.45 );
+`;
+
 /** Recessed seams: screen-space bump from the seam depth (in metres, so it fades with distance). */
 const SKIN_NORMAL = /* glsl */ `
   {
@@ -947,6 +977,10 @@ export function skinMaterial(p: SkinParams): THREE.MeshStandardMaterial {
     customTex: { value: blankTex() },
     customScale: { value: 4 },
     brightness: { value: 1 },
+    aoTex: { value: blankAo() },
+    aoMin: { value: new THREE.Vector3() },
+    aoSize: { value: new THREE.Vector3(1, 1, 1) },
+    aoOn: { value: 0 },
   };
   const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: p.roughness ?? 0.58, metalness: p.metalness ?? 0.22 });
   applySkin(mat, uniforms);
@@ -966,9 +1000,10 @@ function applySkin(mat: THREE.MeshStandardMaterial, uniforms: Record<string, THR
       .replace('#include <map_fragment>', '#include <map_fragment>\n' + SKIN_FRAG)
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = clamp( roughnessFactor + skinRough, 0.05, 1.0 );')
       .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n' + SKIN_NORMAL)
-      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += skinGlow;');
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += skinGlow;')
+      .replace('#include <aomap_fragment>', '#include <aomap_fragment>\n' + SKIN_AO);
   };
-  mat.customProgramCacheKey = () => 'skin-v5';
+  mat.customProgramCacheKey = () => 'skin-v6';
   void id;
 }
 

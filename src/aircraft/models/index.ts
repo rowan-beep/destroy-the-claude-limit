@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Aircraft } from '../aircraft';
-import { AirframeVisual } from './visual';
+import { AirframeVisual, FarLod } from './visual';
+import { buildAoVolume, AoVolume } from './ao';
 import { buildF15EX } from './f15ex';
 import { buildFA18 } from './fa18';
 import { buildTyphoon } from './typhoon';
@@ -20,7 +21,7 @@ import { loadSettings, Tier } from '../../core/settings';
 // still runs smoothly.
 const templates = new Map<string, AirframeVisual>();
 
-const HERO_DENSITY: Record<Tier, number> = { low: 1.6, medium: 2.6, high: 4, ultra: 4 };
+const HERO_DENSITY: Record<Tier, number> = { low: 1.6, medium: 2.6, high: 4, ultra: 5.5 };
 let heroDensity = 4;
 try {
   heroDensity = HERO_DENSITY[loadSettings().graphics.quality] ?? 4;
@@ -33,25 +34,68 @@ export function setHeroDetail(q: Tier): void {
   heroDensity = HERO_DENSITY[q] ?? 4;
 }
 
+/** Density of the distance LOD (and of the shadow silhouettes). */
+const FAR_DENSITY = 0.45;
+const farLods = new Map<string, FarLod>();
+
+function farLod(ac: Aircraft): FarLod {
+  const key = `${ac.type}:${ac.team}`;
+  let L = farLods.get(key);
+  if (!L) {
+    const t = build(ac, FAR_DENSITY);
+    L = t.buildFarLod();
+    L.ao = buildAoVolume(L.shadow);
+    // keep only the merged geometry: the low template itself is not used again
+    const keep = new Set<THREE.BufferGeometry>(L.parts.map((p) => p.geo));
+    keep.add(L.shadow);
+    t.root.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.isMesh && !keep.has(m.geometry)) m.geometry.dispose();
+    });
+    t.dispose();
+    farLods.set(key, L);
+  }
+  return L;
+}
+
+function applyAo(mat: THREE.Material | null, ao: AoVolume | undefined): void {
+  const u = mat?.userData.skinUniforms as Record<string, THREE.IUniform> | undefined;
+  if (!u || !ao || !u.aoTex) return;
+  u.aoTex.value = ao.tex;
+  (u.aoMin.value as THREE.Vector3).copy(ao.min);
+  (u.aoSize.value as THREE.Vector3).copy(ao.size);
+  u.aoOn.value = 1;
+}
+
+function build(ac: Aircraft, d: number): AirframeVisual {
+  const t = new AirframeVisual(ac);
+  setModelDensity(d);
+  try {
+    if (ac.type === 'F15EX') buildF15EX(t);
+    else if (ac.type === 'FA18EF') buildFA18(t);
+    else if (ac.type === 'SU35') buildSu35(t);
+    else if (ac.type === 'RAFALE') buildRafale(t);
+    else if (ac.type === 'F22') buildF22(t);
+    else buildTyphoon(t);
+  } finally {
+    setModelDensity(1);
+  }
+  const pm = partMaterials();
+  t.finishTemplate(new Set([pm.duct, pm.seat, pm.flight, pm.helmet, pm.visor, pm.antenna, pm.formation, pm.darkMetal, pm.lens, pm.frame]));
+  return t;
+}
+
 function template(ac: Aircraft, hero: boolean): AirframeVisual {
   const d = hero ? heroDensity : 1;
   const key = `${ac.type}:${ac.team}:${d}`;
   let t = templates.get(key);
   if (!t) {
-    t = new AirframeVisual(ac);
-    setModelDensity(d);
-    try {
-      if (ac.type === 'F15EX') buildF15EX(t);
-      else if (ac.type === 'FA18EF') buildFA18(t);
-      else if (ac.type === 'SU35') buildSu35(t);
-      else if (ac.type === 'RAFALE') buildRafale(t);
-      else if (ac.type === 'F22') buildF22(t);
-      else buildTyphoon(t);
-    } finally {
-      setModelDensity(1);
-    }
-    const pm = partMaterials();
-    t.finishTemplate(new Set([pm.duct, pm.seat, pm.flight, pm.helmet, pm.visor, pm.antenna, pm.formation, pm.darkMetal, pm.lens, pm.frame]));
+    t = build(ac, d);
+    // far LOD + shadow silhouette: the detailed meshes stop casting shadows
+    t.lodMeshes = t.lodSources();
+    for (const m of t.lodMeshes) m.castShadow = false;
+    t.farLod = farLod(ac);
+    applyAo(t.paintMat, t.farLod.ao);
     templates.set(key, t);
   }
   return t;

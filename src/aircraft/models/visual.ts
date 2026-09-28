@@ -13,6 +13,42 @@ import { makeInsignia } from './decals';
 import { Cockpit } from './cockpit';
 import { customSkinMaterial, Livery } from './kit';
 import { PaintConfig, WRAPS, wrapMask } from './paint';
+import type { AoVolume } from './ao';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+
+/**
+ * Distance level of detail shared by every clone of a template: the airframe
+ * rebuilt at low density and merged into one mesh per material (a handful of
+ * draw calls instead of ~60), plus a single-draw silhouette that casts the
+ * jet's shadow in place of the full-detail meshes.
+ */
+export interface FarLod {
+  parts: { geo: THREE.BufferGeometry; mat: THREE.Material }[];
+  shadow: THREE.BufferGeometry;
+  /** the low template's paint material (stands for the clone's own paint) */
+  paint: THREE.Material | null;
+  /** ambient occlusion volume baked from the merged airframe */
+  ao?: AoVolume;
+}
+
+// Draws nothing in the colour pass (every fragment fails the depth test) but
+// renders normally into the shadow map, which uses its own depth material.
+let _shadowOnly: THREE.MeshBasicMaterial | null = null;
+function shadowOnlyMaterial(): THREE.MeshBasicMaterial {
+  if (!_shadowOnly) _shadowOnly = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, depthFunc: THREE.NeverDepth });
+  return _shadowOnly;
+}
+
+function f32(a: THREE.BufferAttribute | THREE.InterleavedBufferAttribute, size = a.itemSize): THREE.BufferAttribute {
+  const out = new Float32Array(a.count * size);
+  for (let i = 0; i < a.count; i++) for (let k = 0; k < size; k++) out[i * size + k] = k < a.itemSize ? a.getComponent(i, k) : 1;
+  return new THREE.BufferAttribute(out, size);
+}
+
+function filled(count: number, size: number, v: number): THREE.BufferAttribute {
+  return new THREE.BufferAttribute(new Float32Array(count * size).fill(v), size);
+}
+
 
 export interface ControlSurface {
   pivot: THREE.Object3D;
@@ -176,6 +212,12 @@ export class AirframeVisual {
   /** small parts hidden on distant aircraft */
   detail: THREE.Object3D[] = [];
   private detailOn = true;
+  /** full-detail meshes the far LOD stands in for */
+  lodMeshes: THREE.Mesh[] = [];
+  farLod: FarLod | null = null;
+  private farGroup: THREE.Group | null = null;
+  private shadowProxy: THREE.Mesh | null = null;
+  private far = false;
   wreck = false;
 
   constructor(readonly ac: Aircraft) {
@@ -358,6 +400,108 @@ export class AirframeVisual {
     for (const o of this.detail) o.visible = on;
   }
 
+  /**
+   * Static, opaque airframe meshes: what the far LOD merges and replaces.
+   * Gear (retracts), stores (per jet), transparent glass, decals, lights and
+   * the small detail parts stay live.
+   */
+  lodSources(): THREE.Mesh[] {
+    const skip = new Set<THREE.Object3D>([...this.detail, ...this.insignia, ...this.navLights.map((l) => l.mesh)]);
+    for (const g of this.gear) {
+      skip.add(g.pivot);
+      g.hideWhenUp.forEach((o) => skip.add(o));
+    }
+    if (this.canopy) skip.add(this.canopy);
+    const out: THREE.Mesh[] = [];
+    const walk = (o: THREE.Object3D) => {
+      if (!o.visible || skip.has(o)) return;
+      const m = o as THREE.Mesh;
+      if (m.isMesh) {
+        const mat = m.material as THREE.Material;
+        if (!Array.isArray(m.material) && mat instanceof THREE.MeshStandardMaterial && !mat.transparent && m.geometry.attributes.position) out.push(m);
+      }
+      o.children.forEach(walk);
+    };
+    this.body.children.forEach(walk);
+    return out;
+  }
+
+  /** Merge this (low density) template into far-LOD geometry. */
+  buildFarLod(): FarLod {
+    this.root.updateMatrixWorld(true);
+    const inv = this.body.matrixWorld.clone().invert();
+    const groups = new Map<THREE.Material, THREE.BufferGeometry[]>();
+    const shadows: THREE.BufferGeometry[] = [];
+    for (const m of this.lodSources()) {
+      const src = m.geometry;
+      const mat = m.material as THREE.MeshStandardMaterial;
+      const mtx = new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld);
+      const pos = src.attributes.position;
+      const n = pos.count;
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', f32(pos, 3));
+      if (src.attributes.normal) g.setAttribute('normal', f32(src.attributes.normal, 3));
+      let index: number[] | null = null;
+      if (src.index) index = Array.from(src.index.array as ArrayLike<number>);
+      else {
+        index = [];
+        for (let i = 0; i < n; i++) index.push(i);
+      }
+      if (mtx.determinant() < 0) for (let i = 0; i + 2 < index.length; i += 3) [index[i + 1], index[i + 2]] = [index[i + 2], index[i + 1]];
+      g.setIndex(new THREE.BufferAttribute(new Uint32Array(index), 1));
+      if (!g.attributes.normal) g.computeVertexNormals();
+      const paint = mat === this.paintMat;
+      const skin = src.attributes.skin;
+      if (paint && skin) g.setAttribute('skin', f32(skin, 3));
+      g.applyMatrix4(mtx);
+      if (paint && !skin) g.setAttribute('skin', (g.attributes.position as THREE.BufferAttribute).clone());
+      if (mat.vertexColors) g.setAttribute('color', src.attributes.color ? f32(src.attributes.color, 3) : filled(n, 3, 1));
+      if (mat.map || mat.normalMap || mat.roughnessMap || mat.metalnessMap || mat.aoMap) g.setAttribute('uv', src.attributes.uv ? f32(src.attributes.uv, 2) : filled(n, 2, 0));
+      let list = groups.get(mat);
+      if (!list) groups.set(mat, (list = []));
+      list.push(g);
+      const sh = new THREE.BufferGeometry();
+      sh.setAttribute('position', g.attributes.position);
+      sh.setIndex(g.index);
+      shadows.push(sh);
+    }
+    const parts: FarLod['parts'] = [];
+    for (const [mat, list] of groups) {
+      const geo = mergeGeometries(list, false);
+      if (!geo) continue;
+      geo.computeBoundingSphere();
+      parts.push({ geo, mat });
+    }
+    const shadow = mergeGeometries(shadows, false) ?? new THREE.BufferGeometry();
+    shadow.computeBoundingSphere();
+    return { parts, shadow, paint: this.paintMat };
+  }
+
+  /** Near / far switch from the camera distance (with hysteresis), scaled by the zoom. */
+  updateLod(dist: number, tanHalfFov: number): void {
+    if (!this.farGroup) {
+      this.setDetail(dist < 900);
+      return;
+    }
+    const d = dist * tanHalfFov;
+    const far = this.far ? d > 150 : d > 175;
+    if (far !== this.far) this.setFar(far);
+    this.setDetail(!far && dist < 900);
+  }
+
+  setFar(far: boolean): void {
+    if (!this.farGroup || far === this.far) return;
+    this.far = far;
+    this.farGroup.visible = far;
+    if (this.shadowProxy) this.shadowProxy.visible = !far;
+    const hidden = this.insideView ? new Set(this.hideInCockpit) : null;
+    for (const m of this.lodMeshes) m.visible = !far && !hidden?.has(m);
+  }
+
+  get isFar(): boolean {
+    return this.far;
+  }
+
   /** Classify small parts after building: they stop casting shadows and cull with distance. */
   finishTemplate(detailMats: Set<THREE.Material>): void {
     this.body.traverse((o) => {
@@ -397,6 +541,28 @@ export class AirframeVisual {
     v.canopyBows = this.canopyBows;
     v.hideInCockpit = this.hideInCockpit.map(M);
     v.detail = this.detail.map(M);
+    v.lodMeshes = this.lodMeshes.map(M);
+    v.farLod = this.farLod;
+    if (this.farLod) {
+      const L = this.farLod;
+      const fg = new THREE.Group();
+      fg.name = 'far-lod';
+      for (const p of L.parts) {
+        const m = new THREE.Mesh(p.geo, p.mat === L.paint ? this.paintMat! : p.mat);
+        m.castShadow = true;
+        m.receiveShadow = true;
+        fg.add(m);
+      }
+      fg.visible = false;
+      v.body.add(fg);
+      v.farGroup = fg;
+      const sp = new THREE.Mesh(L.shadow, shadowOnlyMaterial());
+      sp.castShadow = true;
+      sp.receiveShadow = false;
+      sp.name = 'shadow-proxy';
+      v.body.add(sp);
+      v.shadowProxy = sp;
+    }
     v.paintMat = this.paintMat;
     v.navLights = this.navLights.map((l) => ({ mesh: M(l.mesh), kind: l.kind }));
     v.insignia = this.insignia.map(M);

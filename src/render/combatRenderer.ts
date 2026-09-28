@@ -365,9 +365,11 @@ export class CombatRenderer {
     this.origin.set(Math.round(cam.x / 500) * 500, Math.round(cam.y / 500) * 500, Math.round(cam.z / 500) * 500);
 
     // aircraft visuals & per-aircraft effects
+    const pc = camera as THREE.PerspectiveCamera;
+    const tanHalf = Math.tan(((pc.fov ?? 70) * Math.PI) / 360) / Math.max(0.01, pc.zoom ?? 1);
     for (const [a, v] of this.aircraftVis) {
       v.update(dt);
-      v.setDetail(v.root.position.distanceToSquared(cam) < 900 * 900);
+      v.updateLod(v.root.position.distanceTo(cam), tanHalf);
       if (a.fm.crashed) continue;
       this.aircraftEffects(a, v, dt);
     }

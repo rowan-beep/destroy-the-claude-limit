@@ -3,6 +3,13 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.7.0 — Faster combat, more realistic jets (2026-09-28)
+
+- Much faster in combat. Every jet now has a distance model: past a couple of hundred metres the full airframe is swapped for a merged copy that takes a handful of draw calls instead of about sixty, and looks the same at that range. In a 5v5 this cut draw calls by about a third and the triangles drawn per frame from 4 million to 2.5 million.
+- Shadows are much cheaper. Your own jet used to draw its full-detail model (1.5 million triangles) a second time just for its shadow. Every jet now casts its shadow from a single-draw silhouette, and the full-detail model is only drawn once.
+- More realistic jets: every airframe now has ambient occlusion baked from its own shape. Wing roots, intakes, the tunnel between the engines, tail roots and the underside now get soft contact shading instead of flat, evenly lit paint.
+- In-flight detail: your own jet keeps its full hero-detail model in flight, and Ultra graphics now builds it about 40% denser than before.
+
 ## v4.6.2 — Old menu back, auto-update (2026-09-28)
 
 - Back to the previous main menu layout. The text fixes from 4.6.0 stay (mode descriptions, loadout notes, F-22A internal bays).
