@@ -1401,7 +1401,9 @@ export function buildHangarInterior(scene: THREE.Scene): HangarInterior {
         float across = smoothstep( 0.0, 0.45, vB.x ) * smoothstep( 1.0, 0.55, vB.x );
         float along = ( 1.0 - vB.y * 0.6 ) * smoothstep( 0.0, 0.08, vB.y );
         float near = smoothstep( 2.0, 9.0, vDist );
-        gl_FragColor = vec4( col * across * along * near, 1.0 );
+        // fade out well above the floor so no beam ever reads as a stripe on the ground
+        float high = smoothstep( 1.5, 4.5, vW.y );
+        gl_FragColor = vec4( col * across * along * near * high, 1.0 );
       }`,
   });
   /** a light shaft from a wall opening (4 corners, in order) down along the sun to the floor */
@@ -1427,8 +1429,8 @@ export function buildHangarInterior(scene: THREE.Scene): HangarInterior {
     const x = -W2;
     shaft([V(x, WIN_Y0, z0), V(x, WIN_Y0, z1), V(x, WIN_Y1, z1), V(x, WIN_Y1, z0)]);
   }
-  // the door opening: its top edge makes the shaft's roof
-  shaft([V(-DOOR_W2, DOOR_H, -D2), V(DOOR_W2, DOOR_H, -D2), V(DOOR_W2, DOOR_H - 0.01, -D2 + 0.01), V(-DOOR_W2, DOOR_H - 0.01, -D2 + 0.01)]);
+  // (no shaft for the door opening: it is far too wide to read as a beam, and a flat
+  // sheet of glow sloping down through the whole bay looked like a band on the floor)
 
   // dust motes drifting in the light
   const N = 900;

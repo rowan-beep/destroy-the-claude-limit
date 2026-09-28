@@ -10,6 +10,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.17.2',
+    date: '2026-09-28',
+    title: "Hangar floor fix",
+    notes: [
+      "Hangar: fixed the long tan band across the floor, and the whitish haze when looking toward the doors. Both came from the sunbeam effect for the big door opening, a flat sheet of glow that sloped down through the whole bay and read as a stripe on the floor from low angles. That sheet is gone, and the window sunbeams now fade out well above the floor.",
+    ],
+  },
+  {
     version: '4.17.1',
     date: '2026-09-28',
     title: "Smooth takeoffs",

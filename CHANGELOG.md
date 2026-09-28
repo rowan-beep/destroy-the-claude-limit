@@ -3,6 +3,10 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.17.2 — Hangar floor fix (2026-09-28)
+
+- Hangar: fixed the long tan band across the floor, and the whitish haze when looking toward the doors. Both came from the sunbeam effect for the big door opening, a flat sheet of glow that sloped down through the whole bay and read as a stripe on the floor from low angles. That sheet is gone, and the window sunbeams now fade out well above the floor.
+
 ## v4.17.1 — Smooth takeoffs (2026-09-28)
 
 - Smooth, realistic takeoffs. While the gear is down, the flight controls now use a takeoff and landing mode, like the real jets: the stick commands a gentle pitch rate, the jet holds its attitude when you let go, a soft AoA limit protects it, and the climb-out attitude tops out around 20 degrees. Lifting off with the stick still held back no longer snaps the nose 80 degrees up with an AoA warning. The nose also comes up smoothly on the runway and the rotation carries into the air without a jump. Raise the gear (or pass about 300 knots) and the normal fighter controls come back, with G building gently for the first few seconds.
