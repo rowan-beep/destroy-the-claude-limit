@@ -8,6 +8,7 @@ import { VERSION } from '../../version';
 import { el, clearEl, button } from '../dom';
 import { AIRCRAFT_TYPES, AircraftType, SPECS, enemyTypesFor, getSpec } from '../../aircraft/specs';
 import { MissionConfig, MODE_INFO, ModeId } from '../../game/mission';
+import { todaysMission, dailyDone } from '../../game/daily';
 import { FFA_JETS } from '../../game/modes/ffa';
 import { DIFFICULTIES, Difficulty } from '../../ai/skill';
 import { airfieldsOf } from '../../world/islands';
@@ -191,7 +192,7 @@ export class MainMenu {
 
   private renderModes(): void {
     clearEl(this.modeGrid);
-    for (const m of ['tutorial', 'free', 'waves', 'duel', 'team', 'ffa'] as ModeId[]) {
+    for (const m of ['daily', 'tutorial', 'free', 'waves', 'duel', 'team', 'ffa'] as ModeId[]) {
       const info = MODE_INFO[m];
       const c = el('div', 'mode-card' + (m === this.cfg.mode ? ' sel' : ''), this.modeGrid);
       el('div', 'mt', c, info.title);
@@ -292,6 +293,22 @@ export class MainMenu {
       this.seg(c, 'FIRST TO', [['2', '2 ROUNDS'], ['3', '3 ROUNDS'], ['4', '4 ROUNDS']], String(cfg.teamWins) as '2' | '3' | '4', (v) => (cfg.teamWins = +v));
       this.seg(c, 'WEAPONS', [['all', 'ALL'], ['ir', 'AIM-9X + GUN'], ['guns', 'GUNS ONLY']], cfg.duelRules, (v) => (cfg.duelRules = v));
       el('div', 'note', c, `Bandits fly only the jets you did not pick (${enemyTypesFor(cfg.aircraft).map((t) => SPECS[t].shortName).join(' / ')}). Both teams use the same AI at the chosen difficulty. Shot down? Watch any jet or fly a free camera until the round ends.`);
+    } else if (cfg.mode === 'daily') {
+      const dm = todaysMission();
+      const card = el('div', 'daily-card', c);
+      el('div', 'dk', card, `TODAY · ${dm.date} · FROM THE NEWS (${dm.eventDate})`);
+      el('div', 'dt', card, dm.title);
+      el('div', 'dd', card, dm.headline);
+      el('div', 'dd', card, `${dm.enemy.count} × ${SPECS[dm.enemy.type].shortName} (${dm.enemy.difficulty}) waiting over ${dm.targetName}. Take off from home base${dm.rtb ? ', shoot them down and fly home' : ' and shoot them down'}.`);
+      if (dailyDone(dm.date)) el('div', 'done', card, '✓ COMPLETED TODAY');
+      if (dm.map && dm.map !== activeMap.id) {
+        const want = MAPS.find((x) => x.id === dm.map);
+        if (want) {
+          el('div', 'note', c, `This story is set best on ${want.name}. You can fly it here too.`);
+          button(`SWITCH THEATER TO ${want.name}`, 'small', c, () => switchMap(want.id));
+        }
+      }
+      if (dm.realJet && dm.realJet !== cfg.aircraft) el('div', 'note', c, `The real pilots flew the ${SPECS[dm.realJet].shortName}. Any jet works.`);
     } else if (cfg.mode === 'tutorial') {
       el('div', 'note', c, `12 short lessons in the air over ${ROLES.arena.name}, then the checkride. Each step completes itself as soon as you have done it; press ENTER to skip one. The instructor uses your own key bindings and mouse mode (change them in SETTINGS).`);
     } else if (cfg.mode === 'ffa') {

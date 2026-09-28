@@ -26,6 +26,16 @@ export interface MissionResult {
   debrief?: { sortie: SortieRecorder; earned: string[] };
 }
 
+/** Centre-screen mission briefing: the sim holds until the player presses OKAY. */
+export interface Briefing {
+  kicker: string;
+  title: string;
+  story: string;
+  tasks: string[];
+  footer?: string;
+  onOk?: () => void;
+}
+
 export interface ModeHost {
   readonly sim: Sim;
   readonly picture: TeamPicture;
@@ -46,6 +56,8 @@ export interface ModeHost {
   cameraMode?(): string;
   /** throttle lever command 0..1.1 (above 1 = afterburner) */
   throttle?(): number;
+  /** show a briefing box; the mission waits for OKAY */
+  brief?(b: Briefing): void;
 }
 
 export interface ModeStatus {

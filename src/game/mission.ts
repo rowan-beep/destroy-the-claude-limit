@@ -4,7 +4,7 @@ import type { AircraftType } from '../aircraft/specs';
 import type { Difficulty } from '../ai/skill';
 import type { TimeOfDay } from '../render/environment';
 
-export type ModeId = 'free' | 'waves' | 'duel' | 'team' | 'ffa' | 'online' | 'tutorial';
+export type ModeId = 'free' | 'waves' | 'duel' | 'team' | 'ffa' | 'online' | 'tutorial' | 'daily';
 
 export interface MissionConfig {
   mode: ModeId;
@@ -54,6 +54,12 @@ export function defaultMission(): MissionConfig {
 }
 
 export const MODE_INFO: Record<ModeId, { title: string; subtitle: string; description: string }> = {
+  daily: {
+    title: 'DAILY MISSION',
+    subtitle: 'Today\'s news, flown',
+    description:
+      'A new mission every day, built from real aviation news. Read the briefing, press OKAY and fly it: scramble from your home base, find the bandits where the story put them, fight, and bring the jet home.',
+  },
   tutorial: {
     title: 'FLIGHT SCHOOL',
     subtitle: 'Tutorial + checkride',

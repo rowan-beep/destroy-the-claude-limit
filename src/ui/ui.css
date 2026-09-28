@@ -490,3 +490,20 @@ body.touch-mode .weapon-bar { bottom: auto; top: calc(96px + env(safe-area-inset
 .tut.done .tut-bar > div { background: #ffd35a; }
 .tut-foot { font: 10px/1 var(--mono, monospace); letter-spacing: 1.5px; color: #8a9a93; }
 .tut-foot kbd { font-size: 9px; }
+
+/* mission briefing box (daily mission) */
+.briefing-back { background: rgba(3, 6, 10, 0.45); }
+.briefing { width: min(620px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto; padding: 22px 26px; background: rgba(10, 16, 24, 0.94); border: 1px solid var(--accent-2); box-shadow: 0 0 40px rgba(74, 163, 255, 0.18); color: #d6e6f5; font-size: 14px; line-height: 1.5; }
+.briefing .bk { color: var(--accent-2); font-size: 12px; letter-spacing: 3px; font-weight: 700; }
+.briefing h2 { margin: 4px 0 10px; font-size: 28px; letter-spacing: 4px; color: #fff; }
+.briefing .bs { margin: 0 0 14px; }
+.briefing .bh { color: var(--accent); font-size: 12px; letter-spacing: 3px; font-weight: 700; margin-bottom: 4px; }
+.briefing .bt { margin: 0 0 14px; padding-left: 22px; }
+.briefing .bt li { margin: 3px 0; }
+.briefing .bf { font-size: 12px; color: #8ea4b8; border-top: 1px solid rgba(140, 180, 220, 0.2); padding-top: 10px; margin-bottom: 16px; }
+.briefing .btn { width: 100%; }
+.daily-card { border: 1px solid var(--accent-2); background: rgba(20, 36, 56, 0.6); padding: 10px 12px; margin: 8px 0; }
+.daily-card .dk { color: var(--accent-2); font-size: 11px; letter-spacing: 2px; font-weight: 700; }
+.daily-card .dt { font-size: 20px; font-weight: 700; letter-spacing: 3px; margin: 2px 0 6px; }
+.daily-card .dd { font-size: 13px; line-height: 1.45; }
+.daily-card .done { color: var(--accent); font-weight: 700; letter-spacing: 2px; margin-top: 6px; }

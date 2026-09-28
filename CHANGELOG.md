@@ -3,6 +3,11 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.15.0 — Daily Mission (2026-09-28)
+
+- New game mode: DAILY MISSION (top of the mode list). Every day there is a new mission built from real aviation news. Pick it, press FLY, and a briefing box in the middle of the screen tells you the real story and exactly what to do; the mission starts when you press OKAY (or Enter). You scramble from your home base, fly to where the story put the bandits (steerpoint 1 on your nav, marked on the map), and they wait there circling, radar silent, until you come within 20 NM or shoot at them. Then it is a fight. Shoot them all down and fly back within 10 NM of a friendly field to complete it. The menu shows a tick once you have finished today's mission.
+- Today's mission, NORDIC SCRAMBLE: on 24 September Finnish F/A-18 Hornets and Swedish JAS 39 Gripens scrambled together for the first time to intercept a Russian formation (a transport with MiG-31 and Su-30 escorts) over the Gulf of Finland. You fly that scramble against three Flankers circling over the strait; in this version the escort does not back off. It is set best on Frostfall Strait (the menu offers to switch), but works on either map with any jet.
+
 ## v4.14.0 — Laptop performance (2026-09-28)
 
 - Runs much better on laptops and other lower-end computers. On first start the game now checks the graphics chip and picks a preset it can run: older Intel HD / UHD graphics start on LOW, Iris Xe, Radeon 680M/780M, entry GeForce and base Apple M-chips on MEDIUM, and gaming graphics cards stay on HIGH. Players still on the untouched HIGH default get the same one-time check. You can change it any time in Settings.

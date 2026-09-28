@@ -3,7 +3,7 @@
 import { renderDebrief } from './debrief';
 import type { MapData } from '../../world/mapData';
 import { el, clearEl, button } from '../dom';
-import type { MissionResult } from '../../game/modes/mode';
+import type { MissionResult, Briefing } from '../../game/modes/mode';
 import { ACTION_LABELS, Action, InputSettings } from '../../core/input';
 
 const TIPS = [
@@ -63,6 +63,34 @@ export class PauseMenu {
   }
   show(v: boolean): void {
     this.root.classList.toggle('hidden', !v);
+  }
+}
+
+/** Daily mission (and other) briefings: the mission waits until OKAY. */
+export class BriefingModal {
+  readonly root: HTMLDivElement;
+  private box: HTMLDivElement;
+  constructor(
+    parent: HTMLElement,
+    private onOk: () => void,
+  ) {
+    this.root = el('div', 'modal-back briefing-back hidden', parent);
+    this.box = el('div', 'briefing', this.root);
+  }
+  show(b: Briefing | null): void {
+    this.root.classList.toggle('hidden', !b);
+    if (!b) return;
+    const m = this.box;
+    clearEl(m);
+    el('div', 'bk', m, b.kicker);
+    el('h2', '', m, b.title);
+    el('p', 'bs', m, b.story);
+    el('div', 'bh', m, 'YOUR MISSION');
+    const ol = el('ol', 'bt', m);
+    for (const t of b.tasks) el('li', '', ol, t);
+    if (b.footer) el('div', 'bf', m, b.footer);
+    const ok = button('OKAY', 'primary big', m, () => this.onOk());
+    setTimeout(() => ok.focus(), 0);
   }
 }
 

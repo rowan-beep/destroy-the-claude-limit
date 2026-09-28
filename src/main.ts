@@ -13,7 +13,7 @@ import { Hud } from './ui/hud/hud';
 import { WeatherWidget } from './ui/weatherWidget';
 import { MainMenu } from './ui/menu/mainMenu';
 import { Hangar } from './ui/menu/hangar';
-import { LoadingScreen, PauseMenu, ResultsScreen, ControlsModal } from './ui/menu/screens';
+import { LoadingScreen, PauseMenu, ResultsScreen, ControlsModal, BriefingModal } from './ui/menu/screens';
 import { SettingsModal } from './ui/menu/settingsModal';
 import { LogbookModal } from './ui/menu/logbookScreen';
 import { ReplayUi } from './ui/replayUi';
@@ -166,6 +166,7 @@ async function boot(): Promise<void> {
     mp.setStatus(`DISCONNECTED: ${reason}`);
   };
 
+  const briefing = new BriefingModal(document.body, () => game.acceptBriefing());
   const pause = new PauseMenu(document.body, {
     resume: () => game.setState('playing'),
     settings: () => settingsModal.show(true),
@@ -188,7 +189,8 @@ async function boot(): Promise<void> {
 
   game.onStateChange = (s) => {
     menu.show(s === 'menu');
-    hud.setVisible(s === 'playing' || s === 'paused' || s === 'results' || s === 'map');
+    briefing.show(s === 'briefing' ? game.briefing : null);
+    hud.setVisible(s === 'playing' || s === 'paused' || s === 'results' || s === 'map' || s === 'briefing');
     pause.show(s === 'paused');
     weather.show(s === 'playing' || s === 'paused');
     mapView.show(s === 'map', game);
@@ -208,6 +210,11 @@ async function boot(): Promise<void> {
 
   // keys that work while the flight input is disabled (pause / map)
   window.addEventListener('keydown', (e) => {
+    if (game.state === 'briefing' && (e.code === 'Enter' || e.code === 'NumpadEnter')) {
+      e.preventDefault();
+      game.acceptBriefing();
+      return;
+    }
     if (game.state === 'paused' && (e.code === 'Escape' || e.code === 'KeyP')) {
       e.preventDefault();
       game.setState('playing');

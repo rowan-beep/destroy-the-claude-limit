@@ -16,7 +16,9 @@ import { GameSettings, saveSettings } from '../core/settings';
 import { audio, OtherJetSound } from '../audio/audio';
 import { Aircraft } from '../aircraft/aircraft';
 import { MissionConfig } from './mission';
-import { GameMode, ModeHost, MissionResult, MsgKind } from './modes/mode';
+import { GameMode, ModeHost, MissionResult, MsgKind, Briefing } from './modes/mode';
+import { DailyMode } from './modes/daily';
+import { todaysMission } from './daily';
 import { FreeFlightMode } from './modes/freeFlight';
 import { WavesMode } from './modes/waves';
 import { DuelMode } from './modes/duel';
@@ -36,7 +38,7 @@ import { emptyVision } from '../render/vision';
 import type { Hud } from '../ui/hud/hud';
 import { CockpitView } from '../render/cockpitView';
 import { Avionics } from '../avionics/avionics';
-import { gradeLanding } from '../avionics/nav';
+import { gradeLanding, setMissionObjective } from '../avionics/nav';
 import type { TouchControls } from '../ui/touchControls';
 import type { ReplayUi } from '../ui/replayUi';
 import { ReplayRecorder, ReplayPlayer } from './replay';
@@ -48,7 +50,7 @@ import { AutoFly } from './autoFly';
 import type { AutoFlyPanel, AutoFlyChoice } from '../ui/autoFlyPanel';
 import { enemyTypesFor, AIRCRAFT_TYPES } from '../aircraft/specs';
 
-export type GameState = 'menu' | 'loading' | 'playing' | 'paused' | 'map' | 'results' | 'replay';
+export type GameState = 'menu' | 'loading' | 'playing' | 'paused' | 'map' | 'results' | 'replay' | 'briefing';
 
 const GUN_WEAPONS = new Set(['M61', 'BK-27', 'GSh-30', '30M791', 'GUN']);
 const CLOUD_DENSITY: Record<string, number> = { low: 0.5, medium: 0.75, high: 1, ultra: 1.35 };
@@ -184,6 +186,8 @@ export class Game implements ModeHost {
 
   async startMission(cfg: MissionConfig, onProgress: (f: number, label: string) => void): Promise<void> {
     this.config = cfg;
+    this.briefing = null;
+    setMissionObjective(null);
     this.setState('loading');
     if (this.combat) this.combat.dispose();
     this.sim = new Sim(this.world.grid);
@@ -212,6 +216,7 @@ export class Game implements ModeHost {
     else if (cfg.mode !== 'free') for (const t of enemyTypesFor(cfg.aircraft)) pre.push(new Aircraft(t, 'red', 'PRE'));
     if (cfg.mode === 'team') for (const t of enemyTypesFor(cfg.aircraft)) pre.push(new Aircraft(t, 'blue', 'PRE'));
     if (cfg.mode === 'ffa') pre.push(new Aircraft(cfg.aircraft, 'red', 'PRE'));
+    if (cfg.mode === 'daily') pre.push(new Aircraft(todaysMission().enemy.type, 'red', 'PRE'));
     prewarmAirframes(pre);
     this.stopSpectating();
     resetRules();
@@ -230,7 +235,9 @@ export class Game implements ModeHost {
               ? new FreeForAllMode(this)
               : cfg.mode === 'tutorial'
                 ? new TutorialMode(this)
-                : new DuelMode(this);
+                : cfg.mode === 'daily'
+                  ? new DailyMode(this)
+                  : new DuelMode(this);
     randomizeWind();
     this.mode.start();
     this.message(`WIND ${String(Math.round(wind.fromDeg)).padStart(3, '0')}° / ${Math.round(wind.surfaceKts)} KT${wind.turbulence > 1.1 ? ' — MODERATE TURBULENCE LOW LEVEL' : ''}`, 'info', 8);
@@ -247,7 +254,7 @@ export class Game implements ModeHost {
     const pv = this.combat.aircraftVis.get(p);
     if (pv) pv.getCockpit();
     onProgress(1, 'READY');
-    this.setState('playing');
+    this.goLive();
     this.lastT = performance.now();
     this.accumulator = 0;
   }
@@ -289,6 +296,7 @@ export class Game implements ModeHost {
     this.avionics = null;
     this.cockpitCursor = false;
     audio.silenceContinuous();
+    this.briefing = null;
     this.setState('menu');
   }
 
@@ -568,7 +576,30 @@ export class Game implements ModeHost {
       this.cam.setMode('chase');
       this.hud.reset(this);
     }
+    this.goLive();
+  }
+
+  /** a mode's briefing waiting for the player's OKAY (the sim holds until then) */
+  briefing: Briefing | null = null;
+
+  brief(b: Briefing): void {
+    this.briefing = b;
+    if (this.state === 'playing') this.setState('briefing');
+  }
+
+  private goLive(): void {
+    this.setState(this.briefing ? 'briefing' : 'playing');
+  }
+
+  /** OKAY on the briefing box: the mission starts. */
+  acceptBriefing(): void {
+    if (this.state !== 'briefing') return;
+    const b = this.briefing;
+    this.briefing = null;
+    this.lastT = performance.now();
+    this.accumulator = 0;
     this.setState('playing');
+    b?.onOk?.();
   }
 
   // ---------------------------------------------------------------------

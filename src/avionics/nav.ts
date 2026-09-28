@@ -9,7 +9,13 @@ import { AIRFIELDS, AirfieldDef, toRunwayLocal } from '../world/islands';
 import { NM, LB, DEG, Team } from '../core/constants';
 import { bearingXZ, clamp, wrap360 } from '../core/math';
 
-export type SteerKind = 'airfield' | 'bullseye';
+export type SteerKind = 'airfield' | 'bullseye' | 'objective';
+
+/** A mission objective the mode wants as steerpoint 1 (daily mission), or null. */
+let objective: { name: string; short: string; x: number; z: number } | null = null;
+export function setMissionObjective(o: typeof objective): void {
+  objective = o;
+}
 
 export interface Steerpoint {
   num: number;
@@ -85,6 +91,9 @@ export class NavSystem {
     const own = AIRFIELDS.filter((f) => f.team === team);
     const other = AIRFIELDS.filter((f) => f.team !== team);
     let n = 1;
+    if (objective) {
+      this.points.push({ num: n++, id: 'objective', name: objective.name, short: objective.short, kind: 'objective', x: objective.x, z: objective.z, elev: 0, field: null, tacan: '', friendly: false });
+    }
     for (const f of [...own, ...other]) {
       this.points.push({
         num: n++,
