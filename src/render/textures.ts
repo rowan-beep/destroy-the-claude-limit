@@ -39,27 +39,79 @@ export function tileableNoiseData(size: number, seed: number, octaves: number, b
 
 let terrainDetail: THREE.Texture | null = null;
 
-/** Grayscale grain texture used to break up terrain vertex colours. */
+/** Tileable Worley (cellular) noise: F2 - F1, 0 on the cracks between cells. */
+function tileableCracks(size: number, cells: number, seed: number): Float32Array {
+  let st = seed >>> 0;
+  const rnd = () => {
+    st = (st + 0x6d2b79f5) >>> 0;
+    let t = st;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const px = new Float32Array(cells * cells), py = new Float32Array(cells * cells);
+  for (let i = 0; i < cells * cells; i++) {
+    px[i] = rnd();
+    py[i] = rnd();
+  }
+  const out = new Float32Array(size * size);
+  let mx = 1e-6;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const fx = (x / size) * cells, fy = (y / size) * cells;
+      const cx = Math.floor(fx), cy = Math.floor(fy);
+      let f1 = 1e9, f2 = 1e9;
+      for (let j = -1; j <= 1; j++)
+        for (let i = -1; i <= 1; i++) {
+          const gx = cx + i, gy = cy + j;
+          const k = (((gy % cells) + cells) % cells) * cells + (((gx % cells) + cells) % cells);
+          const dx = gx + px[k] - fx, dy = gy + py[k] - fy;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d < f1) {
+            f2 = f1;
+            f1 = d;
+          } else if (d < f2) f2 = d;
+        }
+      const v = f2 - f1;
+      out[y * size + x] = v;
+      if (v > mx) mx = v;
+    }
+  }
+  for (let i = 0; i < out.length; i++) out[i] /= mx;
+  return out;
+}
+
+/**
+ * Terrain detail texture (tileable, linear):
+ *   R  grain: soft fractal noise that breaks up the vertex colours
+ *   G  rock: fractures between blocks (0 in a crack), with finer crazing
+ *   B  fine grain: high-frequency speckle for close range
+ */
 export function getTerrainDetailTexture(): THREE.Texture {
   if (terrainDetail) return terrainDetail;
-  const size = 256;
-  const d1 = tileableNoiseData(size, 91, 5, 8);
-  const d2 = tileableNoiseData(size, 17, 3, 32);
+  const size = 512;
+  const d1 = tileableNoiseData(size, 91, 6, 8);
+  const d2 = tileableNoiseData(size, 17, 4, 32);
+  const big = tileableCracks(size, 9, 7);
+  const small = tileableCracks(size, 31, 23);
+  const grain = tileableNoiseData(size, 53, 3, 96);
   const { c, g } = makeCanvas(size, size);
   const img = g.createImageData(size, size);
+  const cl = (v: number) => Math.max(0, Math.min(255, v * 255));
   for (let i = 0; i < size * size; i++) {
     const v = 0.5 + 0.42 * d1[i] + 0.18 * d2[i];
-    const b = Math.max(0, Math.min(255, v * 255));
-    img.data[i * 4] = b;
-    img.data[i * 4 + 1] = b;
-    img.data[i * 4 + 2] = b;
+    const rock = Math.min(1, Math.pow(big[i], 0.6)) * (0.55 + 0.45 * Math.min(1, Math.pow(small[i], 0.5)));
+    img.data[i * 4] = cl(v);
+    img.data[i * 4 + 1] = cl(rock);
+    img.data[i * 4 + 2] = cl(0.5 + 0.5 * grain[i]);
     img.data[i * 4 + 3] = 255;
   }
   g.putImageData(img, 0, 0);
   const tex = new THREE.CanvasTexture(c);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   tex.colorSpace = THREE.NoColorSpace;
-  tex.anisotropy = 8;
+  // sharp at grazing angles (three clamps this to what the GPU supports)
+  tex.anisotropy = 16;
   tex.generateMipmaps = true;
   tex.minFilter = THREE.LinearMipmapLinearFilter;
   terrainDetail = tex;

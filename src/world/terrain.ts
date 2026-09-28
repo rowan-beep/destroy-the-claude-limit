@@ -417,9 +417,9 @@ function frostLand(isl: IslandDef, x: number, z: number, u: number, v: number, d
   warp(x, z, 26000, 7000, 3);
   const dome = 0.5 + 0.5 * N.fbm(WX / 26000 + 50, WZ / 26000 - 20, 4);
   // crests, arêtes and V-shaped glacial valleys over the mass
-  const alp = N.ridged(WX / 13000 + 50, WZ / 13000 - 20, 3, 2.0, 0.5, 1.25);
+  const alp = N.ridged(WX / 13000 + 50, WZ / 13000 - 20, 3, 2.0, 0.5, 1.0);
   const alpFine = N2.ridged(WX / 4200 - 7, WZ / 4200 + 3, 3, 2.0, 0.5, 1.2);
-  const peaks = massif * sup * (600 + 3300 * Math.pow(dome, 1.7) + 650 * alp + 240 * alpFine);
+  const peaks = massif * sup * (600 + 3300 * Math.pow(dome, 1.7) + 480 * alp + 180 * alpFine);
   const hills = N3.billow(x / 9000, z / 9000, 3) * 220 * smoothstep(0, 4000, d) * (0.4 + 0.6 * sup);
   // snow fills the small hollows: only gentle drifts at this scale
   const detail = N.fbm(x / 1800, z / 1800, 3) * 14 * smoothstep(0, 700, d);
@@ -430,8 +430,8 @@ function frostLand(isl: IslandDef, x: number, z: number, u: number, v: number, d
     const du = u - 2600 * Math.sin(v / 9000) - 1500 * N2.noise(v / 7000 + 1.9, 3.3);
     const prof = Math.exp(-(du * du) / (8500 * 8500));
     warp(x, z, 12000, 3800, 4);
-    const cut = N.ridged(WX / 9000 + 2.2, WZ / 9000 - 5.5, 3, 2.0, 0.5, 1.25);
-    const wall = (3900 + 2000 * (0.5 + 0.5 * N.fbm(v / 12000 + 3.3, 7.7, 3))) * Math.pow(prof, 1.1) * smoothstep(1500, 9000, d) * (0.9 + 0.1 * cut) + 550 * cut * prof * smoothstep(1500, 9000, d);
+    const cut = N.ridged(WX / 9000 + 2.2, WZ / 9000 - 5.5, 3, 2.0, 0.5, 1.0);
+    const wall = (3900 + 2000 * (0.5 + 0.5 * N.fbm(v / 12000 + 3.3, 7.7, 3))) * Math.pow(prof, 1.1) * smoothstep(1500, 9000, d) * (0.9 + 0.1 * cut) + 400 * cut * prof * smoothstep(1500, 9000, d);
     h = Math.max(h, ground + wall * fieldSuppression(isl.id, x, z, 5000, 14000) * valley);
   }
   // the great snow cones stand on the land (no stacking onto the massifs)

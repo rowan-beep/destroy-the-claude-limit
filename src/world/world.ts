@@ -28,8 +28,8 @@ export interface WorldQuality {
 export const WORLD_QUALITY: Record<string, WorldQuality> = {
   low: { terrainSplitK: 1.6, terrainMaxLevel: 9, treeNear: 1400, treeFar: 3500, clouds: 0.5 },
   medium: { terrainSplitK: 1.9, terrainMaxLevel: 10, treeNear: 2000, treeFar: 5000, clouds: 0.75 },
-  high: { terrainSplitK: 2.3, terrainMaxLevel: 10, treeNear: 2600, treeFar: 7000, clouds: 1 },
-  ultra: { terrainSplitK: 2.8, terrainMaxLevel: 11, treeNear: 3400, treeFar: 9000, clouds: 1.2 },
+  high: { terrainSplitK: 2.7, terrainMaxLevel: 10, treeNear: 2600, treeFar: 7000, clouds: 1 },
+  ultra: { terrainSplitK: 3.3, terrainMaxLevel: 11, treeNear: 3400, treeFar: 9000, clouds: 1.2 },
 };
 
 export class World {

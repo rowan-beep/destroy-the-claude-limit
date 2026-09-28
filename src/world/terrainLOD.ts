@@ -232,12 +232,23 @@ export class TerrainLOD {
   }
 }
 
+/** Triplanar sampling: the texture projected along each world axis, blended by the surface normal. */
+const TRIPLANAR_GLSL = /* glsl */ `
+vec3 triWeights( vec3 n ) {
+  vec3 w = pow( abs( n ), vec3( 4.0 ) );
+  return w / ( w.x + w.y + w.z + 1e-5 );
+}
+vec4 triSample( sampler2D t, vec3 p, vec3 w, float s ) {
+  return texture2D( t, p.xz / s ) * w.y + texture2D( t, p.zy / s ) * w.x + texture2D( t, p.xy / s ) * w.z;
+}
+`;
+
 export function createTerrainMaterial(): THREE.MeshLambertMaterial {
   const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
   const detail = getTerrainDetailTexture();
   // the Frostfall theater: a world of snow and ice
   if (activeMap.id === 'frost') mat.defines = { SNOW_WORLD: '' };
-  mat.customProgramCacheKey = () => 'terrain-v2-' + activeMap.id;
+  mat.customProgramCacheKey = () => 'terrain-v3-' + activeMap.id;
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.detailMap = { value: detail };
     Object.assign(shader.uniforms, TERRAIN_LIGHT);
@@ -250,7 +261,7 @@ export function createTerrainMaterial(): THREE.MeshLambertMaterial {
     shader.fragmentShader = shader.fragmentShader
       .replace(
         '#include <common>',
-        '#include <common>\nuniform sampler2D detailMap;\nvarying vec2 vDetailXZ;\nvarying float vHeight;\nvarying vec3 vWNormal;\n' + TERRAIN_LIGHT_GLSL,
+        '#include <common>\nuniform sampler2D detailMap;\nvarying vec2 vDetailXZ;\nvarying float vHeight;\nvarying vec3 vWNormal;\n' + TRIPLANAR_GLSL + TERRAIN_LIGHT_GLSL,
       )
       .replace(
         '#include <lights_fragment_end>',
@@ -291,10 +302,19 @@ export function createTerrainMaterial(): THREE.MeshLambertMaterial {
         float tClose = 0.0;
         {
           float camDist = length( vViewPosition );
-          float d1 = texture2D( detailMap, vDetailXZ / 48.0 ).r;
-          float d2 = texture2D( detailMap, vDetailXZ / 410.0 ).r;
+          // projected from above on flat ground and from the side on slopes, so
+          // nothing stretches into smears on the mountainsides
+          vec3 wp = vec3( vDetailXZ.x, vHeight, vDetailXZ.y );
+          vec3 tw = triWeights( normalize( vWNormal ) );
+          vec4 t1 = triSample( detailMap, wp, tw, 48.0 );
+          vec4 t4 = triSample( detailMap, wp, tw, 9.0 );
+          float d1 = t1.r;
+          float d2 = triSample( detailMap, wp, tw, 410.0 ).r;
           float d3 = texture2D( detailMap, vDetailXZ / 3700.0 ).r;
-          float d4 = texture2D( detailMap, vDetailXZ / 9.0 ).r;
+          float d4 = t4.r;
+          // rock: blocks and fractures at two scales, fine grain
+          vec4 tr = triSample( detailMap, wp, tw, 26.0 );
+          float rockTex = ( 0.5 + 0.5 * smoothstep( 0.02, 0.2, tr.g ) ) * ( 0.75 + 0.5 * t4.b ) * ( 0.85 + 0.3 * smoothstep( 0.05, 0.3, triSample( detailMap, wp, tw, 7.0 ).g ) );
           float nearF = 1.0 - smoothstep( 1500.0, 9000.0, camDist );
           float closeF = 1.0 - smoothstep( 80.0, 600.0, camDist );
           tClose = closeF;
@@ -308,10 +328,11 @@ export function createTerrainMaterial(): THREE.MeshLambertMaterial {
           float sat = max( vColor.r, max( vColor.g, vColor.b ) ) - mn;
           tSnow = smoothstep( 0.72, 0.84, mn ) * ( 1.0 - smoothstep( 0.08, 0.16, sat ) );
           // real snow is an even white: its texture comes from the light on its surface, not from grey blotches
-          g = mix( g, 1.0 - 0.16 * ( 1.0 - g ), tSnow );
-          // subtle rock strata on steep faces
+          g = mix( g, ( 1.0 - 0.16 * ( 1.0 - g ) ) * mix( 1.0, 0.94 + 0.12 * t4.b, closeF ), tSnow );
+          // rock faces: fractured blocks and strata instead of a smooth smear
           float strata = 0.5 + 0.5 * sin( vHeight * 0.09 + d2 * 6.0 );
-          g *= mix( 1.0, 0.86 + 0.22 * strata, smoothstep( 0.35, 0.7, steep ) * nearF * ( 1.0 - tSnow ) );
+          float cliff = smoothstep( 0.35, 0.7, steep ) * nearF * ( 1.0 - tSnow );
+          g *= mix( 1.0, ( 0.86 + 0.22 * strata ) * mix( 1.0, rockTex, 0.8 ), cliff );
           diffuseColor.rgb *= g;
           #ifdef SNOW_WORLD
           {
@@ -319,16 +340,16 @@ export function createTerrainMaterial(): THREE.MeshLambertMaterial {
             float edge = steep + ( d2 - 0.5 ) * 0.05;
             float rockF = smoothstep( 0.74, 0.8, edge ) * ( 1.0 - 0.45 * smoothstep( 0.62, 0.74, d4 ) * closeF );
             rockF *= smoothstep( 150.0, 500.0, vHeight );
-            vec3 rock = vec3( 0.052, 0.052, 0.058 ) * ( 0.75 + 0.5 * d4 ) * ( 0.8 + 0.4 * d1 );
+            vec3 rock = vec3( 0.052, 0.052, 0.058 ) * rockTex * ( 0.85 + 0.3 * d1 ) * ( 0.9 + 0.2 * sin( vHeight * 0.11 + d2 * 5.0 ) );
             diffuseColor.rgb = mix( diffuseColor.rgb, rock, rockF );
             tSnow *= 1.0 - rockF;
-            tBump += rockF * ( ( d4 - 0.5 ) * 0.5 + ( d1 - 0.5 ) * 2.0 );
+            tBump += rockF * ( ( tr.g - 0.5 ) * 1.2 + ( d1 - 0.5 ) * 1.5 );
           }
           #endif
           // relief: wind-built drifts and sastrugi ridges on snow, rough grain elsewhere
           float sast = texture2D( detailMap, vec2( vDetailXZ.x * 0.8 + vDetailXZ.y * 0.6, -vDetailXZ.x * 0.6 + vDetailXZ.y * 0.8 ) * vec2( 1.0 / 70.0, 1.0 / 11.0 ) ).r;
           float snowH = ( d1 - 0.5 ) * 0.45 + ( sast - 0.5 ) * 0.3 + ( d4 - 0.5 ) * 0.04;
-          float grndH = ( d1 - 0.5 ) * 0.6 + ( d4 - 0.5 ) * 0.14;
+          float grndH = ( d1 - 0.5 ) * 0.6 + ( d4 - 0.5 ) * 0.14 + cliff * ( tr.g - 0.5 ) * 1.0;
           tBump += mix( grndH, snowH, tSnow ) * ( 1.0 - smoothstep( 600.0, 4000.0, camDist ) );
           // wet dark sand at the waterline
           diffuseColor.rgb *= mix( 0.72, 1.0, smoothstep( 0.0, 2.5, vHeight ) );

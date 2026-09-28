@@ -3,6 +3,10 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.13.1 — Sharper terrain (2026-09-28)
+
+- Sharper, clearer terrain on both maps. The ground texture is now projected onto slopes from the side as well as from above, so mountainsides no longer smear into blurry streaks; it is four times the resolution, stays sharp at shallow viewing angles, and rock faces show real fractured blocks and strata instead of a smooth smudge. On High and Ultra graphics the terrain keeps more detail in the middle distance. The thin rock spires along Hvitøy's central wall are softened into proper crests.
+
 ## v4.13.0 — Real snow, natural mountains (2026-09-28)
 
 - Frostfall Strait's snow looks like real snow now. It is an even, bright white whose texture comes from the light on its surface: wind-built drifts and sastrugi ridges catch the sun, the forward-scattered sheen glares on sunlit slopes, and ice crystals glint up close. Snow in shadow is lit blue by the sky instead of going dark and grey. The grey blotches on the slopes are gone; bare, dark rock shows only where it is too steep for snow to hold, with snow lodged in its cracks.

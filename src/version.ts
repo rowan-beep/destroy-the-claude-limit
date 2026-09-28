@@ -10,6 +10,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.13.1',
+    date: '2026-09-28',
+    title: "Sharper terrain",
+    notes: [
+      "Sharper, clearer terrain on both maps. The ground texture is now projected onto slopes from the side as well as from above, so mountainsides no longer smear into blurry streaks; it is four times the resolution, stays sharp at shallow viewing angles, and rock faces show real fractured blocks and strata instead of a smooth smudge. On High and Ultra graphics the terrain keeps more detail in the middle distance. The thin rock spires along Hvitøy's central wall are softened into proper crests.",
+    ],
+  },
+  {
     version: '4.13.0',
     date: '2026-09-28',
     title: "Real snow, natural mountains",
