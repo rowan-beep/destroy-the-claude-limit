@@ -10,6 +10,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.11.2',
+    date: '2026-09-28',
+    title: "Pilot neck fix, hangar camera",
+    notes: [
+      "Pilots: the head no longer floats. There is now a whole head inside the helmet with the neck running from the suit collar up into it, the helmet comes down lower at the back, and the inside of the shell has a dark padded liner, so no angle shows a gap or a hollow helmet.",
+      "Hangar camera: dragging up and down now moves the view the other way (drag up to look down over the top of the jet). Left and right are unchanged.",
+    ],
+  },
+  {
     version: '4.11.1',
     date: '2026-09-28',
     title: "Pilot suit colours, better masks",

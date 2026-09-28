@@ -3,6 +3,11 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.11.2 — Pilot neck fix, hangar camera (2026-09-28)
+
+- Pilots: the head no longer floats. There is now a whole head inside the helmet with the neck running from the suit collar up into it, the helmet comes down lower at the back, and the inside of the shell has a dark padded liner, so no angle shows a gap or a hollow helmet.
+- Hangar camera: dragging up and down now moves the view the other way (drag up to look down over the top of the jet). Left and right are unchanged.
+
 ## v4.11.1 — Pilot suit colours, better masks (2026-09-28)
 
 - Pilot flight suit colour in CUSTOMIZE: under PILOT FLIGHT SUIT pick sage green, olive drab, desert tan, navy blue, air force blue, charcoal, black, test-pilot orange or white, any custom colour, or STD for the standard issue of that jet. It is saved per jet with your paint job and shows on your jet in flight and in the hangar (scroll in on the cockpit to see it).

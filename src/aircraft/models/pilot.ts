@@ -50,6 +50,7 @@ interface Kit {
   grip: THREE.MeshStandardMaterial;
   console: THREE.MeshStandardMaterial;
   skin: THREE.MeshStandardMaterial;
+  liner: THREE.MeshStandardMaterial;
 }
 
 const kits = new Map<AircrewStyle, Kit>();
@@ -75,6 +76,7 @@ function kit(style: AircrewStyle): Kit {
     grip: M(0x141414, 0.55, 0.05),
     console: M(0x2a2d30, 0.7, 0.2),
     skin: M(0x9a7560, 0.7),
+    liner: new THREE.MeshStandardMaterial({ color: 0x1d1e1f, roughness: 0.95, side: THREE.BackSide }),
   };
   kits.set(style, k);
   return k;
@@ -274,8 +276,9 @@ export function addPilot(v: AirframeVisual, eye: THREE.Vector3, recline: number,
   add(join(leg), K.suit);
   add(join(legG), K.gsuit);
   add(join(bootG), K.boot);
-  // short neck inside the suit collar
-  add(along(limb(0.075, [[0.062, 0], [0.054, 1]], 16), V(0, -0.215, 0.1), V(0, -0.14, 0.09)), K.suit);
+  // the neck rises from the suit collar right up into the helmet
+  add(along(limb(0.05, [[0.062, 0], [0.058, 1]], 16), V(0, -0.215, 0.1), V(0, -0.165, 0.098)), K.suit);
+  add(along(limb(0.12, [[0.054, 0], [0.05, 0.6], [0.052, 1]], 16), V(0, -0.175, 0.098), V(0, -0.055, 0.095)), K.skin);
   const collar = new THREE.TorusGeometry(0.062, 0.014, 8, 20);
   collar.rotateX(Math.PI / 2);
   collar.translate(0, -0.2, 0.098);
@@ -285,7 +288,7 @@ export function addPilot(v: AirframeVisual, eye: THREE.Vector3, recline: number,
   const hc = V(0, 0.015, 0.085);
   // the shell: a full crown, and below the brow a lower half that is open at the face
   const crown = new THREE.SphereGeometry(1, 32, 12, 0, Math.PI * 2, 0, Math.PI * 0.53);
-  const lower = new THREE.SphereGeometry(1, 26, 10, Math.PI * 1.8, Math.PI * 1.4, Math.PI * 0.53, Math.PI * 0.3);
+  const lower = new THREE.SphereGeometry(1, 26, 12, Math.PI * 1.8, Math.PI * 1.4, Math.PI * 0.53, Math.PI * 0.36);
   const hs: THREE.BufferGeometry[] = [];
   for (const g of [crown, lower]) {
     g.scale(0.128, 0.142, 0.15);
@@ -300,8 +303,14 @@ export function addPilot(v: AirframeVisual, eye: THREE.Vector3, recline: number,
   edge.translate(hc.x, hc.y - 0.072, hc.z - 0.108);
   hs.push(strip(edge));
   add(join(hs), K.shell);
-  // the face in the opening (mostly hidden by the visor and mask)
-  add(ellipsoid(0.078, 0.108, 0.1, V(hc.x, hc.y - 0.03, hc.z - 0.012), 20, 14), K.skin);
+  // the head inside: face in the opening (mostly hidden by the visor and mask), the back of the skull in the padding
+  add(ellipsoid(0.08, 0.11, 0.118, V(hc.x, hc.y - 0.028, hc.z + 0.006), 22, 16), K.skin);
+  // padded liner: the inside of the shell seen past the face and neck
+  const liner = new THREE.SphereGeometry(1, 26, 16);
+  liner.scale(0.122, 0.136, 0.143);
+  liner.translate(hc.x, hc.y, hc.z);
+  const linerMesh = add(strip(liner), K.console);
+  linerMesh.material = K.liner;
   const dark: THREE.BufferGeometry[] = [];
   // visor housing band across the brow
   const band = new THREE.SphereGeometry(1, 28, 8, Math.PI * 1.12, Math.PI * 0.76, Math.PI * 0.18, Math.PI * 0.16);
