@@ -61,12 +61,14 @@ varying vec2 vUv;
 float H( vec2 uv ) { return max( texture2D( heights, uv ).r, 0.0 ); }
 void main() {
   vec2 uv = vUv;
-  float h0 = H( uv ) + 4.0;
+  float h0 = H( uv ) + 8.0;
   // --- sun: march toward the sun, track the steepest blocking slope
   vec2 sd = normalize( sunDir.xz + vec2( 1e-6 ) );
   float sunTan = sunDir.y / max( length( sunDir.xz ), 1e-4 );
   float maxSlope = -1e3;
-  float t = spacing * 0.8;
+  // start past the neighbouring cell: a slope's own tilt is the lighting's job (N.L),
+  // only real blockers (other ridges) cast shadow here -- no self-shadow speckle
+  float t = spacing * 1.7;
   for ( int i = 0; i < 72; i++ ) {
     vec2 p = uv + sd * ( t / spacing ) / n;
     if ( p.x < 0.0 || p.y < 0.0 || p.x > 1.0 || p.y > 1.0 ) break;
@@ -75,14 +77,15 @@ void main() {
     if ( t > 90000.0 ) break;
   }
   // soft penumbra (wider far from the blocker, like a real 0.5 deg sun + haze)
-  float sun = smoothstep( -0.035, 0.03, sunTan - maxSlope );
+  float sun = smoothstep( -0.08, 0.05, sunTan - maxSlope );
   // --- sky: horizon angle in 8 directions
   float sky = 0.0;
   for ( int k = 0; k < 8; k++ ) {
     float a = float( k ) * 0.785398 + 0.3;
     vec2 d = vec2( cos( a ), sin( a ) );
     float ms = 0.0;
-    float s = spacing;
+    // (past the neighbouring cell: a slope does not hide its own sky)
+    float s = spacing * 1.7;
     for ( int i = 0; i < 12; i++ ) {
       vec2 p = uv + d * ( s / spacing ) / n;
       ms = max( ms, ( H( p ) - h0 ) / s );

@@ -3,6 +3,12 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.13.0 — Real snow, natural mountains (2026-09-28)
+
+- Frostfall Strait's snow looks like real snow now. It is an even, bright white whose texture comes from the light on its surface: wind-built drifts and sastrugi ridges catch the sun, the forward-scattered sheen glares on sunlit slopes, and ice crystals glint up close. Snow in shadow is lit blue by the sky instead of going dark and grey. The grey blotches on the slopes are gone; bare, dark rock shows only where it is too steep for snow to hold, with snow lodged in its cracks.
+- More natural mountains on both maps. The snow map's big mountains were cones with evenly spaced pleats running down from the summit (the coffee-filter look); they are now real massifs with irregular outlines, several summits, arêtes, cirques and V-shaped valleys that wander, fork and meet. The Frostfall massifs and Hvitøy's central wall, and the Triad Isles' Skye crests and the Samos dividing range, are rebuilt the same way: a chain of peaks and saddles with branching spurs instead of an even wall or rows of ridges.
+- Terrain lighting: mountain shadows and sky light no longer make slopes shade themselves in speckled patches. Only real blockers (other ridges) cast terrain shadows.
+
 ## v4.12.2 — Keyboard and mouse only (2026-09-28)
 
 - Touch-screen controls removed. Every device now plays exactly like a PC with keyboard and mouse (WASD, mouse aim and so on); touching the screen no longer brings up on-screen sticks or buttons, and the TOUCH CONTROLS setting is gone.

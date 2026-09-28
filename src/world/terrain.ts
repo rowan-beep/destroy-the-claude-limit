@@ -29,6 +29,15 @@ const N2 = new Simplex2(WORLD_SEED * 7 + 3);
 const N3 = new Simplex2(WORLD_SEED * 13 + 11);
 
 export const DEEP_SEA = -460;
+
+// Domain warp: bends the coordinates the mountain noise is sampled at, so
+// ridges wander, fork and meet like real ranges instead of lining up in
+// regular rows or radiating from a centre.
+let WX = 0, WZ = 0;
+function warp(x: number, z: number, scale: number, amp: number, seed: number): void {
+  WX = x + amp * N3.fbm(x / scale + seed * 1.7, z / scale - seed * 2.3, 2);
+  WZ = z + amp * N3.fbm(x / scale - seed * 3.1, z / scale + seed * 0.9, 2);
+}
 /** island id reported for pack-ice floes */
 export const ICE = '__ice';
 
@@ -167,7 +176,8 @@ function skyeLand(x: number, z: number, u: number, v: number, d: number): number
   const sup = fieldSuppression('skye', x, z, 7000, 21000);
   // Massifs: broad highland blocks topped with razor-sharp ridged crests (Cuillin style).
   const massif = smoothstep(-0.18, 0.32, N2.fbm(x / 58000 + 5, z / 58000 - 9, 3)) * smoothstep(1500, 14000, d);
-  const crest = N.ridged(x / 16000, z / 16000, 6, 2.05, 0.52, 1.6);
+  warp(x, z, 22000, 6500, 1);
+  const crest = N.ridged(WX / 16000, WZ / 16000, 6, 2.05, 0.52, 1.6);
   const mount = massif * sup * (650 * (0.6 + 0.4 * N3.fbm(x / 12000, z / 12000, 2)) + 2100 * Math.pow(crest, 1.35));
   const hills = N3.billow(x / 8500, z / 8500, 4) * 240 * smoothstep(0, 4500, d) * (0.4 + 0.6 * sup);
   const detail = N.fbm(x / 1500, z / 1500, 3) * 30 * smoothstep(0, 700, d);
@@ -248,15 +258,17 @@ function samosLand(x: number, z: number, u: number, v: number, d: number): numbe
   const detail = N3.fbm(x / 1200, z / 1200, 3) * 22 * smoothstep(0, 400, d);
 
   // The dividing mountain: a massive N-S wall through the middle of Samos.
-  const du = u - samosRidgeU(v);
-  const wr = 11500;
+  const du = u - samosRidgeU(v) - 1800 * N2.noise(v / 9000 + 2.2, u / 30000);
+  const wr = 11500 * (0.85 + 0.3 * (0.5 + 0.5 * N3.noise(v / 17000 - 1.1, 4.4)));
   const prof = Math.exp(-(du * du) / (wr * wr));
   const ridgeEnd = smoothstep(1200, 9500, d);
-  const crest = 3550 + 650 * N.ridged(v / 11500 + 4.2, 1.3, 4, 2.0, 0.5, 2.0);
-  const ridge = crest * Math.pow(prof, 0.85) * ridgeEnd;
+  // summits and saddles along the crest instead of an even wall
+  const crest = 3100 + 1300 * N.ridged(v / 9500 + 4.2, du / 30000 + 1.3, 4, 2.0, 0.5, 1.6);
+  warp(x, z, 14000, 4200, 2);
+  const carve = N.ridged(WX / 9000 + 3.3, WZ / 9000 - 8.1, 3, 2.0, 0.5, 1.25);
+  const ridge = crest * Math.pow(prof, 0.85) * ridgeEnd * (0.9 + 0.1 * carve) + 500 * carve * prof * ridgeEnd;
   const spurW = wr * 2.3;
-  const spurs =
-    Math.pow(N2.ridged(x / 6800, z / 6800, 5, 2.1, 0.5, 2.0), 1.5) * 950 * Math.exp(-(du * du) / (spurW * spurW)) * ridgeEnd;
+  const spurs = Math.pow(N2.ridged(WX / 6800, WZ / 6800, 5, 2.1, 0.5, 1.8), 1.5) * 950 * Math.exp(-(du * du) / (spurW * spurW)) * ridgeEnd;
   return beach + hills + roll + detail + ridge + spurs;
 }
 
@@ -370,18 +382,26 @@ function volcanoHeight(islId: IslandId, x: number, z: number): number {
     const c = list[i];
     const dx = x - c.x, dz = z - c.z;
     const d2 = dx * dx + dz * dz;
-    if (d2 >= c.r * c.r) continue;
-    const d = Math.sqrt(d2);
-    const t = d / c.r;
-    // concave flanks with soft skirts
-    let h = c.h * Math.pow(1 - t, c.k) * (1 - 0.12 * t);
-    // small summit crater
-    if (t < 0.04) h -= c.h * 0.025 * (1 - t / 0.04) * (1 - t / 0.04);
-    // radial gullies and ribs running down the flanks (seamless around the cone)
-    const ang = d > 1 ? 1 / d : 0;
-    const gx = dx * ang * 7 + t * 1.3 + i * 13.1, gz = dz * ang * 7 - t * 0.9;
-    const gully = N2.fbm(gx, gz, 3);
-    h *= 1 + 0.045 * gully * smoothstep(0.04, 0.25, t) * (1 - smoothstep(0.75, 1, t));
+    const reach = c.r * 1.3;
+    if (d2 >= reach * reach) continue;
+    // an irregular footprint: the mountain's outline wanders, it is not a circle
+    const wob = N3.fbm(x / (c.r * 0.8) + i * 3.1, z / (c.r * 0.8) - i * 1.7, 2);
+    const t = (Math.sqrt(d2) / c.r) * (1 + 0.3 * wob);
+    if (t >= 1) continue;
+    // the mountain's mass: broad shoulders, a steeper summit pyramid
+    const env = Math.pow(1 - t, c.k * 0.8);
+    // arêtes and valleys wandering across the massif (domain-warped ridged
+    // noise, not pleats radiating from the summit), several summits and cols
+    warp(x, z, c.r * 0.9, c.r * 0.38, i + 5);
+    // big shapes only in the multiplier (fine octaves of kilometres of height make needles)
+    // smooth massing scales the mountain; the sharp arêtes are added on top at a bounded size
+    const mass = N2.fbm(WX / (c.r * 0.5) + i * 11.3, WZ / (c.r * 0.5) - i * 6.1, 3);
+    const rdg = N.ridged(WX / (c.r * 0.33) + i * 5.7, WZ / (c.r * 0.33) - i * 9.2, 3, 2.0, 0.5, 1.25);
+    const fine = N2.ridged(WX / (c.r * 0.12) - i * 3.3, WZ / (c.r * 0.12) + i * 8.8, 4, 2.05, 0.5, 1.3);
+    let h = c.h * env * (0.78 + 0.34 * mass) + (700 * rdg + 150 * fine) * Math.min(1, env * 2.5);
+    // cirques: bowls scooped out of the upper flanks
+    const cirque = smoothstep(0.25, 0.7, N2.noise(WX / (c.r * 0.3) - i * 2.2, WZ / (c.r * 0.3) + i * 4.4));
+    h *= 1 - 0.18 * cirque * smoothstep(0.08, 0.35, t) * (1 - smoothstep(0.6, 0.9, t));
     if (h > best) best = h;
   }
   return best;
@@ -394,18 +414,24 @@ function frostLand(isl: IslandDef, x: number, z: number, u: number, v: number, d
   const sup = fieldSuppression(isl.id, x, z, 6500, 21000) * valley;
   // broad, rounded massifs (wide shoulders instead of knife-edges)
   const massif = smoothstep(-0.38, 0.22, N2.fbm(x / 42000 + 13, z / 42000 - 4, 3)) * smoothstep(1200, 10000, d);
-  const dome = 0.5 + 0.5 * N.fbm(x / 26000 + 50, z / 26000 - 20, 4);
-  const texture = N.ridged(x / 9000 + 50, z / 9000 - 20, 3, 2.0, 0.45, 1.2);
-  const peaks = massif * sup * (700 + 3600 * Math.pow(dome, 1.8) + 350 * texture);
+  warp(x, z, 26000, 7000, 3);
+  const dome = 0.5 + 0.5 * N.fbm(WX / 26000 + 50, WZ / 26000 - 20, 4);
+  // crests, arêtes and V-shaped glacial valleys over the mass
+  const alp = N.ridged(WX / 13000 + 50, WZ / 13000 - 20, 3, 2.0, 0.5, 1.25);
+  const alpFine = N2.ridged(WX / 4200 - 7, WZ / 4200 + 3, 3, 2.0, 0.5, 1.2);
+  const peaks = massif * sup * (600 + 3300 * Math.pow(dome, 1.7) + 650 * alp + 240 * alpFine);
   const hills = N3.billow(x / 9000, z / 9000, 3) * 220 * smoothstep(0, 4000, d) * (0.4 + 0.6 * sup);
-  const detail = N.fbm(x / 1400, z / 1400, 3) * 30 * smoothstep(0, 700, d);
+  // snow fills the small hollows: only gentle drifts at this scale
+  const detail = N.fbm(x / 1800, z / 1800, 3) * 14 * smoothstep(0, 700, d);
   const ground = coast + cap * (0.35 + 0.65 * valley) + hills + detail;
   let h = ground + peaks;
   if (isl.id === 'hvitoy') {
     // a broad wall of mountains down the middle of the contested island, between its two airfields
-    const du = u - 2600 * Math.sin(v / 9000);
+    const du = u - 2600 * Math.sin(v / 9000) - 1500 * N2.noise(v / 7000 + 1.9, 3.3);
     const prof = Math.exp(-(du * du) / (8500 * 8500));
-    const wall = (4200 + 1800 * (0.5 + 0.5 * N.fbm(v / 12000 + 3.3, 7.7, 3))) * Math.pow(prof, 1.1) * smoothstep(1500, 9000, d);
+    warp(x, z, 12000, 3800, 4);
+    const cut = N.ridged(WX / 9000 + 2.2, WZ / 9000 - 5.5, 3, 2.0, 0.5, 1.25);
+    const wall = (3900 + 2000 * (0.5 + 0.5 * N.fbm(v / 12000 + 3.3, 7.7, 3))) * Math.pow(prof, 1.1) * smoothstep(1500, 9000, d) * (0.9 + 0.1 * cut) + 550 * cut * prof * smoothstep(1500, 9000, d);
     h = Math.max(h, ground + wall * fieldSuppression(isl.id, x, z, 5000, 14000) * valley);
   }
   // the great snow cones stand on the land (no stacking onto the massifs)
@@ -742,17 +768,10 @@ function frostColor(x: number, z: number, info: TerrainInfo, slope: number, out:
   out.g = 0.92 + 0.05 * v;
   out.b = 0.96 + 0.03 * v;
   mix3(out, 0.8, 0.86, 0.94, 0.3 * (0.5 + 0.5 * n2));
-  // Fuji-style snow line: bare russet volcanic rock and scree on the lower
-  // mountain flanks, streaked up the gullies, snow cap above
-  const snowLine = 2600 + 700 * n2 + 350 * n3;
-  const bare = (1 - smoothstep(snowLine - 900, snowLine + 250, h)) * smoothstep(0.1, 0.24, slope + 0.05 * n1) * smoothstep(150, 700, h);
-  if (bare > 0) {
-    const streak = smoothstep(-0.3, 0.4, n3 + 0.4 * n1);
-    mix3(out, 0.36 + 0.05 * n2, 0.26 + 0.03 * n2, 0.21 + 0.02 * n2, bare * (0.55 + 0.4 * streak));
-  }
-  // exposed rock on steep faces and along the knife-edge ridges
-  const rockT = smoothstep(0.6, 0.86, slope + n3 * 0.07 + 0.05 * n2);
-  if (rockT > 0) mix3(out, 0.25 + 0.04 * n2, 0.25 + 0.035 * n2, 0.27 + 0.03 * n2, rockT);
+  // exposed rock only where it is too steep for snow to hold (beyond ~48 deg),
+  // dark and crisp; everything gentler stays under snow
+  const rockT = smoothstep(0.75, 0.92, slope + n3 * 0.02);
+  if (rockT > 0) mix3(out, 0.2 + 0.03 * n2, 0.2 + 0.03 * n2, 0.22 + 0.025 * n2, rockT);
   // blue-grey ice cliffs at the shore
   const shore = (1 - smoothstep(40, 220, info.inland)) * (1 - smoothstep(10, 70, h));
   if (shore > 0) mix3(out, 0.62, 0.72, 0.8, shore * 0.7);
