@@ -219,9 +219,17 @@ async function boot(): Promise<void> {
       hangar.setJet(cfg.aircraft, cfg.loadoutId);
     }
   };
+  // the menu hangar draws at 60 fps at most (no need to run a 144 Hz laptop flat out
+  // on a parked jet), and drops its resolution by itself if a slow GPU can't keep up
+  let menuAcc = 0;
   game.onMenuFrame = (dt) => {
+    menuAcc += dt;
+    if (menuAcc < 1 / 61) return;
+    const step = Math.min(menuAcc, 0.1);
+    menuAcc = 0;
+    game.renderer.adaptFrame(step);
     const sz = game.renderer.size;
-    hangar.render(dt, sz.w, sz.h);
+    hangar.render(step, sz.w, sz.h);
   };
   game.onAfterFrame = () => {
     if (game.state === 'map') mapView.draw(game);

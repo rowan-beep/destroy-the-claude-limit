@@ -717,6 +717,8 @@ export function buildOutside(parent: THREE.Group, scene: THREE.Scene, sunTo: THR
       vis.update(0.016);
       vis.root.position.set(sx, ac.spec.gear.height + 0.12, sz);
       vis.root.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI - hd);
+      // on MEDIUM the parked jets use the light merged model (a handful of draw calls)
+      if (quality === 'medium') vis.setFar(true);
       vis.root.traverse((o) => {
         const m = o as THREE.Mesh;
         if (!m.isMesh) return;

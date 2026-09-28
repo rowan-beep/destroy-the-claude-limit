@@ -195,6 +195,8 @@ export class FlightModel {
 
   // ground
   onGround = false;
+  /** 1 while the takeoff / landing law flies the jet, fading to 0 after it hands over */
+  private gearLawFade = 0;
   groundPitch = 0;
   surfaceKind: Surface['kind'] = 'terrain';
   surfaceField: Surface['field'] = null;
@@ -590,7 +592,7 @@ export class FlightModel {
     let nCmd = stick >= 0 ? lerp(nNeutral, gMax, stick) : lerp(nNeutral, s.gNeg, -stick);
     nCmd = clamp(nCmd, s.gNeg, gMax);
     // G onset is rate-limited by the control laws (about 12 G/s pulling)
-    const onset = nCmd > this.nCmdF ? 12 : 20;
+    const onset = nCmd > this.nCmdF ? 12 * (1 - 0.8 * this.gearLawFade) : 20;
     this.nCmdF += clamp(nCmd - this.nCmdF, -onset * dt, onset * dt);
     const clReq = (this.nCmdF * W) / Math.max(qS, 1);
     // TVC jets: the paddle switch opens the post-stall manoeuvring envelope
@@ -610,7 +612,28 @@ export class FlightModel {
     const kQ = 1.6 * wn;
     const kA = wn / 1.6;
     const qMax = s.pitchRate * DEG * 1.6 * (tvc > 0 && c.gOverride ? 1.25 : 1);
-    const qDes = wPath + clamp((alphaCmd - alpha) * kA, -qMax, qMax);
+    let qDes = wPath + clamp((alphaCmd - alpha) * kA, -qMax, qMax);
+    // takeoff & landing law (gear down, slow): like the real jets' powered-approach
+    // mode, the stick commands a gentle pitch rate and the jet holds its attitude
+    // hands-off, with a soft AoA limit. Lifting off with the stick still held back
+    // no longer snaps the nose up to the AoA limit.
+    const casKts = this.cas / 0.5144;
+    const wGear = this.gearPos > 0.5 ? 1 - smoothstep(280, 320, casKts) : 0;
+    if (wGear > 0) {
+      const aLimG = Math.min(aLim, 16 * DEG);
+      let qG = stick * 7 * DEG;
+      qG = Math.min(qG, wPath + (aLimG - alpha) * kA);
+      qG = Math.max(qG, wPath + (-6 * DEG - alpha) * kA);
+      // a climb-out attitude of about 20 degrees at most while the gear is down
+      const pitchNow = Math.asin(clamp(this.fwd.y, -1, 1));
+      qG = Math.min(qG, (20 * DEG - pitchNow) * 0.9);
+      qDes = lerp(qDes, qG, wGear);
+      // keep the G command in step so handing back to the normal law is seamless
+      this.nCmdF = lerp(this.nCmdF, clamp(this.nz, s.gNeg, gMax), wGear);
+      if (wGear > 0.5) this.stallWarning = alpha > aLimG + 3 * DEG;
+    }
+    // for a few seconds after the takeoff law hands over, G builds gently
+    this.gearLawFade = wGear > 0.5 ? 1 : Math.max(0, this.gearLawFade - dt / 3);
     const qDotDes = (qDes - Q) * kQ;
     const cmReq = (qDotDes * Iyy - (Izz - Ixx) * P * R) / Math.max(kPitch, 1);
     this.dCmd.e = clamp(((cmReq - cmModel) * kPitch) / Math.max(powE, 1), -1, 1);
@@ -825,9 +848,13 @@ export class FlightModel {
     // rotation: elevator authority builds with speed
     const vr = s.rotateKts * 0.5144;
     const auth = smoothstep(0.62 * vr, 0.95 * vr, Math.abs(Va));
-    const pitchTarget = c.pitch > 0 ? c.pitch * 14 * auth : 0;
-    this.groundPitch += clamp(pitchTarget - this.groundPitch, -5 * dt, 4.5 * dt);
+    const pitchTarget = c.pitch > 0 ? c.pitch * 12 * auth : 0;
+    const gp0 = this.groundPitch;
+    // the nose comes up smoothly: the rotation eases in and out rather than stepping
+    const rotRate = clamp((pitchTarget - this.groundPitch) * 1.6, -5, 3.5);
+    this.groundPitch += rotRate * dt;
     if (this.groundPitch < 0) this.groundPitch = 0;
+    const groundQ = ((this.groundPitch - gp0) / Math.max(dt, 1e-4)) * DEG;
 
     const h2 = this.heading * DEG;
     this.vel.set(Math.sin(h2) * V, 0, -Math.cos(h2) * V);
@@ -850,6 +877,9 @@ export class FlightModel {
       const f = this.fwd;
       this.vel.set(f.x * V, climb, f.z * V);
       this.pos.y += 0.05;
+      // carry the rotation into the air (no jump in pitch rate at the moment of lift-off)
+      this.qRate = Math.max(0, groundQ);
+      this.nCmdF = 1;
     }
     // collapsing the gear by retracting on the ground is prevented; rough terrain at speed damages
     if (rough && Math.abs(V) > 70) {

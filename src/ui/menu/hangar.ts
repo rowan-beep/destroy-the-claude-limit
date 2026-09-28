@@ -323,6 +323,8 @@ export class Hangar {
       sc.remove(vis.root);
       releaseAirframe(vis);
     }
+    // repaint the hangar over the corner the portrait was drawn in
+    this.render(0, size.x, size.y);
     return url;
   }
 

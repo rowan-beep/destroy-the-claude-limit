@@ -28,7 +28,7 @@ const WIN_Y0 = 8;
 const WIN_Y1 = 11;
 
 /** direction the sunlight travels (from the sun toward the ground) */
-export const SUN_DIR = new THREE.Vector3(0.24, -0.095, 0.97).normalize();
+export const SUN_DIR = new THREE.Vector3(0.24, -0.2, 0.95).normalize();
 
 import { Batch, at, box, cyl, bar, beam, V, worldUV, canvas, tex, rng } from './hangarKit';
 import { buildOutside } from './hangarOutside';
@@ -1330,17 +1330,17 @@ export function buildHangarInterior(scene: THREE.Scene): HangarInterior {
   sc.bottom = -80;
   sc.near = 30;
   sc.far = 400;
-  sun.shadow.bias = -0.0003;
-  sun.shadow.normalBias = 0.05;
+  sun.shadow.bias = -0.0004;
+  sun.shadow.normalBias = 0.08;
+  // nothing in here moves: the shadow maps are drawn once, and again only when the jet changes
+  sun.shadow.autoUpdate = false;
+  sun.shadow.needsUpdate = true;
   scene.add(sun);
   scene.add(sun.target);
   // the dusk sky (cool) from above and the warm ground bounce
-  const hemi = new THREE.HemisphereLight(0x8ea4cc, 0x6a5040, 0.28);
+  // (the ground colour carries the warm bounce off the sunlit floor)
+  const hemi = new THREE.HemisphereLight(0x8ea4cc, 0x8a6040, 0.34);
   scene.add(hemi);
-  // sunlight bouncing up off the sunlit floor onto the jet's belly and the roof
-  const bounce = new THREE.PointLight(new THREE.Color(1.0, 0.55, 0.3), 14, 45, 1.2);
-  bounce.position.set(0, 2.2, -9);
-  scene.add(bounce);
   // cool LED high-bays: a key over the jet (casting its shadow) and two softer ones fore and aft
   const key = new THREE.SpotLight(0xf1f4ff, 260, 40, 0.75, 0.9, 1.6);
   key.position.set(1.5, 12.8, 1);
@@ -1349,6 +1349,8 @@ export function buildHangarInterior(scene: THREE.Scene): HangarInterior {
   key.shadow.mapSize.set(q === 'medium' ? 1024 : 2048, q === 'medium' ? 1024 : 2048);
   key.shadow.bias = -0.0002;
   key.shadow.radius = 4;
+  key.shadow.autoUpdate = false;
+  key.shadow.needsUpdate = true;
   scene.add(key);
   scene.add(key.target);
   for (const z of [-11, 12]) {
@@ -1542,6 +1544,8 @@ export function buildHangarInterior(scene: THREE.Scene): HangarInterior {
     P.add(red, box(0.55, 0.3, 0.3).applyMatrix4(at(1.8, 0.15, -s.length / 2 + 2.5, 0.4)));
     P.add(black, box(2.2, 0.06, 1.3).applyMatrix4(at(0, 0.03, s.length / 2 - 3.2)));
     P.build(jetProps);
+    sun.shadow.needsUpdate = true;
+    key.shadow.needsUpdate = true;
   };
 
   return {

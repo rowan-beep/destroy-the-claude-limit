@@ -3,6 +3,12 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.17.1 — Smooth takeoffs (2026-09-28)
+
+- Smooth, realistic takeoffs. While the gear is down, the flight controls now use a takeoff and landing mode, like the real jets: the stick commands a gentle pitch rate, the jet holds its attitude when you let go, a soft AoA limit protects it, and the climb-out attitude tops out around 20 degrees. Lifting off with the stick still held back no longer snaps the nose 80 degrees up with an AoA warning. The nose also comes up smoothly on the runway and the rotation carries into the air without a jump. Raise the gear (or pass about 300 knots) and the normal fighter controls come back, with G building gently for the first few seconds.
+- Hangar: fixed the long bar-shaped streak across the floor seen from one side of the jet. The sun was so low that shadows stretched into long bands; it now sits a little higher (still golden orange) with cleaner shadow edges.
+- Performance: the hangar's shadows are drawn once instead of every frame (they are redrawn only when you change jet or loadout), the menu runs at 60 fps at most instead of flat out on high-refresh screens, one light was removed, the automatic resolution now also works in the menu, and on MEDIUM graphics the jets parked outside use the light model.
+
 ## v4.17.0 — Golden-hour hangar (2026-09-28)
 
 - The hangar is now at golden hour. A low orange sun shines straight in through the open doors and the side windows: long warm light across the floor, the jet lit from the front with long shadows behind it, visible light shafts with dust drifting in them, and the cool white hangar lights contrasting with the warm sun. Reflections on the jet now show the sunset sky.
