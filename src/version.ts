@@ -10,6 +10,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.11.0',
+    date: '2026-09-28',
+    title: "Realistic pilots",
+    notes: [
+      "Realistic pilots in every cockpit, replacing the blocky stick figures. Each one is a seated aircrew figure built to real proportions: flight suit, survival vest with its pockets and flotation collar, harness with leg straps, anti-G suit chaps on the legs, boots and gloves.",
+      "Real helmets: a shell that comes down over the ears, a dark visor housing across the brow, a tinted mirrored visor over the eyes, the helmet-sight mount on top, and the oxygen mask with its hose running down to the connector on the chest.",
+      "Kit matches the jet. F-15EX, F/A-18 and F-22A crews wear US sage green with grey helmets and tan gloves; Typhoon and Rafale pilots wear European kit with black gloves; the Su-35S pilot has a white helmet and a green mask. Seats have their ejection handles (ACES II side handles on the F-15EX and F-22A).",
+      "Hands on the controls: the right hand holds the stick (a centre stick between the knees, or the side stick on the right console in the F-22A and Rafale) and the left hand holds the throttle on the left console. The only animation is the stick: it moves with the pilot's pitch and roll inputs, and the arm follows the hand on it.",
+    ],
+  },
+  {
     version: '4.10.1',
     date: '2026-09-28',
     title: "Gun lead circle out to 10 NM",

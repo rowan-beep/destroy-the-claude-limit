@@ -13,6 +13,7 @@ import { makeInsignia } from './decals';
 import { Cockpit } from './cockpit';
 import { customSkinMaterial, Livery } from './kit';
 import { burnerMaterial, partMaterials } from './parts';
+import { PilotRig, updatePilot } from './pilot';
 import { PaintConfig, WRAPS, wrapMask } from './paint';
 import type { AoVolume } from './ao';
 import type { HazeSource } from '../../render/heatHaze';
@@ -235,6 +236,8 @@ export class AirframeVisual {
   /** small parts hidden on distant aircraft */
   detail: THREE.Object3D[] = [];
   private detailOn = true;
+  /** seated aircrew whose stick and right arm follow the controls */
+  pilots: PilotRig[] = [];
   /** full-detail meshes the far LOD stands in for */
   lodMeshes: THREE.Mesh[] = [];
   farLod: FarLod | null = null;
@@ -569,6 +572,7 @@ export class AirframeVisual {
     v.hideInCockpit = this.hideInCockpit.map(M);
     v.detail = this.detail.map(M);
     v.lodMeshes = this.lodMeshes.map(M);
+    v.pilots = this.pilots.map((r) => ({ ...r, stick: M(r.stick), upper: M(r.upper), fore: M(r.fore), p: 0, r: 0 }));
     v.farLod = this.farLod;
     if (this.farLod) {
       const L = this.farLod;
@@ -746,6 +750,9 @@ export class AirframeVisual {
       s.current += (target - s.current) * Math.min(1, dt * 12);
       s.pivot.quaternion.setFromAxisAngle(s.axis, s.current);
     }
+
+    // the pilots' hands on the stick (only worth it when they can be seen)
+    if (this.detailOn && !this.far && !this.insideView) for (const r of this.pilots) updatePilot(r, ac, dt);
 
     // landing gear
     const gp = fm.gearPos;

@@ -10,12 +10,13 @@
 
 import * as THREE from 'three';
 import { AirframeVisual } from './visual';
+import { addPilot } from './pilot';
 import { Section } from './builder';
 import {
   P2, loftProfile, keyedProfile, stations, mergeStations, wing, WingStation, finMatrix, both, mirror, join, stamp, lathe, rrect,
   Livery, skinMaterial, line, rivets, weather, prng, LINE, LINE_LIGHT, curve, sstep,
 } from './kit';
-import { nozzle, intake, partMaterials, seatAndPilot, blade, probe, formationStrip } from './parts';
+import { nozzle, intake, partMaterials, blade, probe, formationStrip } from './parts';
 import { buildCanopy, buildGearSet, wingPanels, finPanels, sectionsFromProfile } from './common';
 
 function circ(R: number, yc: number): P2[] {
@@ -376,8 +377,7 @@ export function buildSu35(v: AirframeVisual): void {
   // --- canopy, seat, pilot ----------------------------------------------------------
   v.cockpitEye.set(0, 1.0, -6.4);
   buildCanopy(v, CANOPY, -7.6, []);
-  const sp = seatAndPilot(new THREE.Vector3(0, 1.0, -6.4), 0.26, true);
-  v.hideInCockpit.push(v.addMesh(sp.seat, pm.seat), v.addMesh(sp.flight, pm.flight), v.addMesh(sp.helmet, pm.helmet), v.addMesh(sp.visor, pm.visor));
+  addPilot(v, new THREE.Vector3(0, 1.0, -6.4), 0.26, { style: 'ru', stick: 'center', martinBaker: true });
   const shroud = loftProfile({
     stations: stations(-7.35, -6.95, 6),
     profile: (z) => {

@@ -6,12 +6,13 @@
 
 import * as THREE from 'three';
 import { AirframeVisual } from './visual';
+import { addPilot } from './pilot';
 import { Section } from './builder';
 import {
   P2, loftProfile, keyedProfile, stations, mergeStations, wing, WingStation, finMatrix, both, mirror, join, stamp, lathe, rrect,
   Livery, skinMaterial, line, rivets, weather, prng, roundel, LINE, LINE_LIGHT, deform, sstep, curve,
 } from './kit';
-import { nozzle, intake, partMaterials, seatAndPilot, blade, probe, formationStrip } from './parts';
+import { nozzle, intake, partMaterials, blade, probe, formationStrip } from './parts';
 import { buildCanopy, buildGearSet, wingPanels, finPanels, sectionsFromProfile } from './common';
 
 /** 12 points on a circle (bottom centre -> top centre, right half). */
@@ -377,9 +378,7 @@ export function buildF15EX(v: AirframeVisual): void {
   v.cockpitEye.set(0, 0.95, -5.55);
   buildCanopy(v, CANOPY, -6.05, [-4.75], paint);
   for (const eye of [new THREE.Vector3(0, 0.95, -5.55), new THREE.Vector3(0, 1.0, -4.1)]) {
-    const sp = seatAndPilot(eye, 0.2, false);
-    const meshes = [v.addMesh(sp.seat, pm.seat), v.addMesh(sp.flight, pm.flight), v.addMesh(sp.helmet, pm.helmet), v.addMesh(sp.visor, pm.visor)];
-    v.hideInCockpit.push(...meshes);
+    addPilot(v, eye, 0.2, { style: 'us', stick: 'center', martinBaker: false });
   }
   // instrument panel shroud / glareshield at the front of the well
   const shroud = loftProfile({
