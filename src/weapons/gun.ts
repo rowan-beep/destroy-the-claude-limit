@@ -11,7 +11,9 @@ import { DamageModel } from '../aircraft/damage';
 import { terrainHeight } from '../world/terrain';
 import { randGauss } from '../core/rng';
 
-const MAX = 4000;
+const MAX = 6000;
+/** seconds a round flies before it is dropped (about 3 NM at fighting altitude) */
+export const ROUND_LIFE = 8;
 const _atm: AtmoState = { T: 0, p: 0, rho: 0, a: 0, sigma: 0, delta: 0 };
 const _p0 = new THREE.Vector3();
 const _p1 = new THREE.Vector3();
@@ -55,7 +57,7 @@ export class BulletSystem {
     this.vx[i] = fm.vel.x + _dir.x * g.muzzleVelocity;
     this.vy[i] = fm.vel.y + _dir.y * g.muzzleVelocity;
     this.vz[i] = fm.vel.z + _dir.z * g.muzzleVelocity;
-    this.life[i] = 3.2;
+    this.life[i] = ROUND_LIFE;
     this.damage[i] = g.damage;
     this.tracer[i] = tracer ? 1 : 0;
     this.caliber[i] = g.caliberMm;

@@ -4,6 +4,7 @@
 
 import { MISSILES, weaponCode } from '../../weapons/weaponSpecs';
 import * as THREE from 'three';
+import { ROUND_LIFE } from '../../weapons/gun';
 import type { Game } from '../../game/game';
 import type { Aircraft } from '../../aircraft/aircraft';
 import { DEG, NM, FT, KT } from '../../core/constants';
@@ -618,7 +619,9 @@ export class HudPainter {
    * the gun line, whatever weapon is selected.
    */
   leadMarker(g: Game, p: Aircraft, cam: THREE.PerspectiveCamera, drawGunCross: boolean): void {
-    const MAX = 2000;
+    // shown out to 10 NM so you can line up early; bright only where the
+    // rounds can actually get there before they run out of time
+    const MAX = 10 * NM;
     const gdir = gunLine(p, new THREE.Vector3());
     let t: Aircraft | null = null;
     const lock = p.lockedTarget;
@@ -647,11 +650,12 @@ export class HudPainter {
     const gl = this.projectDir(cam, gdir);
     const c = this.ctx;
     c.save();
-    // fade in as the target comes into range
-    c.globalAlpha = clamp((MAX - sol.range) / 500, 0, 1) * 0.95;
+    const reach = sol.tof < ROUND_LIFE * 0.92;
+    // fade in at the edge of the 10 NM display range; dimmer while out of the rounds' reach
+    c.globalAlpha = clamp((MAX - sol.range) / 1500, 0, 1) * (reach ? 0.95 : 0.5);
     // on target when the gun cross sits on the marker (within the target's size)
     const size = Math.max(7, (12 / Math.max(sol.range, 1)) * this.pxPerRad(cam));
-    const onTgt = gl.front && Math.hypot(gl.x - m.x, gl.y - m.y) < size;
+    const onTgt = reach && gl.front && Math.hypot(gl.x - m.x, gl.y - m.y) < size;
     const col = onTgt ? RED : WHITE;
     c.shadowColor = 'rgba(0,0,0,0.85)';
     c.shadowBlur = 3;
@@ -679,6 +683,11 @@ export class HudPainter {
       c.beginPath();
       c.arc(m.x, m.y, 11, 0, Math.PI * 2);
       c.stroke();
+    }
+    // range to the target beyond a mile: in NM, and flagged while the rounds can't reach
+    if (sol.range > NM) {
+      const nm = sol.range / NM;
+      this.text(`${nm < 9.95 ? nm.toFixed(1) : Math.round(nm)} NM${reach ? '' : ' · OUT OF GUN RANGE'}`, m.x, m.y + 20, col, 10, 'center', true);
     }
     // a gun cross to aim with when the HUD isn't showing one
     if (drawGunCross && gl.front) {

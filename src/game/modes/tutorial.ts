@@ -298,7 +298,7 @@ export class TutorialMode extends GameMode {
       {
         title: 'GUNS',
         text: () =>
-          `Last drone: close behind it, <b>under 1 NM</b>. Select the gun with ${this.key('weaponGun')}. When it is in range a small <b>lead circle</b> appears ahead of it: put your gun cross <b>on the circle</b> and hold ${this.fireText()} in short bursts. The circle turns red when your rounds will hit.`,
+          `Last drone. Select the gun with ${this.key('weaponGun')}. A small <b>lead circle</b> shows ahead of it from as far as 10 NM, with the range under it: it is dim while your rounds can't reach yet. Close in (under 1 NM hits best), put your gun cross <b>on the circle</b> and hold ${this.fireText()} in short bursts. The circle turns red when your rounds will hit.`,
         setup: () => {
           this.clearDrones();
           this.topUp();

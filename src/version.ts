@@ -10,6 +10,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.10.1',
+    date: '2026-09-28',
+    title: "Gun lead circle out to 10 NM",
+    notes: [
+      "Gun lead circle now shows out to 10 NM (it was about 1 NM), so you can line up on a bandit long before you're in range. The range to the target is shown under the circle once it's beyond a mile.",
+      "Rounds now fly for 8 seconds instead of 3.2, so the gun reaches about 2 to 2.5 NM (a bit further up high, where the air is thinner). Inside that the circle is bright and turns red when you're on target; further out it is dimmed and marked OUT OF GUN RANGE, because the rounds slow down and drop before they could get there.",
+    ],
+  },
+  {
     version: '4.10.0',
     date: '2026-09-28',
     title: "Flight School",

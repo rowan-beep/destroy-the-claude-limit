@@ -3,6 +3,11 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.10.1 — Gun lead circle out to 10 NM (2026-09-28)
+
+- Gun lead circle now shows out to 10 NM (it was about 1 NM), so you can line up on a bandit long before you're in range. The range to the target is shown under the circle once it's beyond a mile.
+- Rounds now fly for 8 seconds instead of 3.2, so the gun reaches about 2 to 2.5 NM (a bit further up high, where the air is thinner). Inside that the circle is bright and turns red when you're on target; further out it is dimmed and marked OUT OF GUN RANGE, because the rounds slow down and drop before they could get there.
+
 ## v4.10.0 — Flight School (2026-09-28)
 
 - New game mode: FLIGHT SCHOOL, first on the mode list. An instructor panel walks you through flying and fighting in 12 short lessons, in the air over the contested island: switching views, climbing and diving, turning, throttle and afterburner (in and out of burner), pulling 6 G, radar lock, a radar missile shot, a heat-seeker shot, the gun with the lead circle, and flares and chaff. The target drones fly steady and never shoot back.

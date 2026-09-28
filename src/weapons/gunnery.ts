@@ -37,7 +37,8 @@ export function gunSolution(shooter: Aircraft, target: Aircraft, out: THREE.Vect
   _relV.subVectors(target.fm.vel, shooter.fm.vel);
   let tof = 0;
   let range = target.fm.pos.distanceTo(sp);
-  for (let i = 0; i < 3; i++) {
+  // (long shots need a few more passes to settle)
+  for (let i = 0; i < 6; i++) {
     _rel.subVectors(target.fm.pos, sp).addScaledVector(_relV, tof);
     range = _rel.length();
     tof = range / meanRoundSpeed(shooter, range);
