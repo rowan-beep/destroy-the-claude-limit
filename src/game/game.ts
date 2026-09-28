@@ -610,6 +610,7 @@ export class Game implements ModeHost {
       return;
     }
     const playing = this.state === 'playing';
+    if (playing) this.renderer.adaptFrame(dt);
     this.input.update(dt);
     if (playing) this.handleInput(dt);
     else if (this.input.pressed('pause') && this.state === 'map') this.setState('playing');

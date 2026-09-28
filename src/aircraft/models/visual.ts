@@ -37,6 +37,12 @@ export interface FarLod {
 // Draws nothing in the colour pass (every fragment fails the depth test) but
 // renders normally into the shadow map, which uses its own depth material.
 let _shadowOnly: THREE.MeshBasicMaterial | null = null;
+
+/** >1 swaps to the light distance model sooner (low-end graphics). */
+let lodScale = 1;
+export function setLodScale(s: number): void {
+  lodScale = s;
+}
 function shadowOnlyMaterial(): THREE.MeshBasicMaterial {
   if (!_shadowOnly) _shadowOnly = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, depthFunc: THREE.NeverDepth });
   return _shadowOnly;
@@ -534,7 +540,7 @@ export class AirframeVisual {
       this.setDetail(dist < 900);
       return;
     }
-    const d = dist * tanHalfFov;
+    const d = dist * tanHalfFov * lodScale;
     const far = this.far ? d > 150 : d > 175;
     if (far !== this.far) this.setFar(far);
     this.setDetail(!far && dist < 900);

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Aircraft } from '../aircraft';
-import { AirframeVisual, FarLod } from './visual';
+import { AirframeVisual, FarLod, setLodScale } from './visual';
 import { buildAoVolume, AoVolume } from './ao';
 import { buildF15EX } from './f15ex';
 import { buildFA18 } from './fa18';
@@ -21,10 +21,14 @@ import { loadSettings, Tier } from '../../core/settings';
 // still runs smoothly.
 const templates = new Map<string, AirframeVisual>();
 
-const HERO_DENSITY: Record<Tier, number> = { low: 1.6, medium: 2.6, high: 4, ultra: 5.5 };
+const HERO_DENSITY: Record<Tier, number> = { low: 1.2, medium: 2.0, high: 4, ultra: 5.5 };
+// the jets around you drop to their light model sooner on lower settings
+const LOD_SCALE: Record<Tier, number> = { low: 1.8, medium: 1.3, high: 1, ultra: 1 };
 let heroDensity = 4;
 try {
-  heroDensity = HERO_DENSITY[loadSettings().graphics.quality] ?? 4;
+  const q = loadSettings().graphics.quality;
+  heroDensity = HERO_DENSITY[q] ?? 4;
+  setLodScale(LOD_SCALE[q] ?? 1);
 } catch {
   /* defaults */
 }
@@ -32,6 +36,7 @@ try {
 /** Follow the graphics quality setting (applies to airframes built from now on). */
 export function setHeroDetail(q: Tier): void {
   heroDensity = HERO_DENSITY[q] ?? 4;
+  setLodScale(LOD_SCALE[q] ?? 1);
 }
 
 /** Density of the distance LOD (and of the shadow silhouettes). */

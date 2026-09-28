@@ -10,6 +10,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.14.0',
+    date: '2026-09-28',
+    title: "Laptop performance",
+    notes: [
+      "Runs much better on laptops and other lower-end computers. On first start the game now checks the graphics chip and picks a preset it can run: older Intel HD / UHD graphics start on LOW, Iris Xe, Radeon 680M/780M, entry GeForce and base Apple M-chips on MEDIUM, and gaming graphics cards stay on HIGH. Players still on the untouched HIGH default get the same one-time check. You can change it any time in Settings.",
+      "New AUTO RESOLUTION setting (on by default, under Display). When the frame rate dips below about 48 fps in a fight, the render resolution steps down a little (to 60% at most) and climbs back once there is headroom again, so the game stays smooth instead of stuttering.",
+      "Lighter graphics on LOW and MEDIUM: high-DPI laptop screens render at 1x (LOW) or 1.25x (MEDIUM) instead of 2x; the terrain uses one texture sample where HIGH uses three; your own jet is built with fewer polygons; jets around you swap to their light distance model sooner; the afterburner heat haze is off on LOW; and the hangar's shadow maps are smaller (the spotlight shadow is off on LOW).",
+      "A full-screen image pass that only protected the bloom now switches off along with bloom.",
+    ],
+  },
+  {
     version: '4.13.1',
     date: '2026-09-28',
     title: "Sharper terrain",

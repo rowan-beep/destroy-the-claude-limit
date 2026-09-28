@@ -1,5 +1,6 @@
 // Player settings, persisted per browser (best effort: storage may be blocked).
 
+import { detectTier } from './gpuTier';
 import { defaultInputSettings, InputSettings, DEFAULT_BINDINGS, Action } from './input';
 import type { TimeOfDay } from '../render/environment';
 
@@ -52,6 +53,10 @@ export interface GraphicsOptions {
   clouds: 'clear' | 'scattered' | 'broken' | 'overcast';
   cloudQuality: Tier;
   cloudShadows: boolean;
+  /** lower the render resolution by itself when the frame rate drops */
+  autoRes: boolean;
+  /** the starting preset has been chosen for this device */
+  autoTier?: boolean;
 }
 
 /** What each overall preset sets (personal picture options are left alone). */
@@ -83,6 +88,7 @@ export function defaultGraphics(): GraphicsOptions {
     clouds: 'scattered',
     cloudQuality: 'high',
     cloudShadows: true,
+    autoRes: true,
   };
 }
 
@@ -119,12 +125,29 @@ function merge<T>(base: T, over: unknown): T {
   return out as T;
 }
 
+/** Pick the starting preset for this device (once). */
+function fitToDevice(s: GameSettings, firstRun: boolean): void {
+  const g = s.graphics;
+  if (g.autoTier) return;
+  g.autoTier = true;
+  const tier = detectTier();
+  // a new player, or one still on the untouched default: start on what this device can run
+  if ((firstRun || g.preset === 'high') && (tier === 'low' || tier === 'medium')) {
+    Object.assign(g, GRAPHICS_PRESETS[tier]);
+    g.preset = tier;
+  }
+}
+
 export function loadSettings(): GameSettings {
   const d = defaultSettings();
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return d;
+    if (!raw) {
+      fitToDevice(d, true);
+      return d;
+    }
     const s = merge(d, JSON.parse(raw));
+    fitToDevice(s, false);
     // make sure every action has a binding list (new actions after updates)
     for (const a of Object.keys(DEFAULT_BINDINGS) as Action[]) {
       if (!Array.isArray(s.input.bindings[a])) s.input.bindings[a] = [...DEFAULT_BINDINGS[a]];

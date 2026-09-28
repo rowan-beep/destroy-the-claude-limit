@@ -3,6 +3,13 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.14.0 — Laptop performance (2026-09-28)
+
+- Runs much better on laptops and other lower-end computers. On first start the game now checks the graphics chip and picks a preset it can run: older Intel HD / UHD graphics start on LOW, Iris Xe, Radeon 680M/780M, entry GeForce and base Apple M-chips on MEDIUM, and gaming graphics cards stay on HIGH. Players still on the untouched HIGH default get the same one-time check. You can change it any time in Settings.
+- New AUTO RESOLUTION setting (on by default, under Display). When the frame rate dips below about 48 fps in a fight, the render resolution steps down a little (to 60% at most) and climbs back once there is headroom again, so the game stays smooth instead of stuttering.
+- Lighter graphics on LOW and MEDIUM: high-DPI laptop screens render at 1x (LOW) or 1.25x (MEDIUM) instead of 2x; the terrain uses one texture sample where HIGH uses three; your own jet is built with fewer polygons; jets around you swap to their light distance model sooner; the afterburner heat haze is off on LOW; and the hangar's shadow maps are smaller (the spotlight shadow is off on LOW).
+- A full-screen image pass that only protected the bloom now switches off along with bloom.
+
 ## v4.13.1 — Sharper terrain (2026-09-28)
 
 - Sharper, clearer terrain on both maps. The ground texture is now projected onto slopes from the side as well as from above, so mountainsides no longer smear into blurry streaks; it is four times the resolution, stays sharp at shallow viewing angles, and rock faces show real fractured blocks and strata instead of a smooth smudge. On High and Ultra graphics the terrain keeps more detail in the middle distance. The thin rock spires along Hvitøy's central wall are softened into proper crests.

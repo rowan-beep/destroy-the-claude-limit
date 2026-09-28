@@ -12,6 +12,7 @@ import { WorkerPool } from './workerPool';
 import { buildChunkIndices, ChunkResult } from './terrainGen';
 import { HeightGrid } from './heightGrid';
 import { getTerrainDetailTexture } from '../render/textures';
+import { loadSettings } from '../core/settings';
 
 const RES = 32;
 const EMPTY_BELOW = -95; // tiles entirely deeper than this are hidden under the abyss plane
@@ -238,17 +239,34 @@ vec3 triWeights( vec3 n ) {
   vec3 w = pow( abs( n ), vec3( 4.0 ) );
   return w / ( w.x + w.y + w.z + 1e-5 );
 }
+#ifdef TERRAIN_SIMPLE
+// low / medium graphics: one planar sample instead of three
+vec4 triSample( sampler2D t, vec3 p, vec3 w, float s ) {
+  return texture2D( t, p.xz / s );
+}
+#else
 vec4 triSample( sampler2D t, vec3 p, vec3 w, float s ) {
   return texture2D( t, p.xz / s ) * w.y + texture2D( t, p.zy / s ) * w.x + texture2D( t, p.xy / s ) * w.z;
 }
+#endif
 `;
 
 export function createTerrainMaterial(): THREE.MeshLambertMaterial {
   const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
   const detail = getTerrainDetailTexture();
   // the Frostfall theater: a world of snow and ice
-  if (activeMap.id === 'frost') mat.defines = { SNOW_WORLD: '' };
-  mat.customProgramCacheKey = () => 'terrain-v3-' + activeMap.id;
+  const defs: Record<string, string> = {};
+  if (activeMap.id === 'frost') defs.SNOW_WORLD = '';
+  let q = 'high';
+  try {
+    q = loadSettings().graphics.quality;
+  } catch {
+    /* defaults */
+  }
+  const simple = q === 'low' || q === 'medium';
+  if (simple) defs.TERRAIN_SIMPLE = '';
+  mat.defines = defs;
+  mat.customProgramCacheKey = () => 'terrain-v3-' + activeMap.id + (simple ? '-s' : '');
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.detailMap = { value: detail };
     Object.assign(shader.uniforms, TERRAIN_LIGHT);

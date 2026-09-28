@@ -15,8 +15,11 @@ import { HeatHazeShader, HazeSource, writeHaze } from './heatHaze';
 
 export type GraphicsSettings = Pick<
   GraphicsOptions,
-  'resolution' | 'resolutionScale' | 'antialias' | 'shadows' | 'bloom' | 'toneMapping' | 'exposure' | 'contrast' | 'saturation' | 'vignette' | 'fov'
+  'resolution' | 'resolutionScale' | 'antialias' | 'shadows' | 'bloom' | 'toneMapping' | 'exposure' | 'contrast' | 'saturation' | 'vignette' | 'fov' | 'quality' | 'autoRes'
 >;
+
+/** highest device-pixel ratio each world-quality tier renders at on 'native' */
+const DPR_CAP: Record<string, number> = { low: 1, medium: 1.25, high: 2, ultra: 2 };
 
 /** Final picture grade in display space: contrast, saturation and a soft vignette. */
 const GradeShader = {
@@ -105,7 +108,16 @@ export class GameRenderer {
     saturation: 1,
     vignette: true,
     fov: 70,
+    quality: 'high',
+    autoRes: true,
   };
+  /** automatic resolution: multiplier on the render scale, and its frame-time bookkeeping */
+  private adaptive = 1;
+  private adaptT = 0;
+  private adaptFrames = 0;
+  private adaptSlow = 0;
+  private adaptFast = 0;
+  private sanitizePass!: ShaderPass;
 
   constructor(container: HTMLElement) {
     installAltitudeFog();
@@ -153,7 +165,8 @@ export class GameRenderer {
     this.dropletPass.uniforms.tDrops.value = this.droplets.texture;
     this.dropletPass.enabled = false;
     this.composer.addPass(this.dropletPass);
-    this.composer.addPass(new ShaderPass(SanitizeShader));
+    this.sanitizePass = new ShaderPass(SanitizeShader);
+    this.composer.addPass(this.sanitizePass);
     this.composer.addPass(this.bloomPass);
     this.composer.addPass(this.visionPass);
     this.composer.addPass(this.outputPass);
@@ -191,6 +204,8 @@ export class GameRenderer {
     r.toneMappingExposure = g.exposure;
     // bloom
     this.bloomPass.enabled = g.bloom > 0.001;
+    // the scrub only protects the bloom from overflowed pixels
+    this.sanitizePass.enabled = this.bloomPass.enabled;
     this.bloomPass.strength = g.bloom;
     // grade
     const gu = this.gradePass.uniforms;
@@ -224,9 +239,9 @@ export class GameRenderer {
     this.height = window.innerHeight;
     const g = this.settings;
     let pr: number;
-    if (g.resolution === 'native') pr = Math.min(window.devicePixelRatio || 1, 2);
+    if (g.resolution === 'native') pr = Math.min(window.devicePixelRatio || 1, DPR_CAP[g.quality] ?? 2);
     else pr = +g.resolution / Math.max(1, this.height); // e.g. 2160 rows = 4K
-    pr *= g.resolutionScale;
+    pr *= g.resolutionScale * (g.autoRes ? this.adaptive : 1);
     // stay inside what the GPU can allocate
     const maxDim = Math.min(this.renderer.capabilities.maxTextureSize, 8192);
     pr = Math.max(0.35, Math.min(pr, 4, maxDim / Math.max(1, this.width), maxDim / Math.max(1, this.height)));
@@ -278,8 +293,44 @@ export class GameRenderer {
     (this.dropletPass.uniforms.texel.value as THREE.Vector2).set(1 / Math.max(1, this.width), 1 / Math.max(1, this.height));
   }
 
+  /**
+   * Automatic resolution (in flight): if the frame rate stays under ~48 fps the
+   * render resolution steps down (to 60 % at most); with steady headroom it
+   * climbs back. Resizing is cheap, but it only ever moves once a second.
+   */
+  adaptFrame(dt: number): void {
+    if (!this.settings.autoRes) {
+      if (this.adaptive !== 1) {
+        this.adaptive = 1;
+        this.resize();
+      }
+      return;
+    }
+    this.adaptT += dt;
+    this.adaptFrames++;
+    if (this.adaptT < 1) return;
+    const fps = this.adaptFrames / this.adaptT;
+    this.adaptT = 0;
+    this.adaptFrames = 0;
+    this.adaptSlow = fps < 48 ? this.adaptSlow + 1 : 0;
+    this.adaptFast = fps > 58 ? this.adaptFast + 1 : 0;
+    let next = this.adaptive;
+    if (this.adaptSlow >= 2) next = Math.max(0.6, this.adaptive - (fps < 35 ? 0.15 : 0.08));
+    else if (this.adaptFast >= 4) next = Math.min(1, this.adaptive + 0.05);
+    if (next !== this.adaptive) {
+      this.adaptive = next;
+      this.adaptSlow = 0;
+      this.adaptFast = 0;
+      this.resize();
+    }
+  }
+
   /** Heat haze behind the engines near the camera (call after the camera moved). */
   setHaze(sources: HazeSource[]): void {
+    if (this.settings.quality === 'low') {
+      this.hazePass.enabled = false;
+      return;
+    }
     const u = this.hazePass.uniforms as unknown as typeof HeatHazeShader.uniforms;
     u.time.value = performance.now() / 1000;
     u.aspect.value = this.width / Math.max(1, this.height);

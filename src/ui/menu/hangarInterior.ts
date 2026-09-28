@@ -15,6 +15,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Aircraft } from '../../aircraft/aircraft';
 import type { AirframeVisual } from '../../aircraft/models';
+import { loadSettings } from '../../core/settings';
 
 /** interior: x -W/2..W/2, z -D/2 (doors) .. D/2 (offices), floor 0 .. roof H */
 export const HANGAR = { W: 46, D: 60, H: 15 };
@@ -1117,8 +1118,16 @@ export function buildHangarInterior(scene: THREE.Scene): HangarInterior {
   const sun = new THREE.DirectionalLight(0xfff0dc, 5.2);
   sun.position.copy(sunTo).multiplyScalar(90);
   sun.target.position.set(0, 0, 0);
+  // lighter shadow maps on lower graphics settings (laptops)
+  let q = 'high';
+  try {
+    q = loadSettings().graphics.quality;
+  } catch {
+    /* defaults */
+  }
+  const sunMap = q === 'low' ? 1024 : q === 'medium' ? 2048 : 4096;
   sun.castShadow = true;
-  sun.shadow.mapSize.set(4096, 4096);
+  sun.shadow.mapSize.set(sunMap, sunMap);
   const sc = sun.shadow.camera as THREE.OrthographicCamera;
   sc.left = -52;
   sc.right = 52;
@@ -1137,8 +1146,8 @@ export function buildHangarInterior(scene: THREE.Scene): HangarInterior {
   const key = new THREE.SpotLight(0xfff6ea, 520, 40, 0.75, 0.9, 1.6);
   key.position.set(1.5, 12.8, 1);
   key.target.position.set(0, 0, 0);
-  key.castShadow = true;
-  key.shadow.mapSize.set(2048, 2048);
+  key.castShadow = q !== 'low';
+  key.shadow.mapSize.set(q === 'medium' ? 1024 : 2048, q === 'medium' ? 1024 : 2048);
   key.shadow.bias = -0.0002;
   key.shadow.radius = 4;
   scene.add(key);
