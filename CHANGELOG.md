@@ -3,6 +3,11 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.8.1 — Su-35S nozzle clipping fix (2026-09-28)
+
+- Su-35S: the thrust-vectoring nozzles no longer clip through the airframe. The burner can inside each nozzle was one long part reaching well forward into the engine nacelle, and it swung with the nozzle, so in hard manoeuvres it poked out through the side of the nacelle. It now ends just behind the gimbal.
+- Thrust-vectoring nozzles (Su-35S and F-22A) now stay inside their real travel: pitch, roll and yaw vectoring share the jet's limit (15 degrees on the Su-35S, 20 on the F-22A) instead of adding up to double that when you pull and roll at the same time. The handling itself is unchanged.
+
 ## v4.8.0 — Real afterburners (2026-09-28)
 
 - New afterburners on every jet, modelled on real photos. The burner can inside each nozzle now lights up from the flame: white-hot on the axis, deep yellow-orange out at the liner and a glowing orange lip, with the flame-holder rings and spokes standing out as dark silhouettes when you look straight in.

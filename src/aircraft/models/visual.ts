@@ -760,9 +760,18 @@ export class AirframeVisual {
 
     // thrust-vectoring nozzles: the exhaust swings opposite to the push it
     // makes (nose up = exits tilt up), and differentially to roll
+    // (each nozzle stays inside its real travel: pitch, roll and yaw share it)
+    const lim = ac.spec.tvcDeg * DEG;
     for (const g of this.vectoring) {
       const nzl = fm.nozzle;
-      g.pivot.rotation.set(alive && air ? -nzl.p - nzl.roll * g.side : 0, alive && air ? nzl.y : 0, 0);
+      let px = alive && air ? -nzl.p - nzl.roll * g.side : 0;
+      let py = alive && air ? nzl.y : 0;
+      const m = Math.hypot(px, py);
+      if (lim > 0 && m > lim) {
+        px *= lim / m;
+        py *= lim / m;
+      }
+      g.pivot.rotation.set(px, py, 0);
     }
 
     // flames

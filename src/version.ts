@@ -10,6 +10,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.8.1',
+    date: '2026-09-28',
+    title: "Su-35S nozzle clipping fix",
+    notes: [
+      "Su-35S: the thrust-vectoring nozzles no longer clip through the airframe. The burner can inside each nozzle was one long part reaching well forward into the engine nacelle, and it swung with the nozzle, so in hard manoeuvres it poked out through the side of the nacelle. It now ends just behind the gimbal.",
+      "Thrust-vectoring nozzles (Su-35S and F-22A) now stay inside their real travel: pitch, roll and yaw vectoring share the jet's limit (15 degrees on the Su-35S, 20 on the F-22A) instead of adding up to double that when you pull and roll at the same time. The handling itself is unchanged.",
+    ],
+  },
+  {
     version: '4.8.0',
     date: '2026-09-28',
     title: "Real afterburners",
