@@ -26,9 +26,10 @@ jobs:
       - run: node desktop/prepare.cjs
       - name: Build the portable .exe
         working-directory: desktop
+        shell: bash
         run: |
           npm install --no-audit --no-fund
-          npx electron-builder --win portable --x64 -c.portable.artifactName=TRIAD-Air-Combat.exe --publish never
+          npx electron-builder --win portable --x64 --publish never
       - name: Publish the download
         uses: softprops/action-gh-release@v2
         with:

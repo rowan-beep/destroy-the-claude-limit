@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "server": "node server/server.mjs",
-    "build:exe": "npm run build:single && node desktop/prepare.cjs && cd desktop && npm install --no-audit --no-fund && npx electron-builder --win portable --x64 -c.portable.artifactName=TRIAD-Air-Combat.exe -c.win.signAndEditExecutable=false --publish never"
+    "build:exe": "npm run build:single && node desktop/prepare.cjs && cd desktop && npm install --no-audit --no-fund && npx electron-builder --win portable --x64 -c.win.signAndEditExecutable=false --publish never"
   },
   "dependencies": {
     "three": "0.186.1"

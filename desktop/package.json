@@ -34,7 +34,7 @@
       "icon": "build/icon.png"
     },
     "portable": {
-      "artifactName": "TRIAD-Air-Combat-${version}.exe"
+      "artifactName": "TRIAD-Air-Combat.exe"
     }
   }
 }
