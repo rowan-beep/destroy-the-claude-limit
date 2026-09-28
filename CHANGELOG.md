@@ -3,6 +3,11 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.18.1 — Windows app (2026-09-28)
+
+- TRIAD for Windows: a desktop app (TRIAD-Air-Combat.exe) you can download and share, published on the project's GitHub Releases page. It is a single portable .exe: no installer, just double-click. It plays the latest version of the game and keeps itself up to date, and without internet it plays the copy built into the app. F11 toggles full screen.
+- Automatic updates while you play, on the website and in the desktop app: the game checks for a new version every minute. In the menu it reloads to the new version straight away; in the middle of a flight it tells you an update is ready and installs it when you are back in the menu.
+
 ## v4.18.0 — New menu (2026-09-28)
 
 - A completely new main menu, the "command deck". A navigation rail on the left has three sections, PLAY (game modes and mission setup), HANGAR (aircraft with studio portraits, loadouts and performance bars) and THEATER (map and time of day), plus the Jet Library, the Paint Shop, Multiplayer, the Logbook, Settings, Controls and the release notes. Floating glass panels sit around the 3D jet, a pilot card top right shows your rank, sorties, kills, hours and medals from the logbook, and the launch bar bottom right is always there with your mode, jet, loadout, theater and time of day. New look throughout: dark navy glass with an electric-cyan accent, big numbered sections and time-of-day swatches.

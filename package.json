@@ -1,7 +1,7 @@
 {
   "name": "strike-eagle-dcs",
   "private": true,
-  "version": "4.18.0",
+  "version": "4.18.1",
   "type": "module",
   "description": "Browser combat flight simulator: F-15EX Eagle II, F/A-18E/F Super Hornet and Eurofighter Typhoon over a 400x400 NM island theater.",
   "scripts": {
@@ -10,7 +10,8 @@
     "build:single": "tsc --noEmit && vite build --mode single",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
-    "server": "node server/server.mjs"
+    "server": "node server/server.mjs",
+    "build:exe": "npm run build:single && node desktop/prepare.cjs && cd desktop && npm install --no-audit --no-fund && npx electron-builder --win portable --x64 -c.portable.artifactName=TRIAD-Air-Combat.exe -c.win.signAndEditExecutable=false --publish never"
   },
   "dependencies": {
     "three": "0.186.1"

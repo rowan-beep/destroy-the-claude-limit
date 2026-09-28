@@ -1,0 +1,40 @@
+{
+  "name": "triad-air-combat",
+  "productName": "TRIAD Air Combat",
+  "version": "4.18.1",
+  "description": "TRIAD air combat simulator",
+  "author": "TRIAD",
+  "private": true,
+  "main": "main.cjs",
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "io.github.rowanbeep.triad",
+    "productName": "TRIAD Air Combat",
+    "files": [
+      "main.cjs",
+      "app/**",
+      "build/icon.png"
+    ],
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "portable": {
+      "artifactName": "TRIAD-Air-Combat-${version}.exe"
+    }
+  }
+}

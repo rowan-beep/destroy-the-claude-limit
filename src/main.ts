@@ -6,7 +6,7 @@ import { AutoFlyPanel } from './ui/autoFlyPanel';
 import * as THREE from 'three';
 import './styles.css';
 import './ui/ui.css';
-import { checkForNewBuild } from './core/freshness';
+import { checkForNewBuild, watchForUpdates } from './core/freshness';
 import { Game } from './game/game';
 import { loadSettings, saveSettings } from './core/settings';
 import { defaultMission, MissionConfig } from './game/mission';
@@ -260,6 +260,13 @@ async function boot(): Promise<void> {
   loading.show(false);
   game.setState('menu');
   game.startLoop();
+  // new versions install themselves: straight away in the menu, or once you are back from a flight
+  watchForUpdates(
+    () => game.state === 'menu' && !customize.open && !library.open,
+    () => {
+      if (game.state !== 'menu') game.message('A NEW VERSION IS READY: IT INSTALLS WHEN YOU RETURN TO THE MENU', 'info', 10);
+    },
+  );
   // came back from loading a server's theater: finish joining
   const pj = takePendingJoin();
   if (pj) {

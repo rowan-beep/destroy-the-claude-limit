@@ -1,0 +1,45 @@
+name: Desktop app (Windows .exe)
+
+# Builds the portable Windows app and publishes it as the "desktop" release.
+# The app plays the live website, so game updates reach it without a rebuild;
+# this only needs to run when the desktop shell itself changes.
+on:
+  push:
+    branches: [main]
+    paths: ['desktop/**', '.github/workflows/desktop.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:single
+      - run: node desktop/prepare.cjs
+      - name: Build the portable .exe
+        working-directory: desktop
+        run: |
+          npm install --no-audit --no-fund
+          npx electron-builder --win portable --x64 -c.portable.artifactName=TRIAD-Air-Combat.exe --publish never
+      - name: Publish the download
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: desktop
+          name: TRIAD Air Combat for Windows
+          make_latest: true
+          overwrite_files: true
+          files: desktop/release/TRIAD-Air-Combat.exe
+          body: |
+            **Download `TRIAD-Air-Combat.exe` below and double-click it.** No installer: it runs straight away.
+
+            The app plays the latest version of the game and updates itself: new versions install on their own when you are in the main menu. Without internet it plays the copy built into the app.
+
+            Windows may show "Windows protected your PC" because the app is not code-signed: click **More info → Run anyway**.

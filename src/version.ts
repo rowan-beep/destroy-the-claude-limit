@@ -10,6 +10,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.18.1',
+    date: '2026-09-28',
+    title: "Windows app",
+    notes: [
+      "TRIAD for Windows: a desktop app (TRIAD-Air-Combat.exe) you can download and share, published on the project's GitHub Releases page. It is a single portable .exe: no installer, just double-click. It plays the latest version of the game and keeps itself up to date, and without internet it plays the copy built into the app. F11 toggles full screen.",
+      "Automatic updates while you play, on the website and in the desktop app: the game checks for a new version every minute. In the menu it reloads to the new version straight away; in the middle of a flight it tells you an update is ready and installs it when you are back in the menu.",
+    ],
+  },
+  {
     version: '4.18.0',
     date: '2026-09-28',
     title: "New menu",
