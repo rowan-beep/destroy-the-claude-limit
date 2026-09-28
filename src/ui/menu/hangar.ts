@@ -9,13 +9,13 @@ import { Aircraft } from '../../aircraft/aircraft';
 import { createAirframe, releaseAirframe, AirframeVisual, paintAirframe } from '../../aircraft/models';
 import { loadPaint, PaintConfig } from '../../aircraft/models/paint';
 import { AircraftType } from '../../aircraft/specs';
+import { buildHangarInterior, HangarInterior, HANGAR } from './hangarInterior';
 
 export class Hangar {
   readonly scene = new THREE.Scene();
-  readonly camera = new THREE.PerspectiveCamera(32, 1, 0.1, 600);
+  readonly camera = new THREE.PerspectiveCamera(40, 1, 0.1, 4000);
   private jets = new Map<AircraftType, { vis: AirframeVisual; ac: Aircraft }>();
   private current: AircraftType = 'F15EX';
-  private angle = 0.6;
   private t = 0;
   // orbit camera (azimuth from the nose side, elevation, distance factor); targets and smoothed values
   private yaw = 0.75;
@@ -36,71 +36,26 @@ export class Hangar {
   private lastMove = 0;
   private turntable: THREE.Group;
   private envMap: THREE.Texture | null = null;
+  private interior: HangarInterior;
   loadoutId: string | null = null;
 
   constructor(private renderer: THREE.WebGLRenderer) {
     const s = this.scene;
-    s.background = new THREE.Color(0x0b1016);
-    s.fog = new THREE.Fog(0x0b1016, 60, 160);
+    this.turntable = new THREE.Group();
+    s.add(this.turntable);
+    this.interior = buildHangarInterior(s);
+    // the jet's reflections and ambient light come from the hangar itself:
+    // capture it once (without the jet) from about cockpit height
     const pmrem = new THREE.PMREMGenerator(renderer);
-    this.envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    try {
+      this.envMap = pmrem.fromScene(s, 0.015, 0.1, 3000, { size: 256, position: new THREE.Vector3(0, 3, 0) }).texture;
+    } catch {
+      this.envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    }
     s.environment = this.envMap;
     s.environmentIntensity = 1.0;
     pmrem.dispose();
-
-    const floor = new THREE.Mesh(
-      new THREE.CircleGeometry(80, 64),
-      new THREE.MeshStandardMaterial({ color: 0x1a2129, roughness: 0.35, metalness: 0.4 }),
-    );
-    floor.rotation.x = -Math.PI / 2;
-    floor.receiveShadow = true;
-    s.add(floor);
-    // painted turntable ring
-    this.turntable = new THREE.Group();
-    s.add(this.turntable);
-    const disc = new THREE.Mesh(new THREE.CylinderGeometry(15, 15, 0.12, 72), new THREE.MeshStandardMaterial({ color: 0x252e38, roughness: 0.45, metalness: 0.5 }));
-    disc.position.y = 0.06;
-    disc.receiveShadow = true;
-    this.turntable.add(disc);
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(15, 0.08, 8, 96), new THREE.MeshBasicMaterial({ color: 0x47d18c }));
-    ring.rotation.x = Math.PI / 2;
-    ring.position.y = 0.13;
-    this.turntable.add(ring);
-    // floor guide lines
-    for (let i = -3; i <= 3; i++) {
-      const l = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 120), new THREE.MeshBasicMaterial({ color: 0x2c3a46 }));
-      l.rotation.x = -Math.PI / 2;
-      l.position.set(i * 12, 0.01, 0);
-      s.add(l);
-    }
-    // hangar back wall with ribs
-    const wall = new THREE.Mesh(new THREE.CylinderGeometry(70, 70, 40, 48, 1, true, Math.PI * 0.6, Math.PI * 0.8), new THREE.MeshStandardMaterial({ color: 0x141b22, roughness: 0.9, side: THREE.BackSide }));
-    wall.position.y = 20;
-    s.add(wall);
-    for (let i = 0; i < 16; i++) {
-      const a = Math.PI * 0.6 + (i / 15) * Math.PI * 0.8;
-      const rib = new THREE.Mesh(new THREE.BoxGeometry(0.6, 40, 0.6), new THREE.MeshStandardMaterial({ color: 0x1c252e, roughness: 0.7 }));
-      rib.position.set(Math.sin(a) * 69, 20, Math.cos(a) * 69);
-      s.add(rib);
-    }
-    // lighting: key spots + rim + soft fill
-    const hemi = new THREE.HemisphereLight(0xb8cde0, 0x2a2018, 1.4);
-    s.add(hemi);
-    const key = new THREE.SpotLight(0xfff2e0, 6000, 110, 0.55, 0.5, 1.5);
-    key.position.set(-18, 32, -14);
-    key.castShadow = true;
-    key.shadow.mapSize.set(2048, 2048);
-    key.shadow.bias = -0.0003;
-    s.add(key);
-    s.add(key.target);
-    const rim = new THREE.SpotLight(0x88b8ff, 3500, 110, 0.6, 0.6, 1.5);
-    rim.position.set(22, 18, 24);
-    s.add(rim);
-    s.add(rim.target);
-    const fill = new THREE.PointLight(0x6080a0, 300, 60, 1.8);
-    fill.position.set(0, 10, -30);
-    s.add(fill);
-    this.camera.position.set(26, 9, -24);
+    this.camera.position.set(20, 6, -18);
     this.bindControls();
   }
 
@@ -202,9 +157,12 @@ export class Hangar {
       ac.fm.rpm.fill(0.25);
       const vis = createAirframe(ac, true);
       paintAirframe(vis, loadPaint(type));
+      // in the hangar the full-detail airframe casts its own shadow (no silhouette stand-in)
       vis.root.traverse((o) => {
         const m = o as THREE.Mesh;
-        if (m.isMesh) m.castShadow = true;
+        if (!m.isMesh) return;
+        if (m.name === 'shadow-proxy') m.visible = false;
+        else if (!(m.material as THREE.Material).transparent) m.castShadow = true;
       });
       vis.root.visible = type === this.current;
       this.turntable.add(vis.root);
@@ -239,13 +197,16 @@ export class Hangar {
       this.jets.delete(t);
     }
     j.vis.root.visible = true;
+    this.interior.placeJetProps(j.ac, j.vis);
   }
 
   render(dt: number, w: number, h: number): void {
     this.t += dt;
     this.lastRender = performance.now();
-    if (!this.userView) this.angle += dt * 0.18;
-    this.turntable.rotation.y = this.angle;
+    // the jet stays parked, nose to the doors; idle, the camera walks slowly around it
+    if (!this.userView) this.yaw += dt * 0.06;
+    this.turntable.rotation.y = 0;
+    this.interior.update(dt);
     const j = this.ensure(this.current);
     j.vis.update(dt);
     // the airframe visual positions itself from the flight model; keep it on the turntable
@@ -266,7 +227,7 @@ export class Hangar {
     this.pitchS += (this.pitch - this.pitchS) * k;
     this.zoomS += (this.zoom - this.zoomS) * (1 - Math.exp(-dt * 6));
     // never inside the airframe: at least ~0.42 of its length from the centre
-    const d = Math.max(len * 0.42, (len * 1.9 + 6) * this.zoomS);
+    const d = Math.max(len * 0.42, (len * 1.15 + 4) * this.zoomS);
     // frame the jet slightly right of centre so the UI columns don't cover it;
     // zooming in re-centres on the jet itself
     const close = clampN((this.zoomS - ZOOM_MIN) / (1 - ZOOM_MIN), 0, 1);
@@ -275,6 +236,11 @@ export class Hangar {
     const bob = this.userView ? 0 : Math.sin(this.t * 0.2) * 0.6;
     const cp = Math.cos(this.pitchS);
     this.camera.position.set(tx + Math.sin(this.yawS) * cp * d, Math.max(0.4, ty + Math.sin(this.pitchS) * d + bob), -Math.cos(this.yawS) * cp * d);
+    // stay inside the building (the open doors let it step a little way out onto the apron)
+    const cpn = this.camera.position;
+    cpn.x = clampN(cpn.x, -HANGAR.W / 2 + 1.2, HANGAR.W / 2 - 1.2);
+    cpn.z = clampN(cpn.z, -HANGAR.D / 2 - 6, HANGAR.D / 2 - 7.5);
+    cpn.y = clampN(cpn.y, 0.4, HANGAR.H - 3.2);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.camera.lookAt(tx, ty, 0);
@@ -295,7 +261,7 @@ export class Hangar {
 
 /** zoom factor limits: right up against the jet .. well back */
 const ZOOM_MIN = 0.12;
-const ZOOM_MAX = 2.2;
+const ZOOM_MAX = 1.55;
 
 function clampN(v: number, a: number, b: number): number {
   return Math.max(a, Math.min(b, v));

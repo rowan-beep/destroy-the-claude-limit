@@ -193,7 +193,7 @@ export class MainMenu {
     clearEl(this.modeGrid);
     for (const m of ['free', 'waves', 'duel', 'team', 'ffa'] as ModeId[]) {
       const info = MODE_INFO[m];
-      const c = el('div', 'mode-card' + (m === this.cfg.mode ? ' sel' : '') + (m === 'ffa' ? ' new' : ''), this.modeGrid);
+      const c = el('div', 'mode-card' + (m === this.cfg.mode ? ' sel' : ''), this.modeGrid);
       el('div', 'mt', c, info.title);
       el('div', 'ms', c, info.subtitle.toUpperCase());
       c.addEventListener('click', () => {

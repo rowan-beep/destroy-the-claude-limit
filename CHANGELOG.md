@@ -3,6 +3,14 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.9.0 — A real hangar (2026-09-28)
+
+- New hangar behind the menus: a realistic modern maintenance hangar replaces the round futuristic turntable. It is a steel-framed shed with ribbed metal cladding, blockwork walls, roof trusses, an overhead yellow bridge crane with its hoist and pendant, air ducts, sprinklers and LED high-bay lights.
+- Real sunlight: the big sliding doors stand half open onto a sunlit apron (another hangar, a fuel truck, light masts and hills in the haze beyond). The sun falls in through the doors and a row of clerestory windows, with real shadows, window-shaped light patches on the floor, soft light shafts and dust drifting in the beams. The jet's paint now reflects the hangar around it.
+- Lots of detail: a polished epoxy floor with painted lead-in line, parking box, walkways, hatched keep-clear zones, joints, tie-downs, tyre marks and oil stains; a two-storey glazed office block with lit rooms, a steel stair and railed walkway, and a squadron banner; workbenches with pegboards, red tool chests, racking full of boxes, desks with lit computer monitors and office chairs, lockers, a maintenance whiteboard, safety posters, exit signs and extinguishers.
+- Around your jet: a boarding ladder hooked on the cockpit, wheel chocks, a ground power cart with its cable plugged in, a flight-line fire extinguisher, work stands, step ladders, a munitions trolley, a tow tractor and cones at the wingtips. The jet stays parked facing the doors and the camera slowly walks around it (drag, scroll and double-click work as before).
+- The NEW tag is gone from the Free-for-all mode.
+
 ## v4.8.1 — Su-35S nozzle clipping fix (2026-09-28)
 
 - Su-35S: the thrust-vectoring nozzles no longer clip through the airframe. The burner can inside each nozzle was one long part reaching well forward into the engine nacelle, and it swung with the nozzle, so in hard manoeuvres it poked out through the side of the nacelle. It now ends just behind the gimbal.

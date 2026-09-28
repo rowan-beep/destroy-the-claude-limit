@@ -420,8 +420,6 @@ body.touch-mode .weapon-bar { bottom: auto; top: calc(96px + env(safe-area-inset
 }
 
 /* free-for-all */
-.mode-card.new { position: relative; }
-.mode-card.new::after { content: 'NEW'; position: absolute; top: 8px; right: 10px; font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: #0b1016; background: linear-gradient(90deg, #ffd35a, #ff9a3c); padding: 1px 6px; border-radius: 2px; }
 .spectator .sp-row.ffa .sp-team { color: #ffd35a; }
 .spectator .sp-row.ffa .sp-chip { border-color: rgba(255, 211, 90, 0.35); }
 .spectator .sp-chip.bounty { border-color: #ffd35a; color: #ffe39a; box-shadow: 0 0 8px rgba(255, 211, 90, 0.4); }

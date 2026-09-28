@@ -65,6 +65,7 @@ async function boot(): Promise<void> {
   const mapView = new MapView(document.body, () => game.setState('playing'));
   mapView.setGrid(game.world.grid);
   const hangar = new Hangar(game.renderer.renderer);
+  if (import.meta.env.DEV) (window as unknown as { __hangar: Hangar }).__hangar = hangar;
   hangar.drawWith = (sc, cam) => game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping);
   const customize = new CustomizeScreen(document.body, hangar, () => {
     menu.root.classList.remove('hidden');
