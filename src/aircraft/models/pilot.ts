@@ -49,6 +49,7 @@ interface Kit {
   fitting: THREE.MeshStandardMaterial;
   grip: THREE.MeshStandardMaterial;
   console: THREE.MeshStandardMaterial;
+  skin: THREE.MeshStandardMaterial;
 }
 
 const kits = new Map<AircrewStyle, Kit>();
@@ -73,6 +74,7 @@ function kit(style: AircrewStyle): Kit {
     fitting: M(0x9ba0a4, 0.35, 0.8),
     grip: M(0x141414, 0.55, 0.05),
     console: M(0x2a2d30, 0.7, 0.2),
+    skin: M(0x9a7560, 0.7),
   };
   kits.set(style, k);
   return k;
@@ -164,6 +166,7 @@ export function addPilot(v: AirframeVisual, eye: THREE.Vector3, recline: number,
   const meshes: THREE.Mesh[] = [];
   const add = (g: THREE.BufferGeometry, m: THREE.Material, parent: THREE.Object3D = frame) => {
     const mesh = new THREE.Mesh(g, m);
+    if (m === K.suit) mesh.userData.pilotPart = 'suit';
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     parent.add(mesh);
@@ -221,9 +224,9 @@ export function addPilot(v: AirframeVisual, eye: THREE.Vector3, recline: number,
     { z: 0.1, w: 0.165, top: 0.1, bot: 0.1, n: 2.4 },
     { z: 0.24, w: 0.152, top: 0.098, bot: 0.095, n: 2.4 },
     { z: 0.38, w: 0.175, top: 0.118, bot: 0.1, n: 2.5 },
-    { z: 0.49, w: 0.2, top: 0.112, bot: 0.1, n: 2.6 },
-    { z: 0.555, w: 0.19, top: 0.09, bot: 0.09, n: 2.4 },
-    { z: 0.6, w: 0.1, top: 0.06, bot: 0.06, n: 2 },
+    { z: 0.51, w: 0.2, top: 0.112, bot: 0.1, n: 2.6 },
+    { z: 0.585, w: 0.19, top: 0.09, bot: 0.09, n: 2.4 },
+    { z: 0.635, w: 0.1, top: 0.062, bot: 0.062, n: 2 },
   ];
   add(trunk(secs).translate(pelvis.x, pelvis.y, pelvis.z), K.suit);
   // survival vest over the chest and back, LPU collar over the shoulders, harness
@@ -233,7 +236,7 @@ export function addPilot(v: AirframeVisual, eye: THREE.Vector3, recline: number,
   const vp: THREE.BufferGeometry[] = [vest];
   for (const sx of [-1, 1]) {
     // flotation collar lobe from the chest over the shoulder to the back
-    const c = new THREE.CatmullRomCurve3([V(sx * 0.06, -0.44, -0.02), V(sx * 0.13, -0.3, -0.03), V(sx * 0.15, -0.23, 0.1), V(sx * 0.12, -0.32, 0.22)]);
+    const c = new THREE.CatmullRomCurve3([V(sx * 0.06, -0.42, -0.02), V(sx * 0.13, -0.275, -0.03), V(sx * 0.15, -0.2, 0.1), V(sx * 0.12, -0.3, 0.22)]);
     vp.push(strip(new THREE.TubeGeometry(c, 16, 0.038, 10, false)));
     // leg strap of the harness round the thigh
     const ring = new THREE.TorusGeometry(0.085, 0.012, 6, 18);
@@ -266,26 +269,39 @@ export function addPilot(v: AirframeVisual, eye: THREE.Vector3, recline: number,
     bootG.push(strip(b));
     bootG.push(along(limb(0.1, [[0.046, 0], [0.047, 1]], 12), V(ankle.x, ankle.y - 0.02, ankle.z + 0.01), V(ankle.x, ankle.y + 0.07, ankle.z + 0.03)));
     // shoulder
-    leg.push(ellipsoid(0.066, 0.06, 0.064, V(sx * 0.195, -0.285, 0.12), 14, 10));
+    leg.push(ellipsoid(0.066, 0.06, 0.064, V(sx * 0.195, -0.258, 0.12), 14, 10));
   }
   add(join(leg), K.suit);
   add(join(legG), K.gsuit);
   add(join(bootG), K.boot);
-  // neck (collar)
-  add(along(limb(0.1, [[0.058, 0], [0.052, 1]], 16), V(0, -0.25, 0.1), V(0, -0.15, 0.09)), K.suit);
+  // short neck inside the suit collar
+  add(along(limb(0.075, [[0.062, 0], [0.054, 1]], 16), V(0, -0.215, 0.1), V(0, -0.14, 0.09)), K.suit);
+  const collar = new THREE.TorusGeometry(0.062, 0.014, 8, 20);
+  collar.rotateX(Math.PI / 2);
+  collar.translate(0, -0.2, 0.098);
+  add(strip(collar), K.suit);
 
   // helmet: shell, visor housing, tinted visor, helmet-sight mount, oxygen mask and hose
   const hc = V(0, 0.015, 0.085);
-  const shell = new THREE.SphereGeometry(1, 28, 20);
-  shell.scale(0.128, 0.142, 0.15);
-  shell.translate(hc.x, hc.y, hc.z);
-  const hs: THREE.BufferGeometry[] = [strip(shell)];
-  // the shell comes down over the ears and the nape
-  const ear = new THREE.SphereGeometry(1, 16, 12);
-  ear.scale(0.132, 0.1, 0.12);
-  ear.translate(hc.x, hc.y - 0.06, hc.z + 0.02);
-  hs.push(strip(ear));
+  // the shell: a full crown, and below the brow a lower half that is open at the face
+  const crown = new THREE.SphereGeometry(1, 32, 12, 0, Math.PI * 2, 0, Math.PI * 0.53);
+  const lower = new THREE.SphereGeometry(1, 26, 10, Math.PI * 1.8, Math.PI * 1.4, Math.PI * 0.53, Math.PI * 0.3);
+  const hs: THREE.BufferGeometry[] = [];
+  for (const g of [crown, lower]) {
+    g.scale(0.128, 0.142, 0.15);
+    g.translate(hc.x, hc.y, hc.z);
+    hs.push(strip(g));
+  }
+  // rolled edge round the face opening
+  const edge = new THREE.TorusGeometry(1, 0.075, 6, 20, Math.PI * 0.62);
+  edge.rotateZ(Math.PI * 0.69);
+  edge.scale(0.098, 0.09, 1);
+  edge.rotateX(-0.2);
+  edge.translate(hc.x, hc.y - 0.072, hc.z - 0.108);
+  hs.push(strip(edge));
   add(join(hs), K.shell);
+  // the face in the opening (mostly hidden by the visor and mask)
+  add(ellipsoid(0.078, 0.108, 0.1, V(hc.x, hc.y - 0.03, hc.z - 0.012), 20, 14), K.skin);
   const dark: THREE.BufferGeometry[] = [];
   // visor housing band across the brow
   const band = new THREE.SphereGeometry(1, 28, 8, Math.PI * 1.12, Math.PI * 0.76, Math.PI * 0.18, Math.PI * 0.16);
@@ -294,14 +310,64 @@ export function addPilot(v: AirframeVisual, eye: THREE.Vector3, recline: number,
   dark.push(strip(band));
   // helmet-sight mount above the visor
   dark.push(strip(roundBox(0.07, 0.03, 0.05, 0.01).translate(hc.x, hc.y + 0.12, hc.z - 0.1)));
-  // the mask: a rounded cup over nose and mouth, with the hose running to the chest connector
-  const maskG = lathe([[0.001, 0.0], [0.03, 0.005], [0.052, 0.03], [0.058, 0.06], [0.052, 0.085]], 18, 0, 0, true, false);
-  maskG.scale(1, 1.15, 1);
-  maskG.rotateX(0.35);
-  maskG.translate(hc.x, hc.y - 0.1, hc.z - 0.195);
-  add(strip(maskG), K.mask);
-  const hose = new THREE.CatmullRomCurve3([V(0, -0.1, -0.118), V(-0.02, -0.19, -0.1), V(-0.05, -0.3, -0.07), V(-0.07, -0.42, -0.05)]);
-  add(strip(new THREE.TubeGeometry(hose, 20, 0.017, 8, false)), K.mask);
+
+  // oxygen mask, modelled on the MBU-20/P: a hard shell over nose and mouth,
+  // narrow at the bridge and wide at the chin, the rubber face seal behind it,
+  // the exhalation valve and hose connector underneath, and a bayonet strap up
+  // each side clipping into the helmet
+  const my = hc.y - 0.165;
+  const mz = hc.z - 0.125;
+  const maskSecs: Section[] = [
+    { z: 0.0, w: 0.028, top: 0.034, bot: 0.014, n: 2.2 },
+    { z: 0.02, w: 0.046, top: 0.055, bot: 0.014, n: 2.4 },
+    { z: 0.048, w: 0.052, top: 0.066, bot: 0.014, n: 2.4 },
+    { z: 0.078, w: 0.046, top: 0.058, bot: 0.014, n: 2.3 },
+    { z: 0.104, w: 0.03, top: 0.042, bot: 0.012, n: 2.1 },
+    { z: 0.124, w: 0.012, top: 0.022, bot: 0.008, n: 2.0 },
+  ];
+  const maskShell = trunk(maskSecs, 24);
+  maskShell.rotateX(-0.12);
+  maskShell.translate(hc.x, my, mz);
+  add(maskShell, K.mask);
+  // face seal: a slightly wider, flatter rim against the face
+  const seal = trunk(maskSecs.map((q) => ({ ...q, w: q.w + 0.006, top: q.top * 0.35, bot: q.bot + 0.004 })), 20);
+  seal.rotateX(-0.12);
+  seal.translate(hc.x, my, mz + 0.004);
+  add(seal, K.vest);
+  const fit: THREE.BufferGeometry[] = [];
+  // exhalation valve on the front below the mouth, hose connector underneath
+  fit.push(along(limb(0.018, [[0.02, 0], [0.02, 1]], 14), V(0, my + 0.03, mz - 0.05), V(0, my + 0.025, mz - 0.068)));
+  fit.push(along(limb(0.03, [[0.019, 0], [0.017, 1]], 14), V(0, my + 0.004, mz - 0.03), V(0, my - 0.024, mz - 0.034)));
+  // bayonet straps to the helmet, with their receivers on the shell
+  const strapM: THREE.BufferGeometry[] = [];
+  for (const sx of [-1, 1]) {
+    const a = V(sx * 0.047, my + 0.06, mz - 0.02);
+    const b = V(sx * 0.118, hc.y - 0.062, hc.z - 0.03);
+    const st = new THREE.BoxGeometry(0.004, a.distanceTo(b), 0.014);
+    strapM.push(along(st.translate(0, a.distanceTo(b) / 2, 0), a, b));
+    fit.push(strip(roundBox(0.012, 0.028, 0.03, 0.005).translate(b.x, b.y, b.z)));
+  }
+  add(join(strapM), K.vest);
+  add(join(fit), K.fitting);
+  // corrugated hose from the connector down to the regulator on the chest
+  const hosePath = new THREE.CatmullRomCurve3([V(0, my - 0.03, mz - 0.034), V(-0.01, my - 0.09, mz - 0.03), V(-0.04, -0.3, -0.07), V(-0.07, -0.41, -0.05)]);
+  const hoseG = new THREE.TubeGeometry(hosePath, 90, 0.016, 10, false);
+  {
+    const pos = hoseG.attributes.position as THREE.BufferAttribute;
+    const P = new THREE.Vector3();
+    const q = new THREE.Vector3();
+    for (let i = 0; i <= 90; i++) {
+      hosePath.getPointAt(i / 90, P);
+      const k = 1 + 0.16 * Math.abs(Math.sin((i / 90) * Math.PI * 34));
+      for (let j = 0; j <= 10; j++) {
+        const idx = i * 11 + j;
+        q.fromBufferAttribute(pos, idx).sub(P).multiplyScalar(k).add(P);
+        pos.setXYZ(idx, q.x, q.y, q.z);
+      }
+    }
+    hoseG.computeVertexNormals();
+  }
+  add(strip(hoseG), K.mask);
   add(join(dark), K.shellDark);
   // tinted visor down over the eyes
   const visor = new THREE.SphereGeometry(1, 28, 10, Math.PI * 1.14, Math.PI * 0.72, Math.PI * 0.33, Math.PI * 0.22);
@@ -310,7 +376,7 @@ export function addPilot(v: AirframeVisual, eye: THREE.Vector3, recline: number,
   add(strip(visor), K.visor);
 
   // left arm on the throttle (static)
-  const lS = V(-0.2, -0.285, 0.12);
+  const lS = V(-0.2, -0.258, 0.12);
   const lH = V(-0.335, -0.545, -0.15);
   const lE = elbow(lS, lH, 0.3, 0.3, V(-0.6, -0.6, 0.5));
   add(along(limb(lS.distanceTo(lE), [[0.056, 0], [0.058, 0.2], [0.048, 1]]), lS, lE), K.suit);
@@ -336,7 +402,7 @@ export function addPilot(v: AirframeVisual, eye: THREE.Vector3, recline: number,
     stick,
     upper,
     fore,
-    shoulder: V(0.2, -0.285, 0.12),
+    shoulder: V(0.2, -0.258, 0.12),
     base,
     gripLen,
     handOff: V(0.006, -0.01, 0.012),

@@ -3,6 +3,12 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.11.1 — Pilot suit colours, better masks (2026-09-28)
+
+- Pilot flight suit colour in CUSTOMIZE: under PILOT FLIGHT SUIT pick sage green, olive drab, desert tan, navy blue, air force blue, charcoal, black, test-pilot orange or white, any custom colour, or STD for the standard issue of that jet. It is saved per jet with your paint job and shows on your jet in flight and in the hangar (scroll in on the cockpit to see it).
+- More realistic oxygen mask, modelled on the MBU-20/P: a hard shell over the nose and mouth (narrow at the bridge, wide at the chin) with its rubber face seal, the exhalation valve and hose connector underneath, a bayonet strap up each side clipping into the helmet, and a corrugated hose down to the regulator on the chest. The helmet is now open at the face, so the mask sits on the pilot's face rather than on the helmet.
+- Shorter necks: the shoulders, flotation collar and suit collar now come up to the helmet as they do on a real pilot in his kit.
+
 ## v4.11.0 — Realistic pilots (2026-09-28)
 
 - Realistic pilots in every cockpit, replacing the blocky stick figures. Each one is a seated aircrew figure built to real proportions: flight suit, survival vest with its pockets and flotation collar, harness with leg straps, anti-G suit chaps on the legs, boots and gloves.

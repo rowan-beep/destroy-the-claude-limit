@@ -55,6 +55,7 @@ export function runModelTest(container: HTMLElement): void {
     v.update(0.016);
     for (let k = 0; k < 30; k++) v.update(0.05);
     if (q.get('far')) v.setFar(true);
+    if (q.get('suit')) v.applySuit('#' + q.get('suit'));
     if (q.get('noao')) v.root.traverse((o) => { const u = ((o as THREE.Mesh).material as THREE.Material | undefined)?.userData?.skinUniforms; if (u?.aoOn) u.aoOn.value = 0; });
     scene.add(v.root);
   });

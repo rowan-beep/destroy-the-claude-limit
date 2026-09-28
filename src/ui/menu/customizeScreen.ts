@@ -4,7 +4,7 @@
 
 import { el, button, clearEl } from '../dom';
 import { AIRCRAFT_TYPES, AircraftType, SPECS } from '../../aircraft/specs';
-import { PaintConfig, PaintMode, SOLID_COLORS, WRAPS, FINISHES, loadPaint, savePaint, defaultPaint, wrapPreview, WrapId } from '../../aircraft/models/paint';
+import { PaintConfig, PaintMode, SOLID_COLORS, WRAPS, FINISHES, loadPaint, savePaint, defaultPaint, wrapPreview, WrapId, SUIT_COLORS } from '../../aircraft/models/paint';
 import type { Hangar } from './hangar';
 
 export class CustomizeScreen {
@@ -178,6 +178,39 @@ export class CustomizeScreen {
         d.finish = f;
         this.render();
       });
+    }
+
+    // the pilot's flight suit
+    {
+      const s = sec('PILOT FLIGHT SUIT');
+      const grid = el('div', 'cz-swatches', s);
+      const std = el('button', 'cz-sw cz-std' + (!d.suit ? ' active' : ''), grid);
+      std.textContent = 'STD';
+      std.title = 'STANDARD ISSUE';
+      std.addEventListener('click', () => {
+        d.suit = '';
+        this.render();
+      });
+      for (const [name, hex] of SUIT_COLORS) {
+        const b = el('button', 'cz-sw' + ((d.suit ?? '').toLowerCase() === hex ? ' active' : ''), grid);
+        b.style.background = hex;
+        b.title = name;
+        b.addEventListener('click', () => {
+          d.suit = hex;
+          this.render();
+        });
+      }
+      const custom = el('label', 'cz-custom', s);
+      el('span', '', custom, 'CUSTOM');
+      const inp = el('input', '', custom);
+      inp.type = 'color';
+      inp.value = d.suit || '#5d624a';
+      inp.addEventListener('input', () => {
+        d.suit = inp.value;
+        this.update();
+      });
+      inp.addEventListener('change', () => this.render());
+      el('div', 'note', s, 'Zoom in on the cockpit to see it (scroll on the hangar).');
     }
 
     // brightness

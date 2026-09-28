@@ -19,7 +19,22 @@ export interface PaintConfig {
   finish: Finish;
   /** 0.5 .. 1.5 */
   brightness: number;
+  /** pilot's flight suit colour ('' = standard issue for the jet) */
+  suit?: string;
 }
+
+/** Flight suit colours worn by real aircrew (plus test-pilot orange). */
+export const SUIT_COLORS: [string, string][] = [
+  ['SAGE GREEN', '#5d624a'],
+  ['OLIVE DRAB', '#4b5134'],
+  ['DESERT TAN', '#8a7a58'],
+  ['NAVY BLUE', '#27324a'],
+  ['AIR FORCE BLUE', '#3b4f6e'],
+  ['CHARCOAL', '#35383b'],
+  ['BLACK', '#1c1d1f'],
+  ['TEST PILOT ORANGE', '#c05a22'],
+  ['WHITE', '#d9dbd8'],
+];
 
 export const SOLID_COLORS: [string, string][] = [
   ['GHOST GREY', '#9aa1a6'],
@@ -66,7 +81,7 @@ export const FINISHES: [Finish, string][] = [
 ];
 
 export function defaultPaint(): PaintConfig {
-  return { mode: 'factory', color: '#2a55b8', color2: '#16171a', wrap: 'digital', finish: 'satin', brightness: 1 };
+  return { mode: 'factory', color: '#2a55b8', color2: '#16171a', wrap: 'digital', finish: 'satin', brightness: 1, suit: '' };
 }
 
 const KEY = 'triad.paint.v1';

@@ -384,6 +384,7 @@ export class AirframeVisual {
    * `plain` is the markings-only livery to use under a custom colour.
    */
   applyPaint(cfg: PaintConfig | null, plain: Livery | null): void {
+    this.applySuit(cfg?.suit ?? '');
     const base = this.paintMat;
     if (!base) return;
     const stock = !cfg || (cfg.mode === 'factory' && Math.abs(cfg.brightness - 1) < 0.01 && cfg.finish === 'satin');
@@ -420,6 +421,26 @@ export class AirframeVisual {
     this.body.traverse((o) => {
       const mesh = o as THREE.Mesh;
       if (mesh.isMesh && (mesh.material === prev || mesh.material === base || mesh.material === this.customMat)) mesh.material = target;
+    });
+  }
+
+  private suitOrig = new Map<THREE.Mesh, THREE.Material>();
+  private suitMat: THREE.MeshStandardMaterial | null = null;
+
+  /** The pilots' flight suit colour ('' = the standard issue for this jet). */
+  applySuit(hex: string): void {
+    this.body.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || m.userData.pilotPart !== 'suit') return;
+      if (!this.suitOrig.has(m)) this.suitOrig.set(m, m.material as THREE.Material);
+      const orig = this.suitOrig.get(m)!;
+      if (!hex) {
+        m.material = orig;
+        return;
+      }
+      if (!this.suitMat) this.suitMat = (orig as THREE.MeshStandardMaterial).clone();
+      this.suitMat.color.set(hex);
+      m.material = this.suitMat;
     });
   }
 
@@ -848,6 +869,8 @@ export class AirframeVisual {
   }
 
   dispose(): void {
+    this.suitMat?.dispose();
+    this.suitMat = null;
     for (const bm of this.burners) bm.dispose();
     this.burners = [];
     this.customMat?.dispose();

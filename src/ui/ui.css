@@ -337,6 +337,7 @@ body.touch-mode .weapon-bar { bottom: auto; top: calc(96px + env(safe-area-inset
 .customize .cz-swatches { display: grid; grid-template-columns: repeat(9, 1fr); gap: 6px; }
 .customize .cz-sw { width: 100%; aspect-ratio: 1; min-width: 0; padding: 0; border: 2px solid rgba(255,255,255,0.15); border-radius: 4px; cursor: pointer; }
 .customize .cz-sw.active { border-color: #fff; box-shadow: 0 0 0 2px #47d18c; }
+.customize .cz-sw.cz-std { background: #1a2027; color: #cfd8d3; font: 600 10px/1 var(--mono, monospace); letter-spacing: 1px; }
 .customize .cz-custom { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; letter-spacing: 0.1em; opacity: 0.85; }
 .customize .cz-custom input { width: 48px; height: 26px; padding: 0; border: 1px solid #2c3a46; background: none; cursor: pointer; }
 .customize .cz-wraps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
