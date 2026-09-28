@@ -13,7 +13,7 @@ import { buildHangarInterior, HangarInterior, HANGAR } from './hangarInterior';
 
 export class Hangar {
   readonly scene = new THREE.Scene();
-  readonly camera = new THREE.PerspectiveCamera(40, 1, 0.1, 4000);
+  readonly camera = new THREE.PerspectiveCamera(40, 1, 0.2, 30000);
   private jets = new Map<AircraftType, { vis: AirframeVisual; ac: Aircraft }>();
   private current: AircraftType = 'F15EX';
   private t = 0;
@@ -47,13 +47,15 @@ export class Hangar {
     // the jet's reflections and ambient light come from the hangar itself:
     // capture it once (without the jet) from about cockpit height
     const pmrem = new THREE.PMREMGenerator(renderer);
+    this.interior.setSunDisc(false);
     try {
-      this.envMap = pmrem.fromScene(s, 0.015, 0.1, 3000, { size: 256, position: new THREE.Vector3(0, 3, 0) }).texture;
+      this.envMap = pmrem.fromScene(s, 0.015, 0.2, 30000, { size: 256, position: new THREE.Vector3(0, 3, 0) }).texture;
     } catch {
       this.envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     }
+    this.interior.setSunDisc(true);
     s.environment = this.envMap;
-    s.environmentIntensity = 1.0;
+    s.environmentIntensity = 0.55;
     pmrem.dispose();
     this.camera.position.set(20, 6, -18);
     this.bindControls();

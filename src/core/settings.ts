@@ -89,6 +89,7 @@ export function defaultGraphics(): GraphicsOptions {
     cloudQuality: 'high',
     cloudShadows: true,
     autoRes: true,
+    autoTier: false,
   };
 }
 

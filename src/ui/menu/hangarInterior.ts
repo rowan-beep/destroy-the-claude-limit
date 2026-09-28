@@ -12,7 +12,6 @@
 // building costs a few dozen draw calls.
 
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Aircraft } from '../../aircraft/aircraft';
 import type { AirframeVisual } from '../../aircraft/models';
 import { loadSettings } from '../../core/settings';
@@ -29,124 +28,10 @@ const WIN_Y0 = 8;
 const WIN_Y1 = 11;
 
 /** direction the sunlight travels (from the sun toward the ground) */
-export const SUN_DIR = new THREE.Vector3(0.62, -0.58, 0.53).normalize();
+export const SUN_DIR = new THREE.Vector3(0.24, -0.095, 0.97).normalize();
 
-// ---------------------------------------------------------------------------
-// geometry batching
-// ---------------------------------------------------------------------------
-
-class Batch {
-  private groups = new Map<THREE.Material, THREE.BufferGeometry[]>();
-  add(mat: THREE.Material, geo: THREE.BufferGeometry, m?: THREE.Matrix4): void {
-    if (m) geo.applyMatrix4(m);
-    let g = geo.index ? geo.toNonIndexed() : geo;
-    if (g !== geo) geo.dispose();
-    for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal' && k !== 'uv') g.deleteAttribute(k);
-    if (!g.attributes.normal) g.computeVertexNormals();
-    if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
-    g = g as THREE.BufferGeometry;
-    let list = this.groups.get(mat);
-    if (!list) this.groups.set(mat, (list = []));
-    list.push(g);
-  }
-  build(parent: THREE.Object3D, shadows = true): THREE.Mesh[] {
-    const out: THREE.Mesh[] = [];
-    for (const [mat, list] of this.groups) {
-      const geo = mergeGeometries(list, false);
-      list.forEach((g) => g.dispose());
-      if (!geo) continue;
-      geo.computeBoundingSphere();
-      const m = new THREE.Mesh(geo, mat);
-      const lit = !(mat as THREE.MeshBasicMaterial).isMeshBasicMaterial && !mat.transparent;
-      m.castShadow = shadows && lit;
-      m.receiveShadow = lit;
-      parent.add(m);
-      out.push(m);
-    }
-    this.groups.clear();
-    return out;
-  }
-}
-
-const _m = new THREE.Matrix4();
-const _q = new THREE.Quaternion();
-const _e = new THREE.Euler();
-const _s = new THREE.Vector3(1, 1, 1);
-function at(x: number, y: number, z: number, ry = 0, rx = 0, rz = 0): THREE.Matrix4 {
-  _e.set(rx, ry, rz);
-  _q.setFromEuler(_e);
-  return _m.clone().compose(new THREE.Vector3(x, y, z), _q, _s);
-}
-/** box centred at x, y, z */
-function box(w: number, h: number, d: number): THREE.BufferGeometry {
-  return new THREE.BoxGeometry(w, h, d);
-}
-function cyl(r0: number, r1: number, h: number, seg = 16): THREE.BufferGeometry {
-  return new THREE.CylinderGeometry(r0, r1, h, seg);
-}
-/** a round bar from a to b */
-function bar(a: THREE.Vector3, b: THREE.Vector3, r: number, seg = 8): THREE.BufferGeometry {
-  const len = a.distanceTo(b);
-  const g = new THREE.CylinderGeometry(r, r, len, seg);
-  const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
-  g.applyMatrix4(new THREE.Matrix4().compose(a.clone().add(b).multiplyScalar(0.5), q, new THREE.Vector3(1, 1, 1)));
-  return g;
-}
-/** a square steel member from a to b */
-function beam(a: THREE.Vector3, b: THREE.Vector3, s: number): THREE.BufferGeometry {
-  const len = a.distanceTo(b);
-  const g = new THREE.BoxGeometry(s, len, s);
-  const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
-  g.applyMatrix4(new THREE.Matrix4().compose(a.clone().add(b).multiplyScalar(0.5), q, new THREE.Vector3(1, 1, 1)));
-  return g;
-}
-const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
-
-/** World-space UVs (metres * scale) projected along the dominant normal axis. */
-function worldUV(g: THREE.BufferGeometry, scale = 1): THREE.BufferGeometry {
-  const p = g.attributes.position;
-  const n = g.attributes.normal;
-  const uv = new Float32Array(p.count * 2);
-  for (let i = 0; i < p.count; i++) {
-    const ax = Math.abs(n.getX(i)), ay = Math.abs(n.getY(i)), az = Math.abs(n.getZ(i));
-    let u: number, v: number;
-    if (ax >= ay && ax >= az) (u = p.getZ(i)), (v = p.getY(i));
-    else if (az >= ay) (u = p.getX(i)), (v = p.getY(i));
-    else (u = p.getX(i)), (v = p.getZ(i));
-    uv[i * 2] = u * scale;
-    uv[i * 2 + 1] = v * scale;
-  }
-  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-  return g;
-}
-
-// ---------------------------------------------------------------------------
-// procedural textures
-// ---------------------------------------------------------------------------
-
-function canvas(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContext2D] {
-  const c = document.createElement('canvas');
-  c.width = w;
-  c.height = h;
-  return [c, c.getContext('2d')!];
-}
-function tex(c: HTMLCanvasElement, srgb = true, repeat = false): THREE.CanvasTexture {
-  const t = new THREE.CanvasTexture(c);
-  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
-  if (repeat) t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.anisotropy = 8;
-  return t;
-}
-function rng(seed: number): () => number {
-  let s = seed >>> 0;
-  return () => {
-    s = (s + 0x6d2b79f5) >>> 0;
-    let t = s;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+import { Batch, at, box, cyl, bar, beam, V, worldUV, canvas, tex, rng } from './hangarKit';
+import { buildOutside } from './hangarOutside';
 
 /** Polished epoxy floor with its painted markings, joints and wear. Returns colour + roughness maps. */
 function floorTextures(): { map: THREE.Texture; rough: THREE.Texture } {
@@ -556,6 +441,8 @@ function officeTexture(): THREE.Texture {
 
 export interface HangarInterior {
   sun: THREE.DirectionalLight;
+  /** hide the sun's disc in the sky while the reflections are captured */
+  setSunDisc(on: boolean): void;
   /** per-frame: dust drifting in the sunbeams */
   update(dt: number): void;
   /** ground equipment around the current jet */
@@ -567,6 +454,12 @@ export function buildHangarInterior(scene: THREE.Scene): HangarInterior {
   root.name = 'hangar';
   scene.add(root);
   const B = new Batch();
+  let q = 'high';
+  try {
+    q = loadSettings().graphics.quality;
+  } catch {
+    /* defaults */
+  }
 
   // --- materials ------------------------------------------------------------
   const fl = floorTextures();
@@ -1022,128 +915,434 @@ export function buildHangarInterior(scene: THREE.Scene): HangarInterior {
   B.add(cardboard, box(1.1, 0.8, 0.9).applyMatrix4(at(W2 - 2.5, 0.54, -3.2)));
   for (let k = 0; k < 3; k++) B.add(rubber, new THREE.TorusGeometry(0.34, 0.14, 10, 24).applyMatrix4(at(W2 - 2.6, 0.14 + k * 0.28, 1.5, 0, Math.PI / 2)));
 
-  // --- outside: apron, taxiway, grass, a hangar across the way, light masts, a fuel truck, hills ---------
-  const apronG = new THREE.PlaneGeometry(220, 110).applyMatrix4(at(0, -0.02, -D2 - 55, 0, -Math.PI / 2));
-  const apronM = new THREE.Mesh(apronG, apron);
-  apronM.receiveShadow = true;
-  root.add(apronM);
-  for (let z = -D2 - 5; z > -D2 - 110; z -= 7.5) B.add(kick, box(220, 0.01, 0.06).applyMatrix4(at(0, -0.005, z)));
-  for (let x = -110; x < 110; x += 7.5) B.add(kick, box(0.06, 0.01, 110).applyMatrix4(at(x, -0.005, -D2 - 55)));
-  B.add(yellow, box(0.18, 0.012, 100).applyMatrix4(at(0, 0, -D2 - 50)));
-  const taxi = new THREE.Mesh(new THREE.PlaneGeometry(400, 30).applyMatrix4(at(0, -0.03, -D2 - 125, 0, -Math.PI / 2)), tarmac);
-  taxi.receiveShadow = true;
-  root.add(taxi);
-  const grassM = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000).applyMatrix4(at(0, -0.05, 0, 0, -Math.PI / 2)), grass);
-  grassM.receiveShadow = true;
-  root.add(grassM);
-  // the hangar across the apron
-  clad(box(60, 16, 40), at(-10, 8, -D2 - 175), cladDark);
-  B.add(steel, box(40, 13, 0.4).applyMatrix4(at(-10, 6.5, -D2 - 154.9)));
-  B.add(steel, box(62, 1.2, 42).applyMatrix4(at(-10, 16.6, -D2 - 175)));
-  // light masts
-  for (const x of [-40, 40]) {
-    B.add(steelLight, cyl(0.25, 0.4, 24, 12).applyMatrix4(at(x, 12, -D2 - 70)));
-    B.add(frame, box(3, 1.2, 0.5).applyMatrix4(at(x, 24.5, -D2 - 70)));
-  }
-  // fuel truck parked on the apron
+  // --- more of a working hangar -------------------------------------------------------------------------------------
+  const engineMetal = new THREE.MeshStandardMaterial({ color: 0x9aa0a4, roughness: 0.38, metalness: 0.85 });
+  const burnt = new THREE.MeshStandardMaterial({ color: 0x5e5048, roughness: 0.42, metalness: 0.8 });
+  const drumBlue = new THREE.MeshStandardMaterial({ color: 0x1d4a8a, roughness: 0.45, metalness: 0.4 });
+  const bottle = new THREE.MeshStandardMaterial({ color: 0x2f5a36, roughness: 0.4, metalness: 0.3 });
+  const beige = new THREE.MeshStandardMaterial({ color: 0xcfc7b2, roughness: 0.6, metalness: 0.15 });
+  const chrome = new THREE.MeshStandardMaterial({ color: 0xdadfe2, roughness: 0.15, metalness: 1 });
+  const wheel = (mat: THREE.Material, x: number, y: number, z: number, r: number, w: number, ry = 0) =>
+    B.add(mat, cyl(r, r, w, 18).applyMatrix4(at(0, 0, 0, 0, 0, Math.PI / 2)).applyMatrix4(at(x, y, z, ry)));
+
+  // spare engine on its transport trailer (right side, by the racking)
   {
-    const m = at(-24, 0, -D2 - 22, 1.25);
-    B.add(desk, box(2.4, 2.2, 2.2).applyMatrix4(at(0, 1.6, -3.6)).applyMatrix4(m));
-    B.add(black, box(2.2, 0.8, 0.1).applyMatrix4(at(0, 2.1, -4.72)).applyMatrix4(m));
-    B.add(alu, cyl(1.2, 1.2, 6, 20).applyMatrix4(at(0, 1.9, 0.6, 0, Math.PI / 2)).applyMatrix4(m));
-    B.add(frame, box(2.3, 0.4, 8.6).applyMatrix4(at(0, 0.7, -0.6)).applyMatrix4(m));
-    for (const dz of [-3.6, 1.6, 3.0]) for (const dx of [-1.05, 1.05]) B.add(rubber, cyl(0.5, 0.5, 0.35, 18).applyMatrix4(at(dx, 0.5, dz, 0, 0, Math.PI / 2)).applyMatrix4(m));
-  }
-  // distant low hills with a tree line
-  {
-    const g = new THREE.BufferGeometry();
-    const pts: number[] = [];
-    const r = rng(17);
-    const N = 90;
-    for (let i = 0; i < N; i++) {
-      const a0 = Math.PI * 0.55 + (i / N) * Math.PI * 0.9;
-      const a1 = Math.PI * 0.55 + ((i + 1) / N) * Math.PI * 0.9;
-      const R = 700;
-      const h0 = 25 + 30 * Math.sin(i * 0.37) + r() * 10, h1 = 25 + 30 * Math.sin((i + 1) * 0.37) + r() * 10;
-      const p = (a: number, y: number) => [Math.sin(a) * R, y, Math.cos(a) * R];
-      pts.push(...p(a0, -1), ...p(a1, -1), ...p(a1, h1), ...p(a0, -1), ...p(a1, h1), ...p(a0, h0));
+    const m = at(W2 - 5.2, 0, 1.2, 0);
+    const P = (mat: THREE.Material, g: THREE.BufferGeometry) => B.add(mat, g.applyMatrix4(m));
+    // trailer: yellow frame on four wheels with a tow bar
+    P(yellow, box(1.5, 0.14, 5.4).applyMatrix4(at(0, 0.52, 0)));
+    for (const x of [-0.7, 0.7]) P(yellow, box(0.12, 0.3, 5.4).applyMatrix4(at(x, 0.4, 0)));
+    for (const z of [-2.1, 2.1]) for (const x of [-0.82, 0.82]) P(rubber, cyl(0.3, 0.3, 0.2, 18).applyMatrix4(at(x, 0.3, z, 0, 0, Math.PI / 2)));
+    P(yellow, beam(V(0, 0.45, -2.7), V(0, 0.3, -4.1), 0.07));
+    P(yellow, new THREE.TorusGeometry(0.1, 0.025, 6, 12).applyMatrix4(at(0, 0.3, -4.2, 0, Math.PI / 2)));
+    // cradle rings
+    for (const z of [-1.3, 1.4]) {
+      P(yellow, new THREE.TorusGeometry(0.64, 0.05, 8, 28, Math.PI).applyMatrix4(at(0, 1.25, z, 0, 0, Math.PI)));
+      for (const x of [-0.62, 0.62]) P(yellow, box(0.1, 0.7, 0.1).applyMatrix4(at(x, 0.9, z)));
     }
-    g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-    g.computeVertexNormals();
-    const m = new THREE.Mesh(g, hills);
-    m.material.side = THREE.DoubleSide;
-    root.add(m);
-    for (let i = 0; i < 160; i++) {
-      const a = Math.PI * 0.62 + r() * Math.PI * 0.76;
-      const R = 260 + r() * 120;
-      const hgt = 8 + r() * 10;
-      B.add(greenMat, cyl(0.001, 2.5 + r() * 2, hgt, 7).applyMatrix4(at(Math.sin(a) * R, hgt / 2, Math.cos(a) * R)));
+    // the engine: fan case, core, augmentor and nozzle (along z), with plumbing and a red intake cover
+    P(engineMetal, cyl(0.6, 0.6, 1.1, 32).applyMatrix4(at(0, 1.3, -1.9, 0, Math.PI / 2)));
+    P(engineMetal, cyl(0.52, 0.6, 0.4, 32).applyMatrix4(at(0, 1.3, -1.15, 0, Math.PI / 2)));
+    P(steelLight, cyl(0.5, 0.52, 2.0, 32).applyMatrix4(at(0, 1.3, 0.05, 0, Math.PI / 2)));
+    P(burnt, cyl(0.47, 0.5, 1.3, 32).applyMatrix4(at(0, 1.3, 1.7, 0, Math.PI / 2)));
+    P(burnt, cyl(0.4, 0.47, 0.45, 20).applyMatrix4(at(0, 1.3, 2.55, 0, Math.PI / 2)));
+    P(black, new THREE.CircleGeometry(0.4, 20).applyMatrix4(at(0, 1.3, 2.77)));
+    P(red, cyl(0.62, 0.62, 0.08, 32).applyMatrix4(at(0, 1.3, -2.48, 0, Math.PI / 2)));
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2;
+      P(k % 2 ? steel : alu, bar(V(Math.cos(a) * 0.54, 1.3 + Math.sin(a) * 0.54, -0.9), V(Math.cos(a + 0.4) * 0.53, 1.3 + Math.sin(a + 0.4) * 0.53, 1.0), 0.022, 6));
+    }
+    for (const z of [-0.6, 0.3, 0.9]) P(steel, new THREE.TorusGeometry(0.515, 0.025, 6, 32).applyMatrix4(at(0, 1.3, z)));
+    P(black, box(0.25, 0.3, 0.5).applyMatrix4(at(0.52, 1.1, -0.2)));
+  }
+
+  // a big flag hanging from the roof trusses over the back of the bay
+  {
+    const [c, g] = canvas(1040, 548);
+    const sw = 548 / 13;
+    for (let i = 0; i < 13; i++) {
+      g.fillStyle = i % 2 ? '#f4f2ee' : '#b22234';
+      g.fillRect(0, i * sw, 1040, sw + 1);
+    }
+    g.fillStyle = '#3c3b6e';
+    g.fillRect(0, 0, 416, sw * 7);
+    g.fillStyle = '#f4f2ee';
+    const star = (x: number, y: number, r: number) => {
+      g.beginPath();
+      for (let k = 0; k < 10; k++) {
+        const a = -Math.PI / 2 + (k * Math.PI) / 5;
+        const rr = k % 2 ? r * 0.4 : r;
+        g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+      }
+      g.fill();
+    };
+    for (let row = 0; row < 9; row++) for (let col = 0; col < (row % 2 ? 5 : 6); col++) star(35 + col * 69 + (row % 2 ? 34 : 0), 22 + row * 31.5, 12);
+    const flagT = tex(c);
+    const fg = new THREE.PlaneGeometry(9.5, 5.0, 40, 1);
+    const fp = fg.attributes.position as THREE.BufferAttribute;
+    for (let i = 0; i < fp.count; i++) fp.setZ(i, Math.sin(fp.getX(i) * 1.6) * 0.12 + Math.sin(fp.getX(i) * 0.7 + 1) * 0.08);
+    fg.computeVertexNormals();
+    const flag = new THREE.Mesh(fg, new THREE.MeshStandardMaterial({ map: flagT, roughness: 0.92, side: THREE.DoubleSide }));
+    flag.position.set(0, chordLo - 2.75, 19.5);
+    flag.rotation.y = Math.PI;
+    flag.castShadow = true;
+    flag.receiveShadow = true;
+    root.add(flag);
+    for (const x of [-4.6, 4.6]) B.add(black, bar(V(x, chordLo - 0.25, 19.5), V(x, chordLo, 19.5), 0.01, 4));
+    B.add(steel, box(9.7, 0.06, 0.06).applyMatrix4(at(0, chordLo - 0.25, 19.5)));
+  }
+
+  // nitrogen / oxygen servicing cart: a rack of green bottles on a wheeled frame
+  {
+    const m = at(-17, 0, -12.5, 0.5);
+    const P = (mat: THREE.Material, g: THREE.BufferGeometry) => B.add(mat, g.applyMatrix4(m));
+    P(grey, box(1.2, 0.1, 2.2).applyMatrix4(at(0, 0.45, 0)));
+    for (const z of [-1.0, 1.0]) for (const x of [-0.55, 0.55]) P(rubber, cyl(0.2, 0.2, 0.12, 14).applyMatrix4(at(x, 0.2, z, 0, 0, Math.PI / 2)));
+    for (let k = 0; k < 6; k++) {
+      const x = (k % 2 ? 0.25 : -0.25), z = -0.7 + Math.floor(k / 2) * 0.7;
+      P(bottle, cyl(0.2, 0.2, 1.4, 16).applyMatrix4(at(x, 1.2, z)));
+      P(bottle, new THREE.SphereGeometry(0.2, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2).applyMatrix4(at(x, 1.9, z)));
+      P(chrome, cyl(0.04, 0.04, 0.16, 8).applyMatrix4(at(x, 2.15, z)));
+    }
+    P(grey, box(1.25, 0.06, 2.2).applyMatrix4(at(0, 1.5, 0)));
+    P(grey, beam(V(0, 0.5, -1.1), V(0, 1.0, -1.9), 0.05));
+    P(black, box(0.3, 0.25, 0.2).applyMatrix4(at(0.55, 1.7, 1.0)));
+  }
+
+  // hydraulic test stand ("mule")
+  {
+    const m = at(15.8, 0, -4.5, -0.3);
+    const P = (mat: THREE.Material, g: THREE.BufferGeometry) => B.add(mat, g.applyMatrix4(m));
+    P(beige, box(1.3, 1.3, 2.4).applyMatrix4(at(0, 1.0, 0)));
+    P(black, box(1.32, 0.12, 2.42).applyMatrix4(at(0, 1.7, 0)));
+    for (let k = 0; k < 5; k++) P(frame, box(0.02, 0.9, 0.06).applyMatrix4(at(0.66, 1.0, -0.9 + k * 0.2)));
+    P(black, box(0.03, 0.4, 0.6).applyMatrix4(at(0.66, 1.3, 0.6)));
+    for (const z of [-0.9, 0.9]) for (const x of [-0.55, 0.55]) P(rubber, cyl(0.28, 0.28, 0.16, 16).applyMatrix4(at(x, 0.28, z, 0, 0, Math.PI / 2)));
+    P(steel, beam(V(0, 0.4, -1.2), V(0, 0.3, -2.1), 0.05));
+    for (const dx of [-0.2, 0.2]) {
+      const hose = new THREE.CatmullRomCurve3([V(dx, 1.4, 1.2), V(dx + 0.3, 0.6, 1.8), V(dx + 0.8, 0.05, 2.0), V(dx + 1.4, 0.05, 1.4), V(dx + 1.1, 0.05, 0.8)]);
+      P(black, new THREE.TubeGeometry(hose, 24, 0.03, 6, false));
     }
   }
 
-  // --- sky -------------------------------------------------------------------------------------------------------
+  // portable LED floodlights on tripods, aimed at the jet
+  const flood = (x: number, z: number, ry: number) => {
+    const m = at(x, 0, z, ry);
+    const P = (mat: THREE.Material, g: THREE.BufferGeometry) => B.add(mat, g.applyMatrix4(m));
+    for (let k = 0; k < 3; k++) {
+      const a = (k / 3) * Math.PI * 2;
+      P(black, beam(V(Math.cos(a) * 0.7, 0, Math.sin(a) * 0.7), V(0, 1.4, 0), 0.035));
+    }
+    P(alu, cyl(0.03, 0.03, 1.6, 8).applyMatrix4(at(0, 2.2, 0)));
+    P(black, box(0.9, 0.08, 0.08).applyMatrix4(at(0, 3.0, 0)));
+    for (const dx of [-0.3, 0.3]) {
+      P(black, box(0.5, 0.36, 0.14).applyMatrix4(at(dx, 3.2, 0.03, 0, -0.35)));
+      P(lamp, box(0.44, 0.3, 0.02).applyMatrix4(at(dx, 3.19, 0.11, 0, -0.35)));
+    }
+  };
+  flood(-8.8, -13.5, 0.55);
+  flood(9.2, 13.8, Math.PI + 0.6);
+
+  // industrial drum fans
+  const fan = (x: number, z: number, ry: number) => {
+    const m = at(x, 0, z, ry);
+    const P = (mat: THREE.Material, g: THREE.BufferGeometry) => B.add(mat, g.applyMatrix4(m));
+    P(black, cyl(0.62, 0.62, 0.42, 28, ).applyMatrix4(at(0, 0.85, 0, 0, Math.PI / 2)));
+    for (const z2 of [-0.22, 0.22]) for (let k = 1; k <= 4; k++) P(steelLight, new THREE.TorusGeometry(0.15 * k, 0.008, 4, 28).applyMatrix4(at(0, 0.85, z2)));
+    for (let k = 0; k < 5; k++) P(grey, box(0.18, 0.5, 0.02).applyMatrix4(at(0, 0.85, 0, 0, 0.25, (k / 5) * Math.PI * 2)).applyMatrix4(at(0, 0, 0)));
+    for (const dx of [-0.66, 0.66]) P(black, box(0.05, 0.7, 0.05).applyMatrix4(at(dx, 0.5, 0)));
+    P(black, box(1.4, 0.05, 0.5).applyMatrix4(at(0, 0.15, 0)));
+    for (const dx of [-0.6, 0.6]) P(rubber, cyl(0.1, 0.1, 0.06, 10).applyMatrix4(at(dx, 0.1, 0.25, 0, 0, Math.PI / 2)));
+  };
+  fan(-19.5, -24.5, 0.7);
+  fan(19.3, 19.5, -2.4);
+
+  // oil drums on a spill pallet
+  {
+    const x0 = -20.2, z0 = 15.2;
+    B.add(yellow, box(1.35, 0.15, 1.35).applyMatrix4(at(x0, 0.08, z0)));
+    B.add(black, box(1.25, 0.02, 1.25).applyMatrix4(at(x0, 0.17, z0)));
+    for (const [dx, dz, mat] of [
+      [-0.32, -0.32, drumBlue],
+      [0.32, -0.32, drumBlue],
+      [-0.32, 0.32, black],
+      [0.32, 0.32, drumBlue],
+    ] as [number, number, THREE.Material][]) {
+      B.add(mat, cyl(0.29, 0.29, 0.88, 22).applyMatrix4(at(x0 + dx, 0.6, z0 + dz)));
+      for (const y of [0.45, 0.75]) B.add(mat, new THREE.TorusGeometry(0.29, 0.015, 4, 22).applyMatrix4(at(x0 + dx, y, z0 + dz, 0, Math.PI / 2)));
+      B.add(steelLight, cyl(0.04, 0.04, 0.02, 8).applyMatrix4(at(x0 + dx + 0.12, 1.05, z0 + dz)));
+    }
+  }
+
+  // FOD cans (yellow bins with lids and a FOD stencil)
+  {
+    const [c, g] = canvas(256, 128);
+    g.fillStyle = '#e2ae14';
+    g.fillRect(0, 0, 256, 128);
+    g.fillStyle = '#111';
+    g.font = 'bold 84px Arial';
+    g.textAlign = 'center';
+    g.fillText('FOD', 128, 96);
+    const fodM = new THREE.MeshStandardMaterial({ map: tex(c), roughness: 0.55, metalness: 0.2 });
+    for (const [x, z] of [
+      [-12.2, -26.2],
+      [12.8, -27.4],
+      [-2.8, 20.6],
+    ]) {
+      const can = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.25, 0.8, 20), fodM);
+      can.position.set(x, 0.4, z);
+      can.rotation.y = -Math.PI / 2;
+      can.castShadow = can.receiveShadow = true;
+      root.add(can);
+      B.add(black, cyl(0.3, 0.3, 0.06, 20).applyMatrix4(at(x, 0.83, z)));
+    }
+  }
+
+  // tyre and wheel rack by the back wall
+  {
+    const x0 = W2 - 1.1, z0 = 21.5;
+    for (const dz of [-1.3, 1.3]) for (const dx of [-0.35, 0.35]) B.add(blue, box(0.06, 1.9, 0.06).applyMatrix4(at(x0 + dx, 0.95, z0 + dz)));
+    for (const y of [0.1, 1.0, 1.88]) B.add(blue, box(0.76, 0.06, 2.66).applyMatrix4(at(x0, y, z0)));
+    for (const y of [0.52, 1.42]) for (let k = 0; k < 4; k++) {
+      B.add(rubber, new THREE.TorusGeometry(0.32, 0.12, 10, 24).applyMatrix4(at(x0, y + 0.02, z0 - 0.95 + k * 0.63, Math.PI / 2)));
+      B.add(steelLight, cyl(0.2, 0.2, 0.18, 16).applyMatrix4(at(x0, y + 0.02, z0 - 0.95 + k * 0.63, 0, 0, Math.PI / 2)));
+    }
+  }
+
+  // scissor lift, platform half raised
+  {
+    const m = at(-17.2, 0, 21.8, 0.15);
+    const P = (mat: THREE.Material, g: THREE.BufferGeometry) => B.add(mat, g.applyMatrix4(m));
+    const hgt = 2.4;
+    P(orange, box(1.2, 0.45, 2.4).applyMatrix4(at(0, 0.35, 0)));
+    for (const z of [-0.9, 0.9]) for (const x of [-0.55, 0.55]) P(rubber, cyl(0.16, 0.16, 0.12, 14).applyMatrix4(at(x, 0.16, z, 0, 0, Math.PI / 2)));
+    for (const x of [-0.5, 0.5])
+      for (let k = 0; k < 3; k++) {
+        const y0 = 0.6 + (k * (hgt - 0.6)) / 3, y1 = 0.6 + ((k + 1) * (hgt - 0.6)) / 3;
+        P(yellow, beam(V(x, y0, -1.0), V(x, y1, 1.0), 0.07));
+        P(yellow, beam(V(x, y0, 1.0), V(x, y1, -1.0), 0.07));
+      }
+    P(orange, box(1.25, 0.1, 2.5).applyMatrix4(at(0, hgt + 0.05, 0)));
+    for (const x of [-0.6, 0.6]) {
+      P(yellow, beam(V(x, hgt, -1.2), V(x, hgt + 1.05, -1.2), 0.04));
+      P(yellow, beam(V(x, hgt, 1.2), V(x, hgt + 1.05, 1.2), 0.04));
+      P(yellow, beam(V(x, hgt + 1.05, -1.2), V(x, hgt + 1.05, 1.2), 0.04));
+    }
+    for (const z of [-1.2, 1.2]) P(yellow, beam(V(-0.6, hgt + 1.05, z), V(0.6, hgt + 1.05, z), 0.04));
+    P(black, box(0.3, 0.25, 0.15).applyMatrix4(at(0.4, hgt + 1.0, -1.15)));
+  }
+
+  // forklift by the racking
+  {
+    const m = at(W2 - 4.6, 0, -4.8, -Math.PI / 2 + 0.25);
+    const P = (mat: THREE.Material, g: THREE.BufferGeometry) => B.add(mat, g.applyMatrix4(m));
+    P(yellow, box(1.1, 0.8, 2.0).applyMatrix4(at(0, 0.7, 0)));
+    P(black, box(1.12, 0.55, 0.6).applyMatrix4(at(0, 0.7, 0.85)));
+    P(black, box(0.5, 0.12, 0.45).applyMatrix4(at(0, 1.2, 0.1)));
+    P(black, box(0.5, 0.5, 0.1).applyMatrix4(at(0, 1.45, 0.35)));
+    for (const [x, z] of [
+      [-0.5, -0.8],
+      [0.5, -0.8],
+      [-0.5, 0.7],
+      [0.5, 0.7],
+    ]) {
+      P(yellow, box(0.06, 1.2, 0.06).applyMatrix4(at(x, 1.7, z * 0.9)));
+      P(rubber, cyl(0.3, 0.3, 0.22, 16).applyMatrix4(at(x * 1.05, 0.3, z, 0, 0, Math.PI / 2)));
+    }
+    P(yellow, box(1.1, 0.06, 1.8).applyMatrix4(at(0, 2.32, -0.05)));
+    for (const x of [-0.35, 0.35]) P(steel, box(0.1, 2.4, 0.12).applyMatrix4(at(x, 1.2, -1.15)));
+    P(steel, box(0.9, 0.12, 0.1).applyMatrix4(at(0, 2.35, -1.15)));
+    for (const x of [-0.3, 0.3]) {
+      P(steel, box(0.12, 0.05, 1.1).applyMatrix4(at(x, 0.12, -1.75)));
+      P(steel, box(0.12, 0.6, 0.05).applyMatrix4(at(x, 0.4, -1.22)));
+    }
+    P(new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 0.55, 0.05).multiplyScalar(3) }), cyl(0.06, 0.06, 0.12, 10).applyMatrix4(at(0.4, 2.42, 0.6)));
+  }
+
+  // rolling tool carts beside the jet
+  const toolCart = (x: number, z: number, ry: number) => {
+    const m = at(x, 0, z, ry);
+    const P = (mat: THREE.Material, g: THREE.BufferGeometry) => B.add(mat, g.applyMatrix4(m));
+    for (const y of [0.25, 0.55, 0.85]) {
+      P(red, box(0.5, 0.03, 0.8).applyMatrix4(at(0, y, 0)));
+      P(red, box(0.52, 0.06, 0.02).applyMatrix4(at(0, y + 0.03, 0.4)));
+      P(red, box(0.52, 0.06, 0.02).applyMatrix4(at(0, y + 0.03, -0.4)));
+    }
+    for (const dx of [-0.24, 0.24]) for (const dz of [-0.38, 0.38]) P(red, box(0.03, 0.8, 0.03).applyMatrix4(at(dx, 0.5, dz)));
+    P(steelLight, box(0.04, 0.04, 0.5).applyMatrix4(at(0, 0.95, 0.45)));
+    for (const dx of [-0.2, 0.2]) for (const dz of [-0.34, 0.34]) P(rubber, cyl(0.05, 0.05, 0.04, 8).applyMatrix4(at(dx, 0.05, dz, 0, 0, Math.PI / 2)));
+    // tools on the top tray
+    P(chrome, box(0.04, 0.02, 0.25).applyMatrix4(at(-0.1, 0.88, -0.1, 0.3)));
+    P(chrome, box(0.03, 0.02, 0.3).applyMatrix4(at(0.05, 0.88, 0.1, -0.5)));
+    P(blue, box(0.1, 0.08, 0.18).applyMatrix4(at(0.12, 0.9, -0.22)));
+    P(black, cyl(0.03, 0.03, 0.18, 8).applyMatrix4(at(-0.12, 0.9, 0.25, 0, 0, Math.PI / 2)));
+  };
+  toolCart(3.4, -7.2, 0.3);
+  toolCart(-4.3, 7.8, -0.4);
+
+  // wall screens with the flight schedule, and a digital clock
+  {
+    const [c, g] = canvas(768, 432);
+    g.fillStyle = '#0b1320';
+    g.fillRect(0, 0, 768, 432);
+    g.fillStyle = '#2d8cff';
+    g.fillRect(0, 0, 768, 56);
+    g.fillStyle = '#fff';
+    g.font = 'bold 30px Arial';
+    g.fillText('FLYING SCHEDULE  ·  TODAY', 20, 38);
+    const rows = [
+      ['1500', 'VIPER 11', 'F-15EX', 'BFM', 'LANDED'],
+      ['1530', 'VIPER 21', 'F-15EX', 'DCA', 'LANDED'],
+      ['1645', 'RAPTOR 31', 'F-22A', 'OCA', 'AIRBORNE'],
+      ['1730', 'VIPER 41', 'F-15EX', 'FCF', 'READY'],
+      ['1815', 'NIGHT 11', 'F-15EX', 'NVG', 'BRIEF'],
+      ['1900', 'NIGHT 21', 'F-15EX', 'NVG', 'BRIEF'],
+    ];
+    g.font = '24px monospace';
+    rows.forEach((r, i) => {
+      const y = 100 + i * 52;
+      g.fillStyle = i % 2 ? '#101c2c' : '#0d1726';
+      g.fillRect(10, y - 32, 748, 46);
+      g.fillStyle = '#cfe0f5';
+      r.forEach((t, k) => {
+        if (k === 4) g.fillStyle = t === 'AIRBORNE' ? '#5fe08a' : t === 'READY' ? '#ffd24a' : t === 'LANDED' ? '#8aa0b8' : '#cfe0f5';
+        g.fillText(t, 20 + [0, 100, 270, 420, 560][k], y);
+      });
+    });
+    const scr = new THREE.MeshBasicMaterial({ map: tex(c), color: new THREE.Color(1, 1, 1).multiplyScalar(1.3) });
+    for (const z of [-14.3, -12.2]) {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 1.07), scr);
+      m.position.set(-W2 + 0.09, 2.75, z);
+      m.rotation.y = Math.PI / 2;
+      root.add(m);
+      B.add(black, box(0.06, 1.15, 2.0).applyMatrix4(at(-W2 + 0.05, 2.75, z)));
+    }
+    const [cc, cg] = canvas(512, 160);
+    cg.fillStyle = '#120404';
+    cg.fillRect(0, 0, 512, 160);
+    cg.fillStyle = '#ff3b1f';
+    cg.font = 'bold 120px monospace';
+    cg.textAlign = 'center';
+    cg.fillText('18:42', 256, 125);
+    const clock = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.44), new THREE.MeshBasicMaterial({ map: tex(cc), color: new THREE.Color(1, 1, 1).multiplyScalar(2) }));
+    clock.position.set(-W2 + 0.09, 4.3, -13.25);
+    clock.rotation.y = Math.PI / 2;
+    root.add(clock);
+    B.add(black, box(0.06, 0.5, 1.5).applyMatrix4(at(-W2 + 0.05, 4.3, -13.25)));
+  }
+
+  // vending machine and a coffee counter in front of the offices
+  {
+    const [c, g] = canvas(256, 480);
+    const gr = g.createLinearGradient(0, 0, 0, 480);
+    gr.addColorStop(0, '#1b3d74');
+    gr.addColorStop(1, '#0b1a36');
+    g.fillStyle = gr;
+    g.fillRect(0, 0, 256, 480);
+    for (let row = 0; row < 6; row++)
+      for (let k = 0; k < 5; k++) {
+        g.fillStyle = ['#e33', '#fc3', '#3c6', '#39f', '#f80'][(row + k) % 5];
+        g.fillRect(18 + k * 36, 30 + row * 62, 26, 44);
+      }
+    g.fillStyle = '#000';
+    g.fillRect(24, 410, 180, 44);
+    const vm = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.7), new THREE.MeshBasicMaterial({ map: tex(c), color: new THREE.Color(1, 1, 1).multiplyScalar(1.4) }));
+    vm.position.set(6.2, 0.95, oz0 - 0.86);
+    vm.rotation.y = Math.PI;
+    root.add(vm);
+    B.add(black, box(1.0, 1.9, 0.8).applyMatrix4(at(6.2, 0.95, oz0 - 0.45)));
+    B.add(desk, box(1.8, 0.9, 0.6).applyMatrix4(at(8.2, 0.45, oz0 - 0.35)));
+    B.add(black, box(0.35, 0.45, 0.35).applyMatrix4(at(7.8, 1.12, oz0 - 0.35)));
+    B.add(desk, cyl(0.05, 0.045, 0.1, 10).applyMatrix4(at(8.3, 0.95, oz0 - 0.4)));
+    B.add(desk, cyl(0.05, 0.045, 0.1, 10).applyMatrix4(at(8.5, 0.95, oz0 - 0.3)));
+  }
+
+  // wire shelving with parts bins on the left wall
+  {
+    const x0 = -W2 + 0.4, z0 = 12.8;
+    for (const dz of [-0.9, 0.9]) for (const dx of [-0.28, 0.28]) B.add(chrome, cyl(0.015, 0.015, 2.0, 6).applyMatrix4(at(x0 + dx, 1.0, z0 + dz)));
+    const r = rng(23);
+    for (let k = 0; k < 5; k++) {
+      const y = 0.15 + k * 0.45;
+      B.add(chrome, box(0.58, 0.02, 1.82).applyMatrix4(at(x0, y, z0)));
+      for (let b = 0; b < 5; b++) {
+        if (r() < 0.2) continue;
+        const col = [blue, red, yellow, grey][Math.floor(r() * 4)];
+        B.add(col, box(0.45, 0.22, 0.3).applyMatrix4(at(x0, y + 0.12, z0 - 0.7 + b * 0.35)));
+      }
+    }
+  }
+
+  // a bicycle leaning on the wall by the door (every flight line has one)
+  {
+    const m = at(W2 - 0.45, 0, -25.3, 0);
+    const P = (mat: THREE.Material, g: THREE.BufferGeometry) => B.add(mat, g.applyMatrix4(m));
+    for (const z of [-0.52, 0.52]) {
+      P(rubber, new THREE.TorusGeometry(0.33, 0.025, 6, 28).applyMatrix4(at(0, 0.34, z, Math.PI / 2)));
+      P(chrome, cyl(0.03, 0.03, 0.08, 8).applyMatrix4(at(0, 0.34, z, 0, 0, Math.PI / 2)));
+    }
+    P(red, beam(V(0, 0.34, -0.52), V(0, 0.78, -0.2), 0.035));
+    P(red, beam(V(0, 0.78, -0.2), V(0, 0.8, 0.38), 0.035));
+    P(red, beam(V(0, 0.34, 0.52), V(0, 0.8, 0.38), 0.035));
+    P(red, beam(V(0, 0.34, 0.52), V(0, 0.4, 0), 0.03));
+    P(red, beam(V(0, 0.4, 0), V(0, 0.78, -0.2), 0.03));
+    P(black, box(0.12, 0.05, 0.25).applyMatrix4(at(0, 0.88, 0.4)));
+    P(chrome, beam(V(0, 0.78, -0.2), V(0, 1.0, -0.3), 0.025));
+    P(black, box(0.5, 0.03, 0.03).applyMatrix4(at(0, 1.02, -0.32)));
+  }
+
+  // eyewash station and coiled air hoses
+  {
+    const [c, g] = canvas(256, 256);
+    g.fillStyle = '#0d8a3c';
+    g.fillRect(0, 0, 256, 256);
+    g.fillStyle = '#fff';
+    g.font = 'bold 44px Arial';
+    g.textAlign = 'center';
+    g.fillText('EYE WASH', 128, 90);
+    g.fillText('STATION', 128, 150);
+    const sgn = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), new THREE.MeshStandardMaterial({ map: tex(c), roughness: 0.6 }));
+    sgn.position.set(W2 - 0.03, 2.3, -6.4);
+    sgn.rotation.y = -Math.PI / 2;
+    root.add(sgn);
+    B.add(yellow, box(0.25, 0.5, 0.4).applyMatrix4(at(W2 - 0.15, 1.4, -6.4)));
+    for (let k = 0; k < 4; k++) B.add(yellow, new THREE.TorusGeometry(0.34 - k * 0.015, 0.018, 6, 28).applyMatrix4(at(W2 - 1.9, 0.02 + k * 0.035, 9.9, 0, Math.PI / 2)));
+  }
+
+  // --- outside: the airfield, its buildings, trees, mountains and the golden-hour sky ------------------------------
   const sunTo = SUN_DIR.clone().negate();
-  const sky = new THREE.Mesh(
-    new THREE.SphereGeometry(1500, 32, 16),
-    new THREE.ShaderMaterial({
-      side: THREE.BackSide,
-      depthWrite: false,
-      uniforms: { sunDir: { value: sunTo } },
-      vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); vec4 p = projectionMatrix * modelViewMatrix * vec4(position,1.0); gl_Position = p.xyww; }',
-      fragmentShader: /* glsl */ `
-        uniform vec3 sunDir;
-        varying vec3 vD;
-        void main() {
-          vec3 d = normalize( vD );
-          float h = max( d.y, 0.0 );
-          vec3 zen = vec3( 0.28, 0.5, 0.95 );
-          vec3 hor = vec3( 0.82, 0.88, 0.95 );
-          vec3 col = mix( hor, zen, pow( h, 0.45 ) ) * 2.4;
-          float s = max( dot( d, sunDir ), 0.0 );
-          col += vec3( 1.0, 0.9, 0.75 ) * ( pow( s, 8.0 ) * 1.2 + pow( s, 900.0 ) * 60.0 );
-          if ( d.y < 0.0 ) col = mix( hor * 2.0, vec3( 0.45, 0.47, 0.42 ), smoothstep( 0.0, -0.05, d.y ) );
-          gl_FragColor = vec4( col, 1.0 );
-        }`,
-    }),
-  );
-  sky.frustumCulled = false;
-  sky.renderOrder = -10;
-  root.add(sky);
-  // aerial perspective: the hills and the far side of the airfield fade into the haze
-  scene.fog = new THREE.Fog(new THREE.Color(0.82, 0.88, 0.95).multiplyScalar(2.0), 160, 1300);
+  const outside = buildOutside(root, scene, sunTo, D2, q);
 
   B.build(root);
 
   // --- lights ---------------------------------------------------------------------------------------------------
-  const sun = new THREE.DirectionalLight(0xfff0dc, 5.2);
-  sun.position.copy(sunTo).multiplyScalar(90);
-  sun.target.position.set(0, 0, 0);
-  // lighter shadow maps on lower graphics settings (laptops)
-  let q = 'high';
-  try {
-    q = loadSettings().graphics.quality;
-  } catch {
-    /* defaults */
-  }
+  // golden hour: a low orange sun straight in through the doors and the left windows
+  const sun = new THREE.DirectionalLight(new THREE.Color(1.0, 0.46, 0.18), 4.8);
+  sun.position.copy(sunTo).multiplyScalar(170);
+  sun.target.position.set(0, 0, -20);
   const sunMap = q === 'low' ? 1024 : q === 'medium' ? 2048 : 4096;
   sun.castShadow = true;
   sun.shadow.mapSize.set(sunMap, sunMap);
   const sc = sun.shadow.camera as THREE.OrthographicCamera;
-  sc.left = -52;
-  sc.right = 52;
-  sc.top = 52;
-  sc.bottom = -52;
-  sc.near = 10;
-  sc.far = 220;
-  sun.shadow.bias = -0.00025;
-  sun.shadow.normalBias = 0.035;
+  sc.left = -80;
+  sc.right = 80;
+  sc.top = 80;
+  sc.bottom = -80;
+  sc.near = 30;
+  sc.far = 400;
+  sun.shadow.bias = -0.0003;
+  sun.shadow.normalBias = 0.05;
   scene.add(sun);
   scene.add(sun.target);
-  // sky light from above (the roof keeps most of it out) and the warm bounce off the floor
-  const hemi = new THREE.HemisphereLight(0xdfe8f2, 0x8a847a, 0.45);
+  // the dusk sky (cool) from above and the warm ground bounce
+  const hemi = new THREE.HemisphereLight(0x8ea4cc, 0x6a5040, 0.28);
   scene.add(hemi);
-  // high-bays: a key over the jet (casting its shadow) and two softer ones fore and aft
-  const key = new THREE.SpotLight(0xfff6ea, 520, 40, 0.75, 0.9, 1.6);
+  // sunlight bouncing up off the sunlit floor onto the jet's belly and the roof
+  const bounce = new THREE.PointLight(new THREE.Color(1.0, 0.55, 0.3), 14, 45, 1.2);
+  bounce.position.set(0, 2.2, -9);
+  scene.add(bounce);
+  // cool LED high-bays: a key over the jet (casting its shadow) and two softer ones fore and aft
+  const key = new THREE.SpotLight(0xf1f4ff, 260, 40, 0.75, 0.9, 1.6);
   key.position.set(1.5, 12.8, 1);
   key.target.position.set(0, 0, 0);
   key.castShadow = q !== 'low';
@@ -1153,11 +1352,11 @@ export function buildHangarInterior(scene: THREE.Scene): HangarInterior {
   scene.add(key);
   scene.add(key.target);
   for (const z of [-11, 12]) {
-    const s = new THREE.SpotLight(0xfff6ea, 260, 36, 0.85, 1, 1.6);
-    s.position.set(0, 12.8, z);
-    s.target.position.set(0, 0, z * 0.6);
-    scene.add(s);
-    scene.add(s.target);
+    const s2 = new THREE.SpotLight(0xf1f4ff, 130, 36, 0.85, 1, 1.6);
+    s2.position.set(0, 12.8, z);
+    s2.target.position.set(0, 0, z * 0.6);
+    scene.add(s2);
+    scene.add(s2.target);
   }
 
   // --- sunbeams through the door and the left windows, with dust --------------------------------------------------
@@ -1168,15 +1367,17 @@ export function buildHangarInterior(scene: THREE.Scene): HangarInterior {
     depthWrite: false,
     blending: THREE.AdditiveBlending,
     side: THREE.DoubleSide,
-    uniforms: { col: { value: new THREE.Color(1.0, 0.93, 0.8).multiplyScalar(0.022) } },
+    uniforms: { col: { value: new THREE.Color(1.0, 0.66, 0.36).multiplyScalar(0.03) }, hbox: { value: new THREE.Vector2(W2, D2) } },
     vertexShader: /* glsl */ `
       attribute vec2 bt;
       varying vec2 vB;
       varying float vDist;
+      varying vec3 vW;
       #include <common>
       #include <logdepthbuf_pars_vertex>
       void main() {
         vB = bt;
+        vW = ( modelMatrix * vec4( position, 1.0 ) ).xyz;
         vec4 mv = modelViewMatrix * vec4( position, 1.0 );
         vDist = -mv.z;
         gl_Position = projectionMatrix * mv;
@@ -1184,12 +1385,16 @@ export function buildHangarInterior(scene: THREE.Scene): HangarInterior {
       }`,
     fragmentShader: /* glsl */ `
       uniform vec3 col;
+      uniform vec2 hbox;
       varying vec2 vB;
       varying float vDist;
+      varying vec3 vW;
       #include <common>
       #include <logdepthbuf_pars_fragment>
       void main() {
         #include <logdepthbuf_fragment>
+        // only inside the building (low sun: the shafts would run on through the walls)
+        if ( abs( vW.x ) > hbox.x - 0.2 || vW.z > hbox.y - 6.6 || vW.z < -hbox.y ) discard;
         // soft across the beam, fading toward the floor, and near the camera
         float across = smoothstep( 0.0, 0.45, vB.x ) * smoothstep( 1.0, 0.55, vB.x );
         float along = ( 1.0 - vB.y * 0.6 ) * smoothstep( 0.0, 0.08, vB.y );
@@ -1224,15 +1429,23 @@ export function buildHangarInterior(scene: THREE.Scene): HangarInterior {
   shaft([V(-DOOR_W2, DOOR_H, -D2), V(DOOR_W2, DOOR_H, -D2), V(DOOR_W2, DOOR_H - 0.01, -D2 + 0.01), V(-DOOR_W2, DOOR_H - 0.01, -D2 + 0.01)]);
 
   // dust motes drifting in the light
-  const N = 520;
+  const N = 900;
   const dustPos = new Float32Array(N * 3);
   const r = rng(99);
   const seedDust = (i: number) => {
-    // a random point inside one of the window shafts
-    const z = -D2 + 2 + r() * (HANGAR.D - 4);
-    const y0 = WIN_Y0 + r() * (WIN_Y1 - WIN_Y0);
-    const t = r() * (y0 / -SUN_DIR.y) * 0.9;
-    const p = V(-W2, y0, z).addScaledVector(SUN_DIR, t);
+    // a random point inside one of the window shafts, or the big one from the doors
+    let p: THREE.Vector3;
+    if (i % 2) {
+      const z = -D2 + 2 + r() * (HANGAR.D - 4);
+      const y0 = WIN_Y0 + r() * (WIN_Y1 - WIN_Y0);
+      const t = r() * (y0 / -SUN_DIR.y) * 0.5;
+      p = V(-W2, y0, z).addScaledVector(SUN_DIR, t);
+    } else {
+      const y0 = r() * DOOR_H;
+      const t = r() * 26;
+      p = V(-DOOR_W2 + r() * DOOR_W2 * 2, y0, -D2).addScaledVector(SUN_DIR, t);
+      if (p.y < 0.2) p.y = 0.2 + r() * 3;
+    }
     dustPos[i * 3] = p.x;
     dustPos[i * 3 + 1] = p.y;
     dustPos[i * 3 + 2] = p.z;
@@ -1242,7 +1455,7 @@ export function buildHangarInterior(scene: THREE.Scene): HangarInterior {
   dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
   const dust = new THREE.Points(
     dustGeo,
-    new THREE.PointsMaterial({ color: new THREE.Color(1, 0.95, 0.85).multiplyScalar(0.7), size: 0.011, sizeAttenuation: true, transparent: true, opacity: 0.4, depthWrite: false, blending: THREE.AdditiveBlending }),
+    new THREE.PointsMaterial({ color: new THREE.Color(1, 0.78, 0.5).multiplyScalar(0.9), size: 0.012, sizeAttenuation: true, transparent: true, opacity: 0.4, depthWrite: false, blending: THREE.AdditiveBlending }),
   );
   dust.frustumCulled = false;
   root.add(dust);
@@ -1251,6 +1464,7 @@ export function buildHangarInterior(scene: THREE.Scene): HangarInterior {
   // --- ground equipment tied to the jet: rebuilt when the jet changes ------------------------------------------------
   const jetProps = new THREE.Group();
   root.add(jetProps);
+  const yellowDuct = new THREE.MeshStandardMaterial({ color: 0xd8b21c, roughness: 0.75, metalness: 0.05 });
   const placeJetProps = (ac: Aircraft, vis: AirframeVisual) => {
     for (const c of [...jetProps.children]) {
       jetProps.remove(c);
@@ -1258,6 +1472,7 @@ export function buildHangarInterior(scene: THREE.Scene): HangarInterior {
     }
     const P = new Batch();
     const s = ac.spec;
+    const beige = new THREE.MeshStandardMaterial({ color: 0xcfc7b2, roughness: 0.6, metalness: 0.15 });
     const rootY = s.gear.height + 0.12;
     // wheel chocks at the nose and main wheels
     const chock = (x: number, z: number) => {
@@ -1309,6 +1524,20 @@ export function buildHangarInterior(scene: THREE.Scene): HangarInterior {
       for (const dx of [-0.42, 0.42]) P.add(rubber, cyl(0.32, 0.32, 0.1, 18).applyMatrix4(at(fx + dx, 0.32, fz, 0, 0, Math.PI / 2)));
       P.add(black, new THREE.TubeGeometry(new THREE.CatmullRomCurve3([V(fx + 0.1, 1.7, fz), V(fx + 0.5, 1.2, fz + 0.3), V(fx + 0.4, 0.8, fz + 0.25)]), 12, 0.02, 5, false));
     }
+    // tow bar lying at the nose wheel
+    P.add(yellow, beam(V(0.1, 0.35, s.gear.nose - 0.5), V(0.9, 0.18, s.gear.nose - 4.4), 0.07));
+    for (const dx of [-0.25, 0.25]) P.add(rubber, cyl(0.15, 0.15, 0.08, 12).applyMatrix4(at(0.9 + dx, 0.15, s.gear.nose - 4.3, 0, 0, Math.PI / 2)));
+    P.add(yellow, new THREE.TorusGeometry(0.12, 0.03, 6, 12).applyMatrix4(at(0.95, 0.18, s.gear.nose - 4.7, 0, Math.PI / 2)));
+    // air-conditioning cart with its flexible duct up into the avionics bay
+    {
+      const ax = 8.4, az = s.gear.nose + 2.5;
+      P.add(beige, box(1.5, 1.5, 2.6).applyMatrix4(at(ax, 1.05, az, 0.1)));
+      P.add(black, box(1.52, 0.12, 2.62).applyMatrix4(at(ax, 1.84, az, 0.1)));
+      for (let k = 0; k < 6; k++) P.add(frame, box(0.02, 1.0, 0.05).applyMatrix4(at(ax - 0.76, 1.0, az - 0.8 + k * 0.3, 0.1)));
+      for (const dz of [-1.0, 1.0]) for (const dx of [-0.62, 0.62]) P.add(rubber, cyl(0.28, 0.28, 0.16, 16).applyMatrix4(at(ax + dx, 0.28, az + dz, 0.1, 0, Math.PI / 2)));
+      const duct = new THREE.CatmullRomCurve3([V(ax - 0.75, 1.2, az + 0.5), V(ax - 2.5, 0.25, az + 0.8), V(3.2, 0.2, az), V(1.2, 0.5, az - 1.0), V(0.35, rootY - 0.45, s.gear.nose + 1.6)]);
+      P.add(yellowDuct, new THREE.TubeGeometry(duct, 48, 0.14, 10, false));
+    }
     // tool box and a drip tray under the engines
     P.add(red, box(0.55, 0.3, 0.3).applyMatrix4(at(1.8, 0.15, -s.length / 2 + 2.5, 0.4)));
     P.add(black, box(2.2, 0.06, 1.3).applyMatrix4(at(0, 0.03, s.length / 2 - 3.2)));
@@ -1317,7 +1546,9 @@ export function buildHangarInterior(scene: THREE.Scene): HangarInterior {
 
   return {
     sun,
+    setSunDisc: (on: boolean) => outside.setSunDisc(on),
     update(dt: number) {
+      outside.update(dt);
       tDust += dt;
       // slow Brownian drift; motes that leave their beam start again inside it
       const a = dustGeo.attributes.position as THREE.BufferAttribute;
@@ -1326,7 +1557,7 @@ export function buildHangarInterior(scene: THREE.Scene): HangarInterior {
         dustPos[k] += Math.sin(tDust * 0.3 + i) * 0.004 + 0.002;
         dustPos[k + 1] += Math.sin(tDust * 0.23 + i * 1.7) * 0.003 - 0.0015;
         dustPos[k + 2] += Math.cos(tDust * 0.27 + i * 0.7) * 0.004;
-        if (dustPos[k + 1] < 0.3 || dustPos[k] > 5 || (i + Math.floor(tDust * 10)) % 3000 === 0) seedDust(i);
+        if (dustPos[k + 1] < 0.2 || dustPos[k] > W2 - 1 || dustPos[k + 2] > D2 - 7 || (i + Math.floor(tDust * 10)) % 3000 === 0) seedDust(i);
       }
       a.needsUpdate = true;
     },

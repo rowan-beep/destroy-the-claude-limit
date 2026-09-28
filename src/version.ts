@@ -10,6 +10,18 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.17.0',
+    date: '2026-09-28',
+    title: "Golden-hour hangar",
+    notes: [
+      "The hangar is now at golden hour. A low orange sun shines straight in through the open doors and the side windows: long warm light across the floor, the jet lit from the front with long shadows behind it, visible light shafts with dust drifting in them, and the cool white hangar lights contrasting with the warm sun. Reflections on the jet now show the sunset sky.",
+      "A completely new view outside, built in full 3D. There is a physically based sunset sky with drifting clouds, deep blue overhead and orange glare toward the sun, and real mountain ranges on every side, snow-capped in the distance, that fade into a warm haze toward the sun and a cool blue-grey haze everywhere else. The airfield has a concrete apron with slab joints, stains, tyre marks and painted parking stands with two jets parked on them, a taxiway and a runway with their markings, blue and white edge lights and signs, floodlight masts, a neighbouring hangar with its doors part open, hardened aircraft shelters, the control tower and operations block with lit windows, a turning radar, a fire station, fuel tanks, a windsock, a fuel truck, a tug, a follow-me truck and tree lines all around.",
+      "Much more inside the hangar: a spare engine on its transport trailer, a big flag hanging from the roof, an air-conditioning cart with its duct running up into the jet, a tow bar at the nose wheel, a nitrogen bottle cart, a hydraulic test stand, LED floodlights on tripods, drum fans, oil drums on a spill pallet, FOD cans, a tyre rack, a scissor lift, a forklift, rolling tool carts, wall screens with the flying schedule and a clock, a vending machine and coffee counter, parts shelving, an eyewash station, air hoses and a bicycle by the door.",
+      "Fixed: the gun lead marker could show through a mountain. It now only appears when you can actually see the target.",
+      "Fixed: on laptops, choosing HIGH graphics could reset to the automatically chosen preset every time the game was reloaded. Your choice now sticks.",
+    ],
+  },
+  {
     version: '4.16.0',
     date: '2026-09-28',
     title: "Jet Library",

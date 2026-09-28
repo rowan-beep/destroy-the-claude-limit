@@ -624,8 +624,11 @@ export class HudPainter {
     const MAX = 10 * NM;
     const gdir = gunLine(p, new THREE.Vector3());
     let t: Aircraft | null = null;
+    // never through a mountain: the target has to be in sight
+    const grid = g.sim.grid;
+    const seen = (a: Aircraft) => grid.lineOfSight(p.fm.pos.x, p.fm.pos.y, p.fm.pos.z, a.fm.pos.x, a.fm.pos.y, a.fm.pos.z, 2);
     const lock = p.lockedTarget;
-    if (lock && lock.alive && hostile(p, lock) && p.distanceTo(lock) < MAX) t = lock;
+    if (lock && lock.alive && hostile(p, lock) && p.distanceTo(lock) < MAX) t = seen(lock) ? lock : null;
     else {
       let best = Math.cos(40 * DEG);
       for (const a of g.sim.aircraft) {
@@ -634,7 +637,7 @@ export class HudPainter {
         const r = _v.length();
         if (r > MAX || r < 30) continue;
         const cosA = _v.dot(gdir) / r;
-        if (cosA > best) {
+        if (cosA > best && seen(a)) {
           best = cosA;
           t = a;
         }
