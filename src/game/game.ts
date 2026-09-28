@@ -13,7 +13,7 @@ import { CombatRenderer } from '../render/combatRenderer';
 import { CameraRig } from '../render/cameraRig';
 import { Input, withGamepad } from '../core/input';
 import { GameSettings, saveSettings } from '../core/settings';
-import { audio } from '../audio/audio';
+import { audio, OtherJetSound } from '../audio/audio';
 import { Aircraft } from '../aircraft/aircraft';
 import { MissionConfig } from './mission';
 import { GameMode, ModeHost, MissionResult, MsgKind } from './modes/mode';
@@ -1303,8 +1303,37 @@ export class Game implements ModeHost {
     const camDist = Math.hypot(dx, dy, dz);
     const f = p.fm.fwd;
     const camAspect = camDist > 1 ? (f.x * dx + f.y * dy + f.z * dz) / camDist : 0;
+    // the jets nearest the listener, each with its own sound
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.renderer.camera.quaternion);
+    const others: OtherJetSound[] = [];
+    for (const a of this.sim.aircraft) {
+      if (a === p || !a.alive) continue;
+      const rx = a.fm.pos.x - cp.x, ry = a.fm.pos.y - cp.y, rz = a.fm.pos.z - cp.z;
+      const d = Math.hypot(rx, ry, rz);
+      if (d > 3500) continue;
+      const rl = Math.max(1, d);
+      const vx = a.fm.vel.x - p.fm.vel.x, vy = a.fm.vel.y - p.fm.vel.y, vz = a.fm.vel.z - p.fm.vel.z;
+      const af = a.fm.fwd;
+      let arpm = 0;
+      for (const r of a.fm.rpm) arpm += r;
+      others.push({
+        id: a.id,
+        dist: d,
+        closing: -(vx * rx + vy * ry + vz * rz) / rl,
+        pan: (right.x * rx + right.y * ry + right.z * rz) / rl,
+        aspect: -(af.x * rx + af.y * ry + af.z * rz) / rl,
+        ab: a.fm.afterburner,
+        rpm: arpm / a.fm.rpm.length,
+        type: a.type,
+      });
+    }
+    others.sort((a, b) => a.dist - b.dist);
     const lvl = p.rwr.level;
     audio.updateFlight({
+      others: others.slice(0, 3),
+      onGround: p.fm.onGround,
+      gs: p.fm.gs,
+      vs: p.fm.vs,
       rpm: p.alive ? rpm : 0,
       ab: p.alive ? p.fm.afterburner : 0,
       qbar: p.fm.qbar,

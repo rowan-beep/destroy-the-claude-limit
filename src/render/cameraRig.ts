@@ -10,6 +10,8 @@ import { clamp, damp, smoothstep } from '../core/math';
 
 /** seconds without camera input before the chase view recenters */
 const LOOK_IDLE = 1.8;
+/** phones, tablets and touch-screen laptops */
+const TOUCH_DEVICE = typeof navigator !== 'undefined' && ((navigator.maxTouchPoints ?? 0) > 0 || (typeof window !== 'undefined' && 'ontouchstart' in window));
 import { surfaceHeight } from '../world/terrain';
 
 export type CameraMode = 'cockpit' | 'chase' | 'flyby' | 'target' | 'weapon' | 'death';
@@ -86,7 +88,10 @@ export class CameraRig {
   }
 
   private recenter(dt: number): void {
-    if (this.lookHeld) {
+    // on a touch screen only a moving finger holds the view: 1.8 s after the
+    // last look drag it swings back behind the jet, even if a finger (or a
+    // lost touch) still reads as down
+    if (this.lookHeld && !TOUCH_DEVICE) {
       this.lookIdle = 0;
       return;
     }

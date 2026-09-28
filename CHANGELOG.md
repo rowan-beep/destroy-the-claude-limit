@@ -3,6 +3,19 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.12.0 — Real jet sound (2026-09-28)
+
+- ALL-NEW JET SOUND: every engine, afterburner and weapon sound rebuilt around how real fighters sound. The exhaust is proper jet mixing noise with its deep hump, breathing with the turbulence, and at high power it CRACKLES: the ripping, tearing shock waves you hear from a real fighter at full power, beamed out behind the jet.
+- Afterburner: a lower, heavier, fluttering roar with the combustion throb and sub-bass pressure you feel, irregular reheat pops, a deep thump when it lights with the stages catching one after another, and a pop when you come out of burner.
+- Real turbine sound for every engine (F110, F414, EJ200, M88, F119, AL-41F1S), with real spool speeds and blade counts: the fan's tone turns into the rasping buzz-saw when its tips go supersonic at high power, and the compressor whine is loudest at idle and from in front of the jet.
+- Where you listen from matters: behind the jet it's roar and crackle, in front it's the whine and the intake; distance takes the top off the sound, and a jet that has broken the sound barrier outruns its own roar in the cockpit.
+- Other jets now each have their own sound: up to three at once, each with Doppler (the pitch drops as they pass), stereo position, and the whine as they come at you turning into the roar and crackle as they go by.
+- Cockpit: the canopy takes the roar down to a felt rumble, the air tearing past the canopy dominates at speed, plus the air conditioning, the G-suit hissing as it inflates and the oxygen regulator as you breathe (faster under G).
+- On the ground: tyre rumble, the thump of the runway joints, and tyre chirps and a thump into the struts on touchdown.
+- Weapons: the gun rendered shot by shot (the M61's growl as it spins up and the barrels whirring down; the heavy 27 and 30 mm cannons thudding), missiles with a rail clunk, the motor lighting with a crack and a harsh crackling roar falling away, explosions with the blast wave, fireball, rolling rumble, debris and echoes off the ground, hits ringing through the skin, flares and chaff, and new hydraulics for the gear.
+- The warning tones and voices are unchanged.
+- Touch screens (phones, tablets and touch-screen laptops): the camera now always swings back behind the jet 1.8 seconds after you stop dragging the view. A lost touch or a long press no longer leaves it stuck where you left it.
+
 ## v4.11.2 — Pilot neck fix, hangar camera (2026-09-28)
 
 - Pilots: the head no longer floats. There is now a whole head inside the helmet with the neck running from the suit collar up into it, the helmet comes down lower at the back, and the inside of the shell has a dark padded liner, so no angle shows a gap or a hollow helmet.

@@ -215,7 +215,23 @@ export class Input {
     this.rebuildMap();
     window.addEventListener('keydown', (e) => this.onKeyDown(e), { capture: true });
     window.addEventListener('keyup', (e) => this.onKeyUp(e), { capture: true });
-    window.addEventListener('blur', () => this.down.clear());
+    window.addEventListener('blur', () => {
+      this.down.clear();
+      this.mouseButtons = 0;
+      this.touch.looking = false;
+    });
+    // a touch screen's long press arrives as a right-button mousedown whose
+    // mouseup can go missing: any lifted finger or cancelled pointer releases
+    // every mouse button and the touch look, so nothing sticks "held"
+    const release = (e: PointerEvent) => {
+      if (e.pointerType === 'mouse') return;
+      this.mouseButtons = 0;
+    };
+    window.addEventListener('pointerup', release);
+    window.addEventListener('pointercancel', (e) => {
+      release(e);
+      if (e.pointerType !== 'mouse') this.touch.looking = false;
+    });
     target.addEventListener('mousemove', (e) => {
       this.mouseX = e.clientX;
       this.mouseY = e.clientY;

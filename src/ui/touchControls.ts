@@ -56,6 +56,7 @@ export class TouchControls {
     look.addEventListener('pointermove', (e) => this.lookMove(e));
     look.addEventListener('pointerup', (e) => this.lookEnd(e));
     look.addEventListener('pointercancel', (e) => this.lookEnd(e));
+    look.addEventListener('lostpointercapture', (e) => this.lookEnd(e));
 
     // stick
     this.stickBase = el('div', 'touch-stick', this.root);
