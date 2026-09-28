@@ -12,8 +12,10 @@ import { clamp } from '../../core/math';
 import { makeInsignia } from './decals';
 import { Cockpit } from './cockpit';
 import { customSkinMaterial, Livery } from './kit';
+import { burnerMaterial, partMaterials } from './parts';
 import { PaintConfig, WRAPS, wrapMask } from './paint';
 import type { AoVolume } from './ao';
+import type { HazeSource } from '../../render/heatHaze';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 /**
@@ -71,13 +73,22 @@ export interface Nozzle {
   radius: number;
   /** gimbal the nozzle (and its flame) is mounted on; pos is relative to it */
   parent?: THREE.Object3D;
+  /** how deep the burner can runs ahead of the exit (m) */
+  depth?: number;
+  /** width / height of a flat (2D) nozzle's exhaust */
+  aspect?: number;
 }
 
-// Afterburner plume: three nested, shaped layers per engine (a white-hot
-// core, the main plume with shock diamonds, a faint outer heat layer), all
-// additive, with flowing fractal-noise turbulence. Each layer fades at its
-// silhouette (view-angle falloff), so the plume reads as glowing gas rather
-// than a solid cone.
+// Afterburner plume: three nested, shaped layers per engine, all additive and
+// in HDR (so the brightest parts bloom), with fractal-noise turbulence that
+// flows downstream. Each layer fades at its silhouette (view-angle falloff) so
+// the plume reads as glowing gas rather than a solid cone:
+//  0  the flame itself: white-yellow at the nozzle, streaky, licking, going
+//     orange within a couple of nozzle diameters
+//  1  the jet: a train of shock diamonds (bright, pale peach-pink) in a
+//     translucent orange-to-violet column, longer and clearer at altitude
+//  2  the outer mixing layer: ragged orange tongues in reheat, a faint heat
+//     tint at dry power
 const FLAME_VERT = /* glsl */ `
 varying vec2 vUv;
 varying vec3 vN;
@@ -99,10 +110,12 @@ uniform float intensity;
 uniform float dry;
 uniform float time;
 uniform float layer;
+uniform float thin;
 uniform vec3 cHot;
 uniform vec3 cMid;
 uniform vec3 cTail;
 uniform vec3 cDry;
+uniform vec3 cDiamond;
 varying vec2 vUv;
 varying vec3 vN;
 varying vec3 vV;
@@ -115,44 +128,51 @@ float vnoise( vec3 p ) {
   return mix( mix( mix( hash3( i ), hash3( i + vec3( 1, 0, 0 ) ), f.x ), mix( hash3( i + vec3( 0, 1, 0 ) ), hash3( i + vec3( 1, 1, 0 ) ), f.x ), f.y ),
               mix( mix( hash3( i + vec3( 0, 0, 1 ) ), hash3( i + vec3( 1, 0, 1 ) ), f.x ), mix( hash3( i + vec3( 0, 1, 1 ) ), hash3( i + vec3( 1, 1, 1 ) ), f.x ), f.y ), f.z );
 }
-float fbm( vec3 p ) { return 0.55 * vnoise( p ) + 0.3 * vnoise( p * 2.1 ) + 0.15 * vnoise( p * 4.3 ); }
+float fbm( vec3 p ) { return 0.5 * vnoise( p ) + 0.3 * vnoise( p * 2.07 ) + 0.2 * vnoise( p * 4.3 ); }
 void main() {
   #include <logdepthbuf_fragment>
   float along = vUv.y;                                   // 0 at the nozzle, 1 at the tip
   float ang = vUv.x * 6.2831853;
+  vec2 cs = vec2( cos( ang ), sin( ang ) );
   float facing = abs( dot( normalize( vN ), normalize( vV ) ) );
-  float soft = pow( facing, 1.4 );                       // thin, fading edges
-  // turbulence flowing downstream
-  float n = fbm( vec3( cos( ang ) * 1.6, sin( ang ) * 1.6, along * 6.0 - time * 11.0 ) );
-  float flick = 0.8 + 0.4 * n;
-  vec3 col;
-  float a;
+  float soft = pow( facing, 1.3 );                       // thin, fading edges
+  vec3 e = vec3( 0.0 );
   if ( layer < 0.5 ) {
-    // white-hot core just behind the flame holders
-    float t = smoothstep( 0.0, 0.85, along + ( n - 0.5 ) * 0.3 );
-    col = mix( cHot, cMid, t );
-    a = ( 1.0 - t ) * intensity * 0.55 * ( 0.9 + 0.2 * n );
+    // the flame: turbulent, streaky, white-hot at the nozzle
+    float n = fbm( vec3( cs * 2.3, along * 5.0 - time * 13.0 ) );
+    float streak = fbm( vec3( cs * 7.0, along * 1.6 - time * 7.0 ) );
+    float t = along + ( n - 0.5 ) * 0.38;
+    vec3 col = mix( cHot * 1.5, cMid * 1.0, smoothstep( 0.0, 0.62, t ) );
+    col = mix( col, cTail * 0.5, smoothstep( 0.55, 1.0, t ) );
+    float a = ( 1.0 - smoothstep( 0.08, 1.0, t ) ) * ( 0.25 + 0.45 * streak );
+    e = col * a * intensity;
   } else if ( layer < 1.5 ) {
-    // main plume: shock diamonds (bright discs) fading downstream
-    float ph = fract( along * 7.0 - 0.1 );
-    float diamond = exp( -pow( ( ph - 0.5 ) * 9.0, 2.0 ) ) * ( 1.0 - smoothstep( 0.04, 0.62, along ) );
-    float body = 1.0 - smoothstep( 0.12, 1.0, along + ( n - 0.5 ) * 0.45 );
-    col = mix( cMid, cTail, smoothstep( 0.1, 0.9, along ) );
-    col = mix( col, cHot, diamond * 0.7 );
-    a = ( body * body * 0.3 + diamond * 0.95 ) * intensity * flick;
+    // the jet column and its shock diamonds
+    float n = fbm( vec3( cs * 1.7, along * 6.0 - time * 11.0 ) );
+    float cells = 6.5 - thin * 1.5;
+    float ph = fract( along * cells - 0.2 );
+    float decay = 1.0 - smoothstep( 0.04, 0.72 + thin * 0.2, along );
+    float dia = exp( -pow( ( ph - 0.5 ) * 6.5, 2.0 ) ) * decay;
+    float body = 1.0 - smoothstep( 0.06, 1.0, along + ( n - 0.5 ) * 0.45 );
+    vec3 col = mix( cMid * 1.2, cTail, smoothstep( 0.04, 0.6, along ) );
+    vec3 dcol = mix( cHot * 1.6, cDiamond, smoothstep( 0.05, 0.5, along ) );
+    e = ( col * body * body * ( 0.1 + 0.1 * thin ) * ( 0.75 + 0.5 * n ) + dcol * dia * ( 0.38 + 0.3 * thin ) ) * intensity;
   } else {
-    // outer heat layer: faint at dry power, a soft halo in reheat
-    float body = 1.0 - smoothstep( 0.0, 1.0, along + ( n - 0.5 ) * 0.5 );
-    col = mix( cDry, cTail, along );
-    a = body * ( dry * 0.05 + intensity * 0.07 ) * ( 0.6 + 0.8 * n );
+    // outer mixing layer: ragged orange tongues, a faint heat tint at dry power
+    float n = fbm( vec3( cs * 3.1, along * 4.2 - time * 8.5 ) );
+    float lick = smoothstep( 0.5, 0.85, n );
+    float body = 1.0 - smoothstep( 0.0, 1.0, along + ( n - 0.5 ) * 0.6 );
+    vec3 col = mix( cMid, cTail, along );
+    e = col * body * ( intensity * ( 0.02 + 0.22 * lick * ( 1.0 - along ) ) ) + mix( cDry, cTail, along ) * body * dry * 0.03 * ( 0.6 + 0.8 * n );
   }
   // no hard spike where a layer closes to its tip
-  a *= soft * ( 1.0 - smoothstep( 0.72, 1.0, along ) );
-  gl_FragColor = vec4( col * a, 1.0 );
+  e *= soft * ( 1.0 - smoothstep( 0.72, 1.0, along ) );
+  gl_FragColor = vec4( e, 1.0 );
 }
 `;
 
-// Hot nozzle glow: white-hot centre, glowing rim.
+// Nozzle exit glow for distant jets (the lit burner can is a detail part,
+// hidden far away): white-hot centre, glowing rim.
 const GLOW_FRAG = /* glsl */ `
 uniform float intensity;
 uniform vec3 cHot;
@@ -165,17 +185,17 @@ varying vec3 vV;
 void main() {
   #include <logdepthbuf_fragment>
   float r = length( vUv - 0.5 ) * 2.0;
-  vec3 col = mix( cHot, cMid, smoothstep( 0.0, 0.85, r ) );
-  float a = ( 1.0 - smoothstep( 0.3, 1.0, r ) ) * intensity * 0.75;
+  vec3 col = mix( cHot * 2.0, cMid, smoothstep( 0.0, 0.85, r ) );
+  float a = ( 1.0 - smoothstep( 0.3, 1.0, r ) ) * intensity;
   gl_FragColor = vec4( col * a, 1.0 );
 }
 `;
 
 /** Plume layer shapes: [radius factor, position along the layer] from nozzle to tip. */
 const LAYERS: { len: number; rad: number; prof: [number, number][] }[] = [
-  { len: 0.32, rad: 0.8, prof: [[0.95, 0], [1.0, 0.1], [0.82, 0.45], [0.55, 0.8], [0.3, 1]] },
-  { len: 1.0, rad: 1.0, prof: [[0.9, 0], [1.0, 0.08], [0.96, 0.3], [0.72, 0.6], [0.36, 0.88], [0.04, 1]] },
-  { len: 1.3, rad: 1.3, prof: [[0.85, 0], [1.0, 0.15], [0.9, 0.5], [0.55, 0.85], [0.05, 1]] },
+  { len: 0.36, rad: 0.92, prof: [[0.93, 0], [1.02, 0.1], [0.97, 0.3], [0.78, 0.55], [0.45, 0.82], [0.12, 1]] },
+  { len: 1.0, rad: 0.9, prof: [[0.95, 0], [1.0, 0.06], [0.9, 0.2], [0.84, 0.4], [0.66, 0.65], [0.34, 0.88], [0.04, 1]] },
+  { len: 1.15, rad: 1.35, prof: [[0.8, 0], [1.0, 0.12], [0.95, 0.4], [0.62, 0.75], [0.08, 1]] },
 ];
 
 export class AirframeVisual {
@@ -191,7 +211,10 @@ export class AirframeVisual {
   vectoring: { pivot: THREE.Object3D; side: -1 | 1 }[] = [];
   readonly cockpitEye = new THREE.Vector3();
   readonly stationMeshes = new Map<number, THREE.Object3D>();
-  private flames: { layers: { mesh: THREE.Mesh; mat: THREE.ShaderMaterial }[]; glow: THREE.Mesh }[] = [];
+  private flames: { layers: { mesh: THREE.Mesh; mat: THREE.ShaderMaterial }[]; glow: THREE.Mesh; aspect: number; len: number; ab: number; dry: number; heat: number }[] = [];
+  /** this jet's own lit nozzle-interior materials, and the engine each one belongs to */
+  private burners: THREE.MeshStandardMaterial[] = [];
+  private burnerOf = new Map<THREE.Material, number>();
   private navLights: { mesh: THREE.Object3D; kind: 'red' | 'green' | 'strobe' | 'formation' }[] = [];
   private strobeT = Math.random() * 2;
   private t = 0;
@@ -299,10 +322,11 @@ export class AirframeVisual {
     const blue = style === 'blue';
     const col = (r: number, g: number, b: number) => ({ value: new THREE.Color(r, g, b) });
     const colors = () => ({
-      cHot: blue ? col(0.7, 0.85, 1.0) : col(1.0, 0.82, 0.5),
-      cMid: blue ? col(0.18, 0.36, 1.0) : col(1.0, 0.45, 0.1),
-      cTail: blue ? col(0.4, 0.2, 0.9) : col(0.75, 0.3, 0.55),
+      cHot: blue ? col(0.78, 0.88, 1.0) : col(1.0, 0.76, 0.4),
+      cMid: blue ? col(0.22, 0.38, 1.0) : col(1.0, 0.42, 0.07),
+      cTail: blue ? col(0.42, 0.22, 0.95) : col(0.85, 0.3, 0.42),
       cDry: blue ? col(0.3, 0.38, 1.0) : col(1.0, 0.38, 0.1),
+      cDiamond: blue ? col(0.75, 0.7, 1.0) : col(1.0, 0.8, 0.86),
     });
     for (const n of this.nozzles) {
       const parent = n.parent ?? this.body;
@@ -311,15 +335,17 @@ export class AirframeVisual {
         const mat = new THREE.ShaderMaterial({
           vertexShader: FLAME_VERT,
           fragmentShader: FLAME_FRAG,
-          uniforms: { intensity: { value: 0 }, dry: { value: 0 }, time: { value: 0 }, layer: { value: k }, ...colors() },
+          uniforms: { intensity: { value: 0 }, dry: { value: 0 }, time: { value: 0 }, layer: { value: k }, thin: { value: 0 }, ...colors() },
           transparent: true,
           depthWrite: false,
           blending: THREE.AdditiveBlending,
           side: THREE.DoubleSide,
         });
         const len = length * L.len;
-        const pts = L.prof.map(([r, u]) => new THREE.Vector2(Math.max(0.002, r * n.radius * L.rad), u * len));
-        const geo = new THREE.LatheGeometry(pts, 28);
+        // smooth the profile (Catmull-Rom) so the plume's silhouette has no facets
+        const ctrl = L.prof.map(([r, u]) => new THREE.Vector3(Math.max(0.002, r * n.radius * L.rad), u * len, 0));
+        const pts = new THREE.CatmullRomCurve3(ctrl, false, 'centripetal').getPoints(28).map((p) => new THREE.Vector2(Math.max(0.002, p.x), p.y));
+        const geo = new THREE.LatheGeometry(pts, 40);
         // lathe runs along +y (uv.y 0 at the first point): lay it along +z, aft
         geo.rotateX(Math.PI / 2);
         const mesh = new THREE.Mesh(geo, mat);
@@ -329,7 +355,7 @@ export class AirframeVisual {
         parent.add(mesh);
         layers.push({ mesh, mat });
       });
-      // hot nozzle glow
+      // exit glow for distant jets
       const glow = new THREE.Mesh(
         new THREE.CircleGeometry(n.radius * 0.95, 28),
         new THREE.ShaderMaterial({
@@ -343,9 +369,10 @@ export class AirframeVisual {
         }),
       );
       glow.position.copy(n.pos).add(new THREE.Vector3(0, 0, -0.3));
+      if (n.aspect) glow.scale.set(n.aspect, 1 / n.aspect, 1);
       glow.renderOrder = 19;
       parent.add(glow);
-      this.flames.push({ layers, glow });
+      this.flames.push({ layers, glow, aspect: n.aspect ?? 1, len: length, ab: 0, dry: 0, heat: 0 });
     }
   }
 
@@ -575,8 +602,52 @@ export class AirframeVisual {
       });
       const glow = M(f.glow);
       glow.material = (f.glow.material as THREE.Material).clone();
-      return { layers, glow };
+      return { layers, glow, aspect: f.aspect, len: f.len, ab: 0, dry: 0, heat: 0 };
     });
+    // this jet's own lit nozzle interiors: one material per engine, so each
+    // can follows its own burner and knows where its axis is
+    const shared = partMaterials().nozzleIn;
+    const mats = v.nozzles.map((n) => {
+      const bm = burnerMaterial();
+      const bu = bm.userData.burner as Record<string, THREE.IUniform>;
+      bu.zExit.value = n.pos.z;
+      bu.zDeep.value = n.pos.z - (n.depth ?? n.radius * 1.5);
+      (bu.axisR.value as THREE.Vector3).set(n.pos.x, n.pos.y, n.radius * 1.05);
+      return bm;
+    });
+    if (mats.length) {
+      const c = new THREE.Vector3();
+      v.body.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (!m.isMesh || m.material !== shared) return;
+        if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
+        c.copy(m.geometry.boundingSphere!.center).add(m.position);
+        // the nozzle on the same parent whose axis is nearest this mesh
+        let best = 0, bd = Infinity;
+        v.nozzles.forEach((n, i) => {
+          const same = (n.parent ?? v.body) === m.parent;
+          const d = (same ? 0 : 1e6) + Math.hypot(c.x - n.pos.x, c.y - n.pos.y);
+          if (d < bd) (bd = d), (best = i);
+        });
+        const bm = mats[best];
+        // a mesh placed inside its parent (the F-22's flat nozzle face): axis in its own frame
+        if (m.position.lengthSq() > 0) {
+          const own = burnerMaterial();
+          const ou = own.userData.burner as Record<string, THREE.IUniform>;
+          const bu = bm.userData.burner as Record<string, THREE.IUniform>;
+          ou.zExit.value = (bu.zExit.value as number) - m.position.z;
+          ou.zDeep.value = (bu.zDeep.value as number) - m.position.z;
+          (ou.axisR.value as THREE.Vector3).copy(bu.axisR.value as THREE.Vector3).sub(new THREE.Vector3(m.position.x, m.position.y, 0));
+          m.material = own;
+          mats.push(own);
+          v.burnerOf.set(own, best);
+        } else m.material = bm;
+      });
+      mats.forEach((bm, i) => {
+        if (!v.burnerOf.has(bm)) v.burnerOf.set(bm, i);
+      });
+      v.burners = mats;
+    }
     return v;
   }
 
@@ -695,31 +766,46 @@ export class AirframeVisual {
     }
 
     // flames
-    const ab = alive ? fm.afterburner : 0;
     let rpm = 0;
     for (const r of fm.rpm) rpm += r;
     rpm /= fm.rpm.length;
+    const thin = clamp(fm.pos.y / 12000, 0, 1);
+    let burnSum = 0;
+    let drySum = 0;
     for (let i = 0; i < this.flames.length; i++) {
       const f = this.flames[i];
-      const eng = fm.engineOut[Math.min(i, fm.engineOut.length - 1)] ? 0 : 1;
+      const eng = alive && !fm.engineOut[Math.min(i, fm.engineOut.length - 1)] ? 1 : 0;
       const abI = fm.ab[Math.min(i, fm.ab.length - 1)] * eng;
       const dry = clamp((rpm - 0.6) / 0.4, 0, 1) * eng;
+      burnSum += abI;
+      drySum += dry;
+      f.ab = abI;
+      f.dry = dry;
+      f.heat = Math.min(1, abI + dry * 0.45);
       // the plume grows with the burner stage and stretches in thin air
-      const thin = 1 + 0.35 * clamp(fm.pos.y / 12000, 0, 1);
-      const pulse = 1 + 0.04 * Math.sin(this.t * 37 + i * 2.1) + 0.03 * Math.sin(this.t * 23.3 + i);
+      const stretch = 1 + 0.45 * thin;
+      const pulse = 1 + 0.035 * Math.sin(this.t * 37 + i * 2.1) + 0.025 * Math.sin(this.t * 23.3 + i) + 0.02 * Math.sin(this.t * 61 + i * 5);
       f.layers.forEach((l, k) => {
         const u = l.mat.uniforms;
         u.intensity.value = abI;
         u.dry.value = dry;
         u.time.value = this.t + i * 1.7;
-        const grow = k === 2 ? 0.45 + 0.55 * Math.max(abI, dry * 0.5) : 0.4 + 0.6 * abI;
-        l.mesh.scale.set(1, 1, grow * thin * pulse);
+        u.thin.value = thin;
+        const grow = k === 2 ? 0.45 + 0.55 * Math.max(abI, dry * 0.5) : 0.35 + 0.65 * abI;
+        // a flat (2D) nozzle's jet starts as a wide, flat ribbon
+        l.mesh.scale.set(f.aspect, 1 / f.aspect, grow * stretch * pulse);
         l.mesh.visible = k === 2 ? abI > 0.01 || dry > 0.05 : abI > 0.01;
       });
-      // at dry power the burner can is only a dull glow deep inside, lost in daylight
-      (f.glow.material as THREE.ShaderMaterial).uniforms.intensity.value = clamp(abI * 1.1 + dry * 0.1, 0, 1.2);
+      // distant jets: the lit burner can is hidden with the other small parts
+      (f.glow.material as THREE.ShaderMaterial).uniforms.intensity.value = this.detailOn ? 0 : clamp(abI * 1.4 + dry * 0.1, 0, 1.6);
     }
-    void ab;
+    for (const bm of this.burners) {
+      const f = this.flames[this.burnerOf.get(bm) ?? 0];
+      const bu = bm.userData.burner as Record<string, THREE.IUniform>;
+      bu.burn.value = f ? f.ab : burnSum / Math.max(1, this.flames.length);
+      bu.dry.value = f ? f.dry : drySum / Math.max(1, this.flames.length);
+      bu.burnTime.value = this.t;
+    }
 
     // lights
     this.strobeT += dt;
@@ -730,7 +816,24 @@ export class AirframeVisual {
     }
   }
 
+  /** Hot exhaust columns behind the nozzles, for the heat haze (world space). */
+  hazeSources(out: HazeSource[]): void {
+    const fm = this.ac.fm;
+    for (let i = 0; i < this.flames.length; i++) {
+      const f = this.flames[i];
+      const n = this.nozzles[i];
+      if (!n || f.heat < 0.02) continue;
+      const local = n.parent && n.parent !== this.body ? n.parent.position.clone().add(n.pos) : n.pos.clone();
+      const a = local.applyQuaternion(fm.quat).add(fm.pos);
+      const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(fm.quat);
+      const b = a.clone().addScaledVector(dir, f.len * (0.55 + 0.75 * f.ab));
+      out.push({ a, b, r0: n.radius * 1.05 * Math.sqrt(f.aspect), r1: n.radius * (2.0 + 1.2 * f.ab), strength: f.heat });
+    }
+  }
+
   dispose(): void {
+    for (const bm of this.burners) bm.dispose();
+    this.burners = [];
     this.customMat?.dispose();
     this.customMat = null;
     this.cockpit?.dispose();

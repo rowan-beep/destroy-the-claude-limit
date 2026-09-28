@@ -297,7 +297,7 @@ export function buildFA18(v: AirframeVisual): void {
     const nz = nozzle({ cx: 0.56 * sx, cy: -0.08, z0: 8.35, z1: 9.08, r0: 0.53, r1: 0.45, petals: 12, saw: 0.07, floor: 8.42 });
     v.addMesh(nz.outer, pm.nozzle);
     v.addMesh(nz.inner, pm.nozzleIn).userData.detail = true;
-    v.nozzles.push({ pos: new THREE.Vector3(0.56 * sx, -0.08, 9.0), radius: 0.42 });
+    v.nozzles.push({ pos: new THREE.Vector3(0.56 * sx, -0.08, 9.0), radius: 0.42, depth: 0.57 });
   }
   v.buildFlames(5.4);
   const hook = join([lathe([[0.04, 6.4], [0.05, 6.6], [0.05, 8.6], [0.03, 8.9]], 10, 0, -0.42)]);

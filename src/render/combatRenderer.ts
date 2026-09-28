@@ -2,6 +2,7 @@
 // tracers, flares and chaff, explosions, burning wrecks, contrails, wingtip
 // vortices and condensation vapour.
 
+import type { HazeSource } from './heatHaze';
 import * as THREE from 'three';
 import type { Sim } from '../game/sim';
 import type { Aircraft } from '../aircraft/aircraft';
@@ -100,6 +101,8 @@ export class CombatRenderer {
   private flash: THREE.PointLight;
   private flashT = 0;
   private time = 0;
+  /** hot exhaust columns this frame (for the heat haze) */
+  readonly haze: HazeSource[] = [];
   private origin = new THREE.Vector3();
   private missileMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.2 });
   private unsub: (() => void)[] = [];
@@ -367,8 +370,10 @@ export class CombatRenderer {
     // aircraft visuals & per-aircraft effects
     const pc = camera as THREE.PerspectiveCamera;
     const tanHalf = Math.tan(((pc.fov ?? 70) * Math.PI) / 360) / Math.max(0.01, pc.zoom ?? 1);
+    this.haze.length = 0;
     for (const [a, v] of this.aircraftVis) {
       v.update(dt);
+      if (!v.wreck && v.root.visible) v.hazeSources(this.haze);
       v.updateLod(v.root.position.distanceTo(cam), tanHalf);
       if (a.fm.crashed) continue;
       this.aircraftEffects(a, v, dt);

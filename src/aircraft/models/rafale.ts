@@ -324,7 +324,7 @@ export function buildRafale(v: AirframeVisual): void {
     const nz = nozzle({ cx: 0.47 * sx, cy: -0.18, z0: 6.55, z1: 7.35, r0: 0.44, r1: 0.39, petals: 12, saw: 0.05, floor: 6.66 });
     v.addMesh(nz.outer, pm.nozzle);
     v.addMesh(nz.inner, pm.nozzleIn).userData.detail = true;
-    v.nozzles.push({ pos: new THREE.Vector3(0.47 * sx, -0.18, 7.3), radius: 0.36 });
+    v.nozzles.push({ pos: new THREE.Vector3(0.47 * sx, -0.18, 7.3), radius: 0.36, depth: 0.63 });
   }
   v.buildFlames(4.8);
   // fairing between the nozzles

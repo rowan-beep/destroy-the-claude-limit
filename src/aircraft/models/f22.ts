@@ -9,7 +9,7 @@
 import * as THREE from 'three';
 import { AirframeVisual } from './visual';
 import { Section } from './builder';
-import { P2, loftProfile, keyedProfile, stations, mergeStations, wing, WingStation, finMatrix, both, mirror, join, stamp, lathe, rrect, Livery, skinMaterial, line, rivets, weather, prng, roundel, LINE, LINE_LIGHT, curve, sstep, roundBox } from './kit';
+import { P2, loftProfile, keyedProfile, stations, mergeStations, wing, WingStation, finMatrix, both, mirror, join, stamp, lathe, rrect, Livery, skinMaterial, line, rivets, weather, prng, roundel, LINE, LINE_LIGHT, curve, sstep, roundBox, colorize } from './kit';
 import { intake, partMaterials, seatAndPilot, blade, probe, formationStrip } from './parts';
 import { buildCanopy, buildGearSet, wingPanels, finPanels, sectionsFromProfile } from './common';
 
@@ -426,12 +426,18 @@ export function buildF22(v: AirframeVisual): void {
       sub: 1,
       full: true,
     });
+    // sooty liner, heat-stained toward the exit (linear values, as the round nozzles)
+    colorize(throat, (p, c) => {
+      const k = 0.012 + 0.07 * Math.exp(-((0.95 - p.z) / 0.7) * 4);
+      c.setRGB(k, k * 0.94, k * 0.86);
+    });
     v.addMesh(throat, pm.nozzleIn, pivot).userData.detail = true;
-    const face = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.46), pm.nozzleIn);
+    const faceGeo = colorize(new THREE.PlaneGeometry(0.8, 0.46), (_p, c) => c.setRGB(0.01, 0.01, 0.01));
+    const face = new THREE.Mesh(faceGeo, pm.nozzleIn);
     face.position.set(0, 0, 0.25);
-    face.rotation.y = Math.PI;
+    // (a plane faces +z: aft, out of the nozzle)
     pivot.add(face);
-    v.nozzles.push({ pos: new THREE.Vector3(0, 0, 0.95), radius: 0.28, parent: pivot });
+    v.nozzles.push({ pos: new THREE.Vector3(0, 0, 0.95), radius: 0.28, parent: pivot, depth: 0.7, aspect: 1.55 });
     v.vectoring.push({ pivot, side: sx });
   }
   v.buildFlames(6.0);

@@ -11,6 +11,7 @@ import type { GraphicsOptions } from '../core/settings';
 import { installAltitudeFog } from './fog';
 import { VisionShader, VisionState } from './vision';
 import { DropletShader, ScreenDroplets } from './droplets';
+import { HeatHazeShader, HazeSource, writeHaze } from './heatHaze';
 
 export type GraphicsSettings = Pick<
   GraphicsOptions,
@@ -78,6 +79,8 @@ export class GameRenderer {
   /** rain beads on the canopy / lens */
   readonly droplets = new ScreenDroplets();
   private dropletPass: ShaderPass;
+  /** shimmer behind hot engines */
+  private hazePass: ShaderPass;
   private renderPass: RenderPass;
   /** second scene pass drawn over the world (the cockpit) */
   private overlayPass: RenderPass;
@@ -141,6 +144,10 @@ export class GameRenderer {
     this.bloomPass = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.55, 0.55, 2.6);
     this.gradePass = new ShaderPass(GradeShader);
     this.composer.addPass(this.renderPass);
+    // haze bends the world only: the cockpit is drawn over it afterwards
+    this.hazePass = new ShaderPass(HeatHazeShader);
+    this.hazePass.enabled = false;
+    this.composer.addPass(this.hazePass);
     this.composer.addPass(this.overlayPass);
     this.dropletPass = new ShaderPass(DropletShader);
     this.dropletPass.uniforms.tDrops.value = this.droplets.texture;
@@ -271,6 +278,14 @@ export class GameRenderer {
     (this.dropletPass.uniforms.texel.value as THREE.Vector2).set(1 / Math.max(1, this.width), 1 / Math.max(1, this.height));
   }
 
+  /** Heat haze behind the engines near the camera (call after the camera moved). */
+  setHaze(sources: HazeSource[]): void {
+    const u = this.hazePass.uniforms as unknown as typeof HeatHazeShader.uniforms;
+    u.time.value = performance.now() / 1000;
+    u.aspect.value = this.width / Math.max(1, this.height);
+    this.hazePass.enabled = writeHaze(sources, this.camera, u) > 0;
+  }
+
   render(): void {
     this.composer.render();
   }
@@ -281,8 +296,9 @@ export class GameRenderer {
    */
   renderScene(scene: THREE.Scene, camera: THREE.Camera, toneMapping?: THREE.ToneMapping): void {
     const s = this.renderPass.scene, c = this.renderPass.camera;
-    const ov = this.overlayPass.enabled, vis = this.visionPass.enabled, drp = this.dropletPass.enabled;
+    const ov = this.overlayPass.enabled, vis = this.visionPass.enabled, drp = this.dropletPass.enabled, hz = this.hazePass.enabled;
     this.dropletPass.enabled = false;
+    this.hazePass.enabled = false;
     const tm = this.renderer.toneMapping;
     this.renderPass.scene = scene;
     this.renderPass.camera = camera;
@@ -296,5 +312,6 @@ export class GameRenderer {
     this.overlayPass.enabled = ov;
     this.visionPass.enabled = vis;
     this.dropletPass.enabled = drp;
+    this.hazePass.enabled = hz;
   }
 }

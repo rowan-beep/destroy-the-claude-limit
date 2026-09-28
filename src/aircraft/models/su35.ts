@@ -449,7 +449,7 @@ export function buildSu35(v: AirframeVisual): void {
     v.addMesh(nz.inner, pm.nozzleIn, pivot).userData.detail = true;
     // the actuator ring around the gimbal
     v.addMesh(lathe([[0.565, -0.12], [0.585, -0.05], [0.585, 0.08], [0.56, 0.14]], 32), pm.darkMetal, pivot);
-    v.nozzles.push({ pos: new THREE.Vector3(0, 0, 1.3), radius: 0.44, parent: pivot });
+    v.nozzles.push({ pos: new THREE.Vector3(0, 0, 1.3), radius: 0.44, parent: pivot, depth: 2.85 });
     v.vectoring.push({ pivot, side: sx });
   }
   v.buildFlames(7.0, 'blue');

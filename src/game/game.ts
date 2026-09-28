@@ -440,6 +440,7 @@ export class Game implements ModeHost {
       this.renderer.updateDroplets(dt, this.world.precip.rainOnCamera, this.world.precip.camSpeed);
     }
     this.renderer.setVision(emptyVision());
+    this.renderer.setHaze([]);
     this.renderer.render();
     this.onAfterFrame?.(dt);
   }
@@ -658,6 +659,7 @@ export class Game implements ModeHost {
       this.renderer.updateDroplets(dt, this.world.precip.rainOnCamera, this.world.precip.camSpeed);
       this.zoneWall.update(dt);
       this.combat.update(simOn ? dt : 0, this.renderer.camera);
+      this.renderer.setHaze(this.combat.haze);
       // pilot vision
       this.renderer.setVision(p.alive || !p.fm.crashed ? p.pilot.vision : emptyVision());
       this.hud.update(dt, this);
@@ -701,6 +703,7 @@ export class Game implements ModeHost {
     this.renderer.updateDroplets(dt, this.world.precip.rainOnCamera, this.world.precip.camSpeed);
     this.zoneWall.update(dt);
     this.combat.update(playing ? dt : 0, cam);
+    this.renderer.setHaze(this.combat.haze);
     this.renderer.setVision(emptyVision());
     this.hud.update(dt, this);
     this.spectatorUi?.update();

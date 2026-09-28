@@ -3,6 +3,13 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.8.0 — Real afterburners (2026-09-28)
+
+- New afterburners on every jet, modelled on real photos. The burner can inside each nozzle now lights up from the flame: white-hot on the axis, deep yellow-orange out at the liner and a glowing orange lip, with the flame-holder rings and spokes standing out as dark silhouettes when you look straight in.
+- New plume: a white-yellow flame at the nozzle that turns orange within a couple of nozzle diameters, streaky and licking with turbulence flowing downstream, then a translucent column with a train of pale shock diamonds. It gets longer and the diamonds clearer at altitude. The Su-35S keeps its blue-violet plume, and the F-22A's flat nozzles now throw a wide, flat jet.
+- Heat haze: the air behind every hot engine near you now shimmers and bends whatever is seen through it (strong in reheat, softer at military power). It never distorts your own cockpit.
+- F-22A fixes: the glowing face deep inside its flat nozzles was facing the wrong way and could not be seen from behind, and the nozzle throats had no colour data, so they rendered as bright lit metal.
+
 ## v4.7.1 — Smooth at 165 / 240 Hz, FPS counter (2026-09-28)
 
 - High refresh rate displays: the game was never capped at 60 fps, but physics runs at a fixed 120 Hz, so above 120 fps some frames showed the same position twice and motion stuttered. Jets and missiles are now drawn part-way between physics steps, so motion is smooth on every frame at 144, 165 and 240 Hz.

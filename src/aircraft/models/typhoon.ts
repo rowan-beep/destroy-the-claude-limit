@@ -303,7 +303,7 @@ export function buildTyphoon(v: AirframeVisual): void {
     const nz = nozzle({ cx: 0.5 * sx, cy: -0.1, z0: 7.3, z1: 8.05, r0: 0.47, r1: 0.4, petals: 12, saw: 0.06, floor: 7.37 });
     v.addMesh(nz.outer, pm.nozzle);
     v.addMesh(nz.inner, pm.nozzleIn).userData.detail = true;
-    v.nozzles.push({ pos: new THREE.Vector3(0.5 * sx, -0.1, 8.0), radius: 0.38 });
+    v.nozzles.push({ pos: new THREE.Vector3(0.5 * sx, -0.1, 8.0), radius: 0.38, depth: 0.62 });
   }
   v.buildFlames(5.0);
   const chute = lathe([[0.2, 6.2], [0.21, 6.9], [0.18, 7.5], [0.1, 7.9], [0.004, 8.0]], 20, 0, 0.3);

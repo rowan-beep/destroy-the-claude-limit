@@ -38,14 +38,67 @@ let PM: PartMaterials | null = null;
  * sunlit pipe (the shadow map is far too coarse to catch it).
  */
 function nozzleInterior(): THREE.MeshStandardMaterial {
+  return burnerMaterial();
+}
+
+/**
+ * Nozzle interior: sooty liner that lights up from the flame. Each jet gets its
+ * own copy (same shader program) so its afterburner can drive it: a faint
+ * orange at the lip, yellow down the liner and a white-hot flame zone at the
+ * flame holders, whose gutters stand out darker against it.
+ */
+export function burnerMaterial(): THREE.MeshStandardMaterial {
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0.3, envMapIntensity: 0.35 });
-  m.onBeforeCompile = (sh) => {
-    sh.fragmentShader = sh.fragmentShader.replace(
-      '#include <lights_fragment_end>',
-      '#include <lights_fragment_end>\n  reflectedLight.directDiffuse *= 0.14;\n  reflectedLight.directSpecular *= 0.14;',
-    );
+  const u = {
+    burn: { value: 0 },
+    dry: { value: 0 },
+    burnTime: { value: 0 },
+    zExit: { value: 0 },
+    zDeep: { value: -1 },
+    /** nozzle axis (x, y) and radius, in the mesh's frame */
+    axisR: { value: new THREE.Vector3(0, 0, 1) },
   };
-  m.customProgramCacheKey = () => 'nozzle-interior';
+  m.userData.burner = u;
+  m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, u);
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vBurnP;\nvarying float vBurnZ;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBurnZ = position.z;\nvBurnP = position;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform float burn;\nuniform float dry;\nuniform float burnTime;\nuniform float zExit;\nuniform float zDeep;\nuniform vec3 axisR;\nvarying vec3 vBurnP;\nvarying float vBurnZ;')
+      .replace(
+        '#include <lights_fragment_end>',
+        '#include <lights_fragment_end>\n  reflectedLight.directDiffuse *= 0.14;\n  reflectedLight.directSpecular *= 0.14;',
+      )
+      .replace(
+        '#include <emissivemap_fragment>',
+        `#include <emissivemap_fragment>
+  {
+    float h = clamp( ( zExit - vBurnZ ) / max( 0.01, zExit - zDeep ), 0.0, 1.0 );
+    // flame holder gutters and spokes (lighter soot colour, deep in the can) block the flame behind them
+    #ifdef USE_COLOR
+      float holder = step( 0.035, vColor.r ) * smoothstep( 0.55, 0.75, h );
+    #else
+      float holder = 0.0;
+    #endif
+    float fl = 0.9 + 0.06 * sin( burnTime * 53.0 + vBurnZ * 23.0 ) + 0.04 * sin( burnTime * 31.0 );
+    float b = clamp( burn, 0.0, 1.2 );
+    vec3 lip = vec3( 1.0, 0.24, 0.035 );
+    vec3 mid = vec3( 1.0, 0.5, 0.1 );
+    vec3 core = vec3( 1.0, 0.82, 0.5 );
+    // radial: the flame zone is white-hot on the axis, deep yellow-orange out at the liner
+    float r = clamp( length( vBurnP.xy - axisR.xy ) / max( 0.01, axisR.z ), 0.0, 1.2 );
+    float centre = 1.0 - smoothstep( 0.05, 0.85, r );
+    vec3 col = mix( lip, mid, smoothstep( 0.0, 0.5, h ) );
+    col = mix( col, core, smoothstep( 0.45, 0.95, h ) * min( b, 1.0 ) * ( 0.35 + 0.65 * centre ) );
+    col = mix( col, vec3( 1.0, 0.97, 0.9 ), smoothstep( 0.7, 1.0, h ) * centre * centre * min( b, 1.0 ) );
+    float I = b * ( 0.35 + 2.2 * pow( h, 1.6 ) * ( 0.55 + 0.9 * centre ) ) + dry * ( 0.01 + 0.12 * h * h );
+    I *= 1.0 - 0.6 * holder;
+    totalEmissiveRadiance += col * I * fl;
+  }`,
+      );
+  };
+  m.customProgramCacheKey = () => 'nozzle-burner-v3';
   return m;
 }
 
