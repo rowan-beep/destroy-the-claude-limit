@@ -63,7 +63,7 @@ export function burnerMaterial(): THREE.MeshStandardMaterial {
     Object.assign(sh.uniforms, u);
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vBurnP;\nvarying float vBurnZ;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBurnZ = position.z;\nvBurnP = position;');
+      .replace('#include <morphtarget_vertex>', '#include <morphtarget_vertex>\nvBurnZ = transformed.z;\nvBurnP = transformed;');
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', '#include <common>\nuniform float burn;\nuniform float dry;\nuniform float burnTime;\nuniform float zExit;\nuniform float zDeep;\nuniform vec3 axisR;\nvarying vec3 vBurnP;\nvarying float vBurnZ;')
       .replace(
@@ -98,7 +98,7 @@ export function burnerMaterial(): THREE.MeshStandardMaterial {
   }`,
       );
   };
-  m.customProgramCacheKey = () => 'nozzle-burner-v3';
+  m.customProgramCacheKey = () => 'nozzle-burner-v4';
   return m;
 }
 
@@ -150,7 +150,40 @@ export interface NozzleSpec {
   floor?: number;
 }
 
-export function nozzle(s: NozzleSpec): { outer: THREE.BufferGeometry; inner: THREE.BufferGeometry } {
+/**
+ * Exit radius of the variable nozzle, as a fraction of the spec's `r1`: fully
+ * closed (military power: the petals converge hard) and fully open (idle, a
+ * stopped engine, full afterburner: the petals swing out almost straight).
+ */
+export const NOZZLE_CLOSED = 0.87;
+export function nozzleOpenK(s: { r0: number; r1: number }): number {
+  return Math.min((s.r0 * 0.99) / s.r1, 1.17);
+}
+
+/**
+ * The nozzle built fully closed, with a morph target to fully open (same
+ * topology, so the petals, actuator rods and liner move together when the
+ * mesh's morph influence changes).
+ */
+export function nozzle(s: NozzleSpec): { outer: THREE.BufferGeometry; inner: THREE.BufferGeometry; area: [number, number] } {
+  const k = nozzleOpenK(s);
+  const closed = nozzleShape({ ...s, r1: s.r1 * NOZZLE_CLOSED });
+  const open = nozzleShape({ ...s, r1: s.r1 * k });
+  return { outer: withMorph(closed.outer, open.outer), inner: withMorph(closed.inner, open.inner), area: [NOZZLE_CLOSED, k] };
+}
+
+/** Give `base` one absolute morph target: `target`'s positions (and normals). */
+export function withMorph(base: THREE.BufferGeometry, target: THREE.BufferGeometry): THREE.BufferGeometry {
+  const a = base.attributes.position;
+  const b = target.attributes.position;
+  if (!a || !b || a.count !== b.count) return base;
+  base.morphAttributes.position = [b];
+  if (base.attributes.normal && target.attributes.normal) base.morphAttributes.normal = [target.attributes.normal];
+  base.morphTargetsRelative = false;
+  return base;
+}
+
+function nozzleShape(s: NozzleSpec): { outer: THREE.BufferGeometry; inner: THREE.BufferGeometry } {
   const per = dense(6);
   const seg = s.petals * per;
   const rings: P3[][] = [];

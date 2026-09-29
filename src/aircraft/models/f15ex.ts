@@ -445,9 +445,11 @@ export function buildF15EX(v: AirframeVisual): void {
   // --- engines -----------------------------------------------------------------------
   for (const sx of [-1, 1]) {
     const nz = nozzle({ cx: 0.64 * sx, cy: -0.05, z0: 8.62, z1: 9.5, r0: 0.6, r1: 0.5, petals: 14, saw: 0.08, floor: 8.77 });
-    v.addMesh(nz.outer, pm.nozzle);
-    v.addMesh(nz.inner, pm.nozzleIn).userData.detail = true;
-    v.nozzles.push({ pos: new THREE.Vector3(0.64 * sx, -0.05, 9.4), radius: 0.46, depth: 0.62 });
+    const nzOut = v.addMesh(nz.outer, pm.nozzle);
+    const nzIn = v.addMesh(nz.inner, pm.nozzleIn);
+    nzIn.userData.detail = true;
+    v.morphNozzle(nzOut, nzIn);
+    v.nozzles.push({ pos: new THREE.Vector3(0.64 * sx, -0.05, 9.4), radius: 0.46, depth: 0.62, area: nz.area });
   }
   v.buildFlames(6.2);
 

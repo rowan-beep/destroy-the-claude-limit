@@ -3,6 +3,13 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.20.0 — Live engine nozzles (2026-09-29)
+
+- Live engine nozzles on every jet. The nozzle petals now move with the engine just like a real one. At idle, and on a jet with its engines stopped, the nozzle hangs wide open. Push the throttle up and it closes down tight as the engine spools to military power. Light the afterburner and it swings open with the burner stage, opening slightly before the flame lights and reaching fully open at max burner. Pull the throttle back and it closes again. Hydraulic actuators drive the petals, so the nozzle follows the engine with a real lag (about a second end to end), and in afterburner it hunts very slightly around its setting.
+- Every jet has it: the round convergent-divergent nozzles on the F-15EX, F/A-18E/F, Eurofighter, Rafale and Su-35S (on the Su-35S, while they vector), and the F-22's flat nozzle, whose upper and lower flaps swing apart and together.
+- The exhaust flame is now as wide as the nozzle: narrower at military power, wider at full afterburner.
+- Fixed: the glowing burner inside each nozzle was lit to the wrong depth on every jet. The glow now reaches back to the flame holders as intended, most visibly on the Su-35S and F-22.
+
 ## v4.19.0 — New cockpit view (2026-09-29)
 
 - A completely new cockpit view. The camera is no longer bolted to the airframe: your head now sits on a sprung neck that reacts to what your body feels. G pushes you down into the seat and the view settles with a small overshoot. Lateral G sways you, the afterburner presses you back, and a snap roll leaves your head behind for a moment. Hands off the look controls, your head keeps the horizon a little more level than the jet, glances up into a hard turn and leads a roll with the eyes, the way real pilots do.

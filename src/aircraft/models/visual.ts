@@ -8,7 +8,7 @@ import type { Aircraft } from '../aircraft';
 import { airframeMaterials, Section } from './builder';
 import { storeGeometry, pylonGeometry, shoulderGeometry, storeCenterY, storeCenterX, onShoulder, PYLON_DROP } from './stores';
 import { DEG } from '../../core/constants';
-import { clamp } from '../../core/math';
+import { clamp, smoothstep } from '../../core/math';
 import { makeInsignia } from './decals';
 import { Cockpit } from './cockpit';
 import { customSkinMaterial, Livery } from './kit';
@@ -86,6 +86,8 @@ export interface Nozzle {
   depth?: number;
   /** width / height of a flat (2D) nozzle's exhaust */
   aspect?: number;
+  /** exit size fully closed and fully open, relative to `radius` (a variable nozzle) */
+  area?: [number, number];
 }
 
 // Afterburner plume: three nested, shaped layers per engine, all additive and
@@ -216,6 +218,10 @@ export class AirframeVisual {
   /** airframes that brake by splaying both rudders outward (Su-35S): how far, 0..1 */
   rudderBrake = 0;
   nozzles: Nozzle[] = [];
+  /** meshes whose morph target opens a nozzle, and which nozzle */
+  nozzleMorphs: { mesh: THREE.Mesh; i: number }[] = [];
+  /** nozzle position per nozzle, 0 closed .. 1 open (-1: not set yet) */
+  private nozzleOpen: number[] = [];
   /** thrust-vectoring nozzle gimbals (Su-35S) */
   vectoring: { pivot: THREE.Object3D; side: -1 | 1 }[] = [];
   readonly cockpitEye = new THREE.Vector3();
@@ -260,6 +266,18 @@ export class AirframeVisual {
   constructor(readonly ac: Aircraft) {
     this.root.add(this.body);
     this.root.name = 'aircraft-' + ac.callsign;
+  }
+
+  /**
+   * Register meshes built with a nozzle-open morph target for the nozzle about
+   * to be pushed onto `nozzles`. They start open, as on a parked jet.
+   */
+  morphNozzle(...meshes: THREE.Mesh[]): void {
+    for (const m of meshes) {
+      if (!m.morphTargetInfluences?.length) continue;
+      m.morphTargetInfluences[0] = 1;
+      this.nozzleMorphs.push({ mesh: m, i: this.nozzles.length });
+    }
   }
 
   addMesh(geo: THREE.BufferGeometry, mat: THREE.Material, parent: THREE.Object3D = this.body, cast = true): THREE.Mesh {
@@ -615,7 +633,9 @@ export class AirframeVisual {
     v.gear = this.gear.map((g) => ({ ...g, pivot: M(g.pivot), axis: g.axis.clone(), hideWhenUp: g.hideWhenUp.map(M) }));
     v.speedbrake = this.speedbrake ? { ...this.speedbrake, pivot: M(this.speedbrake.pivot) } : null;
     v.rudderBrake = this.rudderBrake;
-    v.nozzles = this.nozzles.map((n) => ({ pos: n.pos.clone(), radius: n.radius, parent: n.parent ? M(n.parent) : undefined }));
+    v.nozzles = this.nozzles.map((n) => ({ ...n, pos: n.pos.clone(), parent: n.parent ? M(n.parent) : undefined }));
+    v.nozzleMorphs = this.nozzleMorphs.map((n) => ({ mesh: M(n.mesh), i: n.i }));
+    v.nozzleOpen = this.nozzles.map(() => -1);
     v.vectoring = this.vectoring.map((g) => ({ pivot: M(g.pivot), side: g.side }));
     v.cockpitEye.copy(this.cockpitEye);
     v.canopy = this.canopy ? M(this.canopy) : null;
@@ -848,6 +868,7 @@ export class AirframeVisual {
     const thin = clamp(fm.pos.y / 12000, 0, 1);
     let burnSum = 0;
     let drySum = 0;
+    this.updateNozzles(dt, alive);
     for (let i = 0; i < this.flames.length; i++) {
       const f = this.flames[i];
       const eng = alive && !fm.engineOut[Math.min(i, fm.engineOut.length - 1)] ? 1 : 0;
@@ -868,8 +889,9 @@ export class AirframeVisual {
         u.time.value = this.t + i * 1.7;
         u.thin.value = thin;
         const grow = k === 2 ? 0.45 + 0.55 * Math.max(abI, dry * 0.5) : 0.35 + 0.65 * abI;
-        // a flat (2D) nozzle's jet starts as a wide, flat ribbon
-        l.mesh.scale.set(f.aspect, 1 / f.aspect, grow * stretch * pulse);
+        // a flat (2D) nozzle's jet starts as a wide, flat ribbon; the jet is as wide as the nozzle exit
+        const ex = this.nozzleExit(i);
+        l.mesh.scale.set(f.aspect * ex, ex / f.aspect, grow * stretch * pulse);
         l.mesh.visible = k === 2 ? abI > 0.01 || dry > 0.05 : abI > 0.01;
       });
       // distant jets: the lit burner can is hidden with the other small parts
@@ -890,6 +912,53 @@ export class AirframeVisual {
       if (l.kind === 'strobe') l.mesh.visible = strobeOn && alive;
       else l.mesh.visible = alive;
     }
+  }
+
+  /**
+   * Variable exhaust nozzles. The engine control sets the nozzle area from the
+   * engine state and hydraulic actuators drive the petals there at a limited
+   * rate, so the nozzle visibly lags the throttle:
+   *  - idle: open (idle area reset: less thrust on the ground and in the flare)
+   *  - advancing to military power: it closes down to its smallest throat
+   *  - afterburner: it opens with the burner stage, leading the light-off
+   *    slightly (so the fan never sees the pressure spike), fully open at max
+   *  - engine stopped, no fuel or jet destroyed: no hydraulic pressure, the
+   *    petals hang open, as on a parked jet
+   */
+  private updateNozzles(dt: number, alive: boolean): void {
+    if (!this.nozzles.length) return;
+    const fm = this.ac.fm;
+    const lever = fm.throttleLever;
+    for (let i = 0; i < this.nozzles.length; i++) {
+      const e = Math.min(i, fm.rpm.length - 1);
+      let target = 1;
+      if (alive && !fm.engineOut[e] && fm.fuelTotal > 0) {
+        const rpm = fm.rpm[e];
+        const dry = 0.85 * (1 - smoothstep(0.08, 0.8, rpm));
+        const selected = lever > 1.001 && rpm > 0.9 ? clamp((lever - 1) / 0.1, 0.2, 1) : 0;
+        const ab = Math.max(fm.ab[e], selected * 0.6);
+        target = Math.max(dry, ab > 0.001 ? 0.28 + 0.72 * Math.min(1, ab) : 0);
+      }
+      let o = this.nozzleOpen[i] ?? -1;
+      if (o < 0) o = target;
+      // hydraulic actuators: quick to start, rate-limited (about a second end to end)
+      o += clamp((target - o) * 4.5, -1.1, 1.1) * Math.min(dt, 0.1);
+      this.nozzleOpen[i] = o;
+    }
+    // in the burner the control loop hunts a little around its setting
+    for (const n of this.nozzleMorphs) {
+      const e = Math.min(n.i, fm.ab.length - 1);
+      const hunt = fm.ab[e] > 0.05 ? 0.012 * Math.sin(this.t * 9.3 + n.i * 1.7) * fm.ab[e] : 0;
+      n.mesh.morphTargetInfluences![0] = clamp(this.nozzleOpen[n.i] + hunt, 0, 1);
+    }
+  }
+
+  /** Current exit size of nozzle i relative to its design radius (1 for a fixed nozzle). */
+  private nozzleExit(i: number): number {
+    const n = this.nozzles[i];
+    if (!n?.area) return 1;
+    const o = Math.max(0, this.nozzleOpen[i] ?? 1);
+    return n.area[0] + (n.area[1] - n.area[0]) * o;
   }
 
   /** Hot exhaust columns behind the nozzles, for the heat haze (world space). */

@@ -10,6 +10,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.20.0',
+    date: '2026-09-29',
+    title: "Live engine nozzles",
+    notes: [
+      "Live engine nozzles on every jet. The nozzle petals now move with the engine just like a real one. At idle, and on a jet with its engines stopped, the nozzle hangs wide open. Push the throttle up and it closes down tight as the engine spools to military power. Light the afterburner and it swings open with the burner stage, opening slightly before the flame lights and reaching fully open at max burner. Pull the throttle back and it closes again. Hydraulic actuators drive the petals, so the nozzle follows the engine with a real lag (about a second end to end), and in afterburner it hunts very slightly around its setting.",
+      "Every jet has it: the round convergent-divergent nozzles on the F-15EX, F/A-18E/F, Eurofighter, Rafale and Su-35S (on the Su-35S, while they vector), and the F-22's flat nozzle, whose upper and lower flaps swing apart and together.",
+      "The exhaust flame is now as wide as the nozzle: narrower at military power, wider at full afterburner.",
+      "Fixed: the glowing burner inside each nozzle was lit to the wrong depth on every jet. The glow now reaches back to the flame holders as intended, most visibly on the Su-35S and F-22.",
+    ],
+  },
+  {
     version: '4.19.0',
     date: '2026-09-29',
     title: "New cockpit view",

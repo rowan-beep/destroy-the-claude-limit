@@ -447,11 +447,13 @@ export function buildSu35(v: AirframeVisual): void {
     // the burner can ends just behind the gimbal: everything on the pivot swings
     // with the nozzle, so nothing long may reach forward into the nacelle
     const nz = nozzle({ cx: 0, cy: 0, z0: 0, z1: 1.35, r0: 0.55, r1: 0.47, petals: 16, saw: 0.05, floor: 0.15 });
-    v.addMesh(nz.outer, pm.nozzle, pivot);
-    v.addMesh(nz.inner, pm.nozzleIn, pivot).userData.detail = true;
+    const nzOut = v.addMesh(nz.outer, pm.nozzle, pivot);
+    const nzIn = v.addMesh(nz.inner, pm.nozzleIn, pivot);
+    nzIn.userData.detail = true;
+    v.morphNozzle(nzOut, nzIn);
     // the actuator ring around the gimbal
     v.addMesh(lathe([[0.565, -0.12], [0.585, -0.05], [0.585, 0.08], [0.56, 0.14]], 32), pm.darkMetal, pivot);
-    v.nozzles.push({ pos: new THREE.Vector3(0, 0, 1.3), radius: 0.44, parent: pivot, depth: 1.12 });
+    v.nozzles.push({ pos: new THREE.Vector3(0, 0, 1.3), radius: 0.44, parent: pivot, depth: 1.12, area: nz.area });
     v.vectoring.push({ pivot, side: sx });
   }
   v.buildFlames(7.0, 'blue');

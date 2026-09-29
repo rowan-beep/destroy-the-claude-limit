@@ -11,7 +11,8 @@ import { AirframeVisual } from './visual';
 import { addPilot } from './pilot';
 import { Section } from './builder';
 import { P2, loftProfile, keyedProfile, stations, mergeStations, wing, WingStation, finMatrix, both, mirror, join, stamp, lathe, rrect, Livery, skinMaterial, line, rivets, weather, prng, roundel, LINE, LINE_LIGHT, curve, sstep, roundBox, colorize } from './kit';
-import { intake, partMaterials, blade, probe, formationStrip } from './parts';
+import { intake, partMaterials, blade, probe, formationStrip, withMorph } from './parts';
+import { DEG } from '../../core/constants';
 import { buildCanopy, buildGearSet, wingPanels, finPanels, sectionsFromProfile } from './common';
 
 interface Sec {
@@ -412,10 +413,18 @@ export function buildF22(v: AirframeVisual): void {
     });
     // the nozzle boxes are painted Raptor grey; the flaps are darker, heat-stained metal
     v.addMesh(shell, nozzleGrey, pivot);
+    // the flaps hinge at their leading edge: converged at military power,
+    // swung apart at idle and in the burner (the nozzle's area)
+    const flaps: THREE.Mesh[] = [];
     for (const up of [1, -1]) {
-      const f = flap();
-      f.translate(0, up > 0 ? 0.24 : -0.21, 0);
-      v.addMesh(f, flapMetal, pivot);
+      const at = (deg: number) => {
+        const f = flap();
+        f.translate(0, 0, -0.45);
+        f.rotateX(-up * deg * DEG);
+        f.translate(0, up > 0 ? 0.24 : -0.21, 0.45);
+        return f;
+      };
+      flaps.push(v.addMesh(withMorph(at(-3), at(5.5)), flapMetal, pivot));
     }
     const throat = loftProfile({
       stations: stations(0.2, 0.88, 6),
@@ -431,13 +440,15 @@ export function buildF22(v: AirframeVisual): void {
       const k = 0.012 + 0.07 * Math.exp(-((0.95 - p.z) / 0.7) * 4);
       c.setRGB(k, k * 0.94, k * 0.86);
     });
-    v.addMesh(throat, pm.nozzleIn, pivot).userData.detail = true;
+    const throatMesh = v.addMesh(throat, pm.nozzleIn, pivot);
+    throatMesh.userData.detail = true;
+    v.morphNozzle(...flaps);
     const faceGeo = colorize(new THREE.PlaneGeometry(0.8, 0.46), (_p, c) => c.setRGB(0.01, 0.01, 0.01));
     const face = new THREE.Mesh(faceGeo, pm.nozzleIn);
     face.position.set(0, 0, 0.25);
     // (a plane faces +z: aft, out of the nozzle)
     pivot.add(face);
-    v.nozzles.push({ pos: new THREE.Vector3(0, 0, 0.95), radius: 0.28, parent: pivot, depth: 0.7, aspect: 1.55 });
+    v.nozzles.push({ pos: new THREE.Vector3(0, 0, 0.95), radius: 0.28, parent: pivot, depth: 0.7, aspect: 1.55, area: [0.9, 1.12] });
     v.vectoring.push({ pivot, side: sx });
   }
   v.buildFlames(6.0);
