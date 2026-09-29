@@ -228,19 +228,35 @@ export class AirfieldView {
     for (let i = 0; i < 8; i++) {
       const a = -560 + i * 160;
       // half-cylinder arch: axis runs across (x), opening faces the apron (-x)
-      const shelter = new THREE.CylinderGeometry(14, 14, 38, 14, 1, true, -Math.PI / 2, Math.PI);
+      const shelter = new THREE.CylinderGeometry(12, 12, 36, 20, 1, false, -Math.PI / 2, Math.PI);
       shelter.rotateX(-Math.PI / 2);
       shelter.rotateY(Math.PI / 2);
-      shelter.scale(1, 0.75, 1);
-      shelter.translate(500, 0, a);
+      shelter.scale(1, 0.8, 1);
+      shelter.translate(502, 0, a);
       struct.push(paint(shelter, i % 2 ? camoA : concrete));
-      struct.push(paint(box(3, 10.5, 28, 520, 0, a), darkGrey)); // rear wall
+      // earth berm hugging the sides and back
+      const berm = new THREE.CylinderGeometry(15, 15, 30, 16, 1, false, -Math.PI / 2, Math.PI);
+      berm.rotateX(-Math.PI / 2);
+      berm.rotateY(Math.PI / 2);
+      berm.scale(1, 0.55, 1);
+      berm.translate(509, 0, a);
+      struct.push(paint(berm, new THREE.Color(0.42, 0.44, 0.33)));
+      // sliding blast doors (half open) on their rail beam, and the rear exhaust deflector
+      struct.push(paint(box(1.4, 8.6, 11.5, 483.5, 0, a - 11), darkGrey));
+      struct.push(paint(box(1.4, 8.6, 11.5, 483.5, 0, a + 11), darkGrey));
+      struct.push(paint(box(2.2, 1.2, 34, 483.5, 8.6, a), grey));
+      struct.push(paint(box(2.5, 5, 9, 521.5, 0, a), darkGrey));
+      // a parked friendly jet silhouette-free apron marking: lead-in line
+      struct.push(paint(box(30, 0.05, 0.4, 460, RUNWAY_Y + 0.02, a), new THREE.Color(0.85, 0.7, 0.15)));
     }
 
     // control tower
     struct.push(paint(box(9, 24, 9, 540, 0, 760), beige));
     struct.push(paint(box(13, 1.2, 13, 540, 24, 760), grey));
-    struct.push(paint(box(13, 1.2, 13, 540, 30.2, 760), grey));
+    struct.push(paint(box(14, 1.2, 14, 540, 30.2, 760), grey));
+    // two-storey operations building at the foot of the tower
+    struct.push(paint(box(30, 8, 16, 560, 0, 745), beige));
+    struct.push(paint(box(30.6, 0.6, 16.6, 560, 8, 745), darkGrey));
     struct.push(paint(box(1.5, 4, 1.5, 540, 31.4, 760), darkGrey));
     struct.push(paint(box(3, 1, 3, 540, 35.4, 760), team));
 
@@ -253,6 +269,8 @@ export class AirfieldView {
       roof.translate(570, 16 - 33 * 0.4 * Math.cos(Math.PI / 4.5) - 0.3, a);
       struct.push(roof);
       struct.push(paint(box(46.5, 3, 60.5, 570, 12.5, a), team)); // team stripe
+      for (let k = 0; k < 6; k++) struct.push(paint(box(0.4, 12, 9.6, 546.8, 0, a - 25 + k * 10), k % 2 ? darkGrey : grey)); // door leaves
+      struct.push(paint(box(0.6, 1.2, 60, 546.5, 12, a), darkGrey)); // door header
     }
 
     // fuel farm (white tanks, like the reference screenshots)
@@ -264,6 +282,33 @@ export class AirfieldView {
       top.translate(540 + (i % 2) * 34, 16.2, 780 + Math.floor(i / 2) * 34 + 10);
       struct.push(top);
     }
+
+    // fuel farm containment bund
+    for (const [x, z, w, l] of [[557, 772, 70, 1.2], [557, 862, 70, 1.2], [522, 817, 1.2, 90], [592, 817, 1.2, 90]] as const) struct.push(paint(box(w, 1.6, l, x, 0, z), darkGrey));
+
+    // apron floodlight masts (25 m) along the back of the apron
+    for (let k = -3; k <= 3; k++) {
+      struct.push(paint(box(0.6, 25, 0.6, 428, 0, k * 200), grey));
+      struct.push(paint(box(3, 1.2, 1.6, 427, 25, k * 200), darkGrey));
+    }
+    // ground support vehicles on the apron: fuel bowsers (10 m) and tugs
+    const rngV = mulberry(f.id.length * 17 + 5);
+    for (let k = 0; k < 6; k++) {
+      const z = -520 + k * 190 + rngV() * 30;
+      const x = 440 + rngV() * 20;
+      struct.push(paint(box(2.5, 3, 10, x, 0, z), k % 2 ? new THREE.Color(0.85, 0.85, 0.8) : new THREE.Color(0.35, 0.4, 0.3)));
+      struct.push(paint(box(2.2, 1.6, 3.5, x + 6, 0, z + 2), new THREE.Color(0.8, 0.65, 0.1)));
+    }
+    // perimeter fence behind the base
+    for (let z = -1000; z < 1000; z += 4) struct.push(paint(box(0.08, 2.4, 0.08, 830, 0, z), grey));
+    struct.push(paint(box(0.05, 0.08, 2000, 830, 2.3, 0), grey));
+    struct.push(paint(box(0.05, 0.08, 2000, 830, 1.2, 0), grey));
+    // windsock by the runway
+    struct.push(paint(box(0.25, 7, 0.25, -60, 0, -L / 2 + 350), grey));
+    const sock = new THREE.CylinderGeometry(0.25, 0.6, 3.6, 8, 1, true);
+    sock.rotateZ(Math.PI / 2);
+    sock.translate(-58, 6.8, -L / 2 + 350);
+    struct.push(paint(sock, new THREE.Color(0.95, 0.45, 0.1)));
 
     // admin / barracks blocks
     const rngB = mulberry(f.id.length * 31 + f.heading);
