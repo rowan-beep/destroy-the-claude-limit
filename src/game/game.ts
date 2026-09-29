@@ -87,6 +87,7 @@ export class Game implements ModeHost {
   private accumulator = 0;
   private readonly interp = new RenderInterp();
   private lastT = 0;
+  private sunCheckAt = 0;
   private running = false;
   /** mouse-aim direction (world) */
   readonly aimDir = new THREE.Vector3(0, 0, -1);
@@ -792,6 +793,15 @@ export class Game implements ModeHost {
       fireR: d.fire > 0 && (d.fireComponent === 'engineR' || (d.fireComponent !== 'engineL' && d.fireComponent !== null)),
       blink,
     });
+    // is the sun in clear view (not behind a mountain)? checked a few times a second
+    const now = performance.now();
+    if (now - this.sunCheckAt > 250) {
+      this.sunCheckAt = now;
+      const sd = this.world.env.sunDir;
+      const e = this.renderer.camera.position;
+      this.cockpitView.sunVisible = sd.y > -0.05 && this.sim.grid.lineOfSight(e.x, e.y, e.z, e.x + sd.x * 30000, e.y + sd.y * 30000, e.z + sd.z * 30000) ? 1 : 0;
+    }
+    this.cam.head.strength = this.settings.gameplay.headMotion;
     this.cockpitView.sync(this.renderer.camera, p, this.world.env, this.renderer.scene);
     this.renderer.setOverlay(this.cockpitView.scene, this.cockpitView.camera);
   }

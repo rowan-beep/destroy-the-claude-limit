@@ -763,3 +763,8 @@ body.touch-mode .weapon-bar { bottom: auto; top: calc(96px + env(safe-area-inset
   .mm { overflow-y: auto; padding-bottom: 70px; display: block; }
   .mm-pilot-stats { display: none; }
 }
+
+/* cockpit view: hide the 2D info panels (the 3D HUD and displays carry the data) */
+#hud.cockpit-clean .hud-left, #hud.cockpit-clean .hud-right { opacity: 0; pointer-events: none; transition: opacity 0.35s; }
+#hud .hud-left, #hud .hud-right { transition: opacity 0.35s; }
+body:has(#hud.cockpit-clean) .wx-widget { opacity: 0; pointer-events: none; }

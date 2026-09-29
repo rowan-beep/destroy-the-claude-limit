@@ -34,6 +34,15 @@ export interface DailyMission {
   triggerNm: number;
   /** after the fight, fly back to within 10 NM of home to complete the mission */
   rtb: boolean;
+  /**
+   * how the bandits behave: 'orbit' (default) circles the target, radar silent,
+   * and turns on you inside `triggerNm`; 'inbound' flies low toward your home
+   * base without fighting back, and the mission fails if any gets within `failNm`
+   */
+  behavior?: 'orbit' | 'inbound';
+  failNm?: number;
+  /** cruise altitude for 'inbound' targets (m above sea level) */
+  altM?: number;
   /** the theater the story fits best (flown on the current one otherwise) */
   map?: MapId;
   /** the jet the real pilots flew, if the game has it */
@@ -44,27 +53,30 @@ export interface DailyMission {
 
 export const DAILY: DailyMission[] = [
   {
-    date: '2026-09-28',
-    title: 'NORDIC SCRAMBLE',
-    headline: 'Finnish Hornets and Swedish Gripens scramble together for the first time to intercept a Russian formation over the Gulf of Finland.',
-    eventDate: '2026-09-24',
-    source: 'Fox News / Swedish Air Force',
+    date: '2026-09-29',
+    title: 'BORDER WATCH',
+    headline: 'Poland and Romania scramble fighters as Russia launches 161 drones, 82 of them jet-powered, and cruise missiles at Ukraine; two Romanian F-16s track a target manoeuvring near the border at Valkove.',
+    eventDate: '2026-09-23',
+    source: 'ABC News, Polish Operational Command, Romanian Ministry of National Defence',
     story:
-      'On 24 September, Finnish F/A-18 Hornets and Swedish JAS 39 Gripens launched together for the first time to meet a Russian formation over the Gulf of Finland: a transport escorted by supersonic MiG-31 interceptors and Su-30 fighters. Today you fly that scramble. In real life it ended quietly; in this version the escort flight does not back off.',
+      'Overnight on 22 to 23 September, Russia launched 161 drones, 82 of them jet-powered, and Banderol cruise missiles at Ukraine. Poland scrambled fighters against the jet drones striking western Ukraine, and Romania launched two F-16s after a target was seen manoeuvring near Valkove, right on its border. Both alerts ended after about an hour with no airspace violated. You fly that quick-reaction alert; in this version the jet drones turn toward your side of the border.',
     tasks: [
       'Scramble: take off from home base.',
-      'Fly to the escort flight circling over the strait (it is marked on your map and radar).',
-      'Inside 20 NM the three Flankers turn on you. Shoot all three down.',
+      'Four jet drones are inbound, fast and radar silent (steerpoint 1 marks where they cross the border). They do not shoot back.',
+      'Shoot all four down before any of them gets within 15 NM of home.',
       'Return to base: bring your jet back within 10 NM of home.',
     ],
     target: 'strait',
-    targetName: 'THE STRAIT',
-    enemy: { type: 'SU35', count: 3, difficulty: 'MEDIUM', callsign: 'FLANKER', aim120: 2, aim9x: 2 },
+    distNm: 85,
+    targetName: 'THE BORDER',
+    behavior: 'inbound',
+    failNm: 15,
+    altM: 500,
+    enemy: { type: 'SU35', count: 4, difficulty: 'MEDIUM', callsign: 'DRONE', aim120: 0, aim9x: 0 },
     triggerNm: 20,
     rtb: true,
-    map: 'frost',
-    realJet: 'FA18EF',
-    callsign: 'NORDIC 1',
+    map: 'triad',
+    callsign: 'CARPAT 1',
   },
 ];
 

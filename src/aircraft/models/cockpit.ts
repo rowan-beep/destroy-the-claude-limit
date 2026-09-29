@@ -16,7 +16,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import type { AirframeVisual } from './visual';
 import { COCKPIT_LAYOUTS, CockpitLayout, DisplayMount } from './cockpitLayouts';
 import { Section, sectionAt, sectionArch, sectionHalfWidthAt, sectionPoint, loft } from './builder';
-import { consoleTexture, panelTexture, keypadTexture, stripeTexture, legendTexture, cushionTexture } from './cockpitTextures';
+import { consoleTexture, panelTexture, keypadTexture, stripeTexture, legendTexture, cushionTexture, canopyScratchTexture } from './cockpitTextures';
 import { osbPosition } from '../../avionics/draw';
 import { clamp, lerp } from '../../core/math';
 
@@ -53,6 +53,51 @@ const _v = new THREE.Vector3();
 
 function std(color: number, rough = 0.85, metal = 0.15, map: THREE.Texture | null = null): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal, map });
+}
+
+/**
+ * The canopy acrylic seen from inside: nearly clear, a fresnel sheen of the
+ * sky, and when you look toward the sun its scratches, wipe swirls and dust
+ * light up around the sun's position with a soft veiling haze.
+ */
+function canopyGlassMaterial(scratch: THREE.Texture): THREE.MeshStandardMaterial {
+  const m = new THREE.MeshStandardMaterial({
+    color: 0xdfe8f0,
+    transparent: true,
+    opacity: 0.04,
+    roughness: 0.03,
+    metalness: 0.5,
+    depthWrite: false,
+    side: THREE.BackSide,
+  });
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.scratchMap = { value: scratch };
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec2 vGlassUv;')
+      .replace('#include <uv_vertex>', '#include <uv_vertex>\nvGlassUv = uv;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec2 vGlassUv;\nuniform sampler2D scratchMap;')
+      .replace(
+        '#include <opaque_fragment>',
+        `#include <opaque_fragment>
+        #if NUM_DIR_LIGHTS > 0
+        {
+          vec3 Vd = normalize( -vViewPosition );
+          float al = max( dot( Vd, directionalLights[ 0 ].direction ), 0.0 );
+          float halo = pow( al, 9.0 );
+          float core = pow( al, 70.0 );
+          float sc = texture2D( scratchMap, vGlassUv * vec2( 7.0, 5.0 ) ).r;
+          vec3 glint = directionalLights[ 0 ].color * ( sc * ( halo * 0.3 + core * 1.4 ) + halo * 0.01 + core * 0.05 );
+          float ga = clamp( dot( glint, vec3( 0.33 ) ), 0.0, 1.0 );
+          float na = clamp( gl_FragColor.a + ga, 0.0, 1.0 );
+          gl_FragColor.rgb = ( gl_FragColor.rgb * gl_FragColor.a + glint ) / max( na, 1e-4 );
+          gl_FragColor.a = na;
+        }
+        #endif`,
+      );
+  };
+  m.customProgramCacheKey = () => 'canopy-glass-v2';
+  return m;
 }
 
 /** Rounded rectangle shape centred on the origin. */
@@ -262,28 +307,19 @@ export class Cockpit {
       rubber: this.mat(std(0x0d0e0f, 0.95, 0.0)),
       white: this.mat(std(0xd8d8d0, 0.6, 0.1)),
       mirror: this.mat(new THREE.MeshStandardMaterial({ color: 0x6d757c, roughness: 0.08, metalness: 1.0 })),
+      // the combiner is almost clear: a faint green-gold coating that shows mostly as reflections
       hudGlass: this.mat(
         new THREE.MeshStandardMaterial({
-          color: 0x9affc8,
+          color: 0xd6f5e0,
           transparent: true,
-          opacity: 0.1,
-          roughness: 0.05,
-          metalness: 0.2,
+          opacity: 0.035,
+          roughness: 0.02,
+          metalness: 0.6,
           depthWrite: false,
           side: THREE.DoubleSide,
         }),
       ),
-      canopyGlass: this.mat(
-        new THREE.MeshStandardMaterial({
-          color: 0xdfe8f0,
-          transparent: true,
-          opacity: 0.045,
-          roughness: 0.03,
-          metalness: 0.5,
-          depthWrite: false,
-          side: THREE.BackSide,
-        }),
-      ),
+      canopyGlass: this.mat(canopyGlassMaterial(tex(canopyScratchTexture()))),
     };
   }
 

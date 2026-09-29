@@ -101,7 +101,36 @@ export class DailyMode extends GameMode {
     this.enemies = [];
     const e0 = m.enemy;
     const n = Math.max(1, e0.count);
-    for (let i = 0; i < n; i++) {
+    const inbound = m.behavior === 'inbound';
+    if (inbound) {
+      // inbound: a loose line abreast crossing the border, low and fast, heading for home
+      const toHome = new THREE.Vector3(this.home.x - t.x, 0, this.home.z - t.z).normalize();
+      const side = new THREE.Vector3(-toHome.z, 0, toHome.x);
+      const hdg = (Math.atan2(toHome.x, -toHome.z) * 180) / Math.PI;
+      // low, but clear of the highest ground on the way in (a drone flying into a hill is no win)
+      const grid = h.sim.grid;
+      let ground = 0;
+      const span = Math.hypot(this.home.x - t.x, this.home.z - t.z);
+      for (let d = 0; d <= span; d += 500)
+        for (const o of [-12000, -6000, 0, 6000, 12000]) ground = Math.max(ground, grid.height(t.x + toHome.x * d + side.x * o, t.z + toHome.z * d + side.z * o));
+      const cruise = Math.max(m.altM ?? 500, ground + 300);
+      for (let i = 0; i < n; i++) {
+        const off = (i - (n - 1) / 2) * 5 * NM;
+        const pos = new THREE.Vector3(t.x, cruise, t.z).addScaledVector(side, off).addScaledVector(toHome, -(i % 2) * 4 * NM);
+        const e = new Aircraft(e0.type, 'red', `${e0.callsign} ${i + 1}`);
+        e.setStores(aiStores(e, 0, 0));
+        spawnInAir(e, pos, (hdg + 360) % 360, 420);
+        const ai = new AIPilot(e, duelSkill(e0.difficulty), h.picture);
+        ai.passive = true;
+        ai.weaponsHold = true;
+        // each heads for a point beside the home field (they fan out a little)
+        ai.setRoute([new THREE.Vector3(this.home.x + side.x * off * 0.3, pos.y, this.home.z + side.z * off * 0.3)], pos.y);
+        e.ai = ai;
+        h.sim.add(e);
+        this.enemies.push(e);
+      }
+    }
+    for (let i = 0; i < (inbound ? 0 : n); i++) {
       const a0 = (i / n) * Math.PI * 2;
       const pos = new THREE.Vector3(t.x + Math.sin(a0) * ORBIT_R, this.target.y + (i - (n - 1) / 2) * 300, t.z - Math.cos(a0) * ORBIT_R);
       const e = new Aircraft(e0.type, 'red', `${e0.callsign} ${i + 1}`);
@@ -139,9 +168,15 @@ export class DailyMode extends GameMode {
       title: m.title,
       story: m.story,
       tasks: m.tasks,
-      footer: `Based on real news (${fmtDate(m.eventDate)}): ${m.headline} Source: ${m.source}. You: ${m.callsign}, ${p.spec.shortName}, at ${this.home.name}. Bandits: ${n} × ${jet} (${e0.difficulty}) over ${m.targetName}.${real}${theater}`,
+      footer: inbound
+        ? `Based on real news (${fmtDate(m.eventDate)}): ${m.headline} Source: ${m.source}. You: ${m.callsign}, ${p.spec.shortName}, at ${this.home.name}. Targets: ${n} jet drones (flown by ${jet} airframes in the game), inbound from ${m.targetName}.${real}${theater}`
+        : `Based on real news (${fmtDate(m.eventDate)}): ${m.headline} Source: ${m.source}. You: ${m.callsign}, ${p.spec.shortName}, at ${this.home.name}. Bandits: ${n} × ${jet} (${e0.difficulty}) over ${m.targetName}.${real}${theater}`,
       onOk: () => {
-        h.order(`${m.title} — SCRAMBLE`, `Take off from ${this.home.name} and head for ${m.targetName} (steerpoint 1, TGT). ${n} ${jet}s are circling there, radar silent. Inside ${m.triggerNm} NM they will turn on you.`, 12);
+        if (inbound) {
+          h.order(`${m.title} — SCRAMBLE`, `Take off from ${this.home.name}. ${n} jet drones are crossing ${m.targetName} (steerpoint 1), fast and radar silent, heading for you. Stop every one before it gets within ${m.failNm ?? 15} NM of home.`, 14);
+          this.phase = 'fight';
+          this.fightStart = 0.001;
+        } else h.order(`${m.title} — SCRAMBLE`, `Take off from ${this.home.name} and head for ${m.targetName} (steerpoint 1, TGT). ${n} ${jet}s are circling there, radar silent. Inside ${m.triggerNm} NM they will turn on you.`, 12);
         h.voice('Scramble, scramble');
       },
     });
@@ -183,6 +218,27 @@ export class DailyMode extends GameMode {
     }
 
     const alive = this.enemies.filter((e) => e.alive);
+    if (this.m.behavior === 'inbound' && this.phase === 'fight') {
+      const failNm = this.m.failNm ?? 15;
+      let near = Infinity;
+      let lead: Aircraft | null = null;
+      for (const e of alive) {
+        const d = Math.hypot(e.fm.pos.x - this.home.x, e.fm.pos.z - this.home.z);
+        if (d < near) {
+          near = d;
+          lead = e;
+        }
+      }
+      if (lead && near < failNm * NM) {
+        this.finish(false, `${lead.callsign} got through to within ${failNm} NM of ${this.home.name}.`);
+        return;
+      }
+      this.gciTimer -= dt;
+      if (this.gciTimer <= 0 && lead) {
+        this.gciTimer = 40;
+        h.message(`OVERLORD: ${alive.length} TRACK${alive.length > 1 ? 'S' : ''} INBOUND, LEAD ${braa(p.fm.pos, lead)}, ${Math.round(near / NM)} NM FROM HOME.`, 'gci', 9);
+      }
+    }
     if (this.phase === 'ingress') {
       const dT = Math.hypot(p.fm.pos.x - this.target.x, p.fm.pos.z - this.target.z);
       const dE = Math.min(...alive.map((e) => Math.hypot(p.fm.pos.x - e.fm.pos.x, p.fm.pos.z - e.fm.pos.z)), Infinity);
@@ -198,11 +254,12 @@ export class DailyMode extends GameMode {
       }
     }
     if (this.phase === 'fight' && alive.length === 0) {
+      const what = this.m.behavior === 'inbound' ? 'drones' : 'bandits';
       if (this.m.rtb) {
         this.phase = 'rtb';
-        h.order('SPLASH ALL — RETURN TO BASE', `All ${this.enemies.length} bandits down. Bring the jet home: get within ${RTB_NM} NM of ${this.home.name} or any friendly field. Press [End] to steer to the nearest one.`, 12);
+        h.order('SPLASH ALL — RETURN TO BASE', `All ${this.enemies.length} ${what} down. Bring the jet home: get within ${RTB_NM} NM of ${this.home.name} or any friendly field. Press [End] to steer to the nearest one.`, 12);
         h.voice('Splash, return to base');
-      } else this.finish(true, `All ${this.enemies.length} bandits shot down.`);
+      } else this.finish(true, `All ${this.enemies.length} ${what} shot down.`);
     }
     if (this.phase === 'rtb') {
       const near = airfieldsOf('blue').some((f) => Math.hypot(p.fm.pos.x - f.x, p.fm.pos.z - f.z) < RTB_NM * NM);
@@ -215,7 +272,7 @@ export class DailyMode extends GameMode {
     }
     if (this.endTimer > 0) {
       this.endTimer -= dt;
-      if (this.endTimer <= 0) this.finish(true, `All ${this.enemies.length} bandits shot down and ${p.callsign} home safe.`);
+      if (this.endTimer <= 0) this.finish(true, `All ${this.enemies.length} ${this.m.behavior === 'inbound' ? 'drones' : 'bandits'} shot down and ${p.callsign} home safe.`);
     }
   }
 
@@ -230,7 +287,7 @@ export class DailyMode extends GameMode {
       good,
       stats: statsFor(h.player, [
         ['DAILY MISSION', fmtDate(this.m.date)],
-        ['BANDITS DOWN', `${kills} / ${this.enemies.length}`],
+        [this.m.behavior === 'inbound' ? 'TARGETS DOWN' : 'BANDITS DOWN', `${kills} / ${this.enemies.length}`],
         ['MISSION TIME', mmss(this.elapsed)],
         ...(this.fightStart > 0 && kills ? ([['FIGHT TIME', mmss(this.elapsed - this.fightStart)]] as [string, string][]) : []),
       ]),
@@ -247,7 +304,10 @@ export class DailyMode extends GameMode {
     let objective = '';
     if (p) {
       if (this.phase === 'ingress') objective = `FLY TO ${this.m.targetName}: ${Math.round(Math.hypot(p.fm.pos.x - this.target.x, p.fm.pos.z - this.target.z) / NM)} NM`;
-      else if (this.phase === 'fight') objective = `SHOOT DOWN THE ${this.m.enemy.callsign} FLIGHT: ${alive} LEFT`;
+      else if (this.phase === 'fight' && this.m.behavior === 'inbound') {
+        const near = Math.min(...this.enemies.filter((e) => e.alive).map((e) => Math.hypot(e.fm.pos.x - this.home.x, e.fm.pos.z - this.home.z) / NM), 999);
+        objective = `STOP THE DRONES: ${alive} LEFT · NEAREST ${Math.round(near)} NM FROM HOME`;
+      } else if (this.phase === 'fight') objective = `SHOOT DOWN THE ${this.m.enemy.callsign} FLIGHT: ${alive} LEFT`;
       else if (this.phase === 'rtb') objective = `RETURN TO BASE: ${this.home.icao} ${Math.round(Math.hypot(p.fm.pos.x - this.home.x, p.fm.pos.z - this.home.z) / NM)} NM`;
       else objective = 'MISSION COMPLETE';
     }

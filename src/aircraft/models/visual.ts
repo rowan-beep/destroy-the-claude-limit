@@ -32,6 +32,8 @@ export interface FarLod {
   paint: THREE.Material | null;
   /** ambient occlusion volume baked from the merged airframe */
   ao?: AoVolume;
+  /** the whole airframe as one mesh in the paint material, for jets a few pixels across */
+  speck: THREE.BufferGeometry;
 }
 
 // Draws nothing in the colour pass (every fragment fails the depth test) but
@@ -250,6 +252,9 @@ export class AirframeVisual {
   private farGroup: THREE.Group | null = null;
   private shadowProxy: THREE.Mesh | null = null;
   private far = false;
+  /** single-draw stand-in shown instead of the whole body when the jet is a speck */
+  private speck: THREE.Mesh | null = null;
+  private speckOn = false;
   wreck = false;
 
   constructor(readonly ac: Aircraft) {
@@ -428,6 +433,7 @@ export class AirframeVisual {
       const mesh = o as THREE.Mesh;
       if (mesh.isMesh && (mesh.material === prev || mesh.material === base || mesh.material === this.customMat)) mesh.material = target;
     });
+    if (this.speck) this.speck.material = target;
   }
 
   private suitOrig = new Map<THREE.Mesh, THREE.Material>();
@@ -489,6 +495,7 @@ export class AirframeVisual {
     const inv = this.body.matrixWorld.clone().invert();
     const groups = new Map<THREE.Material, THREE.BufferGeometry[]>();
     const shadows: THREE.BufferGeometry[] = [];
+    const specks: THREE.BufferGeometry[] = [];
     for (const m of this.lodSources()) {
       const src = m.geometry;
       const mat = m.material as THREE.MeshStandardMaterial;
@@ -521,6 +528,13 @@ export class AirframeVisual {
       sh.setAttribute('position', g.attributes.position);
       sh.setIndex(g.index);
       shadows.push(sh);
+      // the speck paints every part with the livery: at a few pixels nobody can tell
+      const sk = new THREE.BufferGeometry();
+      sk.setAttribute('position', g.attributes.position);
+      sk.setAttribute('normal', g.attributes.normal);
+      sk.setAttribute('skin', g.attributes.skin ?? (g.attributes.position as THREE.BufferAttribute).clone());
+      sk.setIndex(g.index);
+      specks.push(sk);
     }
     const parts: FarLod['parts'] = [];
     for (const [mat, list] of groups) {
@@ -531,7 +545,9 @@ export class AirframeVisual {
     }
     const shadow = mergeGeometries(shadows, false) ?? new THREE.BufferGeometry();
     shadow.computeBoundingSphere();
-    return { parts, shadow, paint: this.paintMat };
+    const speck = mergeGeometries(specks, false) ?? new THREE.BufferGeometry();
+    speck.computeBoundingSphere();
+    return { parts, shadow, paint: this.paintMat, speck };
   }
 
   /** Near / far switch from the camera distance (with hysteresis), scaled by the zoom. */
@@ -544,6 +560,17 @@ export class AirframeVisual {
     const far = this.far ? d > 150 : d > 175;
     if (far !== this.far) this.setFar(far);
     this.setDetail(!far && dist < 900);
+    // a jet only a few pixels across: one draw call instead of 30-40 (airframe
+    // parts, canopy, stores, lights, flames)
+    const speck = far && !this.insideView && (this.speckOn ? d > 1400 : d > 1600);
+    if (speck !== this.speckOn) this.setSpeck(speck);
+  }
+
+  private setSpeck(on: boolean): void {
+    if (!this.speck) return;
+    this.speckOn = on;
+    this.speck.visible = on;
+    this.body.visible = !on;
   }
 
   setFar(far: boolean): void {
@@ -620,6 +647,12 @@ export class AirframeVisual {
       sp.name = 'shadow-proxy';
       v.body.add(sp);
       v.shadowProxy = sp;
+      const sk = new THREE.Mesh(L.speck, this.paintMat!);
+      sk.name = 'speck';
+      sk.castShadow = false;
+      sk.visible = false;
+      v.root.add(sk);
+      v.speck = sk;
     }
     v.paintMat = this.paintMat;
     v.navLights = this.navLights.map((l) => ({ mesh: M(l.mesh), kind: l.kind }));

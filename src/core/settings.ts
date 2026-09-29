@@ -16,6 +16,10 @@ export interface GameSettings {
     realisticFuel: boolean;
     cameraRoll: boolean;
     touchControls: 'auto' | 'on' | 'off';
+    /** show the 2D info panels in the cockpit view (off: the 3D HUD and displays only) */
+    cockpitPanels: boolean;
+    /** how much G, turbulence and the engines move the pilot's head, 0..1 */
+    headMotion: number;
   };
   input: InputSettings;
   lastAircraft: string;
@@ -108,6 +112,8 @@ export function defaultSettings(): GameSettings {
       realisticFuel: true,
       cameraRoll: false,
       touchControls: 'auto',
+      cockpitPanels: false,
+      headMotion: 1,
     },
     input: defaultInputSettings(),
     lastAircraft: 'F15EX',

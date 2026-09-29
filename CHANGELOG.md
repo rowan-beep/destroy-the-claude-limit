@@ -3,6 +3,20 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.19.0 — New cockpit view (2026-09-29)
+
+- A completely new cockpit view. The camera is no longer bolted to the airframe: your head now sits on a sprung neck that reacts to what your body feels. G pushes you down into the seat and the view settles with a small overshoot. Lateral G sways you, the afterburner presses you back, and a snap roll leaves your head behind for a moment. Hands off the look controls, your head keeps the horizon a little more level than the jet, glances up into a hard turn and leads a roll with the eyes, the way real pilots do.
+- The cockpit shakes like a real one: a faint engine hum, afterburner rumble, runway bumps on the takeoff roll, a deep buffet near the stall and around the speed of sound, and a hard judder when the gun fires. Each has its own feel, and a new HEAD MOVEMENT slider in Settings turns it down or off.
+- Realistic canopy glass: fine scratches, wipe marks and dust that only light up when you look toward the sun, just like real acrylic. Looking into the sun gives a starburst glare that the canopy frame and the jet's own structure can block. At dusk and at night, cockpit floodlights warm the panel, and the sun's shadows in the cockpit are twice as sharp on high and ultra graphics.
+- Realistic interiors: every cockpit is repainted in its real colour, the grey of US and European jets and the turquoise of the Su-35S. The HUD glass is clear with just a faint green tint.
+- A clean view: in the cockpit the side info panels (radar scope, RWR, weapons and fuel boxes) now hide, so you fly on the jet's own HUD and displays. Turn them back on with INFO PANELS IN COCKPIT in Settings.
+- Today's daily mission, BORDER WATCH: Poland and Romania scrambled fighters this week as Russia launched 161 drones, 82 of them jet-powered, and cruise missiles at Ukraine, and two Romanian F-16s tracked a target near the border at Valkove. You are CARPAT 1. Four fast, radar-silent jet drones cross the border heading for your home field. Take off, find them and shoot every one down before any gets within 15 NM of home, then fly the jet home.
+- Performance: distant jets now draw as a single mesh instead of 30 to 40 pieces. That cuts the frame's draw calls by more than half in big battles (518 to 233 in a 12-jet free-for-all, 430 to 144 in the cockpit) with no visible difference.
+- Performance: the HUD scopes no longer measure the page layout every frame, and the scopes you can't see are skipped altogether.
+- Performance: the gun lead marker's terrain check is cached per target instead of run every frame.
+- Fixed: the spotting markers' line-of-sight memory grew for the whole session; it is now cleared as it fills.
+- Fixed: finishing the drone mission said "bandits" instead of "drones".
+
 ## v4.18.1 — Windows app (2026-09-28)
 
 - TRIAD for Windows: a desktop app (TRIAD-Air-Combat.exe) you can download and share, published on the project's GitHub Releases page. It is a single portable .exe: no installer, just double-click. It plays the latest version of the game and keeps itself up to date, and without internet it plays the copy built into the app. F11 toggles full screen.

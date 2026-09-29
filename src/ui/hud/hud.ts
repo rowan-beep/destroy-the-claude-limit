@@ -268,6 +268,8 @@ export class Hud {
   }
 
   update(dt: number, g: Game): void {
+    // cockpit view: a clean, realistic picture (flight data lives on the 3D HUD and displays)
+    setClass(this.root, 'cockpit-clean', g.cam.mode === 'cockpit' && !g.settings.gameplay.cockpitPanels);
     this.now += dt;
     const p = g.player;
     if (!p) return;
@@ -347,8 +349,11 @@ export class Hud {
     this.scopeTimer -= dt;
     if (this.scopeTimer <= 0) {
       this.scopeTimer = 0.05;
-      drawRadarScope(this.radarCanvas, g, this.sweep);
-      drawRwr(this.rwrCanvas, g, Math.floor(this.now * 4) % 2 === 0);
+      // the radar and RWR scopes sit in the side panels, which the clean cockpit view hides
+      if (!this.root.classList.contains('cockpit-clean')) {
+        drawRadarScope(this.radarCanvas, g, this.sweep);
+        drawRwr(this.rwrCanvas, g, Math.floor(this.now * 4) % 2 === 0);
+      }
       drawMinimap(this.minimap, g);
       drawCompass(this.compass, g);
     }

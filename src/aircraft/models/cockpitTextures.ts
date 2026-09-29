@@ -282,3 +282,53 @@ export function cushionTexture(base: number): THREE.CanvasTexture {
   }
   return tex(c, true);
 }
+
+/**
+ * Canopy acrylic wear: the fine circular swirls a cleaning cloth leaves, a few
+ * longer hairline scratches and dust specks. Invisible until the sun is in
+ * front of you, when they light up across the glass (red channel = intensity).
+ */
+export function canopyScratchTexture(): THREE.CanvasTexture {
+  const S = 512;
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const g = c.getContext('2d')!;
+  const r = mulberry32(911);
+  g.fillStyle = '#000';
+  g.fillRect(0, 0, S, S);
+  g.lineCap = 'round';
+  // wipe swirls: clusters of concentric arcs
+  for (let k = 0; k < 26; k++) {
+    const cx = r() * S, cy = r() * S;
+    const n = 6 + Math.floor(r() * 10);
+    for (let i = 0; i < n; i++) {
+      const rad = 12 + r() * 70;
+      const a0 = r() * Math.PI * 2;
+      g.strokeStyle = `rgba(255,255,255,${0.08 + r() * 0.22})`;
+      g.lineWidth = 0.6 + r() * 0.6;
+      g.beginPath();
+      g.arc(cx + (r() - 0.5) * 20, cy + (r() - 0.5) * 20, rad, a0, a0 + 0.4 + r() * 1.6);
+      g.stroke();
+    }
+  }
+  // long hairline scratches
+  for (let k = 0; k < 14; k++) {
+    const x = r() * S, y = r() * S, a = r() * Math.PI, l = 60 + r() * 220;
+    g.strokeStyle = `rgba(255,255,255,${0.2 + r() * 0.3})`;
+    g.lineWidth = 0.7;
+    g.beginPath();
+    g.moveTo(x, y);
+    g.quadraticCurveTo(x + Math.cos(a) * l * 0.5 + (r() - 0.5) * 20, y + Math.sin(a) * l * 0.5 + (r() - 0.5) * 20, x + Math.cos(a) * l, y + Math.sin(a) * l);
+    g.stroke();
+  }
+  // dust and tiny pits
+  for (let k = 0; k < 900; k++) {
+    g.fillStyle = `rgba(255,255,255,${0.15 + r() * 0.5})`;
+    const s = 0.6 + r() * 1.4;
+    g.fillRect(r() * S, r() * S, s, s);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = 8;
+  return t;
+}

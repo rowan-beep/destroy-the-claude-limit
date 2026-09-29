@@ -8,8 +8,30 @@ import { AIRFIELDS } from '../../world/islands';
 import { RWR_SYMBOL } from '../../sensors/rwr';
 import { hostile, RULES } from '../../game/rules';
 
+// Canvas sizes come from a ResizeObserver: reading clientWidth every frame forced
+// the browser to recompute the page layout right after the HUD text changed.
+const sizes = new WeakMap<HTMLCanvasElement, { w: number; h: number }>();
+const ro =
+  typeof ResizeObserver !== 'undefined'
+    ? new ResizeObserver((entries) => {
+        for (const e of entries) sizes.set(e.target as HTMLCanvasElement, { w: e.contentRect.width, h: e.contentRect.height });
+      })
+    : null;
+
+function cssSize(canvas: HTMLCanvasElement): { w: number; h: number } {
+  let s = sizes.get(canvas);
+  if (!s || !ro) {
+    s = { w: canvas.clientWidth, h: canvas.clientHeight };
+    sizes.set(canvas, s);
+    ro?.observe(canvas);
+  }
+  return s;
+}
+
 function visible(canvas: HTMLCanvasElement): boolean {
-  return !canvas.isConnected || (canvas.clientWidth > 10 && canvas.clientHeight > 10);
+  if (!canvas.isConnected) return true;
+  const s = cssSize(canvas);
+  return s.w > 10 && s.h > 10;
 }
 
 function fit(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
@@ -20,7 +42,8 @@ function fit(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
     return ctx;
   }
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const w = canvas.clientWidth || canvas.width, h = canvas.clientHeight || canvas.height;
+  const cs = cssSize(canvas);
+  const w = cs.w || canvas.width, h = cs.h || canvas.height;
   if (canvas.width !== Math.floor(w * dpr) || canvas.height !== Math.floor(h * dpr)) {
     canvas.width = Math.floor(w * dpr);
     canvas.height = Math.floor(h * dpr);
@@ -39,7 +62,8 @@ const FRIEND = '#5dff8a';
 export function drawRadarScope(canvas: HTMLCanvasElement, g: Game, sweepT: number): void {
   if (!visible(canvas)) return;
   const ctx = fit(canvas);
-  const w = canvas.isConnected ? canvas.clientWidth : canvas.width, h = canvas.isConnected ? canvas.clientHeight : canvas.height;
+  const cs = canvas.isConnected ? cssSize(canvas) : null;
+  const w = cs ? cs.w : canvas.width, h = cs ? cs.h : canvas.height;
   const p = g.player!;
   ctx.clearRect(0, 0, w, h);
   const r = p.radar;
@@ -143,7 +167,8 @@ export function drawRadarScope(canvas: HTMLCanvasElement, g: Game, sweepT: numbe
 export function drawRwr(canvas: HTMLCanvasElement, g: Game, blink: boolean): void {
   if (!visible(canvas)) return;
   const ctx = fit(canvas);
-  const w = canvas.isConnected ? canvas.clientWidth : canvas.width, h = canvas.isConnected ? canvas.clientHeight : canvas.height;
+  const cs = canvas.isConnected ? cssSize(canvas) : null;
+  const w = cs ? cs.w : canvas.width, h = cs ? cs.h : canvas.height;
   const cx = w / 2, cy = h / 2, R = Math.min(w, h) / 2 - 4;
   const p = g.player!;
   ctx.clearRect(0, 0, w, h);
@@ -190,7 +215,8 @@ export function drawRwr(canvas: HTMLCanvasElement, g: Game, blink: boolean): voi
 export function drawMinimap(canvas: HTMLCanvasElement, g: Game): void {
   if (!visible(canvas)) return;
   const ctx = fit(canvas);
-  const w = canvas.isConnected ? canvas.clientWidth : canvas.width, h = canvas.isConnected ? canvas.clientHeight : canvas.height;
+  const cs = canvas.isConnected ? cssSize(canvas) : null;
+  const w = cs ? cs.w : canvas.width, h = cs ? cs.h : canvas.height;
   const cx = w / 2, cy = h / 2, R = Math.min(w, h) / 2 - 3;
   const p = g.player!;
   ctx.clearRect(0, 0, w, h);
@@ -323,7 +349,8 @@ export function drawMinimap(canvas: HTMLCanvasElement, g: Game): void {
 export function drawCompass(canvas: HTMLCanvasElement, g: Game): void {
   if (!visible(canvas)) return;
   const ctx = fit(canvas);
-  const w = canvas.isConnected ? canvas.clientWidth : canvas.width, h = canvas.isConnected ? canvas.clientHeight : canvas.height;
+  const cs = canvas.isConnected ? cssSize(canvas) : null;
+  const w = cs ? cs.w : canvas.width, h = cs ? cs.h : canvas.height;
   const p = g.player!;
   ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = 'rgba(12,20,28,0.62)';

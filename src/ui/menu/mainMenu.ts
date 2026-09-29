@@ -349,7 +349,14 @@ export class MainMenu {
       el('div', 'mm-daily-k', card, `TODAY · ${dm.date} · FROM THE NEWS (${dm.eventDate})`);
       el('div', 'mm-daily-t', card, dm.title);
       el('div', 'mm-daily-d', card, dm.headline);
-      el('div', 'mm-daily-d', card, `${dm.enemy.count} × ${SPECS[dm.enemy.type].shortName} (${dm.enemy.difficulty}) waiting over ${dm.targetName}. Take off from home base${dm.rtb ? ', shoot them down and fly home' : ' and shoot them down'}.`);
+      el(
+        'div',
+        'mm-daily-d',
+        card,
+        dm.behavior === 'inbound'
+          ? `${dm.enemy.count} jet drones inbound across ${dm.targetName}, fast and radar silent. Take off, stop every one before it gets within ${dm.failNm ?? 15} NM of home${dm.rtb ? ', then fly home' : ''}.`
+          : `${dm.enemy.count} × ${SPECS[dm.enemy.type].shortName} (${dm.enemy.difficulty}) waiting over ${dm.targetName}. Take off from home base${dm.rtb ? ', shoot them down and fly home' : ' and shoot them down'}.`,
+      );
       if (dailyDone(dm.date)) el('div', 'mm-daily-done', card, '✓ COMPLETED TODAY');
       if (dm.map && dm.map !== activeMap.id) {
         const want = MAPS.find((x) => x.id === dm.map);

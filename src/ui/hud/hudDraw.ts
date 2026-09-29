@@ -618,7 +618,10 @@ export class HudPainter {
    * meet the target. Shown for the locked target, or else the enemy nearest
    * the gun line, whatever weapon is selected.
    */
+  private leadLos = new Map<number, { t: number; v: boolean }>();
+
   leadMarker(g: Game, p: Aircraft, cam: THREE.PerspectiveCamera, drawGunCross: boolean): void {
+    if (this.leadLos.size > 64) this.leadLos.clear();
     // shown out to 10 NM so you can line up early; bright only where the
     // rounds can actually get there before they run out of time
     const MAX = 10 * NM;
@@ -626,7 +629,15 @@ export class HudPainter {
     let t: Aircraft | null = null;
     // never through a mountain: the target has to be in sight
     const grid = g.sim.grid;
-    const seen = (a: Aircraft) => grid.lineOfSight(p.fm.pos.x, p.fm.pos.y, p.fm.pos.z, a.fm.pos.x, a.fm.pos.y, a.fm.pos.z, 2);
+    // terrain line of sight, cached for a moment per target (a ray march per jet per frame adds up)
+    const now = g.sim.time;
+    const seen = (a: Aircraft) => {
+      const c = this.leadLos.get(a.id);
+      if (c && now >= c.t && now - c.t < 0.15) return c.v;
+      const v = grid.lineOfSight(p.fm.pos.x, p.fm.pos.y, p.fm.pos.z, a.fm.pos.x, a.fm.pos.y, a.fm.pos.z, 2);
+      this.leadLos.set(a.id, { t: now, v });
+      return v;
+    };
     const lock = p.lockedTarget;
     if (lock && lock.alive && hostile(p, lock) && p.distanceTo(lock) < MAX) t = seen(lock) ? lock : null;
     else {
@@ -771,13 +782,15 @@ export class HudPainter {
     const cam = g.renderer.camera;
     const c = this.ctx;
     const now = g.sim.time;
+    // ids are never reused, so drop entries from earlier sorties before the map grows
+    if (this.losCache.size > 128) this.losCache.clear();
     for (const a of g.sim.aircraft) {
       if (a === p || a.fm.crashed) continue;
       const d = a.fm.pos.distanceTo(cam.position);
       if (d < 400 || d > 40000) continue;
       const lc = this.losCache.get(a.id);
       let ok: boolean;
-      if (lc && now - lc.t < 0.6) ok = lc.ok;
+      if (lc && now >= lc.t && now - lc.t < 0.6) ok = lc.ok;
       else {
         ok = g.sim.lineOfSight(cam.position, a.fm.pos);
         this.losCache.set(a.id, { t: now, ok });

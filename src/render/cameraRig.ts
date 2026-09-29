@@ -11,6 +11,7 @@ import { clamp, damp, smoothstep } from '../core/math';
 /** seconds without camera input before the chase view recenters */
 const LOOK_IDLE = 1.8;
 import { surfaceHeight } from '../world/terrain';
+import { HeadModel } from './head';
 
 export type CameraMode = 'cockpit' | 'chase' | 'flyby' | 'target' | 'weapon' | 'death';
 
@@ -55,6 +56,9 @@ export class CameraRig {
   /** what the death camera orbits instead of the wreck (the pilot's parachute) */
   deathFocus: THREE.Vector3 | null = null;
 
+  /** the pilot's sprung head in the cockpit view */
+  readonly head = new HeadModel();
+
   constructor(readonly camera: THREE.PerspectiveCamera) {}
 
   setMode(m: CameraMode): void {
@@ -67,6 +71,7 @@ export class CameraRig {
       this.lookYaw = 0;
       this.lookPitch = 0;
     }
+    if (m === 'cockpit') this.head.reset();
   }
 
   toggleCockpit(): void {
@@ -142,18 +147,18 @@ export class CameraRig {
     }
 
     if (this.mode === 'cockpit' && eye) {
-      // head position with G sag and buffet
-      cam.position.copy(eye);
-      const g = fm.nz;
-      _v.set(0, -clamp((g - 1) * 0.012, -0.05, 0.1), 0).applyQuaternion(fm.quat);
-      cam.position.add(_v);
-      _e.set(this.lookPitchSm, this.lookYawSm, 0, 'YXZ');
+      // the eyes ride on a sprung neck: G, turbulence, rolls and the engines move the head
+      const freeLook = this.lookHeld || Math.abs(this.lookYaw) > 0.02 || Math.abs(this.lookPitch) > 0.02;
+      const h = this.head.update(dt, fm, freeLook, ac.gunFiring);
+      cam.position.copy(eye).addScaledVector(fm.right, h.right).addScaledVector(fm.up, h.up).addScaledVector(fm.fwd, h.fwd);
+      // leaning toward the side of the canopy you look at (turning the head moves the eyes)
+      const lean = Math.sin(this.lookYawSm) * 0.07;
+      cam.position.addScaledVector(fm.right, -lean).addScaledVector(fm.up, Math.max(0, -Math.sin(this.lookPitchSm)) * -0.03);
+      _e.set(this.lookPitchSm + h.pitch, this.lookYawSm + h.yaw, h.roll, 'YXZ');
       _q.setFromEuler(_e);
       cam.quaternion.copy(fm.quat).multiply(_q);
-      if (this.aimDir && this.lookYaw === 0 && this.lookPitch === 0) {
-        // mouse-aim in cockpit: the head follows the aim point a little
-      }
-      this.applyShake(cam, ac);
+      // explosions and hits still jolt the view
+      if (this.shake > 0.001) this.applyShake(cam, ac, true);
       cam.fov = fov;
       cam.updateProjectionMatrix();
       return;
@@ -250,11 +255,11 @@ export class CameraRig {
     if (cam.position.y < gh + 1.5) cam.position.y = gh + 1.5;
   }
 
-  private applyShake(cam: THREE.PerspectiveCamera, ac: Aircraft): void {
+  private applyShake(cam: THREE.PerspectiveCamera, ac: Aircraft, impactsOnly = false): void {
     const fm = ac.fm;
-    const buffet = clamp((Math.abs(fm.alpha) / DEG - 18) / 15, 0, 1) * 0.5 + (fm.onGround ? clamp(fm.gs / 80, 0, 1) * 0.15 : 0);
-    const gunShake = ac.gunFiring ? 0.25 : 0;
-    const ab = fm.afterburner * 0.06;
+    const buffet = impactsOnly ? 0 : clamp((Math.abs(fm.alpha) / DEG - 18) / 15, 0, 1) * 0.5 + (fm.onGround ? clamp(fm.gs / 80, 0, 1) * 0.15 : 0);
+    const gunShake = !impactsOnly && ac.gunFiring ? 0.25 : 0;
+    const ab = impactsOnly ? 0 : fm.afterburner * 0.06;
     const s = this.shake + buffet + gunShake + ab;
     if (s <= 0.001) return;
     const t = this.shakeT;
