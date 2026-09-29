@@ -335,6 +335,25 @@ export class CombatRenderer {
     this.onExplosion?.(pos, s);
   }
 
+  /** A fire that burns on the ground for a while (a destroyed target, a wreck). */
+  addFire(pos: THREE.Vector3, size: number, life: number): void {
+    this.burns.push({ pos: pos.clone(), t: 0, life, size });
+  }
+
+  /** A gun muzzle flash (ground guns). */
+  muzzleFlash(pos: THREE.Vector3, size = 1): void {
+    this.fire.spawn({ x: pos.x, y: pos.y, z: pos.z, life: 0.06, size0: 1.6 * size, size1: 2.4 * size, c0: FIRE_HOT, c1: FIRE_ORANGE, a0: 1, a1: 0 });
+  }
+
+  /** Dust thrown up around a ground blast. */
+  dustRing(pos: THREE.Vector3, radius: number): void {
+    for (let i = 0; i < 26; i++) {
+      const a = (i / 26) * Math.PI * 2;
+      const v = rand(20, 45) * Math.sqrt(radius / 20);
+      this.smoke.spawn({ x: pos.x, y: pos.y + 1, z: pos.z, vx: Math.cos(a) * v, vy: rand(2, 10), vz: Math.sin(a) * v, life: rand(5, 9), size0: radius * 0.3, size1: radius * 1.4, c0: DUST, c1: GREY_SMOKE, a0: 0.55, a1: 0, drag: 1.4, gravity: 0.5 });
+    }
+  }
+
   private onDestroyed(a: Aircraft): void {
     const p = a.fm.pos;
     if (a.fm.crashed) return; // crash handler does the fireball
@@ -427,8 +446,9 @@ export class CombatRenderer {
         continue;
       }
       const k = 1 - b.t / b.life;
-      if (Math.random() < 0.6) this.fire.spawn({ x: b.pos.x + randGauss() * 3, y: b.pos.y, z: b.pos.z + randGauss() * 3, vy: rand(3, 8), life: rand(0.5, 1.2), size0: 5 * k + 1, size1: 3, c0: FIRE_HOT, c1: FIRE_RED, a0: 0.9 * k, a1: 0 });
-      if (Math.random() < 0.35) this.smoke.spawn({ x: b.pos.x + randGauss() * 3, y: b.pos.y + 3, z: b.pos.z + randGauss() * 3, vx: 2, vy: rand(6, 12), vz: 1, life: rand(10, 18), size0: 6, size1: 45, c0: DARK_SMOKE, c1: GREY_SMOKE, a0: 0.6 * k + 0.1, a1: 0, drag: 0.2 });
+      const z = b.size;
+      if (Math.random() < 0.6) this.fire.spawn({ x: b.pos.x + randGauss() * 3 * z, y: b.pos.y, z: b.pos.z + randGauss() * 3 * z, vy: rand(3, 8) * Math.sqrt(z), life: rand(0.5, 1.2), size0: (5 * k + 1) * z, size1: 3 * z, c0: FIRE_HOT, c1: FIRE_RED, a0: 0.9 * k, a1: 0 });
+      if (Math.random() < 0.35) this.smoke.spawn({ x: b.pos.x + randGauss() * 3 * z, y: b.pos.y + 3 * z, z: b.pos.z + randGauss() * 3 * z, vx: 2, vy: rand(6, 12), vz: 1, life: rand(10, 18), size0: 6 * z, size1: 45 * z, c0: DARK_SMOKE, c1: GREY_SMOKE, a0: 0.6 * k + 0.1, a1: 0, drag: 0.2 });
     }
 
     this.eject.update(dt, this.time);

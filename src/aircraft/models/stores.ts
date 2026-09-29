@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { lathe, wing, join, colorize, roundBox, rod, P2, loftProfile, stations, curve } from './kit';
 import type { StoreType, StationDef } from '../specs';
+import { isBomb } from '../../weapons/weaponSpecs';
 
 let cache: Partial<Record<string, THREE.BufferGeometry>> = {};
 
@@ -247,10 +248,120 @@ function tank(): THREE.BufferGeometry {
   return join(parts);
 }
 
+// ---------------------------------------------------------------------------
+// Guided bombs
+// ---------------------------------------------------------------------------
+
+const OLIVE = new THREE.Color('#596047');
+const KIT = new THREE.Color('#8b9092');
+const KIT_DARK = new THREE.Color('#5e6366');
+const LIVE = new THREE.Color('#d9ae1a');
+const SAND = new THREE.Color('#b5ad93');
+
+/** Low-drag general purpose bomb body (Mk 80 series): ogive nose, parallel body, boat-tail cone. */
+function gpBody(L: number, r: number, noseLen: number, tailLen: number, col: THREE.Color, bands: [number, number, THREE.Color][]): THREE.BufferGeometry {
+  const z0 = -L / 2;
+  const prof: P2[] = [[0.004, z0]];
+  for (let k = 1; k <= 12; k++) {
+    const u = k / 12;
+    prof.push([r * Math.pow(1 - (1 - u) * (1 - u), 0.9), z0 + u * noseLen]);
+  }
+  prof.push([r, L / 2 - tailLen], [r * 0.82, L / 2 - tailLen * 0.45], [r * 0.6, L / 2]);
+  return paintBands(lathe(prof, 30, 0, 0, false, true), col, bands);
+}
+
+/** Tail fin set (x-configuration) on a short tail cone. */
+function tailKit(L: number, r: number, root: number, span: number, col: THREE.Color): THREE.BufferGeometry[] {
+  const parts: THREE.BufferGeometry[] = [];
+  const cone = lathe([[r * 0.62, L / 2 - 0.02], [r * 0.66, L / 2 + 0.28], [r * 0.5, L / 2 + 0.36]], 20, 0, 0, false, true);
+  parts.push(paintBands(cone, col, []));
+  for (const f of cruciform(L / 2 - root * 0.4, root, root * 0.7, span, root * 0.28, r * 0.6, 0.035)) parts.push(paintBands(f, col, []));
+  return parts;
+}
+
+/** Suspension lugs on top (14 in / 30 in apart). */
+function lugs(r: number, gap: number): THREE.BufferGeometry[] {
+  return [-gap / 2, gap / 2].map((z) => {
+    const g = roundBox(0.05, 0.05, 0.06, 0.01);
+    g.translate(0, r + 0.02, z);
+    return paintBands(g, KIT_DARK, []);
+  });
+}
+
+/** GBU-31 / GBU-32 JDAM: Mk 84 / Mk 83 body, strake kit, JDAM tail. */
+function jdam(big: boolean): THREE.BufferGeometry {
+  const L = big ? 3.3 : 2.62, r = big ? 0.23 : 0.18;
+  const parts: THREE.BufferGeometry[] = [gpBody(L, r, L * 0.36, L * 0.16, OLIVE, [[-L / 2 + L * 0.22, -L / 2 + L * 0.25, LIVE], [L * 0.1, L * 0.13, LIVE]])];
+  // the JDAM tail section and fins
+  parts.push(...tailKit(L, r, big ? 0.46 : 0.38, big ? 0.27 : 0.21, KIT));
+  // strakes: long flat plates either side of the body
+  for (const sx of [-1, 1]) {
+    const st = roundBox(0.14, 0.012, L * 0.34, 0.005);
+    st.rotateZ(sx * 0.35);
+    st.translate(sx * (r + 0.05), r * 0.35, -0.1);
+    parts.push(paintBands(st, KIT, []));
+  }
+  parts.push(...lugs(r, big ? 0.76 : 0.36));
+  return join(parts);
+}
+
+/** GBU-39 SDB: slim body, folded diamond-back wings on top, small tail fins. */
+function sdb(): THREE.BufferGeometry {
+  const L = 1.8, r = 0.095;
+  const z0 = -L / 2;
+  const prof: P2[] = [[0.004, z0], [r * 0.55, z0 + 0.06], [r * 0.9, z0 + 0.2], [r, z0 + 0.4], [r, L / 2 - 0.1], [r * 0.8, L / 2]];
+  const parts: THREE.BufferGeometry[] = [paintBands(lathe(prof, 24, 0, 0, false, true), KIT, [[z0 + 0.45, z0 + 0.48, LIVE]])];
+  const wings = roundBox(0.16, 0.02, 1.2, 0.006);
+  wings.translate(0, r + 0.012, 0.05);
+  parts.push(paintBands(wings, KIT_DARK, []));
+  for (const f of cruciform(L / 2 - 0.24, 0.22, 0.14, 0.09, 0.06, r, 0.02)) parts.push(paintBands(f, KIT, []));
+  return join(parts);
+}
+
+/** Paveway IV: Mk 82 body, nose guidance section with canards, pop-out tail wings. */
+function paveway4(): THREE.BufferGeometry {
+  const L = 2.6, r = 0.137;
+  const parts: THREE.BufferGeometry[] = [gpBody(L, r, 0.7, 0.35, OLIVE, [[-0.5, -0.46, LIVE]])];
+  // seeker nose: a short glass dome on a grey section
+  const nose = lathe([[0.004, -L / 2 - 0.42], [0.07, -L / 2 - 0.36], [0.11, -L / 2 - 0.18], [r * 0.95, -L / 2 + 0.05]], 20, 0, 0, false, true);
+  parts.push(paintBands(nose, KIT, [], [-L / 2 - 0.34, GLASS]));
+  for (const f of cruciform(-L / 2 - 0.2, 0.16, 0.1, 0.1, 0.05, 0.1, 0.02)) parts.push(paintBands(f, KIT, []));
+  parts.push(...tailKit(L, r, 0.34, 0.2, KIT));
+  parts.push(...lugs(r, 0.36));
+  return join(parts);
+}
+
+/** AASM Hammer: guidance nose, bomb body with folded wing kit, rocket tail with fins. */
+function aasm(): THREE.BufferGeometry {
+  const L = 3.1, r = 0.15;
+  const z0 = -L / 2;
+  const prof: P2[] = [[0.004, z0], [0.07, z0 + 0.06], [0.12, z0 + 0.2], [r, z0 + 0.42], [r, L / 2 - 0.2], [r * 0.9, L / 2]];
+  const parts: THREE.BufferGeometry[] = [paintBands(lathe(prof, 26, 0, 0, false, true), SAND, [[z0 + 0.42, z0 + 0.46, KIT_DARK], [0.25, 0.3, KIT_DARK]], [z0 + 0.1, GLASS])];
+  const wing = roundBox(0.2, 0.025, 1.0, 0.008);
+  wing.translate(0, r + 0.015, -0.2);
+  parts.push(paintBands(wing, KIT_DARK, []));
+  for (const f of cruciform(L / 2 - 0.36, 0.34, 0.2, 0.17, 0.12, r, 0.03)) parts.push(paintBands(f, SAND, []));
+  const noz = lathe([[r * 0.6, L / 2], [r * 0.55, L / 2 + 0.06]], 16, 0, 0, false, false);
+  parts.push(paintBands(noz, KIT_DARK, []));
+  return join(parts);
+}
+
+/** KAB-500S: long ogive, cruciform mid wings and tail fins. */
+function kab500(): THREE.BufferGeometry {
+  const L = 3.0, r = 0.2;
+  const parts: THREE.BufferGeometry[] = [gpBody(L, r, 1.0, 0.45, RU_GREY, [[-0.45, -0.4, RU_BAND2]])];
+  for (const f of cruciform(-0.35, 0.7, 0.55, 0.1, 0.12, r, 0.03)) parts.push(paintBands(f, RU_GREY, []));
+  for (const f of cruciform(L / 2 - 0.42, 0.42, 0.3, 0.22, 0.12, r * 0.62, 0.035)) parts.push(paintBands(f, RU_GREY, []));
+  parts.push(...lugs(r, 0.5));
+  return join(parts);
+}
+
 export function storeGeometry(t: StoreType): THREE.BufferGeometry {
   const key = t;
   if (cache[key]) return cache[key]!;
-  const g = t === 'AIM120D' ? aim120() : t === 'AIM9X' ? aim9x() : t === 'R77M' ? r77m() : t === 'R74M' ? r74m() : t === 'METEOR' ? meteor() : t === 'MICAIR' ? micaIr() : tank();
+  const g =
+    t === 'AIM120D' ? aim120() : t === 'AIM9X' ? aim9x() : t === 'R77M' ? r77m() : t === 'R74M' ? r74m() : t === 'METEOR' ? meteor() : t === 'MICAIR' ? micaIr()
+    : t === 'GBU31' ? jdam(true) : t === 'GBU32' ? jdam(false) : t === 'GBU39' ? sdb() : t === 'PAVEWAY4' ? paveway4() : t === 'AASM' ? aasm() : t === 'KAB500' ? kab500() : tank();
   cache[key] = g;
   return g;
 }
@@ -284,6 +395,11 @@ function launcher(len: number, r: number, russian = false): THREE.BufferGeometry
 
 /** Store radius (m). */
 export function storeRadius(store: StoreType): number {
+  if (store === 'GBU31') return 0.23;
+  if (store === 'GBU32' || store === 'KAB500') return 0.19;
+  if (store === 'PAVEWAY4') return 0.14;
+  if (store === 'AASM') return 0.16;
+  if (store === 'GBU39') return 0.1;
   return store === 'TANK' ? 0.38 : store === 'AIM120D' ? 0.089 : store === 'R77M' ? 0.1 : store === 'R74M' ? 0.085 : store === 'METEOR' ? 0.089 : store === 'MICAIR' ? 0.08 : 0.064;
 }
 
@@ -294,12 +410,17 @@ export const SHOULDER_DROP = 0.25;
 
 /** A missile riding a shoulder rail of a twin rack (not a tank). */
 export function onShoulder(def: StationDef, store: StoreType): boolean {
-  return def.rack !== undefined && def.hang !== undefined && store !== 'TANK';
+  return def.rack !== undefined && def.hang !== undefined && !hungOnRack(store);
+}
+
+/** Stores that hang from a pylon's bomb rack (ejector and sway braces), not a missile rail. */
+export function hungOnRack(store: StoreType): boolean {
+  return store === 'TANK' || isBomb(store);
 }
 
 /** Sideways position of the store: a tank on a twin rack hangs from the pylon centre. */
 export function storeCenterX(def: StationDef, store: StoreType): number {
-  return def.rack !== undefined && store === 'TANK' ? def.rack : def.pos[0];
+  return def.rack !== undefined && hungOnRack(store) ? def.rack : def.pos[0];
 }
 
 /**
@@ -337,7 +458,7 @@ export function pylonGeometry(mount: string, store: StoreType, drop: number): TH
     blade.translate(0, r + 0.02, -0.1);
     const parts = [blade];
     const ru = store === 'R77M' || store === 'R74M';
-    if (store !== 'TANK') parts.push(launcher(ru ? (ir ? 2.3 : 3.0) : ir ? 2.0 : 2.4, r, ru));
+    if (!hungOnRack(store)) parts.push(launcher(ru ? (ir ? 2.3 : 3.0) : ir ? 2.0 : 2.4, r, ru));
     else for (const z of [-0.6, 0.5]) for (const s of [-1, 1]) parts.push(rod(new THREE.Vector3(s * 0.05, r + 0.05, z), new THREE.Vector3(s * 0.16, r * 0.8, z), 0.015, 0.015, 6));
     g = col(join(parts));
   }

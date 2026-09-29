@@ -4,7 +4,7 @@ import type { AircraftType } from '../aircraft/specs';
 import type { Difficulty } from '../ai/skill';
 import type { TimeOfDay } from '../render/environment';
 
-export type ModeId = 'free' | 'waves' | 'duel' | 'team' | 'ffa' | 'online' | 'tutorial' | 'daily';
+export type ModeId = 'free' | 'waves' | 'duel' | 'team' | 'ffa' | 'online' | 'tutorial' | 'daily' | 'strike';
 
 export interface MissionConfig {
   mode: ModeId;
@@ -54,6 +54,12 @@ export function defaultMission(): MissionConfig {
 }
 
 export const MODE_INFO: Record<ModeId, { title: string; subtitle: string; description: string }> = {
+  strike: {
+    title: 'AIRSTRIKE',
+    subtitle: 'Bomb a defended target',
+    description:
+      'Fly a strike loadout (JDAM, SDB, Paveway IV, Hammer or KAB-500S) against a ground target: an ammunition depot, a command post, a SAM site, an army camp, a radar station or an enemy airbase. Every sortie is new: a different target in a different place, different AAA and SAM defences, fighters on patrol or scrambling after you, and a different start. The bombing computer counts down to the release point. Destroy every primary target, then fly home and land.',
+  },
   daily: {
     title: 'DAILY MISSION',
     subtitle: 'Today\'s news, flown',

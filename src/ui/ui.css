@@ -301,6 +301,13 @@ body.touch-mode .weapon-bar { bottom: auto; top: calc(96px + env(safe-area-inset
 .autofly .af-btns { display: flex; gap: 8px; margin-top: 10px; }
 .autofly .af-btns button { flex: 1; }
 .autofly .af-hint { margin-top: 8px; font-size: 11px; opacity: 0.6; }
+.autofly { width: 380px; }
+.autofly .af-slide { margin: 10px 0 4px; }
+.autofly .af-slab { font-size: 12px; letter-spacing: 0.08em; color: #bfe9d2; margin-bottom: 4px; }
+.autofly .af-range { width: 100%; accent-color: #47d18c; }
+.autofly .af-snote { font-size: 11px; opacity: 0.55; margin-top: 2px; min-height: 14px; }
+.autofly .af-check { justify-content: flex-start; gap: 8px; cursor: pointer; }
+.autofly .af-check input { accent-color: #47d18c; }
 
 /* Spectator */
 #hud.spectating .hud-left, #hud.spectating .weapon-bar, #hud.spectating .hud-right, #hud.spectating .shotdown,

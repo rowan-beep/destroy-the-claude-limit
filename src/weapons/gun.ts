@@ -64,6 +64,31 @@ export class BulletSystem {
     this.owner[i] = a;
   }
 
+  /**
+   * Fire a round from an arbitrary point (a ground gun): direction, muzzle
+   * velocity, damage per hit, calibre (mm), dispersion (rad, 1 sigma).
+   */
+  spawnFrom(owner: Aircraft, pos: THREE.Vector3, dir: THREE.Vector3, speed: number, damage: number, caliber: number, tracer: boolean, dispersion: number): void {
+    if (this.count >= MAX) return;
+    _dir.copy(dir);
+    _dir.x += randGauss() * dispersion;
+    _dir.y += randGauss() * dispersion;
+    _dir.z += randGauss() * dispersion;
+    _dir.normalize();
+    const i = this.count++;
+    this.px[i] = pos.x + _dir.x * 3;
+    this.py[i] = pos.y + _dir.y * 3;
+    this.pz[i] = pos.z + _dir.z * 3;
+    this.vx[i] = _dir.x * speed;
+    this.vy[i] = _dir.y * speed;
+    this.vz[i] = _dir.z * speed;
+    this.life[i] = 5;
+    this.damage[i] = damage;
+    this.tracer[i] = tracer ? 1 : 0;
+    this.caliber[i] = caliber;
+    this.owner[i] = owner;
+  }
+
   private remove(i: number): void {
     const j = --this.count;
     if (i !== j) {
@@ -129,6 +154,7 @@ export class BulletSystem {
       if (this.py[i] < 6000) {
         const h = terrainHeight(this.px[i], this.pz[i]);
         if (this.py[i] < Math.max(0, h)) {
+          if (h > 0 && sim.ground.length && own && !own.groundLabel) sim.bulletOnGround(_p1, this.damage[i], own);
           sim.events.emit('bulletImpact', { pos: _p1.clone(), water: h <= 0 });
           this.remove(i);
         }

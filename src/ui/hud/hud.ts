@@ -1,6 +1,6 @@
 // In-flight HUD: DOM instrument panels + canvas symbology + vision overlay.
 
-import { MISSILES, weaponCode } from '../../weapons/weaponSpecs';
+import { MISSILES, weaponCode, weaponShort, isBomb } from '../../weapons/weaponSpecs';
 import type { Game } from '../../game/game';
 import type { MsgKind } from '../../game/modes/mode';
 import { el, setText, setClass, clearEl } from '../dom';
@@ -303,6 +303,7 @@ export class Hud {
         if (g.cam.mode !== 'weapon') this.painter.leadMarker(g, p, g.renderer.camera, false);
       }
       if (g.settings.input.mouseMode === 'mouseaim' && g.cam.mode !== 'weapon') this.painter.drawMouseAim(g);
+      if (g.cam.mode !== 'death') this.painter.strikeCues(g, p, g.renderer.camera);
     }
     if (!this.hidden) this.painter.drawLabels(g);
     if (this.hitMarkerT > 0) {
@@ -417,8 +418,8 @@ export class Hud {
     // stores
     clearEl(this.stores);
     const sel = p.selectedWeapon;
-    const selName = sel === 'GUN' ? p.spec.gun.name.split(' ').slice(0, 2).join(' ') : MISSILES[sel].short;
-    const lockTxt = p.lockedTarget ? `LOCK ${p.lockedTarget.spec.shortName.toUpperCase()} ${(p.distanceTo(p.lockedTarget) / NM).toFixed(1)}NM`   : sel === p.irMissile ? (p.seekerTarget ? 'SEEKER LOCK' : 'SEEKER SEARCH') : 'NO LOCK: [R]';
+    const selName = sel === 'GUN' ? p.spec.gun.name.split(' ').slice(0, 2).join(' ') : weaponShort(sel);
+    const lockTxt = isBomb(sel) ? (p.groundTarget ? `TGT ${p.groundTarget.label}` : 'NO TGT: [R]') : p.lockedTarget ? `LOCK ${p.lockedTarget.spec.shortName.toUpperCase()} ${(p.distanceTo(p.lockedTarget) / NM).toFixed(1)}NM`   : sel === p.irMissile ? (p.seekerTarget ? 'SEEKER LOCK' : 'SEEKER SEARCH') : 'NO LOCK: [R]';
     const s1 = el('div', 'pline', this.stores);
     s1.innerHTML = `${selName} x${sel === 'GUN' ? p.gunAmmo : p.countOf(sel)} &nbsp; <span class="${p.lockedTarget || p.seekerTarget ? 'good-text' : ''}">${lockTxt}</span>`;
     el('div', 'pline', this.stores, `FLR ${p.flares}  CHF ${p.chaff}  ${weaponCode(p.radarMissile)} ${p.countOf(p.radarMissile)}  ${weaponCode(p.irMissile)} ${p.countOf(p.irMissile)}${p.spec.missiles.radar === 'AIM120D' ? `  TNK ${p.countOf('TANK')}` : ''}`);

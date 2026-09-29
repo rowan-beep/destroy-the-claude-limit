@@ -3,7 +3,9 @@
 // MICA IR for the Rafale.
 
 export type MissileType = 'AIM120D' | 'AIM9X' | 'R77M' | 'R74M' | 'METEOR' | 'MICAIR';
-export type WeaponSelect = 'GUN' | MissileType;
+/** Satellite-guided bombs: each jet's own family (see BOMBS). */
+export type BombType = 'GBU31' | 'GBU32' | 'GBU39' | 'PAVEWAY4' | 'AASM' | 'KAB500';
+export type WeaponSelect = 'GUN' | MissileType | BombType;
 
 export interface MissileSpec {
   type: MissileType;
@@ -247,7 +249,8 @@ export function launchZone(
 }
 
 /** Short display code (HUD, MFD). */
-export function weaponCode(t: MissileType): string {
+export function weaponCode(t: MissileType | BombType): string {
+  if (isBomb(t)) return t === 'PAVEWAY4' ? 'PW IV' : t === 'AASM' ? 'AASM' : t === 'KAB500' ? 'KAB' : t.replace('GBU', 'GBU-');
   return t === 'AIM120D' ? '120D' : t === 'AIM9X' ? '9X' : t === 'R77M' ? 'R77M' : t === 'R74M' ? 'R74M' : t === 'METEOR' ? 'MTR' : 'MICA';
 }
 
@@ -259,4 +262,157 @@ export function weaponCode(t: MissileType): string {
 export function launchCall(t: MissileType): { feed: string; voice: string; voiceRu?: string } {
   if (t === 'R77M' || t === 'R74M') return { feed: 'PUSK!', voice: 'Pusk!', voiceRu: 'Пуск!' };
   return isIrMissile(t) ? { feed: 'FOX 2', voice: 'Fox two' } : { feed: 'FOX 3', voice: 'Fox three' };
+}
+
+// ---------------------------------------------------------------------------
+// Guided bombs
+// ---------------------------------------------------------------------------
+
+/**
+ * A GPS/INS guided bomb. It has no engine (the AASM has a small rocket): it
+ * falls, and its tail fins (or wings) turn some of that fall into lift to
+ * steer onto the target's coordinates. Released high and fast it glides a
+ * long way; released low and slow it can only reach a few miles.
+ */
+export interface BombSpec {
+  type: BombType;
+  name: string;
+  short: string;
+  guidance: string;
+  /** total mass (kg) and explosive fill (kg) */
+  mass: number;
+  warhead: number;
+  length: number;
+  diameter: number;
+  /** zero-lift drag area Cd x A (m^2) */
+  dragArea: number;
+  /** most lift the fins / wings make: CLmax x area (m^2) */
+  liftArea: number;
+  /** manoeuvre limit (g) */
+  maxG: number;
+  /** radius (m) inside which a structure takes the full blast */
+  blastRadius: number;
+  /** blast damage at the centre (buildings have a few hundred to 1,600 points) */
+  damage: number;
+  /** rocket booster (AASM Hammer): thrust (N) for this long (s) */
+  motor?: { thrust: number; time: number };
+  /** hardened-target penetrator (hits bunkers and shelters harder) */
+  penetrator?: boolean;
+  description: string;
+}
+
+export const BOMBS: Record<BombType, BombSpec> = {
+  GBU31: {
+    type: 'GBU31',
+    name: 'GBU-31(V)1 JDAM',
+    short: 'GBU-31',
+    guidance: 'GPS/INS',
+    mass: 934,
+    warhead: 429,
+    length: 3.88,
+    diameter: 0.46,
+    dragArea: 0.1,
+    liftArea: 0.72,
+    maxG: 3,
+    blastRadius: 30,
+    damage: 2200,
+    description: '2,000 lb Mk 84 bomb with a JDAM GPS/INS tail kit and body strakes. Glides about 13 NM from 30,000 ft at Mach 0.9. The biggest blast in the theater: one hit flattens a hangar or a hardened shelter.',
+  },
+  GBU32: {
+    type: 'GBU32',
+    name: 'GBU-32(V)1 JDAM',
+    short: 'GBU-32',
+    guidance: 'GPS/INS',
+    mass: 460,
+    warhead: 202,
+    length: 3.03,
+    diameter: 0.36,
+    dragArea: 0.062,
+    liftArea: 0.44,
+    maxG: 3.5,
+    blastRadius: 22,
+    damage: 1700,
+    description: '1,000 lb Mk 83 bomb with a JDAM tail kit. About 12 NM from high altitude; carried by the Super Hornet under the wings.',
+  },
+  GBU39: {
+    type: 'GBU39',
+    name: 'GBU-39/B Small Diameter Bomb',
+    short: 'GBU-39',
+    guidance: 'GPS/INS',
+    mass: 129,
+    warhead: 17,
+    length: 1.8,
+    diameter: 0.19,
+    dragArea: 0.019,
+    liftArea: 0.36,
+    maxG: 3,
+    blastRadius: 9,
+    damage: 1700,
+    penetrator: true,
+    description: '250 lb class glide bomb with pop-out diamond-back wings: glides 40 NM and more from high altitude. A small, very accurate penetrating warhead: it kills what it hits and little around it. Fits the F-22\'s main weapons bay.',
+  },
+  PAVEWAY4: {
+    type: 'PAVEWAY4',
+    name: 'Paveway IV',
+    short: 'PAVEWAY IV',
+    guidance: 'GPS/INS + laser',
+    mass: 226,
+    warhead: 90,
+    length: 3.0,
+    diameter: 0.27,
+    dragArea: 0.034,
+    liftArea: 0.24,
+    maxG: 4,
+    blastRadius: 16,
+    damage: 1500,
+    description: '500 lb class dual-mode (GPS and laser) guided bomb with an insensitive-munition warhead. The Eurofighter\'s standard strike weapon. About 10 NM from high altitude.',
+  },
+  AASM: {
+    type: 'AASM',
+    name: 'AASM Hammer (SBU-38)',
+    short: 'HAMMER',
+    guidance: 'GPS/INS',
+    mass: 340,
+    warhead: 125,
+    length: 3.1,
+    diameter: 0.3,
+    dragArea: 0.045,
+    liftArea: 0.34,
+    maxG: 5,
+    blastRadius: 17,
+    damage: 1550,
+    motor: { thrust: 3200, time: 9 },
+    description: 'Safran Hammer: a 250 kg bomb with a guidance kit, wings and a rocket booster. The rocket stretches the range to about 30 NM from high altitude and lets the Rafale fire it from low level too.',
+  },
+  KAB500: {
+    type: 'KAB500',
+    name: 'KAB-500S',
+    short: 'KAB-500S',
+    guidance: 'GLONASS/INS',
+    mass: 560,
+    warhead: 195,
+    length: 3.0,
+    diameter: 0.4,
+    dragArea: 0.085,
+    liftArea: 0.42,
+    maxG: 2.5,
+    blastRadius: 22,
+    damage: 1700,
+    description: '500 kg satellite-guided bomb with a GLONASS receiver in the tail. Short glide (about 8 NM from high altitude): the Su-35S has to get close. Its heavy casing makes a big blast.',
+  },
+};
+
+export function isBomb(w: WeaponSelect | string): w is BombType {
+  return w in BOMBS;
+}
+
+export function isMissile(w: WeaponSelect | string): w is MissileType {
+  return w in MISSILES;
+}
+
+/** Short display name for any weapon (HUD, MFD). */
+export function weaponShort(w: WeaponSelect): string {
+  if (w === 'GUN') return 'GUN';
+  if (isBomb(w)) return BOMBS[w].short;
+  return MISSILES[w].short;
 }

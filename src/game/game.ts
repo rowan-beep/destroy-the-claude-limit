@@ -3,7 +3,9 @@
 // inputs into flight controls and weapon actions.
 
 import { RenderInterp } from './interp';
-import { WeaponSelect, MISSILES, isIrMissile, launchCall } from '../weapons/weaponSpecs';
+import { WeaponSelect, MISSILES, isIrMissile, launchCall, isBomb, weaponShort } from '../weapons/weaponSpecs';
+import { BombComputer } from '../weapons/bombing';
+import { predictBomb } from '../weapons/bomb';
 import * as THREE from 'three';
 import { GameRenderer } from '../render/renderer';
 import { World, WORLD_QUALITY } from '../world/world';
@@ -18,6 +20,8 @@ import { Aircraft } from '../aircraft/aircraft';
 import { MissionConfig } from './mission';
 import { GameMode, ModeHost, MissionResult, MsgKind, Briefing } from './modes/mode';
 import { DailyMode } from './modes/daily';
+import { StrikeMode } from './modes/strike';
+import { GroundRenderer } from '../render/groundRenderer';
 import { todaysMission } from './daily';
 import { FreeFlightMode } from './modes/freeFlight';
 import { WavesMode } from './modes/waves';
@@ -46,7 +50,7 @@ import { SortieRecorder, LogbookData, MissionOutcome, loadLogbook, saveLogbook, 
 import { NM } from '../core/constants';
 import { prewarmAirframes, setHeroDetail } from '../aircraft/models';
 import { randomizeWind, wind } from '../core/weather';
-import { AutoFly } from './autoFly';
+import { AutoFly, topSpeedKts } from './autoFly';
 import type { AutoFlyPanel, AutoFlyChoice } from '../ui/autoFlyPanel';
 import { enemyTypesFor, AIRCRAFT_TYPES } from '../aircraft/specs';
 
@@ -61,6 +65,7 @@ export class Game implements ModeHost {
   sim!: Sim;
   picture = new TeamPicture();
   combat!: CombatRenderer;
+  ground: GroundRenderer | null = null;
   readonly cam: CameraRig;
   readonly input: Input;
   readonly cockpitView = new CockpitView();
@@ -98,6 +103,8 @@ export class Game implements ModeHost {
   gearDown = false;
   /** Auto-Fly (U): flies to a chosen destination at a chosen speed and altitude */
   readonly autoFly = new AutoFly();
+  /** bombing computer: ground target designation and the release cue */
+  readonly bombComputer = new BombComputer();
   autoFlyPanel: AutoFlyPanel | null = null;
   /** team battle: watch other jets (or a free camera) after being shot down */
   readonly spectator = new Spectator();
@@ -191,10 +198,13 @@ export class Game implements ModeHost {
     setMissionObjective(null);
     this.setState('loading');
     if (this.combat) this.combat.dispose();
+    this.ground?.dispose();
+    this.ground = null;
     this.sim = new Sim(this.world.grid);
     this.sim.autoCm = this.settings.gameplay.autoCountermeasures;
     this.picture = new TeamPicture();
     this.combat = new CombatRenderer(this.renderer.scene, this.sim);
+    this.ground = new GroundRenderer(this.renderer.scene, this.sim, this.combat);
     this.combat.onExplosion = (pos, size) => {
       const d = pos.distanceTo(this.renderer.camera.position);
       audio.explosion(d, size);
@@ -238,7 +248,9 @@ export class Game implements ModeHost {
                 ? new TutorialMode(this)
                 : cfg.mode === 'daily'
                   ? new DailyMode(this)
-                  : new DuelMode(this);
+                  : cfg.mode === 'strike'
+                    ? new StrikeMode(this)
+                    : new DuelMode(this);
     randomizeWind();
     this.mode.start();
     this.message(`WIND ${String(Math.round(wind.fromDeg)).padStart(3, '0')}° / ${Math.round(wind.surfaceKts)} KT${wind.turbulence > 1.1 ? ' — MODERATE TURBULENCE LOW LEVEL' : ''}`, 'info', 8);
@@ -282,11 +294,16 @@ export class Game implements ModeHost {
     if (this.sim) {
       for (const a of [...this.sim.aircraft]) this.sim.remove(a);
       this.sim.missiles.length = 0;
+      this.sim.bombs.length = 0;
+      this.sim.ground.length = 0;
+      this.sim.defenses.length = 0;
       this.sim.bullets.clear();
       this.sim.cms.clear();
       this.sim.events.clear();
     }
     this.combat?.clearEffects();
+    this.ground?.dispose();
+    this.ground = null;
     this.player = null;
     this.stopSpectating();
     this.recorder?.stop();
@@ -703,9 +720,11 @@ export class Game implements ModeHost {
       this.renderer.updateDroplets(dt, this.world.precip.rainOnCamera, this.world.precip.camSpeed);
       this.zoneWall.update(dt);
       this.combat.update(simOn ? dt : 0, this.renderer.camera);
+      this.ground?.update(simOn ? dt : 0, this.renderer.camera);
       this.renderer.setHaze(this.combat.haze);
       // pilot vision
       this.renderer.setVision(p.alive || !p.fm.crashed ? p.pilot.vision : emptyVision());
+      this.bombComputer.update(p, this.sim, dt);
       this.hud.update(dt, this);
       this.touch?.sync(this.throttleCmd);
       this.updateAudio(p);
@@ -747,6 +766,7 @@ export class Game implements ModeHost {
     this.renderer.updateDroplets(dt, this.world.precip.rainOnCamera, this.world.precip.camSpeed);
     this.zoneWall.update(dt);
     this.combat.update(playing ? dt : 0, cam);
+    this.ground?.update(playing ? dt : 0, cam);
     this.renderer.setHaze(this.combat.haze);
     this.renderer.setVision(emptyVision());
     this.hud.update(dt, this);
@@ -815,6 +835,7 @@ export class Game implements ModeHost {
       const t = p.lockedTarget;
       return !!t && p.distanceTo(t) < 1300;
     }
+    if (isBomb(w)) return this.bombComputer.cue.state === 'inRange' && p.countOf(w) > 0;
     if (p.countOf(w) === 0) return false;
     const t = w === p.irMissile ? p.seekerTarget : p.lockedTarget;
     if (!t) return false;
@@ -983,6 +1004,11 @@ export class Game implements ModeHost {
     if (inp.pressed('weaponGun')) this.selectWeapon('GUN');
     if (inp.pressed('weapon9x') && this.player) this.selectWeapon(this.player.irMissile);
     if (inp.pressed('weapon120') && this.player) this.selectWeapon(this.player.radarMissile);
+    if (inp.pressed('weaponBomb') && this.player) {
+      const b = this.player.bombType;
+      if (b) this.selectWeapon(b);
+      else this.message('NO BOMBS ON THIS LOADOUT — PICK A STRIKE LOADOUT', 'warn', 2.5);
+    }
     if (inp.pressed('cycleWeapon')) {
       p.cycleWeapon();
       audio.click();
@@ -995,7 +1021,13 @@ export class Game implements ModeHost {
     if (firePressed && p.selectedWeapon !== 'GUN') this.fireMissile();
 
     // sensors
-    if (inp.pressed('lock') && p.headLos) {
+    if (inp.pressed('lock') && isBomb(p.selectedWeapon)) {
+      const t = BombComputer.cycle(p, this.sim);
+      if (t) {
+        audio.beep(1300, 0.06, 0.05);
+        this.message(`DESIGNATED: ${t.label}`, 'info', 1.8);
+      } else this.message('NO GROUND TARGETS IN RANGE', 'warn', 2);
+    } else if (inp.pressed('lock') && p.headLos) {
       // helmet look-and-lock: radar if the antenna can reach, otherwise the 9X seeker
       const t = p.helmetTarget(this.sim, p.headLos);
       if (!t) this.message('HMD: NO TARGET IN THE HELMET CUE', 'warn', 2);
@@ -1126,20 +1158,20 @@ export class Game implements ModeHost {
     }
     this.input.exitPointerLock();
     const af = this.autoFly;
-    panel.show(this.avionics.nav.points, af.engaged, { dest: af.dest, speedKts: af.speedKts, altFt: af.altFt });
+    const p = this.player;
+    panel.show(this.avionics.nav.points, af.engaged, { dest: af.dest, speedKts: af.speedKts, altFt: af.altFt, autoLand: af.autoLand }, { maxKts: topSpeedKts(p.spec.maxMach), ceilingFt: p.spec.ceilingFt, onGround: p.fm.onGround });
   }
 
   engageAutoFly(ch: AutoFlyChoice): void {
     const p = this.player;
     this.autoFlyPanel?.hide();
     if (!p || !p.alive) return;
-    if (p.fm.onGround) {
-      this.message('AUTO-FLY: TAKE OFF FIRST', 'warn', 2.5);
-      return;
-    }
-    this.autoFly.engage(p, ch.dest, ch.speedKts, ch.altFt);
+    this.autoFly.onCall = (t, k) => this.message(`AUTO-FLY: ${t}`, k, 3.5);
+    this.autoFly.engage(p, ch.dest, ch.speedKts, ch.altFt, ch.autoLand);
     if (ch.dest && this.avionics) this.avionics.nav.select(ch.dest.id);
-    this.message(`AUTO-FLY ENGAGED → ${ch.dest ? ch.dest.name : 'HOLDING HEADING'} · ${ch.speedKts} KT · ${ch.altFt.toLocaleString('en-US')} FT`, 'good', 4);
+    this.gearDown = p.fm.onGround;
+    const land = ch.autoLand && ch.dest?.field ? ' · AUTO-LAND' : '';
+    this.message(`AUTO-FLY ENGAGED → ${ch.dest ? ch.dest.name : 'HOLDING HEADING'} · ${ch.speedKts} KT · ${ch.altFt.toLocaleString('en-US')} FT${land}`, 'good', 4);
   }
 
   disengageAutoFly(): void {
@@ -1152,13 +1184,48 @@ export class Game implements ModeHost {
     const p = this.player;
     if (!p) return;
     if (p.selectWeapon(w)) audio.click();
-    else this.message(`NO ${w === 'GUN' ? 'GUN' : MISSILES[w].short} REMAINING`, 'warn', 2);
+    else this.message(isBomb(w) ? 'NO BOMBS ON THIS LOADOUT — PICK A STRIKE LOADOUT' : `NO ${weaponShort(w)} REMAINING`, 'warn', 2);
+  }
+
+  /** Release a guided bomb on the designated ground target. */
+  private dropBomb(): void {
+    const p = this.player!;
+    if (p.fm.onGround) {
+      this.message('WEIGHT ON WHEELS — WEAPONS SAFE', 'warn', 2);
+      return;
+    }
+    if (RULES.holdFire) {
+      this.message('WEAPONS HOLD — WAIT FOR WEAPONS FREE', 'warn', 2);
+      return;
+    }
+    const t = BombComputer.autoDesignate(p, this.sim);
+    if (!t) {
+      this.message('NO GROUND TARGET TO DESIGNATE', 'warn', 2);
+      return;
+    }
+    const type = p.bombType!;
+    const aim = t.aimPoint();
+    const pred = predictBomb(type, p.fm.pos.clone().addScaledVector(p.fm.up, -1.5), p.fm.vel, aim);
+    const b = p.releaseBomb(this.sim, t, aim);
+    if (!b) return;
+    b.tof = pred.tof;
+    this.message(`${weaponShort(type)} AWAY → ${t.label} · IMPACT ${Math.round(pred.tof)} S${pred.hit ? '' : ' (OUTSIDE THE ZONE: IT WILL FALL SHORT)'}`, pred.hit ? 'good' : 'warn', 3);
+    audio.voice(p.type === 'SU35' ? 'Sbros' : 'Pickle', 'launch', 1.2, p.type === 'SU35' ? 'Сброс!' : undefined);
+    // the computer moves on to the next target nobody has a bomb on
+    if (t.claimed > 0) {
+      p.groundTarget = null;
+      BombComputer.autoDesignate(p, this.sim);
+    }
   }
 
   private fireMissile(): void {
     const p = this.player!;
     const w = p.selectedWeapon;
     if (w === 'GUN') return;
+    if (isBomb(w)) {
+      this.dropBomb();
+      return;
+    }
     if (p.fm.onGround) {
       this.message('WEIGHT ON WHEELS — WEAPONS SAFE', 'warn', 2);
       return;
@@ -1243,15 +1310,23 @@ export class Game implements ModeHost {
     c.wheelBrake = inp.held('wheelBrake') || (p.fm.onGround && this.speedbrake) ? 1 : 0;
 
     if (this.autoFly.engaged) {
-      if (kbActive || (inp.gp.active && (Math.abs(inp.gp.pitch) + Math.abs(inp.gp.roll) > 0.15)) || p.fm.onGround) {
-        this.autoFly.disengage();
+      const af = this.autoFly;
+      const onGroundOk = af.phase === 'takeoff' || af.phase === 'rollout' || af.phase === 'stopped' || af.phase === 'flare' || af.phase === 'final';
+      if (kbActive || (inp.gp.active && (Math.abs(inp.gp.pitch) + Math.abs(inp.gp.roll) > 0.15)) || (p.fm.onGround && !onGroundOk)) {
+        af.disengage();
         this.message('AUTO-FLY DISENGAGED — YOU HAVE CONTROL', 'warn', 2.5);
       } else {
-        this.autoFly.control(p, dt);
+        c.throttle = this.throttleCmd;
+        af.control(p, dt);
         this.throttleCmd = c.throttle;
-        this.gearDown = false;
+        this.gearDown = c.gearDown;
+        this.speedbrake = c.speedbrake;
         this.aimDir.copy(p.fm.fwd);
         c.gOverride = false;
+        if (af.phase === 'stopped') {
+          af.disengage();
+          this.throttleCmd = 0;
+        }
         return;
       }
     }

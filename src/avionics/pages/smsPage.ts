@@ -37,7 +37,7 @@ export const PLANFORMS: Record<AircraftType, [number, number][]> = {
   ],
 };
 
-const STORE_SHORT: Record<StoreType, string> = { AIM120D: '120D', AIM9X: '9X', R77M: 'R77M', R74M: 'R74M', METEOR: 'MTR', MICAIR: 'MICA', TANK: 'TK' };
+const STORE_SHORT: Record<StoreType, string> = { AIM120D: '120D', AIM9X: '9X', R77M: 'R77M', R74M: 'R74M', METEOR: 'MTR', MICAIR: 'MICA', TANK: 'TK', GBU31: 'GBU31', GBU32: 'GBU32', GBU39: 'SDB', PAVEWAY4: 'PWIV', AASM: 'AASM', KAB500: 'KAB' };
 
 export const smsPage: MfdPage = {
   id: 'SMS',

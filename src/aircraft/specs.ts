@@ -4,12 +4,12 @@
 // ceilings and ranges fall out of the physics.
 
 import { FT, LB, LBF } from '../core/constants';
-import type { MissileType } from '../weapons/weaponSpecs';
+import type { MissileType, BombType } from '../weapons/weaponSpecs';
 
 export type AircraftType = 'F15EX' | 'FA18EF' | 'TYPHOON' | 'SU35' | 'RAFALE' | 'F22';
 export const AIRCRAFT_TYPES: AircraftType[] = ['F15EX', 'FA18EF', 'TYPHOON', 'SU35', 'RAFALE', 'F22'];
 
-export type StoreType = MissileType | 'TANK';
+export type StoreType = MissileType | BombType | 'TANK';
 
 export interface GunSpec {
   name: string;
@@ -179,6 +179,12 @@ const R77 = 'R77M' as const;
 const R74 = 'R74M' as const;
 const MTR = 'METEOR' as const;
 const MICA = 'MICAIR' as const;
+const GBU31 = 'GBU31' as const;
+const GBU32 = 'GBU32' as const;
+const GBU39 = 'GBU39' as const;
+const PW4 = 'PAVEWAY4' as const;
+const AASM = 'AASM' as const;
+const KAB = 'KAB500' as const;
 /** fore-aft centre of the wing missile racks: every rack's missiles sit nose-level */
 const F15_RZ = 1.3;
 const FA18_RZ = 1.8;
@@ -254,15 +260,15 @@ const F15EX: AircraftSpec = {
   stations: [
     { id: 1, label: 'LW OB-O', pos: [-4.45, -0.15, F15_RZ], allowed: [AIM9, AIM120], mount: 'pylon', hang: 0.09, rack: -4.15 },
     { id: 2, label: 'LW OB-I', pos: [-3.85, -0.15, F15_RZ], allowed: [AIM120, AIM9], mount: 'pylon', hang: 0.09, rack: -4.15 },
-    { id: 3, label: 'LW IB-O', pos: [-3.05, -0.15, F15_RZ], allowed: [AIM120, AIM9, TANK], mount: 'pylon', hang: 0.09, rack: -2.75 },
+    { id: 3, label: 'LW IB-O', pos: [-3.05, -0.15, F15_RZ], allowed: [AIM120, AIM9, TANK, GBU31], mount: 'pylon', hang: 0.09, rack: -2.75 },
     { id: 4, label: 'LW IB-I', pos: [-2.45, -0.15, F15_RZ], allowed: [AIM120, AIM9], mount: 'pylon', hang: 0.09, rack: -2.75 },
     { id: 5, label: 'L CFT-F', pos: [-1.55, -0.95, -1.4], allowed: [AIM120], mount: 'conformal' },
-    { id: 6, label: 'L CFT-A', pos: [-1.55, -0.95, 1.9], allowed: [AIM120], mount: 'conformal' },
+    { id: 6, label: 'L CFT-A', pos: [-1.55, -0.95, 1.9], allowed: [AIM120, GBU31], mount: 'conformal' },
     { id: 7, label: 'CL', pos: [0, -1.2, 0.4], allowed: [TANK], mount: 'pylon' },
-    { id: 8, label: 'R CFT-A', pos: [1.55, -0.95, 1.9], allowed: [AIM120], mount: 'conformal' },
+    { id: 8, label: 'R CFT-A', pos: [1.55, -0.95, 1.9], allowed: [AIM120, GBU31], mount: 'conformal' },
     { id: 9, label: 'R CFT-F', pos: [1.55, -0.95, -1.4], allowed: [AIM120], mount: 'conformal' },
     { id: 10, label: 'RW IB-I', pos: [2.45, -0.15, F15_RZ], allowed: [AIM120, AIM9], mount: 'pylon', hang: 0.09, rack: 2.75 },
-    { id: 11, label: 'RW IB-O', pos: [3.05, -0.15, F15_RZ], allowed: [AIM120, AIM9, TANK], mount: 'pylon', hang: 0.09, rack: 2.75 },
+    { id: 11, label: 'RW IB-O', pos: [3.05, -0.15, F15_RZ], allowed: [AIM120, AIM9, TANK, GBU31], mount: 'pylon', hang: 0.09, rack: 2.75 },
     { id: 12, label: 'RW OB-I', pos: [3.85, -0.15, F15_RZ], allowed: [AIM120, AIM9], mount: 'pylon', hang: 0.09, rack: 4.15 },
     { id: 13, label: 'RW OB-O', pos: [4.45, -0.15, F15_RZ], allowed: [AIM9, AIM120], mount: 'pylon', hang: 0.09, rack: 4.15 },
   ],
@@ -271,6 +277,11 @@ const F15EX: AircraftSpec = {
       id: 'eagle-12',
       name: 'EAGLE II "MISSILE TRUCK" — 8x AIM-120D, 4x AIM-9X',
       stores: { 1: AIM9, 2: AIM120, 3: AIM120, 4: AIM9, 5: AIM120, 6: AIM120, 8: AIM120, 9: AIM120, 10: AIM9, 11: AIM120, 12: AIM120, 13: AIM9 },
+    },
+    {
+      id: 'eagle-strike',
+      name: 'STRIKE EAGLE — 4x GBU-31 JDAM, 2x AIM-120D, 2x AIM-9X',
+      stores: { 1: AIM9, 13: AIM9, 3: GBU31, 11: GBU31, 6: GBU31, 8: GBU31, 5: AIM120, 9: AIM120 },
     },
     {
       id: 'eagle-bvr',
@@ -373,13 +384,13 @@ const FA18: AircraftSpec = {
     { id: 1, label: 'LWT', pos: [-6.75, -0.1, 2.4], allowed: [AIM9], mount: 'rail' },
     { id: 2, label: 'LW OB', pos: [-5.1, -0.85, 2.0], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.035 },
     // station 3: LAU-115 with two LAU-127 shoulder rails (a tank hangs from the pylon centre)
-    { id: 3, label: 'LW MID-O', pos: [-4.2, -0.3, FA18_RZ], allowed: [AIM120, AIM9, TANK], mount: 'pylon', hang: -0.04, rack: -3.9 },
-    { id: 4, label: 'LW MID-I', pos: [-3.6, -0.3, FA18_RZ], allowed: [AIM120, TANK], mount: 'pylon', hang: -0.04, rack: -3.9 },
+    { id: 3, label: 'LW MID-O', pos: [-4.2, -0.3, FA18_RZ], allowed: [AIM120, AIM9, TANK, GBU32], mount: 'pylon', hang: -0.04, rack: -3.9 },
+    { id: 4, label: 'LW MID-I', pos: [-3.6, -0.3, FA18_RZ], allowed: [AIM120, TANK, GBU32], mount: 'pylon', hang: -0.04, rack: -3.9 },
     { id: 5, label: 'L FUS', pos: [-0.85, -1.1, -1.4], allowed: [AIM120], mount: 'semi-recessed' },
     { id: 6, label: 'CL', pos: [0, -1.35, 0.2], allowed: [TANK], mount: 'pylon' },
     { id: 7, label: 'R FUS', pos: [0.85, -1.1, -1.4], allowed: [AIM120], mount: 'semi-recessed' },
-    { id: 8, label: 'RW MID-I', pos: [3.6, -0.3, FA18_RZ], allowed: [AIM120, TANK], mount: 'pylon', hang: -0.04, rack: 3.9 },
-    { id: 9, label: 'RW MID-O', pos: [4.2, -0.3, FA18_RZ], allowed: [AIM120, AIM9, TANK], mount: 'pylon', hang: -0.04, rack: 3.9 },
+    { id: 8, label: 'RW MID-I', pos: [3.6, -0.3, FA18_RZ], allowed: [AIM120, TANK, GBU32], mount: 'pylon', hang: -0.04, rack: 3.9 },
+    { id: 9, label: 'RW MID-O', pos: [4.2, -0.3, FA18_RZ], allowed: [AIM120, AIM9, TANK, GBU32], mount: 'pylon', hang: -0.04, rack: 3.9 },
     { id: 10, label: 'RW OB', pos: [5.1, -0.85, 2.0], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.035 },
     { id: 11, label: 'RWT', pos: [6.75, -0.1, 2.4], allowed: [AIM9], mount: 'rail' },
   ],
@@ -388,6 +399,11 @@ const FA18: AircraftSpec = {
       id: 'hornet-ss',
       name: 'SWING FIGHTER — 6x AIM-120D, 2x AIM-9X',
       stores: { 1: AIM9, 3: AIM120, 4: AIM120, 5: AIM120, 7: AIM120, 8: AIM120, 9: AIM120, 11: AIM9 },
+    },
+    {
+      id: 'hornet-strike',
+      name: 'STRIKE — 4x GBU-32 JDAM, 2x AIM-120D, 2x AIM-9X',
+      stores: { 1: AIM9, 11: AIM9, 3: GBU32, 4: GBU32, 8: GBU32, 9: GBU32, 5: AIM120, 7: AIM120 },
     },
     {
       id: 'hornet-max',
@@ -488,15 +504,15 @@ const TYPHOON: AircraftSpec = {
   },
   stations: [
     { id: 1, label: 'LW OB', pos: [-5.1, -0.35, 4.2], allowed: [AIM9], mount: 'rail', hang: -0.44 },
-    { id: 2, label: 'LW MID', pos: [-3.9, -0.6, 3.2], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.44 },
-    { id: 3, label: 'LW IB', pos: [-2.8, -0.7, 2.6], allowed: [AIM120, AIM9, TANK], mount: 'pylon', hang: -0.45 },
+    { id: 2, label: 'LW MID', pos: [-3.9, -0.6, 3.2], allowed: [AIM120, AIM9, PW4], mount: 'pylon', hang: -0.44 },
+    { id: 3, label: 'LW IB', pos: [-2.8, -0.7, 2.6], allowed: [AIM120, AIM9, TANK, PW4], mount: 'pylon', hang: -0.45 },
     { id: 4, label: 'L FUS-F', pos: [-0.9, -1.0, -1.2], allowed: [AIM120], mount: 'semi-recessed' },
     { id: 5, label: 'L FUS-A', pos: [-0.9, -1.0, 1.6], allowed: [AIM120], mount: 'semi-recessed' },
     { id: 6, label: 'CL', pos: [0, -1.25, 0.4], allowed: [TANK], mount: 'pylon' },
     { id: 7, label: 'R FUS-A', pos: [0.9, -1.0, 1.6], allowed: [AIM120], mount: 'semi-recessed' },
     { id: 8, label: 'R FUS-F', pos: [0.9, -1.0, -1.2], allowed: [AIM120], mount: 'semi-recessed' },
-    { id: 9, label: 'RW IB', pos: [2.8, -0.7, 2.6], allowed: [AIM120, AIM9, TANK], mount: 'pylon', hang: -0.45 },
-    { id: 10, label: 'RW MID', pos: [3.9, -0.6, 3.2], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.44 },
+    { id: 9, label: 'RW IB', pos: [2.8, -0.7, 2.6], allowed: [AIM120, AIM9, TANK, PW4], mount: 'pylon', hang: -0.45 },
+    { id: 10, label: 'RW MID', pos: [3.9, -0.6, 3.2], allowed: [AIM120, AIM9, PW4], mount: 'pylon', hang: -0.44 },
     { id: 11, label: 'RW OB', pos: [5.1, -0.35, 4.2], allowed: [AIM9], mount: 'rail', hang: -0.44 },
   ],
   loadouts: [
@@ -504,6 +520,11 @@ const TYPHOON: AircraftSpec = {
       id: 'typhoon-aa',
       name: 'AIR DOMINANCE — 6x AIM-120D, 2x AIM-9X',
       stores: { 1: AIM9, 2: AIM120, 4: AIM120, 5: AIM120, 7: AIM120, 8: AIM120, 10: AIM120, 11: AIM9 },
+    },
+    {
+      id: 'typhoon-strike',
+      name: 'SWING ROLE — 4x PAVEWAY IV, 4x AIM-120D, 2x AIM-9X',
+      stores: { 1: AIM9, 11: AIM9, 2: PW4, 3: PW4, 9: PW4, 10: PW4, 4: AIM120, 5: AIM120, 7: AIM120, 8: AIM120 },
     },
     {
       id: 'typhoon-max',
@@ -605,14 +626,14 @@ const SU35: AircraftSpec = {
   stations: [
     { id: 1, label: 'LWT', pos: [-7.04, -0.17, 3.75], allowed: [R74], mount: 'rail' },
     { id: 2, label: 'LW OB', pos: [-5.7, -0.64, 3.0], allowed: [R74, R77], mount: 'pylon' },
-    { id: 3, label: 'LW MID', pos: [-4.4, -0.66, 2.5], allowed: [R77, R74], mount: 'pylon' },
-    { id: 4, label: 'LW IB', pos: [-3.1, -0.68, 1.9], allowed: [R77, R74], mount: 'pylon' },
+    { id: 3, label: 'LW MID', pos: [-4.4, -0.66, 2.5], allowed: [R77, R74, KAB], mount: 'pylon' },
+    { id: 4, label: 'LW IB', pos: [-3.1, -0.68, 1.9], allowed: [R77, R74, KAB], mount: 'pylon' },
     { id: 5, label: 'L NAC', pos: [-1.55, -1.45, 0.4], allowed: [R77], mount: 'pylon' },
     { id: 6, label: 'TUN-F', pos: [0, -0.95, -1.6], allowed: [R77], mount: 'pylon' },
     { id: 7, label: 'TUN-A', pos: [0, -0.95, 2.4], allowed: [R77], mount: 'pylon' },
     { id: 8, label: 'R NAC', pos: [1.55, -1.45, 0.4], allowed: [R77], mount: 'pylon' },
-    { id: 9, label: 'RW IB', pos: [3.1, -0.68, 1.9], allowed: [R77, R74], mount: 'pylon' },
-    { id: 10, label: 'RW MID', pos: [4.4, -0.66, 2.5], allowed: [R77, R74], mount: 'pylon' },
+    { id: 9, label: 'RW IB', pos: [3.1, -0.68, 1.9], allowed: [R77, R74, KAB], mount: 'pylon' },
+    { id: 10, label: 'RW MID', pos: [4.4, -0.66, 2.5], allowed: [R77, R74, KAB], mount: 'pylon' },
     { id: 11, label: 'RW OB', pos: [5.7, -0.64, 3.0], allowed: [R74, R77], mount: 'pylon' },
     { id: 12, label: 'RWT', pos: [7.04, -0.17, 3.75], allowed: [R74], mount: 'rail' },
   ],
@@ -621,6 +642,11 @@ const SU35: AircraftSpec = {
       id: 'flanker-aa',
       name: 'AIR SUPERIORITY — 6x R-77M, 4x R-74M',
       stores: { 1: R74, 2: R74, 3: R77, 4: R77, 5: R77, 8: R77, 9: R77, 10: R77, 11: R74, 12: R74 },
+    },
+    {
+      id: 'flanker-strike',
+      name: 'STRIKE — 4x KAB-500S, 4x R-77M, 2x R-74M',
+      stores: { 1: R74, 12: R74, 3: KAB, 4: KAB, 9: KAB, 10: KAB, 2: R77, 11: R77, 5: R77, 8: R77 },
     },
     {
       id: 'flanker-max',
@@ -723,15 +749,15 @@ const RAFALE: AircraftSpec = {
   stations: [
     { id: 1, label: 'LWT', pos: [-5.4, -0.34, 4.15], allowed: [MICA], mount: 'rail' },
     { id: 2, label: 'LW OB', pos: [-4.25, -0.62, 3.45], allowed: [MICA, MTR], mount: 'pylon', hang: -0.4 },
-    { id: 3, label: 'LW MID', pos: [-3.15, -0.7, 3.0], allowed: [MTR, MICA, TANK], mount: 'pylon', hang: -0.41 },
-    { id: 4, label: 'LW IB', pos: [-2.1, -0.75, 2.5], allowed: [TANK, MTR], mount: 'pylon', hang: -0.42 },
+    { id: 3, label: 'LW MID', pos: [-3.15, -0.7, 3.0], allowed: [MTR, MICA, TANK, AASM], mount: 'pylon', hang: -0.41 },
+    { id: 4, label: 'LW IB', pos: [-2.1, -0.75, 2.5], allowed: [TANK, MTR, AASM], mount: 'pylon', hang: -0.42 },
     { id: 5, label: 'L FUS-F', pos: [-0.72, -1.02, -0.9], allowed: [MTR, MICA], mount: 'pylon' },
     { id: 6, label: 'L FUS-A', pos: [-0.72, -1.0, 2.6], allowed: [MTR, MICA], mount: 'pylon' },
     { id: 7, label: 'CL', pos: [0, -1.2, 0.9], allowed: [TANK], mount: 'pylon' },
     { id: 8, label: 'R FUS-A', pos: [0.72, -1.0, 2.6], allowed: [MTR, MICA], mount: 'pylon' },
     { id: 9, label: 'R FUS-F', pos: [0.72, -1.02, -0.9], allowed: [MTR, MICA], mount: 'pylon' },
-    { id: 10, label: 'RW IB', pos: [2.1, -0.75, 2.5], allowed: [TANK, MTR], mount: 'pylon', hang: -0.42 },
-    { id: 11, label: 'RW MID', pos: [3.15, -0.7, 3.0], allowed: [MTR, MICA, TANK], mount: 'pylon', hang: -0.41 },
+    { id: 10, label: 'RW IB', pos: [2.1, -0.75, 2.5], allowed: [TANK, MTR, AASM], mount: 'pylon', hang: -0.42 },
+    { id: 11, label: 'RW MID', pos: [3.15, -0.7, 3.0], allowed: [MTR, MICA, TANK, AASM], mount: 'pylon', hang: -0.41 },
     { id: 12, label: 'RW OB', pos: [4.25, -0.62, 3.45], allowed: [MICA, MTR], mount: 'pylon', hang: -0.4 },
     { id: 13, label: 'RWT', pos: [5.4, -0.34, 4.15], allowed: [MICA], mount: 'rail' },
   ],
@@ -740,6 +766,11 @@ const RAFALE: AircraftSpec = {
       id: 'rafale-aa',
       name: 'AIR SUPERIORITY — 4x METEOR, 4x MICA IR',
       stores: { 1: MICA, 2: MICA, 5: MTR, 6: MTR, 8: MTR, 9: MTR, 12: MICA, 13: MICA },
+    },
+    {
+      id: 'rafale-strike',
+      name: 'STRIKE — 4x AASM HAMMER, 2x METEOR, 4x MICA IR, CL TANK',
+      stores: { 1: MICA, 2: MICA, 12: MICA, 13: MICA, 3: AASM, 4: AASM, 10: AASM, 11: AASM, 5: MTR, 9: MTR, 7: TANK },
     },
     {
       id: 'rafale-cap',
@@ -850,10 +881,10 @@ const F22: AircraftSpec = {
   stations: [
     { id: 1, label: 'L SIDE BAY', pos: [-1.2, -0.3, -1.3], allowed: [AIM9], mount: 'internal' },
     { id: 2, label: 'MAIN BAY 1', pos: [-0.7, -0.62, 0.6], allowed: [AIM120], mount: 'internal' },
-    { id: 3, label: 'MAIN BAY 2', pos: [-0.42, -0.62, 0.6], allowed: [AIM120], mount: 'internal' },
-    { id: 4, label: 'MAIN BAY 3', pos: [-0.14, -0.62, 0.6], allowed: [AIM120], mount: 'internal' },
-    { id: 5, label: 'MAIN BAY 4', pos: [0.14, -0.62, 0.6], allowed: [AIM120], mount: 'internal' },
-    { id: 6, label: 'MAIN BAY 5', pos: [0.42, -0.62, 0.6], allowed: [AIM120], mount: 'internal' },
+    { id: 3, label: 'MAIN BAY 2', pos: [-0.42, -0.62, 0.6], allowed: [AIM120, GBU39], mount: 'internal' },
+    { id: 4, label: 'MAIN BAY 3', pos: [-0.14, -0.62, 0.6], allowed: [AIM120, GBU39], mount: 'internal' },
+    { id: 5, label: 'MAIN BAY 4', pos: [0.14, -0.62, 0.6], allowed: [AIM120, GBU39], mount: 'internal' },
+    { id: 6, label: 'MAIN BAY 5', pos: [0.42, -0.62, 0.6], allowed: [AIM120, GBU39], mount: 'internal' },
     { id: 7, label: 'MAIN BAY 6', pos: [0.7, -0.62, 0.6], allowed: [AIM120], mount: 'internal' },
     { id: 8, label: 'R SIDE BAY', pos: [1.2, -0.3, -1.3], allowed: [AIM9], mount: 'internal' },
   ],
@@ -862,6 +893,11 @@ const F22: AircraftSpec = {
       id: 'raptor-std',
       name: 'AIR DOMINANCE — 6x AIM-120D, 2x AIM-9X (internal)',
       stores: { 1: AIM9, 2: AIM120, 3: AIM120, 4: AIM120, 5: AIM120, 6: AIM120, 7: AIM120, 8: AIM9 },
+    },
+    {
+      id: 'raptor-strike',
+      name: 'STRIKE — 4x GBU-39 SDB, 2x AIM-120D, 2x AIM-9X (internal)',
+      stores: { 1: AIM9, 8: AIM9, 2: AIM120, 7: AIM120, 3: GBU39, 4: GBU39, 5: GBU39, 6: GBU39 },
     },
     {
       id: 'raptor-light',
@@ -918,7 +954,18 @@ export const STORES: Record<StoreType, StoreSpec> = {
   R74M: { type: 'R74M', name: 'R-74M', mass: 105, dragCd: 0.0009, length: 2.92, diameter: 0.17 },
   METEOR: { type: 'METEOR', name: 'MBDA Meteor', mass: 190, dragCd: 0.0012, length: 3.65, diameter: 0.178 },
   MICAIR: { type: 'MICAIR', name: 'MBDA MICA IR', mass: 112, dragCd: 0.0009, length: 3.1, diameter: 0.16 },
+  GBU31: { type: 'GBU31', name: 'GBU-31 JDAM (2,000 lb)', mass: 934, dragCd: 0.0042, length: 3.88, diameter: 0.46 },
+  GBU32: { type: 'GBU32', name: 'GBU-32 JDAM (1,000 lb)', mass: 460, dragCd: 0.0028, length: 3.03, diameter: 0.36 },
+  GBU39: { type: 'GBU39', name: 'GBU-39 Small Diameter Bomb', mass: 129, dragCd: 0.0008, length: 1.8, diameter: 0.19 },
+  PAVEWAY4: { type: 'PAVEWAY4', name: 'Paveway IV (500 lb)', mass: 226, dragCd: 0.0019, length: 3.0, diameter: 0.27 },
+  AASM: { type: 'AASM', name: 'AASM Hammer', mass: 340, dragCd: 0.0024, length: 3.1, diameter: 0.3 },
+  KAB500: { type: 'KAB500', name: 'KAB-500S', mass: 560, dragCd: 0.0032, length: 3.0, diameter: 0.4 },
 };
+
+/** A strike loadout for this jet (the airstrike mode flies it). */
+export function strikeLoadout(spec: AircraftSpec): LoadoutPreset {
+  return spec.loadouts.find((l) => l.id.endsWith('-strike')) ?? spec.loadouts[0];
+}
 
 /** Fuel carried in each external tank (kg, JP-8 at 480 US gal). */
 export const TANK_FUEL = 1450;

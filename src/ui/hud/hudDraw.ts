@@ -2,7 +2,7 @@
 // projected through the live camera, so the HUD is conformal (collimated)
 // in the cockpit at any FOV and remains correct while looking around.
 
-import { MISSILES, weaponCode } from '../../weapons/weaponSpecs';
+import { MISSILES, weaponCode, weaponShort, isBomb } from '../../weapons/weaponSpecs';
 import * as THREE from 'three';
 import { ROUND_LIFE } from '../../weapons/gun';
 import type { Game } from '../../game/game';
@@ -143,6 +143,105 @@ export class HudPainter {
     c.fill();
     c.restore();
     if (label) this.text(label, x - Math.cos(a) * 22, y - Math.sin(a) * 16, color, 11, 'center');
+  }
+
+  // -------------------------------------------------------------------------
+  // Air-to-ground: target markers and the release countdown
+  // -------------------------------------------------------------------------
+
+  /**
+   * Ground targets (primaries as diamonds, the designated one boxed) and,
+   * just below the middle of the screen, the bombing computer's countdown:
+   * time to the release point, RELEASE, then time to impact. Small, see-
+   * through text with no background so the view stays clear.
+   */
+  strikeCues(g: Game, p: Aircraft, cam: THREE.PerspectiveCamera): void {
+    const sim = g.sim;
+    if (!sim.ground.length) return;
+    const c = this.ctx;
+    const cue = g.bombComputer.cue;
+    const des = p.groundTarget && p.groundTarget.alive ? p.groundTarget : null;
+    c.lineWidth = 1.5;
+    for (const u of sim.ground) {
+      if (!u.alive && !u.primary) continue;
+      const d = u.pos.distanceTo(p.fm.pos);
+      if (d > 45 * NM) continue;
+      if (u !== des && !u.primary && d > 8 * NM) continue;
+      const sp = this.project(cam, u.aimPoint(_v));
+      if (!sp.on) continue;
+      if (!u.alive) {
+        // destroyed primary: a dim cross
+        c.strokeStyle = GREEN_DIM;
+        this.line(sp.x - 5, sp.y - 5, sp.x + 5, sp.y + 5);
+        this.line(sp.x - 5, sp.y + 5, sp.x + 5, sp.y - 5);
+        continue;
+      }
+      if (u === des) {
+        // target designator box
+        const r = 11;
+        c.strokeStyle = WHITE;
+        c.lineWidth = 2;
+        c.strokeRect(sp.x - r, sp.y - r, r * 2, r * 2);
+        c.lineWidth = 1.5;
+        this.line(sp.x, sp.y - r - 6, sp.x, sp.y - r);
+        this.line(sp.x, sp.y + r, sp.x, sp.y + r + 6);
+        this.line(sp.x - r - 6, sp.y, sp.x - r, sp.y);
+        this.line(sp.x + r, sp.y, sp.x + r + 6, sp.y);
+        this.text(`${u.label}  ${(d / NM).toFixed(1)}`, sp.x + r + 8, sp.y - r - 4, WHITE, 11);
+      } else {
+        c.strokeStyle = u.primary ? AMBER : GREEN_DIM;
+        this.diamond(sp.x, sp.y, u.primary ? 6 : 4);
+        if (u.primary && d < 20 * NM) this.text(u.def.name, sp.x + 9, sp.y - 8, 'rgba(255,201,74,0.7)', 10);
+      }
+    }
+    const cx = this.w / 2, cy = this.h / 2;
+    // designated target off screen: an arrow round the middle
+    if (des && cue.state !== 'none') {
+      const sp = this.project(cam, des.aimPoint(_v));
+      if (!sp.on) this.edgeArrow(cx, cy, sp, 'rgba(240,246,255,0.75)', `TGT ${cue.rangeNm.toFixed(0)}`, Math.min(this.w, this.h) * 0.3);
+    }
+
+    // --- the countdown -----------------------------------------------------
+    const y = cy + this.h * 0.2;
+    const fall = cue.falling[0];
+    const soft = (a: number) => `rgba(240,246,255,${a})`;
+    const lines: [string, string, number, boolean][] = [];
+    if (cue.state === 'wait') {
+      lines.push([`RELEASE IN ${cue.trel < 10 ? cue.trel.toFixed(1) : Math.round(cue.trel)} S`, soft(0.82), 17, true]);
+      lines.push([`${cue.rangeNm.toFixed(1)} NM · FALL ${Math.round(cue.tof)} S`, soft(0.55), 11, false]);
+    } else if (cue.state === 'inRange') {
+      const pulse = 0.65 + 0.35 * Math.abs(Math.sin(performance.now() / 180));
+      lines.push(['RELEASE', `rgba(108,255,154,${pulse.toFixed(2)})`, 20, true]);
+      lines.push([`IN RANGE · FALL ${Math.round(cue.tof)} S · [SPACE]`, 'rgba(108,255,154,0.6)', 11, false]);
+    } else if (cue.state === 'turn') {
+      const s = Math.round(cue.steer);
+      lines.push([Math.abs(s) < 3 ? 'STEADY' : `TURN ${s > 0 ? 'RIGHT' : 'LEFT'} ${Math.abs(s)}°`, soft(0.7), 15, true]);
+      lines.push([`TARGET ${cue.rangeNm.toFixed(1)} NM`, soft(0.5), 11, false]);
+    } else if (cue.state === 'tooClose') {
+      lines.push(['TOO CLOSE — GO AROUND', 'rgba(255,201,74,0.8)', 15, true]);
+      lines.push(['CLIMB OR EXTEND, THEN COME BACK', 'rgba(255,201,74,0.5)', 11, false]);
+    } else if (cue.state === 'noTarget') {
+      lines.push(['NO TARGET · [R]', soft(0.5), 13, false]);
+    }
+    if (fall) {
+      const n = cue.falling.length;
+      lines.push([`${n > 1 ? `${n} BOMBS · ` : ''}IMPACT ${fall.t < 10 ? fall.t.toFixed(1) : Math.round(fall.t)} S`, 'rgba(255,201,74,0.85)', 15, true]);
+    }
+    let yy = y;
+    for (const [t, col, size, bold] of lines) {
+      this.text(t, cx, yy, col, size, 'center', bold);
+      yy += size + 5;
+    }
+    // progress to the release point: a thin bar that fills as it counts down
+    if (cue.state === 'wait' && cue.trelStart > 0) {
+      const bw = 150;
+      const f = clamp(1 - cue.trel / cue.trelStart, 0, 1);
+      c.strokeStyle = soft(0.35);
+      c.lineWidth = 1;
+      c.strokeRect(cx - bw / 2, y - 18, bw, 4);
+      c.fillStyle = soft(0.7);
+      c.fillRect(cx - bw / 2, y - 18, bw * f, 4);
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -465,7 +564,7 @@ export class HudPainter {
     const sim = g.sim;
     const c = this.ctx;
     const count = w === 'GUN' ? p.gunAmmo : p.countOf(w);
-    const wname = w === 'GUN' ? `GUN ${p.spec.gun.caliberMm}` : MISSILES[w].short;
+    const wname = w === 'GUN' ? `GUN ${p.spec.gun.caliberMm}` : weaponShort(w);
     this.text(`${wname} ${count}`, lx, ly, GREEN, 12);
     this.text(`${p.radar.mode}${p.radar.lock ? ' STT' : ''}${p.irst?.lock ? ' IRST' : ''}`, lx, ly + 15, GREEN, 11);
     this.text(`ARM`, lx, ly + 30, GREEN, 11);

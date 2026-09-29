@@ -11,7 +11,9 @@ import { Team, DEG, NM, G0 } from '../core/constants';
 import { Radar } from '../sensors/radar';
 import { Irst } from '../sensors/irst';
 import { Rwr } from '../sensors/rwr';
-import { WeaponSelect, MissileType, MISSILES, launchZone, isIrMissile } from '../weapons/weaponSpecs';
+import { WeaponSelect, MissileType, MISSILES, launchZone, isIrMissile, BombType, isBomb } from '../weapons/weaponSpecs';
+import { Bomb, releaseVelocity } from '../weapons/bomb';
+import type { GroundUnit } from '../game/ground';
 import { Missile } from '../weapons/missile';
 import { irIntensity } from '../sensors/signatures';
 import type { Sim } from '../game/sim';
@@ -93,6 +95,15 @@ export class Aircraft {
    * nothing done to it here (damage, crashes) counts -- its own client decides.
    */
   remote = false;
+  /**
+   * Air-defence site standing in for a shooter (never in the simulation's
+   * aircraft list): its short name, and its own radar / optics track test.
+   */
+  groundLabel: string | null = null;
+  groundTrack: ((t: Aircraft) => boolean) | null = null;
+  /** ground target designated for the next bomb */
+  groundTarget: GroundUnit | null = null;
+  bombsDropped = 0;
   /** multiplayer player id (0 = not networked) */
   netId = 0;
   private remoteGunAcc = 0;
@@ -240,6 +251,7 @@ export class Aircraft {
 
   /** Does any own sensor hold a track good enough to guide a missile? */
   sensorTrack(t: Aircraft): boolean {
+    if (this.groundTrack) return this.groundTrack(t);
     if (!this.alive) return false;
     const now = this.simTime;
     if (this.radar.isTracking(t, now)) return true;
@@ -248,11 +260,19 @@ export class Aircraft {
   }
   simTime = 0;
 
+  /** The guided bomb this jet carries, if any. */
+  get bombType(): BombType | null {
+    for (const s of this.stations) if (s.store && isBomb(s.store)) return s.store;
+    return null;
+  }
+
   cycleWeapon(): WeaponSelect {
     const order: WeaponSelect[] = [this.radarMissile, this.irMissile, 'GUN'];
+    const b = this.bombType;
+    if (b) order.push(b);
     let i = order.indexOf(this.selectedWeapon);
-    for (let k = 0; k < 3; k++) {
-      i = (i + 1) % 3;
+    for (let k = 0; k < order.length; k++) {
+      i = (i + 1) % order.length;
       const w = order[i];
       if (w === 'GUN' || this.countOf(w) > 0) {
         this.selectedWeapon = w;
@@ -263,7 +283,7 @@ export class Aircraft {
   }
 
   selectWeapon(w: WeaponSelect): boolean {
-    if (w !== 'GUN' && w !== this.radarMissile && w !== this.irMissile) return false;
+    if (w !== 'GUN' && w !== this.radarMissile && w !== this.irMissile && !(isBomb(w) && w === this.bombType)) return false;
     if (w !== 'GUN' && this.countOf(w) === 0) return false;
     this.selectedWeapon = w;
     return true;
@@ -536,7 +556,8 @@ export class Aircraft {
     return best;
   }
 
-  launchZoneFor(type: MissileType, t: Aircraft): { rmin: number; rmax: number; rne: number } {
+  launchZoneFor(type: MissileType | BombType, t: Aircraft): { rmin: number; rmax: number; rne: number } {
+    if (isBomb(type)) return { rmin: 0, rmax: 0, rne: 0 };
     const fm = this.fm;
     _tmp.subVectors(fm.pos, t.fm.pos).normalize();
     const tv = t.fm.vel.length();
@@ -589,6 +610,32 @@ export class Aircraft {
       else if (this.countOf(this.radarMissile) === 0 && this.countOf(this.irMissile) === 0) this.selectedWeapon = 'GUN';
     }
     return m;
+  }
+
+  /**
+   * Release one guided bomb onto a ground target (or a set of coordinates).
+   * It leaves the station nearest the jet's balance, dropped clear by the
+   * ejector rack.
+   */
+  releaseBomb(sim: Sim, target: GroundUnit | null, point: THREE.Vector3): Bomb | null {
+    const type = this.bombType;
+    if (!type || !this.alive || this.fm.onGround || this.missileCooldown > 0 || RULES.holdFire) return null;
+    const st = this.pickStation(type);
+    if (!st) return null;
+    st.store = null;
+    this.refreshStores();
+    const p = st.def.pos;
+    const pos = _tmp.set(storeCenterX(st.def, type), storeCenterY(st.def, type), p[2]).applyQuaternion(this.fm.quat).add(this.fm.pos).clone();
+    const b = new Bomb(type, this, point.clone(), target, pos, releaseVelocity(this, new THREE.Vector3()), st.def.id);
+    sim.addBomb(b);
+    this.bombsDropped++;
+    this.missileCooldown = 0.35;
+    if (target) target.claimed++;
+    sim.events.emit('bombRelease', { bomb: b, shooter: this, station: st.def.id });
+    if (this.countOf(type) === 0 && this.selectedWeapon === type) {
+      this.selectedWeapon = this.countOf(this.radarMissile) > 0 ? this.radarMissile : this.countOf(this.irMissile) > 0 ? this.irMissile : 'GUN';
+    }
+    return b;
   }
 
   // -------------------------------------------------------------------------

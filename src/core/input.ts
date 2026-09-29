@@ -14,6 +14,7 @@ export type Action =
   | 'weaponGun'
   | 'weapon9x'
   | 'weapon120'
+  | 'weaponBomb'
   | 'cycleWeapon'
   | 'lock'
   | 'unlock'
@@ -65,6 +66,7 @@ export const ACTION_LABELS: Record<Action, string> = {
   weaponGun: 'Select gun',
   weapon9x: 'Select IR missile (AIM-9X / R-74M)',
   weapon120: 'Select radar missile (AIM-120D / R-77M)',
+  weaponBomb: 'Select guided bombs (strike loadouts)',
   cycleWeapon: 'Cycle weapon',
   lock: 'Radar lock / next target',
   unlock: 'Break lock',
@@ -117,6 +119,7 @@ export const DEFAULT_BINDINGS: Record<Action, string[]> = {
   weaponGun: ['Digit1'],
   weapon9x: ['Digit2'],
   weapon120: ['Digit3'],
+  weaponBomb: ['Digit4'],
   cycleWeapon: ['Backquote'],
   lock: ['KeyR'],
   unlock: ['KeyT'],
