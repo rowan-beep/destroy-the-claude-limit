@@ -3,6 +3,12 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.23.0 — F-22 weapons bays (2026-09-30)
+
+- F-22 weapons bays: every weapon except the gun now leaves only once its bay doors are fully open. Press fire and the doors open first; the missile or bomb goes the moment they are fully open, about half a second later for the main bay and a little longer for the side bays. The doors close again a couple of seconds after the last shot. AI Raptors follow the same rule.
+- The F-22 now has real, moving bay doors. The two big main-bay doors hinge at their outer edges and swing down to hang straight below the jet, opening onto the dark bay interior with its launch rails. The side-bay doors in the walls beside the intakes swing outward.
+- You can see what is in the bays: as the doors open, the AIM-120s or GBU-39s are lowered on their launchers under the belly, and each AIM-9X swings out on its rail beside the intake. Weapons now launch from those lowered positions instead of from inside the fuselage.
+
 ## v4.22.1 — Low frame rate help (2026-09-30)
 
 - New: if your browser is drawing the game on the processor instead of your graphics card (hardware acceleration switched off, or the graphics driver blocked), the game now says so as soon as it starts and tells you how to fix it. In that state it runs at only a few frames per second however fast the PC is.

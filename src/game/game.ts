@@ -1210,16 +1210,17 @@ export class Game implements ModeHost {
     const type = p.bombType!;
     const aim = t.aimPoint();
     const pred = predictBomb(type, p.fm.pos.clone().addScaledVector(p.fm.up, -1.5), p.fm.vel, aim);
-    const b = p.releaseBomb(this.sim, t, aim);
-    if (!b) return;
-    b.tof = pred.tof;
-    this.message(`${weaponShort(type)} AWAY → ${t.label} · IMPACT ${Math.round(pred.tof)} S${pred.hit ? '' : ' (OUTSIDE THE ZONE: IT WILL FALL SHORT)'}`, pred.hit ? 'good' : 'warn', 3);
-    audio.voice(p.type === 'SU35' ? 'Sbros' : 'Pickle', 'launch', 1.2, p.type === 'SU35' ? 'Сброс!' : undefined);
-    // the computer moves on to the next target nobody has a bomb on
-    if (t.claimed > 0) {
-      p.groundTarget = null;
-      BombComputer.autoDesignate(p, this.sim);
-    }
+    // (from a weapons bay it leaves once the doors are fully open)
+    p.releaseBomb(this.sim, t, aim, (b) => {
+      b.tof = pred.tof;
+      this.message(`${weaponShort(type)} AWAY → ${t.label} · IMPACT ${Math.round(pred.tof)} S${pred.hit ? '' : ' (OUTSIDE THE ZONE: IT WILL FALL SHORT)'}`, pred.hit ? 'good' : 'warn', 3);
+      audio.voice(p.type === 'SU35' ? 'Sbros' : 'Pickle', 'launch', 1.2, p.type === 'SU35' ? 'Сброс!' : undefined);
+      // the computer moves on to the next target nobody has a bomb on
+      if (t.claimed > 0 && p.groundTarget === t) {
+        p.groundTarget = null;
+        BombComputer.autoDesignate(p, this.sim);
+      }
+    });
   }
 
   private fireMissile(): void {
@@ -1243,11 +1244,12 @@ export class Game implements ModeHost {
       return;
     }
     const target = p.missileTarget(w, this.sim);
-    const m = p.fireMissile(this.sim, w, target);
-    if (!m) return;
-    if (!target) this.message('MADDOG LAUNCH — NO TARGET TRACK', 'warn', 2.5);
-    const call = launchCall(w);
-    audio.voice(call.voice, 'launch', 1.5, call.voiceRu);
+    // (from a weapons bay it leaves once the doors are fully open)
+    p.fireMissile(this.sim, w, target, () => {
+      if (!target) this.message('MADDOG LAUNCH — NO TARGET TRACK', 'warn', 2.5);
+      const call = launchCall(w);
+      audio.voice(call.voice, 'launch', 1.5, call.voiceRu);
+    });
   }
 
   private tryRearm(): void {

@@ -10,6 +10,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.23.0',
+    date: '2026-09-30',
+    title: "F-22 weapons bays",
+    notes: [
+      "F-22 weapons bays: every weapon except the gun now leaves only once its bay doors are fully open. Press fire and the doors open first; the missile or bomb goes the moment they are fully open, about half a second later for the main bay and a little longer for the side bays. The doors close again a couple of seconds after the last shot. AI Raptors follow the same rule.",
+      "The F-22 now has real, moving bay doors. The two big main-bay doors hinge at their outer edges and swing down to hang straight below the jet, opening onto the dark bay interior with its launch rails. The side-bay doors in the walls beside the intakes swing outward.",
+      "You can see what is in the bays: as the doors open, the AIM-120s or GBU-39s are lowered on their launchers under the belly, and each AIM-9X swings out on its rail beside the intake. Weapons now launch from those lowered positions instead of from inside the fuselage.",
+    ],
+  },
+  {
     version: '4.22.1',
     date: '2026-09-30',
     title: "Low frame rate help",

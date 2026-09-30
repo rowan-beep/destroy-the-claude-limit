@@ -183,8 +183,8 @@ function livery(team: string): Livery {
     else roundel(gb, team, ...Wb(4.6, 2.9), 0.42 * L.pb);
     // main weapons-bay doors and side bays underneath
     const rect = (g: CanvasRenderingContext2D, a: P2, b: P2) => line(g, [a, [b[0], a[1]], b, [a[0], b[1]]], 1.3, LINE, true);
-    rect(gb, Wb(0.05, -0.8), Wb(0.95, 2.3));
-    rect(gb, Wb(1.05, -2.2), Wb(1.45, -0.3));
+    rect(gb, Wb(0.03, MAIN_BAY[0]), Wb(0.9, MAIN_BAY[1]));
+    rect(gb, Wb(1.02, SIDE_BAY[0]), Wb(1.46, SIDE_BAY[1]));
   }
   line(gs, [S(-6.5, -0.02), S(7.3, -0.1)], 1.3, LINE_LIGHT); // chine
   weather(gt, L.top.width, L.top.height, rnd, 0.7, [0, 1]);
@@ -213,6 +213,141 @@ function livery(team: string): Livery {
   });
   L.sideDraw(-0.4, -0.35, (g, x, y) => roundel(g, team, x, y, 0.22 * ps));
   return L;
+}
+
+// --- weapons bays -----------------------------------------------------------
+// Main bay under the belly (six AIM-120s or GBU-39s), z range; the side bays in
+// the lower walls beside the intakes (one AIM-9X each on its trapeze launcher)
+const MAIN_BAY: P2 = [-1.3, 2.5];
+const SIDE_BAY: P2 = [-2.55, -0.05];
+/** the side bay's span across the lower side wall (0 = belly edge, 1 = wall top) */
+const SIDE_T: P2 = [0.16, 0.8];
+
+let _bayMat: THREE.MeshStandardMaterial | null = null;
+/** the bay interior: dark primer, launch rails and ribs in shadow */
+function bayInteriorMaterial(): THREE.MeshStandardMaterial {
+  if (!_bayMat) _bayMat = new THREE.MeshStandardMaterial({ color: '#34393e', roughness: 0.85, metalness: 0.1, vertexColors: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  return _bayMat;
+}
+
+/**
+ * A panel lying on the skin between two points of each cross-section:
+ * `edge(z)` gives its two edges in (x, y); it sits `out` outside the skin and
+ * is `thick` deep (0 = a single outward-facing surface).
+ */
+function skinPanel(z0: number, z1: number, edge: (z: number) => [P2, P2], out: number, thick: number, nz = 18, shade?: (u: number, v: number) => number): THREE.BufferGeometry {
+  const pos: number[] = [];
+  const col: number[] = [];
+  const ring: { o: THREE.Vector3[]; i: THREE.Vector3[]; c: THREE.Vector3 }[] = [];
+  const NU = shade ? 12 : 1;
+  for (let k = 0; k <= nz; k++) {
+    const z = z0 + ((z1 - z0) * k) / nz;
+    const [a, b] = edge(z);
+    const dx = b[0] - a[0], dy = b[1] - a[1];
+    const L = Math.hypot(dx, dy) || 1;
+    let nx = dy / L, ny = -dx / L;
+    const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+    if (nx * mx + ny * (my + 0.05) < 0) (nx = -nx), (ny = -ny);
+    const o: THREE.Vector3[] = [], i: THREE.Vector3[] = [];
+    for (let u = 0; u <= NU; u++) {
+      const x = a[0] + (dx * u) / NU, y = a[1] + (dy * u) / NU;
+      o.push(new THREE.Vector3(x + nx * out, y + ny * out, z));
+      i.push(new THREE.Vector3(x + nx * (out - thick), y + ny * (out - thick), z));
+    }
+    // a point inside the panel: every face is wound to point away from it
+    const c = new THREE.Vector3(mx + nx * (out - Math.max(thick, 0.02) / 2), my + ny * (out - Math.max(thick, 0.02) / 2), z);
+    ring.push({ o, i, c });
+  }
+  const centre = ring[nz >> 1].c;
+  const _e1 = new THREE.Vector3(), _e2 = new THREE.Vector3(), _f = new THREE.Vector3();
+  const tri = (p: THREE.Vector3, q: THREE.Vector3, r: THREE.Vector3, c: number, ref: THREE.Vector3) => {
+    _f.crossVectors(_e1.subVectors(q, p), _e2.subVectors(r, p));
+    const cen = _e1.copy(p).add(q).add(r).multiplyScalar(1 / 3).sub(ref);
+    if (_f.dot(cen) < 0) [q, r] = [r, q];
+    pos.push(p.x, p.y, p.z, q.x, q.y, q.z, r.x, r.y, r.z);
+    for (let n = 0; n < 3; n++) col.push(c, c, c);
+  };
+  let ref = centre;
+  const quad = (p: THREE.Vector3, q: THREE.Vector3, r: THREE.Vector3, t: THREE.Vector3, c = 1) => {
+    tri(p, q, r, c, ref);
+    tri(p, r, t, c, ref);
+  };
+  for (let k = 0; k < nz; k++) {
+    const A = ring[k], B = ring[k + 1];
+    ref = _f.clone().addVectors(A.c, B.c).multiplyScalar(0.5);
+    for (let u = 0; u < NU; u++) {
+      const c = shade ? shade((u + 0.5) / NU, (k + 0.5) / nz) : 1;
+      quad(A.o[u], B.o[u], B.o[u + 1], A.o[u + 1], c);
+      if (thick > 0) quad(A.i[u], A.i[u + 1], B.i[u + 1], B.i[u], c * 0.85);
+    }
+    if (thick > 0) {
+      quad(A.o[0], A.i[0], B.i[0], B.o[0], 0.8);
+      quad(A.o[NU], B.o[NU], B.i[NU], A.i[NU], 0.8);
+    }
+  }
+  ref = centre;
+  if (thick > 0) for (const R of [ring[0], ring[nz]]) for (let u = 0; u < NU; u++) quad(R.o[u], R.i[u], R.i[u + 1], R.o[u + 1], 0.8);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.computeVertexNormals();
+  return g;
+}
+
+/** Rotation sign about `axis` (through `hinge`) that swings `p` outward along `n`. */
+function swingSign(p: THREE.Vector3, hinge: THREE.Vector3, axis: THREE.Vector3, n: THREE.Vector3, deg: number): number {
+  const r = p.clone().sub(hinge).applyAxisAngle(axis, deg * DEG).add(hinge);
+  return r.clone().sub(p).dot(n) >= 0 ? 1 : -1;
+}
+
+function buildBays(v: AirframeVisual, paint: THREE.Material): void {
+  const belly = (z: number) => BODY(z);
+  const cavity = bayInteriorMaterial();
+  // bay interior shading: dark along the edges (the walls in shadow), launch
+  // rail stripes along the length, lighter ribs across
+  const ribs = (rails: number) => (u: number, w: number) => {
+    const edge = Math.min(u, 1 - u, w * 3, (1 - w) * 3);
+    let c = 0.55 + 0.45 * Math.min(1, edge * 6);
+    if (Math.abs(((u * rails) % 1) - 0.5) < 0.08) c *= 0.55;
+    if (Math.abs(((w * 7) % 1) - 0.5) < 0.05) c *= 1.25;
+    return c;
+  };
+  for (const sx of [-1, 1] as const) {
+    // main-bay door: from the centre line out to its hinge at the outboard edge;
+    // it swings down to hang straight below the jet
+    const mainEdge = (z: number): [P2, P2] => {
+      const y = belly(z)[0][1];
+      return [[0.03 * sx, y], [0.9 * sx, y]];
+    };
+    const door = stamp(skinPanel(MAIN_BAY[0], MAIN_BAY[1], mainEdge, 0.006, 0.025));
+    const zm = (MAIN_BAY[0] + MAIN_BAY[1]) / 2;
+    const hinge = new THREE.Vector3(0.9 * sx, belly(zm)[0][1] + 0.0, zm);
+    const axis = new THREE.Vector3(0, 0, 1);
+    const inner = new THREE.Vector3(0.03 * sx, hinge.y, zm);
+    const down = new THREE.Vector3(0, -1, 0);
+    v.addBayDoor(door, paint, hinge, axis.clone().multiplyScalar(swingSign(inner, hinge, axis, down, 30)), 'main', 92);
+    v.addBayCavity(skinPanel(MAIN_BAY[0], MAIN_BAY[1], mainEdge, 0.002, 0, 18, ribs(3)), cavity, 'main');
+
+    // side bay: a door in the lower side wall, hinged along its top edge; it
+    // swings out and up clear of the AIM-9X on its trapeze
+    const bay = sx < 0 ? 'left' : 'right';
+    const sideEdge = (z: number): [P2, P2] => {
+      const q = belly(z);
+      const p2 = q[2], p3 = q[3];
+      const at = (t: number): P2 => [(p2[0] + (p3[0] - p2[0]) * t) * sx, p2[1] + (p3[1] - p2[1]) * t];
+      return [at(SIDE_T[0]), at(SIDE_T[1])];
+    };
+    const sd = stamp(skinPanel(SIDE_BAY[0], SIDE_BAY[1], sideEdge, 0.006, 0.02));
+    const e0 = sideEdge(SIDE_BAY[0]), e1 = sideEdge(SIDE_BAY[1]);
+    const h0 = new THREE.Vector3(e0[1][0], e0[1][1], SIDE_BAY[0]);
+    const h1 = new THREE.Vector3(e1[1][0], e1[1][1], SIDE_BAY[1]);
+    const sAxis = h1.clone().sub(h0).normalize();
+    const em = sideEdge((SIDE_BAY[0] + SIDE_BAY[1]) / 2);
+    const low = new THREE.Vector3(em[0][0], em[0][1], (SIDE_BAY[0] + SIDE_BAY[1]) / 2);
+    const outward = new THREE.Vector3(sx, 0, 0);
+    v.addBayDoor(sd, paint, h0, sAxis.clone().multiplyScalar(swingSign(low, h0, sAxis, outward, 30)), bay, 105);
+    v.addBayCavity(skinPanel(SIDE_BAY[0], SIDE_BAY[1], sideEdge, 0.002, 0, 18, ribs(1)), cavity, bay);
+  }
 }
 
 const liveries = new Map<string, Livery>();
@@ -468,6 +603,8 @@ export function buildF22(v: AirframeVisual): void {
     formationStrip(new THREE.Vector3(1.99, 0.02, 1.2), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 1), 0.6, 0.035),
     formationStrip(new THREE.Vector3(-1.99, 0.02, 1.2), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 1), 0.6, 0.035),
   ]), pm.formation, v.body, false);
+  buildBays(v, paint);
+
   v.addNavLight(new THREE.Vector3(-6.72, -0.28, 3.0), 'red');
   v.addNavLight(new THREE.Vector3(6.72, -0.28, 3.0), 'green');
   v.addNavLight(new THREE.Vector3(0, -0.84, 0.4), 'strobe');

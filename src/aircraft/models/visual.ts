@@ -5,6 +5,7 @@
 
 import * as THREE from 'three';
 import type { Aircraft } from '../aircraft';
+import type { WeaponBay } from '../specs';
 import { airframeMaterials, Section } from './builder';
 import { storeGeometry, pylonGeometry, shoulderGeometry, storeCenterY, storeCenterX, onShoulder, PYLON_DROP } from './stores';
 import { DEG } from '../../core/constants';
@@ -222,6 +223,13 @@ export class AirframeVisual {
   nozzleMorphs: { mesh: THREE.Mesh; i: number }[] = [];
   /** nozzle position per nozzle, 0 closed .. 1 open (-1: not set yet) */
   private nozzleOpen: number[] = [];
+  /** weapons-bay doors (F-22): hinged panels that follow the aircraft's bay door positions */
+  bayDoors: { pivot: THREE.Object3D; axis: THREE.Vector3; bay: WeaponBay; maxDeg: number }[] = [];
+  /** the dark bay interiors, shown only while their doors are open */
+  bayCavities: { mesh: THREE.Object3D; bay: WeaponBay }[] = [];
+  /** stores in the bays: hidden when shut, lowered on their launchers as the doors open */
+  private bayStores: { id: number; g: THREE.Object3D; bay: WeaponBay; from: THREE.Vector3; to: THREE.Vector3 }[] = [];
+  private firedStations = new Set<number>();
   /** thrust-vectoring nozzle gimbals (Su-35S) */
   vectoring: { pivot: THREE.Object3D; side: -1 | 1 }[] = [];
   readonly cockpitEye = new THREE.Vector3();
@@ -309,6 +317,29 @@ export class AirframeVisual {
     const s: ControlSurface = { pivot, axis: axis.clone().normalize(), kind, side, maxDeg, current: 0 };
     this.surfaces.push(s);
     return s;
+  }
+
+  /** A weapons-bay door: geometry built in body frame (shut), hinge line given. */
+  addBayDoor(geo: THREE.BufferGeometry, mat: THREE.Material, hinge: THREE.Vector3, axis: THREE.Vector3, bay: WeaponBay, maxDeg: number): void {
+    const pivot = new THREE.Group();
+    pivot.position.copy(hinge);
+    this.body.add(pivot);
+    geo.translate(-hinge.x, -hinge.y, -hinge.z);
+    const m = new THREE.Mesh(geo, mat);
+    m.castShadow = true;
+    m.receiveShadow = true;
+    pivot.add(m);
+    this.bayDoors.push({ pivot, axis: axis.clone().normalize(), bay, maxDeg });
+  }
+
+  /** A weapons bay's interior (drawn over the skin, only while the bay is open). */
+  addBayCavity(geo: THREE.BufferGeometry, mat: THREE.Material, bay: WeaponBay): void {
+    const m = new THREE.Mesh(geo, mat);
+    m.castShadow = false;
+    m.receiveShadow = true;
+    m.visible = false;
+    this.body.add(m);
+    this.bayCavities.push({ mesh: m, bay });
   }
 
   addGearLeg(parts: THREE.Object3D[], hinge: THREE.Vector3, axis: THREE.Vector3, retractDeg: number, hideWhenUp: THREE.Object3D[] = []): GearLeg {
@@ -493,6 +524,7 @@ export class AirframeVisual {
       g.hideWhenUp.forEach((o) => skip.add(o));
     }
     if (this.canopy) skip.add(this.canopy);
+    for (const c of this.bayCavities) skip.add(c.mesh);
     const out: THREE.Mesh[] = [];
     const walk = (o: THREE.Object3D) => {
       if (!o.visible || skip.has(o)) return;
@@ -522,12 +554,14 @@ export class AirframeVisual {
     for (const g of this.gear) rigid.add(g.pivot);
     if (this.speedbrake) rigid.add(this.speedbrake.pivot);
     for (const g of this.vectoring) rigid.add(g.pivot);
+    for (const d of this.bayDoors) rigid.add(d.pivot);
     for (const n of this.nozzles) if (n.parent) rigid.add(n.parent);
     // parts with a life of their own stay separate meshes
     const keep = new Set<THREE.Object3D>([...this.insignia, ...this.navLights.map((l) => l.mesh)]);
     for (const g of this.gear) g.hideWhenUp.forEach((o) => keep.add(o));
     for (const r of this.pilots) [r.stick, r.upper, r.fore].forEach((o) => rigid.add(o));
     for (const n of this.nozzleMorphs) keep.add(n.mesh);
+    for (const c of this.bayCavities) keep.add(c.mesh);
     if (this.canopy) keep.add(this.canopy);
     const nozzleIn = partMaterials().nozzleIn;
     const detailSet = new Set(this.detail);
@@ -762,6 +796,8 @@ export class AirframeVisual {
     v.nozzleMorphs = this.nozzleMorphs.map((n) => ({ mesh: M(n.mesh), i: n.i }));
     v.nozzleOpen = this.nozzles.map(() => -1);
     v.vectoring = this.vectoring.map((g) => ({ pivot: M(g.pivot), side: g.side }));
+    v.bayDoors = this.bayDoors.map((d) => ({ ...d, pivot: M(d.pivot), axis: d.axis.clone() }));
+    v.bayCavities = this.bayCavities.map((c) => ({ mesh: M(c.mesh), bay: c.bay }));
     v.cockpitEye.copy(this.cockpitEye);
     v.canopy = this.canopy ? M(this.canopy) : null;
     v.canopySections = this.canopySections;
@@ -864,6 +900,8 @@ export class AirframeVisual {
   buildStores(): void {
     for (const [, obj] of this.stationMeshes) this.body.remove(obj);
     this.stationMeshes.clear();
+    this.bayStores = [];
+    this.firedStations.clear();
     for (const py of this.pylons) {
       this.body.remove(py);
       py.geometry.dispose();
@@ -872,8 +910,23 @@ export class AirframeVisual {
     // the pylons never leave: all of them are one mesh (one draw call)
     const pylons: THREE.BufferGeometry[] = [];
     for (const st of this.ac.stations) {
-      // internal-bay stores are hidden behind closed doors
-      if (!st.store || st.def.mount === 'internal') continue;
+      if (!st.store) continue;
+      // bay stores: hidden behind the shut doors, lowered into view as they open
+      if (st.def.mount === 'internal') {
+        const o = st.def.bayOut;
+        if (!st.def.bay || !o) continue;
+        const g = new THREE.Group();
+        const store = new THREE.Mesh(storeGeometry(st.store), storeMaterial());
+        store.castShadow = true;
+        g.add(store);
+        g.visible = false;
+        const p = st.def.pos;
+        this.bayStores.push({ id: st.def.id, g, bay: st.def.bay, from: new THREE.Vector3(p[0], p[1], p[2]), to: new THREE.Vector3(o[0], o[1], o[2]) });
+        g.position.set(p[0], p[1], p[2]);
+        this.body.add(g);
+        this.stationMeshes.set(st.def.id, g);
+        continue;
+      }
       const g = new THREE.Group();
       const p = st.def.pos;
       const cx = storeCenterX(st.def, st.store);
@@ -913,6 +966,7 @@ export class AirframeVisual {
     if (m) {
       // the pylon stays (it is part of the merged pylon mesh), the store drops
       m.visible = false;
+      this.firedStations.add(id);
     }
   }
 
@@ -988,6 +1042,18 @@ export class AirframeVisual {
     }
     if (this.speedbrake) {
       this.speedbrake.pivot.quaternion.setFromAxisAngle(this.speedbrake.axis, fm.speedbrakePos * this.speedbrake.maxDeg * DEG);
+    }
+    // weapons bays: doors swing on their hinges, the interior shows, and the
+    // stores come down on their launchers (eased like the hydraulics)
+    if (this.bayDoors.length) {
+      const bd = ac.bayDoor;
+      for (const d of this.bayDoors) d.pivot.quaternion.setFromAxisAngle(d.axis, smoothstep(0, 1, bd[d.bay]) * d.maxDeg * DEG);
+      for (const c of this.bayCavities) c.mesh.visible = bd[c.bay] > 0.01;
+      for (const b of this.bayStores) {
+        const k = bd[b.bay];
+        b.g.visible = k > 0.02 && !this.firedStations.has(b.id);
+        if (b.g.visible) b.g.position.lerpVectors(b.from, b.to, smoothstep(0.35, 1, k));
+      }
     }
 
     // thrust-vectoring nozzles: the exhaust swings opposite to the push it

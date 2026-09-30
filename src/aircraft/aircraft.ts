@@ -3,7 +3,7 @@
 // countermeasures, damage state and pilot physiology.
 
 import * as THREE from 'three';
-import { AircraftSpec, AircraftType, getSpec, StationDef, StoreType, TANK_FUEL, LoadoutPreset, STORES } from './specs';
+import { AircraftSpec, AircraftType, getSpec, StationDef, StoreType, TANK_FUEL, LoadoutPreset, STORES, WeaponBay } from './specs';
 import { FlightModel, FlightControls, neutralControls } from './flightModel';
 import { PilotPhysiology } from './pilot';
 import { DamageModel } from './damage';
@@ -31,6 +31,14 @@ export interface StationState {
 let nextAircraftId = 1;
 
 const _tmp = new THREE.Vector3();
+
+// Weapons bay doors (F-22). The main bay's doors snap open in about half a
+// second; a side bay also swings its AIM-9X out on the trapeze launcher before
+// the missile can fire. They stay open briefly after a shot for the next one.
+const BAY_OPEN_S = 0.55;
+const BAY_SIDE_OPEN_S = 0.8;
+const BAY_CLOSE_S = 0.9;
+const BAY_HOLD = 2.5;
 const _q = new THREE.Quaternion();
 
 export class Aircraft {
@@ -301,6 +309,7 @@ export class Aircraft {
       return;
     }
     if (this.missileCooldown > 0) this.missileCooldown -= dt;
+    if (this.hasBays) this.updateBays(dt, sim);
 
     if (this.alive) {
       if (this.ai) this.ai.update(dt, sim);
@@ -585,17 +594,85 @@ export class Aircraft {
     return cands[0];
   }
 
-  fireMissile(sim: Sim, type: MissileType, forcedTarget?: Aircraft | null): Missile | null {
+  // -------------------------------------------------------------------------
+  // Weapons bays (F-22): the doors open on the trigger, the weapon leaves only
+  // once they are fully open, and they shut again a moment after the last shot.
+  // -------------------------------------------------------------------------
+
+  /** door position of each weapons bay, 0 shut .. 1 fully open */
+  readonly bayDoor: Record<WeaponBay, number> = { main: 0, left: 0, right: 0 };
+  /** seconds each bay is still wanted open */
+  private bayHold: Record<WeaponBay, number> = { main: 0, left: 0, right: 0 };
+  /** a launch waiting for its bay doors */
+  pendingShot:
+    | { kind: 'missile'; type: MissileType; target: Aircraft | null; onFire?: (w: Missile | Bomb) => void; t: number }
+    | { kind: 'bomb'; type: BombType; ground: GroundUnit | null; point: THREE.Vector3; onFire?: (w: Missile | Bomb) => void; t: number }
+    | null = null;
+
+  /** Is this station clear to launch? If it sits in a shut bay, start opening it. */
+  private bayOpenFor(st: StationState): boolean {
+    const bay = st.def.mount === 'internal' ? st.def.bay : undefined;
+    if (!bay) return true;
+    this.bayHold[bay] = Math.max(this.bayHold[bay], BAY_HOLD);
+    return this.bayDoor[bay] >= 1;
+  }
+
+  /** does this jet carry its weapons in bays? */
+  get hasBays(): boolean {
+    return this.stations.some((s) => !!s.def.bay);
+  }
+
+  /** Is any weapons bay open (or opening)? */
+  get baysOpen(): boolean {
+    return this.bayDoor.main > 0 || this.bayDoor.left > 0 || this.bayDoor.right > 0;
+  }
+
+  private updateBays(dt: number, sim: Sim): void {
+    for (const b of ['main', 'left', 'right'] as WeaponBay[]) {
+      if (this.bayHold[b] > 0) this.bayHold[b] -= dt;
+      const open = this.bayHold[b] > 0 && this.alive;
+      // the side bays also swing the missile out on its trapeze before it can fire
+      const rate = 1 / (b === 'main' ? BAY_OPEN_S : BAY_SIDE_OPEN_S);
+      this.bayDoor[b] = open ? Math.min(1, this.bayDoor[b] + dt * rate) : Math.max(0, this.bayDoor[b] - dt / BAY_CLOSE_S);
+    }
+    const ps = this.pendingShot;
+    if (!ps) return;
+    ps.t += dt;
+    // stale (target gone, weapon changed, waited too long): drop it
+    if (!this.alive || ps.t > 3 || (ps.kind === 'missile' && ps.target && !ps.target.alive)) {
+      this.pendingShot = null;
+      return;
+    }
+    const st = this.pickStation(ps.type);
+    const bay = st?.def.bay;
+    if (!st || !bay) {
+      this.pendingShot = null;
+      return;
+    }
+    this.bayHold[bay] = Math.max(this.bayHold[bay], BAY_HOLD);
+    if (this.bayDoor[bay] < 1) return;
+    this.pendingShot = null;
+    if (ps.kind === 'missile') this.fireMissile(sim, ps.type, ps.target, ps.onFire);
+    else if (this.bombType === ps.type) this.releaseBomb(sim, ps.ground, ps.point, ps.onFire);
+  }
+
+  fireMissile(sim: Sim, type: MissileType, forcedTarget?: Aircraft | null, onFire?: (m: Missile) => void): Missile | null {
     if (type !== this.radarMissile && type !== this.irMissile) return null;
     if (!this.alive || this.fm.onGround || this.missileCooldown > 0 || RULES.holdFire) return null;
     const st = this.pickStation(type);
     if (!st) return null;
     const target = forcedTarget !== undefined ? forcedTarget : this.missileTarget(type, sim);
     if (isIrMissile(type) && !target) return null;
+    // an internal bay: nothing leaves until its doors are fully open
+    if (!this.bayOpenFor(st)) {
+      this.pendingShot = { kind: 'missile', type, target, onFire: onFire as ((w: Missile | Bomb) => void) | undefined, t: 0 };
+      return null;
+    }
     st.store = null;
     this.refreshStores();
     const p = st.def.pos;
-    const launchPos = _tmp.set(storeCenterX(st.def, type), storeCenterY(st.def, type), p[2]).applyQuaternion(this.fm.quat).add(this.fm.pos).clone();
+    const o = st.def.bayOut;
+    const launchPos = (o ? _tmp.set(o[0], o[1], o[2]) : _tmp.set(storeCenterX(st.def, type), storeCenterY(st.def, type), p[2])).applyQuaternion(this.fm.quat).add(this.fm.pos).clone();
     const stt = !!target && this.radar.lock === target;
     const m = new Missile(type, this, target, launchPos, st.def.id, stt);
     sim.addMissile(m);
@@ -604,6 +681,7 @@ export class Aircraft {
     this.missileCooldown = isIrMissile(type) ? 0.6 : 0.9;
     sim.events.emit('launch', { missile: m, shooter: this, target, station: st.def.id });
     if (isIrMissile(type)) this.seekerTarget = null;
+    onFire?.(m);
     if (this.countOf(type) === 0) {
       // auto-step to the next weapon
       if (type === this.radarMissile && this.countOf(this.irMissile) > 0) this.selectedWeapon = this.irMissile;
@@ -617,21 +695,27 @@ export class Aircraft {
    * It leaves the station nearest the jet's balance, dropped clear by the
    * ejector rack.
    */
-  releaseBomb(sim: Sim, target: GroundUnit | null, point: THREE.Vector3): Bomb | null {
+  releaseBomb(sim: Sim, target: GroundUnit | null, point: THREE.Vector3, onFire?: (b: Bomb) => void): Bomb | null {
     const type = this.bombType;
     if (!type || !this.alive || this.fm.onGround || this.missileCooldown > 0 || RULES.holdFire) return null;
     const st = this.pickStation(type);
     if (!st) return null;
+    if (!this.bayOpenFor(st)) {
+      this.pendingShot = { kind: 'bomb', type, ground: target, point: point.clone(), onFire: onFire as ((w: Missile | Bomb) => void) | undefined, t: 0 };
+      return null;
+    }
     st.store = null;
     this.refreshStores();
     const p = st.def.pos;
-    const pos = _tmp.set(storeCenterX(st.def, type), storeCenterY(st.def, type), p[2]).applyQuaternion(this.fm.quat).add(this.fm.pos).clone();
+    const o = st.def.bayOut;
+    const pos = (o ? _tmp.set(o[0], o[1], o[2]) : _tmp.set(storeCenterX(st.def, type), storeCenterY(st.def, type), p[2])).applyQuaternion(this.fm.quat).add(this.fm.pos).clone();
     const b = new Bomb(type, this, point.clone(), target, pos, releaseVelocity(this, new THREE.Vector3()), st.def.id);
     sim.addBomb(b);
     this.bombsDropped++;
     this.missileCooldown = 0.35;
     if (target) target.claimed++;
     sim.events.emit('bombRelease', { bomb: b, shooter: this, station: st.def.id });
+    onFire?.(b);
     if (this.countOf(type) === 0 && this.selectedWeapon === type) {
       this.selectedWeapon = this.countOf(this.radarMissile) > 0 ? this.radarMissile : this.countOf(this.irMissile) > 0 ? this.irMissile : 'GUN';
     }

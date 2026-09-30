@@ -551,10 +551,12 @@ export class AIPilot {
         (!alreadyInFlight || R < lz120.rne) &&
         teamStagger
       ) {
-        if (ac.fireMissile(sim, RDR, t)) {
-          this.lastShot = now;
+        // (an F-22 fires once its bay doors are open: the shot is logged then)
+        const shot = () => {
+          this.lastShot = sim.time;
           this.lastShotAt = t;
-        }
+        };
+        if (!ac.pendingShot) ac.fireMissile(sim, RDR, t, shot);
       }
     }
 
@@ -571,11 +573,12 @@ export class AIPilot {
         ata < cone &&
         now - this.lastShot > (sk.level < 0.2 ? 10 : 3)
       ) {
-        if (ac.fireMissile(sim, IR, t)) {
-          this.lastShot = now;
+        const shot = () => {
+          this.lastShot = sim.time;
           this.lastShotAt = t;
           this.lockTime = 0;
-        }
+        };
+        if (!ac.pendingShot) ac.fireMissile(sim, IR, t, shot);
       }
     }
   }

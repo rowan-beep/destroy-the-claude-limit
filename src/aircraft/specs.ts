@@ -45,7 +45,14 @@ export interface StationDef {
    * like LAU-128s on an F-15 pylon); a fuel tank hangs from the pylon centre.
    */
   rack?: number;
+  /** internal stations: which weapons bay (its doors must be open to launch) */
+  bay?: WeaponBay;
+  /** internal stations: where the store sits once its bay is open (lowered on its launcher) */
+  bayOut?: [number, number, number];
 }
+
+/** F-22 weapons bays: the big main bay under the belly and one each side of the intakes */
+export type WeaponBay = 'main' | 'left' | 'right';
 
 export interface LoadoutPreset {
   id: string;
@@ -879,14 +886,14 @@ const F22: AircraftSpec = {
     port: [1.35, 0.2, -2.2],
   },
   stations: [
-    { id: 1, label: 'L SIDE BAY', pos: [-1.2, -0.3, -1.3], allowed: [AIM9], mount: 'internal' },
-    { id: 2, label: 'MAIN BAY 1', pos: [-0.7, -0.62, 0.6], allowed: [AIM120], mount: 'internal' },
-    { id: 3, label: 'MAIN BAY 2', pos: [-0.42, -0.62, 0.6], allowed: [AIM120, GBU39], mount: 'internal' },
-    { id: 4, label: 'MAIN BAY 3', pos: [-0.14, -0.62, 0.6], allowed: [AIM120, GBU39], mount: 'internal' },
-    { id: 5, label: 'MAIN BAY 4', pos: [0.14, -0.62, 0.6], allowed: [AIM120, GBU39], mount: 'internal' },
-    { id: 6, label: 'MAIN BAY 5', pos: [0.42, -0.62, 0.6], allowed: [AIM120, GBU39], mount: 'internal' },
-    { id: 7, label: 'MAIN BAY 6', pos: [0.7, -0.62, 0.6], allowed: [AIM120], mount: 'internal' },
-    { id: 8, label: 'R SIDE BAY', pos: [1.2, -0.3, -1.3], allowed: [AIM9], mount: 'internal' },
+    { id: 1, label: 'L SIDE BAY', pos: [-1.2, -0.3, -1.3], allowed: [AIM9], mount: 'internal', bay: 'left', bayOut: [-1.42, -0.9, -1.3] },
+    { id: 2, label: 'MAIN BAY 1', pos: [-0.7, -0.62, 0.6], allowed: [AIM120], mount: 'internal', bay: 'main', bayOut: [-0.7, -0.93, 0.6] },
+    { id: 3, label: 'MAIN BAY 2', pos: [-0.42, -0.62, 0.6], allowed: [AIM120, GBU39], mount: 'internal', bay: 'main', bayOut: [-0.42, -0.93, 0.6] },
+    { id: 4, label: 'MAIN BAY 3', pos: [-0.14, -0.62, 0.6], allowed: [AIM120, GBU39], mount: 'internal', bay: 'main', bayOut: [-0.14, -0.93, 0.6] },
+    { id: 5, label: 'MAIN BAY 4', pos: [0.14, -0.62, 0.6], allowed: [AIM120, GBU39], mount: 'internal', bay: 'main', bayOut: [0.14, -0.93, 0.6] },
+    { id: 6, label: 'MAIN BAY 5', pos: [0.42, -0.62, 0.6], allowed: [AIM120, GBU39], mount: 'internal', bay: 'main', bayOut: [0.42, -0.93, 0.6] },
+    { id: 7, label: 'MAIN BAY 6', pos: [0.7, -0.62, 0.6], allowed: [AIM120], mount: 'internal', bay: 'main', bayOut: [0.7, -0.93, 0.6] },
+    { id: 8, label: 'R SIDE BAY', pos: [1.2, -0.3, -1.3], allowed: [AIM9], mount: 'internal', bay: 'right', bayOut: [1.42, -0.9, -1.3] },
   ],
   loadouts: [
     {
