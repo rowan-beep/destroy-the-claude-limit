@@ -3,6 +3,12 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.22.1 — Low frame rate help (2026-09-30)
+
+- New: if your browser is drawing the game on the processor instead of your graphics card (hardware acceleration switched off, or the graphics driver blocked), the game now says so as soon as it starts and tells you how to fix it. In that state it runs at only a few frames per second however fast the PC is.
+- New: if flying stays below 20 fps for several seconds, the game shows once which graphics chip it is actually running on and at what resolution, so you can tell straight away if the browser picked the processor's built-in graphics instead of the graphics card, and what to change.
+- Faster in and near clouds: cloud puffs around the camera that have faded to nothing are no longer drawn at all. Before, dozens of invisible full-screen layers were still shaded on every frame when flying through cloud, and puffs close to the camera now fade out slightly sooner.
+
 ## v4.22.0 — Realistic jets, faster menu (2026-09-30)
 
 - Jets look far more real: every airframe now picks up the light bouncing off the ground and sea below it, so bellies, intakes and the undersides of the wings are softly lit instead of near-black, the way real aircraft look in daylight.

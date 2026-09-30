@@ -62,7 +62,14 @@ void main() {
   float size = iParams.x;
   // fade puffs that the camera is flying through
   // and fade out smoothly toward the edge of the cloud field (no popping at the horizon)
-  vFade = smoothstep( size * 0.25, size * 0.9, dist ) * ( 1.0 - smoothstep( farFade.x, farFade.y, length( ( modelMatrix * vec4( iOffset, 1.0 ) ).xz - cameraPosition.xz ) ) );
+  vFade = smoothstep( size * 0.35, size * 1.0, dist ) * ( 1.0 - smoothstep( farFade.x, farFade.y, length( ( modelMatrix * vec4( iOffset, 1.0 ) ).xz - cameraPosition.xz ) ) );
+  // a puff faded to nothing is dropped here: otherwise the ones around the
+  // camera still cover the whole screen and every pixel of them is shaded
+  // just to be thrown away (dozens of full-screen layers inside a cloud)
+  if ( vFade < 0.004 ) {
+    gl_Position = vec4( 0.0, 0.0, 2.0, 1.0 );
+    return;
+  }
   vHeightF = position.y + 0.5;
   vWDir = ( modelMatrix * vec4( iOffset, 1.0 ) ).xyz - cameraPosition;
   float c = cos( iParams.z ), s = sin( iParams.z );

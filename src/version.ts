@@ -10,6 +10,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.22.1',
+    date: '2026-09-30',
+    title: "Low frame rate help",
+    notes: [
+      "New: if your browser is drawing the game on the processor instead of your graphics card (hardware acceleration switched off, or the graphics driver blocked), the game now says so as soon as it starts and tells you how to fix it. In that state it runs at only a few frames per second however fast the PC is.",
+      "New: if flying stays below 20 fps for several seconds, the game shows once which graphics chip it is actually running on and at what resolution, so you can tell straight away if the browser picked the processor's built-in graphics instead of the graphics card, and what to change.",
+      "Faster in and near clouds: cloud puffs around the camera that have faded to nothing are no longer drawn at all. Before, dozens of invisible full-screen layers were still shaded on every frame when flying through cloud, and puffs close to the camera now fade out slightly sooner.",
+    ],
+  },
+  {
     version: '4.22.0',
     date: '2026-09-30',
     title: "Realistic jets, faster menu",

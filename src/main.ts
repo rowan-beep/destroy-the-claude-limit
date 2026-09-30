@@ -13,6 +13,7 @@ import { defaultMission, MissionConfig } from './game/mission';
 import { Hud } from './ui/hud/hud';
 import { WeatherWidget } from './ui/weatherWidget';
 import { MainMenu } from './ui/menu/mainMenu';
+import { PerfWatch } from './ui/perfWarning';
 import { Hangar } from './ui/menu/hangar';
 import { LoadingScreen, PauseMenu, ResultsScreen, ControlsModal, BriefingModal } from './ui/menu/screens';
 import { SettingsModal } from './ui/menu/settingsModal';
@@ -68,6 +69,7 @@ async function boot(): Promise<void> {
   if (import.meta.env.DEV) Object.assign(window, { __hangar: hangar, __THREE: THREE });
   hangar.drawWith = (sc, cam) => game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping);
   hangar.compileWith = (o, sc, cam) => game.renderer.compileFor(o, sc, cam);
+  const perfWatch = new PerfWatch(game.renderer.renderer);
   const customize = new CustomizeScreen(document.body, hangar, () => {
     menu.root.classList.remove('hidden');
     hangar.setJet(menu.cfg.aircraft, menu.cfg.loadoutId);
@@ -229,7 +231,8 @@ async function boot(): Promise<void> {
     const sz = game.renderer.size;
     hangar.render(step, sz.w, sz.h);
   };
-  game.onAfterFrame = () => {
+  game.onAfterFrame = (dt) => {
+    perfWatch.update(dt, game.state === 'playing', game.fps);
     if (game.state === 'map') mapView.draw(game);
   };
 

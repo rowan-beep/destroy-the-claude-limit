@@ -778,3 +778,8 @@ body.touch-mode .weapon-bar { bottom: auto; top: calc(96px + env(safe-area-inset
 #hud.cockpit-clean .hud-left, #hud.cockpit-clean .hud-right { opacity: 0; pointer-events: none; transition: opacity 0.35s; }
 #hud .hud-left, #hud .hud-right { transition: opacity 0.35s; }
 body:has(#hud.cockpit-clean) .wx-widget { opacity: 0; pointer-events: none; }
+
+/* not getting the graphics card / very low frame rate */
+.perf-warn { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 9000; width: min(620px, calc(100vw - 32px)); box-sizing: border-box; padding: 14px 16px 12px; background: rgba(40, 10, 6, 0.94); border: 1px solid #ff7a3d; color: #ffe9dc; font-size: 13px; line-height: 1.45; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6); }
+.perf-warn b { display: block; color: #ffb547; letter-spacing: 0.12em; margin-bottom: 6px; font-size: 12px; }
+.perf-warn .perf-warn-x { margin-top: 10px; padding: 4px 18px; background: #ff7a3d; color: #1a0703; border: none; font-weight: 700; cursor: pointer; }
