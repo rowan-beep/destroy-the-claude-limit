@@ -3,6 +3,12 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.21.1 — Smooth autopilot power (2026-09-30)
+
+- Auto-Fly no longer pumps the throttle. It used to chop the power whenever it reached the chosen height and slam it back on for a couple of seconds when it drifted high or low. Now a smooth speed controller finds the steady power setting for the speed and height and only nudges the throttle around it, so the engines stay spooled up the whole way (never near idle in cruise). Height changes are flown as gentle, steady climbs and descents with a small dead band, instead of chasing every metre.
+- New AFTERBURNER option in the Auto-Fly panel: OFF (military power only, saves fuel), AUTO (lights the burner only when the chosen speed needs it, then keeps it lit steadily instead of flicking it on and off) or MAX (burner lit the whole way: fastest takeoff, climb and cruise). The HUD shows AB MAX / NO AB in the Auto-Fly status.
+- Auto-land: a proper flare (the jet raises its nose to cut the sink rate before the wheels touch), the power comes back smoothly through the flare, a touch of wing-low against crosswind drift, and a real go-around: if it floats, balloons or would land too far down the runway it climbs out straight ahead wings level, flies round at circuit height and lands on the next try. Tested on all six jets in all three afterburner modes.
+
 ## v4.21.0 — Airstrike (2026-09-29)
 
 - New game mode: AIRSTRIKE. Fly a strike loadout against a defended ground target and bring the jet home. Every sortie is different: a new target in a new place each time (an ammunition depot, a command post, a SAM site, an army camp, an early-warning radar station on a hilltop, or an enemy airbase with jets parked on the apron), a new layout and mix of targets, new defences, new enemy fighters and a new start: on a random friendly runway, or already airborne 60 to 110 NM out.

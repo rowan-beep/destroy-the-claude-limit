@@ -308,6 +308,9 @@ body.touch-mode .weapon-bar { bottom: auto; top: calc(96px + env(safe-area-inset
 .autofly .af-snote { font-size: 11px; opacity: 0.55; margin-top: 2px; min-height: 14px; }
 .autofly .af-check { justify-content: flex-start; gap: 8px; cursor: pointer; }
 .autofly .af-check input { accent-color: #47d18c; }
+.autofly .af-pills { display: flex; gap: 4px; }
+.autofly .af-pill { padding: 3px 10px; font-size: 12px; background: #0d151c; color: #cfe0e6; border: 1px solid #2c3a46; border-radius: 3px; cursor: pointer; }
+.autofly .af-pill.on { background: #1d5a3c; border-color: #47d18c; color: #fff; }
 
 /* Spectator */
 #hud.spectating .hud-left, #hud.spectating .weapon-bar, #hud.spectating .hud-right, #hud.spectating .shotdown,

@@ -29,7 +29,7 @@ import * as THREE from 'three';
 import type { Aircraft } from '../aircraft/aircraft';
 import type { Steerpoint } from '../avionics/nav';
 import type { AirfieldDef } from '../world/islands';
-import { steerToward, holdSpeed } from '../ai/steering';
+import { steerToward } from '../ai/steering';
 import { terrainHeight } from '../world/terrain';
 import { FT, KT, NM, DEG } from '../core/constants';
 import { clamp } from '../core/math';
@@ -40,6 +40,9 @@ import { GLIDESLOPE_DEG, GS_AIMPOINT, runwayDesignator } from '../avionics/nav';
 export function topSpeedKts(maxMach: number): number {
   return Math.round((maxMach * 573) / 10) * 10;
 }
+
+/** Afterburner use: never, only when the chosen speed needs it, or lit the whole way. */
+export type AbMode = 'off' | 'auto' | 'max';
 
 export type AfPhase = 'takeoff' | 'climb' | 'cruise' | 'descent' | 'approach' | 'final' | 'flare' | 'rollout' | 'stopped' | 'orbit';
 
@@ -72,6 +75,7 @@ export class AutoFly {
   altFt = 20000;
   /** land at the destination airfield */
   autoLand = true;
+  abMode: AbMode = 'auto';
   arrived = false;
   phase: AfPhase = 'cruise';
   /** callouts for the HUD / radio */
@@ -88,10 +92,22 @@ export class AutoFly {
   private gearUp = false;
   private rollCalled = false;
   private appBonus = 0;
+  private flarePitch = 0;
   private leg: 'gate' | 'outbound' = 'gate';
   private legSide = 1;
+  /** throttle controller: integrator (the trim that holds the speed), burner latch */
+  private thrI = 0.8;
+  private abOn = false;
+  private abTimer = 0;
+  /** smoothed height command (m) */
+  private altCmd = 0;
 
-  engage(p: Aircraft, dest: Steerpoint | null, speedKts: number, altFt: number, autoLand = true): void {
+  engage(p: Aircraft, dest: Steerpoint | null, speedKts: number, altFt: number, autoLand = true, abMode: AbMode = 'auto'): void {
+    this.abMode = abMode;
+    this.thrI = clamp(p.controls.throttle, 0.4, 1);
+    this.abOn = abMode === 'max' || p.fm.throttleLever > 1.001;
+    this.abTimer = 0;
+    this.altCmd = p.fm.pos.y;
     this.dest = dest;
     this.speedKts = speedKts;
     this.altFt = altFt;
@@ -142,7 +158,7 @@ export class AutoFly {
   label(p: Aircraft): string {
     const d = this.distanceNm(p);
     const where = this.dest ? `${this.dest.short || this.dest.name}` : 'HDG HOLD';
-    const spd = `${this.speedKts} KT · ${Math.round(this.altFt / 1000)}K FT`;
+    const spd = `${this.speedKts} KT · ${Math.round(this.altFt / 1000)}K FT${this.abMode === 'max' ? ' · AB MAX' : this.abMode === 'off' ? ' · NO AB' : this.abOn ? ' · AB' : ''}`;
     switch (this.phase) {
       case 'takeoff':
         return `AUTO-FLY TAKEOFF → ${where}`;
@@ -253,31 +269,50 @@ export class AutoFly {
     return g;
   }
 
-  /** True-airspeed target (kt) -> calibrated for the throttle, within the jet's limits. */
-  private holdTas(p: Aircraft, kts: number, dt: number): void {
+  /** True-airspeed target (kt) -> calibrated, within the jet's limits. */
+  private casFor(p: Aircraft, kts: number): number {
     const fm = p.fm;
     const ratio = fm.tas > 30 ? fm.cas / fm.tas : 1;
-    const cas = Math.min(kts * KT * ratio, p.spec.maxIasKts * KT * 0.97);
-    holdSpeed(p, cas, kts > 1 && cas > fm.cas + 8 && this.wantsAb(p, kts), dt);
+    return Math.min(kts * KT * ratio, p.spec.maxIasKts * KT * 0.97);
   }
 
-  /** Hold a calibrated airspeed, closing the throttle and opening the speedbrake to slow down. */
-  private slowTo(p: Aircraft, cas: number, dt: number): void {
+  /**
+   * Smooth throttle to hold a calibrated airspeed. A PI controller with
+   * acceleration damping: the integrator finds the steady throttle for this
+   * speed and height and the lever only moves slowly around it, so the engines
+   * stay spooled up (never below `floor`) instead of pumping between idle and
+   * full power. The afterburner is latched: in AUTO it lights only after the
+   * jet has sat below the chosen speed at full military power for a few
+   * seconds, and goes out only after it has been well over for a few seconds;
+   * MAX keeps it lit, OFF never lights it.
+   */
+  private thrust(p: Aircraft, cas: number, dt: number, floor: number, allowAb = true, sbKt = 30): void {
     const fm = p.fm;
     const c = p.controls;
-    const over = fm.cas - cas;
-    if (over > 2) {
-      c.throttle += clamp(0 - c.throttle, -dt * 1.5, dt * 1.5);
-      c.speedbrake = over > 6;
-    } else {
-      holdSpeed(p, cas, false, dt);
-      c.speedbrake = false;
+    const errKt = (cas - fm.cas) / KT;
+    const v = Math.max(1, fm.vel.length());
+    const along = (fm.accel.x * fm.vel.x + fm.accel.y * fm.vel.y + fm.accel.z * fm.vel.z) / v;
+    // afterburner latch
+    const mode = allowAb ? this.abMode : 'off';
+    if (mode === 'max') this.abOn = true;
+    else if (mode === 'off') this.abOn = false;
+    else {
+      const wantOn = !this.abOn && this.thrI > 0.985 && errKt > 8;
+      const wantOff = this.abOn && errKt < -12;
+      this.abTimer = wantOn || wantOff ? this.abTimer + dt : 0;
+      if (this.abTimer > 3) {
+        this.abOn = !this.abOn;
+        this.abTimer = 0;
+        this.thrI = this.abOn ? 1.03 : 0.97;
+      }
     }
-  }
-
-  /** Afterburner when the chosen speed is beyond what military power can hold. */
-  private wantsAb(p: Aircraft, kts: number): boolean {
-    return kts > 560 || (p.fm.throttleLever > 0.99 && p.fm.tas < kts * KT - 15);
+    const lo = this.abOn ? 1.02 : floor;
+    const hi = this.abOn ? 1.1 : 1.0;
+    this.thrI = clamp(this.thrI + errKt * 0.004 * dt, lo, hi);
+    const thr = clamp(this.thrI + errKt * 0.008 - along * 0.04, lo, hi);
+    c.throttle = clamp(c.throttle + clamp(thr - c.throttle, -0.4 * dt, 0.4 * dt), lo, hi);
+    // the speedbrake only for a big overspeed (a steep descent), never to hold speed
+    c.speedbrake = errKt < -sbKt;
   }
 
   /** Fly one physics step. */
@@ -303,8 +338,10 @@ export class AutoFly {
       const h = this.takeoffHdg * DEG;
       _dir.set(Math.sin(h), 0, -Math.cos(h)).multiplyScalar(Math.cos(12 * DEG)).setY(Math.sin(12 * DEG));
       steerToward(p, _dir, { gCap: 2.5, tau: 1.4, maxBank: 8 });
-      c.throttle = this.heavy && fm.cas < 250 * KT ? 1.1 : 1.0;
+      c.throttle = this.takeoffPower(fm.cas < 250 * KT);
       if (fm.agl > 1500 * FT && fm.cas > 230 * KT) {
+        this.thrI = Math.min(1, c.throttle);
+        this.abOn = this.abMode === 'max';
         c.gearDown = false;
         this.origin.copy(fm.pos);
         this.set('cruise', 'CLIMB-OUT COMPLETE — ON COURSE');
@@ -337,7 +374,12 @@ export class AutoFly {
           // descend at 300 kt (calibrated), 250 kt below 10,000 ft: arrive slow enough to configure
           descentCas = (fm.pos.y < 10000 * FT ? 250 : 300) * KT;
         }
-        if (gDist < 9000 || (this.phase === 'descent' && gDist < 16000 && fm.pos.y < gAlt + 400)) {
+        // after a go-around: fly the circuit round to the gate low and slow, not back up to cruise
+        if (this.goArounds > 0) {
+          wantAlt = Math.min(wantAlt, gAlt + 600);
+          descentCas = 250 * KT;
+        }
+        if (gDist < 9000 || ((this.phase === 'descent' || this.goArounds > 0) && gDist < 16000 && fm.pos.y < gAlt + 700)) {
           this.set('approach', `APPROACH — RWY ${r.name}, ${r.f.name}. WIND ${String(Math.round(wind.fromDeg)).padStart(3, '0')}/${Math.round(wind.surfaceKts)}`);
           return this.approach(p, dt);
         }
@@ -368,16 +410,23 @@ export class AutoFly {
     const look = Math.max(5000, fm.tas * 60);
     const ground = this.groundAhead(p, _dir.x, _dir.z, look);
     wantAlt = Math.max(wantAlt, ground + (this.phase === 'descent' ? 450 : 330));
-    const err = wantAlt - fm.pos.y;
-    const maxClimb = fm.cas > 280 * KT ? 18 : 10;
-    const climb = clamp(err / 2200, -1, 1) * (err > 0 ? maxClimb : this.phase === 'descent' ? 7 : 10) * DEG;
+    // the height command moves smoothly (terrain ahead can't jerk it about);
+    // climbs to clear high ground are never held back
+    const up = wantAlt > this.altCmd;
+    this.altCmd += clamp(wantAlt - this.altCmd, -25 * dt, (up && wantAlt - fm.pos.y > 200 ? 60 : 30) * dt);
+    if (wantAlt > fm.pos.y + 150) this.altCmd = Math.max(this.altCmd, wantAlt);
+    // vertical speed proportional to the height error (a gentle exponential capture,
+    // with a small dead band so it doesn't chase every metre)
+    const err = this.altCmd - fm.pos.y;
+    const e = Math.abs(err) < 8 ? 0 : err - Math.sign(err) * 8;
+    const V = Math.max(60, fm.vel.length());
+    const vsMax = err > 0 ? Math.min(60, V * Math.sin((fm.cas > 280 * KT ? 18 : 10) * DEG)) : this.phase === 'descent' ? V * Math.sin(7 * DEG) : 25;
+    const vs = clamp(e * 0.05, -vsMax, vsMax);
+    const climb = Math.asin(clamp(vs / V, -0.5, 0.5));
     _dir.multiplyScalar(Math.cos(climb)).setY(Math.sin(climb));
-    steerToward(p, _dir, { gCap: 3, tau: 1.4, maxBank: 40 });
-    if (descentCas > 0) {
-      const ratio = fm.tas > 30 ? fm.cas / fm.tas : 1;
-      const cas = Math.min(descentCas, wantKts * KT * ratio);
-      this.slowTo(p, cas, dt);
-    } else this.holdTas(p, wantKts, dt);
+    steerToward(p, _dir, { gCap: 3, tau: 1.6, maxBank: 40 });
+    if (descentCas > 0) this.thrust(p, Math.min(descentCas, this.casFor(p, wantKts)), dt, 0.3, false);
+    else this.thrust(p, this.casFor(p, wantKts), dt, 0.45);
   }
 
   /**
@@ -400,12 +449,19 @@ export class AutoFly {
     out.set(ux * c - uz * s, 0, uz * c + ux * s);
   }
 
+  /** Takeoff / climb-out power: full burner on MAX, burner when heavy on AUTO, military power on OFF. */
+  private takeoffPower(early: boolean): number {
+    if (this.abMode === 'max') return 1.1;
+    if (this.abMode === 'off') return 1.0;
+    return this.heavy && early ? 1.1 : 1.0;
+  }
+
   private takeoff(p: Aircraft, dt: number): void {
     const fm = p.fm;
     const c = p.controls;
     c.gearDown = true;
     c.wheelBrake = 0;
-    c.throttle = this.heavy ? 1.1 : 1.0;
+    c.throttle = this.takeoffPower(true);
     if (fm.onGround) {
       c.roll = 0;
       // hold the centreline with the nosewheel / rudder
@@ -425,7 +481,7 @@ export class AutoFly {
       else c.pitch = 0;
       if (!this.rollCalled) {
         this.rollCalled = true;
-        this.onCall?.(`TAKEOFF ROLL — ${this.heavy ? 'AFTERBURNER' : 'MIL POWER'}`, 'info');
+        this.onCall?.(`TAKEOFF ROLL — ${this.takeoffPower(true) > 1 ? 'AFTERBURNER' : 'MIL POWER'}`, 'info');
       }
       return;
     }
@@ -485,7 +541,7 @@ export class AutoFly {
       const climb = clamp((wantAlt - fm.pos.y) / 1200, -1, 1) * (wantAlt > fm.pos.y ? 16 : 8) * DEG;
       _dir.multiplyScalar(Math.cos(climb)).setY(Math.sin(climb));
       steerToward(p, _dir, { gCap: 2.5, tau: 1.3, maxBank: 30 });
-      this.slowTo(p, 240 * KT, dt);
+      this.thrust(p, 240 * KT, dt, 0.2, false, 15);
       return;
     }
 
@@ -505,8 +561,7 @@ export class AutoFly {
       this.goArounds++;
       this.locCap = this.gsCap = false;
       this.origin.copy(fm.pos);
-      this.set('approach', `GO AROUND — ${Math.abs(e) > 90 ? 'OFF THE CENTRELINE' : tooHigh ? 'TOO HIGH' : 'TOO FAST'}`, 'warn');
-      c.throttle = 1.0;
+      this.goAround(p, `GO AROUND — ${Math.abs(e) > 90 ? 'OFF THE CENTRELINE' : tooHigh ? 'TOO HIGH' : 'TOO FAST'}`);
       return;
     }
     const V = Math.max(40, fm.vel.length());
@@ -520,16 +575,35 @@ export class AutoFly {
     if (s > 3000) cy = Math.max(cy, this.groundAhead(p, r.ux, r.uz, 3000) + 150, this.glideY(s) - 120);
 
     // flare: round out a few metres up, then settle on
-    if (hRwy < 13 && s < 900) {
-      if (this.phase !== 'flare') this.set('flare', 'FLARE');
-      const sink = -clamp(hRwy * 0.28, 0.5, 3.2);
+    if ((hRwy < 16 && s < 1100) || this.phase === 'flare') {
+      if (this.phase !== 'flare') {
+        this.set('flare', 'FLARE');
+        this.flarePitch = 0.05;
+      }
+      // round out: the sink rate eases off with height, to about 0.5 m/s at the wheels
+      const sink = -clamp(hRwy * 0.3 + 0.5, 0.6, 3.5);
       const gamma = Math.asin(clamp(sink / V, -0.2, 0));
-      _dir.set(r.ux, 0, r.uz);
-      // keep the centreline in the flare too
-      _dir.addScaledVector(_p.set(-r.uz, 0, r.ux), clamp(-e / 250, -0.15, 0.15)).normalize();
-      _dir.multiplyScalar(Math.cos(gamma)).setY(Math.sin(gamma));
-      steerToward(p, _dir, { gCap: 1.6, tau: 0.8, maxBank: 5 });
-      c.throttle = hRwy < 6 ? 0 : Math.min(c.throttle, 0.55);
+      void gamma;
+      // direct stick: pull in proportion to the excess sink rate (a pilot's flare),
+      // wings level, rudder for the centreline
+      // floating, ballooning or eating up the runway: go around rather than land long
+      if (this.phaseT > 9 || hRwy > 24 || s < -1300) {
+        this.locCap = this.gsCap = false;
+        this.origin.copy(fm.pos);
+        this.goAround(p, `GO AROUND — ${hRwy > 24 ? 'BALLOONED' : 'LONG LANDING'}`);
+        return;
+      }
+      this.flarePitch = clamp(this.flarePitch + (sink - fm.vs) * 0.03 * dt, -0.1, 0.5);
+      c.pitch = clamp(this.flarePitch + (sink - fm.vs) * 0.06 - fm.qRate * DEG * 0.4, -0.2, 0.8);
+      // wings level, a touch of wing-low into any drift off the centreline
+      const wantBank = clamp(-e * 0.4, -4, 4);
+      c.roll = clamp((wantBank - fm.bank) * 0.04 - fm.rollRate * 0.01, -0.4, 0.4);
+      const hdgErr = ((r.hdg - fm.heading + 540) % 360) - 180;
+      c.yaw = clamp((hdgErr - clamp(e * 0.4, -4, 4)) * 0.08, -0.6, 0.6);
+      // keep the engines spooled until just above the runway, then idle
+      // throttle back through the flare, idle just above the runway
+      const want = hRwy < 5 ? 0 : Math.min(0.3, c.throttle);
+      c.throttle = Math.max(want, c.throttle - dt * 0.5);
       c.gearDown = true;
       return;
     }
@@ -560,7 +634,21 @@ export class AutoFly {
     this.appBonus += (clamp((aoa - 9.5) * 7, 0, 60) - this.appBonus) * Math.min(1, dt * 0.4);
     const onSpeed = app + this.appBonus;
     const target = s > 8 * NM ? Math.max(210, onSpeed) : s > 5 * NM ? Math.max(Math.min(app + 30, 195), onSpeed) : onSpeed;
-    this.slowTo(p, target * KT, dt);
+    this.thrust(p, target * KT, dt, 0.15, false, 8);
+  }
+
+  /**
+   * Go around: full power, wings level, climb straight ahead on the runway
+   * heading (the climb-out), gear up once climbing, then back round for
+   * another approach.
+   */
+  private goAround(p: Aircraft, why: string): void {
+    this.goArounds++;
+    this.locCap = this.gsCap = false;
+    this.takeoffHdg = this.rwy ? this.rwy.hdg : p.fm.heading;
+    this.gearUp = false;
+    this.set('climb', why, 'warn');
+    p.controls.throttle = this.takeoffPower(true);
   }
 
   private rollout(p: Aircraft): void {

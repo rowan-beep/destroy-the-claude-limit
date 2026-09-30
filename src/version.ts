@@ -10,6 +10,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.21.1',
+    date: '2026-09-30',
+    title: "Smooth autopilot power",
+    notes: [
+      "Auto-Fly no longer pumps the throttle. It used to chop the power whenever it reached the chosen height and slam it back on for a couple of seconds when it drifted high or low. Now a smooth speed controller finds the steady power setting for the speed and height and only nudges the throttle around it, so the engines stay spooled up the whole way (never near idle in cruise). Height changes are flown as gentle, steady climbs and descents with a small dead band, instead of chasing every metre.",
+      "New AFTERBURNER option in the Auto-Fly panel: OFF (military power only, saves fuel), AUTO (lights the burner only when the chosen speed needs it, then keeps it lit steadily instead of flicking it on and off) or MAX (burner lit the whole way: fastest takeoff, climb and cruise). The HUD shows AB MAX / NO AB in the Auto-Fly status.",
+      "Auto-land: a proper flare (the jet raises its nose to cut the sink rate before the wheels touch), the power comes back smoothly through the flare, a touch of wing-low against crosswind drift, and a real go-around: if it floats, balloons or would land too far down the runway it climbs out straight ahead wings level, flies round at circuit height and lands on the next try. Tested on all six jets in all three afterburner modes.",
+    ],
+  },
+  {
     version: '4.21.0',
     date: '2026-09-29',
     title: "Airstrike",

@@ -1159,7 +1159,7 @@ export class Game implements ModeHost {
     this.input.exitPointerLock();
     const af = this.autoFly;
     const p = this.player;
-    panel.show(this.avionics.nav.points, af.engaged, { dest: af.dest, speedKts: af.speedKts, altFt: af.altFt, autoLand: af.autoLand }, { maxKts: topSpeedKts(p.spec.maxMach), ceilingFt: p.spec.ceilingFt, onGround: p.fm.onGround });
+    panel.show(this.avionics.nav.points, af.engaged, { dest: af.dest, speedKts: af.speedKts, altFt: af.altFt, autoLand: af.autoLand, ab: af.abMode }, { maxKts: topSpeedKts(p.spec.maxMach), ceilingFt: p.spec.ceilingFt, onGround: p.fm.onGround });
   }
 
   engageAutoFly(ch: AutoFlyChoice): void {
@@ -1167,10 +1167,10 @@ export class Game implements ModeHost {
     this.autoFlyPanel?.hide();
     if (!p || !p.alive) return;
     this.autoFly.onCall = (t, k) => this.message(`AUTO-FLY: ${t}`, k, 3.5);
-    this.autoFly.engage(p, ch.dest, ch.speedKts, ch.altFt, ch.autoLand);
+    this.autoFly.engage(p, ch.dest, ch.speedKts, ch.altFt, ch.autoLand, ch.ab);
     if (ch.dest && this.avionics) this.avionics.nav.select(ch.dest.id);
     this.gearDown = p.fm.onGround;
-    const land = ch.autoLand && ch.dest?.field ? ' · AUTO-LAND' : '';
+    const land = (ch.autoLand && ch.dest?.field ? ' · AUTO-LAND' : '') + (ch.ab === 'max' ? ' · AB MAX' : ch.ab === 'off' ? ' · NO AB' : '');
     this.message(`AUTO-FLY ENGAGED → ${ch.dest ? ch.dest.name : 'HOLDING HEADING'} · ${ch.speedKts} KT · ${ch.altFt.toLocaleString('en-US')} FT${land}`, 'good', 4);
   }
 

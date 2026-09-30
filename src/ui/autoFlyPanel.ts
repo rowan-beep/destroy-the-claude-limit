@@ -3,12 +3,14 @@
 
 import { el, button, clearEl } from './dom';
 import type { Steerpoint } from '../avionics/nav';
+import type { AbMode } from '../game/autoFly';
 
 export interface AutoFlyChoice {
   dest: Steerpoint | null;
   speedKts: number;
   altFt: number;
   autoLand: boolean;
+  ab: AbMode;
 }
 
 export interface AutoFlyLimits {
@@ -24,6 +26,7 @@ export class AutoFlyPanel {
   private speed!: HTMLInputElement;
   private alt!: HTMLInputElement;
   private land!: HTMLInputElement;
+  private ab: AbMode = 'auto';
   private points: Steerpoint[] = [];
 
   constructor(
@@ -92,6 +95,30 @@ export class AutoFlyPanel {
     this.alt.addEventListener('input', showAlt);
     showAlt();
 
+    // afterburner: off, when needed, or lit all the way
+    this.ab = current.ab;
+    const bRow = el('div', 'af-row', r);
+    el('span', '', bRow, 'AFTERBURNER');
+    const pills = el('div', 'af-pills', bRow);
+    const abNote = el('div', 'af-snote', r);
+    const notes: Record<AbMode, string> = {
+      off: 'Never lights the burner: military power only (slower, saves fuel).',
+      auto: 'Lights the burner only when the chosen speed needs it, and keeps it lit steadily.',
+      max: 'Burner lit the whole way: fastest climb and cruise, burns fuel very fast.',
+    };
+    const drawPills = () => {
+      clearEl(pills);
+      for (const [v, t] of [['off', 'OFF'], ['auto', 'AUTO'], ['max', 'MAX']] as [AbMode, string][]) {
+        const b = button(t, 'af-pill' + (v === this.ab ? ' on' : ''), pills, () => {
+          this.ab = v;
+          drawPills();
+        });
+        b.type = 'button';
+      }
+      abNote.textContent = notes[this.ab];
+    };
+    drawPills();
+
     const lRow = el('label', 'af-row af-check', r);
     this.land = el('input', '', lRow);
     this.land.type = 'checkbox';
@@ -121,6 +148,7 @@ export class AutoFlyPanel {
       speedKts: +this.speed.value,
       altFt: +this.alt.value,
       autoLand: this.land.checked,
+      ab: this.ab,
     });
   }
 }
