@@ -3,6 +3,17 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.21.2 — Auto-land fixed (2026-09-30)
+
+- Auto-land fixed: it now lands first time instead of going around. The cause: with the gear down and slow, the jets' flight controls switch to their landing law (the stick commands pitch rate, and angle of attack is capped at 16 degrees), but the autopilot was steering as if the stick still commanded G. Its corrections were far too weak, so it drifted off the glideslope, dived to catch it and floated in the flare. It now flies the approach and flare through the landing law directly.
+- Auto-land approach speed now comes from the jet's real weight: it adds speed until the jet flies the approach at 10.5 degrees angle of attack, so a jet heavy with bombs comes in faster with plenty of margin. Speed alone no longer triggers a go-around; it throttles back and opens the speedbrake instead.
+- Auto-land intercepts the runway centreline properly: from any direction it turns onto the extended centreline at up to 45 degrees and rolls out on it, instead of chasing a single point 12 NM out (which could leave it circling that point for ever). Too close in, it flies out and turns back in. Go-arounds are kept for real problems only, and a go-around that touches the runway simply rolls on and lifts off again. Tested from 8 directions on both maps with all six jets: every flight landed on the centreline and stopped, with no go-arounds.
+- Fixed: the radar warning receiver showed SAM and AAA sites as Su-35s; they now show as their SAM number (15, 11, 13) or A for guns.
+- Fixed: the kill feed and the logbook said a SAM or AAA site that shot you down was an "Su-35S"; they now name the system (for example SA-15 GAUNTLET).
+- Fixed: in an airstrike, alert fighters scrambled from both ends of the runway at once, straight at each other; they now line up one behind the other.
+- Fixed: bombs still falling when you started a new airstrike stayed hanging in the sky.
+- Fixed: an ammunition bunker's secondary explosions carried on while the game was paused, and could go off after the mission had ended.
+
 ## v4.21.1 — Smooth autopilot power (2026-09-30)
 
 - Auto-Fly no longer pumps the throttle. It used to chop the power whenever it reached the chosen height and slam it back on for a couple of seconds when it drifted high or low. Now a smooth speed controller finds the steady power setting for the speed and height and only nudges the throttle around it, so the engines stay spooled up the whole way (never near idle in cruise). Height changes are flown as gentle, steady climbs and descents with a small dead band, instead of chasing every metre.

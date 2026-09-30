@@ -474,9 +474,9 @@ export class StrikeMode extends GameMode {
       for (let i = 0; i < P.airCount; i++) {
         const e = new Aircraft(P.airType, 'red', `ALERT ${i + 1}`);
         e.setStores(aiStores(e, 2, 2));
-        spawnOnRunway(e, f, i % 2 === 1);
-        // stagger them down the runway so they don't collide on the roll
-        e.fm.pos.addScaledVector(new THREE.Vector3(f.ax, 0, f.az), (i % 2 === 1 ? -1 : 1) * Math.floor(i / 2) * 250);
+        spawnOnRunway(e, f);
+        // lined up one behind the other, 300 m apart, all rolling the same way
+        e.fm.pos.addScaledVector(new THREE.Vector3(f.ax, 0, f.az), i * 300);
         const ai = new AIPilot(e, duelSkill(h.config.difficulty), h.picture);
         e.ai = ai;
         h.sim.add(e);
@@ -494,7 +494,7 @@ export class StrikeMode extends GameMode {
     const mine = by === p;
     if (u.primary) {
       const left = this.primaries.filter((x) => x.alive).length;
-      h.message(`${u.label} DESTROYED${mine ? '' : ''} — ${left ? `${left} PRIMARY TARGET${left > 1 ? 'S' : ''} LEFT` : 'ALL PRIMARY TARGETS DESTROYED'}`, 'good', 4);
+      h.message(`${u.label} DESTROYED — ${left ? `${left} PRIMARY TARGET${left > 1 ? 'S' : ''} LEFT` : 'ALL PRIMARY TARGETS DESTROYED'}`, 'good', 4);
       if (mine) h.voice(left ? 'Target destroyed' : 'Shack');
     } else if (u.defense) h.message(`${u.label} DESTROYED`, 'good', 3);
     this.alert();

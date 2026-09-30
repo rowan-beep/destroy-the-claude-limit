@@ -134,6 +134,20 @@ export const RWR_SYMBOL: Record<string, string> = {
   F22: '22',
 };
 
+/** RWR symbol for a threat: the jet's code, or the SAM number / A for AAA for a ground site. */
+export function rwrSymbol(src: { type: string; groundLabel?: string | null }): string {
+  if (src.groundLabel) {
+    const m = /SA-(\d+)/.exec(src.groundLabel);
+    return m ? m[1] : 'A';
+  }
+  return RWR_SYMBOL[src.type] ?? 'U';
+}
+
+/** Display name of a shooter: its jet type, or the air-defence system for a ground site. */
+export function shooterName(a: { spec: { shortName: string }; groundLabel?: string | null }): string {
+  return a.groundLabel ?? a.spec.shortName;
+}
+
 export function bearingDeg(rad: number): number {
   return rad / DEG;
 }

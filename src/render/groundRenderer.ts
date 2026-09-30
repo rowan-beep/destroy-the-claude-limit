@@ -331,6 +331,7 @@ export class GroundRenderer {
   private unsub: (() => void)[] = [];
   private flashT = 0;
   private gen = -1;
+  private cookoffs: { t: number; pos: THREE.Vector3 }[] = [];
   private compounds: THREE.Mesh[] = [];
 
   constructor(
@@ -470,7 +471,8 @@ export class GroundRenderer {
     this.combat.addFire(top, fireSize, life);
     if (u.kind === 'fuel') this.combat.explode(top, 2.6, 'ground');
     if (u.kind === 'ammo') {
-      for (let k = 1; k <= 4; k++) setTimeout(() => this.combat.explode(top.clone().add(new THREE.Vector3((Math.random() - 0.5) * 20, 3, (Math.random() - 0.5) * 20)), 1.2 + Math.random(), 'ground'), 350 * k + Math.random() * 400);
+      // the stored ammunition cooks off over the next seconds (sim time: pauses with the game)
+      for (let k = 1; k <= 4; k++) this.cookoffs.push({ t: 0.35 * k + Math.random() * 0.4, pos: top.clone().add(new THREE.Vector3((Math.random() - 0.5) * 20, 3, (Math.random() - 0.5) * 20)) });
     }
     if (u.kind === 'jet' || u.kind === 'sam') this.combat.explode(top, 1.1, 'ground');
   }
@@ -489,6 +491,14 @@ export class GroundRenderer {
     // new units (the mode builds them before the first frame)
     if (this.units.size !== this.sim.ground.length) for (const u of this.sim.ground) if (!this.units.has(u)) this.addUnit(u);
     this.flashT += dt;
+    for (let i = this.cookoffs.length - 1; i >= 0; i--) {
+      const c = this.cookoffs[i];
+      c.t -= dt;
+      if (c.t <= 0) {
+        this.combat.explode(c.pos, 1.2 + Math.random(), 'ground');
+        this.cookoffs.splice(i, 1);
+      }
+    }
     const cp = cam.position;
     const pc = cam as THREE.PerspectiveCamera;
     const tanHalf = Math.tan(((pc.fov ?? 70) * Math.PI) / 360) / Math.max(0.01, pc.zoom ?? 1);
@@ -558,6 +568,9 @@ export class GroundRenderer {
   private clearUnits(): void {
     for (const c of this.compounds) this.scene.remove(c);
     this.compounds = [];
+    for (const m of this.bombs.values()) this.scene.remove(m);
+    this.bombs.clear();
+    this.cookoffs.length = 0;
     for (const v of this.units.values()) {
       this.scene.remove(v.group);
       if (v.jet) {

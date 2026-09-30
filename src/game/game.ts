@@ -332,7 +332,7 @@ export class Game implements ModeHost {
     ev.on('destroyed', (e) => {
       const v = e.victim;
       const k = e.killer;
-      this.hud.feed(k ? `${k.callsign} [${k.spec.shortName}] >> ${e.weapon} >> ${v.callsign} [${v.spec.shortName}]` : `${v.callsign} [${v.spec.shortName}] — ${e.cause}`, RULES.ffa ? (k === this.player ? 'blue' : 'red') : v.team === 'red' ? 'blue' : 'red');
+      this.hud.feed(k ? `${k.groundLabel ? k.callsign : `${k.callsign} [${k.spec.shortName}]`} >> ${e.weapon} >> ${v.callsign} [${v.spec.shortName}]` : `${v.callsign} [${v.spec.shortName}] — ${e.cause}`, RULES.ffa ? (k === this.player ? 'blue' : 'red') : v.team === 'red' ? 'blue' : 'red');
       if (k === this.player && v !== this.player) {
         this.message(`SPLASH! ${v.spec.shortName} DESTROYED (${e.weapon})`, 'good', 4);
         this.voice('Splash one');
@@ -1311,7 +1311,7 @@ export class Game implements ModeHost {
 
     if (this.autoFly.engaged) {
       const af = this.autoFly;
-      const onGroundOk = af.phase === 'takeoff' || af.phase === 'rollout' || af.phase === 'stopped' || af.phase === 'flare' || af.phase === 'final';
+      const onGroundOk = af.phase === 'takeoff' || af.phase === 'rollout' || af.phase === 'stopped' || af.phase === 'flare' || af.phase === 'final' || af.phase === 'climb';
       if (kbActive || (inp.gp.active && (Math.abs(inp.gp.pitch) + Math.abs(inp.gp.roll) > 0.15)) || (p.fm.onGround && !onGroundOk)) {
         af.disengage();
         this.message('AUTO-FLY DISENGAGED — YOU HAVE CONTROL', 'warn', 2.5);

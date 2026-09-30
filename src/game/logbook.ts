@@ -231,7 +231,7 @@ export class SortieRecorder {
           this.events.push({ t: T(), text: `SPLASH ${e.victim.spec.shortName.toUpperCase()} — ${e.weapon} @ ${(rng / NM).toFixed(1)} NM`, kind: 'kill' });
         }
         if (e.victim === player) {
-          this.events.push({ t: T(), text: e.killer ? `SHOT DOWN BY ${e.killer.spec.shortName.toUpperCase()} (${e.weapon})` : `LOST: ${e.cause}`, kind: 'loss' });
+          this.events.push({ t: T(), text: e.killer ? `SHOT DOWN BY ${(e.killer.groundLabel ?? e.killer.spec.shortName).toUpperCase()} (${e.weapon})` : `LOST: ${e.cause}`, kind: 'loss' });
         }
       }),
       ev.on('missileLost', (e) => {

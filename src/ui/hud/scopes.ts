@@ -5,7 +5,7 @@ import type { Aircraft } from '../../aircraft/aircraft';
 import { DEG, NM, FT } from '../../core/constants';
 import { wrap360, clamp } from '../../core/math';
 import { AIRFIELDS } from '../../world/islands';
-import { RWR_SYMBOL } from '../../sensors/rwr';
+import { rwrSymbol } from '../../sensors/rwr';
 import { hostile, RULES } from '../../game/rules';
 
 // Canvas sizes come from a ResizeObserver: reading clientWidth every frame forced
@@ -189,7 +189,7 @@ export function drawRwr(canvas: HTMLCanvasElement, g: Game, blink: boolean): voi
     const y = cy - Math.cos(t.bearing) * rr;
     ctx.fillStyle = t.level === 'missile' ? RED : t.level === 'lock' ? '#ffc94a' : G;
     if (t.level === 'missile' && !blink) continue;
-    ctx.fillText(RWR_SYMBOL[t.source.type] ?? 'U', x, y);
+    ctx.fillText(rwrSymbol(t.source), x, y);
     if (lethal) {
       ctx.strokeStyle = ctx.fillStyle as string;
       ctx.beginPath();

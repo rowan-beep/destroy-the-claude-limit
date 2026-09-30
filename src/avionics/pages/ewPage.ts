@@ -6,7 +6,7 @@
 
 import { MfdPage, PageEnv, bottomRow, pageTitle } from './page';
 import { C, OsbButton } from '../draw';
-import { RWR_SYMBOL } from '../../sensors/rwr';
+import { rwrSymbol } from '../../sensors/rwr';
 import { wrap360 } from '../../core/math';
 
 const PROGRAMS = [1, 2, 4, 6];
@@ -77,7 +77,7 @@ export const ewPage: MfdPage = {
       if (t.level === 'missile' && !e.blink) continue;
       pen.color = col;
       pen.width(2);
-      pen.text(RWR_SYMBOL[t.source.type] ?? 'U', x, y, { size: 22, color: col, align: 'center', bold: true });
+      pen.text(rwrSymbol(t.source), x, y, { size: 22, color: col, align: 'center', bold: true });
       if (lethal) pen.circle(x, y, 17);
       if (t.newThreat && e.blink) pen.arc(x, y, 23, Math.PI, Math.PI * 2);
     }
@@ -101,7 +101,7 @@ export const ewPage: MfdPage = {
       const clock = Math.round(wrap360((t.bearing * 180) / Math.PI) / 30) % 12 || 12;
       const lvl = t.level === 'missile' ? 'MSL' : t.level === 'lock' ? 'LOCK' : t.level === 'launch' ? 'LNCH' : 'SRCH';
       const col = t.level === 'missile' ? C.red : t.level === 'lock' ? C.amber : C.white;
-      pen.text(`${RWR_SYMBOL[t.source.type] ?? 'U'} ${String(brg).padStart(3, '0')} ${clock}H ${lvl}`, lx, ly, { size: 16, color: col });
+      pen.text(`${rwrSymbol(t.source)} ${String(brg).padStart(3, '0')} ${clock}H ${lvl}`, lx, ly, { size: 16, color: col });
       ly += 22;
     }
     ly += 12;

@@ -93,6 +93,9 @@ export class AutoFly {
   private rollCalled = false;
   private appBonus = 0;
   private flarePitch = 0;
+  /** glideslope integrator (m s) */
+  private gsI = 0;
+  private lastGam = 0;
   private leg: 'gate' | 'outbound' = 'gate';
   private legSide = 1;
   /** throttle controller: integrator (the trim that holds the speed), burner latch */
@@ -259,6 +262,30 @@ export class AutoFly {
     dir.set(Math.sin(h), 0, -Math.cos(h));
   }
 
+  /**
+   * With the gear down and slow, the jets' flight controls switch to the
+   * powered-approach law: the stick commands pitch RATE (7 deg/s at full
+   * stick) and the jet holds its attitude hands-off, with angle of attack
+   * capped at 16 degrees. Steering it like the normal G law gives almost no
+   * response, so on final and in the flare the flight path is flown through
+   * this law directly: pitch rate proportional to the flight-path-angle error,
+   * damped by how fast the flight path is already changing.
+   */
+  private pathPitch(p: Aircraft, gamCmd: number, dt: number, gain: number): void {
+    const fm = p.fm;
+    const V = Math.max(40, fm.vel.length());
+    const gam = Math.asin(clamp(fm.vel.y / V, -1, 1));
+    const gamRate = dt > 0 ? (gam - this.lastGam) / dt : 0;
+    this.lastGam = gam;
+    const q = clamp(gain * (gamCmd - gam) - 0.7 * gamRate, -6 * DEG, 6 * DEG);
+    p.controls.pitch = clamp(q / (7 * DEG), -1, 1);
+  }
+
+  /** Is the powered-approach (gear-down) control law in charge? */
+  private gearLaw(p: Aircraft): boolean {
+    return p.fm.gearPos > 0.5 && p.fm.cas < 280 * KT;
+  }
+
   /** Highest ground along a direction ahead. */
   private groundAhead(p: Aircraft, dx: number, dz: number, look: number): number {
     let g = 0;
@@ -330,6 +357,9 @@ export class AutoFly {
       this.set('rollout', 'TOUCHDOWN', 'good');
       return this.rollout(p);
     }
+
+    // a go-around that touches the runway: roll on and lift off again (touch and go)
+    if (this.phase === 'climb' && fm.onGround) return this.takeoff(p, dt);
 
     // --- climb-out: wings level on the runway heading to 1,500 ft above the ground
     if (this.phase === 'climb') {
@@ -500,14 +530,15 @@ export class AutoFly {
     const vx = fm.vel.x, vz = fm.vel.z;
     const vh = Math.max(1, Math.hypot(vx, vz));
     const aligned = (vx * r.ux + vz * r.uz) / vh;
-    const inCone = s > 800 && Math.abs(e) < Math.max(900, s * 0.35) && aligned > 0.75;
+    const inCone = s > 800 && Math.abs(e) < Math.max(700, Math.min(s * 0.3, 2200)) && aligned > 0.8;
 
     if (this.phase === 'approach' && inCone && s < GATE_DIST + 6000) {
       this.leg = 'gate';
+      this.gsI = 0;
       this.set('final', `FINAL — RWY ${r.name}`);
     }
     // lost the centreline far out: set the approach up again
-    if (this.phase === 'final' && s > 3500 && (Math.abs(e) > Math.max(1500, s * 0.4) || aligned < 0.3)) {
+    if (this.phase === 'final' && s > 3500 && (Math.abs(e) > Math.max(1500, Math.min(s * 0.4, 3000)) || aligned < 0.3)) {
       this.locCap = this.gsCap = false;
       this.set('approach', 'RE-INTERCEPTING THE LOCALIZER', 'warn');
     }
@@ -516,25 +547,26 @@ export class AutoFly {
       // fly to the gate, at the gate height, slowing to 250 kt. Coming from the
       // wrong side (inside the gate, or heading against the landing direction)
       // it first flies outbound, beside the centreline, to turn in from there.
-      if (this.leg === 'gate' && (s < GATE_DIST - 3000 || aligned < -0.3) && Math.hypot(fm.pos.x - (r.aim.x - r.ux * GATE_DIST), fm.pos.z - (r.aim.z - r.uz * GATE_DIST)) < 9000 && aligned < 0.5) {
+      if (this.leg === 'gate' && s < GATE_DIST - 2500 && aligned < 0.7) {
         this.leg = 'outbound';
         // the side with the lower ground under the outbound point
         const o = GATE_DIST + 7000;
         const hs = [1, -1].map((sd) => terrainHeight(r.aim.x - r.ux * o - r.uz * 4500 * sd, r.aim.z - r.uz * o + r.ux * 4500 * sd));
         this.legSide = Math.abs(hs[0] - hs[1]) > 150 ? (hs[0] < hs[1] ? 1 : -1) : e >= 0 ? 1 : -1;
       }
-      let gx = r.aim.x - r.ux * GATE_DIST, gz = r.aim.z - r.uz * GATE_DIST;
       if (this.leg === 'outbound') {
+        // too close in: fly out beside the centreline to set up the approach
         const o = GATE_DIST + 7000, side = 4500 * this.legSide;
-        gx = r.aim.x - r.ux * o - r.uz * side;
-        gz = r.aim.z - r.uz * o + r.ux * side;
-        if (Math.hypot(fm.pos.x - gx, fm.pos.z - gz) < 2500) this.leg = 'gate';
+        const gx = r.aim.x - r.ux * o - r.uz * side;
+        const gz = r.aim.z - r.uz * o + r.ux * side;
+        _dir.set(gx - fm.pos.x, 0, gz - fm.pos.z).normalize();
+        if (Math.hypot(fm.pos.x - gx, fm.pos.z - gz) < 2500 || s > GATE_DIST + 3000) this.leg = 'gate';
+      } else {
+        // intercept the extended centreline: runway heading plus up to 45 degrees toward
+        // it, easing off as the offset shrinks (how an approach is really vectored)
+        const cc = clamp(-e / 1500, -1, 1) * 45 * DEG;
+        _dir.set(r.ux * Math.cos(cc) - r.uz * Math.sin(cc), 0, r.uz * Math.cos(cc) + r.ux * Math.sin(cc)).normalize();
       }
-      _dir.set(gx - fm.pos.x, 0, gz - fm.pos.z);
-      const gd = _dir.length();
-      _dir.normalize();
-      // near the gate, lead the turn onto the centreline
-      if (gd < 5000 && this.leg === 'gate') _dir.lerp(_p.set(r.ux, 0, r.uz), clamp(1 - gd / 5000, 0, 1)).normalize();
       this.limitTurn(p, _dir);
       const ground = Math.max(this.groundAhead(p, _dir.x, _dir.z, Math.max(6000, fm.tas * 45)), terrainHeight(fm.pos.x, fm.pos.z));
       const wantAlt = Math.max(this.glideY(GATE_DIST) - 150, ground + 450);
@@ -555,13 +587,19 @@ export class AutoFly {
       this.gsCap = true;
       this.onCall?.('GLIDESLOPE CAPTURED', 'info');
     }
-    // go around: badly off the path close in, or still flying fast near the runway
-    const tooHigh = fm.pos.y - gsY > Math.max(70, s * 0.06);
-    if (s < 1800 && s > -600 && this.phase === 'final' && (Math.abs(e) > 90 || tooHigh || fm.cas > app * KT * 1.35)) {
-      this.goArounds++;
-      this.locCap = this.gsCap = false;
+    // on-speed: fly the approach angle of attack, not a fixed number (a heavy jet needs more speed)
+    const aoa = fm.alpha / DEG;
+    // integrate: keep adding speed until the jet really flies at 10.5 deg (5 deg of margin to the
+    // 16 deg gear-down limit for the flare), whatever its weight
+    if (this.gearLaw(p)) this.appBonus = clamp(this.appBonus + (aoa - 10.5) * 3.5 * dt, 0, 90);
+    const onSpeed = app + this.appBonus;
+    // go around only for a real mess close in: well off the centreline or far above the path.
+    // Speed never sends it round: it closes the throttle and opens the speedbrake instead.
+    const tooHigh = fm.pos.y - gsY > Math.max(55, s * 0.08);
+    const offLine = Math.abs(e) > Math.max(45, s * 0.06);
+    if (s < 1500 && s > -300 && this.phase === 'final' && (offLine || tooHigh)) {
       this.origin.copy(fm.pos);
-      this.goAround(p, `GO AROUND — ${Math.abs(e) > 90 ? 'OFF THE CENTRELINE' : tooHigh ? 'TOO HIGH' : 'TOO FAST'}`);
+      this.goAround(p, `GO AROUND — ${offLine ? 'OFF THE CENTRELINE' : 'TOO HIGH'}`);
       return;
     }
     const V = Math.max(40, fm.vel.length());
@@ -575,26 +613,28 @@ export class AutoFly {
     if (s > 3000) cy = Math.max(cy, this.groundAhead(p, r.ux, r.uz, 3000) + 150, this.glideY(s) - 120);
 
     // flare: round out a few metres up, then settle on
-    if ((hRwy < 16 && s < 1100) || this.phase === 'flare') {
+    // flare height from the sink rate: about two seconds before the wheels would touch
+    const hFlare = clamp(-fm.vs * 2.1, 7, 18);
+    if ((hRwy < hFlare && s < 1100) || this.phase === 'flare') {
       if (this.phase !== 'flare') {
         this.set('flare', 'FLARE');
         this.flarePitch = 0.05;
       }
-      // round out: the sink rate eases off with height, to about 0.5 m/s at the wheels
-      const sink = -clamp(hRwy * 0.3 + 0.5, 0.6, 3.5);
-      const gamma = Math.asin(clamp(sink / V, -0.2, 0));
-      void gamma;
-      // direct stick: pull in proportion to the excess sink rate (a pilot's flare),
-      // wings level, rudder for the centreline
-      // floating, ballooning or eating up the runway: go around rather than land long
-      if (this.phaseT > 9 || hRwy > 24 || s < -1300) {
-        this.locCap = this.gsCap = false;
+      // round out: the sink rate eases off with height (about 2 s to go at any height),
+      // down to 0.6 m/s at the wheels; after 5 s it stops holding off and lets it settle
+      let sink = -Math.max(0.6, hRwy / 2.2);
+      if (this.phaseT > 5) sink = Math.min(sink, -1.3);
+      // only a balloon, or running out of runway still in the air, sends it round
+      const remaining = r.f.length - GS_AIMPOINT + s;
+      if (hRwy > 30 || (remaining < 900 && hRwy > 2.5)) {
         this.origin.copy(fm.pos);
-        this.goAround(p, `GO AROUND — ${hRwy > 24 ? 'BALLOONED' : 'LONG LANDING'}`);
+        this.goAround(p, `GO AROUND — ${hRwy > 30 ? 'BALLOONED' : 'RUNWAY TOO SHORT'}`);
         return;
       }
-      this.flarePitch = clamp(this.flarePitch + (sink - fm.vs) * 0.03 * dt, -0.1, 0.5);
-      c.pitch = clamp(this.flarePitch + (sink - fm.vs) * 0.06 - fm.qRate * DEG * 0.4, -0.2, 0.8);
+      const Vf = Math.max(40, fm.vel.length());
+      this.pathPitch(p, Math.asin(clamp(sink / Vf, -0.2, 0.02)), dt, 2.2);
+      // never rotate far enough to drag the tail
+      if (fm.pitchAngle > 14) c.pitch = Math.min(c.pitch, 0);
       // wings level, a touch of wing-low into any drift off the centreline
       const wantBank = clamp(-e * 0.4, -4, 4);
       c.roll = clamp((wantBank - fm.bank) * 0.04 - fm.rollRate * 0.01, -0.4, 0.4);
@@ -602,8 +642,9 @@ export class AutoFly {
       c.yaw = clamp((hdgErr - clamp(e * 0.4, -4, 4)) * 0.08, -0.6, 0.6);
       // keep the engines spooled until just above the runway, then idle
       // throttle back through the flare, idle just above the runway
-      const want = hRwy < 5 ? 0 : Math.min(0.3, c.throttle);
+      const want = hRwy < 5 || this.phaseT > 4 ? 0 : Math.min(0.3, c.throttle);
       c.throttle = Math.max(want, c.throttle - dt * 0.5);
+      c.speedbrake = this.phaseT > 3 || fm.cas > onSpeed * KT + 10;
       c.gearDown = true;
       return;
     }
@@ -618,7 +659,8 @@ export class AutoFly {
     // vertical: fly the glideslope angle, corrected by how far off the path it is
     // (1 degree per 40 m); below the path before capture, hold the height
     const pathErr = this.glideY(s) - fm.pos.y;
-    let gam = -GLIDESLOPE_DEG * DEG + clamp(pathErr / 40, -2.5, 2.5) * DEG;
+    if (this.gsCap) this.gsI = clamp(this.gsI + pathErr * dt, -300, 300);
+    let gam = -GLIDESLOPE_DEG * DEG + clamp(pathErr / 25 + this.gsI * 0.004, -3, 3) * DEG;
     if (!this.gsCap && pathErr < 0 && fm.pos.y - this.glideY(s) > 0) gam = Math.max(gam, -6 * DEG);
     if (!this.gsCap && pathErr > 0) gam = Math.max(gam, 0);
     // terrain well out on the approach
@@ -627,14 +669,14 @@ export class AutoFly {
     this.limitTurn(p, _dir, 20);
     _dir.multiplyScalar(Math.cos(gam)).setY(Math.sin(gam));
     steerToward(p, _dir, { gCap: 2.2, tau: 0.9, maxBank: s < 4000 ? 12 : 30, allowPush: false });
+    if (this.gearLaw(p)) this.pathPitch(p, gam, dt, 1.3);
+    else this.lastGam = Math.asin(clamp(fm.vel.y / Math.max(40, fm.vel.length()), -1, 1));
     c.gearDown = s < 11 * NM || fm.cas < 230 * KT;
-    // configured and slowing: 210 kt at 8 NM, then approach speed from 5 NM
-    // fly on-speed angle of attack, not a fixed number: a heavy jet needs more speed
-    const aoa = fm.alpha / DEG;
-    this.appBonus += (clamp((aoa - 9.5) * 7, 0, 60) - this.appBonus) * Math.min(1, dt * 0.4);
-    const onSpeed = app + this.appBonus;
-    const target = s > 8 * NM ? Math.max(210, onSpeed) : s > 5 * NM ? Math.max(Math.min(app + 30, 195), onSpeed) : onSpeed;
-    this.thrust(p, target * KT, dt, 0.15, false, 8);
+    // configured and slowing: 210 kt at 8 NM, then on-speed from 5 NM
+    const base = s > 8 * NM ? Math.max(210, onSpeed) : s > 5 * NM ? Math.max(Math.min(app + 30, 195), onSpeed) : onSpeed;
+    // below the path: carry a little more energy (the throttle helps the climb back up)
+    const target = base + clamp(pathErr * 0.4, -5, 15);
+    this.thrust(p, target * KT, dt, 0.25, false, s < 4000 ? 5 : 8);
   }
 
   /**
