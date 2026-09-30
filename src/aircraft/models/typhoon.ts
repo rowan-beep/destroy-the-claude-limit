@@ -232,6 +232,13 @@ export function buildTyphoon(v: AirframeVisual): void {
   // --- canopy, seat, pilot
   v.cockpitEye.set(0, 0.92, -4.45);
   buildCanopy(v, CANOPY, -4.97, []);
+  // BK-27 in the right wing root: the muzzle matches the gun port in the jet's spec
+  {
+    const m = new THREE.Mesh(new THREE.CircleGeometry(0.05, 12), pm.darkMetal);
+    m.position.set(0.98, -0.2, -2.15);
+    m.rotation.y = Math.PI;
+    v.body.add(m);
+  }
   addPilot(v, new THREE.Vector3(0, 0.92, -4.45), 0.24, { style: 'eu', stick: 'center', martinBaker: true });
   const shroud = loftProfile({
     stations: stations(-5.35, -4.95, 6),

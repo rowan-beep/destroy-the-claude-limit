@@ -248,6 +248,13 @@ export function buildRafale(v: AirframeVisual): void {
   // --- canopy, seat, pilot
   v.cockpitEye.set(0, 0.95, -4.5);
   buildCanopy(v, CANOPY, -4.97, []);
+  // 30M791 in the right fuselage side at the wing root: the muzzle matches the gun port in the jet's spec
+  {
+    const m = new THREE.Mesh(new THREE.CircleGeometry(0.055, 12), pm.darkMetal);
+    m.position.set(0.97, -0.18, -1.15);
+    m.rotation.y = Math.PI;
+    v.body.add(m);
+  }
   addPilot(v, new THREE.Vector3(0, 0.95, -4.5), 0.29, { style: 'eu', stick: 'side', martinBaker: true });
   const shroud = loftProfile({
     stations: stations(-5.35, -4.95, 6),

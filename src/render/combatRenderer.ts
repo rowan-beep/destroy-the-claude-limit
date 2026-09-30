@@ -4,6 +4,7 @@
 
 import type { HazeSource } from './heatHaze';
 import * as THREE from 'three';
+import { ROUND_LIFE } from '../weapons/gun';
 import type { Sim } from '../game/sim';
 import type { Aircraft } from '../aircraft/aircraft';
 import type { Missile } from '../weapons/missile';
@@ -549,7 +550,12 @@ export class CombatRenderer {
     for (let i = 0; i < b.count && n < max; i++) {
       if (!b.tracer[i]) continue;
       const x = b.px[i] - this.origin.x, y = b.py[i] - this.origin.y, z = b.pz[i] - this.origin.z;
-      const len = 0.035;
+      // the streak trails 35 ms of flight, but never reaches back past the
+      // muzzle (a fresh round's full tail used to start behind the jet)
+      const o = b.owner[i];
+      const age = ROUND_LIFE - b.life[i];
+      const sp = Math.hypot(b.vx[i], b.vy[i], b.vz[i]) || 1;
+      const len = Math.min(0.035, (age * (o ? o.spec.gun.muzzleVelocity : sp)) / sp);
       this.tracerEnd[n * 3] = x;
       this.tracerEnd[n * 3 + 1] = y;
       this.tracerEnd[n * 3 + 2] = z;

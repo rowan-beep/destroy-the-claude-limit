@@ -10,6 +10,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.24.0',
+    date: '2026-09-30',
+    title: "New menu, guns fixed",
+    notes: [
+      "New main menu: the jet fills the screen and everything you choose sits in one floating bar at the bottom: mode, aircraft, map, weather, time and start (runway or in the air, for the modes that have one). Click a choice, or its arrows, and it glides to the next option. Launch sits at the end of the bar; settings, controls, the logbook and what's new are top right. Online play is now a mode in the bar.",
+      "The menu's weather choice sets the weather for your next flight, and the in-flight weather panel follows it.",
+      "Guns fire from the right place on every jet: the tracers used to trail about 45 m behind each round from the moment it left the gun, so the fire looked like it came from behind the jet. Each tracer's tail now starts at the muzzle.",
+      "Gun ports moved to where they are on the real jets: F-15EX, M61A2 in the right wing root beside the intake; F/A-18E/F, M61A2 on top of the nose ahead of the windscreen; Typhoon, BK-27 in the right wing root; Su-35S, GSh-30-1 in the right wing-root extension beside the cockpit; Rafale, 30M791 in the right side of the fuselage at the wing root; F-22A, M61A2 on top of the right wing root above the intake. The Typhoon, Rafale and F-22 models now show their gun muzzle too.",
+    ],
+  },
+  {
     version: '4.23.0',
     date: '2026-09-30',
     title: "F-22 weapons bays",

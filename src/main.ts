@@ -146,7 +146,6 @@ async function boot(): Promise<void> {
       menu.root.classList.add('hidden');
       customize.show(t);
     },
-    thumbnail: (t) => hangar.thumbnail(t),
     onLibrary: () => {
       audio.init();
       menu.root.classList.add('hidden');
@@ -157,6 +156,8 @@ async function boot(): Promise<void> {
       mp.jet = menu.cfg.aircraft;
       mp.show(true);
     },
+    weather: () => weather.kind,
+    onWeather: (k) => weather.setKind(k),
   });
 
   // --- multiplayer ---------------------------------------------------------
@@ -229,6 +230,7 @@ async function boot(): Promise<void> {
     const step = Math.min(dt, 0.1);
     game.renderer.adaptFrame(step);
     const sz = game.renderer.size;
+    hangar.inset = menu.inset;
     hangar.render(step, sz.w, sz.h);
   };
   game.onAfterFrame = (dt) => {

@@ -155,4 +155,15 @@ export class WeatherWidget {
   show(on: boolean): void {
     this.root.classList.toggle('hidden', !on);
   }
+
+  /** Pick a weather preset from outside (the main menu): shows it and applies it. */
+  setKind(k: WeatherKind): void {
+    this.w = { ...WEATHER_PRESETS[k] };
+    this.sync();
+    this.apply(true);
+  }
+
+  get kind(): WeatherKind {
+    return this.w.kind;
+  }
 }

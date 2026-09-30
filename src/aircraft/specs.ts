@@ -262,7 +262,7 @@ const F15EX: AircraftSpec = {
     muzzleVelocity: 1050,
     damage: 7,
     dispersionMil: 4.5,
-    port: [2.0, 0.5, -3.2],
+    port: [1.98, 0.31, -1.4],
   },
   stations: [
     { id: 1, label: 'LW OB-O', pos: [-4.45, -0.15, F15_RZ], allowed: [AIM9, AIM120], mount: 'pylon', hang: 0.09, rack: -4.15 },
@@ -385,7 +385,7 @@ const FA18: AircraftSpec = {
     muzzleVelocity: 1050,
     damage: 7,
     dispersionMil: 4.5,
-    port: [0, 0.55, -8.2],
+    port: [0, 0.45, -7.4],
   },
   stations: [
     { id: 1, label: 'LWT', pos: [-6.75, -0.1, 2.4], allowed: [AIM9], mount: 'rail' },
@@ -507,7 +507,7 @@ const TYPHOON: AircraftSpec = {
     muzzleVelocity: 1025,
     damage: 16,
     dispersionMil: 3.5,
-    port: [0.75, -0.3, -3.6],
+    port: [0.98, -0.2, -2.15],
   },
   stations: [
     { id: 1, label: 'LW OB', pos: [-5.1, -0.35, 4.2], allowed: [AIM9], mount: 'rail', hang: -0.44 },
@@ -628,7 +628,7 @@ const SU35: AircraftSpec = {
     muzzleVelocity: 860,
     damage: 19,
     dispersionMil: 4,
-    port: [1.05, 0.45, -5.6],
+    port: [1.05, 0.1, -4.0],
   },
   stations: [
     { id: 1, label: 'LWT', pos: [-7.04, -0.17, 3.75], allowed: [R74], mount: 'rail' },
@@ -751,7 +751,7 @@ const RAFALE: AircraftSpec = {
     muzzleVelocity: 1025,
     damage: 18,
     dispersionMil: 3.5,
-    port: [0.8, -0.35, -2.4],
+    port: [0.97, -0.18, -1.15],
   },
   stations: [
     { id: 1, label: 'LWT', pos: [-5.4, -0.34, 4.15], allowed: [MICA], mount: 'rail' },
@@ -883,7 +883,7 @@ const F22: AircraftSpec = {
     muzzleVelocity: 1050,
     damage: 7,
     dispersionMil: 4.5,
-    port: [1.35, 0.2, -2.2],
+    port: [1.35, 0.35, -2.05],
   },
   stations: [
     { id: 1, label: 'L SIDE BAY', pos: [-1.2, -0.3, -1.3], allowed: [AIM9], mount: 'internal', bay: 'left', bayOut: [-1.42, -0.9, -1.3] },

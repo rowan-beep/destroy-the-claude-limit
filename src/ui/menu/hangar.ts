@@ -67,7 +67,7 @@ export class Hangar {
     if (performance.now() - this.lastRender > 300) return false;
     const t = e.target as HTMLElement | null;
     if (!t || !t.closest) return true;
-    return !t.closest('.card, button, input, select, label, a, .jet-card, .mode-card, .cz-panel, .cz-top, .cz-foot, .hangar-caption, .fly-row, .menu-header, .modal-back, .modal, .scroll, .lib-top, .lib-shelf, .lib-panel, .lib-hero, .mm-block');
+    return !t.closest('.card, button, input, select, label, a, .jet-card, .mode-card, .cz-panel, .cz-top, .cz-foot, .hangar-caption, .fly-row, .menu-header, .modal-back, .modal, .scroll, .lib-top, .lib-shelf, .lib-panel, .lib-hero, .mm-block, .fm-dock, .fm-top');
   }
 
   private bindControls(): void {
@@ -266,6 +266,9 @@ export class Hangar {
     cpn.z = clampN(cpn.z, -HANGAR.D / 2 - 6, HANGAR.D / 2 - 7.5);
     cpn.y = clampN(cpn.y, 0.4, HANGAR.H - 3.2);
     this.camera.aspect = w / h;
+    // lift the jet into the open part of the screen above the menu strip
+    if (this.inset > 0 && this.inset < h * 0.6) this.camera.setViewOffset(w, h, 0, this.inset * 0.6, w, h);
+    else this.camera.clearViewOffset();
     this.camera.updateProjectionMatrix();
     this.camera.lookAt(tx, ty, 0);
     if (this.drawWith) {
@@ -364,6 +367,9 @@ export class Hangar {
     this.render(0, size.x, size.y);
     return url;
   }
+
+  /** height (px) of the menu strip over the bottom of the screen */
+  inset = 0;
 
   /** draw through the game's post-processing pipeline when set */
   drawWith: ((scene: THREE.Scene, camera: THREE.Camera) => void) | null = null;

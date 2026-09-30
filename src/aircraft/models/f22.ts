@@ -588,6 +588,13 @@ export function buildF22(v: AirframeVisual): void {
   }
   v.buildFlames(6.0);
 
+  // M61A2 port on top of the right wing root, above the intake: the muzzle matches the gun port in the jet's spec
+  {
+    const m = new THREE.Mesh(new THREE.CircleGeometry(0.04, 12), pm.darkMetal);
+    m.position.set(1.35, 0.35, -2.05);
+    m.rotation.y = Math.PI;
+    v.body.add(m);
+  }
   // --- gun port door above the right wing root, probes, antennas, lights
   v.addMesh(join([
     probe(new THREE.Vector3(0.3, -0.06, -8.2), 0.2, 0.009, new THREE.Vector3(0.1, 0, -1).normalize()),
