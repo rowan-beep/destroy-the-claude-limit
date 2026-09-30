@@ -3,6 +3,10 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.24.1 — Amber menu (2026-09-30)
+
+- The main menu is back to its full layout: the navigation rail, game modes and mission setup, the hangar with aircraft and loadouts, the theater page, the pilot card, the jet library, the paint shop and multiplayer. It has a new colour scheme: warm amber on dark charcoal instead of cyan on blue.
+
 ## v4.24.0 — New menu, guns fixed (2026-09-30)
 
 - New main menu: the jet fills the screen and everything you choose sits in one floating bar at the bottom: mode, aircraft, map, weather, time and start (runway or in the air, for the modes that have one). Click a choice, or its arrows, and it glides to the next option. Launch sits at the end of the bar; settings, controls, the logbook and what's new are top right. Online play is now a mode in the bar.

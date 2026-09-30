@@ -10,6 +10,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.24.1',
+    date: '2026-09-30',
+    title: "Amber menu",
+    notes: [
+      "The main menu is back to its full layout: the navigation rail, game modes and mission setup, the hangar with aircraft and loadouts, the theater page, the pilot card, the jet library, the paint shop and multiplayer. It has a new colour scheme: warm amber on dark charcoal instead of cyan on blue.",
+    ],
+  },
+  {
     version: '4.24.0',
     date: '2026-09-30',
     title: "New menu, guns fixed",
