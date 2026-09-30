@@ -96,6 +96,7 @@ function template(ac: Aircraft, hero: boolean): AirframeVisual {
   let t = templates.get(key);
   if (!t) {
     t = build(ac, d);
+    t.mergeStatic();
     // far LOD + shadow silhouette: the detailed meshes stop casting shadows
     t.lodMeshes = t.lodSources();
     for (const m of t.lodMeshes) m.castShadow = false;
@@ -124,7 +125,8 @@ export function createAirframe(ac: Aircraft, hero = false): AirframeVisual {
 // is freed, keeping only the most recently released one ready for reuse.
 const users = new Map<string, number>();
 const keyOf = new WeakMap<AirframeVisual, string>();
-let spareHero: string | null = null;
+/** unused hero templates kept ready, least recently released first */
+let spareHeroes: string[] = [];
 
 function freeTemplate(key: string): void {
   const t = templates.get(key);
@@ -146,8 +148,12 @@ export function releaseAirframe(v: AirframeVisual): void {
   const n = Math.max(0, (users.get(key) ?? 1) - 1);
   users.set(key, n);
   if (n > 0 || key.endsWith(':1')) return;
-  if (spareHero && spareHero !== key && (users.get(spareHero) ?? 0) === 0) freeTemplate(spareHero);
-  spareHero = key;
+  // flicking through jets in the hangar should not rebuild each one every
+  // time: on the higher settings all of them stay built once seen
+  spareHeroes = spareHeroes.filter((k) => k !== key && (users.get(k) ?? 0) === 0 && templates.has(k));
+  spareHeroes.push(key);
+  const keep = heroDensity >= 4 ? 8 : 1;
+  while (spareHeroes.length > keep) freeTemplate(spareHeroes.shift()!);
 }
 
 /** Build templates ahead of time (so the first spawn of a type doesn't hitch). */

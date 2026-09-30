@@ -2,6 +2,7 @@
 // knows what time of day it is and how the air looks at the camera altitude.
 
 import * as THREE from 'three';
+import { updateAirLight } from './airLight';
 import { clamp01, lerp, smoothstep } from '../core/math';
 import { FOG_SUN, FOG_SUN_COLOR } from './fog';
 
@@ -242,6 +243,7 @@ export class Environment {
     const grey = Math.max(under * (0.55 + 0.45 * wx.gloom), wx.gloom * 0.25);
     const flash = wx.flash;
     this.sun.intensity = p.sunIntensity * (1 - 0.72 * under);
+    updateAirLight(this.sun.color, this.sun.intensity, Math.asin(Math.max(-1, Math.min(1, this.sunDir.y))));
     this.hemi.intensity = p.hemiIntensity * (1 - 0.12 * under - 0.2 * wx.gloom * under) + flash * 2.5;
     const alt = Math.max(0, camPos.y);
     // Sky darkens toward deep blue with altitude (thin air at 50,000 ft).

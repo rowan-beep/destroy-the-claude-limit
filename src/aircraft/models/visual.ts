@@ -507,6 +507,131 @@ export class AirframeVisual {
     return out;
   }
 
+  /**
+   * Fold every static, opaque part of the close-up airframe into one mesh per
+   * material (small detail parts into their own set, so they still hide with
+   * distance). The moving parts -- control surfaces, gear, speedbrake, nozzles,
+   * pilots, canopy -- and anything the cockpit view hides stay separate. A
+   * jet goes from well over a hundred draw calls to a few dozen.
+   */
+  mergeStatic(): void {
+    this.root.updateMatrixWorld(true);
+    // rigid frames: everything fixed inside one of these moves together
+    const rigid = new Set<THREE.Object3D>([this.body]);
+    for (const s of this.surfaces) rigid.add(s.pivot);
+    for (const g of this.gear) rigid.add(g.pivot);
+    if (this.speedbrake) rigid.add(this.speedbrake.pivot);
+    for (const g of this.vectoring) rigid.add(g.pivot);
+    for (const n of this.nozzles) if (n.parent) rigid.add(n.parent);
+    // parts with a life of their own stay separate meshes
+    const keep = new Set<THREE.Object3D>([...this.insignia, ...this.navLights.map((l) => l.mesh)]);
+    for (const g of this.gear) g.hideWhenUp.forEach((o) => keep.add(o));
+    for (const r of this.pilots) [r.stick, r.upper, r.fore].forEach((o) => rigid.add(o));
+    for (const n of this.nozzleMorphs) keep.add(n.mesh);
+    if (this.canopy) keep.add(this.canopy);
+    const nozzleIn = partMaterials().nozzleIn;
+    const detailSet = new Set(this.detail);
+    const hideSet = new Set(this.hideInCockpit);
+    type Bucket = { root: THREE.Object3D; mat: THREE.Material; detail: boolean; hide: boolean; meshes: THREE.Mesh[] };
+    const groups = new Map<string, Bucket>();
+    const walk = (o: THREE.Object3D, root: THREE.Object3D, hide: boolean) => {
+      if (!o.visible || keep.has(o)) return;
+      if (o !== root && rigid.has(o)) return;
+      hide ||= hideSet.has(o);
+      const m = o as THREE.Mesh;
+      if (m.isMesh && m.children.length === 0) {
+        const mat = m.material as THREE.Material;
+        const ok =
+          !Array.isArray(m.material) &&
+          mat instanceof THREE.MeshStandardMaterial &&
+          !mat.transparent &&
+          mat !== nozzleIn &&
+          !m.morphTargetInfluences?.length &&
+          m.renderOrder === 0 &&
+          m.frustumCulled &&
+          !!m.geometry.attributes.position &&
+          m.geometry.groups.length <= 1;
+        if (ok) {
+          const detail = detailSet.has(m);
+          const key = `${root.uuid}:${mat.uuid}:${detail ? 'd' : ''}:${hide ? 'h' : ''}:${m.userData.pilot ? 'p' : ''}:${m.userData.pilotPart ?? ''}`;
+          let g = groups.get(key);
+          if (!g) groups.set(key, (g = { root, mat, detail, hide, meshes: [] }));
+          g.meshes.push(m);
+        }
+        return;
+      }
+      if (m.isMesh) return;
+      o.children.forEach((c) => walk(c, root, hide));
+    };
+    for (const r of rigid) walk(r, r, false);
+    const removed = new Set<THREE.Object3D>();
+    for (const { root, mat, detail, hide, meshes } of groups.values()) {
+      if (meshes.length < 2) continue;
+      const inv = root.matrixWorld.clone().invert();
+      // every part must carry the same attributes: fill in what one lacks
+      const names = new Set<string>();
+      for (const m of meshes) for (const k in m.geometry.attributes) names.add(k);
+      const list: THREE.BufferGeometry[] = [];
+      for (const m of meshes) {
+        const src = m.geometry;
+        const n = src.attributes.position.count;
+        const mtx = new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld);
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', f32(src.attributes.position, 3));
+        if (src.attributes.normal) g.setAttribute('normal', f32(src.attributes.normal, 3));
+        let index: ArrayLike<number>;
+        if (src.index) index = Uint32Array.from(src.index.array as ArrayLike<number>);
+        else index = Uint32Array.from({ length: n }, (_, i) => i);
+        const idx = index as Uint32Array;
+        if (mtx.determinant() < 0) for (let i = 0; i + 2 < idx.length; i += 3) [idx[i + 1], idx[i + 2]] = [idx[i + 2], idx[i + 1]];
+        g.setIndex(new THREE.BufferAttribute(idx, 1));
+        if (!g.attributes.normal) g.computeVertexNormals();
+        // the livery projects from the body-frame position: keep it untransformed
+        const skin = src.attributes.skin ? f32(src.attributes.skin, 3) : null;
+        g.applyMatrix4(mtx);
+        for (const k of names) {
+          if (k === 'position' || k === 'normal') continue;
+          const a = src.attributes[k];
+          if (k === 'skin') g.setAttribute('skin', skin ?? (g.attributes.position as THREE.BufferAttribute).clone());
+          else if (a) g.setAttribute(k, f32(a));
+          else {
+            const size = meshes.map((x) => x.geometry.attributes[k]).find(Boolean)!.itemSize;
+            g.setAttribute(k, filled(n, size, k === 'color' ? 1 : 0));
+          }
+        }
+        list.push(g);
+      }
+      const geo = mergeGeometries(list, false);
+      if (!geo) continue;
+      geo.computeBoundingSphere();
+      const merged = new THREE.Mesh(geo, mat);
+      merged.name = 'merged';
+      // the crew's suit colour still finds its parts
+      merged.userData = { ...meshes[0].userData };
+      merged.castShadow = meshes.some((m) => m.castShadow);
+      merged.receiveShadow = true;
+      root.add(merged);
+      if (detail) this.detail.push(merged);
+      if (hide) this.hideInCockpit.push(merged);
+      for (const m of meshes) {
+        m.parent?.remove(m);
+        removed.add(m);
+      }
+    }
+    if (!removed.size) return;
+    this.detail = this.detail.filter((o) => !removed.has(o));
+    this.hideInCockpit = this.hideInCockpit.filter((o) => !removed.has(o));
+    // free the source geometry no remaining mesh uses
+    const used = new Set<THREE.BufferGeometry>();
+    this.root.traverse((o) => {
+      if ((o as THREE.Mesh).isMesh) used.add((o as THREE.Mesh).geometry);
+    });
+    for (const m of removed) {
+      const g = (m as THREE.Mesh).geometry;
+      if (!used.has(g)) g.dispose();
+    }
+  }
+
   /** Merge this (low density) template into far-LOD geometry. */
   buildFarLod(): FarLod {
     this.root.updateMatrixWorld(true);
@@ -737,9 +862,15 @@ export class AirframeVisual {
 
   /** Put store meshes (and pylons) on the stations. */
   buildStores(): void {
-    const mats = airframeMaterials();
     for (const [, obj] of this.stationMeshes) this.body.remove(obj);
     this.stationMeshes.clear();
+    for (const py of this.pylons) {
+      this.body.remove(py);
+      py.geometry.dispose();
+    }
+    this.pylons = [];
+    // the pylons never leave: all of them are one mesh (one draw call)
+    const pylons: THREE.BufferGeometry[] = [];
     for (const st of this.ac.stations) {
       // internal-bay stores are hidden behind closed doors
       if (!st.store || st.def.mount === 'internal') continue;
@@ -752,22 +883,36 @@ export class AirframeVisual {
       store.castShadow = true;
       g.add(store);
       const drop = st.def.mount === 'pylon' ? (st.def.hang !== undefined ? PYLON_DROP : 0.55) : 0.1;
-      const py = new THREE.Mesh(
-        onShoulder(st.def, st.store) ? shoulderGeometry(st.store, st.def.rack! - cx, st.def.hang! - cy) : pylonGeometry(st.def.mount, st.store, drop),
-        storeMaterial(),
-      );
-      py.castShadow = true;
-      g.add(py);
+      const pg = onShoulder(st.def, st.store) ? shoulderGeometry(st.store, st.def.rack! - cx, st.def.hang! - cy) : pylonGeometry(st.def.mount, st.store, drop);
+      pylons.push(pg.clone().translate(cx, cy, p[2]));
       this.body.add(g);
       this.stationMeshes.set(st.def.id, g);
     }
+    const same = pylons.every((g) => Object.keys(g.attributes).sort().join() === Object.keys(pylons[0].attributes).sort().join() && !!g.index === !!pylons[0].index);
+    const geo = pylons.length && same ? mergeGeometries(pylons, false) : null;
+    if (!geo)
+      for (const g of pylons) {
+        const py = new THREE.Mesh(g, storeMaterial());
+        py.castShadow = true;
+        this.body.add(py);
+        this.pylons.push(py);
+      }
+    else pylons.forEach((g) => g.dispose());
+    if (geo) {
+      const py = new THREE.Mesh(geo, storeMaterial());
+      py.castShadow = true;
+      py.receiveShadow = true;
+      this.body.add(py);
+      this.pylons.push(py);
+    }
   }
+  private pylons: THREE.Mesh[] = [];
 
   removeStation(id: number): void {
     const m = this.stationMeshes.get(id);
     if (m) {
-      // keep the pylon, drop the store
-      if (m.children[0]) m.children[0].visible = false;
+      // the pylon stays (it is part of the merged pylon mesh), the store drops
+      m.visible = false;
     }
   }
 
@@ -977,18 +1122,15 @@ export class AirframeVisual {
   }
 
   dispose(): void {
-    this.suitMat?.dispose();
+    // The per-jet materials (suit, burner cans, custom paint, flames) hold no
+    // GPU memory of their own and are simply let go: disposing them would drop
+    // their compiled shader programs, and the next jet would stall for a
+    // second or more recompiling exactly the same shaders.
     this.suitMat = null;
-    for (const bm of this.burners) bm.dispose();
     this.burners = [];
-    this.customMat?.dispose();
     this.customMat = null;
     this.cockpit?.dispose();
     this.cockpit = null;
-    this.root.traverse((o) => {
-      const m = o as THREE.Mesh;
-      if (m.isMesh && m.material instanceof THREE.ShaderMaterial) m.material.dispose();
-    });
   }
 }
 

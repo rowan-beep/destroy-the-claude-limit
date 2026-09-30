@@ -226,7 +226,7 @@ export function buildF22(v: AirframeVisual): void {
     liveries.set(team, L);
   }
   // the Raptor's coating has a slight metallic sheen
-  const paint = skinMaterial({ top: new THREE.Color('#8e959a'), bottom: new THREE.Color('#9da3a8'), livery: L, roughness: 0.44, metalness: 0.3 });
+  const paint = skinMaterial({ top: new THREE.Color('#8e959a'), bottom: new THREE.Color('#9da3a8'), livery: L, roughness: 0.44, metalness: 0.14 });
   v.paintMat = paint;
   const skin = (g: THREE.BufferGeometry) => v.addMesh(stamp(g), paint);
 

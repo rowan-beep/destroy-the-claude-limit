@@ -67,6 +67,7 @@ async function boot(): Promise<void> {
   const hangar = new Hangar(game.renderer.renderer);
   if (import.meta.env.DEV) Object.assign(window, { __hangar: hangar, __THREE: THREE });
   hangar.drawWith = (sc, cam) => game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping);
+  hangar.compileWith = (o, sc, cam) => game.renderer.compileFor(o, sc, cam);
   const customize = new CustomizeScreen(document.body, hangar, () => {
     menu.root.classList.remove('hidden');
     hangar.setJet(menu.cfg.aircraft, menu.cfg.loadoutId);
@@ -220,14 +221,10 @@ async function boot(): Promise<void> {
       hangar.setJet(cfg.aircraft, cfg.loadoutId);
     }
   };
-  // the menu hangar draws at 60 fps at most (no need to run a 144 Hz laptop flat out
-  // on a parked jet), and drops its resolution by itself if a slow GPU can't keep up
-  let menuAcc = 0;
+  // the menu hangar draws every display frame (a 60 fps cap on a 144 Hz screen
+  // judders); a slow GPU drops the render resolution by itself instead
   game.onMenuFrame = (dt) => {
-    menuAcc += dt;
-    if (menuAcc < 1 / 61) return;
-    const step = Math.min(menuAcc, 0.1);
-    menuAcc = 0;
+    const step = Math.min(dt, 0.1);
     game.renderer.adaptFrame(step);
     const sz = game.renderer.size;
     hangar.render(step, sz.w, sz.h);

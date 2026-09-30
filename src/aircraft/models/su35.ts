@@ -309,7 +309,7 @@ export function buildSu35(v: AirframeVisual): void {
     L = livery(team);
     liveries.set(team, L);
   }
-  const paint = skinMaterial({ top: new THREE.Color('#8ea5b4'), bottom: new THREE.Color('#b4c6d1'), livery: L, roughness: 0.55, metalness: 0.16 });
+  const paint = skinMaterial({ top: new THREE.Color('#8ea5b4'), bottom: new THREE.Color('#b4c6d1'), livery: L, roughness: 0.55, metalness: 0.04 });
   v.paintMat = paint;
   const skin = (g: THREE.BufferGeometry) => v.addMesh(stamp(g), paint);
 

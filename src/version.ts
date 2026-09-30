@@ -10,6 +10,22 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.22.0',
+    date: '2026-09-30',
+    title: "Realistic jets, faster menu",
+    notes: [
+      "Jets look far more real: every airframe now picks up the light bouncing off the ground and sea below it, so bellies, intakes and the undersides of the wings are softly lit instead of near-black, the way real aircraft look in daylight.",
+      "New paint finish on all six jets: the paint is now a flat, non-metallic military coating instead of a semi-metallic plastic sheen, with panel-to-panel colour and gloss variation, streaks swept back by the airflow, exhaust soot toward the tail and worn, polished leading edges.",
+      "Much faster menu: switching jets in the hangar used to freeze everything for one to three seconds while the new jet's shaders were rebuilt from scratch. Shaders are now kept between jets, new ones are compiled in the background while the current jet stays on screen, and every jet you have looked at stays ready, so flicking back and forth is instant on High and Ultra.",
+      "The menu hangar now runs at your screen's full refresh rate. It was capped at 60 fps, which judders on 120 and 144 Hz monitors and could drop to 30 fps with normal frame timing jitter on 60 Hz ones.",
+      "Jet Library pictures are saved between visits, so the library and the jet cards open immediately instead of rebuilding a portrait of every jet each time the game starts.",
+      "Fewer draw calls for every jet: the parts of each airframe that never move relative to one another (including the pilots, gear legs and control surfaces, each in their own group) are joined into one mesh per material, and all pylons are now a single mesh. The chase view went from 231 draw calls to about 180, and the menu hangar from 229 to about 165.",
+      "Missions compile all their shaders during the loading screen, so there is no stutter the first time a jet, missile or effect comes into view.",
+      "The G-effects screen pass (grey-out, tunnel vision, red-out) is skipped entirely when none of them is active, saving a full-screen pass every frame.",
+      "Shader compile logs are no longer read back in the released game, which forced the graphics driver to finish every shader immediately and caused long stalls the first time something new appeared.",
+    ],
+  },
+  {
     version: '4.21.2',
     date: '2026-09-30',
     title: "Auto-land fixed",

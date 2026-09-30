@@ -16,6 +16,7 @@
 // Body frame everywhere: x right, y up, z aft (the nose points to -z).
 
 import * as THREE from 'three';
+import { AIR_LIGHT } from '../../render/airLight';
 import { blankAo } from './ao';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
@@ -740,6 +741,7 @@ varying vec3 vSkin;
 varying vec3 vSkinN;
 `;
 const SKIN_FRAG_PARS = /* glsl */ `
+uniform vec3 airBounce;
 uniform sampler2D skinTop;
 uniform sampler2D skinBot;
 uniform sampler2D skinSide;
@@ -895,11 +897,29 @@ const SKIN_FRAG = /* glsl */ `
     float n2 = skinNoise( vSkin * 4.7 + 11.0 );
     float n3 = skinNoise( vSkin * 0.35 - 7.0 );
     base *= 0.955 + 0.06 * n1 + 0.03 * n3;
-    skinRough = ( n2 - 0.5 ) * 0.12 + ( n1 - 0.5 ) * 0.08 + dark * 0.12;
+    // panels resprayed at different times: a patchwork of slightly different greys,
+    // in blocks about the size of the real access panels
+    vec3 cell = floor( vSkin * vec3( 0.85, 1.1, 0.6 ) + vec3( 0.37, 0.71, 0.13 ) );
+    float ph = fract( sin( dot( cell, vec3( 12.9898, 78.233, 37.719 ) ) ) * 43758.5453 );
+    base *= 0.965 + 0.07 * ph;
+    skinRough = ( n2 - 0.5 ) * 0.12 + ( n1 - 0.5 ) * 0.08 + dark * 0.12 + ( ph - 0.5 ) * 0.1;
+    // streaks of dirt and fluid drawn back along the airflow (long along the jet, thin across)
+    float fl = skinNoise( vec3( vSkin.x * 7.0, vSkin.y * 7.0, vSkin.z * 0.45 ) + 3.0 );
+    float fl2 = skinNoise( vec3( vSkin.x * 19.0, vSkin.y * 19.0, vSkin.z * 0.9 ) - 5.0 );
     // exhaust and hydraulic grime collects underneath and aft
     float under = smoothstep( 0.1, -0.7, sn.y );
-    float aft = smoothstep( 0.45, 1.0, ( vSkin.z - skinBox.y ) / skinBox.z );
-    base *= 1.0 - ( under * 0.1 + aft * 0.12 ) * ( 0.6 + 0.4 * n2 );
+    float t = ( vSkin.z - skinBox.y ) / skinBox.z;
+    float aft = smoothstep( 0.45, 1.0, t );
+    float streak = smoothstep( 0.45, 0.8, fl ) * 0.5 + smoothstep( 0.55, 0.85, fl2 ) * 0.5;
+    base *= 1.0 - ( under * 0.1 + aft * 0.12 ) * ( 0.6 + 0.4 * n2 ) - streak * ( 0.05 + 0.1 * under + 0.08 * aft );
+    // soot and heat staining round the engine bays: brown-grey on the last metres of the fuselage
+    float soot = smoothstep( 0.8, 0.98, t ) * ( 0.4 + 0.6 * under ) * ( 0.7 + 0.3 * n1 );
+    base = mix( base, base * vec3( 0.62, 0.58, 0.54 ), soot * 0.8 );
+    skinRough += soot * 0.12 + streak * 0.05;
+    // leading edges: rain and grit wear the paint smoother and a little lighter
+    float lead = smoothstep( -0.55, -0.9, sn.z );
+    base *= 1.0 + lead * 0.05 * ( 0.5 + n2 );
+    skinRough -= lead * 0.12;
     diffuseColor.rgb *= ( base * ( 1.0 - m.a ) + m.rgb ) * brightness;
   }
 `;
@@ -924,6 +944,18 @@ const SKIN_NORMAL = /* glsl */ `
     vec3 grad = sign( det ) * ( dh.x * r1 + dh.y * r2 );
     vec3 bumped = normalize( abs( det ) * normal - grad );
     normal = normalize( mix( normal, bumped, step( 1e-12, abs( det ) ) ) );
+  }
+`;
+
+/**
+ * Sunlight bounced off the ground below: a surface facing straight down sees
+ * only ground, a vertical one half ground and half sky (the view factor).
+ */
+const SKIN_BOUNCE = /* glsl */ `
+  {
+    vec3 wN = normalize( ( vec4( normal, 0.0 ) * viewMatrix ).xyz );
+    float toGround = 0.5 * ( 1.0 - wN.y );
+    reflectedLight.indirectDiffuse += airBounce * toGround * material.diffuseColor * skinAO;
   }
 `;
 
@@ -991,7 +1023,7 @@ function applySkin(mat: THREE.MeshStandardMaterial, uniforms: Record<string, THR
   const id = ++skinId;
   mat.userData.skinUniforms = uniforms;
   mat.onBeforeCompile = (sh) => {
-    Object.assign(sh.uniforms, uniforms);
+    Object.assign(sh.uniforms, uniforms, AIR_LIGHT);
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\n' + SKIN_VERT_PARS)
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvSkin = skin;\nvSkinN = normal;');
@@ -1001,9 +1033,10 @@ function applySkin(mat: THREE.MeshStandardMaterial, uniforms: Record<string, THR
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = clamp( roughnessFactor + skinRough, 0.05, 1.0 );')
       .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n' + SKIN_NORMAL)
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += skinGlow;')
-      .replace('#include <aomap_fragment>', '#include <aomap_fragment>\n' + SKIN_AO);
+      .replace('#include <aomap_fragment>', '#include <aomap_fragment>\n' + SKIN_AO)
+      .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n' + SKIN_BOUNCE);
   };
-  mat.customProgramCacheKey = () => 'skin-v6';
+  mat.customProgramCacheKey = () => 'skin-v7';
   void id;
 }
 

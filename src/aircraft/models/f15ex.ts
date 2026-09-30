@@ -304,7 +304,7 @@ export function buildF15EX(v: AirframeVisual): void {
     L = livery(team);
     liveries.set(team, L);
   }
-  const paint = skinMaterial({ top: new THREE.Color('#61686f'), bottom: new THREE.Color('#7f868c'), livery: L, roughness: 0.55, metalness: 0.2 });
+  const paint = skinMaterial({ top: new THREE.Color('#61686f'), bottom: new THREE.Color('#7f868c'), livery: L, roughness: 0.55, metalness: 0.05 });
   v.paintMat = paint;
   const skin = (g: THREE.BufferGeometry) => v.addMesh(stamp(g), paint);
 

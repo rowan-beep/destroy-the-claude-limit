@@ -127,6 +127,9 @@ export class GameRenderer {
       powerPreference: 'high-performance',
       stencil: false,
     });
+    // reading every shader's compile log forces the driver to finish each
+    // compile on the spot (long stalls when a new jet or effect first shows)
+    this.renderer.debug.checkShaderErrors = import.meta.env.DEV;
     this.canvas = this.renderer.domElement;
     this.canvas.id = 'game-canvas';
     container.appendChild(this.canvas);
@@ -282,6 +285,8 @@ export class GameRenderer {
     u.blackout.value = v.blackout;
     u.flash.value = v.flash;
     u.damage.value = v.damage;
+    // nothing to show: skip the full-screen pass entirely
+    this.visionPass.enabled = v.greyout + v.tunnel + v.mono + v.redout + v.blackout + v.flash + v.damage > 1e-3;
     u.time.value = performance.now() / 1000;
   }
 
@@ -339,6 +344,24 @@ export class GameRenderer {
 
   render(): void {
     this.composer.render();
+  }
+
+  /**
+   * Compile the shaders `obj` needs to be drawn in `scene` through this
+   * pipeline, in the background where the browser supports it. Resolves once
+   * drawing it will no longer stall on a compile.
+   */
+  compileFor(obj: THREE.Object3D, scene: THREE.Scene, camera: THREE.Camera): Promise<unknown> {
+    const r = this.renderer;
+    const prev = r.getRenderTarget();
+    // the programs depend on the target (HDR buffer: no tone mapping, linear output)
+    r.setRenderTarget(this.composer.readBuffer);
+    try {
+      // never wait on it for long: the worst case is the old blocking compile
+      return Promise.race([r.compileAsync(obj, camera, scene), new Promise((res) => setTimeout(res, 5000))]);
+    } finally {
+      r.setRenderTarget(prev);
+    }
   }
 
   /**

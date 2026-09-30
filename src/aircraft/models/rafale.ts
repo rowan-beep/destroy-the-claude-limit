@@ -201,7 +201,7 @@ export function buildRafale(v: AirframeVisual): void {
     L = livery(team);
     liveries.set(team, L);
   }
-  const paint = skinMaterial({ top: new THREE.Color('#7b8388'), bottom: new THREE.Color('#949ca1'), livery: L, roughness: 0.55, metalness: 0.18 });
+  const paint = skinMaterial({ top: new THREE.Color('#7b8388'), bottom: new THREE.Color('#949ca1'), livery: L, roughness: 0.55, metalness: 0.05 });
   v.paintMat = paint;
   const skin = (g: THREE.BufferGeometry) => v.addMesh(stamp(g), paint);
 

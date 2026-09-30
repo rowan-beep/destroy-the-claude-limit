@@ -266,6 +266,10 @@ export class Game implements ModeHost {
     // build the 3D cockpit now so the first switch to it doesn't hitch
     const pv = this.combat.aircraftVis.get(p);
     if (pv) pv.getCockpit();
+    // compile every shader the opening scene needs while the loading screen is
+    // up (in parallel where the browser can), instead of stalling in flight
+    onProgress(0.98, 'PREPARING SHADERS');
+    await this.renderer.compileFor(this.renderer.scene, this.renderer.scene, this.renderer.camera).catch(() => undefined);
     onProgress(1, 'READY');
     this.goLive();
     this.lastT = performance.now();

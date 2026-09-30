@@ -9,6 +9,7 @@ import { Aircraft } from '../../aircraft/aircraft';
 import { createAirframe, releaseAirframe, AirframeVisual, paintAirframe } from '../../aircraft/models';
 import { loadPaint, PaintConfig } from '../../aircraft/models/paint';
 import { AircraftType } from '../../aircraft/specs';
+import { VERSION } from '../../version';
 import { buildHangarInterior, HangarInterior, HANGAR } from './hangarInterior';
 
 export class Hangar {
@@ -180,8 +181,10 @@ export class Hangar {
     paintAirframe(this.ensure(type).vis, cfg);
   }
 
+  /** the jet whose shaders are still compiling (the old one stays on show meanwhile) */
+  private pending: AircraftType | null = null;
+
   setJet(type: AircraftType, loadoutId?: string): void {
-    this.current = type;
     const fresh = !this.jets.has(type);
     const j = this.ensure(type);
     if (loadoutId && (fresh || loadoutId !== this.loadoutId)) {
@@ -192,6 +195,24 @@ export class Hangar {
       }
       this.loadoutId = loadoutId;
     }
+    // a newly built jet: compile its shaders off the main thread first, so the
+    // menu keeps running smoothly instead of freezing on its first frame
+    if (fresh && type !== this.current && this.compileWith && this.jets.has(this.current)) {
+      this.pending = type;
+      this.compileWith(j.vis.root, this.scene, this.camera)
+        .catch(() => undefined)
+        .then(() => {
+          if (this.pending === type) this.showJet(type);
+        });
+      return;
+    }
+    this.showJet(type);
+  }
+
+  private showJet(type: AircraftType): void {
+    this.pending = null;
+    this.current = type;
+    const j = this.ensure(type);
     // only the jet on the turntable stays built (hero airframes are heavy)
     for (const [t, v] of [...this.jets]) {
       if (t === type) continue;
@@ -266,10 +287,16 @@ export class Hangar {
   private thumbCache = new Map<string, string>();
   thumbnail(type: AircraftType, w = 360, h = 200): string {
     const ck = `${type}:${w}x${h}:${JSON.stringify(loadPaint(type))}`;
-    const hit = this.thumbCache.get(ck);
-    if (hit) return hit;
+    const hit = this.thumbCache.get(ck) ?? storedThumb(ck);
+    if (hit) {
+      this.thumbCache.set(ck, hit);
+      return hit;
+    }
     const url = this.drawThumbnail(type, w, h);
-    if (url) this.thumbCache.set(ck, url);
+    if (url) {
+      this.thumbCache.set(ck, url);
+      storeThumb(ck, url);
+    }
     return url;
   }
 
@@ -340,6 +367,33 @@ export class Hangar {
 
   /** draw through the game's post-processing pipeline when set */
   drawWith: ((scene: THREE.Scene, camera: THREE.Camera) => void) | null = null;
+  /** compile an object's shaders for that pipeline without blocking (resolves when ready) */
+  compileWith: ((obj: THREE.Object3D, scene: THREE.Scene, camera: THREE.Camera) => Promise<unknown>) | null = null;
+}
+
+// Portraits are kept between visits (building one means building the whole
+// jet), keyed by game version so a model change redraws them.
+const THUMB_PREFIX = 'triad.thumb.';
+function storedThumb(key: string): string | null {
+  try {
+    return localStorage.getItem(THUMB_PREFIX + VERSION + ':' + key);
+  } catch {
+    return null;
+  }
+}
+function storeThumb(key: string, url: string): void {
+  try {
+    // drop portraits from older versions first
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      // (and this jet's portrait in an older paint job)
+      const jet = THUMB_PREFIX + VERSION + ':' + key.slice(0, key.indexOf(':', key.indexOf(':') + 1) + 1);
+      if (k?.startsWith(THUMB_PREFIX) && (!k.startsWith(THUMB_PREFIX + VERSION + ':') || k.startsWith(jet))) localStorage.removeItem(k);
+    }
+    localStorage.setItem(THUMB_PREFIX + VERSION + ':' + key, url);
+  } catch {
+    /* storage full or blocked: they are simply redrawn next time */
+  }
 }
 
 /** zoom factor limits: right up against the jet .. well back */
