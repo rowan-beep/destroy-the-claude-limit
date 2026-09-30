@@ -13,7 +13,7 @@ export interface LibraryEntry {
   flag: string[];
   flagH?: boolean;
   manufacturer: string;
-  generation: '4.5' | '5';
+  generation: '4' | '4.5' | '5';
   firstFlight: string;
   inService: string;
   built: string;
@@ -138,6 +138,25 @@ export const LIBRARY: Record<AircraftType, LibraryEntry> = {
     strengths: ['Supercruises at Mach 1.8 without afterburner', 'Best thrust-to-weight and climb in the library', '2D thrust vectoring for post-stall pitch moves'],
     weaknesses: ['Only 8 missiles, all carried internally', 'No IRST'],
     tactics: 'Arrive fast and high on dry thrust, take the first shots, and use the vectoring nozzles if anything gets close.',
+  },
+  MIG31: {
+    nation: 'Russia',
+    region: 'russia',
+    flag: ['#ffffff', '#0039a6', '#d52b1e'],
+    flagH: true,
+    manufacturer: 'Mikoyan',
+    generation: '4',
+    firstFlight: '16 Sep 1975',
+    inService: '1981',
+    built: 'About 520',
+    operators: 'Russia, Kazakhstan',
+    carrier: false,
+    nickname: 'Foxhound',
+    history:
+      'Built from the MiG-25 to guard the Soviet Union\'s vast northern frontier: a two-seat interceptor that dashes out at nearly three times the speed of sound and hunts bombers, cruise missiles and spy planes with the first phased-array radar ever fitted to a fighter. Four of them, sharing radar pictures by datalink, could watch a front hundreds of kilometres wide. The MiG-31BM upgrade added the Zaslon-M radar, digital cockpit displays and the R-37M, a missile that reaches out further than any other in service.',
+    strengths: ['Fastest jet in the library: Mach 2.83 up high, Mach 1.23 on the deck', 'R-37M: the longest-range missile in the game', 'Zaslon-M radar tracks 24 targets'],
+    weaknesses: ['Limited to 5 G: it cannot turn with any fighter', 'Huge radar and heat signature', 'No missile warning, weak jamming'],
+    tactics: 'Climb high, go fast and shoot first from very far away with the R-37M, then turn away and run: nothing else can catch you, and nothing should get close enough to turn with you.',
   },
 };
 

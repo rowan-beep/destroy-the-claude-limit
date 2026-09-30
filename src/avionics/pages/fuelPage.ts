@@ -58,6 +58,13 @@ const TANKS: Record<AircraftType, TankDef[]> = {
     { name: 'WING R', frac: 0.19, box: [0.64, 0.4, 0.2, 0.24] },
     { name: 'FEED', frac: 0.16, box: [0.41, 0.3, 0.18, 0.32] },
   ],
+  MIG31: [
+    { name: 'TK 1', frac: 0.18, box: [0.41, 0.06, 0.18, 0.18] },
+    { name: 'TK 2', frac: 0.3, box: [0.41, 0.28, 0.18, 0.34] },
+    { name: 'TK 3', frac: 0.2, box: [0.41, 0.66, 0.18, 0.2] },
+    { name: 'WING L', frac: 0.16, box: [0.14, 0.38, 0.22, 0.24] },
+    { name: 'WING R', frac: 0.16, box: [0.64, 0.38, 0.22, 0.24] },
+  ],
   SU35: [
     { name: 'TK 1', frac: 0.2, box: [0.41, 0.06, 0.18, 0.18] },
     { name: 'TK 3', frac: 0.2, box: [0.41, 0.66, 0.18, 0.2] },

@@ -102,6 +102,7 @@ const AERO: Record<string, AeroData> = {
   SU35: { refMass: 24000, ixx: 42000, iyy: 235000, izz: 265000, cyB: -1.0, cm0: 0, cmA: 0.03, cmQ: -5, cmD: 0.34, clP: -0.33, clB: -0.08, clR: 0.07, clD: 0.055, cnB: 0.12, cnR: -0.32, cnP: -0.03, cnD: 0.038, cnDa: -0.006, engineArm: 1.1, rateE: 2.8, rateA: 4, rateR: 3 },
   RAFALE: { refMass: 14000, ixx: 16000, iyy: 115000, izz: 128000, cyB: -0.95, cm0: 0, cmA: 0.09, cmQ: -4.6, cmD: 0.34, clP: -0.3, clB: -0.07, clR: 0.06, clD: 0.052, cnB: 0.11, cnR: -0.3, cnP: -0.03, cnD: 0.032, cnDa: -0.005, engineArm: 0.45, rateE: 3.1, rateA: 4.6, rateR: 3 },
   F22: { refMass: 27000, ixx: 42000, iyy: 250000, izz: 280000, cyB: -1.0, cm0: 0, cmA: -0.04, cmQ: -5, cmD: 0.34, clP: -0.33, clB: -0.08, clR: 0.07, clD: 0.055, cnB: 0.12, cnR: -0.32, cnP: -0.03, cnD: 0.036, cnDa: -0.006, engineArm: 0.5, rateE: 2.8, rateA: 4, rateR: 3 },
+  MIG31: { refMass: 36000, ixx: 55000, iyy: 360000, izz: 400000, cyB: -1.05, cm0: 0, cmA: -0.3, cmQ: -6, cmD: 0.3, clP: -0.38, clB: -0.1, clR: 0.07, clD: 0.045, cnB: 0.15, cnR: -0.36, cnP: -0.03, cnD: 0.034, cnDa: -0.006, engineArm: 0.85, rateE: 2.2, rateA: 3.2, rateR: 2.6 },
   TYPHOON: { refMass: 15000, ixx: 18000, iyy: 130000, izz: 145000, cyB: -0.95, cm0: 0, cmA: 0.08, cmQ: -4.5, cmD: 0.33, clP: -0.3, clB: -0.07, clR: 0.06, clD: 0.05, cnB: 0.11, cnR: -0.3, cnP: -0.03, cnD: 0.032, cnDa: -0.005, engineArm: 0.5, rateE: 3.0, rateA: 4.5, rateR: 3 },
 };
 

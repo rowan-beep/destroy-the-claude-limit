@@ -222,7 +222,7 @@ export class JetLibrary {
       case 'gen5':
         return L.generation === '5';
       case 'gen45':
-        return L.generation === '4.5';
+        return L.generation !== '5';
       case 'carrier':
         return L.carrier;
       case 'twoseat':
@@ -382,7 +382,7 @@ export class JetLibrary {
     const flag = el('div', 'lp-flag', head);
     if (L.flagH) flag.classList.add('h');
     for (const col of L.flag) el('span', '', flag).style.background = col;
-    el('div', 'lp-gen', head, L.generation === '5' ? '5TH GENERATION' : '4.5 GENERATION');
+    el('div', 'lp-gen', head, L.generation === '5' ? '5TH GENERATION' : L.generation === '4' ? '4TH GENERATION' : '4.5 GENERATION');
     if (L.carrier) el('div', 'lp-gen', head, 'CARRIER');
     if (s.tvcDeg > 0) el('div', 'lp-gen', head, `TVC ${s.tvcDeg}°`);
     const tabs = el('div', 'lp-tabs', p);

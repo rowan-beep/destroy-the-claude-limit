@@ -6,8 +6,8 @@
 import { FT, LB, LBF } from '../core/constants';
 import type { MissileType, BombType } from '../weapons/weaponSpecs';
 
-export type AircraftType = 'F15EX' | 'FA18EF' | 'TYPHOON' | 'SU35' | 'RAFALE' | 'F22';
-export const AIRCRAFT_TYPES: AircraftType[] = ['F15EX', 'FA18EF', 'TYPHOON', 'SU35', 'RAFALE', 'F22'];
+export type AircraftType = 'F15EX' | 'FA18EF' | 'TYPHOON' | 'SU35' | 'RAFALE' | 'F22' | 'MIG31';
+export const AIRCRAFT_TYPES: AircraftType[] = ['F15EX', 'FA18EF', 'TYPHOON', 'SU35', 'RAFALE', 'F22', 'MIG31'];
 
 export type StoreType = MissileType | BombType | 'TANK';
 
@@ -192,6 +192,7 @@ const GBU39 = 'GBU39' as const;
 const PW4 = 'PAVEWAY4' as const;
 const AASM = 'AASM' as const;
 const KAB = 'KAB500' as const;
+const R37 = 'R37M' as const;
 /** fore-aft centre of the wing missile racks: every rack's missiles sit nose-level */
 const F15_RZ = 1.3;
 const FA18_RZ = 1.8;
@@ -927,6 +928,123 @@ const F22: AircraftSpec = {
   paint: { top: '#8b9196', bottom: '#9ba1a5', accent: '#6b7176' },
 };
 
+// ---------------------------------------------------------------------------
+// Mikoyan MiG-31BM Foxhound
+// ---------------------------------------------------------------------------
+const MIG31: AircraftSpec = {
+  type: 'MIG31',
+  name: 'Mikoyan MiG-31BM Foxhound',
+  shortName: 'MiG-31BM',
+  role: 'Two-seat long-range supersonic interceptor',
+  crew: 2,
+  description:
+    'The fastest jet in the theater: a huge two-seat interceptor built to dash out at Mach 2.83, 67,600 ft up, and kill bombers far from home. Two Aviadvigatel D-30F6 turbofans (152 kN each in afterburner), the Zaslon-M passive phased-array radar and four R-37M very-long-range missiles half-sunk under the belly, the longest reach in the game. Built for speed, not turning: it is limited to 5 G. 23 mm GSh-6-23M six-barrel cannon, 260 rounds.',
+  lengthFt: 74.4,
+  wingspanFt: 44.2,
+  heightFt: 20.2,
+  length: 22.69,
+  span: 13.46,
+  height: 6.15,
+  emptyMass: 21820,
+  internalFuel: 16350,
+  maxTakeoff: 46200,
+  maxTakeoffLb: 101850,
+  payloadLb: 19840,
+  wingArea: 61.6,
+  cd0: 0.023,
+  // shaped for Mach 2.8: less wave drag at the top end than the dogfighters
+  waveDragPeak: 1.75,
+  waveDragHigh: 1.2,
+  kInduced: 0.125,
+  clAlpha: 3.4,
+  clMax: 1.55,
+  alphaMaxDeg: 20,
+  maxMach: 2.83,
+  ceilingFt: 67600,
+  // 1,500 km/h indicated: Mach 1.23 on the deck
+  maxIasKts: 810,
+  engineName: '2 x Aviadvigatel D-30F6 afterburning turbofans',
+  engines: 2,
+  thrustMil: lbf(20900),
+  thrustAb: lbf(34170),
+  thrustMilLbf: 20900,
+  thrustAbLbf: 34170,
+  tsfcMil: 0.72,
+  tsfcAb: 1.9,
+  // low-bypass engines tuned for high Mach: thrust keeps growing with speed
+  ramFactor: 0.8,
+  spool: 0.95,
+  gLimit: 5.0,
+  gOverride: 5.5,
+  gStructural: 7.5,
+  gNeg: -2,
+  rollRate: 150,
+  pitchRate: 18,
+  cornerKts: 420,
+  rotateKts: 175,
+  approachKts: 170,
+  speedbrakeCd: 0.05,
+  combatRangeNm: 1620,
+  hardpoints: 8,
+  maxAAM: 8,
+  missiles: { radar: R37, ir: R74 },
+  tvcDeg: 0,
+  gun: {
+    name: 'GSh-6-23M 23mm six-barrel rotary cannon',
+    caliberMm: 23,
+    rounds: 260,
+    rpm: 8000,
+    muzzleVelocity: 715,
+    damage: 14,
+    dispersionMil: 6,
+    // in a fairing under the right intake trunk, just ahead of the right main gear
+    port: [1.55, -1.08, -0.7],
+  },
+  stations: [
+    { id: 1, label: 'LW OB', pos: [-5.05, -0.62, 2.85], allowed: [R74], mount: 'pylon' },
+    { id: 2, label: 'LW IB', pos: [-3.35, -0.66, 2.1], allowed: [R74, R37, KAB, TANK], mount: 'pylon' },
+    { id: 3, label: 'FUS LF', pos: [-0.54, -1.12, -0.95], allowed: [R37], mount: 'conformal' },
+    { id: 4, label: 'FUS LA', pos: [-0.54, -1.12, 3.55], allowed: [R37], mount: 'conformal' },
+    { id: 5, label: 'FUS RA', pos: [0.54, -1.12, 3.55], allowed: [R37], mount: 'conformal' },
+    { id: 6, label: 'FUS RF', pos: [0.54, -1.12, -0.95], allowed: [R37], mount: 'conformal' },
+    { id: 7, label: 'RW IB', pos: [3.35, -0.66, 2.1], allowed: [R74, R37, KAB, TANK], mount: 'pylon' },
+    { id: 8, label: 'RW OB', pos: [5.05, -0.62, 2.85], allowed: [R74], mount: 'pylon' },
+  ],
+  loadouts: [
+    {
+      id: 'foxhound-int',
+      name: 'INTERCEPTOR — 4x R-37M, 4x R-74M',
+      stores: { 1: R74, 2: R74, 3: R37, 4: R37, 5: R37, 6: R37, 7: R74, 8: R74 },
+    },
+    {
+      id: 'foxhound-long',
+      name: 'LONG REACH — 6x R-37M, 2x R-74M',
+      stores: { 1: R74, 2: R37, 3: R37, 4: R37, 5: R37, 6: R37, 7: R37, 8: R74 },
+    },
+    {
+      id: 'foxhound-ferry',
+      name: 'FAR PATROL — 4x R-37M, 2x R-74M, 2x tanks',
+      stores: { 1: R74, 2: TANK, 3: R37, 4: R37, 5: R37, 6: R37, 7: TANK, 8: R74 },
+    },
+    {
+      id: 'foxhound-strike',
+      name: 'STRIKE — 2x KAB-500S, 4x R-37M, 2x R-74M',
+      stores: { 1: R74, 2: KAB, 3: R37, 4: R37, 5: R37, 6: R37, 7: KAB, 8: R74 },
+    },
+  ],
+  radar: { name: 'Zaslon-M PESA (X/L-band)', kind: 'PESA', rangeNm: 125, azLimitDeg: 70, elLimitDeg: 65, maxTracks: 24, frameTime: 2.0 },
+  irst: { name: '8TK retractable IRST', rangeNm: 30, fovDeg: 60 },
+  ew: { name: 'SPO-15 Beryoza RWR', maws: false, jamming: 0.12, autoDispense: false },
+  flightControl: 'SAU-155MP analog automatic flight control (no fly-by-wire)',
+  chaff: 48,
+  flares: 48,
+  rcs: 14,
+  irSignature: 1.55,
+  gear: { nose: -6.35, main: 1.85, track: 1.82, height: 2.45 },
+  hitRadius: 7,
+  paint: { top: '#a4adb3', bottom: '#bcc3c8', accent: '#5a646c' },
+};
+
 export const SPECS: Record<AircraftType, AircraftSpec> = {
   F15EX: F15EX,
   FA18EF: FA18,
@@ -934,6 +1052,7 @@ export const SPECS: Record<AircraftType, AircraftSpec> = {
   SU35: SU35,
   RAFALE: RAFALE,
   F22: F22,
+  MIG31: MIG31,
 };
 
 export function getSpec(t: AircraftType): AircraftSpec {
@@ -967,6 +1086,7 @@ export const STORES: Record<StoreType, StoreSpec> = {
   PAVEWAY4: { type: 'PAVEWAY4', name: 'Paveway IV (500 lb)', mass: 226, dragCd: 0.0019, length: 3.0, diameter: 0.27 },
   AASM: { type: 'AASM', name: 'AASM Hammer', mass: 340, dragCd: 0.0024, length: 3.1, diameter: 0.3 },
   KAB500: { type: 'KAB500', name: 'KAB-500S', mass: 560, dragCd: 0.0032, length: 3.0, diameter: 0.4 },
+  R37M: { type: 'R37M', name: 'R-37M', mass: 510, dragCd: 0.0026, length: 4.2, diameter: 0.38 },
 };
 
 /** A strike loadout for this jet (the airstrike mode flies it). */

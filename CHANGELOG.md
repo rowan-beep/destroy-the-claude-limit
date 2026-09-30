@@ -3,6 +3,13 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.25.0 — MiG-31 Foxhound (2026-09-30)
+
+- New jet: the Mikoyan MiG-31BM Foxhound, the fastest jet in the game. A two-seat interceptor that reaches Mach 2.83 up high (Mach 1.23 on the deck), 67,600 ft, with two D-30F6 afterburning turbofans. It is heavy and limited to 5 G: it cannot turn with the fighters, so it wins by speed and range.
+- New missile: the R-37M, the longest-range missile in the game. Four ride half-sunk under the MiG-31's belly; they climb high and dive in at up to Mach 6, reaching 100 NM and more when fired high and fast, but a fighter that turns hard at the end can still beat one. The MiG-31 also carries R-74M heat-seekers on its wing pylons and a GSh-6-23M six-barrel 23 mm cannon under the right intake.
+- The MiG-31's model follows the real jet: long dark radome, tandem two-seat cockpit, huge box intakes with splitter plates, twin fins canted outward with dark tips, ventral fins, all-moving tailplanes, heat-tinted titanium nozzles, the retractable IRST under the nose, and Russian Aerospace Forces markings. Four loadouts: interceptor, long reach, far patrol with tanks, and strike.
+- Zaslon-M passive phased-array radar (tracks 24 targets), 8TK infrared search-and-track, its own cockpit with three colour displays, its own engine sound, and it appears as an enemy and wingman in every mode.
+
 ## v4.24.1 — Amber menu (2026-09-30)
 
 - The main menu is back to its full layout: the navigation rail, game modes and mission setup, the hangar with aircraft and loadouts, the theater page, the pilot card, the jet library, the paint shop and multiplayer. It has a new colour scheme: warm amber on dark charcoal instead of cyan on blue.

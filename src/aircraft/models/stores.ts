@@ -128,6 +128,35 @@ function r77m(): THREE.BufferGeometry {
   return join(parts);
 }
 
+/**
+ * R-37M: a 4.2 m, 380 mm round. Long ogive radome, a plain cylindrical body
+ * with a cable conduit along the top, and four clipped-delta tail fins (the
+ * R-37M has no mid-body wings), the long-range motor filling most of it.
+ */
+function r37m(): THREE.BufferGeometry {
+  const L = 4.2, r = 0.19;
+  const z0 = -L / 2;
+  const prof: P2[] = [[0.004, z0]];
+  for (let k = 1; k <= 16; k++) {
+    const u = k / 16;
+    prof.push([r * Math.pow(1 - (1 - u) * (1 - u), 0.8), z0 + u * 0.95]);
+  }
+  prof.push([r, L / 2 - 0.16], [r * 0.93, L / 2 - 0.05], [r * 0.78, L / 2]);
+  const body = paintBands(lathe(prof, 32, 0, 0, false, true), RU_BODY, [[z0 + 1.1, z0 + 1.18, RU_BAND], [0.35, 0.42, RU_BAND2], [z0 + 0.95, z0 + 1.0, RU_GREY]], [z0 + 0.95, RU_DOME]);
+  const parts: THREE.BufferGeometry[] = [body];
+  // clipped-delta tail control fins
+  for (const f of cruciform(L / 2 - 0.62, 0.56, 0.24, 0.3, 0.26, r, 0.05)) parts.push(paintBands(f, RU_GREY, []));
+  const conduit = roundBox(0.05, 0.03, 2.6, 0.01);
+  conduit.translate(0, r + 0.01, -0.1);
+  parts.push(paintBands(conduit, RU_GREY, []));
+  for (const z of [-0.8, 0.75]) {
+    const h = roundBox(0.04, 0.045, 0.09, 0.01);
+    h.translate(0, r + 0.028, z);
+    parts.push(paintBands(h, RU_GREY, []));
+  }
+  return join(parts);
+}
+
 /** R-74M: glass seeker dome, destabilisers and canards up front, tail fins with rollerons. */
 function r74m(): THREE.BufferGeometry {
   const L = 2.92, r = 0.085;
@@ -360,7 +389,7 @@ export function storeGeometry(t: StoreType): THREE.BufferGeometry {
   const key = t;
   if (cache[key]) return cache[key]!;
   const g =
-    t === 'AIM120D' ? aim120() : t === 'AIM9X' ? aim9x() : t === 'R77M' ? r77m() : t === 'R74M' ? r74m() : t === 'METEOR' ? meteor() : t === 'MICAIR' ? micaIr()
+    t === 'AIM120D' ? aim120() : t === 'AIM9X' ? aim9x() : t === 'R77M' ? r77m() : t === 'R74M' ? r74m() : t === 'METEOR' ? meteor() : t === 'MICAIR' ? micaIr() : t === 'R37M' ? r37m()
     : t === 'GBU31' ? jdam(true) : t === 'GBU32' ? jdam(false) : t === 'GBU39' ? sdb() : t === 'PAVEWAY4' ? paveway4() : t === 'AASM' ? aasm() : t === 'KAB500' ? kab500() : tank();
   cache[key] = g;
   return g;
@@ -400,6 +429,7 @@ export function storeRadius(store: StoreType): number {
   if (store === 'PAVEWAY4') return 0.14;
   if (store === 'AASM') return 0.16;
   if (store === 'GBU39') return 0.1;
+  if (store === 'R37M') return 0.19;
   return store === 'TANK' ? 0.38 : store === 'AIM120D' ? 0.089 : store === 'R77M' ? 0.1 : store === 'R74M' ? 0.085 : store === 'METEOR' ? 0.089 : store === 'MICAIR' ? 0.08 : 0.064;
 }
 
@@ -457,7 +487,7 @@ export function pylonGeometry(mount: string, store: StoreType, drop: number): TH
     const blade = pylonBlade(h, store === 'TANK' ? 2.4 : 2.1, 0.12);
     blade.translate(0, r + 0.02, -0.1);
     const parts = [blade];
-    const ru = store === 'R77M' || store === 'R74M';
+    const ru = store === 'R77M' || store === 'R74M' || store === 'R37M';
     if (!hungOnRack(store)) parts.push(launcher(ru ? (ir ? 2.3 : 3.0) : ir ? 2.0 : 2.4, r, ru));
     else for (const z of [-0.6, 0.5]) for (const s of [-1, 1]) parts.push(rod(new THREE.Vector3(s * 0.05, r + 0.05, z), new THREE.Vector3(s * 0.16, r * 0.8, z), 0.015, 0.015, 6));
     g = col(join(parts));

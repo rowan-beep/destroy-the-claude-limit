@@ -1,8 +1,8 @@
 // Air-to-air missile performance data: AIM-120D AMRAAM and AIM-9X Block II
 // for the US / European jets, R-77M and R-74M for the Su-35S, and Meteor and
-// MICA IR for the Rafale.
+// MICA IR for the Rafale, and the R-37M for the MiG-31BM.
 
-export type MissileType = 'AIM120D' | 'AIM9X' | 'R77M' | 'R74M' | 'METEOR' | 'MICAIR';
+export type MissileType = 'AIM120D' | 'AIM9X' | 'R77M' | 'R74M' | 'METEOR' | 'MICAIR' | 'R37M';
 /** Satellite-guided bombs: each jet's own family (see BOMBS). */
 export type BombType = 'GBU31' | 'GBU32' | 'GBU39' | 'PAVEWAY4' | 'AASM' | 'KAB500';
 export type WeaponSelect = 'GUN' | MissileType | BombType;
@@ -201,6 +201,35 @@ export const MISSILES: Record<MissileType, MissileSpec> = {
     diameter: 0.16,
     description: 'Imaging-infrared missile with thrust vectoring and long body strakes. Reaches about 27 NM from 40,000 ft and 18 NM at 20,000 ft, longer than the other heat-seekers (it doubles as a medium-range missile), launched from the Rafale\'s wingtips and pylons. Rafale only.',
   },
+  R37M: {
+    type: 'R37M',
+    name: 'R-37M (izdeliye 610M)',
+    short: 'R-37M',
+    seeker: 'ARH',
+    mass0: 510,
+    massBurnout: 330,
+    // a long dual-mode motor: a hard boost, then a long sustain phase that
+    // carries it to Mach 6 at altitude and far out to a bomber-sized target
+    burnTime: 7,
+    thrust: 42000,
+    sustain: { thrust: 7000, time: 18 },
+    refArea: 0.1134,
+    maxG: 22,
+    qFullG: 130000,
+    gimbalDeg: 50,
+    seekerRange: 32000,
+    fuseRadius: 13,
+    lethalRadius: 21,
+    damage: 220,
+    maxTime: 260,
+    minRange: 3000,
+    navConstant: 3.6,
+    loft: true,
+    ccm: 0.32,
+    length: 4.2,
+    diameter: 0.38,
+    description: 'Very-long-range active-radar missile of the MiG-31BM: a 510 kg round that climbs high and dives on its target at up to Mach 6, reaching 100 NM and more from high and fast (the longest reach in the theater). Built to kill bombers, tankers and AWACS: a fighter that turns hard at the end can still beat it. MiG-31 only.',
+  },
 };
 
 /** Infrared (Fox 2) or radar (Fox 3)? */
@@ -236,12 +265,12 @@ export function launchZone(
   const speedF = 1 + 0.35 * Math.max(-0.5, Math.min(1.2, shooterMach - 0.9));
   const climbF = 1 + Math.max(-0.35, Math.min(0.25, (shooterAlt - targetAlt) / 12000));
   const closeF = 0.55 + 0.45 * ((aspectCos + 1) / 2) + (aspectCos > 0 ? (aspectCos * targetSpeed) / 1400 : (aspectCos * targetSpeed) / 900);
-  const reach = type === 'R77M' ? 1.12 : type === 'R74M' ? 1.06 : type === 'METEOR' ? 1.6 : type === 'MICAIR' ? 1.2 : 1;
+  const reach = type === 'R77M' ? 1.12 : type === 'R74M' ? 1.06 : type === 'METEOR' ? 1.6 : type === 'MICAIR' ? 1.2 : type === 'R37M' ? 2.1 : 1;
   if (!isIrMissile(type)) {
     const base = (22000 + 58000 * altF) * reach;
     const rmax = Math.max(4000, base * speedF * climbF * closeF);
     // the ramjet keeps Meteor powered to the end: a far bigger no-escape zone
-    return { rmin: MISSILES[type].minRange, rmax, rne: rmax * (type === 'METEOR' ? 0.36 : 0.42) };
+    return { rmin: MISSILES[type].minRange, rmax, rne: rmax * (type === 'METEOR' ? 0.36 : type === 'R37M' ? 0.26 : 0.42) };
   }
   const base = (6500 + 12500 * altF) * reach;
   const rmax = Math.max(1500, base * speedF * climbF * Math.max(0.55, closeF));
@@ -251,7 +280,7 @@ export function launchZone(
 /** Short display code (HUD, MFD). */
 export function weaponCode(t: MissileType | BombType): string {
   if (isBomb(t)) return t === 'PAVEWAY4' ? 'PW IV' : t === 'AASM' ? 'AASM' : t === 'KAB500' ? 'KAB' : t.replace('GBU', 'GBU-');
-  return t === 'AIM120D' ? '120D' : t === 'AIM9X' ? '9X' : t === 'R77M' ? 'R77M' : t === 'R74M' ? 'R74M' : t === 'METEOR' ? 'MTR' : 'MICA';
+  return t === 'AIM120D' ? '120D' : t === 'AIM9X' ? '9X' : t === 'R77M' ? 'R77M' : t === 'R74M' ? 'R74M' : t === 'METEOR' ? 'MTR' : t === 'R37M' ? 'R37M' : 'MICA';
 }
 
 /**
@@ -260,7 +289,7 @@ export function weaponCode(t: MissileType | BombType): string {
  * "Pusk!" (Пуск, "launch!") for any missile.
  */
 export function launchCall(t: MissileType): { feed: string; voice: string; voiceRu?: string } {
-  if (t === 'R77M' || t === 'R74M') return { feed: 'PUSK!', voice: 'Pusk!', voiceRu: 'Пуск!' };
+  if (t === 'R77M' || t === 'R74M' || t === 'R37M') return { feed: 'PUSK!', voice: 'Pusk!', voiceRu: 'Пуск!' };
   return isIrMissile(t) ? { feed: 'FOX 2', voice: 'Fox two' } : { feed: 'FOX 3', voice: 'Fox three' };
 }
 
