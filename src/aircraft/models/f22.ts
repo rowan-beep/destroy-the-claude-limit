@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import { AirframeVisual } from './visual';
 import { addPilot } from './pilot';
 import { Section } from './builder';
-import { P2, loftProfile, keyedProfile, stations, mergeStations, wing, WingStation, finMatrix, both, mirror, join, stamp, lathe, rrect, Livery, skinMaterial, line, rivets, weather, prng, roundel, LINE, LINE_LIGHT, curve, sstep, roundBox, colorize } from './kit';
+import { P2, loftProfile, keyedProfile, stations, mergeStations, wing, WingStation, finMatrix, both, mirror, join, stamp, lathe, rrect, Livery, skinMaterial, line, rivets, weather, prng, roundel, LINE, LINE_LIGHT, curve, sstep, roundBox, colorize, resample } from './kit';
 import { intake, partMaterials, blade, probe, formationStrip, withMorph } from './parts';
 import { DEG } from '../../core/constants';
 import { buildCanopy, buildGearSet, wingPanels, finPanels, sectionsFromProfile } from './common';
@@ -67,8 +67,8 @@ const BODY = keyedProfile([
   { z: -4.0, pts: S(-0.7, 0.34, 0.74, -0.37, 0.93, 0.08, 0.93, 0.36, 0.5, 0.46, 0.02) },
   // behind the intake mouths the body stays inboard of the ducts (the
   // intakes' own skin is the outside here), then fills out under the deck
-  { z: -2.9, pts: S(-0.76, 0.4, 0.85, -0.6, 0.94, 0.34, 1.18, 0.37, 0.52, 0.5, 0.12) },
-  { z: -2.3, pts: S(-0.78, 0.45, 0.88, -0.62, 0.94, 0.34, 1.26, 0.36, 0.54, 0.48, 0.2) },
+  { z: -2.9, pts: S(-0.76, 0.4, 0.85, -0.6, 0.94, 0.34, 0.97, 0.38, 0.52, 0.5, 0.12) },
+  { z: -2.3, pts: S(-0.78, 0.45, 0.88, -0.62, 0.94, 0.34, 0.97, 0.38, 0.54, 0.48, 0.2) },
   // from here aft the underside carries on the intakes' shape: a flat belly
   // out to a sharp edge, then a straight wall leaning out to the chine
   { z: -1.8, pts: S(-0.74, 1.62, 1.746, -0.38, 1.9, 0.06, 1.3, 0.34, 0.55, 0.45, 0.26) },
@@ -78,6 +78,18 @@ const BODY = keyedProfile([
   { z: 6.4, pts: S(-0.52, 1.12, 1.22, -0.33, 1.34, -0.1, 1.14, 0.18, 0.42, 0.22, 0.03) },
   { z: 7.0, pts: S(-0.46, 1.02, 1.1, -0.3, 1.2, -0.11, 1.06, 0.14, 0.4, 0.18, 0.02) },
 ]);
+// the body's cross-section where the intake skins end (outer part, from the
+// intake's inner wall round the belly edge, up the wall and over the deck)
+const INTAKE_END_Z = -1.78;
+const INTAKE_END: P2[] = (() => {
+  const q = BODY(INTAKE_END_Z);
+  const xi = 0.96;
+  const yb = q[0][1];
+  const t = (q[7][0] - xi) / Math.max(1e-6, q[7][0] - q[8][0]);
+  const top: P2 = [xi, q[7][1] + (q[8][1] - q[7][1]) * t];
+  return resample([[xi, yb], q[2], q[3], q[4], q[5], q[6], q[7], top], 144);
+})();
+
 // sharp creases: the belly edge and the straight lower wall up to the chine
 const BODY_SUB = [3, 1, 1, 1, 1, 1, 3, 3, 3, 3, 3];
 
@@ -390,7 +402,13 @@ export function buildF22(v: AirframeVisual): void {
     edge(ob, ot, 10);
     edge(ot, it, 10);
     edge(it, ib, 12);
-    return pts;
+    // over its last metre the intake skin turns into the body's own cross-
+    // section where it ends, so its top, wall and belly run flush into the
+    // fuselage (the mouth itself is untouched)
+    const w = sstep(-3.1, -1.95, z);
+    if (w <= 0) return pts;
+    const a = resample(pts, 144);
+    return a.map((p, i) => [p[0] + (INTAKE_END[i][0] - p[0]) * w, p[1] + (INTAKE_END[i][1] - p[1]) * w] as P2);
   };
   const ci = intake({
     loop: para,

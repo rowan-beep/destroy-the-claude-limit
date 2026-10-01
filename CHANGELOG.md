@@ -3,6 +3,10 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.30.4 — Raptor intake blend (2026-10-01)
+
+- F-22: the back of each intake now joins the fuselage smoothly. The intake's top, outer wall and belly blend into the body's own shape where they meet, so there is no step or box-shaped end at the join any more. The intake mouths are unchanged.
+
 ## v4.30.3 — Camera fix (2026-10-01)
 
 - Camera fixed: the free-look directions are back to normal (the last update had both up/down and left/right reversed). It moves exactly as it always did, and now also reaches the underside on every heading: hold the right (or middle) mouse button and drag up to swing the camera down under the jet.

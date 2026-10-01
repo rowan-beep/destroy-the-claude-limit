@@ -10,6 +10,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.30.4',
+    date: '2026-10-01',
+    title: 'Raptor intake blend',
+    notes: [
+      "F-22: the back of each intake now joins the fuselage smoothly. The intake's top, outer wall and belly blend into the body's own shape where they meet, so there is no step or box-shaped end at the join any more. The intake mouths are unchanged.",
+    ],
+  },
+  {
     version: '4.30.3',
     date: '2026-10-01',
     title: 'Camera fix',
