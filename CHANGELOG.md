@@ -3,6 +3,10 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.29.3 — Louder heartbeat (2026-10-01)
+
+- The blackout heartbeat is 70 % louder.
+
 ## v4.29.2 — Blackout sound fixes (2026-10-01)
 
 - The heartbeat during a blackout is now a soft, low thump at a reasonable volume instead of a loud bang.

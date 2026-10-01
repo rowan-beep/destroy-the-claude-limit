@@ -1284,7 +1284,7 @@ export class AudioEngine {
   heartbeat(strong: boolean): void {
     if (!this.ctx) return;
     // a soft, low thump: about as loud as the cockpit tones, never a blast
-    const v = strong ? 0.16 : 0.1;
+    const v = strong ? 0.272 : 0.17;
     this.tone(strong ? 64 : 56, 38, 0.16, v, 'sine');
     this.burst(this.brownB, { type: 'lowpass', f0: 150, f1: 55, dur: 0.12, vol: v * 0.3 });
   }
