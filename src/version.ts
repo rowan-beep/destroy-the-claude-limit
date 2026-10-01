@@ -10,6 +10,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.30.3',
+    date: '2026-10-01',
+    title: 'Camera fix',
+    notes: [
+      "Camera fixed: the free-look directions are back to normal (the last update had both up/down and left/right reversed). It moves exactly as it always did, and now also reaches the underside on every heading: hold the right (or middle) mouse button and drag up to swing the camera down under the jet.",
+    ],
+  },
+  {
     version: '4.30.2',
     date: '2026-10-01',
     title: 'Raptor underside, look underneath',

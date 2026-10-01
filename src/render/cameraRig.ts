@@ -213,18 +213,18 @@ export class CameraRig {
     const dist = (ac.spec.length * 1.25 + 8) * this.chaseDist;
     let desired: THREE.Vector3;
     if (this.aimDir) {
-      // mouse-aim: sit behind the aim direction, free-look adds orbit. The
-      // orbit is taken relative to the aim's own heading and climb angle, so
-      // looking up and down works on any heading, all the way round under
-      // the jet (drag down) or over the top (drag up)
+      // mouse-aim: sit behind the aim direction, free-look adds orbit (the
+      // same directions as always: drag up to swing the camera down under
+      // the jet, drag down to look from above). The orbit is measured from
+      // the aim's own heading, so it works the same flying any direction
       const a = this.aimDir;
       const aimHdg = Math.atan2(a.x, -a.z);
       const aimPitch = Math.asin(clamp(a.y, -1, 1));
-      const yawV = aimHdg + this.lookYawSm;
-      const pitchV = clamp(aimPitch - this.lookPitchSm, -85 * DEG, 85 * DEG);
+      const yawV = aimHdg - this.lookYawSm;
+      const pitchV = clamp(aimPitch + this.lookPitchSm, -85 * DEG, 85 * DEG);
       const dir = _v3.set(Math.sin(yawV) * Math.cos(pitchV), Math.sin(pitchV), -Math.cos(yawV) * Math.cos(pitchV));
-      // the usual raised view fades out as you swing the camera underneath
-      const lift = dist * 0.18 * clamp(1 + this.lookPitchSm / (20 * DEG), 0, 1);
+      // the usual raised view fades out as the camera swings underneath
+      const lift = dist * 0.18 * clamp(1 - this.lookPitchSm / (20 * DEG), 0, 1);
       desired = _v2.copy(fm.pos).addScaledVector(dir, -dist).add(new THREE.Vector3(0, lift, 0));
       cam.position.copy(desired);
       cam.up.set(0, 1, 0);
