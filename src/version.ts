@@ -10,6 +10,12 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.26.2',
+    date: '2026-10-01',
+    title: 'get the fuck on siege',
+    notes: [],
+  },
+  {
     version: '4.26.1',
     date: '2026-10-01',
     title: 'Clean drop tanks',

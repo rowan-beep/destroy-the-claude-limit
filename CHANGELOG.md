@@ -3,6 +3,8 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.26.2 — get the fuck on siege (2026-10-01)
+
 ## v4.26.1 — Clean drop tanks (2026-10-01)
 
 - External fuel tanks no longer have tail fins: every jet now carries a plain, smooth drop tank.
