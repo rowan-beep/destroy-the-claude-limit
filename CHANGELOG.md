@@ -3,6 +3,11 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.30.2 — Raptor underside, look underneath (2026-10-01)
+
+- F-22 underside reshaped to match its intakes: behind the intakes the body now carries on the same shape, a flat belly out to a sharp edge and then a straight wall leaning out to the chine, so the intakes run straight into the fuselage with no step. The intakes themselves are unchanged. The side weapons bays now sit in that lower wall, just behind the intakes.
+- Free-look now reaches under the jet: in the default mouse-aim camera, holding the right (or middle) mouse button and dragging down swings the camera below the jet to look at its underside, on any heading. Before, it could not get below the horizon when flying east or west.
+
 ## v4.30.1 — Bug fixes (2026-10-01)
 
 - Fixed: in 10 Waves on the Jade Archipelago, enemy flights could spawn beyond the edge of the map (their start distances were set for the much bigger theaters). They now start at distances scaled to the map, and always inside it.

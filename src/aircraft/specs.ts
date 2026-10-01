@@ -887,14 +887,14 @@ const F22: AircraftSpec = {
     port: [1.35, 0.35, -2.05],
   },
   stations: [
-    { id: 1, label: 'L SIDE BAY', pos: [-1.2, -0.3, -1.3], allowed: [AIM9], mount: 'internal', bay: 'left', bayOut: [-1.42, -0.9, -1.3] },
+    { id: 1, label: 'L SIDE BAY', pos: [-1.2, -0.3, -0.45], allowed: [AIM9], mount: 'internal', bay: 'left', bayOut: [-2.0, -0.62, -0.45] },
     { id: 2, label: 'MAIN BAY 1', pos: [-0.7, -0.62, 0.6], allowed: [AIM120], mount: 'internal', bay: 'main', bayOut: [-0.7, -0.93, 0.6] },
     { id: 3, label: 'MAIN BAY 2', pos: [-0.42, -0.62, 0.6], allowed: [AIM120, GBU39], mount: 'internal', bay: 'main', bayOut: [-0.42, -0.93, 0.6] },
     { id: 4, label: 'MAIN BAY 3', pos: [-0.14, -0.62, 0.6], allowed: [AIM120, GBU39], mount: 'internal', bay: 'main', bayOut: [-0.14, -0.93, 0.6] },
     { id: 5, label: 'MAIN BAY 4', pos: [0.14, -0.62, 0.6], allowed: [AIM120, GBU39], mount: 'internal', bay: 'main', bayOut: [0.14, -0.93, 0.6] },
     { id: 6, label: 'MAIN BAY 5', pos: [0.42, -0.62, 0.6], allowed: [AIM120, GBU39], mount: 'internal', bay: 'main', bayOut: [0.42, -0.93, 0.6] },
     { id: 7, label: 'MAIN BAY 6', pos: [0.7, -0.62, 0.6], allowed: [AIM120], mount: 'internal', bay: 'main', bayOut: [0.7, -0.93, 0.6] },
-    { id: 8, label: 'R SIDE BAY', pos: [1.2, -0.3, -1.3], allowed: [AIM9], mount: 'internal', bay: 'right', bayOut: [1.42, -0.9, -1.3] },
+    { id: 8, label: 'R SIDE BAY', pos: [1.2, -0.3, -0.45], allowed: [AIM9], mount: 'internal', bay: 'right', bayOut: [2.0, -0.62, -0.45] },
   ],
   loadouts: [
     {

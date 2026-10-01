@@ -17,6 +17,7 @@ export type CameraMode = 'cockpit' | 'chase' | 'flyby' | 'target' | 'weapon' | '
 
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
+const _v3 = new THREE.Vector3();
 const _q = new THREE.Quaternion();
 const _e = new THREE.Euler(0, 0, 0, 'YXZ');
 const _m = new THREE.Matrix4();
@@ -212,11 +213,19 @@ export class CameraRig {
     const dist = (ac.spec.length * 1.25 + 8) * this.chaseDist;
     let desired: THREE.Vector3;
     if (this.aimDir) {
-      // mouse-aim: sit behind the aim direction, free-look adds orbit
-      _e.set(this.lookPitchSm, this.lookYawSm, 0, 'YXZ');
-      _q.setFromEuler(_e);
-      const dir = this.aimDir.clone().applyQuaternion(_q).normalize();
-      desired = _v2.copy(fm.pos).addScaledVector(dir, -dist).add(new THREE.Vector3(0, dist * 0.18, 0));
+      // mouse-aim: sit behind the aim direction, free-look adds orbit. The
+      // orbit is taken relative to the aim's own heading and climb angle, so
+      // looking up and down works on any heading, all the way round under
+      // the jet (drag down) or over the top (drag up)
+      const a = this.aimDir;
+      const aimHdg = Math.atan2(a.x, -a.z);
+      const aimPitch = Math.asin(clamp(a.y, -1, 1));
+      const yawV = aimHdg + this.lookYawSm;
+      const pitchV = clamp(aimPitch - this.lookPitchSm, -85 * DEG, 85 * DEG);
+      const dir = _v3.set(Math.sin(yawV) * Math.cos(pitchV), Math.sin(pitchV), -Math.cos(yawV) * Math.cos(pitchV));
+      // the usual raised view fades out as you swing the camera underneath
+      const lift = dist * 0.18 * clamp(1 + this.lookPitchSm / (20 * DEG), 0, 1);
+      desired = _v2.copy(fm.pos).addScaledVector(dir, -dist).add(new THREE.Vector3(0, lift, 0));
       cam.position.copy(desired);
       cam.up.set(0, 1, 0);
       const lookTarget = fm.pos.clone().addScaledVector(dir, dist * 6);

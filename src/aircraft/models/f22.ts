@@ -69,15 +69,17 @@ const BODY = keyedProfile([
   // intakes' own skin is the outside here), then fills out under the deck
   { z: -2.9, pts: S(-0.76, 0.4, 0.85, -0.6, 0.94, 0.34, 1.18, 0.37, 0.52, 0.5, 0.12) },
   { z: -2.3, pts: S(-0.78, 0.45, 0.88, -0.62, 0.94, 0.34, 1.26, 0.36, 0.54, 0.48, 0.2) },
-  { z: -1.8, pts: S(-0.8, 0.9, 1.62, -0.55, 1.9, 0.06, 1.3, 0.34, 0.55, 0.45, 0.26) },
-  { z: 0.5, pts: S(-0.82, 1.0, 1.72, -0.55, 2.0, 0.02, 1.36, 0.33, 0.55, 0.42, 0.3) },
-  { z: 3.0, pts: S(-0.78, 1.0, 1.68, -0.5, 1.95, -0.02, 1.36, 0.32, 0.5, 0.38, 0.2) },
-  { z: 5.3, pts: S(-0.66, 0.96, 1.5, -0.42, 1.76, -0.06, 1.3, 0.26, 0.45, 0.3, 0.08) },
-  { z: 6.4, pts: S(-0.52, 0.96, 1.24, -0.36, 1.34, -0.1, 1.14, 0.18, 0.42, 0.22, 0.03) },
-  { z: 7.0, pts: S(-0.46, 0.94, 1.14, -0.33, 1.2, -0.11, 1.06, 0.14, 0.4, 0.18, 0.02) },
+  // from here aft the underside carries on the intakes' shape: a flat belly
+  // out to a sharp edge, then a straight wall leaning out to the chine
+  { z: -1.8, pts: S(-0.74, 1.62, 1.746, -0.38, 1.9, 0.06, 1.3, 0.34, 0.55, 0.45, 0.26) },
+  { z: 0.5, pts: S(-0.8, 1.73, 1.85, -0.43, 2.0, 0.02, 1.36, 0.33, 0.55, 0.42, 0.3) },
+  { z: 3.0, pts: S(-0.76, 1.706, 1.816, -0.43, 1.95, -0.02, 1.36, 0.32, 0.5, 0.38, 0.2) },
+  { z: 5.3, pts: S(-0.64, 1.57, 1.656, -0.38, 1.76, -0.06, 1.3, 0.26, 0.45, 0.3, 0.08) },
+  { z: 6.4, pts: S(-0.52, 1.12, 1.22, -0.33, 1.34, -0.1, 1.14, 0.18, 0.42, 0.22, 0.03) },
+  { z: 7.0, pts: S(-0.46, 1.02, 1.1, -0.3, 1.2, -0.11, 1.06, 0.14, 0.4, 0.18, 0.02) },
 ]);
-// creases at the bottom corner and the chine
-const BODY_SUB = [3, 2, 2, 3, 1, 1, 3, 3, 3, 3, 3];
+// sharp creases: the belly edge and the straight lower wall up to the chine
+const BODY_SUB = [3, 1, 1, 1, 1, 1, 3, 3, 3, 3, 3];
 
 const CANOPY: Section[] = [
   { z: -6.55, w: 0.03, top: 0.02, bot: 0.02, y: 0.4, n: 2 },
@@ -187,7 +189,7 @@ function livery(team: string): Livery {
     // main weapons-bay doors and side bays underneath
     const rect = (g: CanvasRenderingContext2D, a: P2, b: P2) => line(g, [a, [b[0], a[1]], b, [a[0], b[1]]], 1.3, LINE, true);
     rect(gb, Wb(0.03, MAIN_BAY[0]), Wb(0.9, MAIN_BAY[1]));
-    rect(gb, Wb(1.02, SIDE_BAY[0]), Wb(1.46, SIDE_BAY[1]));
+    rect(gs, S(SIDE_BAY[0], -0.36), S(SIDE_BAY[1], -0.66));
   }
   line(gs, [S(-6.5, -0.02), S(7.3, -0.1)], 1.3, LINE_LIGHT); // chine
   weather(gt, L.top.width, L.top.height, rnd, 0.7, [0, 1]);
@@ -222,9 +224,9 @@ function livery(team: string): Livery {
 // Main bay under the belly (six AIM-120s or GBU-39s), z range; the side bays in
 // the lower walls beside the intakes (one AIM-9X each on its trapeze launcher)
 const MAIN_BAY: P2 = [-1.3, 2.5];
-const SIDE_BAY: P2 = [-2.55, -0.05];
-/** the side bay's span across the lower side wall (0 = belly edge, 1 = wall top) */
-const SIDE_T: P2 = [0.16, 0.8];
+const SIDE_BAY: P2 = [-1.65, 0.75];
+/** the side bay's span up the lower side wall (0 = belly edge, 1 = chine) */
+const SIDE_T: P2 = [0.1, 0.6];
 
 let _bayMat: THREE.MeshStandardMaterial | null = null;
 /** the bay interior: dark primer, launch rails and ribs in shadow */
@@ -336,7 +338,7 @@ function buildBays(v: AirframeVisual, paint: THREE.Material): void {
     const bay = sx < 0 ? 'left' : 'right';
     const sideEdge = (z: number): [P2, P2] => {
       const q = belly(z);
-      const p2 = q[2], p3 = q[3];
+      const p2 = q[2], p3 = q[4];
       const at = (t: number): P2 => [(p2[0] + (p3[0] - p2[0]) * t) * sx, p2[1] + (p3[1] - p2[1]) * t];
       return [at(SIDE_T[0]), at(SIDE_T[1])];
     };

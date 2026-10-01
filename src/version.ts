@@ -10,6 +10,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.30.2',
+    date: '2026-10-01',
+    title: 'Raptor underside, look underneath',
+    notes: [
+      "F-22 underside reshaped to match its intakes: behind the intakes the body now carries on the same shape, a flat belly out to a sharp edge and then a straight wall leaning out to the chine, so the intakes run straight into the fuselage with no step. The intakes themselves are unchanged. The side weapons bays now sit in that lower wall, just behind the intakes.",
+      "Free-look now reaches under the jet: in the default mouse-aim camera, holding the right (or middle) mouse button and dragging down swings the camera below the jet to look at its underside, on any heading. Before, it could not get below the horizon when flying east or west.",
+    ],
+  },
+  {
     version: '4.30.1',
     date: '2026-10-01',
     title: 'Bug fixes',
