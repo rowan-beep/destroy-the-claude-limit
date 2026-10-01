@@ -10,6 +10,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.29.1',
+    date: '2026-10-01',
+    title: 'Hear the heartbeat',
+    notes: [
+      "While you are blacked out the jet's sound drops by 90 % so you can hear your heartbeat. When you come round the jet goes straight back to your own volume setting.",
+    ],
+  },
+  {
     version: '4.29.0',
     date: '2026-10-01',
     title: 'Lights out',

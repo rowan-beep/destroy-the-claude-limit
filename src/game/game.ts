@@ -757,6 +757,7 @@ export class Game implements ModeHost {
       // pilot vision (with the G limiter on G-LOC cannot happen: blur instead)
       p.pilot.limiter = !this.gOverride;
       this.renderer.setVision(p.alive || !p.fm.crashed ? p.pilot.vision : emptyVision());
+      audio.setBlackedOut(p.alive && p.pilot.unconscious);
       if (p.pilot.beatCount !== this.heardBeats) {
         this.heardBeats = p.pilot.beatCount;
         if (p.alive && p.pilot.unconscious) audio.heartbeat(p.pilot.lastBeatStrong);

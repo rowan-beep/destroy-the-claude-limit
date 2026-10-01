@@ -746,11 +746,22 @@ export class AudioEngine {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
     this.master.gain.setTargetAtTime(this.muted ? 0 : this.levels.master, t, 0.05);
-    this.engineBus.gain.setTargetAtTime(this.levels.engine, t, 0.05);
-    this.cabinBus.gain.setTargetAtTime(this.levels.engine, t, 0.05);
+    // blacked out: the jet drops to 10 % so the heartbeat comes through
+    const jet = this.levels.engine * (this.blackedOut ? 0.1 : 1);
+    this.engineBus.gain.setTargetAtTime(jet, t, this.blackedOut ? 0.4 : 0.05);
+    this.cabinBus.gain.setTargetAtTime(jet, t, this.blackedOut ? 0.4 : 0.05);
     this.fxBus.gain.setTargetAtTime(this.levels.effects, t, 0.05);
     this.warnBus.gain.setTargetAtTime(this.levels.warnings, t, 0.05);
     this.uiBus.gain.setTargetAtTime(Math.max(0.3, this.levels.effects), t, 0.05);
+  }
+
+  private blackedOut = false;
+
+  /** The pilot is out cold (G-LOC): duck the jet by 90 %; back to the set level on waking. */
+  setBlackedOut(b: boolean): void {
+    if (b === this.blackedOut) return;
+    this.blackedOut = b;
+    this.applyLevels();
   }
 
   setPaused(p: boolean): void {
@@ -1341,6 +1352,7 @@ export class AudioEngine {
   }
 
   silenceContinuous(): void {
+    this.setBlackedOut(false);
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
     const loops = [this.roar, this.body, this.crack, this.abRoar, this.abSub, this.intake, this.wind, this.whistle, this.buffet, this.gearRumble, this.ecs, this.gsuit, this.roll];
