@@ -2,6 +2,7 @@
 // audio and HUD; runs the fixed-step loop and translates the player's
 // inputs into flight controls and weapon actions.
 
+import { activeMap } from '../world/islands';
 import { RenderInterp } from './interp';
 import { WeaponSelect, MISSILES, isIrMissile, launchCall, isBomb, weaponShort } from '../weapons/weaponSpecs';
 import { BombComputer } from '../weapons/bombing';
@@ -192,11 +193,36 @@ export class Game implements ModeHost {
   // Mission lifecycle
   // ---------------------------------------------------------------------
 
-  async startMission(cfg: MissionConfig, onProgress: (f: number, label: string) => void): Promise<void> {
+  /** called once the theater has been generated (the first launch) */
+  onWorldBuilt: (() => void) | null = null;
+
+  /**
+   * Generate the theater: the height grid, the digital map and the render
+   * objects. The menu never needs it, so this waits for the first launch.
+   */
+  async ensureWorld(onProgress: (f: number, label: string) => void): Promise<void> {
+    if (this.world.ready) return;
+    const t0 = performance.now();
+    const name = `GENERATING ${activeMap.name} (${activeMap.sizeNm} × ${activeMap.sizeNm} NM)`;
+    await this.world.buildGrid((f) => onProgress(f * 0.8, name));
+    await this.world.buildMapData((f) => onProgress(0.8 + f * 0.15, 'BUILDING THE DIGITAL MAP'));
+    onProgress(0.97, 'BUILDING WORLD');
+    this.world.init();
+    this.applySettings();
+    this.onWorldBuilt?.();
+    console.info(`theater ready in ${Math.round(performance.now() - t0)} ms${this.world.pool.usingFallback ? ' (main-thread fallback)' : ''}`);
+  }
+
+  async startMission(cfg: MissionConfig, progress: (f: number, label: string) => void): Promise<void> {
+    let onProgress = progress;
     this.config = cfg;
     this.briefing = null;
     setMissionObjective(null);
     this.setState('loading');
+    if (!this.world.ready) {
+      await this.ensureWorld((f, l) => progress(f * 0.6, l));
+      onProgress = (f, l) => progress(0.6 + f * 0.4, l);
+    }
     if (this.combat) this.combat.dispose();
     this.ground?.dispose();
     this.ground = null;

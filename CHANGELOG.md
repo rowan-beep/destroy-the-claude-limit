@@ -3,6 +3,12 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.28.0 — Faster menu, F-22 intakes (2026-10-01)
+
+- Faster start: the game now opens straight to the menu. The map (terrain, digital map, ocean, trees) is no longer generated at start-up or kept in the background while you are in the menu; it is built when you press launch, and only the first time.
+- F-22 intakes fixed: the fuselage side no longer shows through the inside of the intake mouths. The ducts are now dark inside and bend away out of sight like the real ones.
+- MiG-31 exhaust nozzles are shorter and a little wider. Its flight performance is unchanged.
+
 ## v4.27.0 — Foxhound nose and Raptor gold (2026-10-01)
 
 - MiG-31 front end rebuilt so it no longer looks like an F-15: a longer, pointed radome, slab-sided nose with a sharp chine along the belly, low squared-off canopies with a framed windscreen, a mostly metal rear hood with small side windows that runs into a raised spine, and steeply raked intake mouths with the top lip well forward.

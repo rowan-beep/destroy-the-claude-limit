@@ -10,6 +10,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.28.0',
+    date: '2026-10-01',
+    title: 'Faster menu, F-22 intakes',
+    notes: [
+      "Faster start: the game now opens straight to the menu. The map (terrain, digital map, ocean, trees) is no longer generated at start-up or kept in the background while you are in the menu; it is built when you press launch, and only the first time.",
+      "F-22 intakes fixed: the fuselage side no longer shows through the inside of the intake mouths. The ducts are now dark inside and bend away out of sight like the real ones.",
+      "MiG-31 exhaust nozzles are shorter and a little wider. Its flight performance is unchanged.",
+    ],
+  },
+  {
     version: '4.27.0',
     date: '2026-10-01',
     title: 'Foxhound nose and Raptor gold',

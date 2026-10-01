@@ -65,7 +65,10 @@ const BODY = keyedProfile([
   { z: -6.2, pts: S(-0.56, 0.26, 0.59, -0.31, 0.73, -0.03, 0.62, 0.3, 0.34, 0.42, 0.02) },
   { z: -5.0, pts: S(-0.64, 0.3, 0.67, -0.35, 0.83, -0.01, 0.8, 0.36, 0.46, 0.44, 0.01) },
   { z: -4.0, pts: S(-0.7, 0.34, 0.74, -0.37, 0.93, 0.08, 0.93, 0.36, 0.5, 0.46, 0.02) },
-  { z: -2.9, pts: S(-0.76, 0.66, 1.4, -0.52, 1.66, 0.1, 1.18, 0.36, 0.52, 0.5, 0.12) },
+  // behind the intake mouths the body stays inboard of the ducts (the
+  // intakes' own skin is the outside here), then fills out under the deck
+  { z: -2.9, pts: S(-0.76, 0.4, 0.85, -0.6, 0.94, 0.34, 1.18, 0.37, 0.52, 0.5, 0.12) },
+  { z: -2.3, pts: S(-0.78, 0.45, 0.88, -0.62, 0.94, 0.34, 1.26, 0.36, 0.54, 0.48, 0.2) },
   { z: -1.8, pts: S(-0.8, 0.9, 1.62, -0.55, 1.9, 0.06, 1.3, 0.34, 0.55, 0.45, 0.26) },
   { z: 0.5, pts: S(-0.82, 1.0, 1.72, -0.55, 2.0, 0.02, 1.36, 0.33, 0.55, 0.42, 0.3) },
   { z: 3.0, pts: S(-0.78, 1.0, 1.68, -0.5, 1.95, -0.02, 1.36, 0.32, 0.5, 0.38, 0.2) },
@@ -389,9 +392,9 @@ export function buildF22(v: AirframeVisual): void {
   };
   const ci = intake({
     loop: para,
-    outer: stations(-4.3, -2.2, 30, 0.3, 0),
-    lip: 0.03,
-    depth: 2.1,
+    outer: stations(-4.3, -1.7, 36, 0.3, 0),
+    lip: 0.04,
+    depth: 2.0,
     n: 72,
     rake: (x, y) => -0.45 * (y - 0.36) - 0.16 * (x - 0.96),
     fan: { cx: 1.24, cy: -0.16, r: 0.34 },
@@ -401,6 +404,14 @@ export function buildF22(v: AirframeVisual): void {
   const duct = (pm.duct as THREE.MeshStandardMaterial).clone();
   duct.color.set('#3a3e42');
   v.addMesh(both(ci.duct), duct);
+  // the duct turns out of sight: a black face where it bends away
+  const blind = new THREE.MeshBasicMaterial({ color: '#08090a' });
+  for (const sx of [-1, 1]) {
+    const d = new THREE.CircleGeometry(0.4, 28);
+    d.rotateY(Math.PI);
+    d.translate(1.24 * sx, -0.16, -4.3 + 2.0 - 0.02);
+    v.addMesh(d, blind);
+  }
 
   // --- canopy: one-piece, frameless, gold tinted; seat and pilot
   v.cockpitEye.set(0, 0.86, -4.8);

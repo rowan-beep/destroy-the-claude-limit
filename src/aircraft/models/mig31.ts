@@ -473,14 +473,14 @@ export function buildMig31(v: AirframeVisual): void {
     skin(wing({ sections: VENTRAL, chordPts: 20, spanSub: 3, tip: 'flat', root: 'flat', matrix: vm }));
   }
 
-  // --- engines: two D-30F6 nozzles, heat-tinted titanium ----------------------------------------
+  // --- engines: two D-30F6 nozzles, short and wide, heat-tinted titanium ----------------------------------------
   for (const sx of [-1, 1] as const) {
-    const nz = nozzle({ cx: NAC_X * sx, cy: -0.25, z0: NOZZLE_Z, z1: 10.95, r0: 0.62, r1: 0.55, petals: 18, saw: 0.06, floor: NOZZLE_Z + 0.15 });
+    const nz = nozzle({ cx: NAC_X * sx, cy: -0.25, z0: NOZZLE_Z, z1: 10.45, r0: 0.66, r1: 0.6, petals: 18, saw: 0.06, floor: NOZZLE_Z + 0.15 });
     const nzOut = v.addMesh(bronze(nz.outer), pm.nozzle);
     const nzIn = v.addMesh(nz.inner, pm.nozzleIn);
     nzIn.userData.detail = true;
     v.morphNozzle(nzOut, nzIn);
-    v.nozzles.push({ pos: new THREE.Vector3(NAC_X * sx, -0.25, 10.85), radius: 0.5, depth: 1.3, area: nz.area });
+    v.nozzles.push({ pos: new THREE.Vector3(NAC_X * sx, -0.25, 10.35), radius: 0.55, depth: 0.9, area: nz.area });
   }
   v.buildFlames(7.4);
 

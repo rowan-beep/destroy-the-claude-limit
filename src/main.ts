@@ -57,14 +57,11 @@ async function boot(): Promise<void> {
   game.hud = hud;
   (window as unknown as { game: Game }).game = game;
 
-  const t0 = performance.now();
-  await game.world.buildGrid((f) => loading.set(0.05 + f * 0.8, `GENERATING ${activeMap.name} (${activeMap.sizeNm} × ${activeMap.sizeNm} NM)`));
-  await game.world.buildMapData((f) => loading.set(0.85 + f * 0.07, 'BUILDING THE DIGITAL MAP'));
-  loading.set(0.93, 'BUILDING WORLD');
-  game.world.init();
+  // the theater itself (terrain, digital map, ocean, trees) is generated on
+  // the first launch: the menu only draws the hangar
   game.applySettings();
   const mapView = new MapView(document.body, () => game.setState('playing'));
-  mapView.setGrid(game.world.grid);
+  game.onWorldBuilt = () => mapView.setGrid(game.world.grid);
   const hangar = new Hangar(game.renderer.renderer);
   if (import.meta.env.DEV) Object.assign(window, { __hangar: hangar, __THREE: THREE });
   hangar.drawWith = (sc, cam) => game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping);
@@ -74,7 +71,6 @@ async function boot(): Promise<void> {
     menu.root.classList.remove('hidden');
     hangar.setJet(menu.cfg.aircraft, menu.cfg.loadoutId);
   });
-  console.info(`theater ready in ${Math.round(performance.now() - t0)} ms${game.world.pool.usingFallback ? ' (main-thread fallback)' : ''}`);
 
   const cfg: MissionConfig = defaultMission();
   if (settings.lastAircraft === 'F15EX' || settings.lastAircraft === 'FA18EF' || settings.lastAircraft === 'TYPHOON' || settings.lastAircraft === 'SU35' || settings.lastAircraft === 'RAFALE' || settings.lastAircraft === 'F22' || settings.lastAircraft === 'MIG31') cfg.aircraft = settings.lastAircraft as AircraftType;
