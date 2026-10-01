@@ -100,6 +100,8 @@ export class Game implements ModeHost {
   throttleCmd = 0.85;
   private throttleHoldAtMil = 0;
   gOverride = false;
+  /** heartbeats already played (G-LOC) */
+  private heardBeats = 0;
   speedbrake = false;
   gearDown = false;
   /** Auto-Fly (U): flies to a chosen destination at a chosen speed and altitude */
@@ -752,8 +754,13 @@ export class Game implements ModeHost {
       this.combat.update(simOn ? dt : 0, this.renderer.camera);
       this.ground?.update(simOn ? dt : 0, this.renderer.camera);
       this.renderer.setHaze(this.combat.haze);
-      // pilot vision
+      // pilot vision (with the G limiter on G-LOC cannot happen: blur instead)
+      p.pilot.limiter = !this.gOverride;
       this.renderer.setVision(p.alive || !p.fm.crashed ? p.pilot.vision : emptyVision());
+      if (p.pilot.beatCount !== this.heardBeats) {
+        this.heardBeats = p.pilot.beatCount;
+        if (p.alive && p.pilot.unconscious) audio.heartbeat(p.pilot.lastBeatStrong);
+      }
       this.bombComputer.update(p, this.sim, dt);
       this.hud.update(dt, this);
       this.touch?.sync(this.throttleCmd);

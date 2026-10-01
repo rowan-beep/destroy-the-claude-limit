@@ -3,6 +3,12 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.29.0 — Lights out (2026-10-01)
+
+- New full blackout (G-LOC): the colour drains, your view swims and closes down to a shrinking pinhole, then goes black. In the dark you hear and see only your heart, beating at 55 bpm, with a deep red throb at the edges of the screen. When you come round the black lifts first, then the view opens out of a blur and the colour comes back last.
+- The heartbeat only happens when you fully black out.
+- With the G limiter on you cannot black out: the grey-out stays as before, and on a hard, sustained pull your vision now goes blurry every few seconds.
+
 ## v4.28.0 — Faster menu, F-22 intakes (2026-10-01)
 
 - Faster start: the game now opens straight to the menu. The map (terrain, digital map, ocean, trees) is no longer generated at start-up or kept in the background while you are in the menu; it is built when you press launch, and only the first time.

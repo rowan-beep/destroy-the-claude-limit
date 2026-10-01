@@ -1262,6 +1262,14 @@ export class AudioEngine {
     for (let i = 0; i < 4; i++) this.burst(this.whiteB, { type: 'bandpass', f0: 4200, f1: 3000, q: 3, dur: 0.012, vol: 0.08, delay: 0.03 + Math.random() * 0.15 });
   }
 
+  /** One heartbeat while blacked out: the strong "lub", then a softer "dub". */
+  heartbeat(strong: boolean): void {
+    if (!this.ctx) return;
+    const v = strong ? 0.6 : 0.4;
+    this.tone(strong ? 64 : 56, 36, 0.17, v, 'sine');
+    this.burst(this.brownB, { type: 'lowpass', f0: 170, f1: 55, dur: 0.15, vol: v * 0.55 });
+  }
+
   /** Flare / chaff cartridge: the squib's pop, the crack of the cartridge and the flare burning away. */
   countermeasure(): void {
     if (!this.ctx) return;

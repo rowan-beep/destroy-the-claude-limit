@@ -10,6 +10,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.29.0',
+    date: '2026-10-01',
+    title: 'Lights out',
+    notes: [
+      "New full blackout (G-LOC): the colour drains, your view swims and closes down to a shrinking pinhole, then goes black. In the dark you hear and see only your heart, beating at 55 bpm, with a deep red throb at the edges of the screen. When you come round the black lifts first, then the view opens out of a blur and the colour comes back last.",
+      "The heartbeat only happens when you fully black out.",
+      "With the G limiter on you cannot black out: the grey-out stays as before, and on a hard, sustained pull your vision now goes blurry every few seconds.",
+    ],
+  },
+  {
     version: '4.28.0',
     date: '2026-10-01',
     title: 'Faster menu, F-22 intakes',

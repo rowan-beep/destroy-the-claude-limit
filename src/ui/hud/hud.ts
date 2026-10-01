@@ -282,12 +282,18 @@ export class Hud {
     const blackout = v.blackout;
     const red = v.redout;
     let bg = 'transparent';
-    if (blackout > 0.01) bg = `rgba(0,0,0,${blackout})`;
+    if (blackout > 0.01) {
+      // the HUD goes dark with the view; the heartbeat throbs red at the edges
+      const h = Math.min(1, v.heart);
+      bg = h > 0.01 ? `radial-gradient(ellipse at 50% 50%, rgba(0,0,0,${blackout}) 28%, rgba(${Math.round(85 * h)},0,3,${blackout}) 100%)` : `rgba(0,0,0,${blackout})`;
+    }
     else if (red >= 1) bg = 'rgba(140,0,0,1)';
     else if (red > 0) bg = 'rgba(140,0,0,0.5)';
     this.vision.style.background = bg;
     setClass(this.glocText, 'hidden', blackout < 0.99);
-    const filt = v.mono > 0 ? 'grayscale(1) brightness(0.8)' : v.greyout > 0 ? `grayscale(${v.greyout.toFixed(2)}) brightness(${(1 - v.greyout * 0.25).toFixed(2)})` : '';
+    if (blackout >= 0.99) this.glocText.style.opacity = (0.35 + 0.65 * Math.min(1, v.heart)).toFixed(2);
+    let filt = v.mono > 0 ? 'grayscale(1) brightness(0.8)' : v.greyout > 0 ? `grayscale(${v.greyout.toFixed(2)}) brightness(${(1 - v.greyout * 0.25).toFixed(2)})` : '';
+    if (v.blur > 0.05) filt += ` blur(${(v.blur * 2.5).toFixed(1)}px)`;
     if (this.root.style.filter !== filt) this.root.style.filter = filt;
 
     // canvas symbology

@@ -285,8 +285,11 @@ export class GameRenderer {
     u.blackout.value = v.blackout;
     u.flash.value = v.flash;
     u.damage.value = v.damage;
+    u.blur.value = v.blur;
+    u.pinhole.value = v.pinhole;
+    u.heart.value = v.heart;
     // nothing to show: skip the full-screen pass entirely
-    this.visionPass.enabled = v.greyout + v.tunnel + v.mono + v.redout + v.blackout + v.flash + v.damage > 1e-3;
+    this.visionPass.enabled = v.greyout + v.tunnel + v.mono + v.redout + v.blackout + v.flash + v.damage + v.blur + v.pinhole + v.heart > 1e-3;
     u.time.value = performance.now() / 1000;
   }
 
