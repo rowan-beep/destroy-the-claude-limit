@@ -222,6 +222,9 @@ async function boot(): Promise<void> {
   // the menu hangar draws every display frame (a 60 fps cap on a 144 Hz screen
   // judders); a slow GPU drops the render resolution by itself instead
   game.onMenuFrame = (dt) => {
+    // behind the (opaque) loading screen the hangar would only slow the
+    // theater and mission from loading
+    if (game.state === 'loading') return;
     const step = Math.min(dt, 0.1);
     game.renderer.adaptFrame(step);
     const sz = game.renderer.size;

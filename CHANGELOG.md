@@ -3,6 +3,19 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.31.0 — 10 bug fixes (2026-10-01)
+
+- Fixed: blacked out (G-LOC), you could still fire missiles, drop flares, move the throttle, lock targets, work the gear and eject. Now all controls are frozen until you come round, as intended. The camera, pause and map still work, and the aim point follows the jet so waking up does not yank it round.
+- Fixed: crashing while blacked out left the screen black with "G-LOC" on it for the rest of the 10 seconds, hiding the crash and the death camera. It now clears as soon as the jet hits the ground.
+- Fixed: burning wreckage thrown out by a crash or kill could fly through hillsides or sink below the sea. It now lands on the ground or stops at the water surface.
+- Fixed: the delayed fuel-cell blasts and the smoke cloud of a mid-air kill could appear in the wrong place, because they followed the wreck as it moved on.
+- Performance: kills more than about 25 km away now get a lighter effect (just the fireball and smoke). The full show near far-off kills was crowding out the smoke and fire close to you, which could make it flicker or vanish.
+- Performance: at most 40 ground fires burn at once (wrecks, fuel trails, targets), so a long furball no longer piles up hundreds of them. Fires more than 3 km away also draw fewer flames, while keeping their smoke column.
+- Performance: the hangar no longer keeps rendering behind the loading screen, so missions and the first map build load faster.
+- Performance: the HUD no longer restyles itself every frame during grey-out and blur.
+- Fixed: the theater map (M) used a 50 NM grid running from -200 to +200 on every map. On the Jade Archipelago that gave one line through the middle and stray labels off the map. The grid now matches the map (10 NM on Jade, 25 NM on Triad, 50 NM on Frostfall) and stays inside it.
+- Fixed: the HUD minimap always covered 60 NM, wider than the whole Jade Archipelago, so everything was squeezed into the middle. On Jade it now covers 32 NM; the bigger maps are unchanged.
+
 ## v4.30.5 — Raptor tidy-up (2026-10-01)
 
 - F-22: removed the small circle that showed on top of the right intake when viewed from the front. It was the gun muzzle marker, which no longer sat flush after the intake was reshaped. The real jet's gun hides behind a flush door, so nothing shows now. The gun still fires from the same place.

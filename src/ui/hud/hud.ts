@@ -1,5 +1,6 @@
 // In-flight HUD: DOM instrument panels + canvas symbology + vision overlay.
 
+import { emptyVision } from '../../render/vision';
 import { MISSILES, weaponCode, weaponShort, isBomb } from '../../weapons/weaponSpecs';
 import type { Game } from '../../game/game';
 import type { MsgKind } from '../../game/modes/mode';
@@ -39,7 +40,10 @@ function keyName(code: string): string {
     .toUpperCase();
 }
 
+const NO_VISION = emptyVision();
+
 export class Hud {
+  private lastFilter = '';
   readonly root: HTMLDivElement;
   private painter: HudPainter;
   private flight: HTMLElement;
@@ -277,8 +281,9 @@ export class Hud {
     this.painter.resize();
     this.painter.clear();
 
-    // pilot vision affects the whole HUD too
-    const v = p.pilot.vision;
+    // pilot vision affects the whole HUD too (not once the jet has crashed:
+    // the death camera shows the wreck, as the 3D view does)
+    const v = p.alive || !p.fm.crashed ? p.pilot.vision : NO_VISION;
     const blackout = v.blackout;
     const red = v.redout;
     let bg = 'transparent';
@@ -294,7 +299,11 @@ export class Hud {
     if (blackout >= 0.99) this.glocText.style.opacity = (0.35 + 0.65 * Math.min(1, v.heart)).toFixed(2);
     let filt = v.mono > 0 ? 'grayscale(1) brightness(0.8)' : v.greyout > 0 ? `grayscale(${v.greyout.toFixed(2)}) brightness(${(1 - v.greyout * 0.25).toFixed(2)})` : '';
     if (v.blur > 0.05) filt += ` blur(${(v.blur * 2.5).toFixed(1)}px)`;
-    if (this.root.style.filter !== filt) this.root.style.filter = filt;
+    // (compare with what we last set: the browser normalises the string it hands back)
+    if (this.lastFilter !== filt) {
+      this.lastFilter = filt;
+      this.root.style.filter = filt;
+    }
 
     // canvas symbology
     const alive = p.alive && !p.pilot.unconscious;

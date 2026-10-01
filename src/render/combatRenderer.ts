@@ -75,6 +75,8 @@ interface Burn {
   size: number;
 }
 
+/** most ground fires burning at once (wrecks, fuel, targets) */
+const MAX_BURNS = 40;
 const WHITE_SMOKE = srgb(0.92, 0.92, 0.94);
 const GREY_SMOKE = srgb(0.55, 0.55, 0.57);
 const DARK_SMOKE = srgb(0.12, 0.12, 0.13);
@@ -356,7 +358,18 @@ export class CombatRenderer {
 
   /** A fire that burns on the ground for a while (a destroyed target, a wreck). */
   addFire(pos: THREE.Vector3, size: number, life: number): void {
-    this.burns.push({ pos: pos.clone(), t: 0, life, size });
+    this.pushBurn({ pos: pos.clone(), t: 0, life, size });
+  }
+
+  /** Keep the number of fires burning bounded: a long furball leaves many wrecks. */
+  private pushBurn(b: Burn): void {
+    this.burns.push(b);
+    if (this.burns.length > MAX_BURNS) {
+      // the fire closest to burning out goes first
+      let k = 0;
+      for (let i = 1; i < this.burns.length; i++) if (this.burns[i].life - this.burns[i].t < this.burns[k].life - this.burns[k].t) k = i;
+      this.burns.splice(k, 1);
+    }
   }
 
   /** A gun muzzle flash (ground guns). */
@@ -394,7 +407,7 @@ export class CombatRenderer {
     const p = new THREE.Vector3(pos.x, Math.max(pos.y, g + 1), pos.z);
     this.explode(p, 1.6, water ? 'water' : 'ground');
     this.death.impact(p, a.fm.vel, water);
-    if (!water) this.burns.push({ pos: p.clone(), t: 0, life: rand(60, 120), size: 1.4 });
+    if (!water) this.pushBurn({ pos: p.clone(), t: 0, life: rand(60, 120), size: 1.4 });
     const v = this.aircraftVis.get(a);
     if (v) {
       v.root.visible = false;
@@ -468,11 +481,13 @@ export class CombatRenderer {
       }
       const k = 1 - b.t / b.life;
       const z = b.size;
-      if (Math.random() < 0.6) this.fire.spawn({ x: b.pos.x + randGauss() * 3 * z, y: b.pos.y, z: b.pos.z + randGauss() * 3 * z, vy: rand(3, 8) * Math.sqrt(z), life: rand(0.5, 1.2), size0: (5 * k + 1) * z, size1: 3 * z, c0: FIRE_HOT, c1: FIRE_RED, a0: 0.9 * k, a1: 0 });
+      // far off (3 km+) the flames are a few pixels: fewer of them, the smoke column is what shows
+      const far = b.pos.distanceToSquared(cam) > 9e6;
+      if (Math.random() < (far ? 0.2 : 0.6)) this.fire.spawn({ x: b.pos.x + randGauss() * 3 * z, y: b.pos.y, z: b.pos.z + randGauss() * 3 * z, vy: rand(3, 8) * Math.sqrt(z), life: rand(0.5, 1.2), size0: (5 * k + 1) * z, size1: 3 * z, c0: FIRE_HOT, c1: FIRE_RED, a0: 0.9 * k, a1: 0 });
       if (Math.random() < 0.35) this.smoke.spawn({ x: b.pos.x + randGauss() * 3 * z, y: b.pos.y + 3 * z, z: b.pos.z + randGauss() * 3 * z, vx: 2, vy: rand(6, 12), vz: 1, life: rand(10, 18), size0: 6 * z, size1: 45 * z, c0: DARK_SMOKE, c1: GREY_SMOKE, a0: 0.6 * k + 0.1, a1: 0, drag: 0.2 });
     }
 
-    this.death.update(dt);
+    this.death.update(dt, cam);
     this.eject.update(dt, this.time);
     this.updateTracers();
     this.smoke.update(dt, cam);

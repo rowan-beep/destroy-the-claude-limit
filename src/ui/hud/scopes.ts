@@ -4,7 +4,7 @@ import type { Game } from '../../game/game';
 import type { Aircraft } from '../../aircraft/aircraft';
 import { DEG, NM, FT } from '../../core/constants';
 import { wrap360, clamp } from '../../core/math';
-import { AIRFIELDS } from '../../world/islands';
+import { AIRFIELDS, activeMap } from '../../world/islands';
 import { rwrSymbol } from '../../sensors/rwr';
 import { hostile, RULES } from '../../game/rules';
 
@@ -220,7 +220,9 @@ export function drawMinimap(canvas: HTMLCanvasElement, g: Game): void {
   const cx = w / 2, cy = h / 2, R = Math.min(w, h) / 2 - 3;
   const p = g.player!;
   ctx.clearRect(0, 0, w, h);
-  const rangeM = 60 * NM;
+  // 60 NM on the big theaters; on a small map, enough to show its islands at a useful size
+  const rangeNm = Math.min(60, Math.round(activeMap.sizeNm * 0.4));
+  const rangeM = rangeNm * NM;
   const hdg = Math.atan2(p.fm.fwd.x, -p.fm.fwd.z);
   const toScreen = (x: number, z: number): [number, number] => {
     const dx = x - p.fm.pos.x, dn = -(z - p.fm.pos.z);
@@ -343,7 +345,7 @@ export function drawMinimap(canvas: HTMLCanvasElement, g: Game): void {
   ctx.fill();
   ctx.fillStyle = '#9fe';
   ctx.font = "9px 'Share Tech Mono', monospace";
-  ctx.fillText('60 NM', cx, h - 8);
+  ctx.fillText(`${rangeNm} NM`, cx, h - 8);
 }
 
 export function drawCompass(canvas: HTMLCanvasElement, g: Game): void {

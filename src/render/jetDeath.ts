@@ -65,6 +65,8 @@ export class JetDeathFx {
   private embers: Ember[] = [];
   private shells: Shell[] = [];
   private sphere = new THREE.SphereGeometry(1, 28, 16);
+  /** where the camera was last frame: kills far out of sight get a lighter effect */
+  private cam = new THREE.Vector3();
   private ring = new THREE.RingGeometry(0.82, 1, 64, 1);
 
   constructor(
@@ -127,11 +129,21 @@ export class JetDeathFx {
 
   private ember(p: THREE.Vector3, v: THREE.Vector3, life: number, size: number): void {
     if (this.embers.length > 90) return;
-    this.embers.push({ p: p.clone(), v, age: 0, life, size, smokeAcc: 0, floor: this.ground(p.x, p.z) });
+    this.embers.push({ p: p.clone(), v, age: 0, life, size, smokeAcc: 0, floor: Math.max(0, this.ground(p.x, p.z)) });
   }
 
   /** A jet blown apart in the air. `vel` is the jet's velocity. */
-  airKill(pos: THREE.Vector3, vel: THREE.Vector3): void {
+  airKill(at: THREE.Vector3, velocity: THREE.Vector3): void {
+    // snapshot: the callers pass the wreck's live vectors, which keep moving
+    // (or reset on a respawn) while the delayed blasts below go off
+    const pos = at.clone(), vel = velocity.clone();
+    // beyond ~25 km it is a distant flash: skip the fragments, the
+    // secondaries and the pall, which would only crowd out the smoke and fire
+    // near the camera (the particle pools are shared)
+    if (pos.distanceToSquared(this.cam) > 25000 ** 2) {
+      this.fireball(pos, vel.clone().multiplyScalar(0.55), 40);
+      return;
+    }
     const drift = vel.clone().multiplyScalar(0.55);
     this.flash(pos, 1.2e7, 0.6);
     this.fireball(pos, drift, 40);
@@ -176,11 +188,17 @@ export class JetDeathFx {
   }
 
   /** A jet going into the ground (or the sea). `vel` is its velocity at impact. */
-  impact(pos: THREE.Vector3, vel: THREE.Vector3, water: boolean): void {
+  impact(at: THREE.Vector3, velocity: THREE.Vector3, water: boolean): void {
+    const pos = at.clone(), vel = velocity.clone();
     const hv = new THREE.Vector3(vel.x, 0, vel.z);
     const speed = hv.length();
     const fwd = speed > 1 ? hv.clone().divideScalar(speed) : new THREE.Vector3(1, 0, 0);
     const p = pos.clone();
+    if (p.distanceToSquared(this.cam) > 25000 ** 2) {
+      // far out of sight: just the fireball and its smoke (the wreck's own fire is lit by the caller)
+      this.fireball(p.clone().setY(p.y + 10), new THREE.Vector3(), 55, 22);
+      return;
+    }
     this.flash(p, 1.6e7, 0.8);
     this.shock(p, 260, 0.9, true, water ? 0.5 : 0.42);
     this.shock(p.clone().setY(p.y + 4), 180, 0.4, false, 0.14);
@@ -293,7 +311,8 @@ export class JetDeathFx {
     });
   }
 
-  update(dt: number): void {
+  update(dt: number, cam: THREE.Vector3): void {
+    this.cam.copy(cam);
     this.time += dt;
     for (let i = this.pending.length - 1; i >= 0; i--) {
       if (this.pending[i].at <= this.time) {
@@ -309,6 +328,8 @@ export class JetDeathFx {
       e.v.y -= 9.8 * dt;
       e.p.addScaledVector(e.v, dt);
       const k = 1 - e.age / e.life;
+      // the ground (or the sea surface) under where it is now, not where it started
+      e.floor = Math.max(0, this.ground(e.p.x, e.p.z));
       if (k <= 0 || e.p.y < e.floor) {
         // it lands: a small fire where it falls
         if (e.p.y < e.floor + 2 && e.size > 3.6 && e.floor > 0) this.addBurn(new THREE.Vector3(e.p.x, e.floor + 0.5, e.p.z), 0.3, rand(10, 25));

@@ -995,6 +995,14 @@ export class Game implements ModeHost {
       if (inp.pressed('fire') && this.mode instanceof FreeFlightMode) this.handleResult('respawn');
       return;
     }
+    // G-LOC: the pilot is out cold. No stick, throttle, weapons or switches
+    // until they come round (the camera, pause and map still work); the
+    // mouse-aim point rides with the jet so waking up does not yank it round
+    if (p.pilot.unconscious) {
+      p.trigger = false;
+      this.aimDir.copy(p.fm.fwd);
+      return;
+    }
 
     // mouse flying
     if (!looking && inp.pointerLocked) {

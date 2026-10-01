@@ -1,4 +1,4 @@
-// Theater map (M): shaded relief of the full 400 x 400 NM area, airfields,
+// Theater map (M): shaded relief of the whole theater, airfields,
 // GCI radar sites, your jet, friendlies and known hostile tracks.
 
 import type { Game } from '../game/game';
@@ -10,6 +10,12 @@ import { GCI_SITES } from '../game/teamPicture';
 import { getGrottoes } from '../world/terrain';
 import { clamp } from '../core/math';
 import { hostile, RULES } from '../game/rules';
+
+/** Map grid spacing: a handful of squares across whatever size the theater is. */
+function gridStepNm(): number {
+  const n = activeMap.sizeNm;
+  return n <= 100 ? 10 : n <= 250 ? 25 : 50;
+}
 
 export function renderReliefImage(grid: HeightGrid, size: number): HTMLCanvasElement {
   const c = document.createElement('canvas');
@@ -161,11 +167,13 @@ export class MapView {
     // scanlines (CRT look)
     c.fillStyle = 'rgba(0,0,0,0.12)';
     for (let y = 0; y < h; y += 3) c.fillRect(0, y, w, 1);
-    // grid every 50 NM
+    // grid sized to the theater (only inside the map)
     c.strokeStyle = 'rgba(200,230,255,0.12)';
     c.fillStyle = 'rgba(200,230,255,0.45)';
     c.font = "11px 'Share Tech Mono', monospace";
-    for (let v = -200; v <= 200; v += 50) {
+    const gs = gridStepNm();
+    const gl = Math.floor(MAP_HALF / NM / gs) * gs;
+    for (let v = -gl; v <= gl; v += gs) {
       const xx = X(v * NM), zz = Y(-v * NM);
       c.beginPath();
       c.moveTo(xx, Y(-MAP_HALF));
@@ -303,7 +311,7 @@ export class MapView {
       c.restore();
     }
     this.legend.innerHTML =
-      `${activeMap.name} ${activeMap.sizeNm} × ${activeMap.sizeNm} NM · GRID 50 NM · ZOOM ${this.zoom.toFixed(1)}×<br>` +
+      `${activeMap.name} ${activeMap.sizeNm} × ${activeMap.sizeNm} NM · GRID ${gridStepNm()} NM · ZOOM ${this.zoom.toFixed(1)}×<br>` +
       `<span style="color:#6cff9a">▲</span> YOU &nbsp; <span style="color:#5dff8a">■</span> FRIENDLY &nbsp; <span style="color:#ff5a48">▲</span> HOSTILE TRACK (GCI / RADAR)<br>` +
       `<span style="color:#5aa9ff">○</span> BLUE AIRFIELD &nbsp; <span style="color:#ff5a48">○</span> RED AIRFIELD · FAINT RINGS: GCI RADAR RANGE<br>` +
       `WHEEL: ZOOM · DRAG: PAN · TERRAIN MASKS ALL RADARS`;
