@@ -10,6 +10,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.27.0',
+    date: '2026-10-01',
+    title: 'Foxhound nose and Raptor gold',
+    notes: [
+      "MiG-31 front end rebuilt so it no longer looks like an F-15: a longer, pointed radome, slab-sided nose with a sharp chine along the belly, low squared-off canopies with a framed windscreen, a mostly metal rear hood with small side windows that runs into a raised spine, and steeply raked intake mouths with the top lip well forward.",
+      "F-22 canopy is now the real thing's reflective gold: from outside it reads as a gold mirror and you barely see the pilot. The view from the cockpit is unchanged.",
+    ],
+  },
+  {
     version: '4.26.1',
     date: '2026-10-01',
     title: 'Clean drop tanks',

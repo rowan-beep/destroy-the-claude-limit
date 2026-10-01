@@ -3,6 +3,11 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.27.0 — Foxhound nose and Raptor gold (2026-10-01)
+
+- MiG-31 front end rebuilt so it no longer looks like an F-15: a longer, pointed radome, slab-sided nose with a sharp chine along the belly, low squared-off canopies with a framed windscreen, a mostly metal rear hood with small side windows that runs into a raised spine, and steeply raked intake mouths with the top lip well forward.
+- F-22 canopy is now the real thing's reflective gold: from outside it reads as a gold mirror and you barely see the pilot. The view from the cockpit is unchanged.
+
 ## v4.26.1 — Clean drop tanks (2026-10-01)
 
 - External fuel tanks no longer have tail fins: every jet now carries a plain, smooth drop tank.

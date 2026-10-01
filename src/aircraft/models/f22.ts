@@ -419,9 +419,12 @@ export function buildF22(v: AirframeVisual): void {
   v.hideInCockpit.push(v.addMesh(shroud, pm.seat));
   if (v.canopy) {
     const gm = (v.canopy.material as THREE.MeshStandardMaterial).clone();
-    gm.color.set('#e8c26a');
-    gm.opacity = 0.36;
-    gm.metalness = 0.95;
+    // the indium-tin-oxide coating: a mirror-like gold from outside
+    gm.color.set('#e4b44a');
+    gm.opacity = 0.9;
+    gm.metalness = 1;
+    gm.roughness = 0.03;
+    gm.envMapIntensity = 2.6;
     v.canopy.material = gm;
   }
   // canopy sill: the raised rail the canopy seals onto
