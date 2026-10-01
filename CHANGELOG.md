@@ -3,6 +3,10 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.31.1 — Louder heartbeat (2026-10-01)
+
+- The blackout heartbeat is a little louder (about 30 %).
+
 ## v4.31.0 — 10 bug fixes (2026-10-01)
 
 - Fixed: blacked out (G-LOC), you could still fire missiles, drop flares, move the throttle, lock targets, work the gear and eject. Now all controls are frozen until you come round, as intended. The camera, pause and map still work, and the aim point follows the jet so waking up does not yank it round.
