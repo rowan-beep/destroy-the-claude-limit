@@ -3,6 +3,12 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.29.2 — Blackout sound fixes (2026-10-01)
+
+- The heartbeat during a blackout is now a soft, low thump at a reasonable volume instead of a loud bang.
+- Coming round from a blackout, the jet now eases back up to exactly the volume it had before, instead of slamming back in at full volume.
+- At 9.0 G and above your whole view is now fully blurred.
+
 ## v4.29.1 — Hear the heartbeat (2026-10-01)
 
 - While you are blacked out the jet's sound drops by 90 % so you can hear your heartbeat. When you come round the jet goes straight back to your own volume setting.

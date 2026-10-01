@@ -5,6 +5,7 @@
 //   >= +10.5 G       G-LOC: pitch black for exactly 10 s, controls frozen
 //                    (the view drains, closes to a pinhole and goes dark;
 //                    then only the heartbeat, at 55 bpm, until you come round)
+//   >= +9.0 G        the whole view is a full blur
 //   G limiter on     G-LOC cannot happen: the grey-out stays, and a hard,
 //                    sustained pull blurs the view now and then
 //   -2.0 .. -4.9 G   partial red-out: 50 % crimson wash
@@ -168,6 +169,8 @@ export class PilotPhysiology {
     } else if (w === 0) {
       this.blurT = 0;
     }
+    // 9 G and up: everything is a blur
+    v.blur = Math.max(v.blur, smooth((g - 8.5) / 0.5));
 
     // negative G
     if (g <= -5.0) v.redout = 1;

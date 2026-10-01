@@ -747,19 +747,26 @@ export class AudioEngine {
     const t = this.ctx.currentTime;
     this.master.gain.setTargetAtTime(this.muted ? 0 : this.levels.master, t, 0.05);
     // blacked out: the jet drops to 10 % so the heartbeat comes through
+    // (coming round it eases back up to exactly the set level, not with a jolt)
     const jet = this.levels.engine * (this.blackedOut ? 0.1 : 1);
-    this.engineBus.gain.setTargetAtTime(jet, t, this.blackedOut ? 0.4 : 0.05);
-    this.cabinBus.gain.setTargetAtTime(jet, t, this.blackedOut ? 0.4 : 0.05);
+    const tc = this.blackedOut ? 0.4 : this.waking ? 0.6 : 0.05;
+    this.waking = false;
+    this.engineBus.gain.cancelScheduledValues(t);
+    this.cabinBus.gain.cancelScheduledValues(t);
+    this.engineBus.gain.setTargetAtTime(jet, t, tc);
+    this.cabinBus.gain.setTargetAtTime(jet, t, tc);
     this.fxBus.gain.setTargetAtTime(this.levels.effects, t, 0.05);
     this.warnBus.gain.setTargetAtTime(this.levels.warnings, t, 0.05);
     this.uiBus.gain.setTargetAtTime(Math.max(0.3, this.levels.effects), t, 0.05);
   }
 
   private blackedOut = false;
+  private waking = false;
 
   /** The pilot is out cold (G-LOC): duck the jet by 90 %; back to the set level on waking. */
   setBlackedOut(b: boolean): void {
     if (b === this.blackedOut) return;
+    this.waking = !b;
     this.blackedOut = b;
     this.applyLevels();
   }
@@ -1276,9 +1283,10 @@ export class AudioEngine {
   /** One heartbeat while blacked out: the strong "lub", then a softer "dub". */
   heartbeat(strong: boolean): void {
     if (!this.ctx) return;
-    const v = strong ? 0.6 : 0.4;
-    this.tone(strong ? 64 : 56, 36, 0.17, v, 'sine');
-    this.burst(this.brownB, { type: 'lowpass', f0: 170, f1: 55, dur: 0.15, vol: v * 0.55 });
+    // a soft, low thump: about as loud as the cockpit tones, never a blast
+    const v = strong ? 0.16 : 0.1;
+    this.tone(strong ? 64 : 56, 38, 0.16, v, 'sine');
+    this.burst(this.brownB, { type: 'lowpass', f0: 150, f1: 55, dur: 0.12, vol: v * 0.3 });
   }
 
   /** Flare / chaff cartridge: the squib's pop, the crack of the cartridge and the flare burning away. */

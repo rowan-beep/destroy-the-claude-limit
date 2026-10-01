@@ -10,6 +10,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.29.2',
+    date: '2026-10-01',
+    title: 'Blackout sound fixes',
+    notes: [
+      "The heartbeat during a blackout is now a soft, low thump at a reasonable volume instead of a loud bang.",
+      "Coming round from a blackout, the jet now eases back up to exactly the volume it had before, instead of slamming back in at full volume.",
+      "At 9.0 G and above your whole view is now fully blurred.",
+    ],
+  },
+  {
     version: '4.29.1',
     date: '2026-10-01',
     title: 'Hear the heartbeat',
