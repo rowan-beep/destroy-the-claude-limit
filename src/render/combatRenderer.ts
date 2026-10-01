@@ -20,6 +20,7 @@ import { rand, randGauss } from '../core/rng';
 import { srgb } from '../core/math';
 import { terrainHeight } from '../world/terrain';
 import { EjectionEffects } from './ejection';
+import { JetDeathFx } from './jetDeath';
 
 const TRACER_VERT = /* glsl */ `
 attribute vec3 iStart;
@@ -101,6 +102,8 @@ export class CombatRenderer {
   private vortices = new Map<Aircraft, Trail[]>();
   private flash: THREE.PointLight;
   private flashT = 0;
+  private flashDecay = 14;
+  private death: JetDeathFx;
   private time = 0;
   /** hot exhaust columns this frame (for the heat haze) */
   readonly haze: HazeSource[] = [];
@@ -149,6 +152,19 @@ export class CombatRenderer {
 
     this.flash = new THREE.PointLight(0xffaa55, 0, 1500, 1.6);
     scene.add(this.flash);
+    this.death = new JetDeathFx(
+      scene,
+      this.fire,
+      this.smoke,
+      (pos, size, life) => this.addFire(pos, size, life),
+      (pos, intensity, dur) => {
+        this.flash.position.copy(pos);
+        this.flash.intensity = Math.max(this.flash.intensity, intensity);
+        this.flashT = Math.max(this.flashT, dur);
+        this.flashDecay = 4 / dur;
+      },
+      (x, z) => terrainHeight(x, z),
+    );
 
     const ev = sim.events;
     this.unsub.push(
@@ -172,6 +188,7 @@ export class CombatRenderer {
     for (const a of [...this.aircraftVis.keys()]) this.removeAircraft(a);
     for (const m of [...this.missileVis.keys()]) this.removeMissile(m);
     this.eject.clear();
+    this.death.clear();
     this.scene.remove(this.smoke.mesh, this.fire.mesh, this.trails.mesh, this.tracerMesh, this.flash);
   }
 
@@ -333,6 +350,7 @@ export class CombatRenderer {
     this.flash.position.copy(pos);
     this.flash.intensity = 4e6 * s;
     this.flashT = 0.25;
+    this.flashDecay = 14;
     this.onExplosion?.(pos, s);
   }
 
@@ -360,6 +378,7 @@ export class CombatRenderer {
     if (a.fm.crashed) return; // crash handler does the fireball
     if (a.ejected) return; // the jet flies on unmanned until it hits something
     this.explode(p, 1.3, 'air');
+    this.death.airKill(p, a.fm.vel);
     this.eject.debris(a, new THREE.Color(a.spec.paint.top));
     const v = this.aircraftVis.get(a);
     if (v) darkenAirframe(v);
@@ -374,7 +393,8 @@ export class CombatRenderer {
     const g = Math.max(0, terrainHeight(pos.x, pos.z));
     const p = new THREE.Vector3(pos.x, Math.max(pos.y, g + 1), pos.z);
     this.explode(p, 1.6, water ? 'water' : 'ground');
-    if (!water) this.burns.push({ pos: p.clone(), t: 0, life: rand(50, 90), size: 1 });
+    this.death.impact(p, a.fm.vel, water);
+    if (!water) this.burns.push({ pos: p.clone(), t: 0, life: rand(60, 120), size: 1.4 });
     const v = this.aircraftVis.get(a);
     if (v) {
       v.root.visible = false;
@@ -452,6 +472,7 @@ export class CombatRenderer {
       if (Math.random() < 0.35) this.smoke.spawn({ x: b.pos.x + randGauss() * 3 * z, y: b.pos.y + 3 * z, z: b.pos.z + randGauss() * 3 * z, vx: 2, vy: rand(6, 12), vz: 1, life: rand(10, 18), size0: 6 * z, size1: 45 * z, c0: DARK_SMOKE, c1: GREY_SMOKE, a0: 0.6 * k + 0.1, a1: 0, drag: 0.2 });
     }
 
+    this.death.update(dt);
     this.eject.update(dt, this.time);
     this.updateTracers();
     this.smoke.update(dt, cam);
@@ -460,7 +481,7 @@ export class CombatRenderer {
 
     if (this.flashT > 0) {
       this.flashT -= dt;
-      this.flash.intensity *= Math.exp(-dt * 14);
+      this.flash.intensity *= Math.exp(-dt * this.flashDecay);
       if (this.flashT <= 0) this.flash.intensity = 0;
     }
   }

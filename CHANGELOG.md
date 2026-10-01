@@ -3,6 +3,13 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.30.0 — Going down in flames (2026-10-01)
+
+- Jets now die spectacularly. Blown apart in the air: a white-hot flash, a huge fireball carried on along the jet's flight path, the fuel cells and stores going up one after another a split second apart, a shock shell racing out, a shower of sparks, and a spray of burning fragments arcing away on smoke trails, leaving a drifting black pall behind.
+- Into the ground: a blinding flash and a shock ring racing across the ground, a fireball thrown forward along the impact path that boils up into a rising column of fire and a mushroom of black smoke, dirt and rock blasted out and falling back, a dust skirt rolling outward, burning wreckage tumbling on ahead, and fuel left burning in a long smear along the impact path.
+- Into the sea: a towering white plume and curtain of spray, a ring of churned water, a fireball flashing off the surface, burning fuel on the water and steam hanging over the spot.
+- All built on the existing smoke and fire effects, so big furballs stay smooth.
+
 ## v4.29.3 — Louder heartbeat (2026-10-01)
 
 - The blackout heartbeat is 70 % louder.
