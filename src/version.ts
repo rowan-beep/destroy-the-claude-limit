@@ -10,6 +10,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.26.1',
+    date: '2026-10-01',
+    title: 'Clean drop tanks',
+    notes: [
+      "External fuel tanks no longer have tail fins: every jet now carries a plain, smooth drop tank.",
+    ],
+  },
+  {
     version: '4.26.0',
     date: '2026-10-01',
     title: 'Jade Archipelago',

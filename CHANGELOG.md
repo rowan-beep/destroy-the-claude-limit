@@ -3,6 +3,10 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.26.1 — Clean drop tanks (2026-10-01)
+
+- External fuel tanks no longer have tail fins: every jet now carries a plain, smooth drop tank.
+
 ## v4.26.0 — Jade Archipelago (2026-10-01)
 
 - New map: Jade Archipelago, 80 x 80 nautical miles of wild tropical islands. It is now the default map.

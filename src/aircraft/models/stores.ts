@@ -268,13 +268,7 @@ function tank(): THREE.BufferGeometry {
   const L = 5.0, r = 0.38;
   const R = curve([[-2.5, 0.01], [-2.1, 0.2], [-1.4, 0.34], [-0.6, r], [1.0, r], [1.9, 0.27], [2.4, 0.1], [2.5, 0.02]]);
   const prof: P2[] = stations(-L / 2, L / 2, 40, 0.2, 0.2).map((z) => [Math.max(0.004, R(z)), z] as P2);
-  const parts: THREE.BufferGeometry[] = [paintBands(lathe(prof, 36, 0, 0, true, true), TANK, [[-0.62, -0.6, new THREE.Color('#5a6166')], [1.2, 1.22, new THREE.Color('#5a6166')]])];
-  for (let k = 0; k < 3; k++) {
-    const f = wing({ sections: [{ x: r * 0.5, le: 1.4, te: 2.2, t: 0.06 }, { x: r + 0.26, le: 1.85, te: 2.25, t: 0.05 }], chordPts: 10, spanSub: 2, tip: 'round', root: 'flat' });
-    f.rotateZ(-Math.PI / 2 + (k - 1) * ((2 * Math.PI) / 3));
-    parts.push(paintBands(f, TANK, []));
-  }
-  return join(parts);
+  return paintBands(lathe(prof, 36, 0, 0, true, true), TANK, [[-0.62, -0.6, new THREE.Color('#5a6166')], [1.2, 1.22, new THREE.Color('#5a6166')]]);
 }
 
 // ---------------------------------------------------------------------------
