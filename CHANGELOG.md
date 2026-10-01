@@ -3,6 +3,11 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.30.1 — Bug fixes (2026-10-01)
+
+- Fixed: in 10 Waves on the Jade Archipelago, enemy flights could spawn beyond the edge of the map (their start distances were set for the much bigger theaters). They now start at distances scaled to the map, and always inside it.
+- Fixed: Airstrike on the Jade Archipelago used start and target distances meant for the big theaters, so an airborne start was pushed against the map edge. Those distances now scale with the map size too. The bigger maps are unchanged.
+
 ## v4.30.0 — Going down in flames (2026-10-01)
 
 - Jets now die spectacularly. Blown apart in the air: a white-hot flash, a huge fireball carried on along the jet's flight path, the fuel cells and stores going up one after another a split second apart, a shock shell racing out, a shower of sparks, and a spray of burning fragments arcing away on smoke trails, leaving a drifting black pall behind.

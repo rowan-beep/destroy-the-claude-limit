@@ -11,9 +11,9 @@ import { GameMode, ModeStatus, ResultButton, braa, statsFor } from './mode';
 import { Aircraft } from '../../aircraft/aircraft';
 import { AIPilot } from '../../ai/pilot';
 import { waveDef, WaveDef } from '../../ai/skill';
-import { AIRFIELD_BY_ID, AIRFIELDS, airfieldsOf, fromRunwayLocal, ROLES, mapAlt } from '../../world/islands';
+import { AIRFIELD_BY_ID, AIRFIELDS, airfieldsOf, fromRunwayLocal, ROLES, mapAlt, mapScale } from '../../world/islands';
 import { spawnOnRunway, spawnInAir, pickEnemyType, aiStores, nextRedCallsign, resetCallsigns } from '../spawn';
-import { NM, FT } from '../../core/constants';
+import { NM, FT, MAP_HALF } from '../../core/constants';
 import { rand } from '../../core/rng';
 
 type Phase = 'brief' | 'combat' | 'intermission' | 'victory' | 'failed';
@@ -88,9 +88,13 @@ export class WavesMode extends GameMode {
       const dist = toPlayer.length();
       toPlayer.normalize();
       // flights arrive in sequence: each later flight starts further out
-      const minD = (42 + fl * 20) * NM, maxD = (62 + fl * 20) * NM;
+      // (closer on a small map, so they never start off its edge)
+      const k = mapScale();
+      const minD = (42 + fl * 20) * NM * k, maxD = (62 + fl * 20) * NM * k;
       if (dist < minD) pos.addScaledVector(toPlayer, -(minD - dist));
       else if (dist > maxD) pos.addScaledVector(toPlayer, dist - maxD);
+      pos.x = THREE.MathUtils.clamp(pos.x, -MAP_HALF * 0.92, MAP_HALF * 0.92);
+      pos.z = THREE.MathUtils.clamp(pos.z, -MAP_HALF * 0.92, MAP_HALF * 0.92);
       const hdg = (Math.atan2(toPlayer.x, -toPlayer.z) * 180) / Math.PI;
       // patrol route: sweep toward the blue side of the theater
       const blue = airfieldsOf('blue');

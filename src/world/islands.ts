@@ -366,6 +366,15 @@ export const ROLES: MapRoles = {
 };
 
 /** Make `id` the active map's layout (islands, airfields, roles). */
+/**
+ * How far apart things in a mode are set, relative to the 200 NM theater the
+ * modes were laid out on: 1 there and on bigger maps, less on smaller ones,
+ * so nothing is placed beyond the edge of a small map.
+ */
+export function mapScale(): number {
+  return Math.min(1, Math.max(0.4, activeMap.sizeNm / 200));
+}
+
 export function applyMapData(id: MapId): void {
   activeMap = MAPS.find((m) => m.id === id) ?? MAPS.find((m) => m.id === 'triad')!;
   const which = activeMap.id;

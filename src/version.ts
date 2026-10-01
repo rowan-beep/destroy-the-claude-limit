@@ -10,6 +10,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.30.1',
+    date: '2026-10-01',
+    title: 'Bug fixes',
+    notes: [
+      "Fixed: in 10 Waves on the Jade Archipelago, enemy flights could spawn beyond the edge of the map (their start distances were set for the much bigger theaters). They now start at distances scaled to the map, and always inside it.",
+      "Fixed: Airstrike on the Jade Archipelago used start and target distances meant for the big theaters, so an airborne start was pushed against the map edge. Those distances now scale with the map size too. The bigger maps are unchanged.",
+    ],
+  },
+  {
     version: '4.30.0',
     date: '2026-10-01',
     title: 'Going down in flames',

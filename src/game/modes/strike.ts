@@ -21,7 +21,7 @@ import { GameMode, ModeStatus, ResultButton, statsFor, braa } from './mode';
 import { Aircraft } from '../../aircraft/aircraft';
 import { AIPilot } from '../../ai/pilot';
 import { duelSkill } from '../../ai/skill';
-import { AIRFIELDS, airfieldsOf, AirfieldDef, fromRunwayLocal, ROLES, mapAlt, activeMap } from '../../world/islands';
+import { AIRFIELDS, airfieldsOf, AirfieldDef, fromRunwayLocal, ROLES, mapAlt, activeMap, mapScale } from '../../world/islands';
 import { spawnOnRunway, spawnInAir, aiStores, pickEnemyType } from '../spawn';
 import { NM, DEG, MAP_HALF } from '../../core/constants';
 import { SPECS, strikeLoadout, AircraftType } from '../../aircraft/specs';
@@ -122,7 +122,7 @@ export class StrikeMode extends GameMode {
       const h = grid.height(x, z);
       if (h < 25 || h > activeMap.maxTerrain * 0.55) continue;
       if (AIRFIELDS.some((f) => Math.hypot(f.x - x, f.z - z) < 7000)) continue;
-      if (airfieldsOf('blue').some((f) => Math.hypot(f.x - x, f.z - z) < 45 * NM)) continue;
+      if (airfieldsOf('blue').some((f) => Math.hypot(f.x - x, f.z - z) < 45 * NM * mapScale())) continue;
       let lo = h, hi = h, water = false;
       for (const r of [250, 520]) {
         for (let k = 0; k < 8; k++) {
@@ -178,14 +178,14 @@ export class StrikeMode extends GameMode {
     // where the player starts
     const blue = airfieldsOf('blue');
     let start: Plan['start'];
-    const far = blue.filter((f) => Math.hypot(f.x - x, f.z - z) > 45 * NM);
+    const far = blue.filter((f) => Math.hypot(f.x - x, f.z - z) > 45 * NM * mapScale());
     if (Math.random() < 0.55 && (far.length || blue.length)) start = { kind: 'runway', field: pick(far.length ? far : blue) };
     else {
-      // airborne, 60-110 NM out on the friendly side of the target
+      // airborne, 60-110 NM out on the friendly side of the target (closer on a small map)
       const b = ROLES.blueHome;
       const base = Math.atan2(b.cz - z, b.cx - x);
       const a = base + rnd(-0.6, 0.6);
-      const d = rnd(60, 110) * NM;
+      const d = rnd(60, 110) * NM * mapScale();
       const px = THREE.MathUtils.clamp(x + Math.cos(a) * d, -MAP_HALF * 0.9, MAP_HALF * 0.9);
       const pz = THREE.MathUtils.clamp(z + Math.sin(a) * d, -MAP_HALF * 0.9, MAP_HALF * 0.9);
       const alt = Math.max(mapAlt(rnd(5500, 8500)), this.host.sim.grid.height(px, pz) + 1800);
