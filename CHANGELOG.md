@@ -3,6 +3,16 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.26.0 — Jade Archipelago (2026-10-01)
+
+- New map: Jade Archipelago, 80 x 80 nautical miles of wild tropical islands. It is now the default map.
+- 20 islands and no two alike: the 3,150 m Mauna Jade stratovolcano in the middle, a broad shield volcano, a highland plateau, limestone karst towers, two coral atolls with lagoons, a flooded caldera, a crescent bay, a long ridge, a red-rock mesa, a cinder cone, sea needles, rolling hills, a twin-peaked island and small sandy cays.
+- The trees change with the land: coconut palms along the beaches and on the cays, giant rainforest trees on the lowland slopes, and conifers higher up. The tallest summits rise above the tree line to bare rock.
+- Beaches of white coral sand, with black sand on the volcanic islands, reefs and bright turquoise shallows that fade into deep blue water.
+- Two runways: TAMARU AB (your base, in the southwest) and KAHIKI AB (the enemy base, in the northeast). Mauna Jade sits between them as the contested island.
+- The water is still: it gets its depth and colour from the sea floor, with no wave animation, so frame rates stay high.
+- The older maps are still in the map list.
+
 ## v4.25.0 — MiG-31 Foxhound (2026-09-30)
 
 - New jet: the Mikoyan MiG-31BM Foxhound, the fastest jet in the game. A two-seat interceptor that reaches Mach 2.83 up high (Mach 1.23 on the deck), 67,600 ft, with two D-30F6 afterburning turbofans. It is heavy and limited to 5 G: it cannot turn with the fighters, so it wins by speed and range.

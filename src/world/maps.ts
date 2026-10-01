@@ -9,7 +9,7 @@ import { refreshTerrainCaches } from './terrain';
 
 const KEY = 'triad.map.v1';
 /** New players start on the newest map. */
-export const DEFAULT_MAP: MapId = 'frost';
+export const DEFAULT_MAP: MapId = 'jade';
 
 /** Make `id` the active map everywhere in this thread (main or worker). */
 export function applyMap(id: MapId): void {

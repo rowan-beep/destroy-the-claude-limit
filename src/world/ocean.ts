@@ -130,6 +130,7 @@ export class Ocean {
     grid: HeightGrid,
   ) {
     const frost = activeMap.id === 'frost';
+    const jade = activeMap.id === 'jade';
     const srgb = (r: number, g: number, b: number) => new THREE.Color().setRGB(r, g, b, THREE.SRGBColorSpace);
     const u = env.uniformsForWater;
     this.mat = new THREE.ShaderMaterial({
@@ -144,9 +145,9 @@ export class Ocean {
           sunColor: { value: new THREE.Color() },
           horizonColor: { value: new THREE.Color() },
           zenithColor: { value: new THREE.Color() },
-          deepColor: { value: frost ? srgb(0.02, 0.1, 0.24) : srgb(0.02, 0.13, 0.27) },
-          midColor: { value: frost ? srgb(0.04, 0.25, 0.46) : srgb(0.03, 0.3, 0.46) },
-          shallowColor: { value: frost ? srgb(0.2, 0.56, 0.68) : srgb(0.12, 0.6, 0.62) },
+          deepColor: { value: frost ? srgb(0.02, 0.1, 0.24) : jade ? srgb(0.02, 0.15, 0.33) : srgb(0.02, 0.13, 0.27) },
+          midColor: { value: frost ? srgb(0.04, 0.25, 0.46) : jade ? srgb(0.02, 0.4, 0.56) : srgb(0.03, 0.3, 0.46) },
+          shallowColor: { value: frost ? srgb(0.2, 0.56, 0.68) : jade ? srgb(0.16, 0.8, 0.76) : srgb(0.12, 0.6, 0.62) },
           depthMap: { value: depthTexture(grid) },
           mapHalf: { value: MAP_HALF },
         },

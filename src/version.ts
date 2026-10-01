@@ -10,6 +10,20 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.26.0',
+    date: '2026-10-01',
+    title: 'Jade Archipelago',
+    notes: [
+      "New map: Jade Archipelago, 80 x 80 nautical miles of wild tropical islands. It is now the default map.",
+      "20 islands and no two alike: the 3,150 m Mauna Jade stratovolcano in the middle, a broad shield volcano, a highland plateau, limestone karst towers, two coral atolls with lagoons, a flooded caldera, a crescent bay, a long ridge, a red-rock mesa, a cinder cone, sea needles, rolling hills, a twin-peaked island and small sandy cays.",
+      "The trees change with the land: coconut palms along the beaches and on the cays, giant rainforest trees on the lowland slopes, and conifers higher up. The tallest summits rise above the tree line to bare rock.",
+      "Beaches of white coral sand, with black sand on the volcanic islands, reefs and bright turquoise shallows that fade into deep blue water.",
+      "Two runways: TAMARU AB (your base, in the southwest) and KAHIKI AB (the enemy base, in the northeast). Mauna Jade sits between them as the contested island.",
+      "The water is still: it gets its depth and colour from the sea floor, with no wave animation, so frame rates stay high.",
+      "The older maps are still in the map list.",
+    ],
+  },
+  {
     version: '4.25.0',
     date: '2026-09-30',
     title: "MiG-31 Foxhound",

@@ -224,7 +224,7 @@ export function buildTrees(req: TreeRequest): TreeResult {
       const d = treeDensity(x, z, info, slope);
       if (r3 >= d) continue;
       const kind = treeKind(info, r4);
-      const scale = 0.75 + 0.6 * r5 * r5 + (kind === 0 && info.island === 'samos' ? 0.15 : 0);
+      const scale = kind === 5 ? 1.0 + 0.55 * r5 : kind === 4 ? 0.85 + 0.35 * r5 : 0.75 + 0.6 * r5 * r5 + (kind === 0 && info.island === 'samos' ? 0.15 : 0);
       tmp.push(x - cx, h - 1.2, z - cz, scale, r1 * Math.PI * 2, kind, r2);
     }
   }

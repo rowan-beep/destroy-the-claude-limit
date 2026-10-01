@@ -12,7 +12,7 @@ import { srgbToLinear } from '../core/math';
 
 const CELL = 1024;
 const SPACING = 30;
-const KINDS = 4;
+const KINDS = 6;
 const NEAR_CAP = 60000;
 const FAR_CAP = 60000;
 const FAR_FRACTION = 0.4;
@@ -93,6 +93,48 @@ function buildTreeGeometry(kind: number, far: boolean): THREE.BufferGeometry {
     parts.push(trunk(2, 0.3, 4));
     parts.push(cone(1.4, 15, 1, seg, [0.09, 0.17, 0.09]));
     if (!far) parts.push(blob(1.5, 4, 1.6, 0, [0.1, 0.18, 0.1]));
+  } else if (kind === 4) {
+    // coconut palm: a slender curved trunk leaning out, a crown of long drooping fronds
+    const lean = 0.18;
+    const segs = far ? 2 : 4;
+    let px = 0, py = 0;
+    for (let i = 0; i < segs; i++) {
+      const h = 13 / segs;
+      const g = new THREE.CylinderGeometry(0.2, 0.26, h, far ? 4 : 6, 1, true);
+      g.rotateZ(-lean * (0.4 + i / segs));
+      g.translate(px + Math.sin(lean * (0.4 + i / segs)) * h * 0.5, py + h * 0.5, 0);
+      parts.push(colorize(nonIndexed(g), 0.42, 0.36, 0.27, 0.06));
+      px += Math.sin(lean * (0.4 + i / segs)) * h;
+      py += Math.cos(lean * (0.4 + i / segs)) * h;
+    }
+    const fronds = far ? 6 : 10;
+    for (let i = 0; i < fronds; i++) {
+      const a = (i / fronds) * Math.PI * 2 + (i % 2) * 0.2;
+      const len = 5.2 + (i % 3) * 0.5;
+      const f = new THREE.ConeGeometry(0.75, len, 3, 1, false);
+      f.scale(1, 1, 0.12);
+      f.translate(0, len / 2, 0);
+      // out from the crown and drooping toward the tip
+      f.rotateZ(-Math.PI / 2 + 0.55 + (i % 2) * 0.25);
+      f.rotateY(a);
+      f.translate(px, py, 0);
+      parts.push(colorize(nonIndexed(f), i % 2 ? 0.2 : 0.24, i % 2 ? 0.38 : 0.42, 0.12, 0.1));
+    }
+    if (!far) parts.push(blob(0.55, py - 0.5, 0.9, 0, [0.36, 0.3, 0.14]));
+  } else if (kind === 5) {
+    // rainforest emergent: a tall straight trunk on buttress roots, a wide flat crown
+    parts.push(cone(1.6, 3.2, 0, far ? 4 : 6, [0.33, 0.28, 0.2]));
+    parts.push(trunk(19, 0.55, far ? 4 : 6));
+    const g1: [number, number, number] = [0.1, 0.24, 0.08];
+    const g2: [number, number, number] = [0.13, 0.28, 0.1];
+    if (far) parts.push(blob(6.5, 20, 0.42, 0, g1));
+    else {
+      parts.push(blob(5.2, 20.5, 0.45, 1, g1));
+      for (let i = 0; i < 4; i++) {
+        const a = i * 1.7 + 0.4;
+        parts.push(blob(3.6, 19.5 + (i % 2), 0.5, 0, i % 2 ? g2 : g1).translate(Math.cos(a) * 3.8, 0, Math.sin(a) * 3.8));
+      }
+    }
   } else {
     // broadleaf (oak / plane)
     parts.push(trunk(4.5, 0.4, far ? 4 : 6));

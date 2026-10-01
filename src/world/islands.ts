@@ -5,6 +5,8 @@
 //  TRIAD ISLES       400 x 400 NM: Skye, Capri and Samos.
 //  FROSTFALL STRAIT  200 x 200 NM: a frozen arctic archipelago of huge
 //                    snow-covered ranges, pack ice and a contested island.
+//  JADE ARCHIPELAGO  80 x 80 NM: twenty tropical islands, every one
+//                    different, jungle and beaches, one runway per side.
 //
 // applyMapData() swaps the active map in place (ISLANDS, AIRFIELDS and the
 // lookup tables are mutated, so every importer sees the new map).
@@ -13,7 +15,9 @@ import { NM, Team, nmToWorld } from '../core/constants';
 
 export type IslandId = string;
 /** Which terrain generator shapes the island. */
-export type IslandStyle = 'skye' | 'capri' | 'samos' | 'frost' | 'islet';
+export type IslandStyle = 'skye' | 'capri' | 'samos' | 'frost' | 'islet' | 'tropic';
+/** Jade Archipelago: the shape of each tropical island. */
+export type TropicKind = 'strato' | 'shield' | 'highland' | 'karst' | 'atoll' | 'caldera' | 'twin' | 'ridge' | 'mesa' | 'cone' | 'spires' | 'hills' | 'crescent' | 'cay';
 
 export interface IslandDef {
   id: IslandId;
@@ -38,6 +42,9 @@ export interface IslandDef {
   reff: number;
   /** bounding radius for fast rejection (includes continental shelf) */
   bound: number;
+  /** tropical islands: their landform and its highest point (m) */
+  kind?: TropicKind;
+  peak?: number;
 }
 
 function island(
@@ -132,6 +139,41 @@ const FROST_ISLANDS: IslandDef[] = [
   island('skjaer3', 'islet', 'SKJÆR', 'Rocky islets.', 'contested', 40, 41, 3.2, 2.6, -15, 0.8),
   island('skjaer4', 'islet', 'SKJÆR', 'Rocky islets.', 'contested', -46, -24, 3.6, 2.8, 35, 0.8),
   island('skjaer5', 'islet', 'SKJÆR', 'Rocky islets.', 'contested', 4, -30, 3, 2.4, 0, 0.8),
+];
+
+// Jade Archipelago: twenty tropical islands in an 80 x 80 NM sea, each one a
+// different landform. BLUE flies from Tamaru in the south-west, RED from
+// Kahiki in the north-east; the great volcano Mauna Jade stands between them.
+function tropic(id: string, name: string, description: string, owner: Team | 'contested', x: number, y: number, rx: number, ry: number, rot: number, kind: TropicKind, peak: number, warp = 0.9): IslandDef {
+  const i = island(id, 'tropic', name, description, owner, x, y, rx, ry, rot, warp);
+  i.kind = kind;
+  i.peak = peak;
+  // a small sea: shelves are kilometres, not tens of kilometres
+  i.bound = Math.max(i.rx, i.ry) * 1.45 + 9000;
+  return i;
+}
+
+const JADE_ISLANDS: IslandDef[] = [
+  tropic('tamaru', 'TAMARU', 'A long jungle range above a wide coastal plain and white beaches. Home of the BLUE coalition.', 'blue', -23, -21, 9, 6.5, 15, 'highland', 1900),
+  tropic('kahiki', 'KAHIKI', 'A broad shield volcano wrapped in rainforest, black-sand beaches on its flanks. Home of the RED coalition.', 'red', 24, 22, 9, 7, -10, 'shield', 2300),
+  tropic('mauna', 'MAUNA JADE', 'The great volcano in the middle of the archipelago: a 10,000 ft cone of rainforest, cloud forest and bare rock. Contested.', 'contested', 1, 1, 7.5, 6.5, 8, 'strato', 3150),
+  tropic('tuaha', 'TUAHA', 'Hundreds of sheer limestone towers rising straight out of the jungle and the sea.', 'contested', -9, 25, 5.5, 3.5, 20, 'karst', 420),
+  tropic('lagoa', 'LAGOA ATOLL', 'A ring of palm-covered sand around a turquoise lagoon.', 'contested', 31, -24, 4.2, 3.6, 0, 'atoll', 6),
+  tropic('nalu', 'NALU', 'Twin jungle volcanoes joined by a high saddle.', 'contested', -31, 18, 4.5, 3.2, -25, 'twin', 1650),
+  tropic('motu', 'MOTU', 'A tiny sand cay with a few palms.', 'contested', 12, -7, 1.1, 0.8, 30, 'cay', 3),
+  tropic('kaluna', 'KALUNA CALDERA', 'The broken rim of a sunken volcano, its crater flooded by the sea.', 'contested', 17, -17, 4, 3.6, 0, 'caldera', 820),
+  tropic('reva', 'REVA', 'A knife-edged jungle ridge running thirty kilometres out to sea.', 'contested', -6, -31, 7.5, 1.8, 25, 'ridge', 1050),
+  tropic('mesa', 'TAPU MESA', 'A flat-topped plateau ringed by red cliffs.', 'contested', 35, 3, 3.4, 2.6, -15, 'mesa', 560),
+  tropic('ahi', 'AHI', 'A steep young volcanic cone, its upper slopes still bare rock.', 'contested', -35, -4, 2.8, 2.6, 0, 'cone', 1350),
+  tropic('pinna', 'PINNA', 'A small cluster of limestone stacks and coves.', 'contested', 8, 33, 3, 2, -10, 'karst', 300),
+  tropic('kea', 'KEA CAY', 'A sand cay on the reef.', 'contested', -19, 5, 1.4, 1.0, 60, 'cay', 3),
+  tropic('needles', 'THE NEEDLES', 'A cluster of needle peaks, sheer rock above the jungle.', 'contested', -22, 34, 3, 2.4, 15, 'spires', 1500),
+  tropic('vaitu', 'VAITU', 'Low rolling green hills and long beaches.', 'contested', -1, -16, 4, 3, -20, 'hills', 380),
+  tropic('manu', 'MANU ATOLL', 'A small ring of palms around a shallow lagoon.', 'contested', -35, 35, 2.8, 2.5, 20, 'atoll', 5),
+  tropic('ula', 'ULA CAY', 'A lone sand cay at the edge of the reef.', 'contested', 35, -36, 1.0, 0.8, 0, 'cay', 3),
+  tropic('kalo', 'KALO', 'A narrow rocky ridge with jungle on its lee side.', 'contested', 13, 12, 3, 1.4, -35, 'ridge', 700),
+  tropic('ohana', 'OHANA BAY', 'A crescent island curled around a sheltered bay.', 'contested', -36, -34, 3.5, 3, 30, 'crescent', 640),
+  tropic('sola', 'SOLA CAY', 'A sand cay ringed by coral.', 'contested', 5, -35, 1.2, 0.9, -20, 'cay', 3),
 ];
 
 /** The active map's islands (mutated in place by applyMapData). */
@@ -237,6 +279,12 @@ const FROST_AIRFIELDS: AirfieldDef[] = [
   field('hvitaost', 'HVITØY EAST AB', 'ENHE', 'red', 'hvitoy', -10, -2, 192, 26, '86X'),
 ];
 
+// one runway per side, each on its home island's coastal plain
+const JADE_AIRFIELDS: AirfieldDef[] = [
+  field('tamaru', 'TAMARU AB', 'NTTA', 'blue', 'tamaru', -24, -24, 75, 12, '24X'),
+  field('kahiki', 'KAHIKI AB', 'NTKH', 'red', 'kahiki', 27, 19, 40, 14, '68X'),
+];
+
 /** The active map's airfields (mutated in place by applyMapData). */
 export const AIRFIELDS: AirfieldDef[] = [...TRIAD_AIRFIELDS];
 
@@ -246,7 +294,7 @@ export const AIRFIELD_BY_ID: Record<string, AirfieldDef> = Object.fromEntries(AI
 // Maps
 // ---------------------------------------------------------------------------
 
-export type MapId = 'triad' | 'frost';
+export type MapId = 'triad' | 'frost' | 'jade';
 
 export interface MapInfo {
   id: MapId;
@@ -262,6 +310,15 @@ export interface MapInfo {
 }
 
 export const MAPS: MapInfo[] = [
+  {
+    id: 'jade',
+    name: 'JADE ARCHIPELAGO',
+    sizeNm: 80,
+    maxTerrain: 3300,
+    fightAlt: 5200,
+    description: 'Twenty tropical islands in an 80 × 80 NM sea, each one different: a 10,000 ft volcano, limestone towers, atolls and lagoons, a flooded caldera, needle peaks, jungle ridges and white beaches. One runway per side.',
+    places: 'TAMARU · MAUNA JADE · KAHIKI · TUAHA · KALUNA',
+  },
   {
     id: 'frost',
     name: 'FROSTFALL STRAIT',
@@ -294,7 +351,7 @@ export interface MapRoles {
   duelRed: AirfieldDef;
 }
 
-export let activeMap: MapInfo = MAPS[1];
+export let activeMap: MapInfo = MAPS.find((m) => m.id === 'triad')!;
 
 /** Scale an altitude written for Triad Isles (fights near 6,400 m) to the active map. */
 export function mapAlt(m: number): number {
@@ -310,10 +367,10 @@ export const ROLES: MapRoles = {
 
 /** Make `id` the active map's layout (islands, airfields, roles). */
 export function applyMapData(id: MapId): void {
-  activeMap = MAPS.find((m) => m.id === id) ?? MAPS[1];
-  const frost = activeMap.id === 'frost';
-  const isl = frost ? FROST_ISLANDS : TRIAD_ISLANDS;
-  const fld = frost ? FROST_AIRFIELDS : TRIAD_AIRFIELDS;
+  activeMap = MAPS.find((m) => m.id === id) ?? MAPS.find((m) => m.id === 'triad')!;
+  const which = activeMap.id;
+  const isl = which === 'frost' ? FROST_ISLANDS : which === 'jade' ? JADE_ISLANDS : TRIAD_ISLANDS;
+  const fld = which === 'frost' ? FROST_AIRFIELDS : which === 'jade' ? JADE_AIRFIELDS : TRIAD_AIRFIELDS;
   ISLANDS.length = 0;
   ISLANDS.push(...isl);
   AIRFIELDS.length = 0;
@@ -324,12 +381,18 @@ export function applyMapData(id: MapId): void {
   for (const f of fld) AIRFIELD_BY_ID[f.id] = f;
   const by = (id2: string) => isl.find((i) => i.id === id2)!;
   const fb = (id2: string) => fld.find((f) => f.id === id2)!;
-  if (frost) {
+  if (which === 'frost') {
     ROLES.arena = by('hvitoy');
     ROLES.blueHome = by('nordland');
     ROLES.redHome = by('ostmark');
     ROLES.duelBlue = fb('hvitavest');
     ROLES.duelRed = fb('hvitaost');
+  } else if (which === 'jade') {
+    ROLES.arena = by('mauna');
+    ROLES.blueHome = by('tamaru');
+    ROLES.redHome = by('kahiki');
+    ROLES.duelBlue = fb('tamaru');
+    ROLES.duelRed = fb('kahiki');
   } else {
     ROLES.arena = by('samos');
     ROLES.blueHome = by('skye');

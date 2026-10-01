@@ -43,7 +43,7 @@ export class WavesMode extends GameMode {
 
   private base() {
     const f = AIRFIELD_BY_ID[this.host.config.freeBase];
-    return f && f.team === 'blue' ? f : airfieldsOf('blue')[1];
+    return f && f.team === 'blue' ? f : airfieldsOf('blue')[1] ?? airfieldsOf('blue')[0];
   }
 
   private placePlayer(): void {
