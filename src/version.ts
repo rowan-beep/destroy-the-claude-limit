@@ -10,6 +10,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.30.5',
+    date: '2026-10-01',
+    title: 'Raptor tidy-up',
+    notes: [
+      "F-22: removed the small circle that showed on top of the right intake when viewed from the front. It was the gun muzzle marker, which no longer sat flush after the intake was reshaped. The real jet's gun hides behind a flush door, so nothing shows now. The gun still fires from the same place.",
+    ],
+  },
+  {
     version: '4.30.4',
     date: '2026-10-01',
     title: 'Raptor intake blend',

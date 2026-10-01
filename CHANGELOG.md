@@ -3,6 +3,10 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.30.5 — Raptor tidy-up (2026-10-01)
+
+- F-22: removed the small circle that showed on top of the right intake when viewed from the front. It was the gun muzzle marker, which no longer sat flush after the intake was reshaped. The real jet's gun hides behind a flush door, so nothing shows now. The gun still fires from the same place.
+
 ## v4.30.4 — Raptor intake blend (2026-10-01)
 
 - F-22: the back of each intake now joins the fuselage smoothly. The intake's top, outer wall and belly blend into the body's own shape where they meet, so there is no step or box-shaped end at the join any more. The intake mouths are unchanged.
