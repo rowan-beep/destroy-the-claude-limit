@@ -52,6 +52,10 @@ interface Known {
   lastPg: unknown;
   /** it says it directs the room */
   hosting: boolean;
+  /** its tab is in front (a hidden tab's timers crawl: it should not direct) */
+  vis: boolean;
+  /** its standing "I am down" report: [matchId, killer, weapon, cause] */
+  dn: unknown;
 }
 
 type Out = { seq: number; t: number; p: Record<string, Json> };
@@ -94,6 +98,11 @@ export class RoomLink implements NetLink {
   private jet: AircraftType = 'F15EX';
   private paint: PaintConfig | null = null;
   private lastState: number[] | null = null;
+  /** deaths already told to the online mode ("matchId:id") */
+  private deadSeen = new Set<string>();
+  private hiddenFor = 0;
+  private reconcileT = 0;
+  private onVis = () => this.setPresence({ vis: !document.hidden });
   private sq = 0;
   private mq = 0;
   private hq = 0;
@@ -138,7 +147,9 @@ export class RoomLink implements NetLink {
     }
     this.ch = ch;
     const paint = this.paint && JSON.stringify(this.paint).length < 600 ? this.paint : null;
-    this.setPresence({ v: 1, id: this.id, n: this.name, j: this.jet, pt: paint as Json });
+    this.setPresence({ v: 1, id: this.id, n: this.name, j: this.jet, pt: paint as Json, vis: !document.hidden });
+    document.addEventListener('visibilitychange', this.onVis);
+    this.unsubs.push(() => document.removeEventListener('visibilitychange', this.onVis));
     this.unsubs.push(ch.onPeers((c) => this.onPeers(c)));
     this.unsubs.push(onAdmin((cmd) => this.onAdmin(cmd)));
     // listen a moment: who is here, and is a match on?
@@ -240,6 +251,8 @@ export class RoomLink implements NetLink {
         break;
       case 'dead':
         this.deaths++;
+        // a standing report too: an event can be missed, this cannot
+        this.setPresence({ dn: [this.lastHd?.mid ?? 0, (msg.killer as Json) ?? null, String(msg.weapon ?? '').slice(0, 12), String(msg.cause ?? '').slice(0, 40)] });
         if (this.director) this.director.playerDown(this.id, (msg.killer as number | null) ?? null, String(msg.weapon ?? ''), String(msg.cause ?? ''));
         else this.post({ k: 'dead', killer: (msg.killer as Json) ?? null, weapon: String(msg.weapon ?? ''), cause: String(msg.cause ?? '') });
         break;
@@ -331,7 +344,7 @@ export class RoomLink implements NetLink {
     const name = typeof pr.n === 'string' ? pr.n.slice(0, 16) : `PILOT ${pr.id}`;
     if (!k) {
       const p: NetPlayer = { id: pr.id, name, jet, paint: (pr.pt as PaintConfig) ?? null, inMatch: false, alive: false, kills: 0 };
-      k = { peer: peer.peer, id: pr.id, p, lastSeq: 0, lastS: -1, lastMs: -1, lastHd: -1, lastAk: -1, lastPg: null, hosting: false };
+      k = { peer: peer.peer, id: pr.id, p, lastSeq: 0, lastS: -1, lastMs: -1, lastHd: -1, lastAk: -1, lastPg: null, hosting: false, vis: true, dn: null };
       this.known.set(peer.peer, k);
       if (this.settled) {
         this.players.push(p);
@@ -343,6 +356,8 @@ export class RoomLink implements NetLink {
       if (pr.pt && !k.p.paint) k.p.paint = pr.pt as PaintConfig;
     }
     k.hosting = !!pr.hd;
+    k.vis = pr.vis !== false;
+    k.dn = pr.dn ?? null;
     // the jet
     if (typeof pr.sq === 'number' && pr.sq !== k.lastS && Array.isArray(pr.s)) {
       k.lastS = pr.sq;
@@ -399,7 +414,14 @@ export class RoomLink implements NetLink {
         break;
       case 'dd':
         // the host announces a pilot down
-        if (peer.peer === this.hostPeer && !this.director) this.deliver({ t: 'dead', ...(e as unknown as DeadMsg) });
+        if (peer.peer === this.hostPeer && !this.director) {
+          const d = e as unknown as DeadMsg;
+          const key = `${this.lastHd?.mid ?? 0}:${d.id}`;
+          if (!this.deadSeen.has(key)) {
+            this.deadSeen.add(key);
+            this.deliver({ t: 'dead', ...d });
+          }
+        }
         break;
     }
   }
@@ -430,6 +452,7 @@ export class RoomLink implements NetLink {
     const key = `${h.st}:${h.mid}`;
     if (key !== this.matchKey) {
       this.matchKey = key;
+      if (h.st === 'live' && Array.isArray(this.mine.dn) && (this.mine.dn as unknown[])[0] !== h.mid) this.setPresence({ dn: null });
       const slots: Record<string, { angle: number; ring: number; tier: number }> = {};
       for (const [id, s] of Object.entries(h.sl ?? {})) slots[id] = { angle: s[0], ring: s[1], tier: s[2] };
       this.deliver({
@@ -443,7 +466,18 @@ export class RoomLink implements NetLink {
         results: h.st === 'ended' ? (h.rs ?? []).map((r) => ({ id: r[0], name: r[1], jet: r[2] as AircraftType, place: r[3], kills: r[4], killedBy: r[5] })) : undefined,
       });
     }
-    if (h.st === 'live') this.deliver(zoneFromHd(h));
+    if (h.st === 'live') {
+      this.deliver(zoneFromHd(h));
+      // anyone the host has down that we never heard about
+      const left = h.pl.filter((p) => p[1] && p[2]).length;
+      for (const [id, inMatch, alive, , place] of h.pl) {
+        if (!inMatch || alive) continue;
+        const dk = `${h.mid}:${id}`;
+        if (this.deadSeen.has(dk)) continue;
+        this.deadSeen.add(dk);
+        this.deliver({ t: 'dead', id, killer: null, weapon: '', cause: 'SHOT DOWN', place, left });
+      }
+    }
   }
 
   // ------------------------------------------------------------ hosting
@@ -456,7 +490,13 @@ export class RoomLink implements NetLink {
     if (this.director && this.myPeer) claim.push(this.myPeer);
     let host: string | null;
     if (claim.length) host = claim.sort()[0];
-    else host = [...[...this.known.keys()], this.myPeer].filter(Boolean).sort()[0] ?? null;
+    else {
+      // a new director: someone whose tab is in front, if anyone's is
+      const all = [...this.known.values()].map((k) => ({ peer: k.peer, vis: k.vis }));
+      if (this.myPeer) all.push({ peer: this.myPeer, vis: !document.hidden });
+      const pool = all.some((x) => x.vis) ? all.filter((x) => x.vis) : all;
+      host = pool.map((x) => x.peer).sort()[0] ?? null;
+    }
     this.hostPeer = host;
     if (host && host === this.myPeer) {
       if (!this.director) this.becomeHost();
@@ -476,6 +516,7 @@ export class RoomLink implements NetLink {
     d.sync(this.roster());
     d.onDead = (m) => {
       this.post({ k: 'dd', ...m } as unknown as Record<string, Json>);
+      this.deadSeen.add(`${d.matchId}:${m.id}`);
       this.deliver({ t: 'dead', ...m });
     };
     d.onChange = () => this.publishHd();
@@ -499,6 +540,25 @@ export class RoomLink implements NetLink {
     const dt = Math.min(5, (now - this.dirLast) / 1000);
     this.dirLast = now;
     d.update(dt);
+    // standing "I am down" reports (one might have missed the event)
+    this.reconcileT -= dt;
+    if (this.reconcileT <= 0) {
+      this.reconcileT = 1;
+      for (const k of this.known.values()) {
+        const dn = k.dn as unknown[] | null;
+        if (Array.isArray(dn) && dn[0] === d.matchId) d.playerDown(k.id, typeof dn[1] === 'number' ? dn[1] : null, String(dn[2] ?? ''), String(dn[3] ?? ''));
+      }
+      const mine = this.mine.dn as unknown[] | undefined;
+      if (Array.isArray(mine) && mine[0] === d.matchId) d.playerDown(this.id, typeof mine[1] === 'number' ? mine[1] : null, String(mine[2] ?? ''), String(mine[3] ?? ''));
+    }
+    // a hidden tab's timers crawl: hand the room to someone who is looking at it
+    this.hiddenFor = document.hidden ? this.hiddenFor + dt : 0;
+    if (this.hiddenFor > 8 && [...this.known.values()].some((k) => k.vis)) {
+      this.hiddenFor = 0;
+      this.stopHosting();
+      this.hostPeer = null;
+      return;
+    }
     this.hdPublishT -= dt;
     if (this.hdPublishT <= 0) this.publishHd();
   }

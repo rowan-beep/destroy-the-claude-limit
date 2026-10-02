@@ -201,12 +201,15 @@ async function boot(): Promise<void> {
 
   // --- inside the claude.ai artifact: the lobby, and the owner's control panel
   if (inArtifact()) {
-    const tellLobby = () =>
+    const tellLobby = () => {
+      // (in a room, the room itself keeps the lobby up to date)
+      if (game.online) return setLobby({ md: 'online' });
       setLobby({
         n: (loadNetPrefs().callsign || 'PILOT').toUpperCase().slice(0, 16),
         j: game.player?.type ?? menu.cfg.aircraft,
         md: game.state === 'menu' || !game.mode ? 'menu' : game.config.mode,
       });
+    };
     tellLobby();
     window.setInterval(tellLobby, 3000);
     void isArtifactOwner().then((own) => {
