@@ -56,6 +56,8 @@ interface Known {
   vis: boolean;
   /** its standing "I am down" report: [matchId, killer, weapon, cause] */
   dn: unknown;
+  /** when we last heard from it (ms) */
+  seen: number;
 }
 
 type Out = { seq: number; t: number; p: Record<string, Json> };
@@ -115,11 +117,20 @@ export class RoomLink implements NetLink {
   }
   /** messages that arrive before the mode is listening wait for it */
   set onMessage(fn: ((m: ServerMsg) => void) | null) {
-    this.handler = fn;
+    this.handler = null;
     if (!fn) return;
-    const q = this.queue;
-    this.queue = [];
-    for (const m of q) fn(m);
+    // once the mode has finished starting (and spawned our jet), as a
+    // server's messages would arrive: a match already on then makes us watch
+    setTimeout(() => {
+      if (this.closed) return;
+      const q = this.queue;
+      this.queue = [];
+      for (const m of q) fn(m);
+      this.handler = fn;
+      const more = this.queue;
+      this.queue = [];
+      for (const m of more) fn(m);
+    }, 0);
   }
 
   private deliver(m: ServerMsg): void {
@@ -344,7 +355,7 @@ export class RoomLink implements NetLink {
     const name = typeof pr.n === 'string' ? pr.n.slice(0, 16) : `PILOT ${pr.id}`;
     if (!k) {
       const p: NetPlayer = { id: pr.id, name, jet, paint: (pr.pt as PaintConfig) ?? null, inMatch: false, alive: false, kills: 0 };
-      k = { peer: peer.peer, id: pr.id, p, lastSeq: 0, lastS: -1, lastMs: -1, lastHd: -1, lastAk: -1, lastPg: null, hosting: false, vis: true, dn: null };
+      k = { peer: peer.peer, id: pr.id, p, lastSeq: 0, lastS: -1, lastMs: -1, lastHd: -1, lastAk: -1, lastPg: null, hosting: false, vis: true, dn: null, seen: performance.now() };
       this.known.set(peer.peer, k);
       if (this.settled) {
         this.players.push(p);
@@ -355,6 +366,7 @@ export class RoomLink implements NetLink {
       k.p.jet = jet;
       if (pr.pt && !k.p.paint) k.p.paint = pr.pt as PaintConfig;
     }
+    k.seen = performance.now();
     k.hosting = !!pr.hd;
     k.vis = pr.vis !== false;
     k.dn = pr.dn ?? null;
@@ -547,6 +559,12 @@ export class RoomLink implements NetLink {
       for (const k of this.known.values()) {
         const dn = k.dn as unknown[] | null;
         if (Array.isArray(dn) && dn[0] === d.matchId) d.playerDown(k.id, typeof dn[1] === 'number' ? dn[1] : null, String(dn[2] ?? ''), String(dn[3] ?? ''));
+      }
+      // a pilot in the fight who has gone silent (tab closed, laptop shut) cannot hold the match up
+      const now = performance.now();
+      for (const k of this.known.values()) {
+        const p = d.players.get(k.id);
+        if (p && p.inMatch && p.alive && d.state === 'live' && now - k.seen > 30000) d.playerDown(k.id, null, '', 'LOST CONTACT');
       }
       const mine = this.mine.dn as unknown[] | undefined;
       if (Array.isArray(mine) && mine[0] === d.matchId) d.playerDown(this.id, typeof mine[1] === 'number' ? mine[1] : null, String(mine[2] ?? ''), String(mine[3] ?? ''));
