@@ -69,6 +69,7 @@ export class MultiplayerScreen {
         if (own) button('SERVER CONTROL', 'small mp-admin', h, () => this.onAdmin?.());
       });
       this.list = el('div', 'mp-list', b);
+    this.rows.clear();
       this.status = el('div', 'note mp-status', b, '');
       el(
         'div',
@@ -80,6 +81,7 @@ export class MultiplayerScreen {
     }
     el('h3', '', b, 'OFFICIAL SERVERS');
     this.list = el('div', 'mp-list', b);
+    this.rows.clear();
     this.status = el('div', 'note mp-status', b, '');
 
     el('h3', '', b, 'JOIN A SERVER BY ADDRESS');
@@ -123,7 +125,6 @@ export class MultiplayerScreen {
   /** Inside the artifact: the rooms, with who is in them (from the lobby). */
   private async refreshArtifact(): Promise<void> {
     const r = await artifactRoom();
-    clearEl(this.list);
     if (!r) {
       for (const d of ARTIFACT_ROOMS) this.row({ id: d.id, name: d.name, map: d.map, official: false, players: 0, max: ROOM_MAX, state: 'offline' }, ARTIFACT_URL + d.id, true);
       if (!this.busy) this.status.textContent = 'THIS COPY CANNOT JOIN ROOMS: SIGN IN TO CLAUDE AND ASK THE OWNER TO INVITE YOU (A PUBLIC LINK CANNOT CONNECT).';
@@ -153,7 +154,6 @@ export class MultiplayerScreen {
       this.failures++;
       // they sleep when nobody is on; a minute of trying wakes them
       const waking = this.failures <= 12;
-      clearEl(this.list);
       for (let i = 1; i <= 5; i++) this.row({ id: `official-${i}`, name: `OFFICIAL ${i}`, map: i <= 3 ? 'triad' : 'frost', official: true, players: 0, max: 12, state: waking ? 'waking' : 'offline' }, OFFICIAL_SERVER, true);
       if (!this.busy)
         this.status.textContent = waking
@@ -163,21 +163,35 @@ export class MultiplayerScreen {
     }
     this.refreshing = false;
     this.failures = 0;
-    clearEl(this.list);
     for (const r of rooms) this.row(r, OFFICIAL_SERVER, false);
     if (!this.busy) this.status.textContent = '';
   }
 
+  /** One row per room, made once and then updated in place (a rebuilt row could swallow a click on JOIN). */
+  private rows = new Map<string, { c: HTMLElement; count: HTMLElement; state: HTMLElement; btn: HTMLButtonElement; url: string; map: string }>();
+
   private row(r: RoomInfo, url: string, offline: boolean): void {
-    const map = MAPS.find((m) => m.id === r.map);
-    const c = el('div', 'mp-server' + (offline ? ' off' : ''), this.list);
-    el('div', 'mp-name', c, r.name);
-    el('div', 'mp-map', c, map ? map.name : r.map.toUpperCase());
-    el('div', 'mp-count', c, offline ? (r.state === 'waking' ? 'WAKING UP…' : 'OFFLINE') : `${r.players} / ${r.max}`);
-    el('div', 'mp-state', c, offline ? '' : r.state === 'live' ? 'MATCH ON' : r.state === 'countdown' ? 'STARTING' : r.state === 'ended' ? 'RESULTS' : r.state === 'locked' ? 'LOCKED' : 'WAITING');
-    const b = button('JOIN', 'small', c, () => void this.join(url, r.id, r.map));
-    b.disabled = offline || r.players >= r.max || r.state === 'locked';
+    const key = `${url}|${r.id}`;
+    let row = this.rows.get(key);
+    if (!row || !row.c.isConnected) {
+      const map = MAPS.find((m) => m.id === r.map);
+      const c = el('div', 'mp-server', this.list);
+      el('div', 'mp-name', c, r.name);
+      el('div', 'mp-map', c, map ? map.name : r.map.toUpperCase());
+      const count = el('div', 'mp-count', c);
+      const state = el('div', 'mp-state', c);
+      const entry = { c, count, state, btn: null as unknown as HTMLButtonElement, url, map: r.map };
+      entry.btn = button('JOIN', 'small', c, () => void this.join(entry.url, r.id, entry.map));
+      row = entry;
+      this.rows.set(key, row);
+    }
+    row.map = r.map;
+    row.c.classList.toggle('off', offline);
+    row.count.textContent = offline ? (r.state === 'waking' ? 'WAKING UP…' : 'OFFLINE') : `${r.players} / ${r.max}`;
+    row.state.textContent = offline ? '' : r.state === 'live' ? 'MATCH ON' : r.state === 'countdown' ? 'STARTING' : r.state === 'ended' ? 'RESULTS' : r.state === 'locked' ? 'LOCKED' : 'WAITING';
+    row.btn.disabled = offline || r.players >= r.max || r.state === 'locked';
   }
+
 
   private async joinCustom(): Promise<void> {
     const url = normalizeServerUrl(this.custom.value);
