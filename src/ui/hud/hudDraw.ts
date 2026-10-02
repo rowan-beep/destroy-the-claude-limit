@@ -11,7 +11,7 @@ import { DEG, NM, FT, KT } from '../../core/constants';
 import { clamp, dirFromHeadingPitch, wrap360, bearingXZ } from '../../core/math';
 import { gunSolution, gunLine } from '../../weapons/gunnery';
 import { AIRFIELDS, toRunwayLocal } from '../../world/islands';
-import { ONSPEED_AOA, fmtTtg } from '../../avionics/nav';
+import { ONSPEED_AOA, fmtTtg, missionObjective } from '../../avionics/nav';
 import { hostile, RULES } from '../../game/rules';
 
 const GREEN = '#6cff9a';
@@ -22,6 +22,7 @@ const WHITE = '#f0f6ff';
 
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
+const _v3 = new THREE.Vector3();
 
 export interface ScreenPt {
   x: number;
@@ -143,6 +144,84 @@ export class HudPainter {
     c.fill();
     c.restore();
     if (label) this.text(label, x - Math.cos(a) * 22, y - Math.sin(a) * 16, color, 11, 'center');
+  }
+
+  // -------------------------------------------------------------------------
+  // Where to go next
+  // -------------------------------------------------------------------------
+
+  /**
+   * When the mission has an objective: off screen, a big arrow round the
+   * middle points the way, with its name, distance and which way to turn;
+   * once it is in view, a bobbing marker sits right on it.
+   */
+  objectiveGuide(g: Game, p: Aircraft, cam: THREE.PerspectiveCamera): void {
+    const o = missionObjective();
+    if (!o) return;
+    const c = this.ctx;
+    const fm = p.fm;
+    const t = performance.now();
+    const gy = Math.max(0, g.sim.grid.height(o.x, o.z)) + 30;
+    const pt = this.project(cam, _v3.set(o.x, gy, o.z));
+    const nm = Math.hypot(o.x - fm.pos.x, o.z - fm.pos.z) / NM;
+    const rel = ((bearingXZ(fm.pos.x, fm.pos.z, o.x, o.z) - fm.heading + 540) % 360) - 180;
+    const pulse = 0.75 + 0.25 * Math.sin(t / 220);
+    const col = (a: number) => `rgba(79,216,255,${a.toFixed(2)})`;
+    const label = `${o.name}  ${nm < 10 ? nm.toFixed(1) : Math.round(nm)} NM`;
+    const cx = this.w / 2, cy = this.h / 2;
+    const margin = 80;
+    c.save();
+    c.shadowColor = 'rgba(0,0,0,0.85)';
+    c.shadowBlur = 4;
+    c.strokeStyle = 'rgba(0,18,28,0.8)';
+    c.lineWidth = 2;
+    if (pt.front && pt.x > margin && pt.x < this.w - margin && pt.y > margin && pt.y < this.h - margin) {
+      // in view: a ring on the spot and a pin bobbing above it
+      c.strokeStyle = col(0.85);
+      this.circle(pt.x, pt.y, 10);
+      const y = pt.y - 26 + Math.sin(t / 300) * 4;
+      c.fillStyle = col(0.9 * pulse);
+      c.strokeStyle = 'rgba(0,18,28,0.8)';
+      c.beginPath();
+      c.moveTo(pt.x, y + 14);
+      c.lineTo(pt.x - 12, y - 6);
+      c.lineTo(pt.x + 12, y - 6);
+      c.closePath();
+      c.fill();
+      c.stroke();
+      this.text(label, pt.x, y - 20, col(1), 14, 'center', true);
+      this.text('GO HERE', pt.x, y - 37, col(0.75), 11, 'center', true);
+      c.restore();
+      return;
+    }
+    // not in view: a compass arrow round the middle, from the jet's heading
+    // (up = straight ahead, right = turn right, down = behind you)
+    const r = rel * DEG;
+    // (kept clear of the side panels and the message lines up top)
+    const rx = Math.min(this.w * 0.2, 260), ry = this.h * 0.24;
+    const ey = cy + this.h * 0.08;
+    const x = cx + Math.sin(r) * rx, y = ey - Math.cos(r) * ry;
+    const a = Math.atan2(-Math.cos(r) * ry, Math.sin(r) * rx);
+    c.save();
+    c.translate(x, y);
+    c.rotate(a);
+    c.fillStyle = col(0.92 * pulse);
+    c.beginPath();
+    c.moveTo(32, 0);
+    c.lineTo(2, -22);
+    c.lineTo(2, -8);
+    c.lineTo(-24, -8);
+    c.lineTo(-24, 8);
+    c.lineTo(2, 8);
+    c.lineTo(2, 22);
+    c.closePath();
+    c.fill();
+    c.stroke();
+    c.restore();
+    const lx = x - Math.cos(a) * 80, ly = y - Math.sin(a) * 46;
+    this.text(label, lx, ly - 8, col(1), 14, 'center', true);
+    this.text(Math.abs(rel) < 12 ? (pt.front && pt.y > this.h - margin ? 'BELOW YOU · KEEP GOING' : 'STRAIGHT AHEAD') : `TURN ${rel > 0 ? 'RIGHT' : 'LEFT'} ${Math.round(Math.abs(rel))}°`, lx, ly + 9, col(0.8), 12, 'center', true);
+    c.restore();
   }
 
   // -------------------------------------------------------------------------

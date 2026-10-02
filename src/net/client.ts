@@ -78,6 +78,8 @@ export type ServerMsg =
   | { t: 'dead'; id: number; killer: number | null; weapon: string; cause: string; place: number; left: number }
   | { t: 'chat'; id: number; text: string }
   | { t: 'pong'; c: number }
+  | { t: 'sys'; text: string }
+  | { t: 'smite'; text?: string }
   | { t: 'error'; reason: string };
 
 export interface Hello {
@@ -119,6 +121,8 @@ export class NetClient {
   onMessage: ((m: ServerMsg) => void) | null = null;
   onClose: ((reason: string) => void) | null = null;
   private closedByUs = false;
+  /** the last error the server sent (a kick or ban says why before it hangs up) */
+  private lastError = '';
 
   constructor(readonly url: string) {}
 
@@ -155,7 +159,7 @@ export class NetClient {
       ws.onclose = () => {
         clearTimeout(timer);
         if (!settled) fail('CONNECTION REFUSED');
-        else if (!this.closedByUs) this.onClose?.('CONNECTION TO THE SERVER LOST');
+        else if (!this.closedByUs) this.onClose?.(this.lastError || 'CONNECTION TO THE SERVER LOST');
       };
       ws.onmessage = (ev) => {
         let m: ServerMsg;
@@ -179,6 +183,7 @@ export class NetClient {
             return;
           }
         }
+        if (m.t === 'error') this.lastError = m.reason;
         if (m.t === 'pong') {
           const r = performance.now() - m.c;
           // (a sample taken while the page was busy loading says nothing about the network)

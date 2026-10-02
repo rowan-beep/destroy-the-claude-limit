@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>TRIAD Server Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #0a0d11;
+  --panel: #11161d;
+  --panel2: #161d26;
+  --line: #222c38;
+  --text: #dfe7ef;
+  --dim: #8393a5;
+  --faint: #56657a;
+  --cyan: #4fd8ff;
+  --green: #4ade80;
+  --amber: #fbbf24;
+  --red: #f87171;
+  --violet: #c4a5ff;
+  --mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  --sans: Inter, system-ui, -apple-system, Segoe UI, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 var(--sans); }
+button { font: inherit; cursor: pointer; }
+input, select { font: inherit; }
+.hidden { display: none !important; }
+
+/* login */
+#login { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+.card { width: min(420px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 28px; box-shadow: 0 20px 60px rgba(0,0,0,.45); }
+.brand { font: 600 12px var(--mono); letter-spacing: .24em; color: var(--cyan); }
+.card h1 { margin: 6px 0 4px; font-size: 22px; }
+.card p { margin: 0 0 18px; color: var(--dim); }
+.field { width: 100%; padding: 11px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 9px; color: var(--text); font-family: var(--mono); }
+.field:focus { outline: 2px solid rgba(79,216,255,.4); border-color: var(--cyan); }
+.row { display: flex; gap: 10px; align-items: center; }
+.check { color: var(--dim); font-size: 13px; margin: 12px 0 16px; gap: 8px; }
+.btn { border: 1px solid var(--line); background: var(--panel2); color: var(--text); border-radius: 8px; padding: 7px 12px; font-size: 13px; font-weight: 500; white-space: nowrap; }
+.btn:hover { border-color: #33414f; background: #1b2430; }
+.btn.primary { background: var(--cyan); border-color: var(--cyan); color: #04141b; font-weight: 700; }
+.btn.primary:hover { background: #7fe4ff; }
+.btn.danger { color: var(--red); }
+.btn.danger:hover { border-color: var(--red); background: rgba(248,113,113,.08); }
+.btn.warn { color: var(--amber); }
+.btn.god { color: var(--violet); }
+.btn.god:hover { border-color: var(--violet); background: rgba(196,165,255,.08); }
+.btn.sm { padding: 4px 8px; font-size: 12px; border-radius: 6px; }
+.err { color: var(--red); min-height: 20px; margin-top: 10px; font-size: 13px; }
+
+/* app */
+header { position: sticky; top: 0; z-index: 5; background: rgba(10,13,17,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.bar { max-width: 1500px; margin: 0 auto; padding: 12px 16px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.title { display: flex; flex-direction: column; margin-right: auto; }
+.title b { font-size: 16px; }
+.live { display: inline-flex; align-items: center; gap: 6px; font: 600 11px var(--mono); letter-spacing: .08em; color: var(--dim); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+.dot.on { background: var(--green); box-shadow: 0 0 0 0 rgba(74,222,128,.6); animation: pulse 2s infinite; }
+.dot.off { background: var(--red); }
+@keyframes pulse { 70% { box-shadow: 0 0 0 7px rgba(74,222,128,0); } 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); } }
+.stats { display: flex; gap: 8px; flex-wrap: wrap; }
+.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 5px 10px; min-width: 78px; }
+.stat span { display: block; font: 600 10px var(--mono); letter-spacing: .1em; color: var(--faint); }
+.stat b { font: 600 15px var(--mono); }
+
+main { max-width: 1500px; margin: 0 auto; padding: 16px; display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 16px; }
+@media (max-width: 1100px) { main { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.ph { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.ph h2 { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); margin-right: auto; }
+.col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+/* rooms */
+.rooms { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; padding: 12px; }
+.room { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.room.sel { border-color: var(--cyan); }
+.room-top { display: flex; align-items: baseline; gap: 8px; }
+.room-top b { font-size: 14px; }
+.room-top .map { color: var(--faint); font: 11px var(--mono); text-transform: uppercase; }
+.room-mid { display: flex; align-items: center; gap: 8px; font: 12px var(--mono); color: var(--dim); }
+.badge { font: 600 10px var(--mono); letter-spacing: .08em; padding: 2px 7px; border-radius: 99px; border: 1px solid currentColor; text-transform: uppercase; }
+.b-waiting { color: var(--faint); }
+.b-countdown { color: var(--amber); }
+.b-live { color: var(--green); }
+.b-ended { color: var(--violet); }
+.b-locked { color: var(--red); }
+.room-act { display: flex; gap: 6px; flex-wrap: wrap; }
+.fill { height: 4px; background: var(--line); border-radius: 4px; overflow: hidden; }
+.fill i { display: block; height: 100%; background: var(--cyan); }
+
+/* players */
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 860px; }
+th { text-align: left; font: 600 10px var(--mono); letter-spacing: .1em; color: var(--faint); text-transform: uppercase; padding: 9px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 9px 10px; border-bottom: 1px solid rgba(34,44,56,.6); vertical-align: middle; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+tr:hover td { background: rgba(255,255,255,.015); }
+.pilot b { display: block; }
+.pilot small, .mono-dim { font: 11px var(--mono); color: var(--faint); }
+.mono { font-family: var(--mono); font-size: 13px; }
+.ping { font: 600 13px var(--mono); }
+.p-good { color: var(--green); } .p-ok { color: var(--amber); } .p-bad { color: var(--red); }
+.st { font: 600 11px var(--mono); }
+.st-alive { color: var(--green); } .st-dead { color: var(--faint); } .st-lobby { color: var(--cyan); }
+.muted-tag { color: var(--amber); font: 600 10px var(--mono); margin-left: 6px; }
+.acts { display: flex; gap: 5px; }
+.empty { padding: 34px 16px; text-align: center; color: var(--faint); }
+
+/* map */
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.tab { background: none; border: 1px solid transparent; color: var(--dim); border-radius: 6px; padding: 3px 8px; font: 600 11px var(--mono); }
+.tab.on { border-color: var(--line); background: var(--panel2); color: var(--text); }
+#map { display: block; width: 100%; aspect-ratio: 1 / 1; background: radial-gradient(circle at 50% 50%, #0f1a22, #0b1016 70%); }
+.legend { display: flex; gap: 14px; padding: 8px 14px; font: 11px var(--mono); color: var(--faint); border-top: 1px solid var(--line); }
+.legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 0; }
+
+/* events */
+.chips { display: flex; gap: 4px; }
+#events { max-height: 360px; overflow-y: auto; padding: 6px 0; font: 12px var(--mono); }
+.ev { display: grid; grid-template-columns: 62px 1fr; gap: 8px; padding: 3px 14px; }
+.ev time { color: var(--faint); }
+.ev .room-n { color: var(--faint); }
+.k-join { color: var(--cyan); } .k-leave { color: var(--dim); } .k-kill { color: var(--red); } .k-chat { color: var(--text); } .k-admin { color: var(--violet); } .k-match { color: var(--amber); }
+#bans .ban { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--line); font-size: 13px; }
+#bans .ban:last-child { border-bottom: 0; }
+#bans .ban div { margin-right: auto; }
+
+/* modal + toast */
+.scrim { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: grid; place-items: center; padding: 16px; z-index: 20; }
+.modal { width: min(440px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
+.modal h3 { margin: 0 0 4px; font-size: 17px; }
+.modal p { margin: 0 0 14px; color: var(--dim); }
+.modal .field + .field { margin-top: 10px; }
+.modal .row { justify-content: flex-end; margin-top: 16px; }
+#toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px; font-size: 13px; z-index: 30; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+#toast.bad { border-color: var(--red); color: var(--red); }
+</style>
+</head>
+<body>
+
+<section id="login">
+  <form class="card" id="loginForm" autocomplete="off">
+    <div class="brand">TRIAD · RESTRICTED</div>
+    <h1>Server control</h1>
+    <p>Enter the admin key to open the console.</p>
+    <input class="field" id="key" type="password" placeholder="admin key" autocomplete="current-password" spellcheck="false">
+    <label class="row check"><input type="checkbox" id="remember" checked> Remember on this device</label>
+    <button class="btn primary" style="width:100%;padding:11px" type="submit">Unlock</button>
+    <div class="err" id="loginErr"></div>
+  </form>
+</section>
+
+<section id="app" class="hidden">
+  <header>
+    <div class="bar">
+      <div class="title">
+        <span class="brand">TRIAD · SERVER CONTROL</span>
+        <span class="live"><span class="dot" id="liveDot"></span><span id="liveText">CONNECTING</span></span>
+      </div>
+      <div class="stats">
+        <div class="stat"><span>ONLINE</span><b id="sOnline">0</b></div>
+        <div class="stat"><span>PEAK</span><b id="sPeak">0</b></div>
+        <div class="stat"><span>AVG PING</span><b id="sPing">—</b></div>
+        <div class="stat"><span>MATCHES</span><b id="sMatches">0</b></div>
+        <div class="stat"><span>UPTIME</span><b id="sUptime">—</b></div>
+        <div class="stat"><span>MEMORY</span><b id="sMem">—</b></div>
+      </div>
+      <button class="btn god" id="announceAll">Announce to everyone</button>
+      <button class="btn" id="logout">Lock</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="col">
+      <div class="panel">
+        <div class="ph"><h2>Rooms</h2><span class="mono-dim" id="roomsNote"></span></div>
+        <div class="rooms" id="rooms"></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><h2>Pilots online</h2><span class="mono-dim" id="pilotsNote"></span></div>
+        <div class="tablewrap">
+          <table>
+            <thead><tr>
+              <th>Pilot</th><th>Room</th><th>Jet</th><th>Ping</th><th>Status</th><th>K / D</th><th>Altitude</th><th>Speed</th><th>Online</th><th>Powers</th>
+            </tr></thead>
+            <tbody id="players"></tbody>
+          </table>
+        </div>
+        <div class="empty hidden" id="noPlayers">Nobody is flying right now. The table fills in live when someone joins.</div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="panel">
+        <div class="ph"><h2>Live map</h2><div class="tabs" id="mapTabs"></div></div>
+        <canvas id="map"></canvas>
+        <div class="legend"><span><i style="background:var(--green)"></i>in match</span><span><i style="background:var(--cyan)"></i>lobby</span><span><i style="background:var(--faint)"></i>down</span><span id="mapScale"></span></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><h2>Event log</h2>
+          <div class="chips" id="evChips"></div>
+        </div>
+        <div id="events"></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><h2>Bans</h2><span class="mono-dim">cleared when the server restarts</span></div>
+        <div id="bans"></div>
+      </div>
+    </div>
+  </main>
+</section>
+
+<div class="scrim hidden" id="scrim">
+  <form class="modal" id="modal">
+    <h3 id="mTitle"></h3>
+    <p id="mText"></p>
+    <input class="field hidden" id="mInput" maxlength="120" spellcheck="false">
+    <select class="field hidden" id="mSelect"></select>
+    <div class="row">
+      <button class="btn" type="button" id="mCancel">Cancel</button>
+      <button class="btn primary" type="submit" id="mOk">OK</button>
+    </div>
+  </form>
+</div>
+<div id="toast" class="hidden"></div>
+
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const JETS = { F15EX: 'F-15EX', FA18EF: 'F/A-18E/F', TYPHOON: 'Typhoon', SU35: 'Su-35S', RAFALE: 'Rafale', F22: 'F-22A', MIG31: 'MiG-31BM', SR71: 'SR-71A' };
+const store = {
+  get() { try { return sessionStorage.getItem('triad.admin') || localStorage.getItem('triad.admin') || ''; } catch { return ''; } },
+  set(k, remember) { try { (remember ? localStorage : sessionStorage).setItem('triad.admin', k); } catch {} },
+  clear() { try { localStorage.removeItem('triad.admin'); sessionStorage.removeItem('triad.admin'); } catch {} },
+};
+let KEY = '';
+let state = null;
+let lastOk = 0;
+let polling = null;
+let mapRoom = null;
+let evFilter = 'all';
+
+// ------------------------------------------------------------------ api
+async function api(path, body) {
+  const r = await fetch('/admin/api/' + path, {
+    method: body ? 'POST' : 'GET',
+    headers: Object.assign({ 'x-admin-key': KEY }, body ? { 'Content-Type': 'application/json' } : {}),
+    body: body ? JSON.stringify(body) : undefined,
+    cache: 'no-store',
+  });
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401) { lockOut('That key was not accepted.'); throw new Error('wrong key'); }
+  if (r.status === 429) { lockOut('Too many wrong keys from this address. Wait 10 minutes.'); throw new Error('throttled'); }
+  if (!r.ok && !('ok' in j)) throw new Error(j.error || 'HTTP ' + r.status);
+  return j;
+}
+
+async function act(cmd) {
+  try {
+    const j = await api('action', cmd);
+    toast(j.ok ? j.msg : j.error, !j.ok);
+    poll();
+  } catch (e) { toast(e.message, true); }
+}
+
+// ------------------------------------------------------------------ login
+$('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  KEY = $('key').value.trim();
+  if (!KEY) return;
+  $('loginErr').textContent = '';
+  try {
+    await api('state');
+    store.set(KEY, $('remember').checked);
+    $('key').value = '';
+    start();
+  } catch (err) {
+    if (!$('loginErr').textContent) $('loginErr').textContent = 'Could not reach the server.';
+  }
+});
+function lockOut(msg) {
+  clearInterval(polling);
+  polling = null;
+  store.clear();
+  KEY = '';
+  $('app').classList.add('hidden');
+  $('login').classList.remove('hidden');
+  $('loginErr').textContent = msg || '';
+}
+$('logout').onclick = () => lockOut('');
+function start() {
+  $('login').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  poll();
+  clearInterval(polling);
+  polling = setInterval(poll, 1000);
+}
+
+// ------------------------------------------------------------------ polling
+let inFlight = false;
+async function poll() {
+  if (inFlight || !KEY) return;
+  inFlight = true;
+  try {
+    state = await api('state');
+    lastOk = Date.now();
+    render();
+  } catch (e) {
+    /* shown by the live indicator */
+  } finally {
+    inFlight = false;
+    live();
+  }
+}
+setInterval(live, 500);
+function live() {
+  if (!KEY) return;
+  const age = Date.now() - lastOk;
+  const on = lastOk && age < 4000;
+  $('liveDot').className = 'dot ' + (on ? 'on' : 'off');
+  $('liveText').textContent = on ? 'LIVE' : lastOk ? `NO ANSWER FOR ${Math.round(age / 1000)} S (THE SERVER MAY BE WAKING UP)` : 'CONNECTING';
+}
+
+// ------------------------------------------------------------------ render
+const dur = (s) => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}:${String(x).padStart(2, '0')}`; };
+const pingCls = (p) => (!p ? '' : p < 90 ? 'p-good' : p < 180 ? 'p-ok' : 'p-bad');
+
+function render() {
+  const s = state.server;
+  $('sOnline').textContent = `${s.online}`;
+  $('sPeak').textContent = s.peak;
+  $('sMatches').textContent = s.matches;
+  $('sUptime').textContent = dur(s.uptime);
+  $('sMem').textContent = s.memMb + ' MB';
+  const pings = state.players.map((p) => p.ping).filter(Boolean);
+  $('sPing').textContent = pings.length ? Math.round(pings.reduce((a, b) => a + b, 0) / pings.length) + ' ms' : '—';
+  $('sPing').className = pingCls(pings.length ? pings.reduce((a, b) => a + b, 0) / pings.length : 0);
+  renderRooms();
+  renderPlayers();
+  renderMap();
+  renderEvents();
+  renderBans();
+}
+
+function roomState(r) {
+  if (r.state === 'countdown') return `<span class="badge b-countdown">starts in ${r.timer}s</span>`;
+  if (r.state === 'live') return `<span class="badge b-live">live · ${dur(r.elapsed)}</span>`;
+  if (r.state === 'ended') return `<span class="badge b-ended">results</span>`;
+  return `<span class="badge b-waiting">waiting</span>`;
+}
+
+function renderRooms() {
+  if (!mapRoom || !state.rooms.some((r) => r.id === mapRoom)) mapRoom = (state.rooms.find((r) => r.players > 0) || state.rooms[0])?.id;
+  $('roomsNote').textContent = `${state.rooms.length} room${state.rooms.length === 1 ? '' : 's'} · max ${state.server.max} each`;
+  $('rooms').innerHTML = state.rooms.map((r) => `
+    <div class="room ${r.id === mapRoom ? 'sel' : ''}" data-room="${esc(r.id)}">
+      <div class="room-top"><b>${esc(r.name)}</b><span class="map">${esc(r.map)}</span></div>
+      <div class="room-mid">${roomState(r)}${r.locked ? '<span class="badge b-locked">locked</span>' : ''}<span style="margin-left:auto">${r.players}/${r.max}</span></div>
+      <div class="fill"><i style="width:${Math.round((r.players / r.max) * 100)}%"></i></div>
+      <div class="room-act">
+        ${r.state === 'live' ? `<button class="btn sm warn" data-a="end">End match</button>` : `<button class="btn sm" data-a="start" ${r.players < 2 ? 'disabled title="needs 2 pilots"' : ''}>Start now</button>`}
+        <button class="btn sm" data-a="${r.locked ? 'unlock' : 'lock'}">${r.locked ? 'Unlock' : 'Lock'}</button>
+        <button class="btn sm god" data-a="announce">Announce</button>
+        <button class="btn sm danger" data-a="clear" ${r.players ? '' : 'disabled'}>Clear</button>
+      </div>
+    </div>`).join('');
+}
+$('rooms').addEventListener('click', (e) => {
+  const card = e.target.closest('.room');
+  if (!card) return;
+  const room = card.dataset.room;
+  const b = e.target.closest('button');
+  if (!b) { mapRoom = room; render(); return; }
+  const r = state.rooms.find((x) => x.id === room);
+  const a = b.dataset.a;
+  if (a === 'announce') ask({ title: `Announce in ${r.name}`, text: 'Shown big on every screen in this room.', input: 'Message' }).then((v) => v && act({ a, room, text: v }));
+  else if (a === 'clear') ask({ title: `Clear ${r.name}?`, text: `Kicks all ${r.players} pilots out of this room.`, input: 'Reason (optional)', ok: 'Clear room', danger: true }).then((v) => v !== null && act({ a, room, text: v }));
+  else if (a === 'end') ask({ title: `End the match in ${r.name}?`, text: 'The pilot alive with the most kills wins.', ok: 'End match' }).then((v) => v !== null && act({ a, room }));
+  else act({ a, room });
+});
+
+function renderPlayers() {
+  const ps = [...state.players].sort((a, b) => a.room.localeCompare(b.room) || a.name.localeCompare(b.name));
+  $('noPlayers').classList.toggle('hidden', ps.length > 0);
+  $('pilotsNote').textContent = ps.length ? `${ps.length} connected` : '';
+  $('players').innerHTML = ps.map((p) => {
+    const status = p.inMatch ? (p.alive ? '<span class="st st-alive">IN MATCH</span>' : '<span class="st st-dead">DOWN</span>') : '<span class="st st-lobby">LOBBY</span>';
+    const alt = p.pos ? `${Math.round(p.pos.y / 0.3048).toLocaleString('en-US')} ft` : '—';
+    const spd = p.pos ? `${Math.round(p.pos.speed * 1.94384)} kt` : '—';
+    return `<tr data-id="${p.id}">
+      <td class="pilot"><b>${esc(p.name)}${p.muted ? '<span class="muted-tag">MUTED</span>' : ''}</b><small>#${p.id} · ${esc(p.ip)}</small></td>
+      <td>${esc(p.roomName.replace('OFFICIAL ', 'OFF. '))}</td>
+      <td>${esc(JETS[p.jet] || p.jet)}</td>
+      <td class="ping ${pingCls(p.ping)}">${p.ping ? p.ping + ' ms' : '…'}</td>
+      <td>${status}</td>
+      <td class="mono">${p.kills} / ${p.deaths}</td>
+      <td class="mono">${alt}</td>
+      <td class="mono">${spd}${p.pos ? `<span class="mono-dim"> · ${String(p.pos.hdg).padStart(3, '0')}°</span>` : ''}</td>
+      <td class="mono">${dur((state.now - p.since) / 1000)}</td>
+      <td><div class="acts">
+        <button class="btn sm" data-a="msg">Message</button>
+        <button class="btn sm" data-a="${p.muted ? 'unmute' : 'mute'}">${p.muted ? 'Unmute' : 'Mute'}</button>
+        <button class="btn sm god" data-a="smite">Smite</button>
+        <button class="btn sm warn" data-a="kick">Kick</button>
+        <button class="btn sm danger" data-a="ban">Ban</button>
+      </div></td></tr>`;
+  }).join('');
+}
+$('players').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  const id = +b.closest('tr').dataset.id;
+  const p = state.players.find((x) => x.id === id);
+  if (!p) return;
+  const a = b.dataset.a;
+  if (a === 'msg') ask({ title: `Message ${p.name}`, text: 'Only this pilot sees it.', input: 'Message' }).then((v) => v && act({ a, id, text: v }));
+  else if (a === 'smite') ask({ title: `Smite ${p.name}?`, text: 'Their jet is destroyed on the spot.', input: 'Cause shown to them (optional)', ok: 'Smite', danger: true }).then((v) => v !== null && act({ a, id, text: v }));
+  else if (a === 'kick') ask({ title: `Kick ${p.name}?`, text: 'They are disconnected and can rejoin.', input: 'Reason (optional)', ok: 'Kick', danger: true }).then((v) => v !== null && act({ a, id, text: v }));
+  else if (a === 'ban') ask({ title: `Ban ${p.name}?`, text: `Blocks ${p.ip} from every room.`, input: 'Reason (optional)', select: [['60', '1 hour'], ['1440', '1 day'], ['10080', '1 week'], ['0', 'Until the server restarts']], ok: 'Ban', danger: true }).then((v) => v !== null && act({ a, id, text: v.text ?? v, minutes: v.select }));
+  else act({ a, id });
+});
+
+// ------------------------------------------------------------------ map
+function renderMap() {
+  $('mapTabs').innerHTML = state.rooms.map((r) => `<button class="tab ${r.id === mapRoom ? 'on' : ''}" data-room="${esc(r.id)}">${esc(r.name.replace('OFFICIAL ', '#'))}${r.players ? ` (${r.players})` : ''}</button>`).join('');
+  const cv = $('map');
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const c = cv.getContext('2d');
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.clearRect(0, 0, w, h);
+  const ps = state.players.filter((p) => p.room === mapRoom && p.pos);
+  const NM = 1852;
+  let cx = 0, cz = 0;
+  if (ps.length) { cx = ps.reduce((a, p) => a + p.pos.x, 0) / ps.length; cz = ps.reduce((a, p) => a + p.pos.z, 0) / ps.length; }
+  let span = 20 * NM;
+  for (const p of ps) span = Math.max(span, Math.hypot(p.pos.x - cx, p.pos.z - cz) * 1.25);
+  const k = (Math.min(w, h) / 2 - 18) / span;
+  const sx = (x) => w / 2 + (x - cx) * k, sy = (z) => h / 2 + (z - cz) * k;
+  // range rings
+  const stepNm = [5, 10, 20, 25, 50, 100, 200].find((s) => (span / NM) / s <= 4) || 400;
+  c.strokeStyle = 'rgba(79,216,255,.10)';
+  c.fillStyle = 'rgba(79,216,255,.35)';
+  c.font = '10px JetBrains Mono, monospace';
+  c.lineWidth = 1;
+  for (let r = stepNm; r * NM <= span * 1.05; r += stepNm) {
+    c.beginPath(); c.arc(w / 2, h / 2, r * NM * k, 0, Math.PI * 2); c.stroke();
+    c.fillText(`${r} NM`, w / 2 + r * NM * k * 0.71 + 3, h / 2 - r * NM * k * 0.71 - 3);
+  }
+  c.beginPath(); c.moveTo(w / 2, 10); c.lineTo(w / 2, h - 10); c.moveTo(10, h / 2); c.lineTo(w - 10, h / 2); c.stroke();
+  c.fillStyle = 'rgba(223,231,239,.5)';
+  c.fillText('N', w / 2 - 3, 12);
+  $('mapScale').textContent = ps.length ? `rings ${stepNm} NM` : '';
+  if (!ps.length) {
+    c.fillStyle = 'rgba(131,147,165,.7)';
+    c.font = '13px Inter, sans-serif';
+    c.textAlign = 'center';
+    c.fillText('No pilots in this room', w / 2, h / 2 + 28);
+    c.textAlign = 'left';
+    return;
+  }
+  for (const p of ps) {
+    const x = sx(p.pos.x), y = sy(p.pos.z);
+    const col = p.inMatch ? (p.alive ? '#4ade80' : '#56657a') : '#4fd8ff';
+    const a = (p.pos.hdg * Math.PI) / 180;
+    c.strokeStyle = col;
+    c.lineWidth = 2;
+    c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.sin(a) * 16, y - Math.cos(a) * 16); c.stroke();
+    c.fillStyle = col;
+    c.beginPath(); c.arc(x, y, 5, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#dfe7ef';
+    c.font = '600 11px JetBrains Mono, monospace';
+    c.fillText(p.name, x + 9, y - 4);
+    c.fillStyle = 'rgba(131,147,165,.9)';
+    c.font = '10px JetBrains Mono, monospace';
+    c.fillText(`FL${String(Math.round(p.pos.y / 0.3048 / 100)).padStart(3, '0')} ${Math.round(p.pos.speed * 1.94384)}kt`, x + 9, y + 9);
+  }
+}
+$('mapTabs').addEventListener('click', (e) => { const b = e.target.closest('.tab'); if (b) { mapRoom = b.dataset.room; render(); } });
+window.addEventListener('resize', () => state && renderMap());
+
+// ------------------------------------------------------------------ events + bans
+const KINDS = [['all', 'All'], ['join', 'Joins'], ['kill', 'Kills'], ['chat', 'Chat'], ['admin', 'You']];
+$('evChips').innerHTML = KINDS.map(([k, l]) => `<button class="tab ${k === evFilter ? 'on' : ''}" data-k="${k}">${l}</button>`).join('');
+$('evChips').addEventListener('click', (e) => {
+  const b = e.target.closest('.tab');
+  if (!b) return;
+  evFilter = b.dataset.k;
+  for (const x of $('evChips').children) x.classList.toggle('on', x.dataset.k === evFilter);
+  renderEvents();
+});
+let evSig = '';
+function renderEvents() {
+  const list = state.events.filter((e) => evFilter === 'all' || e.kind === evFilter || (evFilter === 'join' && e.kind === 'leave')).slice(-150).reverse();
+  const sig = evFilter + list.length + (list[0] ? list[0].t + list[0].text : '');
+  if (sig === evSig) return;
+  evSig = sig;
+  $('events').innerHTML = list.length
+    ? list.map((e) => `<div class="ev"><time>${new Date(e.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</time><span class="k-${esc(e.kind)}">${e.room ? `<span class="room-n">${esc(e.room)} · </span>` : ''}${esc(e.text)}</span></div>`).join('')
+    : '<div class="empty">Nothing yet.</div>';
+}
+function renderBans() {
+  $('bans').innerHTML = state.bans.length
+    ? state.bans.map((b) => `<div class="ban"><div><b>${esc(b.name)}</b> <span class="mono-dim">${esc(b.ip)}</span><br><span class="mono-dim">${b.until ? 'until ' + new Date(b.until).toLocaleString() : 'until restart'}${b.reason ? ' · ' + esc(b.reason) : ''}</span></div><button class="btn sm" data-ip="${esc(b.ip)}">Unban</button></div>`).join('')
+    : '<div class="empty">No bans.</div>';
+}
+$('bans').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) act({ a: 'unban', ip: b.dataset.ip }); });
+$('announceAll').onclick = () => ask({ title: 'Announce to everyone', text: 'Shown big on every screen in every room.', input: 'Message' }).then((v) => v && act({ a: 'announce', text: v }));
+
+// ------------------------------------------------------------------ modal + toast
+let resolveAsk = null;
+function ask(o) {
+  $('mTitle').textContent = o.title;
+  $('mText').textContent = o.text || '';
+  const inp = $('mInput'), sel = $('mSelect');
+  inp.classList.toggle('hidden', !o.input);
+  inp.value = '';
+  inp.placeholder = o.input || '';
+  sel.classList.toggle('hidden', !o.select);
+  sel.innerHTML = (o.select || []).map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  $('mOk').textContent = o.ok || (o.input ? 'Send' : 'OK');
+  $('mOk').className = 'btn ' + (o.danger ? 'danger' : 'primary');
+  $('scrim').classList.remove('hidden');
+  setTimeout(() => (o.input ? inp : $('mOk')).focus(), 0);
+  return new Promise((res) => {
+    resolveAsk = (ok) => {
+      $('scrim').classList.add('hidden');
+      resolveAsk = null;
+      if (!ok) return res(null);
+      if (o.select) return res({ text: inp.value.trim(), select: sel.value });
+      res(o.input ? inp.value.trim() : '');
+    };
+  });
+}
+$('modal').addEventListener('submit', (e) => { e.preventDefault(); resolveAsk && resolveAsk(true); });
+$('mCancel').onclick = () => resolveAsk && resolveAsk(false);
+$('scrim').addEventListener('click', (e) => { if (e.target === $('scrim')) resolveAsk && resolveAsk(false); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && resolveAsk) resolveAsk(false); });
+let toastT = 0;
+function toast(msg, bad) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = bad ? 'bad' : '';
+  clearTimeout(toastT);
+  toastT = setTimeout(() => t.classList.add('hidden'), 3200);
+}
+
+// ------------------------------------------------------------------ boot
+KEY = store.get();
+if (KEY) api('state').then(start).catch(() => {});
+</script>
+</body>
+</html>

@@ -3,6 +3,12 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.32.2 — Arrows that show the way (2026-10-02)
+
+- New: a big cyan arrow on screen always points to where you need to go next, with the place's name, how far it is, and which way to turn ("TURN RIGHT 95°"). When the place comes into view, the arrow turns into a marker sitting right on it. It works in BLACKBIRD and in any mission with a steerpoint.
+- BLACKBIRD: the step line at the top and the arrow now always point at the same radio station (the nearest one).
+- Fixed: online, a MiG-31 showed up as an F-15EX to the other pilots.
+
 ## v4.32.1 — Simpler BLACKBIRD missions (2026-10-02)
 
 - BLACKBIRD missions are much easier to follow. Every mission is now the same four simple steps: record the enemy radio, fly over each site, pick the one that matches, fly home. The green steerpoint always points to the next thing to do.

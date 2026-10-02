@@ -16,6 +16,9 @@ let objective: { name: string; short: string; x: number; z: number } | null = nu
 export function setMissionObjective(o: typeof objective): void {
   objective = o;
 }
+export function missionObjective(): typeof objective {
+  return objective;
+}
 
 export interface Steerpoint {
   num: number;

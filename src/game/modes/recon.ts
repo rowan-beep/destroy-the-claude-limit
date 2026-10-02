@@ -665,7 +665,8 @@ export class ReconMode extends GameMode {
     const p = this.host.player;
     const d = (x: number, z: number) => (p ? `${Math.round(Math.hypot(p.fm.pos.x - x, p.fm.pos.z - z) / NM)} NM` : '');
     if (this.phase === 'collect') {
-      const net = this.emitters.find((e) => !e.done);
+      const nets = this.emitters.filter((e) => !e.done);
+      const net = p && nets.length ? nets.reduce((a, b) => (Math.hypot(a.x - p.fm.pos.x, a.z - p.fm.pos.z) < Math.hypot(b.x - p.fm.pos.x, b.z - p.fm.pos.z) ? a : b)) : nets[0];
       if (net) return `STEP 1: RECORD THE RADIO AT ${net.name} (${d(net.x, net.z)}): fly within ${Math.round(this.radioReach() / NM)} NM of it. ${Math.round(net.progress * 100)}%`;
       const left = this.sites.filter((s) => !s.photo);
       if (left.length) {

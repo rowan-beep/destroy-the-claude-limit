@@ -250,6 +250,18 @@ export class OnlineMode extends GameMode {
       case 'error':
         this.game.message(m.reason, 'bad', 5);
         break;
+      case 'sys': {
+        // a message from the server's operator
+        const text = String(m.text ?? '').slice(0, 120);
+        this.game.message(`SERVER: ${text}`, 'warn', 9);
+        this.game.hud.feed(`SERVER: ${text}`, 'blue');
+        break;
+      }
+      case 'smite': {
+        const p = this.game.player;
+        if (p && p.alive) p.destroy(this.game.sim, String(m.text || 'STRUCK DOWN BY THE SERVER').slice(0, 60), null);
+        break;
+      }
     }
   }
 

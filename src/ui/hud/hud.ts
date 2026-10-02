@@ -323,6 +323,7 @@ export class Hud {
       }
       if (g.settings.input.mouseMode === 'mouseaim' && g.cam.mode !== 'weapon') this.painter.drawMouseAim(g);
       if (g.cam.mode !== 'death') this.painter.strikeCues(g, p, g.renderer.camera);
+      if (g.cam.mode !== 'death' && g.cam.mode !== 'weapon') this.painter.objectiveGuide(g, p, g.renderer.camera);
     }
     if (!this.hidden) this.painter.drawLabels(g);
     if (this.hitMarkerT > 0) {
