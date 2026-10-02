@@ -25,7 +25,8 @@ import { spawnInAir } from '../spawn';
 import { NM } from '../../core/constants';
 import { atmosphere, AtmoState } from '../../core/atmosphere';
 import { RULES } from '../rules';
-import { NetClient, NetPlayer, ServerMsg, MatchMsg, ZoneMsg, MatchResult } from '../../net/client';
+import { NetPlayer, ServerMsg, MatchMsg, ZoneMsg, MatchResult } from '../../net/client';
+import type { NetLink } from '../../net/link';
 import type { Game } from '../game';
 
 const SEND_HZ = 20;
@@ -93,7 +94,7 @@ export class OnlineMode extends GameMode {
 
   constructor(
     private game: Game,
-    readonly net: NetClient,
+    readonly net: NetLink,
   ) {
     super(game);
   }

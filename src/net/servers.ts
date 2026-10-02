@@ -63,11 +63,25 @@ export function setPendingJoin(j: PendingJoin | null): void {
   }
 }
 
+/** The same join, for the URL (where storage is blocked, e.g. inside the artifact). */
+export function pendingJoinHash(j: PendingJoin): string {
+  return `join=${encodeURIComponent(`${j.url}|${j.room}`)}`;
+}
+
 export function takePendingJoin(): PendingJoin | null {
   try {
     const s = sessionStorage.getItem(JOIN_KEY);
     sessionStorage.removeItem(JOIN_KEY);
-    return s ? (JSON.parse(s) as PendingJoin) : null;
+    if (s) return JSON.parse(s) as PendingJoin;
+  } catch {
+    /* storage unavailable: try the URL */
+  }
+  try {
+    const m = /[#&]join=([^&]+)/.exec(location.hash);
+    if (!m) return null;
+    const [url, room] = decodeURIComponent(m[1]).split('|');
+    history.replaceState(null, '', location.href.replace(/[&]?join=[^&]+/, ''));
+    return url ? { url, room: room ?? '' } : null;
   } catch {
     return null;
   }

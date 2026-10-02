@@ -32,7 +32,7 @@ import { TutorialMode } from './modes/tutorial';
 import { TeamBattleMode } from './modes/team';
 import { FreeForAllMode } from './modes/ffa';
 import { OnlineMode } from './modes/online';
-import type { NetClient } from '../net/client';
+import type { NetLink } from '../net/link';
 import { resetRules, RULES } from './rules';
 import { ZoneWall } from '../render/zoneWall';
 import { Spectator } from './spectator';
@@ -130,7 +130,7 @@ export class Game implements ModeHost {
   private zoneWall: ZoneWall;
   onStateChange: ((s: GameState) => void) | null = null;
   /** multiplayer: the connected server, handed over before startMission('online') */
-  pendingNet: NetClient | null = null;
+  pendingNet: NetLink | null = null;
   /** multiplayer: the connection dropped (the mission has already ended) */
   onNetLost: ((reason: string) => void) | null = null;
   onResults: ((r: MissionResult) => void) | null = null;
@@ -307,7 +307,7 @@ export class Game implements ModeHost {
     this.accumulator = 0;
   }
 
-  private makeOnline(net: NetClient): OnlineMode {
+  private makeOnline(net: NetLink): OnlineMode {
     this.pendingNet = null;
     const m = new OnlineMode(this, net);
     m.onLost = (reason) => {

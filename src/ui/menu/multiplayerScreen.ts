@@ -7,6 +7,7 @@ import { OFFICIAL_SERVER, loadNetPrefs, saveNetPrefs } from '../../net/servers';
 import { SPECS, AircraftType } from '../../aircraft/specs';
 import { MAPS } from '../../world/islands';
 import type { PaintConfig } from '../../aircraft/models/paint';
+import { inArtifact, artifactRoom, ARTIFACT_ROOMS, ARTIFACT_URL, ROOM_MAX, lobbyInfo, lockedRooms, isArtifactOwner } from '../../net/artifact';
 
 export interface JoinRequest {
   url: string;
@@ -25,6 +26,10 @@ export class MultiplayerScreen {
   private timer = 0;
   private busy = false;
   jet: AircraftType = 'F15EX';
+  /** set by the shell: open the owner's control panel */
+  onAdmin: (() => void) | null = null;
+  /** inside the claude.ai artifact: rooms run in the artifact itself */
+  private readonly artifact = inArtifact();
 
   constructor(
     parent: HTMLElement,
@@ -58,6 +63,21 @@ export class MultiplayerScreen {
     el('label', '', jf, 'YOUR JET');
     el('div', 'mp-jet', jf, `${SPECS[this.jet].shortName.toUpperCase()} — pick it in the hangar`);
 
+    if (this.artifact) {
+      const h = el('h3', '', b, 'ROOMS');
+      void isArtifactOwner().then((own) => {
+        if (own) button('SERVER CONTROL', 'small mp-admin', h, () => this.onAdmin?.());
+      });
+      this.list = el('div', 'mp-list', b);
+      this.status = el('div', 'note mp-status', b, '');
+      el(
+        'div',
+        'note',
+        b,
+        'Rooms run right here inside this page, no server needed. Friends join from this same link: they need to be signed in to Claude and invited to it (the owner shares it with them from the Share menu). Someone opening a public link cannot join a room.',
+      );
+      return;
+    }
     el('h3', '', b, 'OFFICIAL SERVERS');
     this.list = el('div', 'mp-list', b);
     this.status = el('div', 'note mp-status', b, '');
@@ -84,12 +104,12 @@ export class MultiplayerScreen {
     if (!on) return;
     this.build();
     void this.refresh();
-    this.timer = window.setInterval(() => void this.refresh(), 6000);
+    this.timer = window.setInterval(() => void this.refresh(), this.artifact ? 1500 : 6000);
   }
 
   private prefs(): { callsign: string; ok: boolean } {
     const callsign = this.callsign.value.replace(/[^\w \-.#]/g, '').trim().slice(0, 16).toUpperCase();
-    saveNetPrefs({ callsign, custom: this.custom.value.trim() });
+    saveNetPrefs({ callsign, custom: this.custom ? this.custom.value.trim() : loadNetPrefs().custom });
     if (!callsign) {
       this.status.textContent = 'ENTER A CALLSIGN FIRST';
       this.callsign.focus();
@@ -100,7 +120,28 @@ export class MultiplayerScreen {
   private refreshing = false;
   private failures = 0;
 
+  /** Inside the artifact: the rooms, with who is in them (from the lobby). */
+  private async refreshArtifact(): Promise<void> {
+    const r = await artifactRoom();
+    clearEl(this.list);
+    if (!r) {
+      for (const d of ARTIFACT_ROOMS) this.row({ id: d.id, name: d.name, map: d.map, official: false, players: 0, max: ROOM_MAX, state: 'offline' }, ARTIFACT_URL + d.id, true);
+      if (!this.busy) this.status.textContent = 'THIS COPY CANNOT JOIN ROOMS: SIGN IN TO CLAUDE AND ASK THE OWNER TO INVITE YOU (A PUBLIC LINK CANNOT CONNECT).';
+      return;
+    }
+    const locked = lockedRooms();
+    const peers = r.peers().map((p) => lobbyInfo(p)).filter((x) => !!x);
+    for (const d of ARTIFACT_ROOMS) {
+      const here = peers.filter((p) => p!.rm === d.id);
+      const host = here.find((p) => p!.host);
+      const state = locked.includes(d.id) ? 'locked' : (host?.ms ?? here[0]?.ms ?? 'waiting');
+      this.row({ id: d.id, name: d.name, map: d.map, official: false, players: here.length, max: ROOM_MAX, state }, ARTIFACT_URL + d.id, false);
+    }
+    if (!this.busy && !this.status.textContent?.startsWith('DISCONNECTED') && !this.status.textContent?.startsWith('COULD NOT')) this.status.textContent = '';
+  }
+
   private async refresh(): Promise<void> {
+    if (this.artifact) return this.refreshArtifact();
     if (this.refreshing) return;
     this.refreshing = true;
     let rooms: RoomInfo[];
@@ -133,9 +174,9 @@ export class MultiplayerScreen {
     el('div', 'mp-name', c, r.name);
     el('div', 'mp-map', c, map ? map.name : r.map.toUpperCase());
     el('div', 'mp-count', c, offline ? (r.state === 'waking' ? 'WAKING UP…' : 'OFFLINE') : `${r.players} / ${r.max}`);
-    el('div', 'mp-state', c, offline ? '' : r.state === 'live' ? 'MATCH ON' : r.state === 'countdown' ? 'STARTING' : r.state === 'ended' ? 'RESULTS' : 'WAITING');
+    el('div', 'mp-state', c, offline ? '' : r.state === 'live' ? 'MATCH ON' : r.state === 'countdown' ? 'STARTING' : r.state === 'ended' ? 'RESULTS' : r.state === 'locked' ? 'LOCKED' : 'WAITING');
     const b = button('JOIN', 'small', c, () => void this.join(url, r.id, r.map));
-    b.disabled = offline || r.players >= r.max;
+    b.disabled = offline || r.players >= r.max || r.state === 'locked';
   }
 
   private async joinCustom(): Promise<void> {

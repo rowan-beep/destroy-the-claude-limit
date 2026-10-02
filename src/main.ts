@@ -27,7 +27,11 @@ import { activeMap } from './world/islands';
 import { jetAllowedIn } from './aircraft/specs';
 import type { AircraftType } from './aircraft/specs';
 import { MultiplayerScreen, connectTo, JoinRequest } from './ui/menu/multiplayerScreen';
-import { setPendingJoin, takePendingJoin, loadNetPrefs, wakeOfficialServers } from './net/servers';
+import { setPendingJoin, takePendingJoin, loadNetPrefs, wakeOfficialServers, pendingJoinHash } from './net/servers';
+import { inArtifact, isArtifactOwner, ARTIFACT_ROOMS, ARTIFACT_URL, setLobby, sendAdmin } from './net/artifact';
+import { RoomLink } from './net/roomLink';
+import { AdminPanel } from './ui/menu/adminPanel';
+import type { NetLink } from './net/link';
 import { switchMap } from './world/maps';
 import { loadPaint } from './aircraft/models/paint';
 import type { MapId } from './world/islands';
@@ -164,15 +168,26 @@ async function boot(): Promise<void> {
     // every pilot in a room flies the same theater: load the server's first
     const reloadFor = (map: string) => {
       setPendingJoin({ url: j.url, room: j.room });
-      mp.setStatus('LOADING THE SERVER\'S THEATER…');
-      switchMap(map as MapId);
+      mp.setStatus('LOADING THE ROOM\'S THEATER…');
+      switchMap(map as MapId, pendingJoinHash({ url: j.url, room: j.room }));
     };
     if (j.map && j.map !== activeMap.id) {
       reloadFor(j.map);
       return;
     }
     const jet = jetAllowedIn(menu.cfg.aircraft, 'online') ? menu.cfg.aircraft : 'F15EX';
-    const net = await connectTo(j.url, j.room, j.callsign, jet, loadPaint(jet));
+    let net: NetLink;
+    if (j.url.startsWith(ARTIFACT_URL)) {
+      // a room inside this artifact
+      const def = ARTIFACT_ROOMS.find((d) => d.id === j.url.slice(ARTIFACT_URL.length)) ?? ARTIFACT_ROOMS[0];
+      if (def.map !== activeMap.id) {
+        reloadFor(def.map);
+        return;
+      }
+      const link = new RoomLink(def);
+      await link.connect({ name: j.callsign, jet, paint: loadPaint(jet) });
+      net = link;
+    } else net = await connectTo(j.url, j.room, j.callsign, jet, loadPaint(jet));
     if (net.room && net.room.map !== activeMap.id) {
       net.close();
       reloadFor(net.room.map);
@@ -183,6 +198,33 @@ async function boot(): Promise<void> {
     await fly({ ...menu.cfg, aircraft: jet, mode: 'online' });
   };
   const mp = new MultiplayerScreen(document.body, join);
+
+  // --- inside the claude.ai artifact: the lobby, and the owner's control panel
+  if (inArtifact()) {
+    const tellLobby = () =>
+      setLobby({
+        n: (loadNetPrefs().callsign || 'PILOT').toUpperCase().slice(0, 16),
+        j: game.player?.type ?? menu.cfg.aircraft,
+        md: game.state === 'menu' || !game.mode ? 'menu' : game.config.mode,
+      });
+    tellLobby();
+    window.setInterval(tellLobby, 3000);
+    void isArtifactOwner().then((own) => {
+      if (!own) return;
+      const panel = new AdminPanel();
+      mp.onAdmin = () => panel.show(true);
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'F8') {
+          e.preventDefault();
+          panel.toggle();
+        }
+      });
+      // say who the admin is now and then, so everyone trusts our room locks
+      const hi = () => void sendAdmin({ c: 'hi' }).catch(() => {});
+      hi();
+      window.setInterval(hi, 10000);
+    });
+  }
   game.onNetLost = (reason) => {
     mp.jet = menu.cfg.aircraft;
     mp.show(true);

@@ -6,6 +6,7 @@
 
 import type { AircraftType } from '../aircraft/specs';
 import type { PaintConfig } from '../aircraft/models/paint';
+import type { NetLink } from './link';
 
 export const PROTOCOL = 1;
 
@@ -108,7 +109,7 @@ export function statusUrl(wsUrl: string): string {
   return wsUrl.replace(/^ws/, 'http') + '/status';
 }
 
-export class NetClient {
+export class NetClient implements NetLink {
   private ws: WebSocket | null = null;
   id = 0;
   /** our callsign as the server has it */

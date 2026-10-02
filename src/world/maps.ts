@@ -42,10 +42,10 @@ export function saveMapChoice(id: MapId): boolean {
 }
 
 /** Change theater: remember it and restart the game on the new map. */
-export function switchMap(id: MapId): void {
+export function switchMap(id: MapId, extraHash = ''): void {
   saveMapChoice(id);
   try {
-    location.hash = `map=${id}`;
+    location.hash = `map=${id}${extraHash ? '&' + extraHash : ''}`;
   } catch {
     /* ignore */
   }
