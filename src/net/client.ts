@@ -204,7 +204,7 @@ export class NetClient {
     this.pingT -= dt;
     if (this.pingT <= 0) {
       this.pingT = 2;
-      this.send({ t: 'ping', c: performance.now() });
+      this.send({ t: 'ping', c: performance.now(), rtt: Math.round(this.rtt) });
     }
   }
 

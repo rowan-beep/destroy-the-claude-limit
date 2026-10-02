@@ -330,7 +330,8 @@ wss.on('connection', (ws, req) => {
     if (!player) return;
     player.lastPong = Date.now();
     const rtt = Date.now() - player.pingSent;
-    if (player.pingSent && rtt < 10000) player.ping = player.ping ? Math.round(player.ping * 0.6 + rtt * 0.4) : rtt;
+    // (a hosting proxy may answer these itself: the game's own figure wins when it sends one)
+    if (player.pingSent && rtt < 10000 && !player.clientPing) player.ping = player.ping ? Math.round(player.ping * 0.6 + rtt * 0.4) : rtt;
   });
   ws.on('message', (raw) => {
     let m;
@@ -412,6 +413,11 @@ wss.on('connection', (ws, req) => {
       }
       case 'ping':
         send({ t: 'pong', c: m.c });
+        // the game measures its own round trip, end to end
+        if (Number.isFinite(+m.rtt) && +m.rtt > 0 && +m.rtt < 10000) {
+          player.ping = Math.round(+m.rtt);
+          player.clientPing = true;
+        }
         break;
     }
   });
