@@ -10,6 +10,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.32.3',
+    date: '2026-10-02',
+    title: 'Official servers wake up faster',
+    notes: [
+      "Multiplayer: the official servers go to sleep when nobody has played for a while and take up to a minute to start again. The game now wakes them as soon as it loads, and while they start, the server list says \"WAKING UP…\" instead of \"OFFLINE\" and keeps trying until they answer.",
+    ],
+  },
+  {
     version: '4.32.2',
     date: '2026-10-02',
     title: 'Arrows that show the way',

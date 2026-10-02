@@ -97,16 +97,31 @@ export class MultiplayerScreen {
     return { callsign, ok: !!callsign };
   }
 
+  private refreshing = false;
+  private failures = 0;
+
   private async refresh(): Promise<void> {
+    if (this.refreshing) return;
+    this.refreshing = true;
     let rooms: RoomInfo[];
     try {
-      rooms = await fetchRooms(OFFICIAL_SERVER);
+      // a sleeping server answers once it is up: give it time
+      rooms = await fetchRooms(OFFICIAL_SERVER, 12000);
     } catch {
+      this.refreshing = false;
+      this.failures++;
+      // they sleep when nobody is on; a minute of trying wakes them
+      const waking = this.failures <= 12;
       clearEl(this.list);
-      for (let i = 1; i <= 5; i++) this.row({ id: `official-${i}`, name: `OFFICIAL ${i}`, map: i <= 3 ? 'triad' : 'frost', official: true, players: 0, max: 12, state: 'offline' }, OFFICIAL_SERVER, true);
-      if (!this.busy) this.status.textContent = 'OFFICIAL SERVERS UNREACHABLE RIGHT NOW — TRY AGAIN SOON, OR JOIN A SERVER BY ADDRESS.';
+      for (let i = 1; i <= 5; i++) this.row({ id: `official-${i}`, name: `OFFICIAL ${i}`, map: i <= 3 ? 'triad' : 'frost', official: true, players: 0, max: 12, state: waking ? 'waking' : 'offline' }, OFFICIAL_SERVER, true);
+      if (!this.busy)
+        this.status.textContent = waking
+          ? 'WAKING UP THE OFFICIAL SERVERS (THEY SLEEP WHEN NOBODY IS ON). THIS TAKES UP TO A MINUTE…'
+          : 'OFFICIAL SERVERS UNREACHABLE RIGHT NOW — TRY AGAIN SOON, OR JOIN A SERVER BY ADDRESS.';
       return;
     }
+    this.refreshing = false;
+    this.failures = 0;
     clearEl(this.list);
     for (const r of rooms) this.row(r, OFFICIAL_SERVER, false);
     if (!this.busy) this.status.textContent = '';
@@ -117,7 +132,7 @@ export class MultiplayerScreen {
     const c = el('div', 'mp-server' + (offline ? ' off' : ''), this.list);
     el('div', 'mp-name', c, r.name);
     el('div', 'mp-map', c, map ? map.name : r.map.toUpperCase());
-    el('div', 'mp-count', c, offline ? 'OFFLINE' : `${r.players} / ${r.max}`);
+    el('div', 'mp-count', c, offline ? (r.state === 'waking' ? 'WAKING UP…' : 'OFFLINE') : `${r.players} / ${r.max}`);
     el('div', 'mp-state', c, offline ? '' : r.state === 'live' ? 'MATCH ON' : r.state === 'countdown' ? 'STARTING' : r.state === 'ended' ? 'RESULTS' : 'WAITING');
     const b = button('JOIN', 'small', c, () => void this.join(url, r.id, r.map));
     b.disabled = offline || r.players >= r.max;

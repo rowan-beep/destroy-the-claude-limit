@@ -3,6 +3,10 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.32.3 — Official servers wake up faster (2026-10-02)
+
+- Multiplayer: the official servers go to sleep when nobody has played for a while and take up to a minute to start again. The game now wakes them as soon as it loads, and while they start, the server list says "WAKING UP…" instead of "OFFLINE" and keeps trying until they answer.
+
 ## v4.32.2 — Arrows that show the way (2026-10-02)
 
 - New: a big cyan arrow on screen always points to where you need to go next, with the place's name, how far it is, and which way to turn ("TURN RIGHT 95°"). When the place comes into view, the arrow turns into a marker sitting right on it. It works in BLACKBIRD and in any mission with a steerpoint.

@@ -9,6 +9,19 @@ const ENV = (import.meta as unknown as { env?: Record<string, string | undefined
 
 export const OFFICIAL_SERVER: string = ENV?.VITE_TRIAD_SERVER || 'wss://triad-servers.onrender.com';
 
+/**
+ * The official servers sleep when nobody has been on for a while and take
+ * up to a minute to wake. Knock once at start-up so they are usually awake
+ * by the time anyone opens the server list.
+ */
+export function wakeOfficialServers(): void {
+  try {
+    void fetch(OFFICIAL_SERVER.replace(/^ws/, 'http') + '/status', { cache: 'no-store' }).catch(() => {});
+  } catch {
+    /* offline */
+  }
+}
+
 export interface NetPrefs {
   callsign: string;
   custom: string;

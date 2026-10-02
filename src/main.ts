@@ -27,10 +27,12 @@ import { activeMap } from './world/islands';
 import { jetAllowedIn } from './aircraft/specs';
 import type { AircraftType } from './aircraft/specs';
 import { MultiplayerScreen, connectTo, JoinRequest } from './ui/menu/multiplayerScreen';
-import { setPendingJoin, takePendingJoin, loadNetPrefs } from './net/servers';
+import { setPendingJoin, takePendingJoin, loadNetPrefs, wakeOfficialServers } from './net/servers';
 import { switchMap } from './world/maps';
 import { loadPaint } from './aircraft/models/paint';
 import type { MapId } from './world/islands';
+
+wakeOfficialServers();
 
 async function boot(): Promise<void> {
   // the theater must be chosen before anything about the world is built
