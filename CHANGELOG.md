@@ -3,6 +3,14 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.33.0 — Multiplayer in the Claude page (2026-10-02)
+
+- Multiplayer now works right here in the Claude page you play in. Artifact pages cannot reach outside servers, which is why the official servers always showed OFFLINE in it. Now the page has its own rooms: ROOM 1 and 2 on the Jade Archipelago, ROOM 3 on Triad Isles, ROOM 4 and 5 on Frostfall Strait.
+- The rooms list shows how many pilots are in each room and whether a match is waiting, starting or on. Join one and it plays exactly like before: LAST PILOT STANDING, the shrinking zone, kills rearm you, last jet flying wins.
+- No server needed: one pilot's game quietly runs each room's matches, and if that pilot leaves, someone else's game takes over and the match carries on.
+- To play together, everyone opens the same link and is signed in to Claude. Friends must be invited to the page (the owner shares it with them from the Share menu); someone who opens it from a public link cannot join a room.
+- The official servers still work for anyone playing on the website.
+
 ## v4.32.3 — Official servers wake up faster (2026-10-02)
 
 - Multiplayer: the official servers go to sleep when nobody has played for a while and take up to a minute to start again. The game now wakes them as soon as it loads, and while they start, the server list says "WAKING UP…" instead of "OFFLINE" and keeps trying until they answer.

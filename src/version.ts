@@ -10,6 +10,18 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.33.0',
+    date: '2026-10-02',
+    title: 'Multiplayer in the Claude page',
+    notes: [
+      "Multiplayer now works right here in the Claude page you play in. Artifact pages cannot reach outside servers, which is why the official servers always showed OFFLINE in it. Now the page has its own rooms: ROOM 1 and 2 on the Jade Archipelago, ROOM 3 on Triad Isles, ROOM 4 and 5 on Frostfall Strait.",
+      "The rooms list shows how many pilots are in each room and whether a match is waiting, starting or on. Join one and it plays exactly like before: LAST PILOT STANDING, the shrinking zone, kills rearm you, last jet flying wins.",
+      "No server needed: one pilot's game quietly runs each room's matches, and if that pilot leaves, someone else's game takes over and the match carries on.",
+      "To play together, everyone opens the same link and is signed in to Claude. Friends must be invited to the page (the owner shares it with them from the Share menu); someone who opens it from a public link cannot join a room.",
+      "The official servers still work for anyone playing on the website.",
+    ],
+  },
+  {
     version: '4.32.3',
     date: '2026-10-02',
     title: 'Official servers wake up faster',
