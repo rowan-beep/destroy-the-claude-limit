@@ -10,6 +10,20 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.32.1',
+    date: '2026-10-02',
+    title: 'Simpler BLACKBIRD missions',
+    notes: [
+      "BLACKBIRD missions are much easier to follow. Every mission is now the same four simple steps: record the enemy radio, fly over each site, pick the one that matches, fly home. The green steerpoint always points to the next thing to do.",
+      "The top of the screen now says exactly what to do next in plain words (for example \"STEP 2: FLY OVER SITE B (34 NM) TO SCAN IT\"), and a new order pops up each time you finish a step.",
+      "Scanning is simple: fly over a site and it scans itself in a second or two. No more separate camera, IR and side-radar rules, altitude limits or sites hidden under cloud.",
+      "The radio is always on: just fly within the range shown and it records in about 20 seconds.",
+      "Clues are said plainly (\"THE REAL SITE HAS FUEL + RADIO MAST\") instead of as riddles.",
+      "The decision list shows a ✓ or ✗ for each clue at each site and marks the one that has everything.",
+      "The friendly strike arrives in a couple of minutes instead of flying across the whole map, and the overheating tape recorder problem was removed. The stories, sites, answers and other in-flight trouble are still different every mission.",
+    ],
+  },
+  {
     version: '4.32.0',
     date: '2026-10-02',
     title: 'SR-71 Blackbird + BLACKBIRD spy missions',

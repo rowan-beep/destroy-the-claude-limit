@@ -521,8 +521,6 @@ export class ReconMode extends GameMode {
       for (const u of s.units) if (u.kind === 'jet') u.jetType = pick(['SU35', 'MIG31'] as AircraftType[]);
       sim.groundSites.push({ x: s.x, z: s.z, r: 200 });
     }
-    // weather: one site may sit under cloud (cameras only below the deck)
-    if (Math.random() < 0.5) pick(this.sites).cloud = true;
 
     // --- the command post whose radio net gives the clue ---
     const hqUnits = this.cluster(hqSpot.x, hqSpot.z, [{ kind: 'hq', label: hqName }, { kind: 'mast', label: 'ANTENNA FARM' }, { kind: 'mast' }, { kind: 'bunker' }, { kind: 'barracks' }, { kind: 'truck' }], 90);
@@ -572,7 +570,7 @@ export class ReconMode extends GameMode {
     }
 
     // --- the trouble ahead (2 or 3 problems, at random times) ---
-    const pool: Problem[] = shuffle(['unstart', 'leak', 'recorder', 'sa2', 'retask']);
+    const pool: Problem[] = shuffle(['unstart', 'leak', 'sa2', 'retask']);
     const np = 2 + (Math.random() < 0.5 ? 1 : 0);
     for (let i = 0; i < np; i++) this.problems.push({ kind: pool[i], at: rnd(70, 260) + i * 60, fired: false });
 
@@ -612,9 +610,9 @@ export class ReconMode extends GameMode {
     const h = this.host;
     const T = this.theme, C = this.ctx;
     const d = (x: number, z: number) => `${Math.round(Math.hypot(p.fm.pos.x - x, p.fm.pos.z - z) / NM)} NM / ${brg3(bearingXZ(p.fm.pos.x, p.fm.pos.z, x, z))}`;
-    const sites = this.sites.map((s) => `${s.letter}: ${s.name} (${d(s.x, s.z)})${s.cloud ? ' — under cloud' : ''}`).join(' · ');
+    const sites = this.sites.map((s) => `${s.letter}: ${s.name} (${d(s.x, s.z)})`).join(' · ');
     const tip = this.tipKeys.length
-      ? ` ${T.id === 'chem' ? C.person : 'A source inside the ministry'} has already told us one thing: ${T.assetShort.toLowerCase()} will be ${ATTR[this.tipKeys[0]].clue[0].toLowerCase()}.`
+      ? ` ${T.id === 'chem' ? C.person : 'A source inside the ministry'} has already told us one thing: the real ${T.siteNoun} has ${ATTR[this.tipKeys[0]].name}.`
       : '';
     const nets = this.emitters.map((e) => `${e.name} (${d(e.x, e.z)})`).join(' and ');
     const start = p.fm.onGround ? `You launch from ${this.home.name}: a long take-off roll, then climb and accelerate past Mach 2.5 before you cross the line.` : `You are already in the air, ${Math.round(p.fm.pos.y / FT / 1000)},000 ft, Mach ${(p.fm.vel.length() / 295).toFixed(1)}, coming off the tanker.`;
@@ -622,18 +620,17 @@ export class ReconMode extends GameMode {
       kicker: `BLACKBIRD · ${C.op} · ${T.title}`,
       title: `FIND ${T.assetShort}`,
       story: `${T.story(C)}${tip} ${start}`,
-      heading: 'YOUR ORDERS',
+      heading: 'WHAT TO DO (THE GREEN STEERPOINT ALWAYS SHOWS THE WAY)',
       tasks: [
-        `Candidate ${T.siteNoun}s — ${sites}.`,
-        `Intercept the radio net at ${nets}: fly within reach while the net is up (above 30,000 ft) and the recorder fills. The decoded traffic tells you what to look for.`,
-        'Photograph each site: pass over it wings-level (the camera sees a wide strip below you, wider the higher you are). Fly below 25,000 ft over a site and the IR film shows warm engines. Fly past a site with it off your wingtip, 5 to 60 km away, wings level, and the ASARS radar finds metal under the trees. Cloud blinds the cameras, never the radar.',
-        `When you have enough, you make the call: which site is real. Then ${T.ending === 'strike' ? 'a strike package goes in on it; photograph the damage afterwards.' : 'the raid team goes in; watch over it from above.'}`,
-        `Get home: back to the recovery area at ${this.home.name}.`,
-        'Stay unseen: enemy radars build a track on you (DETECTION, top of the screen). Above 70,000 ft and past Mach 2.8 they can barely hold you; down low the mountains hide you. Get caught and the MiG-31s scramble, the SA-2s wake up and the target starts to move.',
+        `RECORD THE RADIO: fly to ${nets} and stay within ${Math.round(this.radioReach() / NM)} NM until it reaches 100%. It tells you what the real ${T.siteNoun} has.${this.tipKeys.length ? ` (You already know one thing: it has ${ATTR[this.tipKeys[0]].name}.)` : ''}`,
+        `SCAN EVERY SITE: fly right over each one (${sites}). It scans by itself in a second or two.`,
+        `MAKE THE CALL: a list pops up showing what each site has. Pick the one with a ✓ for every clue. ${T.ending === 'strike' ? 'Fighters then strike it; fly over it afterwards to photograph the damage.' : 'A raid team goes in; stay near it for 60 seconds.'}`,
+        `FLY HOME to ${this.home.name}.`,
+        'STAY HIDDEN: keep above 70,000 ft and faster than Mach 2.8 and their radars can barely see you (DETECTION, top left). Get seen and MiG-31s and SAMs come after you.',
       ],
       footer: `The SR-71 is unarmed. Every mission is different: new story, sites, clues, right answer and trouble. Difficulty: ${h.config.difficulty}.`,
       onOk: () => {
-        h.order(`${C.op} — ${p.fm.onGround ? 'CLEARED FOR TAKEOFF' : 'PRESS ON'}`, `Find ${T.assetShort.toLowerCase()}: ${this.sites.length} candidate ${T.siteNoun}s. Steerpoint 1 shows the next site.`, 10);
+        h.order(`${C.op} — ${p.fm.onGround ? 'CLEARED FOR TAKEOFF' : 'PRESS ON'}`, this.stepText(), 10);
         h.voice(p.fm.onGround ? 'Cleared for takeoff' : 'Press on');
       },
     });
@@ -653,6 +650,44 @@ export class ReconMode extends GameMode {
     return keys.map((k) => `${ATTR[k].name} ${s.known[k] === undefined ? '?' : s.known[k] ? 'YES' : 'NO'}`).join(' · ');
   }
 
+  private radioReach(): number {
+    return 70000 * Math.max(0.6, mapScale());
+  }
+
+  /** The clue in plain words, e.g. "FUEL + RADIO MAST". */
+  private clueText(): string {
+    const c = this.clueKnown();
+    return c.length ? c.map((k) => ATTR[k].name).join(' + ') : '?';
+  }
+
+  /** What the player should do now, in one plain sentence. */
+  private stepText(): string {
+    const p = this.host.player;
+    const d = (x: number, z: number) => (p ? `${Math.round(Math.hypot(p.fm.pos.x - x, p.fm.pos.z - z) / NM)} NM` : '');
+    if (this.phase === 'collect') {
+      const net = this.emitters.find((e) => !e.done);
+      if (net) return `STEP 1: RECORD THE RADIO AT ${net.name} (${d(net.x, net.z)}): fly within ${Math.round(this.radioReach() / NM)} NM of it. ${Math.round(net.progress * 100)}%`;
+      const left = this.sites.filter((s) => !s.photo);
+      if (left.length) {
+        const s = p ? left.reduce((a, b) => (Math.hypot(a.x - p.fm.pos.x, a.z - p.fm.pos.z) < Math.hypot(b.x - p.fm.pos.x, b.z - p.fm.pos.z) ? a : b)) : left[0];
+        return `STEP 2: FLY OVER SITE ${s.letter} (${d(s.x, s.z)}) TO SCAN IT. ${this.sites.length - left.length}/${this.sites.length} SCANNED · LOOKING FOR ${this.clueText()}`;
+      }
+      return 'STEP 3: PICK THE SITE THAT MATCHES THE CLUE';
+    }
+    if (this.phase === 'execute') return this.strikeLaunched ? `STAY WITHIN 60 NM OF ${this.choice?.name}: IMPACT IN ${Math.max(0, Math.round(this.strikeImpact - this.elapsed))} S` : `FIGHTERS ON THE WAY TO ${this.choice?.name}: STAY WITHIN 60 NM`;
+    if (this.phase === 'bda') return `FLY OVER ${this.choice?.name} (${this.choice ? d(this.choice.x, this.choice.z) : ''}) TO PHOTOGRAPH THE DAMAGE`;
+    if (this.phase === 'overwatch') return `STAY WITHIN 25 NM OF ${this.choice?.name} FOR 60 S: ${Math.round(this.overwatchT)}/60`;
+    if (this.phase === 'egress') return `FLY HOME TO ${this.home.name} (${d(this.home.x, this.home.z)})`;
+    return 'MISSION COMPLETE';
+  }
+
+  /** Tell the player the next step after finishing one. */
+  private nextStep(): void {
+    if (this.phase !== 'collect' || this.readyToDecide()) return;
+    this.host.order('NEXT', this.stepText(), 8);
+    this.steer();
+  }
+
   private clueKnown(): AttrKey[] {
     return [...this.tipKeys, ...this.emitters.filter((e) => e.done).flatMap((e) => e.keys)];
   }
@@ -664,7 +699,7 @@ export class ReconMode extends GameMode {
     if (this.phase === 'collect') {
       const want: { name: string; x: number; z: number }[] = [];
       for (const e of this.emitters) if (!e.done) want.push({ name: e.name, x: e.x, z: e.z });
-      for (const s of this.sites) if (!s.photo || this.needs(s)) want.push({ name: s.name, x: s.x, z: s.z });
+      if (!want.length) for (const s of this.sites) if (!s.photo) want.push({ name: s.name, x: s.x, z: s.z });
       if (this.retask && !this.retask.done && !this.retask.failed) want.unshift({ name: this.retask.name, x: this.retask.x, z: this.retask.z });
       if (p && want.length) tgt = want.reduce((a, b) => (Math.hypot(a.x - p.fm.pos.x, a.z - p.fm.pos.z) < Math.hypot(b.x - p.fm.pos.x, b.z - p.fm.pos.z) ? a : b));
     } else if ((this.phase === 'execute' || this.phase === 'bda' || this.phase === 'overwatch') && this.choice) tgt = this.choice;
@@ -701,40 +736,19 @@ export class ReconMode extends GameMode {
     };
     const sites: (Site | Retask)[] = [...this.sites];
     for (const s of this.sites) {
-      const { d, rel } = scan(s);
-      const underCloud = s.cloud && agl > 3000;
-      // the camera: wings level, the site in the strip below
-      if (level && d < swath && !underCloud) {
-        if (!s.photo) {
-          s.photoT += dt;
-          if (s.photoT > 1.2) {
-            s.photo = true;
-            for (const k of PHOTO_KEYS) s.known[k] = s.attrs[k];
-            const seen = PHOTO_KEYS.filter((k) => s.attrs[k]).map((k) => ATTR[k].yes);
-            this.log(`PHOTO — ${s.letter} ${s.name}: ${seen.length ? seen.join(', ') : 'nothing out of the ordinary'}.`, 'good', 9);
-            this.host.voice('Photo run complete');
-          }
-        }
-        // IR line-scan works low
-        if (!s.ir && agl < 7600) {
-          s.irT += dt;
-          if (s.irT > 1.0) {
-            s.ir = true;
-            s.known.heat = s.attrs.heat;
-            this.log(`IR — ${s.letter} ${s.name}: ${s.attrs.heat ? ATTR.heat.yes : ATTR.heat.no}.`, 'good', 8);
-          }
-        }
-      } else if (level && d < swath && underCloud && !s.photo && this.elapsed - this.seenMsgT > 12) {
-        this.seenMsgT = this.elapsed;
-        this.host.message(`${s.letter} ${s.name} IS UNDER CLOUD: THE CAMERAS SEE NOTHING. GO BELOW 10,000 FT, OR USE THE RADAR.`, 'warn', 6);
-      }
-      // the side-looking radar: the site off a wingtip, 5 to 60 km out
-      if (!s.radar && level && d > 5000 && d < 60000 * Math.max(0.7, mapScale()) && rel > (50 * Math.PI) / 180 && rel < (130 * Math.PI) / 180) {
-        s.radarT += dt;
-        if (s.radarT > 5) {
-          s.radar = true;
-          s.known.metal = s.attrs.metal;
-          this.log(`ASARS — ${s.letter} ${s.name}: ${s.attrs.metal ? ATTR.metal.yes : ATTR.metal.no}.`, 'good', 8);
+      if (s.photo) continue;
+      const { d } = scan(s);
+      // fly over it, roughly wings level: the cameras, IR and radar all take it in
+      if (Math.abs(fm.bank) < 35 && d < Math.max(swath, 8000)) {
+        s.photoT += dt;
+        if (s.photoT > 1.5) {
+          s.photo = s.ir = s.radar = true;
+          for (const k of ALL_KEYS) s.known[k] = s.attrs[k];
+          const clue = this.clueKnown();
+          const shown = (clue.length ? clue : this.keys).map((k) => `${ATTR[k].name} ${s.attrs[k] ? 'YES' : 'NO'}`).join(', ');
+          this.log(`SCANNED SITE ${s.letter} (${s.name}): ${clue.length ? shown : 'pictures taken'}.`, 'good', 9);
+          this.host.voice('Photo run complete');
+          this.nextStep();
         }
       }
     }
@@ -742,7 +756,7 @@ export class ReconMode extends GameMode {
     const r = this.retask;
     if (r && !r.done && !r.failed) {
       const { d } = scan(r);
-      if (level && d < swath) {
+      if (Math.abs(fm.bank) < 35 && d < Math.max(swath, 8000)) {
         r.t += dt;
         if (r.t > 1.2) {
           r.done = true;
@@ -758,26 +772,18 @@ export class ReconMode extends GameMode {
     // the radio nets
     for (const e of this.emitters) {
       if (e.done) continue;
-      const up = ((this.elapsed + e.phase) % e.period) / e.period < e.on;
       const d = Math.hypot(e.x - fm.pos.x, e.z - fm.pos.z);
-      const reach = 95000 * Math.max(0.6, mapScale());
-      if (up && d < reach && fm.pos.y > 30000 * FT) {
+      if (d < this.radioReach()) {
         const before = e.progress;
-        e.progress = Math.min(1, e.progress + dt / 30);
-        if (before < 0.5 && e.progress >= 0.5) this.host.message(`EMR: ${e.name} NET 50% RECORDED.`, 'info', 4);
+        e.progress = Math.min(1, e.progress + dt / 20);
+        if (before === 0) this.host.message(`RECORDING ${e.name} RADIO… STAY WITHIN ${Math.round(this.radioReach() / NM)} NM.`, 'info', 5);
+        if (before < 0.5 && e.progress >= 0.5) this.host.message(`RADIO ${e.name}: 50% RECORDED.`, 'info', 4);
         if (e.progress >= 1) {
           e.done = true;
           const text = e.keys.map((k) => pick(ATTR[k].clue)).join(' AND ');
-          this.log(`INTERCEPT DECODED (${e.name}): "${this.ctx.code} IS ${text}." — Look for ${e.keys.map((k) => ATTR[k].name).join(' + ')}.`, 'order', 14);
+          this.log(`RADIO DECODED (${e.name}): "${this.ctx.code} IS ${text}." MEANING: THE REAL SITE HAS ${e.keys.map((k) => ATTR[k].name).join(' + ')}.`, 'order', 14);
           this.host.voice('Intercept decoded');
-          const needIr = e.keys.includes('heat'), needRadar = e.keys.includes('metal');
-          if (needIr) this.host.message('ANALYST: WARM ENGINES ONLY SHOW ON IR FILM. PASS OVER THE SITES BELOW 25,000 FT.', 'info', 10);
-          if (needRadar) this.host.message('ANALYST: STEEL UNDER COVER NEEDS THE ASARS RADAR. PASS THE SITES OFF YOUR WINGTIP.', 'info', 10);
-          if (this.problems.some((p) => p.kind === 'recorder' && !p.fired)) {
-            // the recorder overheats with the tapes in it
-            const pr = this.problems.find((p) => p.kind === 'recorder')!;
-            pr.at = this.elapsed + 2;
-          }
+          this.nextStep();
         }
       }
     }
@@ -1002,18 +1008,20 @@ export class ReconMode extends GameMode {
     const clue = this.clueKnown();
     if (clue.length < this.keys.length) return false;
     // every site checked for every key the clue names
-    return this.sites.every((s) => clue.every((k) => s.known[k] !== undefined));
+    return this.sites.every((s) => s.photo);
   }
 
   private assess(forced: boolean): void {
     const h = this.host;
     const T = this.theme;
     const clue = this.clueKnown();
-    const rows = this.sites.map((s) => `${s.letter} — ${s.name}: ${this.knownText(s, clue.length ? clue : PHOTO_KEYS.slice(0, 2))}`);
-    const clueText = clue.length ? `${this.ctx.code} is ${clue.map((k) => ATTR[k].clue[0].toLowerCase()).join(' and ')}.` : 'We have no clue yet: this is a guess.';
+    const show = (s: Site) => (s.photo ? clue.map((k) => `${ATTR[k].name} ${s.known[k] ? '✓' : '✗'}`).join(' · ') : 'NOT SCANNED');
+    const match = (s: Site) => s.photo && clue.length > 0 && clue.every((k) => s.known[k]);
+    const rows = this.sites.map((s) => `${s.letter} — ${s.name}: ${show(s)}${match(s) ? '  ← HAS EVERYTHING' : ''}`);
+    const clueText = clue.length ? `The real ${T.siteNoun} has ${clue.map((k) => ATTR[k].name).join(' and ')}.` : 'We have no clue yet: this is a guess.';
     const choices = this.sites.map((s) => ({
-      label: `${s.letter} · ${s.name}`,
-      detail: this.knownText(s, clue.length ? clue : PHOTO_KEYS.slice(0, 2)),
+      label: `${s.letter} · ${s.name}${match(s) ? ' ✓' : ''}`,
+      detail: show(s),
       pick: () => this.decide(s),
     }));
     if (!forced) choices.push({ label: 'NOT YET — KEEP LOOKING', detail: 'Go back for more intel. You will be asked again.', pick: () => this.keepLooking() });
@@ -1023,7 +1031,7 @@ export class ReconMode extends GameMode {
       story: `${forced ? `Out of time: ${T.assetShort.toLowerCase()} is about to move. ` : ''}What we know: ${clueText} Which ${T.siteNoun} is it? ${T.ending === 'strike' ? 'The strike package goes where you say.' : 'The raid team goes where you say, once.'}`,
       heading: 'WHAT EACH SITE SHOWED',
       tasks: rows,
-      footer: 'Only one site is real; each decoy shows at most one of the clues.',
+      footer: 'Pick the site with a ✓ for every clue. The decoys only have some of them.',
       choices,
     });
   }
@@ -1061,7 +1069,10 @@ export class ReconMode extends GameMode {
     for (let i = 0; i < n; i++) {
       const e = new Aircraft(type, 'blue', `HAMMER ${i + 1}`);
       e.setStores(aiStores(e, 2, 2));
-      const pos = new THREE.Vector3(b.x, 7600 + i * 150, b.z).addScaledVector(dir, 8000 - i * 600).add(new THREE.Vector3(-dir.z, 0, dir.x).multiplyScalar((i - 1) * 900));
+      // they were already holding near the border: a short run in, not a cross-map flight
+      const far = Math.hypot(s.x - b.x, s.z - b.z);
+      const start = Math.max(8000, far - (32 * NM * Math.max(0.55, mapScale()) + 22000));
+      const pos = new THREE.Vector3(b.x, 7600 + i * 150, b.z).addScaledVector(dir, start - i * 600).add(new THREE.Vector3(-dir.z, 0, dir.x).multiplyScalar((i - 1) * 900));
       spawnInAir(e, pos, bearingXZ(pos.x, pos.z, s.x, s.z), 480);
       e.controls.throttle = 1.0;
       const ai = new AIPilot(e, duelSkill('HARD'), h.picture);
@@ -1091,7 +1102,7 @@ export class ReconMode extends GameMode {
       const d = Math.hypot(lead.fm.pos.x - s.x, lead.fm.pos.z - s.z);
       if (d < 32 * NM * Math.max(0.55, mapScale())) {
         this.strikeLaunched = true;
-        const tof = d / 260;
+        const tof = d / 520;
         this.strikeImpact = this.elapsed + tof;
         h.message(`HAMMER: WEAPONS AWAY, ${alive.length * 2} STAND-OFF MISSILES, TIME OF FLIGHT ${Math.round(tof)} SECONDS.`, 'gci', 8);
         h.voice('Weapons away');
@@ -1172,7 +1183,7 @@ export class ReconMode extends GameMode {
       const fm = p.fm;
       const agl = fm.pos.y - Math.max(0, h.sim.grid.height(fm.pos.x, fm.pos.z));
       const swath = THREE.MathUtils.clamp(agl * 0.9, 2500, 26000);
-      if (Math.abs(fm.bank) < 15 && Math.hypot(s.x - fm.pos.x, s.z - fm.pos.z) < swath && !(s.cloud && agl > 3000)) {
+      if (Math.abs(fm.bank) < 35 && Math.hypot(s.x - fm.pos.x, s.z - fm.pos.z) < Math.max(swath, 8000)) {
         s.photoT += dt;
         if (s.photoT > 1.2) this.bdaDone(s);
       }
@@ -1256,8 +1267,8 @@ export class ReconMode extends GameMode {
         ['STORY', this.theme.title],
         ['THE REAL SITE', this.sites.find((x) => x.real)!.name],
         ['YOUR CALL', s ? `${s.name}${s.real ? ' ✓' : ' ✗'}` : 'none'],
-        ['PHOTOS / IR / RADAR', `${photos} / ${ir} / ${radar} of ${this.sites.length}`],
-        ['RADIO NETS RECORDED', `${nets} / ${this.emitters.length}`],
+        ['SITES SCANNED', `${photos} of ${this.sites.length}`],
+        ['RADIO RECORDED', `${nets} / ${this.emitters.length}`],
         ['PEAK DETECTION', `${Math.round(this.peakDetection)}%${this.compromised ? ' (compromised)' : this.peakDetection < 25 ? ' (never seen)' : ''}`],
         ['RE-TASKING', this.retask ? (this.retask.done ? 'photographed' : 'missed') : 'none'],
         ['TOP SPEED / ALTITUDE', `Mach ${this.maxMach.toFixed(2)} / ${Math.round(this.maxAlt / FT).toLocaleString('en-US')} ft`],
@@ -1276,18 +1287,9 @@ export class ReconMode extends GameMode {
     let objective = '';
     let warning: string | undefined;
     const d = (x: number, z: number) => (p ? `${Math.round(Math.hypot(p.fm.pos.x - x, p.fm.pos.z - z) / NM)} NM` : '');
-    if (this.phase === 'collect') {
-      const parts: string[] = [];
-      for (const e of this.emitters) if (!e.done) parts.push(`NET ${e.name.split(' ')[0]} ${Math.round(e.progress * 100)}% ${d(e.x, e.z)}`);
-      for (const s of this.sites) parts.push(`${s.letter}:${s.photo ? 'P' : '-'}${s.ir ? 'I' : '-'}${s.radar ? 'R' : '-'}${s.cloud ? '☁' : ''}`);
-      if (this.retask && !this.retask.done && !this.retask.failed) parts.push(`RE-TASK ${d(this.retask.x, this.retask.z)} ${mmss(this.retask.deadline - this.elapsed)}`);
-      objective = parts.join(' · ');
-      if (this.moveDeadline > 0) warning = `${this.theme.assetShort} MOVES IN ${mmss(this.moveDeadline - this.elapsed)}`;
-    } else if (this.phase === 'execute') objective = this.strikeLaunched ? `WEAPONS IN THE AIR · IMPACT ${Math.max(0, Math.round(this.strikeImpact - this.elapsed))} S · STAY WITHIN 60 NM` : `HAMMER FLIGHT INBOUND ${this.choice?.name ?? ''}`;
-    else if (this.phase === 'bda') objective = `PHOTOGRAPH THE DAMAGE: ${this.choice?.name ?? ''} ${this.choice ? d(this.choice.x, this.choice.z) : ''}`;
-    else if (this.phase === 'overwatch') objective = `OVERWATCH ${this.choice?.name ?? ''}: ${Math.round(this.overwatchT)}/60 S · STAY WITHIN 25 NM`;
-    else if (this.phase === 'egress') objective = `RETURN TO ${this.home.name}: ${d(this.home.x, this.home.z)}`;
-    else objective = 'MISSION COMPLETE';
+    objective = this.stepText();
+    if (this.phase === 'collect' && this.moveDeadline > 0) warning = `${this.theme.assetShort} MOVES IN ${mmss(Math.max(0, this.moveDeadline - this.elapsed))}: DECIDE SOON`;
+    if (this.phase === 'collect' && this.retask && !this.retask.done && !this.retask.failed) objective += ` · BONUS PHOTO: ${this.retask.name} ${d(this.retask.x, this.retask.z)}`;
     if (this.unstart.engine >= 0) warning = 'UNSTART — RESTARTING';
     else if (this.recorderHeat > 0) warning = `RECORDER HOT: BELOW MACH 2.8 ${Math.ceil(this.recorderHeat)} S`;
     const lv = ['CLEAN', 'SUSPECTED', 'TRACKED', 'COMPROMISED'][this.level];
