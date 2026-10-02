@@ -34,6 +34,10 @@ export interface Briefing {
   tasks: string[];
   footer?: string;
   onOk?: () => void;
+  /** heading over the task list (default YOUR MISSION) */
+  heading?: string;
+  /** a decision instead of OKAY: one button per choice */
+  choices?: { label: string; detail?: string; pick: () => void }[];
 }
 
 export interface ModeHost {

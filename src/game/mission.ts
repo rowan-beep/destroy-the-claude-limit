@@ -4,7 +4,7 @@ import type { AircraftType } from '../aircraft/specs';
 import type { Difficulty } from '../ai/skill';
 import type { TimeOfDay } from '../render/environment';
 
-export type ModeId = 'free' | 'waves' | 'duel' | 'team' | 'ffa' | 'online' | 'tutorial' | 'daily' | 'strike';
+export type ModeId = 'free' | 'waves' | 'duel' | 'team' | 'ffa' | 'online' | 'tutorial' | 'daily' | 'strike' | 'recon';
 
 export interface MissionConfig {
   mode: ModeId;
@@ -54,6 +54,12 @@ export function defaultMission(): MissionConfig {
 }
 
 export const MODE_INFO: Record<ModeId, { title: string; subtitle: string; description: string }> = {
+  recon: {
+    title: 'BLACKBIRD',
+    subtitle: 'SR-71 spy missions · story',
+    description:
+      'You fly the SR-71A Blackbird, unarmed, for the agency. Every mission is a new crisis written for that sortie: a missing missile brigade, a defector, a dark radar, an airbase build-up, a lost agent. Sneak over enemy bases without being caught: photograph them, sweep them with the side-looking radar and record their radio traffic, then piece the clues together, make the call and send the fighters in. Each mission has new sites, new clues, a new right answer and new trouble along the way: inlet unstarts, SA-2 launches, MiG-31s scrambling after you, re-tasking from home. Stay high, stay fast, stay unseen.',
+  },
   strike: {
     title: 'AIRSTRIKE',
     subtitle: 'Bomb a defended target',

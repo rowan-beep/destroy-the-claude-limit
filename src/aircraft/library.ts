@@ -13,7 +13,7 @@ export interface LibraryEntry {
   flag: string[];
   flagH?: boolean;
   manufacturer: string;
-  generation: '4' | '4.5' | '5';
+  generation: '3' | '4' | '4.5' | '5';
   firstFlight: string;
   inService: string;
   built: string;
@@ -157,6 +157,24 @@ export const LIBRARY: Record<AircraftType, LibraryEntry> = {
     strengths: ['Fastest jet in the library: Mach 2.83 up high, Mach 1.23 on the deck', 'R-37M: the longest-range missile in the game', 'Zaslon-M radar tracks 24 targets'],
     weaknesses: ['Limited to 5 G: it cannot turn with any fighter', 'Huge radar and heat signature', 'No missile warning, weak jamming'],
     tactics: 'Climb high, go fast and shoot first from very far away with the R-37M, then turn away and run: nothing else can catch you, and nothing should get close enough to turn with you.',
+  },
+  SR71: {
+    nation: 'United States',
+    region: 'usa',
+    flag: ['#b22234', '#ffffff', '#3c3b6e'],
+    manufacturer: 'Lockheed Skunk Works',
+    generation: '3',
+    firstFlight: '22 Dec 1964',
+    inService: '1966',
+    built: '32',
+    operators: 'US Air Force, NASA',
+    carrier: false,
+    nickname: 'Blackbird',
+    history:
+      'Kelly Johnson\'s Skunk Works built it in secret from titanium bought through shell companies, because nothing else could survive the heat of sustained Mach 3. For 24 years it photographed and recorded the world\'s most defended places from 80,000 ft and was never shot down: more than 4,000 missiles were fired at it, and every one fell behind. Crews called it the Habu. It still holds the speed record for an air-breathing crewed jet, 2,193 mph, set in 1976.',
+    strengths: ['Fastest jet in the game: Mach 3.5, cruising above 80,000 ft', 'Outruns and outclimbs every missile and interceptor', 'Low radar return for its size; huge range'],
+    weaknesses: ['Completely unarmed: no gun, no missiles, no flares', 'Turns like an ocean liner: 3 G limit and a vast turn radius', 'Long take-off roll; slow and heavy at low speed'],
+    tactics: 'Never fight. Plan the route, climb to 75,000 ft and above, push past Mach 3 and let altitude and speed keep you alive. Turns cost miles: start them early. If a missile comes, accelerate and turn away; it will run out of energy long before you do.',
   },
 };
 

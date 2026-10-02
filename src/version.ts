@@ -10,6 +10,22 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.32.0',
+    date: '2026-10-02',
+    title: 'SR-71 Blackbird + BLACKBIRD spy missions',
+    notes: [
+      "New jet: the Lockheed SR-71A Blackbird. 32.7 m long, two Pratt & Whitney J58s that work more and more like ramjets the faster you go, Mach 3.5 at 75,000-80,000 ft, and it holds 85,000 ft. It is slow to get going: a long take-off roll, and minutes to get through Mach 1 and climb to cruise. Chined black fuselage, inlet spikes, canted fins, red walkway lines and U.S. AIR FORCE on top, tail 17972.",
+      "The SR-71 is still in testing, so it flies only in the new BLACKBIRD mode and in Free Flight. It carries no weapons, no flares and no pods: the weapon bar is gone when you fly it, and the stores panel lists its sensors instead.",
+      "New mode, BLACKBIRD: spy missions for the SR-71. Every sortie writes a new story (a missing missile brigade, a defector, a radar nobody can explain, a secret airbase build-up, a captured agent, a convoy) with new sites, new names, new clues, a new right answer and new trouble on the way.",
+      "How it plays: record enemy radio nets from high up to learn what the real site looks like, then photograph the candidate sites (wings level, right over them), sweep them with the side-looking ASARS radar off your wingtip, or drop below 25,000 ft for IR film. Only one site is real; each decoy shows at most one of the clues. Clouds blind the cameras but not the radar.",
+      "Stay unseen: a DETECTION meter fills when radars and troops see you. Above 70,000 ft and past Mach 2.8 you are almost invisible; slow, mid-altitude or a sonic boom over a base gives you away. Get tracked and the SA-2 sites wake up and MiG-31s scramble; get compromised and the target starts to move, so you must decide sooner.",
+      "Problems mid-flight: an inlet unstart that slams the nose sideways, a fuel leak, the tape recorder overheating (slow down or lose the intercept), a pop-up SA-2 site, or a priority re-tasking from home with a deadline.",
+      "Then make the call: an intel assessment lists what each site showed and you pick one. Friendly fighters fly in and strike it (stay close so they get your live pictures, then photograph the damage), or a raid team goes in while you hold overwatch. Fly home for a graded debrief (S to D) with the real answer revealed, then NEW MISSION for a different one.",
+      "Briefings can now offer choices, used by the BLACKBIRD assessment.",
+      "Missions that start in the air keep the throttle where the mode set it (the Blackbird starts in full burner at cruise).",
+    ],
+  },
+  {
     version: '4.31.1',
     date: '2026-10-01',
     title: 'Louder heartbeat',

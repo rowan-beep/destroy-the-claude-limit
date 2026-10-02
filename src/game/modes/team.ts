@@ -12,7 +12,7 @@ import { AIPilot } from '../../ai/pilot';
 import { duelSkill } from '../../ai/skill';
 import { ROLES, mapAlt } from '../../world/islands';
 import { spawnInAir, aiStores, pickEnemyType } from '../spawn';
-import { AIRCRAFT_TYPES, AircraftType } from '../../aircraft/specs';
+import { COMBAT_TYPES, AircraftType } from '../../aircraft/specs';
 import { NM } from '../../core/constants';
 import { randPick, rand } from '../../core/rng';
 import type { Team } from '../../core/constants';
@@ -103,7 +103,7 @@ export class TeamBattleMode extends GameMode {
       let b: Aircraft;
       if (i === 0) b = p;
       else {
-        const type: AircraftType = cfg.teamAllies === 'same' ? p.type : randPick(AIRCRAFT_TYPES);
+        const type: AircraftType = cfg.teamAllies === 'same' ? p.type : randPick(COMBAT_TYPES);
         b = new Aircraft(type, 'blue', BLUE_NAMES[i]);
         b.paint = this.paintFor(b);
         this.loadout(b, false);

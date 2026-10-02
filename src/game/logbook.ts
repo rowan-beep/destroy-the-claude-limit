@@ -8,7 +8,7 @@
 // for the session.
 
 import type { Aircraft } from '../aircraft/aircraft';
-import { AIRCRAFT_TYPES, AircraftType } from '../aircraft/specs';
+import { AIRCRAFT_TYPES, COMBAT_TYPES, AircraftType } from '../aircraft/specs';
 import type { Difficulty } from '../ai/skill';
 import type { Sim } from './sim';
 import type { ModeId } from './mission';
@@ -393,7 +393,7 @@ export function commitSortie(book: LogbookData, s: SortieRecorder, outcome: Miss
   give('ffa-win', outcome.ffa?.place === 1);
   give('ffa-podium', !!outcome.ffa && outcome.ffa.place <= 3);
   give('ffa-bounty', (outcome.ffa?.bounties ?? 0) > 0);
-  give('all-jets', AIRCRAFT_TYPES.every((t) => book.byJet[t].kills > 0));
+  give('all-jets', COMBAT_TYPES.every((t) => book.byJet[t].kills > 0));
   // recent sorties
   const d = new Date();
   book.recent.unshift({

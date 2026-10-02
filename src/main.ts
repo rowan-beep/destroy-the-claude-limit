@@ -24,6 +24,7 @@ import { audio } from './audio/audio';
 import { applyMap, loadMapChoice } from './world/maps';
 import { refreshGciSites } from './game/teamPicture';
 import { activeMap } from './world/islands';
+import { jetAllowedIn } from './aircraft/specs';
 import type { AircraftType } from './aircraft/specs';
 import { MultiplayerScreen, connectTo, JoinRequest } from './ui/menu/multiplayerScreen';
 import { setPendingJoin, takePendingJoin, loadNetPrefs } from './net/servers';
@@ -73,7 +74,7 @@ async function boot(): Promise<void> {
   });
 
   const cfg: MissionConfig = defaultMission();
-  if (settings.lastAircraft === 'F15EX' || settings.lastAircraft === 'FA18EF' || settings.lastAircraft === 'TYPHOON' || settings.lastAircraft === 'SU35' || settings.lastAircraft === 'RAFALE' || settings.lastAircraft === 'F22' || settings.lastAircraft === 'MIG31') cfg.aircraft = settings.lastAircraft as AircraftType;
+  if (settings.lastAircraft === 'F15EX' || settings.lastAircraft === 'FA18EF' || settings.lastAircraft === 'TYPHOON' || settings.lastAircraft === 'SU35' || settings.lastAircraft === 'RAFALE' || settings.lastAircraft === 'F22' || settings.lastAircraft === 'MIG31' || settings.lastAircraft === 'SR71') cfg.aircraft = settings.lastAircraft as AircraftType;
   cfg.loadoutId = settings.lastLoadout[cfg.aircraft] ?? '';
   cfg.timeOfDay = settings.gameplay.timeOfDay;
 
@@ -150,7 +151,8 @@ async function boot(): Promise<void> {
     },
     onMultiplayer: () => {
       audio.init();
-      mp.jet = menu.cfg.aircraft;
+      // the SR-71 is not cleared for combat: online it flies a fighter
+      mp.jet = jetAllowedIn(menu.cfg.aircraft, 'online') ? menu.cfg.aircraft : 'F15EX';
       mp.show(true);
     },
   });
@@ -167,7 +169,7 @@ async function boot(): Promise<void> {
       reloadFor(j.map);
       return;
     }
-    const jet = menu.cfg.aircraft;
+    const jet = jetAllowedIn(menu.cfg.aircraft, 'online') ? menu.cfg.aircraft : 'F15EX';
     const net = await connectTo(j.url, j.room, j.callsign, jet, loadPaint(jet));
     if (net.room && net.room.map !== activeMap.id) {
       net.close();
@@ -176,7 +178,7 @@ async function boot(): Promise<void> {
     }
     mp.show(false);
     game.pendingNet = net;
-    await fly({ ...menu.cfg, mode: 'online' });
+    await fly({ ...menu.cfg, aircraft: jet, mode: 'online' });
   };
   const mp = new MultiplayerScreen(document.body, join);
   game.onNetLost = (reason) => {
@@ -185,7 +187,7 @@ async function boot(): Promise<void> {
     mp.setStatus(`DISCONNECTED: ${reason}`);
   };
 
-  const briefing = new BriefingModal(document.body, () => game.acceptBriefing());
+  const briefing = new BriefingModal(document.body, () => game.acceptBriefing(), (i) => game.chooseBriefing(i));
   const pause = new PauseMenu(document.body, {
     resume: () => game.setState('playing'),
     settings: () => settingsModal.show(true),

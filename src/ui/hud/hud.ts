@@ -75,6 +75,7 @@ export class Hud {
   private shotdownEl: HTMLElement;
   private weaponSlots: Record<string, HTMLElement> = {};
   private cmSlot: HTMLElement;
+  private weaponBar: HTMLElement;
   private help: HTMLElement;
   private info: HTMLElement;
   private vision: HTMLElement;
@@ -150,6 +151,7 @@ export class Hud {
       this.weaponSlots[id] = s;
     }
     this.cmSlot = el('div', 'wslot cm-slot', wb);
+    this.weaponBar = wb;
 
     // right: help + info
     const right = el('div', 'hud-right', this.root);
@@ -173,6 +175,8 @@ export class Hud {
     this.shotdownEl.classList.add('hidden');
     this.orderBox.classList.add('hidden');
     this.buildHelp(g);
+    // an unarmed jet (the SR-71) has no weapons to show
+    setClass(this.weaponBar, 'hidden', !!g.player && g.player.spec.stations.length === 0);
     this.root.classList.remove('hidden');
     setClass(this.help, 'hidden', !g.settings.gameplay.showHelp);
   }
@@ -433,11 +437,14 @@ export class Hud {
     // stores
     clearEl(this.stores);
     const sel = p.selectedWeapon;
-    const selName = sel === 'GUN' ? p.spec.gun.name.split(' ').slice(0, 2).join(' ') : weaponShort(sel);
-    const lockTxt = isBomb(sel) ? (p.groundTarget ? `TGT ${p.groundTarget.label}` : 'NO TGT: [R]') : p.lockedTarget ? `LOCK ${p.lockedTarget.spec.shortName.toUpperCase()} ${(p.distanceTo(p.lockedTarget) / NM).toFixed(1)}NM`   : sel === p.irMissile ? (p.seekerTarget ? 'SEEKER LOCK' : 'SEEKER SEARCH') : 'NO LOCK: [R]';
-    const s1 = el('div', 'pline', this.stores);
-    s1.innerHTML = `${selName} x${sel === 'GUN' ? p.gunAmmo : p.countOf(sel)} &nbsp; <span class="${p.lockedTarget || p.seekerTarget ? 'good-text' : ''}">${lockTxt}</span>`;
-    el('div', 'pline', this.stores, `FLR ${p.flares}  CHF ${p.chaff}  ${weaponCode(p.radarMissile)} ${p.countOf(p.radarMissile)}  ${weaponCode(p.irMissile)} ${p.countOf(p.irMissile)}${p.spec.missiles.radar === 'AIM120D' ? `  TNK ${p.countOf('TANK')}` : ''}`);
+    if (p.spec.stations.length === 0) el('div', 'pline', this.stores, 'UNARMED: CAMERAS · IR · ASARS · ELINT');
+    else {
+      const selName = sel === 'GUN' ? p.spec.gun.name.split(' ').slice(0, 2).join(' ') : weaponShort(sel);
+      const lockTxt = isBomb(sel) ? (p.groundTarget ? `TGT ${p.groundTarget.label}` : 'NO TGT: [R]') : p.lockedTarget ? `LOCK ${p.lockedTarget.spec.shortName.toUpperCase()} ${(p.distanceTo(p.lockedTarget) / NM).toFixed(1)}NM`   : sel === p.irMissile ? (p.seekerTarget ? 'SEEKER LOCK' : 'SEEKER SEARCH') : 'NO LOCK: [R]';
+      const s1 = el('div', 'pline', this.stores);
+      s1.innerHTML = `${selName} x${sel === 'GUN' ? p.gunAmmo : p.countOf(sel)} &nbsp; <span class="${p.lockedTarget || p.seekerTarget ? 'good-text' : ''}">${lockTxt}</span>`;
+      el('div', 'pline', this.stores, `FLR ${p.flares}  CHF ${p.chaff}  ${weaponCode(p.radarMissile)} ${p.countOf(p.radarMissile)}  ${weaponCode(p.irMissile)} ${p.countOf(p.irMissile)}${p.spec.missiles.radar === 'AIM120D' ? `  TNK ${p.countOf('TANK')}` : ''}`);
+    }
     const integ = Math.round(p.damage.integrity * 100);
     const dmg = el('div', 'pline' + (integ < 60 ? ' bad-text' : integ < 90 ? ' warn-text' : ''), this.stores, `AIRFRAME ${integ}%${p.damage.fire > 0 ? '  ENGINE FIRE!' : ''}${p.damage.leak > 0 ? '  FUEL LEAK' : ''}${fm.engineOut.some((e) => e) ? '  ENGINE OUT' : ''}`);
     void dmg;

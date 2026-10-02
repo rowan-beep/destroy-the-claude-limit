@@ -10,7 +10,7 @@ import { switchMap } from '../../world/maps';
 import { WhatsNewModal } from './whatsNew';
 import { VERSION } from '../../version';
 import { el, clearEl, button } from '../dom';
-import { AIRCRAFT_TYPES, AircraftType, AircraftSpec, SPECS, enemyTypesFor, getSpec, strikeLoadout } from '../../aircraft/specs';
+import { AIRCRAFT_TYPES, AircraftType, AircraftSpec, SPECS, enemyTypesFor, getSpec, strikeLoadout, jetAllowedIn } from '../../aircraft/specs';
 import { MissionConfig, MODE_INFO, ModeId } from '../../game/mission';
 import { todaysMission, dailyDone } from '../../game/daily';
 import { FFA_JETS } from '../../game/modes/ffa';
@@ -29,7 +29,7 @@ const DIFF_TEXT: Record<Difficulty, string> = {
   EXTREME: 'Operates at the absolute limits of the airframe: max-G snapshots, instant switching between gun and AIM-9X, perfect intercept geometry, and it punishes fuel or G-LOC mistakes.',
 };
 
-const MODES: ModeId[] = ['daily', 'strike', 'tutorial', 'free', 'waves', 'duel', 'team', 'ffa'];
+const MODES: ModeId[] = ['daily', 'recon', 'strike', 'tutorial', 'free', 'waves', 'duel', 'team', 'ffa'];
 
 const TIMES: [TimeOfDay, string, string][] = [
   ['dawn', 'DAWN', 'linear-gradient(180deg,#2b3a67 0%,#c46b8a 60%,#f4b27a 100%)'],
@@ -270,6 +270,11 @@ export class MainMenu {
       if (on) el('div', 'mm-mode-d', t, info.description);
       r.addEventListener('click', () => {
         this.cfg.mode = m;
+        // the SR-71 flies only reconnaissance and free flight; reconnaissance only the SR-71
+        if (!jetAllowedIn(this.cfg.aircraft, m)) {
+          this.selectJet(m === 'recon' ? 'SR71' : this.lastFighter);
+          return;
+        }
         this.render();
       });
     });
@@ -370,6 +375,9 @@ export class MainMenu {
       this.difficulty(c);
       const lo = strikeLoadout(SPECS[cfg.aircraft]);
       el('div', 'mm-note', c, `Your ${SPECS[cfg.aircraft].shortName} flies its strike loadout: ${lo.name.split(' — ')[1] ?? lo.name}. A new target, defences, fighters and start every time; the difficulty sets how many AAA guns and SAMs guard it and how good their crews are.`);
+    } else if (cfg.mode === 'recon') {
+      this.difficulty(c);
+      el('div', 'mm-note', c, 'SR-71A only, and it carries no weapons: speed and altitude are its only defence. Every sortie is a new story with new sites, clues, flight paths and trouble. The difficulty sets how sharp the radar crews, SAMs and MiG-31s are.');
     } else if (cfg.mode === 'tutorial') {
       el('div', 'mm-note', c, `12 short lessons in the air over ${ROLES.arena.name}, then the checkride. Each step completes itself as soon as you have done it; press ENTER to skip one. The instructor uses your own key bindings and mouse mode (change them in SETTINGS).`);
     } else if (cfg.mode === 'ffa') {
@@ -448,7 +456,7 @@ export class MainMenu {
       const q = el('div', 'mm-jet-q', tx);
       el('span', '', q, `M${s.maxMach.toFixed(1)}`);
       el('span', '', q, `T/W ${tw(s).toFixed(2)}`);
-      el('span', '', q, `${s.maxAAM} AAM`);
+      el('span', '', q, t === 'SR71' ? 'RECON ONLY' : `${s.maxAAM} AAM`);
       r.addEventListener('click', () => this.selectJet(t));
     }
   }
@@ -492,8 +500,13 @@ export class MainMenu {
       el('span', 'mm-fact-k', r, k);
       el('span', 'mm-fact-v', r, v);
     };
-    fact('MISSILES', `${MISSILES[s.missiles.radar].short} · ${MISSILES[s.missiles.ir].short}`);
-    fact('CANNON', `${s.gun.name.split(' ').slice(0, 2).join(' ')} · ${s.gun.rounds} rds`);
+    if (s.maxAAM > 0) {
+      fact('MISSILES', `${MISSILES[s.missiles.radar].short} · ${MISSILES[s.missiles.ir].short}`);
+      fact('CANNON', `${s.gun.name.split(' ').slice(0, 2).join(' ')} · ${s.gun.rounds} rds`);
+    } else {
+      fact('WEAPONS', 'NONE — UNARMED');
+      fact('FLIES IN', 'BLACKBIRD RECON · FREE FLIGHT');
+    }
     fact('SENSORS', `${s.radar.kind}${s.irst ? ' · IRST' : ''}${s.tvcDeg > 0 ? ` · TVC ${s.tvcDeg}°` : ''}`);
     fact('G LIMIT', `${s.gLimit} G (${s.gOverride} override)`);
     const acts = el('div', 'mm-acts', p);
@@ -501,7 +514,12 @@ export class MainMenu {
     button('PAINT SHOP ▸', 'mm-pill', acts, () => this.cb.onCustomize(t));
   }
 
+  /** the fighter to go back to when leaving the SR-71 */
+  private lastFighter: AircraftType = 'F15EX';
+
   selectJet(t: AircraftType): void {
+    if (t !== 'SR71') this.lastFighter = t;
+    if (!jetAllowedIn(t, this.cfg.mode)) this.cfg.mode = t === 'SR71' ? 'recon' : 'free';
     this.cfg.aircraft = t;
     const s = getSpec(t);
     if (!s.loadouts.find((l) => l.id === this.cfg.loadoutId)) this.cfg.loadoutId = s.loadouts[0].id;

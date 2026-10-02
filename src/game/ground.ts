@@ -160,6 +160,8 @@ export interface DefenseSpec {
   rounds: number;
   /** seconds between shots (SAM) or bursts (AAA) */
   reload: number;
+  /** the missile it fires (default: R-77M radar / R-74M IR) */
+  missile?: 'R77M' | 'R74M' | 'R37M';
 }
 
 export const DEFENSES: Record<string, DefenseSpec> = {
@@ -168,6 +170,8 @@ export const DEFENSES: Record<string, DefenseSpec> = {
   SA13: { kind: 'SAM_IR', name: 'SA-13 GOPHER', short: 'SA-13', range: 5000, ceiling: 3500, rounds: 4, reload: 7 },
   SA15: { kind: 'SAM_RADAR', name: 'SA-15 GAUNTLET', short: 'SA-15', range: 12000, ceiling: 6000, rounds: 8, reload: 9 },
   SA11: { kind: 'SAM_RADAR', name: 'SA-11 GADFLY', short: 'SA-11', range: 28000, ceiling: 14000, rounds: 4, reload: 12 },
+  // S-75 Dvina: the big two-stage missile that hunted the U-2 and the SR-71 (reaches 25+ km up)
+  SA2: { kind: 'SAM_RADAR', name: 'SA-2 GUIDELINE', short: 'SA-2', range: 42000, ceiling: 27000, rounds: 6, reload: 18, missile: 'R37M' },
 };
 
 /**
@@ -313,7 +317,7 @@ export class AirDefense {
     const needTrack = this.spec.kind === 'SAM_RADAR' ? 3.5 - this.skill * 1.5 : 1.5 - this.skill * 0.6;
     if (this.trackTime < needTrack) return;
     // IR: only with the target's hot tail or a close aspect; the seeker needs a lock
-    const type = this.spec.kind === 'SAM_IR' ? 'R74M' : 'R77M';
+    const type = this.spec.missile ?? (this.spec.kind === 'SAM_IR' ? 'R74M' : 'R77M');
     const g = this.ghost;
     _v.subVectors(t.fm.pos, g.fm.pos);
     const horiz = Math.hypot(_v.x, _v.z);

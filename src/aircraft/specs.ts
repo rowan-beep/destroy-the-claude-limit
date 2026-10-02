@@ -6,8 +6,19 @@
 import { FT, LB, LBF } from '../core/constants';
 import type { MissileType, BombType } from '../weapons/weaponSpecs';
 
-export type AircraftType = 'F15EX' | 'FA18EF' | 'TYPHOON' | 'SU35' | 'RAFALE' | 'F22' | 'MIG31';
-export const AIRCRAFT_TYPES: AircraftType[] = ['F15EX', 'FA18EF', 'TYPHOON', 'SU35', 'RAFALE', 'F22', 'MIG31'];
+export type AircraftType = 'F15EX' | 'FA18EF' | 'TYPHOON' | 'SU35' | 'RAFALE' | 'F22' | 'MIG31' | 'SR71';
+export const AIRCRAFT_TYPES: AircraftType[] = ['F15EX', 'FA18EF', 'TYPHOON', 'SU35', 'RAFALE', 'F22', 'MIG31', 'SR71'];
+/**
+ * The armed fighters: everything the AI flies and every combat mode allows.
+ * The SR-71 is an unarmed reconnaissance jet still in testing: it only flies
+ * Blackbird reconnaissance missions and free flight.
+ */
+export const COMBAT_TYPES: AircraftType[] = AIRCRAFT_TYPES.filter((t) => t !== 'SR71');
+/** jets only some modes may use */
+export function jetAllowedIn(t: AircraftType, mode: string): boolean {
+  if (t === 'SR71') return mode === 'free' || mode === 'recon';
+  return mode !== 'recon';
+}
 
 export type StoreType = MissileType | BombType | 'TANK';
 
@@ -131,6 +142,8 @@ export interface AircraftSpec {
   tsfcMil: number; // kg/(N*h) equiv via lb/(lbf*h)
   tsfcAb: number;
   ramFactor: number; // thrust growth with Mach in AB
+  /** bleed-bypass / ramjet effect: extra afterburner thrust multiplier reached by Mach 3.2 (J58) */
+  ramjetGain?: number;
   spool: number; // 1/s
   // handling
   gLimit: number; // FBW limit
@@ -1045,6 +1058,102 @@ const MIG31: AircraftSpec = {
   paint: { top: '#a4adb3', bottom: '#bcc3c8', accent: '#5a646c' },
 };
 
+// ---------------------------------------------------------------------------
+// Lockheed SR-71A Blackbird
+// ---------------------------------------------------------------------------
+const SR71: AircraftSpec = {
+  type: 'SR71',
+  name: 'Lockheed SR-71A Blackbird',
+  shortName: 'SR-71A',
+  role: 'Two-seat strategic reconnaissance aircraft (unarmed)',
+  crew: 2,
+  description:
+    'The fastest air-breathing crewed jet ever flown: a titanium Mach 3 spy plane that cruises above 80,000 ft, so high and so fast that missiles fired at it fell behind. Two Pratt & Whitney J58 bleed-bypass turbojets (34,000 lb each in afterburner) breathe through moving inlet spikes and turn into near-ramjets at speed, so thrust keeps climbing with Mach. Radar-absorbing chines and blackened skin cut its radar return; the black paint sheds the heat of 300 °C skin. It carries no weapons at all: only its cameras, the ASARS radar and its ELINT recorders, a pilot and a Reconnaissance Systems Officer. Still in testing here: flown only on Blackbird reconnaissance missions and in free flight.',
+  lengthFt: 107.4,
+  wingspanFt: 55.6,
+  heightFt: 18.5,
+  length: 32.74,
+  span: 16.94,
+  height: 5.64,
+  emptyMass: 30600,
+  internalFuel: 36290,
+  maxTakeoff: 78000,
+  maxTakeoffLb: 172000,
+  payloadLb: 0,
+  wingArea: 167.2,
+  cd0: 0.0105,
+  // a slender, chined Mach 3 shape: little wave drag once it is through the sound barrier
+  waveDragPeak: 2.3,
+  waveDragHigh: 1.22,
+  kInduced: 0.16,
+  clAlpha: 2.4,
+  clMax: 1.15,
+  alphaMaxDeg: 14,
+  maxMach: 3.5,
+  // service ceiling 85,000 ft and more: it still holds Mach 3 up there
+  ceilingFt: 88000,
+  maxIasKts: 640,
+  engineName: '2 x Pratt & Whitney J58 (JT11D-20) afterburning bleed-bypass turbojets',
+  engines: 2,
+  thrustMil: lbf(25000),
+  thrustAb: lbf(34000),
+  thrustMilLbf: 25000,
+  thrustAbLbf: 34000,
+  tsfcMil: 0.9,
+  tsfcAb: 1.9,
+  ramFactor: 0.8,
+  // the J58 becomes a near-ramjet: past Mach 1 the inlet and bypass bleed
+  // multiply the afterburner thrust (about 3x by Mach 3.1)
+  ramjetGain: 2.0,
+  spool: 0.45,
+  gLimit: 3.0,
+  gOverride: 3.5,
+  gStructural: 4.5,
+  gNeg: -1,
+  rollRate: 55,
+  pitchRate: 7,
+  cornerKts: 420,
+  rotateKts: 210,
+  approachKts: 175,
+  speedbrakeCd: 0.02,
+  combatRangeNm: 2600,
+  hardpoints: 0,
+  maxAAM: 0,
+  // (no weapons are ever loaded: these only satisfy the type)
+  missiles: { radar: AIM120, ir: AIM9 },
+  tvcDeg: 0,
+  gun: {
+    name: 'None (unarmed reconnaissance aircraft)',
+    caliberMm: 0,
+    rounds: 0,
+    rpm: 1,
+    muzzleVelocity: 1000,
+    damage: 0,
+    dispersionMil: 1,
+    port: [0, 0, -16],
+  },
+  stations: [],
+  loadouts: [
+    {
+      id: 'blackbird-recon',
+      name: 'RECONNAISSANCE — OBC & TEOC cameras, ASARS-1 radar, ELINT recorders (no weapons)',
+      stores: {},
+    },
+  ],
+  radar: { name: 'ASARS-1 ground-mapping radar (no air-to-air mode)', kind: 'PESA', rangeNm: 4, azLimitDeg: 30, elLimitDeg: 20, maxTracks: 4, frameTime: 4 },
+  irst: null,
+  ew: { name: 'DEF A2/H defensive electronics & ECM', maws: false, jamming: 0.45, autoDispense: false },
+  flightControl: 'Stability augmentation and autopilot (no fly-by-wire)',
+  chaff: 0,
+  flares: 0,
+  // chines, iron-ferrite paint and cusped edges: a small return for a 32 m jet
+  rcs: 0.8,
+  irSignature: 1.6,
+  gear: { nose: -10.5, main: 1.0, track: 2.55, height: 2.15 },
+  hitRadius: 9,
+  paint: { top: '#17191c', bottom: '#1b1d20', accent: '#b8332a' },
+};
+
 export const SPECS: Record<AircraftType, AircraftSpec> = {
   F15EX: F15EX,
   FA18EF: FA18,
@@ -1053,6 +1162,7 @@ export const SPECS: Record<AircraftType, AircraftSpec> = {
   RAFALE: RAFALE,
   F22: F22,
   MIG31: MIG31,
+  SR71: SR71,
 };
 
 export function getSpec(t: AircraftType): AircraftSpec {
@@ -1099,5 +1209,5 @@ export const TANK_FUEL = 1450;
 
 /** Enemy types the spawner may use: never the player's own type. */
 export function enemyTypesFor(player: AircraftType): AircraftType[] {
-  return AIRCRAFT_TYPES.filter((t) => t !== player);
+  return COMBAT_TYPES.filter((t) => t !== player);
 }

@@ -22,6 +22,7 @@ import { MissionConfig } from './mission';
 import { GameMode, ModeHost, MissionResult, MsgKind, Briefing } from './modes/mode';
 import { DailyMode } from './modes/daily';
 import { StrikeMode } from './modes/strike';
+import { ReconMode } from './modes/recon';
 import { GroundRenderer } from '../render/groundRenderer';
 import { todaysMission } from './daily';
 import { FreeFlightMode } from './modes/freeFlight';
@@ -253,7 +254,7 @@ export class Game implements ModeHost {
     const pre = [new Aircraft(cfg.aircraft, 'blue', 'PRE')];
     if (cfg.mode === 'online') for (const t of AIRCRAFT_TYPES) pre.push(new Aircraft(t, 'red', 'PRE'));
     else if (cfg.mode !== 'free') for (const t of enemyTypesFor(cfg.aircraft)) pre.push(new Aircraft(t, 'red', 'PRE'));
-    if (cfg.mode === 'team') for (const t of enemyTypesFor(cfg.aircraft)) pre.push(new Aircraft(t, 'blue', 'PRE'));
+    if (cfg.mode === 'team' || cfg.mode === 'recon') for (const t of enemyTypesFor(cfg.aircraft)) pre.push(new Aircraft(t, 'blue', 'PRE'));
     if (cfg.mode === 'ffa') pre.push(new Aircraft(cfg.aircraft, 'red', 'PRE'));
     if (cfg.mode === 'daily') pre.push(new Aircraft(todaysMission().enemy.type, 'red', 'PRE'));
     prewarmAirframes(pre);
@@ -278,7 +279,9 @@ export class Game implements ModeHost {
                   ? new DailyMode(this)
                   : cfg.mode === 'strike'
                     ? new StrikeMode(this)
-                    : new DuelMode(this);
+                    : cfg.mode === 'recon'
+                      ? new ReconMode(this)
+                      : new DuelMode(this);
     randomizeWind();
     this.mode.start();
     this.message(`WIND ${String(Math.round(wind.fromDeg)).padStart(3, '0')}° / ${Math.round(wind.surfaceKts)} KT${wind.turbulence > 1.1 ? ' — MODERATE TURBULENCE LOW LEVEL' : ''}`, 'info', 8);
@@ -601,7 +604,7 @@ export class Game implements ModeHost {
   syncPlayerControls(): void {
     const p = this.player;
     if (!p) return;
-    this.throttleCmd = p.fm.onGround ? 0 : 0.85;
+    this.throttleCmd = p.fm.onGround ? 0 : Math.max(0.85, p.controls.throttle);
     this.gearDown = p.fm.onGround;
     this.speedbrake = false;
     this.gOverride = false;
@@ -642,8 +645,21 @@ export class Game implements ModeHost {
   }
 
   /** OKAY on the briefing box: the mission starts. */
+  /** A decision briefing: the player picked choice `i`. */
+  chooseBriefing(i: number): void {
+    if (this.state !== 'briefing') return;
+    const c = this.briefing?.choices?.[i];
+    if (!c) return;
+    this.briefing = null;
+    this.lastT = performance.now();
+    this.accumulator = 0;
+    this.setState('playing');
+    c.pick();
+  }
+
   acceptBriefing(): void {
     if (this.state !== 'briefing') return;
+    if (this.briefing?.choices?.length) return;
     const b = this.briefing;
     this.briefing = null;
     this.lastT = performance.now();

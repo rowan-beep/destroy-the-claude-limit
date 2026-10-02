@@ -73,6 +73,7 @@ export class BriefingModal {
   constructor(
     parent: HTMLElement,
     private onOk: () => void,
+    private onChoice: (i: number) => void = () => undefined,
   ) {
     this.root = el('div', 'modal-back briefing-back hidden', parent);
     this.box = el('div', 'briefing', this.root);
@@ -85,10 +86,19 @@ export class BriefingModal {
     el('div', 'bk', m, b.kicker);
     el('h2', '', m, b.title);
     el('p', 'bs', m, b.story);
-    el('div', 'bh', m, 'YOUR MISSION');
+    el('div', 'bh', m, b.heading ?? 'YOUR MISSION');
     const ol = el('ol', 'bt', m);
     for (const t of b.tasks) el('li', '', ol, t);
     if (b.footer) el('div', 'bf', m, b.footer);
+    if (b.choices?.length) {
+      const row = el('div', 'bchoices', m);
+      b.choices.forEach((c, i) => {
+        const btn = button('', 'bchoice', row, () => this.onChoice(i));
+        el('b', '', btn, c.label);
+        if (c.detail) el('span', '', btn, c.detail);
+      });
+      return;
+    }
     const ok = button('OKAY', 'primary big', m, () => this.onOk());
     setTimeout(() => ok.focus(), 0);
   }
