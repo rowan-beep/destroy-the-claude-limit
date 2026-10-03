@@ -10,6 +10,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.39.1',
+    date: '2026-10-03',
+    title: "Carrier auto-land fixes",
+    notes: [
+      "Fixed: carrier auto-land could keep circling the ship (swing out, turn in, miss the final approach, swing out again). Heavy jets like the MiG-31 and the SR-71 sagged in the hard turn onto final, were then only allowed gentle turns, and sailed kilometres past the centreline. They now keep turning hard, ease into the final course early enough for their own turn radius, and the final course no longer jumps around while the ship sails its circle.",
+      "Fixed: the Su-35 and the Rafale often landed long on auto-land, floating past every wire for a bolter. The last stretch of the approach is now flown straight at the touchdown point, so they arrive on the glide path and catch a wire.",
+      "Fixed: auto-land could call a wave-off for being low when the jet was already over the deck and about to land.",
+      "In testing every jet launched off the catapult, came back round and caught a wire, almost always on the first pass.",
+    ],
+  },
+  {
     version: '4.39.0',
     date: '2026-10-03',
     title: "Multiplayer room fixes",

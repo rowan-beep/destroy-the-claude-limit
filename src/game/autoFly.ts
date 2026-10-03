@@ -840,14 +840,17 @@ export class AutoFly {
       this.cvGeometry(p, this.cvTd);
       return;
     }
-    if (this.cvTd < 0) this.cvTd = now + 120;
+    const first = this.cvTd < 0;
+    if (first) this.cvTd = now + 120;
+    let want = this.cvTd;
     for (let k = 0; k < 3; k++) {
-      this.cvGeometry(p, this.cvTd);
-      const need = this.cvTimeNeeded(p);
-      // keep the plan unless it is badly out (a long way round): then plan again
-      if (Math.abs(this.cvTd - now - need) > 25 || this.cvTd - now < need - 10) this.cvTd = now + need;
-      else break;
+      this.cvGeometry(p, want);
+      want = now + this.cvTimeNeeded(p);
     }
+    // keep the plan unless it is badly out (a long way round); then move it, but gradually:
+    // a jump would swing the final course (the ship is sailing a circle) out from under the jet
+    if (first) this.cvTd = want;
+    else if (Math.abs(this.cvTd - want) > 25 || this.cvTd < want - 10) this.cvTd += clamp(want - this.cvTd, -3 * this.dtLast, 3 * this.dtLast);
     this.cvGeometry(p, this.cvTd);
   }
 
@@ -920,7 +923,8 @@ export class AutoFly {
     const woLat = d < 1800 && Math.abs(e) > Math.max(13, d * 0.1);
     const woHigh = d < 1800 && fm.pos.y - this.cvPathY(d) > Math.max(9, d * 0.04);
     // low close in: never press on into the ramp
-    const woLow = d < 1800 && this.cvPathY(d) - fm.pos.y > Math.max(6, d * 0.025);
+    // (only before the ramp: past the touchdown point the wheels are about to meet the deck)
+    const woLow = d < 1800 && d > 60 && this.cvPathY(d) - fm.pos.y > Math.max(6, d * 0.025);
     if (this.phase === 'final' && (woLat || woHigh || woLow || d < -150 || (d <= 2500 && aligned < 0.6))) {
       this.woWhy = `${woLat ? 'LINE-UP' : woHigh ? 'HIGH' : woLow ? 'LOW' : d < -150 ? 'PASSED' : 'ALIGN'} d=${Math.round(d)} e=${Math.round(e)} dy=${Math.round(fm.pos.y - this.cvPathY(d))} al=${aligned.toFixed(2)}`;
       this.takeoffHdg = fm.heading;
@@ -957,9 +961,11 @@ export class AutoFly {
           this.onCall?.('TURNING IN — LINING UP ON THE DECK', 'info');
         }
       } else {
-        // intercept the final course: up to 80 degrees toward it from far off, 40 close to it
-        const maxI = (Math.abs(e) > 4000 ? 80 : 45) * DEG;
-        const cc = clamp(-e / 2500, -1, 1) * maxI;
+        // intercept the final course: steeper the further off it, and eased off early enough
+        // for this jet's turn radius at this speed (a heavy, fast jet would sail through it)
+        const R = (vh * vh) / (9.81 * Math.tan(50 * DEG));
+        const lead = clamp(R * 1.6, 1500, 5000);
+        const cc = clamp(Math.atan2(-e, lead), -80 * DEG, 80 * DEG);
         _dir.set(cv.ux * Math.cos(cc) - cv.uz * Math.sin(cc), 0, cv.uz * Math.cos(cc) + cv.ux * Math.sin(cc)).normalize();
       }
       this.limitTurn(p, _dir, 75);
@@ -978,7 +984,7 @@ export class AutoFly {
         p.controls.speedbrake = false;
         return;
       }
-      steerToward(p, _dir, { gCap: low ? 3 : 4.5, tau: 0.8, maxBank: low ? 25 : 70, allowPush: false });
+      steerToward(p, _dir, { gCap: low ? 3.5 : 4.5, tau: 0.8, maxBank: low ? 50 : 70, allowPush: false });
       // slow to just above on-speed before the gate, so final is flown at one speed; a heavy
       // jet that needs a high angle of attack to hold its height gets more
       this.apBonus = clamp(this.apBonus + ((fm.alpha / DEG) - 13) * 4 * dt, 0, 120);
@@ -1007,7 +1013,13 @@ export class AutoFly {
     const pathErr = this.cvPathY(d) - fm.pos.y;
     this.gsI = clamp(this.gsI + pathErr * dt, -200, 200);
     // no flare on a carrier: fly the path all the way into the deck
-    const gam = -CV_GS + clamp(pathErr / (d < 1500 ? 10 : 18) + this.gsI * 0.006, -3, 3) * DEG;
+    let gam = -CV_GS + clamp(pathErr / (d < 1500 ? 10 : 18) + this.gsI * 0.006, -3, 3) * DEG;
+    // close in: point the flight path at the touchdown point itself, so being a few metres
+    // high or low is taken out before the deck rather than carried onto it (landing long)
+    if (d < 1500) {
+      const aim = -Math.atan2(fm.pos.y - cv.y, Math.max(d, 250));
+      gam = clamp(aim + (pathErr / 10) * DEG * 0.5, -CV_GS - 2.5 * DEG, -CV_GS + 2 * DEG);
+    }
     _dir.multiplyScalar(Math.cos(gam)).setY(Math.sin(gam));
     steerToward(p, _dir, { gCap: 2.2, tau: 0.8, maxBank: d < 1500 ? 15 : 25, allowPush: false });
     if (this.gearLaw(p)) this.pathPitch(p, gam, dt, 1.4);
