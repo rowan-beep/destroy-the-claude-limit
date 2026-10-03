@@ -659,9 +659,13 @@ export class AutoFly {
     // Speed never sends it round: it closes the throttle and opens the speedbrake instead.
     const tooHigh = fm.pos.y - gsY > Math.max(55, s * 0.08);
     const offLine = Math.abs(e) > Math.max(45, s * 0.06);
-    if (s < 1500 && s > -300 && this.phase === 'final' && (offLine || tooHigh)) {
+    // not stabilized: low and coming down far faster than the glideslope (after diving to catch
+    // it late, say) -- no flare can arrest that, so go round and set it up again
+    const nominalSink = Math.max(40, fm.vel.length()) * Math.sin(GLIDESLOPE_DEG * DEG);
+    const sinking = hRwy < 100 && hRwy > 8 && -fm.vs > Math.max(7, nominalSink * 1.6);
+    if (s < 1500 && s > -300 && this.phase === 'final' && (offLine || tooHigh || sinking)) {
       this.origin.copy(fm.pos);
-      this.goAround(p, `GO AROUND — ${offLine ? 'OFF THE CENTRELINE' : 'TOO HIGH'}`);
+      this.goAround(p, `GO AROUND — ${offLine ? 'OFF THE CENTRELINE' : tooHigh ? 'TOO HIGH' : 'SINKING TOO FAST'}`);
       return;
     }
     const V = Math.max(40, fm.vel.length());
