@@ -26,6 +26,8 @@ import {
 } from './islands';
 
 const N = new Simplex2(WORLD_SEED);
+/** what nearestIsland() reports where there is no land anywhere */
+const ROLE_SEA = { id: 'sea', style: 'islet', name: 'OPEN WATER', description: '', owner: 'contested', cx: 0, cz: 0, rx: 1, ry: 1, rot: 0, warp: 0, cos: 1, sin: 0, reff: 1, bound: 0 } as IslandDef;
 const N2 = new Simplex2(WORLD_SEED * 7 + 3);
 const N3 = new Simplex2(WORLD_SEED * 13 + 11);
 
@@ -91,13 +93,13 @@ let fieldsByIsland: Record<IslandId, AirfieldDef[]> = {};
 
 /** Rebuild everything derived from the active map's layout (map change). */
 export function refreshTerrainCaches(): void {
-  fieldPre = AIRFIELDS.map((f) => ({
+  fieldPre = AIRFIELDS.filter((f) => !f.carrier).map((f) => ({
     f,
     bound: f.length / 2 + FIELD_FLAT.alongPad + FIELD_FLAT.blend + 1500,
   }));
   fieldsByIsland = {};
   for (const i of ISLANDS) fieldsByIsland[i.id] = [];
-  for (const f of AIRFIELDS) (fieldsByIsland[f.island] ??= []).push(f);
+  for (const f of AIRFIELDS) if (!f.carrier) (fieldsByIsland[f.island] ??= []).push(f);
   initCoves();
   initVolcanoes();
 }
@@ -1047,6 +1049,8 @@ export function treeKind(info: TerrainInfo, r: number): TreeKind {
 
 /** Nearest island to a point with its inland distance (negative offshore). */
 export function nearestIsland(x: number, z: number): { island: IslandDef; inland: number } {
+  // (the ocean map has no land at all: open water everywhere)
+  if (!ISLANDS.length) return { island: ROLE_SEA, inland: -1e9 };
   let best: IslandDef = ISLANDS[0];
   let bestD = -Infinity;
   for (const isl of ISLANDS) {

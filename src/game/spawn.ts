@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { Aircraft } from '../aircraft/aircraft';
 import { AircraftType, enemyTypesFor, StoreType } from '../aircraft/specs';
 import { AirfieldDef, fromRunwayLocal } from '../world/islands';
+import { carrierOf } from '../world/carriers';
 import { Team, KT, FT } from '../core/constants';
 import { randPick } from '../core/rng';
 
@@ -28,8 +29,26 @@ export function pickEnemyType(player: AircraftType): AircraftType {
   return randPick(enemyTypesFor(player));
 }
 
-/** Park an aircraft on a runway, lined up for takeoff. */
+/**
+ * Park an aircraft on a runway, lined up for takeoff. On a carrier it is
+ * hooked up to the first free catapult (full power launches it); with every
+ * catapult taken it starts in the air close by instead.
+ */
 export function spawnOnRunway(ac: Aircraft, f: AirfieldDef, reverse = false): void {
+  const cv = carrierOf(f);
+  if (cv) {
+    const idx = cv.freeCat();
+    if (idx >= 0) {
+      ac.fm.setOnGround(new THREE.Vector3(cv.x, 0, cv.z), cv.heading);
+      ac.fm.attachCat(cv, idx);
+      ac.controls.gearDown = true;
+      ac.controls.throttle = 0;
+      return;
+    }
+    const a = Math.random() * Math.PI * 2;
+    spawnInAir(ac, new THREE.Vector3(cv.x + Math.sin(a) * 3000, 1200, cv.z - Math.cos(a) * 3000), cv.heading, 320);
+    return;
+  }
   const along = reverse ? f.length / 2 - 120 : -f.length / 2 + 120;
   const p = fromRunwayLocal(f, along, 0);
   const hdg = reverse ? (f.heading + 180) % 360 : f.heading;

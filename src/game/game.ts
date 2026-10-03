@@ -55,6 +55,8 @@ import { randomizeWind, wind } from '../core/weather';
 import { AutoFly, topSpeedKts } from './autoFly';
 import type { AutoFlyPanel, AutoFlyChoice } from '../ui/autoFlyPanel';
 import { enemyTypesFor, AIRCRAFT_TYPES } from '../aircraft/specs';
+import { clearCatapults, updateCarriers } from '../world/carriers';
+import { armCarriers } from './navy';
 
 export type GameState = 'menu' | 'loading' | 'playing' | 'paused' | 'map' | 'results' | 'replay' | 'briefing';
 
@@ -231,6 +233,9 @@ export class Game implements ModeHost {
     this.ground = null;
     this.sim = new Sim(this.world.grid);
     this.sim.autoCm = this.settings.gameplay.autoCountermeasures;
+    // the carriers start their loops again (every catapult free)
+    clearCatapults();
+    updateCarriers(0);
     this.picture = new TeamPicture();
     this.combat = new CombatRenderer(this.renderer.scene, this.sim);
     this.ground = new GroundRenderer(this.renderer.scene, this.sim, this.combat);
@@ -284,6 +289,7 @@ export class Game implements ModeHost {
                       : new DuelMode(this);
     randomizeWind();
     this.mode.start();
+    armCarriers(this.sim, cfg.difficulty);
     this.message(`WIND ${String(Math.round(wind.fromDeg)).padStart(3, '0')}° / ${Math.round(wind.surfaceKts)} KT${wind.turbulence > 1.1 ? ' — MODERATE TURBULENCE LOW LEVEL' : ''}`, 'info', 8);
     this.recorder = new ReplayRecorder(this.sim, cfg.mode.toUpperCase());
     this.syncPlayerControls();

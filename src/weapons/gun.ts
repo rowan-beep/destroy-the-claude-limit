@@ -9,6 +9,7 @@ import { atmosphere, AtmoState } from '../core/atmosphere';
 import { G0 } from '../core/constants';
 import { DamageModel } from '../aircraft/damage';
 import { terrainHeight } from '../world/terrain';
+import { CARRIERS, deckAt } from '../world/carriers';
 import { randGauss } from '../core/rng';
 
 const MAX = 6000;
@@ -149,6 +150,19 @@ export class BulletSystem {
       if (hitSomething) {
         this.remove(i);
         continue;
+      }
+      // ships: rounds strike the guns on the sponsons, the hull and the deck
+      if (CARRIERS.length && this.py[i] < 60) {
+        let hitShip = own !== null && !own.remote && !own.groundLabel && sim.ground.length > 0 && sim.bulletNearMount(_p0, _p1, this.damage[i], own);
+        if (!hitShip) {
+          const d = deckAt(this.px[i], this.pz[i]);
+          hitShip = d !== null && this.py[i] < d.c.deckY(d.u, d.v);
+        }
+        if (hitShip) {
+          sim.events.emit('bulletImpact', { pos: _p1.clone(), water: false });
+          this.remove(i);
+          continue;
+        }
       }
       // ground / sea impact
       if (this.py[i] < 6000) {

@@ -6,6 +6,7 @@ import { setMapDimensions } from '../core/constants';
 import { applyMapData, MAPS, MapId, activeMap } from './islands';
 import { refreshGridSize } from './heightGrid';
 import { refreshTerrainCaches } from './terrain';
+import { refreshCarriers } from './carriers';
 
 const KEY = 'triad.map.v1';
 /** New players start on the newest map. */
@@ -17,6 +18,7 @@ export function applyMap(id: MapId): void {
   setMapDimensions(activeMap.sizeNm, activeMap.maxTerrain);
   refreshGridSize();
   refreshTerrainCaches();
+  refreshCarriers();
 }
 
 export function loadMapChoice(): MapId {

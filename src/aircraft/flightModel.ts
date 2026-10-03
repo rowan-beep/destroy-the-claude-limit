@@ -16,6 +16,8 @@ import { atmosphere, AtmoState, casFromTas } from '../core/atmosphere';
 import { G0, DEG, FT } from '../core/constants';
 import { clamp, smoothstep, lerp } from '../core/math';
 import { groundSurface, Surface } from '../world/ground';
+import { Carrier, CARRIERS } from '../world/carriers';
+import { KT } from '../core/constants';
 import { windAt } from '../core/weather';
 
 export interface FlightControls {
@@ -61,6 +63,41 @@ const _dq = new THREE.Quaternion();
 const _surf: Surface = { h: 0, kind: 'terrain', field: null };
 const _air = new THREE.Vector3();
 const _euler = new THREE.Euler(0, 0, 0, 'YXZ');
+const _yUp = new THREE.Vector3(0, 1, 0);
+const _nrm = new THREE.Vector3();
+const _qTilt = new THREE.Quaternion();
+const _cw = { x: 0, z: 0 };
+const _cl = { u: 0, v: 0 };
+
+/** half-width of the landing area in which the hook can take a wire (m) */
+const LANDING_HALF_WIDTH = 14;
+/** Catapult runout: rolling out after the trap (m), and how far behind the main gear the hook point trails (m). */
+const TRAP_RUNOUT = 92;
+const HOOK_AFT = 4.6;
+/** salute: how long full power is held on the catapult before the shot (s) */
+const CAT_SALUTE = 1.6;
+
+/** A jet on a catapult: hooked up and holding, or being thrown down the stroke. */
+export interface CatState {
+  carrier: Carrier;
+  idx: number;
+  phase: 'hold' | 'stroke';
+  /** full power held (s) */
+  t: number;
+  /** stroke: distance run (m), speed relative to the deck (m/s), the catapult's push (m/s²) */
+  s: number;
+  v: number;
+  a: number;
+}
+
+/** A jet caught by an arresting wire. */
+export interface TrapState {
+  carrier: Carrier;
+  wire: number;
+  phase: 'arrest' | 'rollback';
+  decel: number;
+  t: number;
+}
 
 /**
  * Rotational data per airframe: moments of inertia (kg m^2) at a reference
@@ -195,6 +232,28 @@ export class FlightModel {
   speedbrakePos = 0;
   gOverrideActive = false;
 
+  // carrier operations
+  /** on a catapult (null when not) */
+  cat: CatState | null = null;
+  /** in the wire (null when not) */
+  trap: TrapState | null = null;
+  /** the tailhook is down */
+  hookDown = false;
+  /** where the hook point was last step along the landing axis of the nearest carrier */
+  private hookPrev: { c: Carrier; s: number } | null = null;
+  /** counters the game watches for calls: catapult shots, traps, bolters */
+  catShots = 0;
+  traps = 0;
+  bolters = 0;
+  /** the last trap: which wire (1-4), sink rate (m/s) at touchdown and a landing grade */
+  lastTrap = { wire: 0, sink: 0, grade: '' };
+  /** the hook touched down on the landing area and has not caught a wire yet */
+  private boltering = false;
+  /** the deck's surface normal while on a deck (for the jet's attitude) */
+  private deckN: { x: number; z: number } | null = null;
+  /** the kind of surface under the wheels on the previous ground step */
+  private prevKind: Surface['kind'] = 'terrain';
+
   // ground
   onGround = false;
   /** 1 while the takeoff / landing law flies the jet, fading to 0 after it hands over */
@@ -262,6 +321,10 @@ export class FlightModel {
     this.updateAxes();
     this.vel.copy(this.fwd).multiplyScalar(speed);
     this.onGround = false;
+    this.releaseCat();
+    this.trap = null;
+    this.hookDown = false;
+    this.deckN = null;
     this.gearPos = 0;
     this.crashed = false;
     for (let i = 0; i < this.rpm.length; i++) this.rpm[i] = 0.85;
@@ -276,8 +339,14 @@ export class FlightModel {
     this.pos.set(pos.x, _surf.h + this.spec.gear.height, pos.z);
     this.heading = headingDeg;
     this.groundPitch = 0;
+    this.releaseCat();
+    this.trap = null;
+    this.hookDown = false;
+    this.surfaceKind = this.prevKind = _surf.kind;
+    this.surfaceField = _surf.field;
+    this.deckN = _surf.kind === 'deck' ? { x: _surf.nx ?? 0, z: _surf.nz ?? 0 } : null;
     this.buildGroundQuat();
-    this.vel.set(0, 0, 0);
+    this.vel.set(_surf.vx ?? 0, _surf.vy ?? 0, _surf.vz ?? 0);
     this.onGround = true;
     this.gearPos = 1;
     this.crashed = false;
@@ -298,7 +367,56 @@ export class FlightModel {
   private buildGroundQuat(): void {
     _euler.set(this.groundPitch * DEG, -this.heading * DEG, 0, 'YXZ');
     this.quat.setFromEuler(_euler);
+    // on a carrier the jet sits on the pitching, rolling deck
+    if (this.deckN) {
+      _nrm.set(this.deckN.x, 1, this.deckN.z).normalize();
+      _qTilt.setFromUnitVectors(_yUp, _nrm);
+      this.quat.premultiply(_qTilt);
+    }
     this.updateAxes();
+  }
+
+  /** Hook up to catapult `idx` of a carrier: the jet sits on the shuttle, holding. */
+  attachCat(c: Carrier, idx: number): void {
+    this.releaseCat();
+    this.cat = { carrier: c, idx, phase: 'hold', t: 0, s: 0, v: 0, a: 0 };
+    c.catBusy[idx] = this;
+    this.trap = null;
+    this.hookDown = false;
+    this.placeOnCat(0);
+    this.onGround = true;
+    this.gearPos = 1;
+    this.crashed = false;
+  }
+
+  /** Let go of the catapult (launched, or moved off it). */
+  releaseCat(): void {
+    const k = this.cat;
+    if (!k) return;
+    if (k.carrier.catBusy[k.idx] === this) k.carrier.catBusy[k.idx] = null;
+    this.cat = null;
+  }
+
+  /** Put the jet on its catapult, `s` metres down the stroke, nose wheel on the shuttle. */
+  private placeOnCat(s: number): void {
+    const k = this.cat!;
+    const cv = k.carrier;
+    const cat = cv.layout.cats[k.idx];
+    const off = cat.off * DEG;
+    const su = cat.u + Math.cos(off) * s, sv = cat.v + Math.sin(off) * s;
+    this.heading = cv.catHeading(k.idx);
+    const hr = this.heading * DEG;
+    const nose = Math.abs(this.spec.gear.nose);
+    cv.toWorld(su, sv, _cw);
+    const x = _cw.x - Math.sin(hr) * nose, z = _cw.z + Math.cos(hr) * nose;
+    groundSurface(x, z, _surf);
+    const h = _surf.kind === 'deck' ? _surf.h : cv.deckY(su, sv);
+    this.pos.set(x, h + this.spec.gear.height, z);
+    this.surfaceKind = this.prevKind = 'deck';
+    this.surfaceField = cv.f;
+    this.groundHeight = h;
+    this.deckN = { x: _surf.nx ?? 0, z: _surf.nz ?? 0 };
+    this.buildGroundQuat();
   }
 
   updateAxes(): void {
@@ -464,6 +582,7 @@ export class FlightModel {
 
     if (this.onGround) this.stepGround(dt, c);
     else this.stepAir(dt, c);
+    this.carrierChecks();
     this.computeAttitude();
   }
 
@@ -746,10 +865,20 @@ export class FlightModel {
 
     const pitchDeg = this.pitchAngle;
     const bankDeg = Math.abs(this.bank);
-    const sink = -this.vel.y;
+    const deck = this.surfaceKind === 'deck';
+    // on a deck the sink rate counts against the deck rising and falling
+    const sink = -(this.vel.y - (deck ? _surf.vy ?? 0 : 0));
     const solid = this.surfaceKind !== 'water';
     const gearDown = this.gearPos > 0.95;
-    if (gearDown && solid && sink < 6 && bankDeg < 18 && pitchDeg > -6 && pitchDeg < 20 && tipClear > -0.5) {
+    // flying into the ship below deck level: the round-down at the stern, or the hull
+    if (deck && this.agl < -1.6) {
+      this.crashed = true;
+      this.crashCause = 'RAMP STRIKE';
+      return;
+    }
+    // carrier landing gear takes a firm, no-flare arrival (up to about 1,600 fpm)
+    const maxSink = deck ? 8.5 : 6;
+    if (gearDown && solid && sink < maxSink && bankDeg < 18 && pitchDeg > -6 && pitchDeg < 20 && tipClear > -0.5) {
       // touchdown
       this.onGround = true;
       if (sink > 3.5) this.hardLanding = sink;
@@ -762,12 +891,20 @@ export class FlightModel {
       td.x = this.pos.x;
       td.z = this.pos.z;
       td.heading = this.headingFromFwd();
-      const hv = Math.sqrt(this.vel.x * this.vel.x + this.vel.z * this.vel.z);
       this.heading = this.headingFromFwd();
       this.groundPitch = Math.max(0, pitchDeg);
       const hRad = this.heading * DEG;
-      this.vel.set(Math.sin(hRad) * hv, 0, -Math.cos(hRad) * hv);
+      const fx = Math.sin(hRad), fz = -Math.cos(hRad);
+      // keep the speed along the heading, relative to whatever we landed on
+      const svx = deck ? _surf.vx ?? 0 : 0, svz = deck ? _surf.vz ?? 0 : 0;
+      const V = (this.vel.x - svx) * fx + (this.vel.z - svz) * fz;
+      this.vel.set(fx * V + svx, deck ? _surf.vy ?? 0 : 0, fz * V + svz);
       this.pos.y = this.groundHeight + gh;
+      this.deckN = deck ? { x: _surf.nx ?? 0, z: _surf.nz ?? 0 } : null;
+      this.prevKind = this.surfaceKind;
+      // a hook down on the landing area: it is looking for a wire
+      this.boltering = deck && this.hookDown;
+      this.lastTrap.sink = sink;
       this.buildGroundQuat();
       return;
     }
@@ -787,20 +924,31 @@ export class FlightModel {
     const s = this.spec;
     const m = this.mass;
     const W = m * G0;
+    if (this.cat) {
+      this.stepCatapult(dt, c);
+      return;
+    }
     groundSurface(this.pos.x, this.pos.z, _surf);
+    const wasDeck = this.prevKind === 'deck';
     this.groundHeight = _surf.h;
     this.surfaceKind = _surf.kind;
     this.surfaceField = _surf.field;
+    this.prevKind = _surf.kind;
+    this.deckN = _surf.kind === 'deck' ? { x: _surf.nx ?? 0, z: _surf.nz ?? 0 } : null;
+    // what we stand on may move (a carrier deck): work relative to it
+    const svx = _surf.vx ?? 0, svz = _surf.vz ?? 0, svy = _surf.vy ?? 0;
 
     const hRad = this.heading * DEG;
     const fx = Math.sin(hRad), fz = -Math.cos(hRad);
-    let V = this.vel.x * fx + this.vel.z * fz; // ground speed along heading (can be slightly negative)
+    let V = (this.vel.x - svx) * fx + (this.vel.z - svz) * fz; // speed along heading over the surface (can be slightly negative)
     // the wings feel the air, not the runway: a headwind gives lift and drag
     // before the wheels roll, so into the wind you lift off and stop shorter
+    // (on a carrier the ship's own 30 knots is wind over the deck too)
     this.t += dt;
     windAt(this.pos.x, this.pos.y, this.pos.z, this.t, s.gear.height, _surf.h, this.windVel);
     const head = -(this.windVel.x * fx + this.windVel.z * fz);
-    const Va = V + head;
+    const surfAlong = svx * fx + svz * fz;
+    const Va = V + surfAlong + head;
     this.gs = Math.abs(V);
     this.tas = Math.abs(Va);
     this.mach = this.tas / this.soundSpeed;
@@ -815,8 +963,25 @@ export class FlightModel {
     this.cl = cl;
 
     if (_surf.kind === 'water') {
+      // off the edge of a flight deck: fast enough, and the jet flies away
+      // (a catapult shot, a bolter, a touch-and-go); too slow, and it falls
+      if (wasDeck && Va > s.rotateKts * KT * 0.72) {
+        this.onGround = false;
+        this.deckN = null;
+        this.vel.set(fx * V + svx, Math.max(0, svy) + 0.6, fz * V + svz);
+        this.groundPitch = Math.max(this.groundPitch, 4);
+        this.buildGroundQuat();
+        this.qRate = 4 * DEG;
+        this.nCmdF = 1.2;
+        this.trap = null;
+        if (this.boltering) {
+          this.boltering = false;
+          this.bolters++;
+        }
+        return;
+      }
       this.crashed = true;
-      this.crashCause = 'RAN OFF INTO THE SEA';
+      this.crashCause = wasDeck ? 'WENT OVER THE SIDE OF THE CARRIER' : 'RAN OFF INTO THE SEA';
       return;
     }
 
@@ -829,28 +994,50 @@ export class FlightModel {
     // drag acts along the relative wind (a tailwind pushes, a headwind holds back)
     let a = (thrustH - Math.sign(Va) * D) / m;
     const fdec = fric / m;
-    if (Math.abs(V) < fdec * dt && Math.abs(a) < fdec) {
-      V = 0;
-      a = 0;
+    const tr = this.trap;
+    if (tr) {
+      // in the wire: the arresting engine stops the jet whatever the throttle
+      if (tr.phase === 'arrest') {
+        V = Math.max(0, V - tr.decel * dt);
+        if (V <= 0) {
+          tr.phase = 'rollback';
+          tr.t = 0;
+        }
+      } else {
+        // the wire pulls the jet back a little, then drops off the hook
+        tr.t += dt;
+        V = -1.4 * Math.max(0, 1 - tr.t / 0.8);
+        if (tr.t > 0.8) {
+          V = 0;
+          this.trap = null;
+          this.hookDown = false;
+        }
+      }
     } else {
-      a -= Math.sign(V || a) * fdec;
+      if (Math.abs(V) < fdec * dt && Math.abs(a) < fdec) {
+        V = 0;
+        a = 0;
+      } else {
+        a -= Math.sign(V || a) * fdec;
+      }
+      V += a * dt;
+      if (V < -3) V = -3;
     }
-    V += a * dt;
-    if (V < -3) V = -3;
 
     // nose-wheel steering (tiller at taxi speed, rudder-pedal authority at speed)
     const steerMax = lerp(55, 6, smoothstep(5, 45, Math.abs(V))) * DEG;
     const steer = -clamp(c.yaw, -1, 1) * steerMax * (this.groundPitch > 3 ? 0.1 : 1);
     const wheelbase = Math.abs(s.gear.main - s.gear.nose);
-    const yawRate = (V * Math.tan(-steer)) / wheelbase; // rad/s, right positive
+    const yawRate = tr ? 0 : (V * Math.tan(-steer)) / wheelbase; // rad/s, right positive
     // rudder aerodynamic yaw at speed
-    const rudderYaw = clamp(c.yaw, -1, 1) * 0.08 * smoothstep(20, 60, Math.abs(Va));
-    this.heading = (this.heading + (yawRate + rudderYaw) * dt / DEG + 360) % 360;
+    const rudderYaw = tr ? 0 : clamp(c.yaw, -1, 1) * 0.08 * smoothstep(20, 60, Math.abs(Va));
+    // a parked jet turns with the ship under it
+    this.heading = (this.heading + (yawRate + rudderYaw + (_surf.yawRate ?? 0)) * dt / DEG + 360) % 360;
 
     // rotation: elevator authority builds with speed
     const vr = s.rotateKts * 0.5144;
     const auth = smoothstep(0.62 * vr, 0.95 * vr, Math.abs(Va));
-    const pitchTarget = c.pitch > 0 ? c.pitch * 12 * auth : 0;
+    const pitchTarget = c.pitch > 0 && !tr ? c.pitch * 12 * auth : 0;
     const gp0 = this.groundPitch;
     // the nose comes up smoothly: the rotation eases in and out rather than stepping
     const rotRate = clamp((pitchTarget - this.groundPitch) * 1.6, -5, 3.5);
@@ -859,7 +1046,8 @@ export class FlightModel {
     const groundQ = ((this.groundPitch - gp0) / Math.max(dt, 1e-4)) * DEG;
 
     const h2 = this.heading * DEG;
-    this.vel.set(Math.sin(h2) * V, 0, -Math.cos(h2) * V);
+    const nfx = Math.sin(h2), nfz = -Math.cos(h2);
+    this.vel.set(nfx * V + svx, svy, nfz * V + svz);
     this.pos.x += this.vel.x * dt;
     this.pos.z += this.vel.z * dt;
     this.pos.y = _surf.h + s.gear.height;
@@ -873,20 +1061,152 @@ export class FlightModel {
     this.stallWarning = false;
 
     // lift-off
-    if (L > W * 1.02 && this.groundPitch > 2) {
+    if (L > W * 1.02 && this.groundPitch > 2 && !tr) {
       this.onGround = false;
+      this.deckN = null;
       const climb = 1.2;
       const f = this.fwd;
-      this.vel.set(f.x * V, climb, f.z * V);
+      this.vel.set(f.x * V + svx, climb + Math.max(0, svy), f.z * V + svz);
       this.pos.y += 0.05;
       // carry the rotation into the air (no jump in pitch rate at the moment of lift-off)
       this.qRate = Math.max(0, groundQ);
       this.nCmdF = 1;
+      if (this.boltering) {
+        // touched down hook-down, missed every wire and flew off: a bolter
+        this.boltering = false;
+        this.bolters++;
+      }
     }
     // collapsing the gear by retracting on the ground is prevented; rough terrain at speed damages
     if (rough && Math.abs(V) > 70) {
       this.crashed = true;
       this.crashCause = 'RAN OFF THE RUNWAY AT SPEED';
+    }
+  }
+
+  /** On the catapult: hold at full power for the salute, then the shot down the stroke. */
+  private stepCatapult(dt: number, c: FlightControls): void {
+    const k = this.cat!;
+    const cv = k.carrier;
+    const cat = cv.layout.cats[k.idx];
+    const s = this.spec;
+    const m = this.mass;
+    this.t += dt;
+    if (k.phase === 'hold') {
+      // run up to full power (MIL or burner), salute, and the shooter fires
+      let rpm = 0;
+      for (const r of this.rpm) rpm += r;
+      rpm /= this.rpm.length;
+      if (c.throttle >= 0.99 && rpm > 0.93) k.t += dt;
+      else k.t = Math.max(0, k.t - dt * 2);
+      if (k.t >= CAT_SALUTE) {
+        k.phase = 'stroke';
+        k.s = 0;
+        k.v = 0;
+        // the shooter sets the shot for the jet: end speed through the air of
+        // about 15% over its rotation speed (wind over the deck helps)
+        const hr = cv.catHeading(k.idx) * DEG;
+        windAt(this.pos.x, this.pos.y, this.pos.z, this.t, s.gear.height, this.groundHeight, this.windVel);
+        const wod = cv.vx * Math.sin(hr) - cv.vz * Math.cos(hr) - (this.windVel.x * Math.sin(hr) - this.windVel.z * Math.cos(hr));
+        const endAir = Math.max(s.rotateKts * 1.15 + 12, 135) * KT;
+        const endDeck = clamp(endAir - wod, 45, 88);
+        k.a = (endDeck * endDeck) / (2 * cat.stroke);
+        this.catShots++;
+      }
+      this.placeOnCat(0);
+    } else {
+      // down the stroke: the catapult plus the engines
+      k.v += (k.a + (this.thrust - 0.022 * m * G0) / m) * dt;
+      k.s += k.v * dt;
+      // the jet's own trim brings the nose up over the last stretch
+      this.groundPitch = smoothstep(cat.stroke * 0.7, cat.stroke, k.s) * 6;
+      this.placeOnCat(Math.min(k.s, cat.stroke));
+      if (k.s >= cat.stroke) {
+        this.releaseCat();
+        // off the bow: flying (the next step finds open water under the wheels)
+        this.prevKind = 'deck';
+      }
+    }
+    // speed: along the catapult relative to the deck, plus the deck's own motion
+    groundSurface(this.pos.x, this.pos.z, _surf);
+    const V = k.phase === 'stroke' ? k.v : 0;
+    const hr = this.heading * DEG;
+    this.vel.set(Math.sin(hr) * V + (_surf.vx ?? cv.vx), _surf.vy ?? 0, -Math.cos(hr) * V + (_surf.vz ?? cv.vz));
+    windAt(this.pos.x, this.pos.y, this.pos.z, this.t, s.gear.height, this.groundHeight, this.windVel);
+    _air.copy(this.vel).sub(this.windVel);
+    this.tas = _air.length();
+    this.gs = Math.abs(V);
+    this.mach = this.tas / this.soundSpeed;
+    this.qbar = 0.5 * this.rho * this.tas * this.tas;
+    this.cas = casFromTas(this.tas, this.pos.y);
+    this.alpha = this.groundPitch * DEG;
+    this.agl = s.gear.height;
+    this.nz = k.phase === 'stroke' ? 1 + k.a / G0 : 1;
+    this.vs = 0;
+    this.resetRates(1);
+    this.rollRate = this.pitchRate = 0;
+    this.stallWarning = false;
+  }
+
+  /**
+   * Near a carrier: the tailhook (catches a wire as it crosses it on the
+   * landing area) and the island (fly into it and that is that).
+   */
+  private carrierChecks(): void {
+    if (!CARRIERS.length || this.crashed) return;
+    let near: Carrier | null = null;
+    for (const cv of CARRIERS) {
+      const dx = this.pos.x - cv.x, dz = this.pos.z - cv.z;
+      if (dx * dx + dz * dz < 420 * 420) {
+        near = cv;
+        break;
+      }
+    }
+    if (!near) {
+      this.hookPrev = null;
+      return;
+    }
+    near.toLocal(this.pos.x, this.pos.z, _cl);
+    // the island
+    const isl = near.layout.island;
+    if (near.onIsland(_cl.u, _cl.v) && this.pos.y < near.deckY(_cl.u, _cl.v) + isl[4]) {
+      this.crashed = true;
+      this.crashCause = 'FLEW INTO THE CARRIER\'S ISLAND';
+      return;
+    }
+    // the hook point trails behind the main gear
+    const back = this.spec.gear.main + HOOK_AFT;
+    const hx = this.pos.x - this.fwd.x * back, hz = this.pos.z - this.fwd.z * back;
+    near.toLocal(hx, hz, _cl);
+    const ax = near.landingAxis(_cl.u, _cl.v);
+    const prev = this.hookPrev && this.hookPrev.c === near ? this.hookPrev.s : null;
+    this.hookPrev = { c: near, s: ax.s };
+    if (!this.hookDown || this.trap || prev === null) return;
+    // only with the wheels on the deck, or the hook all but touching it
+    const hookAgl = this.pos.y - this.spec.gear.height - near.deckY(_cl.u, _cl.v);
+    if (!this.onGround && hookAgl > 1.2) return;
+    if (Math.abs(ax.lat) > LANDING_HALF_WIDTH) return;
+    const wires = near.layout.wires;
+    for (let i = 0; i < wires.length; i++) {
+      if (prev < wires[i] && ax.s >= wires[i]) {
+        // caught: the arresting engine runs the jet out in about 90 m
+        if (!this.onGround) {
+          this.onGround = true;
+          groundSurface(this.pos.x, this.pos.z, _surf);
+          this.pos.y = _surf.h + this.spec.gear.height;
+          this.prevKind = 'deck';
+        }
+        const hr = this.heading * DEG;
+        const V = (this.vel.x - (_surf.vx ?? near.vx)) * Math.sin(hr) - (this.vel.z - (_surf.vz ?? near.vz)) * Math.cos(hr);
+        this.trap = { carrier: near, wire: i + 1, phase: 'arrest', decel: clamp((V * V) / (2 * TRAP_RUNOUT), 15, 45), t: 0 };
+        this.boltering = false;
+        this.traps++;
+        const sink = this.lastTrap.sink;
+        const target = wires.length >= 4 ? 3 : 2;
+        this.lastTrap.wire = i + 1;
+        this.lastTrap.grade = sink > 7 ? 'HARD' : i + 1 === target ? (sink < 5 ? 'OK' : 'FAIR') : Math.abs(i + 1 - target) === 1 ? 'FAIR' : 'NO GRADE';
+        return;
+      }
     }
   }
 

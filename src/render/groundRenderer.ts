@@ -246,6 +246,22 @@ function buildKind(kind: GroundKind): Built {
       guns.push(paint(dish, RADAR));
       return { base, turret: { geo: turret, at: new THREE.Vector3(0, 1.45, -0.2) }, gun: { geo: merge(guns), at: new THREE.Vector3(0, 0.75, -0.3) }, muzzles };
     }
+    case 'ciws': {
+      // Type 1130 close-in weapon system: pedestal on the sponson, a boxy
+      // mount with a radome, eleven 30 mm barrels in a rotating cluster
+      const NAVY = '#8d949a', NAVY_D = '#6c7379';
+      const base = merge([cy(1.5, 1.7, 1.2, 0, 0, 0, NAVY_D, 16), bx(3.4, 0.25, 3.4, 0, 0, 0, '#5b6166')]);
+      const turret = merge([bx(2.2, 1.6, 2.6, 0, 0, 0.3, NAVY), cy(0.95, 0.95, 0.9, 0, 1.6, 0.6, '#d9dcdc', 16), bx(1.4, 0.6, 1.0, 0, 0.5, 1.9, NAVY_D)]);
+      const guns: G[] = [];
+      const muzzles: THREE.Vector3[] = [];
+      for (let k = 0; k < 11; k++) {
+        const a = (k / 11) * Math.PI * 2;
+        guns.push(cyl(0.045, 2.9, Math.cos(a) * 0.28, Math.sin(a) * 0.28, -1.75, 'z', METAL, 5));
+        if (k % 3 === 0) muzzles.push(new THREE.Vector3(Math.cos(a) * 0.28, Math.sin(a) * 0.28, -3.2));
+      }
+      guns.push(cyl(0.4, 0.9, 0, 0, -0.1, 'z', NAVY_D, 12), cyl(0.36, 0.12, 0, 0, -3.0, 'z', METAL, 12));
+      return { base, turret: { geo: turret, at: new THREE.Vector3(0, 1.2, 0) }, gun: { geo: merge(guns), at: new THREE.Vector3(0, 2.0, -0.6) }, muzzles };
+    }
     case 'truck': {
       // Ural-4320 with a canvas-covered cargo bed
       return { base: merge([...wheels(2.5, 7.4, [-2.6, 1.3, 2.7], 0.55), bx(2.4, 0.4, 7.2, 0, 0.9, 0, METAL), bx(2.4, 1.6, 1.9, 0, 1.2, -2.6, OLIVE), bx(2.3, 0.9, 1.4, 0, 1.2, -3.6, OLIVE_D), bx(2.45, 1.6, 4.5, 0, 1.3, 1.25, CANVAS)]) };
@@ -503,6 +519,11 @@ export class GroundRenderer {
     const pc = cam as THREE.PerspectiveCamera;
     const tanHalf = Math.tan(((pc.fov ?? 70) * Math.PI) / 360) / Math.max(0.01, pc.zoom ?? 1);
     for (const [u, v] of this.units) {
+      // guns on a ship sail with it
+      if (u.mounted) {
+        v.group.position.copy(u.pos);
+        v.group.rotation.y = -u.heading;
+      }
       const d = cp.distanceTo(u.pos);
       const far = u.def.structure ? 45000 : 16000;
       v.group.visible = d < far;

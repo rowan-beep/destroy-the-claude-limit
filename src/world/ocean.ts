@@ -124,6 +124,11 @@ export class Ocean {
   private mat: THREE.ShaderMaterial;
   private t = 0;
 
+  /** seconds the sea has been running (the waves' clock) */
+  get time(): number {
+    return this.t;
+  }
+
   constructor(
     scene: THREE.Scene,
     private env: Environment,

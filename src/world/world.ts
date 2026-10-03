@@ -13,6 +13,7 @@ import { TreeSystem } from './trees';
 import { CloudSystem } from './clouds';
 import { PrecipitationFx, Weather, loadWeather } from './weather';
 import { AirfieldRenderer } from './airfieldMeshes';
+import { CarrierRenderer } from '../render/carrierRenderer';
 import type { GridResult } from './terrainGen';
 import { MapData } from './mapData';
 import { TerrainLightBaker } from '../render/terrainLight';
@@ -47,6 +48,7 @@ export class World {
   /** a lightning strike's thunder, with its distance (m) */
   onThunder: ((distance: number) => void) | null = null;
   airfields!: AirfieldRenderer;
+  carriers!: CarrierRenderer;
   lightBaker!: TerrainLightBaker;
   ready = false;
 
@@ -90,6 +92,7 @@ export class World {
     this.precip.onThunder = (d) => this.onThunder?.(d);
     this.setWeather(this.weather);
     this.airfields = new AirfieldRenderer(this.scene);
+    this.carriers = new CarrierRenderer(this.scene, this.env);
     this.lightBaker = new TerrainLightBaker(this.grid, MAP_HALF);
     this.ready = true;
   }
@@ -126,6 +129,7 @@ export class World {
     this.trees.update(cp);
     this.clouds.update(dt, camera);
     this.airfields.update(cp);
+    this.carriers.update(camera, this.ocean.time);
     this.pool.tick();
   }
 

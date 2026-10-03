@@ -435,6 +435,8 @@ export class AirfieldRenderer {
 
   constructor(scene: THREE.Scene) {
     for (const f of AIRFIELDS) {
+      // carriers are drawn by the carrier renderer
+      if (f.carrier) continue;
       const v = new AirfieldView(f);
       scene.add(v.group);
       this.views.push(v);

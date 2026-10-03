@@ -13,6 +13,8 @@
 //  - Radar SAM (9K330 Tor / SA-15, or a Buk / SA-11 battery): its radar
 //    shows on your RWR, locks, then guides active-radar missiles. Kill the
 //    fire-control radar and the launchers of that battery go blind.
+//  - Close-in guns on the enemy carriers (Type 1130, eleven 30 mm barrels):
+//    gun only, no missiles, out to about 3 km. They ride the ship.
 //
 // Each defence fires through a "ghost" shooter: an Aircraft object that is
 // never added to the simulation, standing on the site, so rounds, missiles,
@@ -41,6 +43,7 @@ export type GroundKind =
   | 'samRadar'
   | 'sam'
   | 'aaa'
+  | 'ciws'
   | 'truck'
   | 'tank'
   | 'apc'
@@ -75,6 +78,7 @@ export const UNIT_DEFS: Record<GroundKind, UnitDef> = {
   samRadar: { name: 'FIRE CONTROL RADAR', w: 3.3, l: 9.5, h: 7, hp: 230, hard: 1, gun: 1, structure: false },
   sam: { name: 'SAM LAUNCHER', w: 3.3, l: 9.3, h: 3.9, hp: 220, hard: 1, gun: 0.9, structure: false },
   aaa: { name: 'AAA GUN', w: 3.1, l: 6.5, h: 3.8, hp: 170, hard: 1, gun: 0.8, structure: false },
+  ciws: { name: 'CLOSE-IN GUN', w: 3.4, l: 3.4, h: 4.6, hp: 240, hard: 1, gun: 0.8, structure: false },
   truck: { name: 'TRUCK', w: 2.5, l: 7.4, h: 2.9, hp: 90, hard: 1, gun: 1.2, structure: false },
   tank: { name: 'MAIN BATTLE TANK', w: 3.6, l: 9.5, h: 2.3, hp: 320, hard: 0.8, gun: 0.2, structure: false },
   apc: { name: 'ARMOURED CARRIER', w: 2.9, l: 7.6, h: 2.4, hp: 170, hard: 0.9, gun: 0.6, structure: false },
@@ -103,12 +107,14 @@ export class GroundUnit {
   jetType: AircraftType | null = null;
   /** already the aim point of a bomb in flight (so ripple releases spread) */
   claimed = 0;
+  /** rides a ship: position and heading change every step (the renderer follows) */
+  mounted = false;
 
   constructor(
     readonly kind: GroundKind,
     readonly pos: THREE.Vector3,
     /** clockwise from north (rad) */
-    readonly heading: number,
+    public heading: number,
     public primary: boolean,
     public label: string,
   ) {
@@ -162,11 +168,17 @@ export interface DefenseSpec {
   reload: number;
   /** the missile it fires (default: R-77M radar / R-74M IR) */
   missile?: 'R77M' | 'R74M' | 'R37M';
+  /** guns: rounds a second, calibre (mm), damage a round, burst aim error scale */
+  gun?: { rate: number; cal: number; dmg: number; err: number };
+  /** how far above the terrain a sight line must stay (m); a ship's gun sees down to the sea */
+  losMargin?: number;
 }
 
 export const DEFENSES: Record<string, DefenseSpec> = {
   ZSU: { kind: 'AAA', name: 'ZSU-23-4 SHILKA', short: 'ZSU-23-4', range: 2600, ceiling: 1600, rounds: 0, reload: 1.4 },
-  TUNGUSKA: { kind: 'AAA', name: '2S6 TUNGUSKA', short: '2S6', range: 3200, ceiling: 2400, rounds: 0, reload: 1.2 },
+  TUNGUSKA: { kind: 'AAA', name: '2S6 TUNGUSKA', short: '2S6', range: 3200, ceiling: 2400, rounds: 0, reload: 1.2, gun: { rate: 28, cal: 23, dmg: 6, err: 0.7 } },
+  // the enemy carriers' close-in guns: eleven-barrel 30 mm Gatlings, radar directed
+  CIWS: { kind: 'AAA', name: 'TYPE 1130 CIWS', short: 'TYPE 1130', range: 3000, ceiling: 2400, rounds: 0, reload: 1.6, gun: { rate: 40, cal: 30, dmg: 7, err: 0.75 }, losMargin: 2 },
   SA13: { kind: 'SAM_IR', name: 'SA-13 GOPHER', short: 'SA-13', range: 5000, ceiling: 3500, rounds: 4, reload: 7 },
   SA15: { kind: 'SAM_RADAR', name: 'SA-15 GAUNTLET', short: 'SA-15', range: 12000, ceiling: 6000, rounds: 8, reload: 9 },
   SA11: { kind: 'SAM_RADAR', name: 'SA-11 GADFLY', short: 'SA-11', range: 28000, ceiling: 14000, rounds: 4, reload: 12 },
@@ -221,7 +233,7 @@ export class AirDefense {
     const d = t.fm.pos.distanceTo(this.ghost.fm.pos);
     if (d > this.spec.range) return false;
     if (t.fm.pos.y - this.unit.pos.y > this.spec.ceiling) return false;
-    return sim.lineOfSight(this.ghost.fm.pos, t.fm.pos);
+    return sim.lineOfSight(this.ghost.fm.pos, t.fm.pos, this.spec.losMargin);
   }
 
   step(dt: number, sim: Sim): void {
@@ -288,7 +300,7 @@ export class AirDefense {
       this.burstLeft = 1.0 + Math.random() * 1.2;
       this.cooldown = this.spec.reload * (0.8 + Math.random() * 0.6);
       // each burst has its own aiming error (the crew walks it onto the target)
-      const err = (0.004 + (1 - this.skill) * 0.012) * (this.spec.short === '2S6' ? 0.7 : 1);
+      const err = (0.004 + (1 - this.skill) * 0.012) * (this.spec.gun?.err ?? 1);
       this.burstBias.set(randGauss() * err, randGauss() * err);
     }
     this.burstLeft -= dt;
@@ -305,10 +317,11 @@ export class AirDefense {
     const up = new THREE.Vector3().crossVectors(side, _v);
     _v.addScaledVector(side, this.burstBias.x).addScaledVector(up, this.burstBias.y).normalize();
     // quad 23 mm: two barrels firing at a time in this model (about 1,700 rounds a minute)
-    this.shotAccum += dt * 28;
+    const g = this.spec.gun;
+    this.shotAccum += dt * (g?.rate ?? 28);
     while (this.shotAccum >= 1) {
       this.shotAccum -= 1;
-      sim.bullets.spawnFrom(this.ghost, this.ghost.fm.pos, _v, muzzle, 6, 23, Math.random() < 0.3, 0.003);
+      sim.bullets.spawnFrom(this.ghost, this.ghost.fm.pos, _v, muzzle, g?.dmg ?? 6, g?.cal ?? 23, Math.random() < 0.3, 0.003);
     }
   }
 

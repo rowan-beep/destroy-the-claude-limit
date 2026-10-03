@@ -14,6 +14,7 @@ import type { LandingGrade } from '../avionics/nav';
 import { hostile } from './rules';
 import type { Bomb } from '../weapons/bomb';
 import type { GroundUnit, AirDefense } from './ground';
+import { updateCarriers } from '../world/carriers';
 
 export interface SimEvents extends Record<string, unknown> {
   launch: { missile: Missile; shooter: Aircraft; target: Aircraft | null; station: number };
@@ -81,6 +82,8 @@ export class Sim {
   }
 
   remove(a: Aircraft): void {
+    // off a catapult it was waiting on
+    a.fm.releaseCat();
     const i = this.aircraft.indexOf(a);
     if (i >= 0) {
       this.aircraft.splice(i, 1);
@@ -98,13 +101,15 @@ export class Sim {
     this.bombs.push(b);
   }
 
-  lineOfSight(a: THREE.Vector3, b: THREE.Vector3): boolean {
-    return this.grid.lineOfSight(a.x, a.y, a.z, b.x, b.y, b.z, 25);
+  lineOfSight(a: THREE.Vector3, b: THREE.Vector3, margin = 25): boolean {
+    return this.grid.lineOfSight(a.x, a.y, a.z, b.x, b.y, b.z, margin);
   }
 
   step(dt: number): void {
     if (this.paused) return;
     this.time += dt;
+    // the carriers sail on (their guns' ghost shooters ride with them)
+    updateCarriers(this.time);
     for (let i = 0; i < this.aircraft.length; i++) this.aircraft[i].step(dt, this);
     this.checkCollisions();
     for (let i = this.missiles.length - 1; i >= 0; i--) {
@@ -153,6 +158,24 @@ export class Sim {
       this.events.emit('hit', { victim: a, shooter: b.shooter, weapon: s.short, damage: 0, pos: pos.clone(), component: null });
     }
     this.events.emit('bombImpact', { bomb: b, pos: pos.clone(), hits });
+  }
+
+  /** A cannon round's path (a to b) passing a ship's gun mount: the mount takes the hit. */
+  bulletNearMount(a: THREE.Vector3, b: THREE.Vector3, damage: number, owner: Aircraft): boolean {
+    const sx = b.x - a.x, sy = b.y - a.y, sz = b.z - a.z;
+    const L2 = sx * sx + sy * sy + sz * sz || 1;
+    for (const u of this.ground) {
+      if (!u.mounted || !u.alive) continue;
+      const cx = u.pos.x, cy = u.pos.y + u.def.h * 0.5, cz = u.pos.z;
+      if (Math.abs(cx - b.x) > 40 || Math.abs(cz - b.z) > 40) continue;
+      const t = Math.max(0, Math.min(1, ((cx - a.x) * sx + (cy - a.y) * sy + (cz - a.z) * sz) / L2));
+      const dx = a.x + sx * t - cx, dy = a.y + sy * t - cy, dz = a.z + sz * t - cz;
+      if (dx * dx + dz * dz < 2.4 * 2.4 && Math.abs(dy) < u.def.h * 0.6) {
+        u.damage(damage * u.def.gun, this, owner, 'GUN');
+        return true;
+      }
+    }
+    return false;
   }
 
   /** A cannon round hit the ground here: vehicles and light structures on that spot take it. */

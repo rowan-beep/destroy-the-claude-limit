@@ -7,6 +7,9 @@
 //                    snow-covered ranges, pack ice and a contested island.
 //  JADE ARCHIPELAGO  80 x 80 NM: twenty tropical islands, every one
 //                    different, jungle and beaches, one runway per side.
+//  OPEN OCEAN        80 x 80 NM of deep water and nothing else: four BLUE
+//                    and four RED aircraft carriers, each sailing its own
+//                    small loop for ever (carriers.ts moves them).
 //
 // applyMapData() swaps the active map in place (ISLANDS, AIRFIELDS and the
 // lookup tables are mutated, so every importer sees the new map).
@@ -223,6 +226,28 @@ export interface AirfieldDef {
   rzv: number;
   /** TACAN-style channel shown on the HUD nav page */
   tacan: string;
+  /** an aircraft carrier: this "runway" is its angled landing area and it moves (carriers.ts) */
+  carrier?: CarrierSpec;
+  /** approach: glideslope (deg) and aim point past the threshold (m), if not the runway defaults */
+  gsDeg?: number;
+  aimPoint?: number;
+}
+
+/** A carrier's ship class and the loop it sails. */
+export interface CarrierSpec {
+  cls: 'nimitz' | 'ford' | 'fujian';
+  /** hull number painted on the island and the deck */
+  hull: string;
+  /** centre of its loop (world metres) and the loop's radius (m) */
+  cx: number;
+  cz: number;
+  radius: number;
+  /** +1 clockwise seen from above, -1 counter-clockwise */
+  dir: 1 | -1;
+  /** speed through the water (m/s) */
+  speed: number;
+  /** where on the loop it is at time 0 (rad, clockwise from north) */
+  phase: number;
 }
 
 function field(
@@ -261,6 +286,27 @@ function field(
   };
 }
 
+/** Flight deck height above the water (m) and the angled landing area. */
+export const DECK_HEIGHT = 19.5;
+export const LANDING_AREA = { length: 236, width: 26, angleDeg: 9 };
+
+/**
+ * A carrier as an airfield: the "runway" is the angled landing area (it is
+ * re-placed every step as the ship sails; carriers.ts). Approaches fly a
+ * 3.5 deg glideslope to the 3-wire, 72 m past the ramp.
+ */
+function carrierField(id: string, name: string, team: Team, cls: CarrierSpec['cls'], hull: string, xNm: number, yNm: number, radiusNm: number, dir: 1 | -1, phaseDeg: number, tacan: string): AirfieldDef {
+  const c = nmToWorld(xNm, yNm);
+  const spec: CarrierSpec = { cls, hull, cx: c.x, cz: c.z, radius: radiusNm * NM, dir, speed: 15.4, phase: (phaseDeg * Math.PI) / 180 };
+  const f = field(id, name, hull, team, `fleet-${team}`, xNm, yNm, 0, DECK_HEIGHT, tacan);
+  f.length = LANDING_AREA.length;
+  f.width = LANDING_AREA.width;
+  f.carrier = spec;
+  f.gsDeg = 3.5;
+  f.aimPoint = 72;
+  return f;
+}
+
 const TRIAD_AIRFIELDS: AirfieldDef[] = [
   field('dunvegan', 'DUNVEGAN AB', 'EGDV', 'blue', 'skye', -157, 104, 22, 42, '31X'),
   field('broadford', 'BROADFORD AB', 'EGBF', 'blue', 'skye', -52, 76, 158, 35, '44X'),
@@ -285,6 +331,29 @@ const JADE_AIRFIELDS: AirfieldDef[] = [
   field('kahiki', 'KAHIKI AB', 'NTKH', 'red', 'kahiki', 27, 19, 40, 14, '68X'),
 ];
 
+// Open Ocean: the BLUE fleet in the south-west, the RED fleet in the
+// north-east. Every loop is 1.5 NM in radius; the closest BLUE and RED loops
+// are 56.6 NM apart centre to centre, so a RED carrier never comes within
+// 50 NM of a BLUE one.
+const OCEAN_AIRFIELDS: AirfieldDef[] = [
+  carrierField('ford', 'USS GERALD R. FORD', 'blue', 'ford', 'CVN-78', -20, -20, 1.5, 1, 0, '78X'),
+  carrierField('nimitz', 'USS NIMITZ', 'blue', 'nimitz', 'CVN-68', -33, -10, 1.5, -1, 120, '68X'),
+  carrierField('roosevelt', 'USS THEODORE ROOSEVELT', 'blue', 'nimitz', 'CVN-71', -10, -33, 1.5, 1, 240, '71X'),
+  carrierField('lincoln', 'USS ABRAHAM LINCOLN', 'blue', 'nimitz', 'CVN-72', -33, -33, 1.5, -1, 60, '72X'),
+  carrierField('volkov', 'ADMIRAL VOLKOV', 'red', 'fujian', '061', 20, 20, 1.5, -1, 180, '61Y'),
+  carrierField('zorin', 'ADMIRAL ZORIN', 'red', 'fujian', '062', 33, 10, 1.5, 1, 300, '62Y'),
+  carrierField('korolev', 'ADMIRAL KOROLEV', 'red', 'fujian', '063', 10, 33, 1.5, -1, 30, '63Y'),
+  carrierField('orlov', 'ADMIRAL ORLOV', 'red', 'fujian', '064', 33, 33, 1.5, 1, 210, '64Y'),
+];
+
+// No land on the ocean map: these only give the game modes their meeting
+// point and each side's home waters (they are not in ISLANDS, so no terrain).
+const OCEAN_ROLE_ISLANDS: IslandDef[] = [
+  island('gap', 'islet', 'THE GAP', 'Open water halfway between the two fleets, where the fighters meet.', 'contested', 0, 0, 10, 10, 0, 0),
+  island('fleet-blue', 'islet', 'BLUE FLEET', 'The BLUE carrier groups, south-west.', 'blue', -24, -24, 14, 14, 0, 0),
+  island('fleet-red', 'islet', 'RED FLEET', 'The RED carrier groups, north-east.', 'red', 24, 24, 14, 14, 0, 0),
+];
+
 /** The active map's airfields (mutated in place by applyMapData). */
 export const AIRFIELDS: AirfieldDef[] = [...TRIAD_AIRFIELDS];
 
@@ -294,7 +363,7 @@ export const AIRFIELD_BY_ID: Record<string, AirfieldDef> = Object.fromEntries(AI
 // Maps
 // ---------------------------------------------------------------------------
 
-export type MapId = 'triad' | 'frost' | 'jade';
+export type MapId = 'triad' | 'frost' | 'jade' | 'ocean';
 
 export interface MapInfo {
   id: MapId;
@@ -310,6 +379,15 @@ export interface MapInfo {
 }
 
 export const MAPS: MapInfo[] = [
+  {
+    id: 'ocean',
+    name: 'OPEN OCEAN',
+    sizeNm: 80,
+    maxTerrain: 0,
+    fightAlt: 4800,
+    description: "Nothing but deep, rolling water, 80 × 80 NM. Four BLUE aircraft carriers in the south-west and four RED carriers in the north-east, each sailing its own loop. Catapult off the deck, trap on the wires, and keep clear of the RED ships' guns.",
+    places: 'BLUE FLEET · THE GAP · RED FLEET',
+  },
   {
     id: 'jade',
     name: 'JADE ARCHIPELAGO',
@@ -378,17 +456,18 @@ export function mapScale(): number {
 export function applyMapData(id: MapId): void {
   activeMap = MAPS.find((m) => m.id === id) ?? MAPS.find((m) => m.id === 'triad')!;
   const which = activeMap.id;
-  const isl = which === 'frost' ? FROST_ISLANDS : which === 'jade' ? JADE_ISLANDS : TRIAD_ISLANDS;
-  const fld = which === 'frost' ? FROST_AIRFIELDS : which === 'jade' ? JADE_AIRFIELDS : TRIAD_AIRFIELDS;
+  const isl = which === 'frost' ? FROST_ISLANDS : which === 'jade' ? JADE_ISLANDS : which === 'ocean' ? [] : TRIAD_ISLANDS;
+  const fld = which === 'frost' ? FROST_AIRFIELDS : which === 'jade' ? JADE_AIRFIELDS : which === 'ocean' ? OCEAN_AIRFIELDS : TRIAD_AIRFIELDS;
   ISLANDS.length = 0;
   ISLANDS.push(...isl);
   AIRFIELDS.length = 0;
   AIRFIELDS.push(...fld);
   for (const k of Object.keys(ISLAND_BY_ID)) delete ISLAND_BY_ID[k];
   for (const i of isl) ISLAND_BY_ID[i.id] = i;
+  if (which === 'ocean') for (const i of OCEAN_ROLE_ISLANDS) ISLAND_BY_ID[i.id] = i;
   for (const k of Object.keys(AIRFIELD_BY_ID)) delete AIRFIELD_BY_ID[k];
   for (const f of fld) AIRFIELD_BY_ID[f.id] = f;
-  const by = (id2: string) => isl.find((i) => i.id === id2)!;
+  const by = (id2: string) => (isl.find((i) => i.id === id2) ?? OCEAN_ROLE_ISLANDS.find((i) => i.id === id2))!;
   const fb = (id2: string) => fld.find((f) => f.id === id2)!;
   if (which === 'frost') {
     ROLES.arena = by('hvitoy');
@@ -396,6 +475,12 @@ export function applyMapData(id: MapId): void {
     ROLES.redHome = by('ostmark');
     ROLES.duelBlue = fb('hvitavest');
     ROLES.duelRed = fb('hvitaost');
+  } else if (which === 'ocean') {
+    ROLES.arena = by('gap');
+    ROLES.blueHome = by('fleet-blue');
+    ROLES.redHome = by('fleet-red');
+    ROLES.duelBlue = fb('ford');
+    ROLES.duelRed = fb('volkov');
   } else if (which === 'jade') {
     ROLES.arena = by('mauna');
     ROLES.blueHome = by('tamaru');
