@@ -289,6 +289,9 @@ export class Game implements ModeHost {
                       ? new ReconMode(this)
                       : new DuelMode(this);
     randomizeWind();
+    // every sortie starts with the goggles stowed (left on from a night flight they would
+    // wash a daylight one out in green)
+    NIGHT.nvg = false;
     this.mode.start();
     armCarriers(this.sim, cfg.difficulty);
     this.message(`WIND ${String(Math.round(wind.fromDeg)).padStart(3, '0')}° / ${Math.round(wind.surfaceKts)} KT${wind.turbulence > 1.1 ? ' — MODERATE TURBULENCE LOW LEVEL' : ''}`, 'info', 8);

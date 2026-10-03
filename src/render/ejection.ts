@@ -86,6 +86,8 @@ export class EjectionEffects {
   private seatMat = new THREE.MeshStandardMaterial({ color: 0x2d3033, roughness: 0.8 });
   private glass = new THREE.MeshStandardMaterial({ color: 0x9fb4c4, roughness: 0.1, metalness: 0.3, transparent: true, opacity: 0.45 });
   private lineMat = new THREE.LineBasicMaterial({ color: 0x2a2a2a });
+  /** materials every parachute / seat shares: never freed with one of them */
+  private shared = new Set<THREE.Material>([this.suit, this.helmet, this.seatMat, this.glass, this.lineMat]);
   /** latest player parachute position (the death camera follows it) */
   playerChute: THREE.Vector3 | null = null;
 
@@ -104,6 +106,8 @@ export class EjectionEffects {
     // canopy jettison
     if (canopyGeo) {
       const m = new THREE.Mesh(canopyGeo, this.glass);
+      // the canopy geometry belongs to the jet's model: not ours to free
+      m.userData.keepGeo = true;
       m.quaternion.copy(q);
       m.position.copy(fm.pos);
       this.scene.add(m);
@@ -205,6 +209,17 @@ export class EjectionEffects {
     }
   }
 
+  /** Free the GPU side of a finished body or parachute (its own geometry and materials). */
+  private free(o: THREE.Object3D): void {
+    o.traverse((x) => {
+      const m = x as THREE.Mesh;
+      if (!m.geometry) return;
+      if (!m.userData.keepGeo) m.geometry.dispose();
+      const mats = Array.isArray(m.material) ? m.material : [m.material];
+      for (const mt of mats) if (mt && !this.shared.has(mt)) mt.dispose();
+    });
+  }
+
   update(dt: number, time: number): void {
     // free bodies (canopies)
     for (let i = this.bodies.length - 1; i >= 0; i--) {
@@ -213,6 +228,7 @@ export class EjectionEffects {
       if (!b.landed) this.integrate(b, dt);
       if (b.age > b.life) {
         this.scene.remove(b.obj);
+        this.free(b.obj);
         this.bodies.splice(i, 1);
       }
     }
@@ -236,6 +252,10 @@ export class EjectionEffects {
       if (p.age > p.life) {
         this.scene.remove(p.obj);
         this.pieces.splice(i, 1);
+        // the pieces of one airframe share a material: free it with the last of them
+        const mat = (p.obj as THREE.Mesh).material as THREE.Material;
+        (p.obj as THREE.Mesh).geometry.dispose();
+        if (!this.pieces.some((q) => (q.obj as THREE.Mesh).material === mat)) mat.dispose();
       }
     }
     // parachutes
@@ -291,6 +311,7 @@ export class EjectionEffects {
         c.lines.visible = t < 2;
         if (t > 25) {
           this.scene.remove(c.group);
+          this.free(c.group);
           this.chutes.splice(i, 1);
           continue;
         }

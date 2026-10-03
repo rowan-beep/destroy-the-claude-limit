@@ -10,6 +10,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.39.2',
+    date: '2026-10-03',
+    title: "Bug fixes",
+    notes: [
+      "Fixed: long fights slowly used up more and more graphics memory. The burning wreckage from every jet shot down in the air, and every ejected pilot's seat and parachute, was taken out of the world after it landed but never freed, so a long free-for-all or online session kept piling it up. It is now all cleaned up properly.",
+      "Fixed: night-vision goggles stayed switched on after a mission, so your next flight (even in broad daylight) started in a washed-out green picture. Every sortie now starts with the goggles off.",
+    ],
+  },
+  {
     version: '4.39.1',
     date: '2026-10-03',
     title: "Carrier auto-land fixes",

@@ -3,6 +3,11 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.39.2 — Bug fixes (2026-10-03)
+
+- Fixed: long fights slowly used up more and more graphics memory. The burning wreckage from every jet shot down in the air, and every ejected pilot's seat and parachute, was taken out of the world after it landed but never freed, so a long free-for-all or online session kept piling it up. It is now all cleaned up properly.
+- Fixed: night-vision goggles stayed switched on after a mission, so your next flight (even in broad daylight) started in a washed-out green picture. Every sortie now starts with the goggles off.
+
 ## v4.39.1 — Carrier auto-land fixes (2026-10-03)
 
 - Fixed: carrier auto-land could keep circling the ship (swing out, turn in, miss the final approach, swing out again). Heavy jets like the MiG-31 and the SR-71 sagged in the hard turn onto final, were then only allowed gentle turns, and sailed kilometres past the centreline. They now keep turning hard, ease into the final course early enough for their own turn radius, and the final course no longer jumps around while the ship sails its circle.
