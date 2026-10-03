@@ -55,7 +55,7 @@ import { randomizeWind, wind } from '../core/weather';
 import { AutoFly, topSpeedKts } from './autoFly';
 import type { AutoFlyPanel, AutoFlyChoice } from '../ui/autoFlyPanel';
 import { enemyTypesFor, AIRCRAFT_TYPES } from '../aircraft/specs';
-import { clearCatapults, updateCarriers } from '../world/carriers';
+import { CARRIERS, clearCatapults, nearestCarrier, updateCarriers } from '../world/carriers';
 import { armCarriers } from './navy';
 
 export type GameState = 'menu' | 'loading' | 'playing' | 'paused' | 'map' | 'results' | 'replay' | 'briefing';
@@ -290,6 +290,7 @@ export class Game implements ModeHost {
     randomizeWind();
     this.mode.start();
     armCarriers(this.sim, cfg.difficulty);
+    if (activeMap.id === 'ocean') this.message('OPEN OCEAN AND THE CARRIERS ARE IN BETA TESTING. THE NEXT UPDATE FIXES THE BUGS', 'warn', 9);
     this.message(`WIND ${String(Math.round(wind.fromDeg)).padStart(3, '0')}° / ${Math.round(wind.surfaceKts)} KT${wind.turbulence > 1.1 ? ' — MODERATE TURBULENCE LOW LEVEL' : ''}`, 'info', 8);
     this.recorder = new ReplayRecorder(this.sim, cfg.mode.toUpperCase());
     this.syncPlayerControls();
@@ -736,6 +737,7 @@ export class Game implements ModeHost {
       this.sortie?.update(steps * PHYSICS_DT);
       this.mode?.update(dt);
       this.updateRearm(dt);
+      this.updateCarrierCalls();
       this.updateWarnings(dt);
     }
 
@@ -1181,7 +1183,13 @@ export class Game implements ModeHost {
       this.autoFly.disengage();
       this.message('AUTO-FLY DISENGAGED', 'warn', 2);
     }
-    if (inp.pressed('rearm')) this.tryRearm();
+    if (inp.pressed('rearm')) {
+      // in the air near carriers the same key works the tailhook
+      if (!p.fm.onGround && CARRIERS.length) {
+        p.fm.hookDown = !p.fm.hookDown;
+        this.message(p.fm.hookDown ? 'HOOK DOWN' : 'HOOK UP', 'info', 2);
+      } else this.tryRearm();
+    }
     if (inp.held('eject')) {
       this.ejectHold += dt;
       if (this.ejectHold > 1) {
@@ -1331,6 +1339,49 @@ export class Game implements ModeHost {
     if (this.rearmTimer >= 0) return;
     this.rearmTimer = 15;
     this.message('GROUND CREW: REARMING & REFUELING — 15 S', 'info', 4);
+  }
+
+  /** What the flight deck tells you: catapult hook-up, the shot, the trap, a bolter. */
+  private deckSeen = { ac: null as Aircraft | null, cat: false, salute: false, shots: 0, traps: 0, bolters: 0, hookCall: false, away: false };
+  private updateCarrierCalls(): void {
+    const p = this.player;
+    if (!p || !CARRIERS.length) return;
+    const fm = p.fm;
+    const s = this.deckSeen;
+    if (s.ac !== p) Object.assign(s, { ac: p, cat: false, salute: false, shots: fm.catShots, traps: fm.traps, bolters: fm.bolters, hookCall: false, away: false });
+    const cat = fm.cat;
+    if (cat && !s.cat) this.message(`ON CATAPULT ${cat.idx + 1}, ${cat.carrier.name}. FULL THROTTLE TO LAUNCH`, 'info', 7);
+    s.cat = !!cat;
+    if (cat && cat.phase === 'hold' && cat.t > 0.05 && !s.salute) {
+      s.salute = true;
+      this.message('SALUTE. HOLD FULL POWER…', 'info', 2);
+    }
+    if (!cat) s.salute = false;
+    if (fm.catShots !== s.shots) {
+      s.shots = fm.catShots;
+      this.message('CAT SHOT. GEAR UP WHEN CLIMBING', 'good', 3);
+    }
+    if (fm.traps !== s.traps) {
+      s.traps = fm.traps;
+      const t = fm.lastTrap;
+      this.message(`TRAPPED: ${t.wire} WIRE · ${t.grade}. THROTTLE IDLE · H TO REARM`, t.grade === 'OK' ? 'good' : 'info', 6);
+    }
+    if (fm.bolters !== s.bolters) {
+      s.bolters = fm.bolters;
+      this.message('BOLTER, BOLTER, BOLTER. FULL POWER, GO AROUND', 'warn', 4);
+    }
+    // a reminder on the way back in: gear down near a ship with the hook still up
+    if (fm.onGround) {
+      s.hookCall = false;
+      s.away = false;
+    } else {
+      const n = nearestCarrier(fm.pos.x, fm.pos.z);
+      if (n && n.d > 7000) s.away = true;
+      if (s.away && !s.hookCall && fm.gearPos > 0.5 && !fm.hookDown && n && n.d < 4000 && n.c.f.team === p.team) {
+        s.hookCall = true;
+        this.message('HOOK IS UP. PRESS H TO LOWER IT FOR THE WIRES', 'warn', 4);
+      }
+    }
   }
 
   private updateRearm(dt: number): void {

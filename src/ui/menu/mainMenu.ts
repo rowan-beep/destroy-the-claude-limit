@@ -30,6 +30,8 @@ const DIFF_TEXT: Record<Difficulty, string> = {
 };
 
 const MODES: ModeId[] = ['daily', 'recon', 'strike', 'tutorial', 'free', 'waves', 'duel', 'team', 'ffa'];
+/** modes that need land (targets, sites, the lesson course) */
+const OCEAN_OFF: ModeId[] = ['daily', 'recon', 'strike', 'tutorial'];
 
 const TIMES: [TimeOfDay, string, string][] = [
   ['dawn', 'DAWN', 'linear-gradient(180deg,#2b3a67 0%,#c46b8a 60%,#f4b27a 100%)'],
@@ -255,10 +257,14 @@ export class MainMenu {
   private renderModes(p: HTMLElement): void {
     el('div', 'mm-h', p, 'GAME MODE');
     const list = el('div', 'mm-modes', p);
+    // the open ocean has no land: no ground targets, no recon sites, no lesson course
+    const oceanOff = (m: ModeId) => activeMap.id === 'ocean' && OCEAN_OFF.includes(m);
+    if (oceanOff(this.cfg.mode)) this.cfg.mode = 'free';
     MODES.forEach((m, i) => {
       const info = MODE_INFO[m];
       const on = m === this.cfg.mode;
-      const r = el('div', 'mm-mode' + (on ? ' on' : ''), list);
+      const off = oceanOff(m);
+      const r = el('div', 'mm-mode' + (on ? ' on' : '') + (off ? ' off' : ''), list);
       el('div', 'mm-mode-n', r, String(i + 1).padStart(2, '0'));
       const t = el('div', 'mm-mode-t', r);
       const tl = el('div', 'mm-mode-l', t, info.title);
@@ -266,9 +272,10 @@ export class MainMenu {
         const dm = todaysMission();
         el('span', 'mm-tag' + (dailyDone(dm.date) ? ' done' : ''), tl, dailyDone(dm.date) ? '✓ DONE' : dm.date.slice(5).replace('-', '/'));
       }
-      el('div', 'mm-mode-s', t, info.subtitle);
+      el('div', 'mm-mode-s', t, off ? 'NOT ON THE OPEN OCEAN: PICK ANOTHER THEATER' : info.subtitle);
       if (on) el('div', 'mm-mode-d', t, info.description);
       r.addEventListener('click', () => {
+        if (off) return;
         this.cfg.mode = m;
         // the SR-71 flies only reconnaissance and free flight; reconnaissance only the SR-71
         if (!jetAllowedIn(this.cfg.aircraft, m)) {
@@ -335,8 +342,8 @@ export class MainMenu {
       this.pills(c, 'HOME BASE', blue.map((f) => [f.id, f.name.replace(' AB', '')] as [string, string]), cfg.freeBase, (v) => (cfg.freeBase = v));
     }
     if (cfg.mode === 'free') {
-      this.pills(c, 'START', [['runway', 'ON RUNWAY'], ['air', 'IN THE AIR']], cfg.freeStart, (v) => (cfg.freeStart = v));
-      el('div', 'mm-note', c, 'No enemies. Practise take-offs, landings and high-G handling anywhere in the theater.');
+      this.pills(c, 'START', [['runway', activeMap.id === 'ocean' ? 'ON THE CATAPULT' : 'ON RUNWAY'], ['air', 'IN THE AIR']], cfg.freeStart, (v) => (cfg.freeStart = v));
+      el('div', 'mm-note', c, activeMap.id === 'ocean' ? 'No enemy jets, but the RED carriers in the north-east shoot at anything that comes close. Launch off the catapult (full throttle), then practise traps: gear down, hook down (H), fly the ball on the lens to the wires.' : 'No enemies. Practise take-offs, landings and high-G handling anywhere in the theater.');
     } else if (cfg.mode === 'waves') {
       this.pills(c, 'START', [['air', 'IN THE AIR'], ['runway', 'ON RUNWAY']], cfg.waveStart, (v) => (cfg.waveStart = v));
       this.slider(c, (v) => `STARTING WAVE · ${v}`, 1, 10, cfg.startWave, (v) => (cfg.startWave = v));
@@ -537,7 +544,8 @@ export class MainMenu {
     for (const m of MAPS) {
       const cur = m.id === activeMap.id;
       const b = el('div', 'mm-map' + (cur ? ' on' : ''), p);
-      el('div', 'mm-map-n', b, m.name);
+      const n = el('div', 'mm-map-n', b, m.name);
+      if (m.id === 'ocean') el('span', 'mm-tag', n, 'BETA TESTING');
       el('div', 'mm-map-p', b, `${m.sizeNm} × ${m.sizeNm} NM · ${m.places}`);
       el('div', 'mm-map-d', b, m.description);
       el('div', 'mm-map-c', b, cur ? '● CURRENT THEATER' : 'SELECT ▸');

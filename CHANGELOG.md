@@ -3,6 +3,17 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.34.0 — Open Ocean and aircraft carriers (BETA TESTING) (2026-10-03)
+
+- BETA TESTING: the Open Ocean map and the aircraft carriers are brand new and still being tested, so you will find bugs. The next update fixes them, and also brings the rolling sea, PITCH BLACK nights and night-vision goggles.
+- New theater: OPEN OCEAN, 80 × 80 NM of nothing but water. Pick it under THEATER on the main menu.
+- Eight aircraft carriers. Four BLUE (USS Gerald R. Ford, Nimitz, Theodore Roosevelt and Abraham Lincoln) in the south-west, four RED in the north-east. Each one sails its own small loop at 30 knots, all the time, and the RED ships never come within 50 NM of the BLUE ones. The decks pitch, heave and roll with the swell.
+- Catapult launch: start ON THE CATAPULT and your jet is hooked to the catapult with the blast deflector raised behind you. Go to full throttle, hold it for the salute, and the catapult throws you off the bow at flying speed.
+- Landing on the wire: gear down, then press H in the air to lower the tailhook. Fly the glide path with the lens on the left of the landing area: the amber ball level with the green bars means you are on it, a red ball means you are too low. Catch a wire and you get which wire it was and a grade. Miss them all and it's a bolter: full power and go around.
+- Rearm mid-mission: stop on a BLUE carrier with the throttle at idle and press H. The deck crew rearms, refuels and repairs you in 15 seconds, the same as at an airbase.
+- The RED carriers have four 30 mm close-in guns each. Guns only, no missiles. They shoot at you in every mode, Free Flight included, and you can shoot the guns out.
+- On the ocean you can fly Free Flight, Wave Combat, 1v1 Duel, 5v5 Team Battle and Free-for-all. Daily Mission, Blackbird, Airstrike and Flight School need land, so switch theater for those.
+
 ## v4.33.0 — Multiplayer in the Claude page (2026-10-02)
 
 - Multiplayer now works right here in the Claude page you play in. Artifact pages cannot reach outside servers, which is why the official servers always showed OFFLINE in it. Now the page has its own rooms: ROOM 1 and 2 on the Jade Archipelago, ROOM 3 on Triad Isles, ROOM 4 and 5 on Frostfall Strait.

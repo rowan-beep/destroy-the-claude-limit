@@ -87,7 +87,7 @@ export const ACTION_LABELS: Record<Action, string> = {
   camTarget: 'Target / padlock view',
   camWeapon: 'Weapon (missile) camera',
   eject: 'Eject (hold)',
-  rearm: 'Rearm & refuel (parked on friendly base)',
+  rearm: 'Rearm & refuel (parked on a friendly base or carrier) / tailhook (in the air)',
   dropTanks: 'Jettison fuel tanks',
   labels: 'Toggle aircraft labels',
   help: 'Toggle controls panel',

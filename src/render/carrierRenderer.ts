@@ -617,7 +617,7 @@ class Wake {
 
   update(c: Carrier, cam: THREE.Vector3, seaT: number, light: number): void {
     const waves = seaMoves();
-    const sea = (x: number, z: number) => (waves ? waveHeight(x, z, seaT, Math.hypot(x - cam.x, z - cam.z)) : 0) + 0.3;
+    const sea = (x: number, z: number) => (waves ? waveHeight(x, z, seaT, Math.hypot(x - cam.x, z - cam.z)) : 0) + 0.9;
     const p = { x: 0, z: 0, h: 0 };
     // the churned water left behind the stern, spreading and fading
     for (let k = 0; k <= WAKE_N; k++) {
