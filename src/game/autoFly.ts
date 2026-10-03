@@ -205,7 +205,7 @@ export class AutoFly {
       case 'descent':
         return `AUTO-FLY DESCENT → ${where} ${Math.round(d ?? 0)} NM`;
       case 'approach':
-        if (this.carrier) return `AUTO-LAND CARRIER APPROACH · ${this.carrier.name} · ${(this.cv.d / NM).toFixed(1)} NM`;
+        if (this.carrier) return `AUTO-LAND CARRIER ${this.leg === 'outbound' ? 'SETTING UP BEHIND THE SHIP' : 'APPROACH'} · ${this.carrier.name}`;
         return `AUTO-LAND APPROACH RWY ${this.rwy?.name ?? ''} · ${Math.round(d ?? 0)} NM`;
       case 'final':
         if (this.carrier) return `AUTO-LAND CARRIER FINAL · ON THE BALL · ${(this.cv.d / NM).toFixed(1)} NM`;
@@ -390,7 +390,9 @@ export class AutoFly {
     if (this.carrier && this.phase !== 'climb') {
       if (this.phase === 'rollout' || this.phase === 'stopped' || fm.trap) return this.carrierRollout(p);
       const dShip = Math.hypot(fm.pos.x - this.carrier.x, fm.pos.z - this.carrier.z);
-      if (this.phase === 'approach' || this.phase === 'final' || dShip < 22000) return this.carrierApproach(p, dt);
+      // start in time to get down from cruise height (about a 6 degree descent to the pattern)
+      const startAt = Math.max(22000, (fm.pos.y - 400) / Math.tan(6 * DEG) + 8000);
+      if (this.phase === 'approach' || this.phase === 'final' || dShip < startAt) return this.carrierApproach(p, dt);
     }
     if (this.phase === 'rollout' || this.phase === 'stopped') return this.rollout(p);
     if (fm.onGround && (this.phase === 'flare' || this.phase === 'final')) {
@@ -480,7 +482,7 @@ export class AutoFly {
       }
     } else _dir.copy(this.holdDir);
     _dir.setY(0).normalize();
-    this.limitTurn(p, _dir);
+    this.limitTurn(p, _dir, 60);
     // always clear the terrain ahead (and a little to each side of the track)
     const look = Math.max(5000, fm.tas * 60);
     const ground = this.groundAhead(p, _dir.x, _dir.z, look);
@@ -499,7 +501,7 @@ export class AutoFly {
     const vs = clamp(e * 0.05, -vsMax, vsMax);
     const climb = Math.asin(clamp(vs / V, -0.5, 0.5));
     _dir.multiplyScalar(Math.cos(climb)).setY(Math.sin(climb));
-    steerToward(p, _dir, { gCap: 3, tau: 1.6, maxBank: 40 });
+    steerToward(p, _dir, { gCap: 4.5, tau: 0.9, maxBank: 70 });
     if (descentCas > 0) this.thrust(p, Math.min(descentCas, this.casFor(p, wantKts)), dt, 0.3, false);
     else this.thrust(p, this.casFor(p, wantKts), dt, 0.45);
   }
@@ -935,30 +937,40 @@ export class AutoFly {
       if (this.leg === 'gate' && (d < 2800 || (d < CV_GATE - 1500 && aligned < 0.7))) {
         this.leg = 'outbound';
         this.legSide = e >= 0 ? 1 : -1;
+        this.onCall?.('SETTING UP — SWINGING OUT BEHIND THE SHIP TO TURN ONTO FINAL', 'info');
       }
       const gateAlt = this.cvPathY(CV_GATE) + 40;
       if (this.leg === 'outbound') {
         const o = CV_GATE + 4500, side = 3200 * this.legSide;
         const gx = cv.x - cv.ux * o - cv.uz * side, gz = cv.z - cv.uz * o + cv.ux * side;
         _dir.set(gx - fm.pos.x, 0, gz - fm.pos.z).normalize();
-        if (Math.hypot(fm.pos.x - gx, fm.pos.z - gz) < 1800 || d > CV_GATE + 3000) this.leg = 'gate';
+        if (Math.hypot(fm.pos.x - gx, fm.pos.z - gz) < 1800 || d > CV_GATE + 3000) {
+          this.leg = 'gate';
+          this.onCall?.('TURNING IN — LINING UP ON THE DECK', 'info');
+        }
       } else {
         // intercept the final course: up to 80 degrees toward it from far off, 40 close to it
         const maxI = (Math.abs(e) > 4000 ? 80 : 45) * DEG;
         const cc = clamp(-e / 2500, -1, 1) * maxI;
         _dir.set(cv.ux * Math.cos(cc) - cv.uz * Math.sin(cc), 0, cv.uz * Math.cos(cc) + cv.ux * Math.sin(cc)).normalize();
       }
-      this.limitTurn(p, _dir, 30);
-      const climb = clamp((gateAlt - fm.pos.y) / 900, -1, 1) * (gateAlt > fm.pos.y ? 12 : 7) * DEG;
+      this.limitTurn(p, _dir, 75);
+      const high = fm.pos.y - gateAlt;
+      const climb = clamp(-high / 900, -1, 1) * (high < 0 ? 12 : high > 1500 ? 12 : 8) * DEG;
       _dir.multiplyScalar(Math.cos(climb)).setY(Math.sin(climb));
-      // low (below the gate height): shallow turns so the climb back up comes first
+      // pull hard round to the ship (it is a fighter); low below the gate height, shallower
+      // turns so the climb back up comes first; never a wings-level 'push' to descend
       const low = fm.pos.y < gateAlt - 80;
-      steerToward(p, _dir, { gCap: 2.5, tau: 1.2, maxBank: low ? 15 : 35 });
+      steerToward(p, _dir, { gCap: low ? 3 : 4.5, tau: 0.8, maxBank: low ? 30 : 70, allowPush: false });
       // slow to just above on-speed before the gate, so final is flown at one speed; a heavy
       // jet that needs a high angle of attack to hold its height gets more
       this.apBonus = clamp(this.apBonus + ((fm.alpha / DEG) - 13) * 4 * dt, 0, 120);
       const near = this.cvSpeedMin(p) / KT + 10;
-      this.thrust(p, (d < 11000 ? Math.max(near, 150) + this.apBonus : 230 + this.apBonus * 0.5) * KT, dt, 0.2, false, 12);
+      // far from the ship: keep the cruise speed (just descending), slow down only close in
+      const shipDist = Math.hypot(fm.pos.x - this.carrier!.x, fm.pos.z - this.carrier!.z);
+      const wantKts = shipDist > 20000 ? Math.max(250, Math.min(this.speedKts, 450)) : d < 11000 && high < 600 ? Math.max(near, 150) + this.apBonus : 250 + this.apBonus * 0.5;
+      this.thrust(p, shipDist > 20000 ? this.casFor(p, wantKts) : wantKts * KT, dt, 0.2, false, high > 600 ? 10 : 12);
+      if (high > 800) p.controls.speedbrake = p.controls.speedbrake || fm.cas > 300 * KT;
       return;
     }
     // --- final: the line to where the deck will be, on a 3.5 degree path --------

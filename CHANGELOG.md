@@ -3,6 +3,12 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.36.1 — Carrier auto-land fixes (2026-10-03)
+
+- Carrier auto-land fixed: started from cruise height and speed it used to arrive far too high over the ship, then circle round and round without ever getting onto final. It now starts down early enough, keeps its cruise speed until it is close, and then sets up and comes straight down onto the deck.
+- Auto-fly turns like a fighter now: up to 70 degrees of bank and about 4.5 G in cruise and around the carrier, instead of gentle 35 degree turns. Only the final approach to a deck or runway stays smooth.
+- Auto-fly now tells you what it is doing around the carrier: swinging out behind the ship, turning in, final, the trap.
+
 ## v4.36.0 — Carrier auto-land (2026-10-03)
 
 - Auto-land on carriers. Open AUTO-FLY (U), pick a carrier as the destination with AUTO-LAND ticked and it does the whole thing: flies to the ship, sets up behind it, drops the gear and the hook, flies the ball down the glide path and catches a wire. It even works from the catapult: it launches, comes back round and traps on the same ship.

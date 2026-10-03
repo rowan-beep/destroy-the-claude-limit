@@ -10,6 +10,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.36.1',
+    date: '2026-10-03',
+    title: "Carrier auto-land fixes",
+    notes: [
+      "Carrier auto-land fixed: started from cruise height and speed it used to arrive far too high over the ship, then circle round and round without ever getting onto final. It now starts down early enough, keeps its cruise speed until it is close, and then sets up and comes straight down onto the deck.",
+      "Auto-fly turns like a fighter now: up to 70 degrees of bank and about 4.5 G in cruise and around the carrier, instead of gentle 35 degree turns. Only the final approach to a deck or runway stays smooth.",
+      "Auto-fly now tells you what it is doing around the carrier: swinging out behind the ship, turning in, final, the trap.",
+    ],
+  },
+  {
     version: '4.36.0',
     date: '2026-10-03',
     title: "Carrier auto-land",
