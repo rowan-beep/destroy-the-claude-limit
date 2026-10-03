@@ -123,7 +123,7 @@ export class AutoFlyPanel {
     this.land = el('input', '', lRow);
     this.land.type = 'checkbox';
     this.land.checked = current.autoLand;
-    el('span', '', lRow, 'AUTO-LAND AT A DESTINATION AIRFIELD');
+    el('span', '', lRow, 'AUTO-LAND AT A DESTINATION AIRFIELD OR CARRIER');
 
     const btns = el('div', 'af-btns', r);
     button(engaged ? 'UPDATE' : lim.onGround ? 'TAKE OFF & GO' : 'ENGAGE', 'primary', btns, () => this.engage());
@@ -132,7 +132,7 @@ export class AutoFlyPanel {
       'div',
       'af-hint',
       r,
-      `${lim.onGround ? 'On the runway it takes off by itself. ' : ''}It flies a straight track to the destination, climbs over high ground, plans its descent and, to an airfield, flies the approach and lands. Moving the stick takes control back. U closes this panel.`,
+      `${lim.onGround ? 'On the runway (or the catapult) it takes off by itself. ' : ''}It flies a straight track to the destination, climbs over high ground, plans its descent and, to an airfield, flies the approach and lands. To a carrier it flies the carrier approach and traps on the wire (hook and gear by itself). Moving the stick takes control back. U closes this panel.`,
     );
     r.classList.remove('hidden');
   }

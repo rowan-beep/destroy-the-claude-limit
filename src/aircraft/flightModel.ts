@@ -998,7 +998,10 @@ export class FlightModel {
     const fdec = fric / m;
     const tr = this.trap;
     if (tr) {
-      // in the wire: the arresting engine stops the jet whatever the throttle
+      // in the wire: the arresting engine stops the jet whatever the throttle, and the
+      // cable pulling on the hook straightens it out along the landing area
+      const dh = ((tr.carrier.f.heading - this.heading + 540) % 360) - 180;
+      this.heading = (this.heading + clamp(dh, -6 * dt, 6 * dt) + 360) % 360;
       if (tr.phase === 'arrest') {
         V = Math.max(0, V - tr.decel * dt);
         if (V <= 0) {
@@ -1219,7 +1222,9 @@ export class FlightModel {
   private computeAttitude(): void {
     const f = this.fwd;
     this.pitchAngle = Math.asin(clamp(f.y, -1, 1)) / DEG;
-    this.heading = this.headingFromFwd();
+    // on the ground the heading is the wheels' own (the attitude is built from it, tilted
+    // with a pitching, rolling deck); reading it back from the tilted nose would creep
+    if (!this.onGround) this.heading = this.headingFromFwd();
     // bank: angle of right wing below horizon around the forward axis
     const horizRight = _tmp.set(-f.z, 0, f.x);
     if (horizRight.lengthSq() < 1e-9) horizRight.set(1, 0, 0);

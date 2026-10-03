@@ -35,6 +35,17 @@ import { FT, KT, NM, DEG } from '../core/constants';
 import { clamp } from '../core/math';
 import { wind } from '../core/weather';
 import { GLIDESLOPE_DEG, GS_AIMPOINT, runwayDesignator } from '../avionics/nav';
+import { Carrier, carrierOf } from '../world/carriers';
+import { DECK_HEIGHT, LANDING_AREA } from '../world/islands';
+
+/** Carrier approach: final starts this far astern of the touchdown point (m). */
+const CV_GATE = 5500;
+const CV_GS = 3.5 * DEG;
+/** Carrier on-speed: knots over each jet's book approach speed (what it needs to hold the
+ * 3.5 degree path at a comfortable angle of attack in this flight model). */
+const CV_SPEED_ADD: Partial<Record<string, number>> = { RAFALE: 40, MIG31: 55, SR71: 45 };
+/** how far behind the main wheels the hook point trails (m, beyond the gear) */
+const HOOK_AFT = 4.6;
 
 /** Top speed (kt, true) for a jet: its Mach limit at the tropopause. */
 export function topSpeedKts(maxMach: number): number {
@@ -104,6 +115,19 @@ export class AutoFly {
   private abTimer = 0;
   /** smoothed height command (m) */
   private altCmd = 0;
+  /** auto-landing on a carrier: the ship, and the predicted time to touchdown (s) */
+  private carrier: Carrier | null = null;
+  private cvTd = -1;
+  private cvBolters = 0;
+  private dtLast = 1 / 120;
+  private ePrev = 0;
+  private apBonus = 0;
+  private aoaGuard = 0;
+  private eDotF = 0;
+  /** why the last wave-off happened (diagnostics) */
+  woWhy = '';
+  /** the touchdown point and landing direction where the ship will be at touchdown */
+  private cv = { x: 0, z: 0, y: 0, ux: 0, uz: -1, d: 0, e: 0 };
 
   engage(p: Aircraft, dest: Steerpoint | null, speedKts: number, altFt: number, autoLand = true, abMode: AbMode = 'auto'): void {
     this.abMode = abMode;
@@ -114,8 +138,13 @@ export class AutoFly {
     this.dest = dest;
     this.speedKts = speedKts;
     this.altFt = altFt;
-    // no auto-landing on a carrier: it flies you there, the trap is yours
-    this.autoLand = autoLand && !dest?.field?.carrier;
+    this.autoLand = autoLand;
+    // a carrier: its own approach (the ship moves and turns), straight to the wires
+    this.carrier = autoLand ? carrierOf(dest?.field) ?? null : null;
+    this.cvTd = -1;
+    this.cvBolters = 0;
+    this.appBonus = 0;
+    this.apBonus = 0;
     this.arrived = false;
     this.rwy = null;
     this.goArounds = 0;
@@ -128,13 +157,16 @@ export class AutoFly {
     this.phaseT = 0;
     this.gearUp = !p.fm.onGround;
     this.rollCalled = false;
+    // a carrier approach starts a little above the book speed (the deck is no place to learn it)
     this.appBonus = 0;
+    this.aoaGuard = 0;
     if (p.fm.onGround) {
       this.phase = 'takeoff';
       this.takeoffHdg = p.fm.heading;
       this.heavy = p.fm.mass > p.spec.emptyMass + p.spec.internalFuel * 0.9 + 2500;
     } else this.phase = 'cruise';
-    if (this.landing()) this.rwy = this.pickRunway(p, dest!.field!);
+    if (this.landing() && !this.carrier) this.rwy = this.pickRunway(p, dest!.field!);
+    if (this.carrier && !p.fm.onGround) p.fm.hookDown = false;
   }
 
   disengage(): void {
@@ -173,8 +205,10 @@ export class AutoFly {
       case 'descent':
         return `AUTO-FLY DESCENT → ${where} ${Math.round(d ?? 0)} NM`;
       case 'approach':
+        if (this.carrier) return `AUTO-LAND CARRIER APPROACH · ${this.carrier.name} · ${(this.cv.d / NM).toFixed(1)} NM`;
         return `AUTO-LAND APPROACH RWY ${this.rwy?.name ?? ''} · ${Math.round(d ?? 0)} NM`;
       case 'final':
+        if (this.carrier) return `AUTO-LAND CARRIER FINAL · ON THE BALL · ${(this.cv.d / NM).toFixed(1)} NM`;
         return `AUTO-LAND FINAL RWY ${this.rwy?.name ?? ''}${this.locCap ? ' LOC' : ''}${this.gsCap ? ' GS' : ''} · ${(this.distToAim(p) / NM).toFixed(1)} NM`;
       case 'flare':
         return 'AUTO-LAND FLARE';
@@ -353,6 +387,11 @@ export class AutoFly {
 
     // --- on the ground ---------------------------------------------------------
     if (this.phase === 'takeoff') return this.takeoff(p, dt);
+    if (this.carrier && this.phase !== 'climb') {
+      if (this.phase === 'rollout' || this.phase === 'stopped' || fm.trap) return this.carrierRollout(p);
+      const dShip = Math.hypot(fm.pos.x - this.carrier.x, fm.pos.z - this.carrier.z);
+      if (this.phase === 'approach' || this.phase === 'final' || dShip < 22000) return this.carrierApproach(p, dt);
+    }
     if (this.phase === 'rollout' || this.phase === 'stopped') return this.rollout(p);
     if (fm.onGround && (this.phase === 'flare' || this.phase === 'final')) {
       this.set('rollout', 'TOUCHDOWN', 'good');
@@ -370,6 +409,11 @@ export class AutoFly {
       _dir.set(Math.sin(h), 0, -Math.cos(h)).multiplyScalar(Math.cos(12 * DEG)).setY(Math.sin(12 * DEG));
       steerToward(p, _dir, { gCap: 2.5, tau: 1.4, maxBank: 8 });
       c.throttle = this.takeoffPower(fm.cas < 250 * KT);
+      if (this.carrier && fm.agl > 250 && fm.cas > 170 * KT && this.phaseT > 12) {
+        this.thrI = Math.min(1, c.throttle);
+        this.set('approach', 'CLIMBING OUT — BACK AROUND FOR ANOTHER PASS');
+        return;
+      }
       if (fm.agl > 1500 * FT && fm.cas > 230 * KT) {
         this.thrI = Math.min(1, c.throttle);
         this.abOn = this.abMode === 'max';
@@ -711,5 +755,271 @@ export class AutoFly {
       c.yaw = clamp((hdgErr - clamp(e * 0.5, -5, 5)) * 0.1, -1, 1);
     } else c.yaw = 0;
     if (this.phase === 'rollout' && fm.gs < 2) this.set('stopped', `LANDED${r ? ` AT ${r.f.name}` : ''} — STOPPED. YOU HAVE CONTROL`, 'good');
+  }
+
+  // -------------------------------------------------------------------------
+  // Carrier auto-land
+  // -------------------------------------------------------------------------
+
+  /**
+   * Where the touchdown point will be when the jet gets there. The ship sails
+   * a circle, so the deck is aimed at where it will be at touchdown, not where
+   * it is now: that point and the landing direction then are fixed in the
+   * world, and the jet flies a straight 3.5 degree path to them (like a
+   * runway), arriving just as the deck does. The time to go is refined every
+   * step, so the aim converges on the real deck as it closes.
+   */
+  private cvGeometry(p: Aircraft, tdTime: number): void {
+    const c = this.carrier!;
+    const fm = p.fm;
+    const L = c.layout;
+    const wires = L.wires;
+    // the hook comes down onto the deck just short of the target wire (the 3-wire, or the
+    // 2-wire with three): a little long still catches the last, a little short rolls the
+    // hook across the first ones
+    const back = p.spec.gear.main + HOOK_AFT;
+    const target = wires[wires.length >= 4 ? 2 : 1];
+    const sCg = wires[0] - 4 + back;
+    const a = -LANDING_AREA.angleDeg * DEG;
+    const au = L.rampU + Math.cos(a) * sCg, av = L.rampV + Math.sin(a) * sCg;
+    const pp = { x: 0, z: 0, h: 0 };
+    c.pathAt(tdTime, pp);
+    const fx = Math.sin(pp.h), fz = -Math.cos(pp.h), rx = Math.cos(pp.h), rz = Math.sin(pp.h);
+    const cv = this.cv;
+    cv.x = pp.x + fx * au + rx * av;
+    cv.z = pp.z + fz * au + rz * av;
+    const hl = pp.h - LANDING_AREA.angleDeg * DEG;
+    cv.ux = Math.sin(hl);
+    cv.uz = -Math.cos(hl);
+    cv.d = (cv.x - fm.pos.x) * cv.ux + (cv.z - fm.pos.z) * cv.uz;
+    cv.e = (fm.pos.x - cv.x) * -cv.uz + (fm.pos.z - cv.z) * cv.ux;
+    // the deck height there at that moment (its heave and pitch are predictable), wheels on it
+    cv.y = c.deckYAt(au, av, tdTime) + p.spec.gear.height;
+  }
+
+  /** Time (s) the jet still needs to reach the touchdown point the way it will fly there. */
+  private cvTimeNeeded(p: Aircraft): number {
+    const fm = p.fm;
+    const cv = this.cv;
+    const vFinal = Math.max(55, p.spec.approachKts * KT);
+    // on final the jet flies on-speed: plan with that speed, not the speed of the moment
+    // (slowing down would otherwise keep moving the touchdown point, and swing the final course)
+    const ratio = fm.tas > 30 ? fm.tas / Math.max(1, fm.cas) : 1;
+    const vOn = Math.max(45, this.cvSpeedMin(p) * ratio);
+    if (this.phase === 'final') return Math.max(0, cv.d) / vOn;
+    const vApp = Math.max(70, Math.hypot(fm.vel.x, fm.vel.z));
+    const gx = cv.x - cv.ux * CV_GATE, gz = cv.z - cv.uz * CV_GATE;
+    let path = Math.hypot(fm.pos.x - gx, fm.pos.z - gz);
+    if (this.leg === 'outbound' || cv.d < CV_GATE) {
+      // out beside the final course, then back in to the gate
+      const o = CV_GATE + 4500;
+      const ox = cv.x - cv.ux * o - cv.uz * 3200 * this.legSide, oz = cv.z - cv.uz * o + cv.ux * 3200 * this.legSide;
+      path = Math.hypot(fm.pos.x - ox, fm.pos.z - oz) + 6500;
+    }
+    return path / vApp + CV_GATE / Math.max(vFinal, vOn);
+  }
+
+  /** Touchdown time and geometry: committed for the approach, refined on final. */
+  private cvPlan(p: Aircraft): void {
+    const now = this.carrier!.t;
+    if (this.phase === 'final') {
+      // refine the touchdown time smoothly (a jump would swing the final course about)
+      let want = this.cvTd;
+      for (let k = 0; k < 3; k++) {
+        this.cvGeometry(p, want);
+        want = now + this.cvTimeNeeded(p);
+      }
+      // close in the touchdown time is locked: a fixed aim point the jet can line up on
+      // exactly (a second early or late only moves the touchdown a few metres along the deck)
+      const rate = this.cv.d < 1500 ? 0 : 1.2;
+      this.cvTd += clamp(want - this.cvTd, -rate * this.dtLast, rate * this.dtLast);
+      this.cvGeometry(p, this.cvTd);
+      return;
+    }
+    if (this.cvTd < 0) this.cvTd = now + 120;
+    for (let k = 0; k < 3; k++) {
+      this.cvGeometry(p, this.cvTd);
+      const need = this.cvTimeNeeded(p);
+      // keep the plan unless it is badly out (a long way round): then plan again
+      if (Math.abs(this.cvTd - now - need) > 25 || this.cvTd - now < need - 10) this.cvTd = now + need;
+      else break;
+    }
+    this.cvGeometry(p, this.cvTd);
+  }
+
+  /** On-speed (calibrated, m/s): the approach speed plus what this jet needs to fly the
+   * path without too much angle of attack (learnt on final). */
+  private cvSpeedMin(p: Aircraft): number {
+    return (p.spec.approachKts + (CV_SPEED_ADD[p.type] ?? 28) + this.aoaGuard) * KT;
+  }
+
+  /** Glide path height (world) for the wheels, `d` metres short of touchdown. */
+  private cvPathY(d: number): number {
+    return this.cv.y + Math.max(0, d) * Math.tan(CV_GS);
+  }
+
+  private carrierApproach(p: Aircraft, dt: number): void {
+    const fm = p.fm;
+    const c = p.controls;
+    this.dtLast = dt;
+    this.cvPlan(p);
+    const cv = this.cv;
+    const { d, e } = cv;
+    const vx = fm.vel.x, vz = fm.vel.z;
+    const vh = Math.max(1, Math.hypot(vx, vz));
+    const aligned = (vx * cv.ux + vz * cv.uz) / vh;
+    const app = p.spec.approachKts;
+    // on the deck, hook down: keep going until a wire takes it; past the last wire it is a bolter
+    if (this.phase === 'final' && fm.onGround && !fm.trap) {
+      const L = this.carrier!.layout;
+      const back = p.spec.gear.main + HOOK_AFT;
+      const l = this.carrier!.toLocal(fm.pos.x - fm.fwd.x * back, fm.pos.z - fm.fwd.z * back, { u: 0, v: 0 });
+      const ax = this.carrier!.landingAxis(l.u, l.v);
+      if (ax.s < L.wires[L.wires.length - 1] + 3) {
+        c.pitch = 0;
+        c.roll = 0;
+        fm.hookDown = true;
+        return;
+      }
+    }
+    // a bolter: the wheels touched but no wire caught - full power and go round
+    if (this.phase === 'final' && fm.onGround && !fm.trap) {
+      this.cvBolters++;
+      this.takeoffHdg = fm.heading;
+      this.gearUp = true;
+      this.cvTd = -1;
+      this.leg = 'outbound';
+      this.rollCalled = true;
+      this.set('climb', 'BOLTER, BOLTER — POWER UP, GOING AROUND', 'warn');
+      c.throttle = 1;
+      c.pitch = 0.3;
+      return;
+    }
+    if (this.phase !== 'approach' && this.phase !== 'final') {
+      if (this.phase !== 'climb') this.leg = 'gate';
+      this.set('approach', `CARRIER APPROACH — ${this.carrier!.name}`);
+    }
+    if (this.phase === 'approach' && this.leg === 'gate' && d > 3000 && d < CV_GATE + 3500 && Math.abs(e) < Math.max(300, d * 0.06) && aligned > 0.96 && Math.abs(fm.pos.y - this.cvPathY(d)) < 200) {
+      this.gsI = 0;
+      this.ePrev = e;
+      this.eDotF = 0;
+      this.locCap = this.gsCap = false;
+      this.set('final', 'FINAL — CALL THE BALL');
+    }
+    // way off close in: wave off and come round again
+    // off the final course while still well out: back to the approach to intercept it again
+    if (this.phase === 'final' && d > 2500 && (Math.abs(e) > Math.max(800, d * 0.25) || aligned < 0.6)) {
+      this.leg = 'gate';
+      this.set('approach', 'RE-INTERCEPTING THE FINAL COURSE', 'warn');
+    }
+    const woLat = d < 1800 && Math.abs(e) > Math.max(13, d * 0.06);
+    const woHigh = d < 1800 && fm.pos.y - this.cvPathY(d) > Math.max(9, d * 0.04);
+    // low close in: never press on into the ramp
+    const woLow = d < 1800 && this.cvPathY(d) - fm.pos.y > Math.max(6, d * 0.025);
+    if (this.phase === 'final' && (woLat || woHigh || woLow || d < -150 || (d <= 2500 && aligned < 0.6))) {
+      this.woWhy = `${woLat ? 'LINE-UP' : woHigh ? 'HIGH' : woLow ? 'LOW' : d < -150 ? 'PASSED' : 'ALIGN'} d=${Math.round(d)} e=${Math.round(e)} dy=${Math.round(fm.pos.y - this.cvPathY(d))} al=${aligned.toFixed(2)}`;
+      this.takeoffHdg = fm.heading;
+      this.gearUp = false;
+      this.cvTd = -1;
+      this.leg = 'outbound';
+      this.rollCalled = true;
+      this.set('climb', 'WAVE OFF — GOING AROUND FOR ANOTHER PASS', 'warn');
+      return;
+    }
+    if (this.phase === 'approach') {
+      // clean and fast until final (gear down only on final, like the runway approach)
+      c.gearDown = false;
+      fm.hookDown = false;
+      // to the final course astern of the ship; from ahead or abeam, out beside it first
+      if (this.leg === 'gate' && (d < 2800 || (d < CV_GATE - 1500 && aligned < 0.7))) {
+        this.leg = 'outbound';
+        this.legSide = e >= 0 ? 1 : -1;
+      }
+      const gateAlt = this.cvPathY(CV_GATE) + 40;
+      if (this.leg === 'outbound') {
+        const o = CV_GATE + 4500, side = 3200 * this.legSide;
+        const gx = cv.x - cv.ux * o - cv.uz * side, gz = cv.z - cv.uz * o + cv.ux * side;
+        _dir.set(gx - fm.pos.x, 0, gz - fm.pos.z).normalize();
+        if (Math.hypot(fm.pos.x - gx, fm.pos.z - gz) < 1800 || d > CV_GATE + 3000) this.leg = 'gate';
+      } else {
+        // intercept the final course: up to 80 degrees toward it from far off, 40 close to it
+        const maxI = (Math.abs(e) > 4000 ? 80 : 45) * DEG;
+        const cc = clamp(-e / 2500, -1, 1) * maxI;
+        _dir.set(cv.ux * Math.cos(cc) - cv.uz * Math.sin(cc), 0, cv.uz * Math.cos(cc) + cv.ux * Math.sin(cc)).normalize();
+      }
+      this.limitTurn(p, _dir, 30);
+      const climb = clamp((gateAlt - fm.pos.y) / 900, -1, 1) * (gateAlt > fm.pos.y ? 12 : 7) * DEG;
+      _dir.multiplyScalar(Math.cos(climb)).setY(Math.sin(climb));
+      // low (below the gate height): shallow turns so the climb back up comes first
+      const low = fm.pos.y < gateAlt - 80;
+      steerToward(p, _dir, { gCap: 2.5, tau: 1.2, maxBank: low ? 15 : 35 });
+      // slow to just above on-speed before the gate, so final is flown at one speed; a heavy
+      // jet that needs a high angle of attack to hold its height gets more
+      this.apBonus = clamp(this.apBonus + ((fm.alpha / DEG) - 13) * 4 * dt, 0, 120);
+      const near = this.cvSpeedMin(p) / KT + 10;
+      this.thrust(p, (d < 11000 ? Math.max(near, 150) + this.apBonus : 230 + this.apBonus * 0.5) * KT, dt, 0.2, false, 12);
+      return;
+    }
+    // --- final: the line to where the deck will be, on a 3.5 degree path --------
+    const aoa = fm.alpha / DEG;
+    // the speed is set per jet (a steady speed keeps the touchdown time, and so the aim
+    // point, steady); a jet that still runs out of angle of attack gets more, slowly
+    if (this.gearLaw(p)) this.aoaGuard = clamp(this.aoaGuard + (aoa > 15 ? (aoa - 15) * 2 : 0) * dt, 0, 30);
+    const onSpeed = this.cvSpeedMin(p) / KT;
+    const V = Math.max(40, fm.vel.length());
+    const Lc = d < 3000 ? clamp(V * 2.6, 150, 1400) : clamp(V * 4, 200, 1400);
+    const sc = d - Lc;
+    const cx = cv.x - cv.ux * sc, cz = cv.z - cv.uz * sc;
+    const hx = cx - fm.pos.x, hz = cz - fm.pos.z;
+    const hd = Math.max(1, Math.hypot(hx, hz));
+    _dir.set(hx / hd, 0, hz / hd);
+    this.limitTurn(p, _dir, 20);
+    const pathErr = this.cvPathY(d) - fm.pos.y;
+    this.gsI = clamp(this.gsI + pathErr * dt, -200, 200);
+    // no flare on a carrier: fly the path all the way into the deck
+    const gam = -CV_GS + clamp(pathErr / (d < 1500 ? 10 : 18) + this.gsI * 0.006, -3, 3) * DEG;
+    _dir.multiplyScalar(Math.cos(gam)).setY(Math.sin(gam));
+    steerToward(p, _dir, { gCap: 2.2, tau: 0.8, maxBank: d < 1500 ? 15 : 25, allowPush: false });
+    if (this.gearLaw(p)) this.pathPitch(p, gam, dt, 1.4);
+    else this.lastGam = Math.asin(clamp(fm.vel.y / V, -1, 1));
+    // line-up: small corrections need real bank (the general steering only uses rudder for
+    // the last few degrees, too weak to take out a few metres): bank from the error off the
+    // centreline and how fast it is changing
+    const eDot = this.dtLast > 0 ? (e - this.ePrev) / this.dtLast : 0;
+    this.ePrev = e;
+    this.eDotF += (eDot - this.eDotF) * Math.min(1, this.dtLast * 4);
+    if (d > 120) {
+      const lim = d > 2500 ? 22 : 14;
+      const wantBank = clamp(-(e * 0.25 + this.eDotF * 1.6), -lim, lim);
+      c.roll = clamp((wantBank - fm.bank) * 0.06 - fm.rollRate * 0.012, -0.6, 0.6);
+    }
+    // the last moments: wings level, nose on the line
+    if (d < 120) {
+      c.roll = clamp((clamp(-e * 0.6, -5, 5) - fm.bank) * 0.05 - fm.rollRate * 0.01, -0.5, 0.5);
+      const hdgErr = ((Math.atan2(cv.ux, -cv.uz) / DEG - fm.heading + 540) % 360) - 180;
+      c.yaw = clamp((hdgErr - clamp(e * 0.5, -4, 4)) * 0.08, -0.6, 0.6);
+    }
+    c.gearDown = true;
+    fm.hookDown = true;
+    // slowing to on-speed by 4 km out, then on-speed all the way to the deck
+    // (power stays up through the touchdown in case of a bolter)
+    const target = onSpeed + clamp(pathErr * 0.4, -5, 12);
+    this.thrust(p, target * KT, dt, 0.2, false, 6);
+  }
+
+  /** In the wire: idle, then stopped. */
+  private carrierRollout(p: Aircraft): void {
+    const fm = p.fm;
+    const c = p.controls;
+    c.throttle = 0;
+    c.gearDown = true;
+    c.pitch = 0;
+    c.roll = 0;
+    c.yaw = 0;
+    if (this.phase !== 'rollout' && this.phase !== 'stopped') this.set('rollout', `TRAPPED — ${fm.lastTrap.wire} WIRE`, 'good');
+    if (this.phase === 'rollout' && !fm.trap && fm.gs < 2) {
+      this.set('stopped', `ON DECK ${this.carrier!.name}. YOU HAVE CONTROL · H TO REARM`, 'good');
+      this.engaged = false;
+    }
   }
 }

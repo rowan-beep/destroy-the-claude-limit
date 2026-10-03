@@ -302,6 +302,14 @@ export class Carrier {
     return out;
   }
 
+  /** Deck height at (u, v) at mission time t (the swell is predictable: it is a sum of waves). */
+  deckYAt(u: number, v: number, t: number): number {
+    const hv = wave(HEAVE, t, this.seed).v;
+    const pv = wave(PITCH, t, this.seed + 3.1).v;
+    const rv = wave(ROLL, t, this.seed + 7.7).v - this.spec.dir * 1.1 * DEG;
+    return DECK_HEIGHT + hv + u * Math.tan(pv) - v * Math.tan(rv);
+  }
+
   /** Deck height above the water at (u, v), riding the swell. */
   deckY(u: number, v: number): number {
     return DECK_HEIGHT + this.heave + u * Math.tan(this.pitch) - v * Math.tan(this.roll);
