@@ -62,6 +62,11 @@ interface Known {
 
 type Out = { seq: number; t: number; p: Record<string, Json> };
 
+/** seconds between heartbeats in our presence */
+const HEARTBEAT_S = 4;
+/** silent this long (ms) and a pilot is treated as gone */
+const GHOST_MS = 15000;
+
 export class RoomLink implements NetLink {
   id = MY_NET_ID;
   name = '';
@@ -94,6 +99,9 @@ export class RoomLink implements NetLink {
   private pingAt = 0;
   private pingT = 1;
   private lobbyT = 0;
+  /** heartbeat: a pilot who has gone quiet (closed tab, dropped link) is dropped, never left as a ghost */
+  private hbN = 0;
+  private sweepT = 1;
   private pruneT = 0;
   private muted = new Set<number>();
   private closed = false;
@@ -172,6 +180,9 @@ export class RoomLink implements NetLink {
       throw new Error('ROOM FULL');
     }
     this.settled = true;
+    // on a timer, not the frame loop: a background tab draws no frames but must not look gone
+    const hb = window.setInterval(() => this.setPresence({ hb: ++this.hbN }), HEARTBEAT_S * 1000);
+    this.unsubs.push(() => clearInterval(hb));
     this.players = [this.me(), ...others.map((k) => k.p)];
     this.room = { id: this.def.id, name: this.def.name, map: this.def.map, official: false, players: this.players.length, max: ROOM_MAX, state: this.lastHd?.st ?? 'waiting' };
     this.electHost();
@@ -293,6 +304,23 @@ export class RoomLink implements NetLink {
       this.ackDirty = false;
       this.setPresence({ ak: { ...this.acks } });
     }
+    // heartbeat, and drop anyone who has been silent too long (missed leave, closed laptop)
+    this.sweepT -= dt;
+    if (this.sweepT <= 0 && this.settled) {
+      this.sweepT = 1;
+      const now = performance.now();
+      let gone = false;
+      for (const k of [...this.known.values()]) {
+        if (now - k.seen > GHOST_MS) {
+          this.dropPeer(k.peer);
+          gone = true;
+        }
+      }
+      if (gone) {
+        this.electHost();
+        this.director?.sync(this.roster());
+      }
+    }
     this.lobbyT -= dt;
     if (this.lobbyT <= 0) {
       this.lobbyT = 1;
@@ -326,14 +354,7 @@ export class RoomLink implements NetLink {
 
   private onPeers(c: PeersChange): void {
     if (this.closed) return;
-    for (const p of c.left) {
-      const k = this.known.get(p.peer);
-      if (!k) continue;
-      this.known.delete(p.peer);
-      this.players = this.players.filter((x) => x.id !== k.id);
-      this.deliver({ t: 'leave', id: k.id });
-      if (this.hostPeer === p.peer) this.hostPeer = null;
-    }
+    for (const p of c.left) this.dropPeer(p.peer);
     for (const p of [...c.joined, ...c.updated]) {
       if (p.sameTab) {
         this.myPeer = p.peer;
@@ -345,6 +366,15 @@ export class RoomLink implements NetLink {
       this.electHost();
       this.director?.sync(this.roster());
     }
+  }
+
+  private dropPeer(peer: string): void {
+    const k = this.known.get(peer);
+    if (!k) return;
+    this.known.delete(peer);
+    this.players = this.players.filter((x) => x.id !== k.id);
+    this.deliver({ t: 'leave', id: k.id });
+    if (this.hostPeer === peer) this.hostPeer = null;
   }
 
   private process(peer: RoomPeer): void {
@@ -498,13 +528,16 @@ export class RoomLink implements NetLink {
   private electHost(): void {
     if (this.closed || !this.ch) return;
     if (!this.myPeer) this.myPeer = this.ch.peers().find((p) => p.sameTab)?.peer ?? '';
-    const claim = [...this.known.values()].filter((k) => k.hosting).map((k) => k.peer);
+    // only pilots heard from lately can direct (a silent one may already be gone)
+    const now = performance.now();
+    const live = [...this.known.values()].filter((k) => now - k.seen < HEARTBEAT_S * 2500);
+    const claim = live.filter((k) => k.hosting).map((k) => k.peer);
     if (this.director && this.myPeer) claim.push(this.myPeer);
     let host: string | null;
     if (claim.length) host = claim.sort()[0];
     else {
       // a new director: someone whose tab is in front, if anyone's is
-      const all = [...this.known.values()].map((k) => ({ peer: k.peer, vis: k.vis }));
+      const all = live.map((k) => ({ peer: k.peer, vis: k.vis }));
       if (this.myPeer) all.push({ peer: this.myPeer, vis: !document.hidden });
       const pool = all.some((x) => x.vis) ? all.filter((x) => x.vis) : all;
       host = pool.map((x) => x.peer).sort()[0] ?? null;

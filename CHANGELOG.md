@@ -3,6 +3,12 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.39.0 — Multiplayer room fixes (2026-10-03)
+
+- Multiplayer rooms: fixed a match that could get stuck at "MATCH STARTS IN 0 S" forever. If a pilot left without the room noticing (kicked, closed the tab, lost their connection), the others could keep a ghost of them, and when the host then left, the ghost could be picked as the new host and nobody ran the match. Every pilot now sends a small heartbeat, anyone silent for 15 seconds is dropped, and only pilots who have been heard from lately can take over as host.
+- Multiplayer rooms: the pilot count in the countdown no longer includes players who have already left.
+- A background tab no longer looks like a pilot who has left: the heartbeat keeps going even when your tab isn't in front.
+
 ## v4.38.0 — Lights in the dark (2026-10-03)
 
 - Pitch-black nights are easier to fly: runway, approach and carrier deck lights now stay visible as bright points however far away they are, so you can find a runway or a ship from miles out with the naked eye.
