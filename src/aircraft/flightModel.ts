@@ -1009,7 +1009,11 @@ export class FlightModel {
         // the wire pulls the jet back a little, then drops off the hook
         tr.t += dt;
         V = -1.4 * Math.max(0, 1 - tr.t / 0.8);
-        if (tr.t > 0.8) {
+        // the wire keeps hold of the hook until the engines are back at idle
+        let rpm = 0;
+        for (const r of this.rpm) rpm += r;
+        rpm /= this.rpm.length;
+        if (tr.t > 0.8 && this.throttleLever < 0.3 && rpm < 0.55) {
           V = 0;
           this.trap = null;
           this.hookDown = false;

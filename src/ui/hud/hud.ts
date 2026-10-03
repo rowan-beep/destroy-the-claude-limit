@@ -204,7 +204,8 @@ export class Hud {
       ['STPT / RTB', ['stptNext', 'navRtb']],
       ['MAP', ['map']],
       ['AUTO-FLY', ['autopilot']],
-      ['REARM (PARKED)', ['rearm']],
+      ['REARM (PARKED) · HOOK', ['rearm']],
+      ['NIGHT VISION', ['nvg']],
       ['EJECT (HOLD)', ['eject']],
       ['PAUSE', ['pause']],
     ];

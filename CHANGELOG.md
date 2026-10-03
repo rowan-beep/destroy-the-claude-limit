@@ -3,6 +3,18 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.35.0 — Pitch black nights, night vision and a rolling sea (2026-10-03)
+
+- New weather option: PITCH BLACK. Turn it on in the weather panel (top left) with any weather, on every map and in every mode. It is a moonless night: the sky, the sea and the land go completely dark, and all you can see are lights: runway and deck lights, afterburners, explosions and the glow of your own engine.
+- Night-vision goggles: press 9, or the NIGHT VISION button in the weather panel. The picture turns dark green and grainy, and everything the starlight touches shows up again. In the cockpit you look through the round goggle tube; from outside the jet it fills the screen. They work in any weather and any mode.
+- Open Ocean: the sea now moves. Long swells roll across the water with small whitecaps on the crests (only on this map; the others keep their calm water).
+- Carrier landings: the HUD's landing needles and the steerpoints now follow the moving carriers, and the glide path matches the carrier's lens light. Auto-fly will take you to a carrier, but the landing is yours.
+- Fixed: after catching a wire the jet could roll on and off the deck. The wire now holds you until you are back at idle, then the brakes hold you on the deck.
+- Fixed: right after the catapult shot the jet sank toward the water. It now leaves the deck faster with the nose up and climbs away on its own.
+- Rearming on a carrier now finishes with the deck crew putting you on a free catapult, ready to launch again.
+- Fixed: the white wake behind the ships looked jagged and stepped from low angles.
+- While you are on the catapult, the screen now tells you what to do (full throttle, the salute, the shot) instead of showing the runway take-off tip. The controls list (F9) shows H for the hook and 9 for night vision.
+
 ## v4.34.0 — Open Ocean and aircraft carriers (BETA TESTING) (2026-10-03)
 
 - BETA TESTING: the Open Ocean map and the aircraft carriers are brand new and still being tested, so you will find bugs. The next update fixes them, and also brings the rolling sea, PITCH BLACK nights and night-vision goggles.
