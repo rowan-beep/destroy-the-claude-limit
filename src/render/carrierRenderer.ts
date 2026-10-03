@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { CARRIERS, Carrier, CarrierLayout } from '../world/carriers';
 import { DECK_HEIGHT, LANDING_AREA } from '../world/islands';
-import { getSoftDotTexture, makeTextTexture } from './textures';
+import { getSoftDotTexture, getSmokeTexture, makeTextTexture } from './textures';
 import { waveHeight, seaMoves } from '../world/waves';
 import type { Environment } from './environment';
 import { Aircraft } from '../aircraft/aircraft';
@@ -668,6 +668,10 @@ class CarrierView {
   readonly wake = new Wake();
   private radars: { obj: THREE.Object3D; rpm: number }[] = [];
   private jbds: Jbd[] = [];
+  /** the catapult shuttles (the jet's nose gear is hooked to one) and where each is (m along the stroke) */
+  private shuttles: { mesh: THREE.Object3D; s: number; seen: number }[] = [];
+  /** steam left on the deck after a shot (steam catapults: the Nimitz class) */
+  private steam: { spr: THREE.Sprite; life: number; age: number; vu: number; vy: number }[] = [];
   private ball: THREE.Mesh;
   private ballGlow: THREE.Points;
   private datum: THREE.Object3D[] = [];
@@ -763,7 +767,21 @@ class CarrierView {
       frame.add(pivot);
       this.root.add(frame);
       this.jbds.push({ pivot, angle: 0, cat: i });
+      // the shuttle sticking up out of the track slot
+      const sh = new THREE.Mesh(paint(new THREE.BoxGeometry(0.7, 0.35, 1.4), '#c9a62a'), m.hull);
+      sh.position.set(cat.v, 0.18, -cat.u);
+      this.root.add(sh);
+      this.shuttles.push({ mesh: sh, s: 0, seen: c.catFired[i] });
     });
+    if (cls === 'nimitz') {
+      const tex = getSmokeTexture();
+      for (let k = 0; k < 18; k++) {
+        const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0xf4f6f8, transparent: true, opacity: 0, depthWrite: false }));
+        spr.visible = false;
+        this.root.add(spr);
+        this.steam.push({ spr, life: 0, age: 0, vu: 0, vy: 0 });
+      }
+    }
     // the Fresnel lens on the port side, abeam the target wire, facing the approach
     const aim = c.f.aimPoint ?? 72;
     const [lu, lv] = landingPoint(L, aim + 8, -21.5);
@@ -848,6 +866,49 @@ class CarrierView {
       const want = busy ? 52 : 0;
       j.angle += Math.max(-30 * dt, Math.min(30 * dt, want - j.angle));
       j.pivot.rotation.x = -j.angle * DEG;
+    }
+    // shuttles: pulled down the track with the jet, then run back for the next one
+    const L = c.layout;
+    this.shuttles.forEach((sh, i) => {
+      const cat = L.cats[i];
+      const ac = c.catBusy[i] as { fm?: { cat?: { phase: string; s: number } | null } } | null;
+      const k = ac?.fm?.cat;
+      if (k && k.phase === 'stroke') sh.s = Math.min(cat.stroke, k.s);
+      else if (!k) sh.s = Math.max(0, sh.s - 45 * dt);
+      const a = cat.off * DEG;
+      sh.mesh.position.set(cat.v + Math.sin(a) * sh.s, 0.18, -(cat.u + Math.cos(a) * sh.s));
+      sh.mesh.rotation.y = -a;
+      // a fresh shot on a steam catapult: a cloud of steam along the track
+      if (c.catFired[i] !== sh.seen) {
+        sh.seen = c.catFired[i];
+        if (this.steam.length && d < 20000) {
+          for (let n = 0; n < 9; n++) {
+            const p = this.steam.find((q) => q.age >= q.life) ?? this.steam[n % this.steam.length];
+            const along = (n / 8) * cat.stroke * 0.9 + 6;
+            p.spr.position.set(cat.v + Math.sin(a) * along + (Math.random() - 0.5) * 2, 0.6, -(cat.u + Math.cos(a) * along));
+            p.age = -n * 0.12;
+            p.life = 2.4 + Math.random();
+            p.vu = -(6 + Math.random() * 4);
+            p.vy = 1.5 + Math.random();
+            p.spr.scale.setScalar(3);
+          }
+        }
+      }
+    });
+    for (const p of this.steam) {
+      if (p.age >= p.life) {
+        p.spr.visible = false;
+        continue;
+      }
+      p.age += dt;
+      if (p.age < 0) continue;
+      const f = p.age / p.life;
+      p.spr.visible = true;
+      // the wind over the deck carries it aft
+      p.spr.position.z -= p.vu * dt;
+      p.spr.position.y += p.vy * dt;
+      p.spr.scale.setScalar(3 + f * 12);
+      (p.spr.material as THREE.SpriteMaterial).opacity = 0.55 * (1 - f) * Math.min(1, p.age * 6) * (0.25 + 0.75 * light);
     }
     // lights: bright at night, faint by day
     (this.lights.material as THREE.PointsMaterial).opacity = 0.25 + 0.75 * night;

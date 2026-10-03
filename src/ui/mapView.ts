@@ -6,6 +6,7 @@ import { el, button } from './dom';
 import { HeightGrid, GRID_N } from '../world/heightGrid';
 import { MAP_HALF, MAP_SIZE, NM } from '../core/constants';
 import { AIRFIELDS, ISLANDS, activeMap } from '../world/islands';
+import { carrierOf } from '../world/carriers';
 import { GCI_SITES } from '../game/teamPicture';
 import { getGrottoes } from '../world/terrain';
 import { clamp } from '../core/math';
@@ -229,9 +230,25 @@ export class MapView {
       c.stroke();
       c.save();
       c.translate(x, y);
-      c.rotate((f.heading * Math.PI) / 180);
-      c.fillStyle = col;
-      c.fillRect(-2, -f.length * s * 0.5 - 4, 4, f.length * s + 8);
+      if (f.carrier) {
+        // a carrier: a ship silhouette pointing the way it sails (at least readable when zoomed out)
+        const cv = carrierOf(f);
+        c.rotate(((cv ? cv.heading : f.heading) * Math.PI) / 180);
+        const k = Math.max(1, 330 * s / 22);
+        c.fillStyle = col;
+        c.beginPath();
+        c.moveTo(0, -11 * k);
+        c.lineTo(4 * k, -6 * k);
+        c.lineTo(4 * k, 9 * k);
+        c.lineTo(-4 * k, 9 * k);
+        c.lineTo(-5 * k, -2 * k);
+        c.closePath();
+        c.fill();
+      } else {
+        c.rotate((f.heading * Math.PI) / 180);
+        c.fillStyle = col;
+        c.fillRect(-2, -f.length * s * 0.5 - 4, 4, f.length * s + 8);
+      }
       c.restore();
       c.fillStyle = '#e6f0f8';
       c.fillText(`${f.name} (${f.team.toUpperCase()})`, x, y + 22);

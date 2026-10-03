@@ -544,8 +544,7 @@ export class MainMenu {
     for (const m of MAPS) {
       const cur = m.id === activeMap.id;
       const b = el('div', 'mm-map' + (cur ? ' on' : ''), p);
-      const n = el('div', 'mm-map-n', b, m.name);
-      if (m.id === 'ocean') el('span', 'mm-tag', n, 'BETA TESTING');
+      el('div', 'mm-map-n', b, m.name);
       el('div', 'mm-map-p', b, `${m.sizeNm} × ${m.sizeNm} NM · ${m.places}`);
       el('div', 'mm-map-d', b, m.description);
       el('div', 'mm-map-c', b, cur ? '● CURRENT THEATER' : 'SELECT ▸');

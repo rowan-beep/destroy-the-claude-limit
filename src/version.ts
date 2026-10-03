@@ -10,6 +10,21 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.37.0',
+    date: '2026-10-03',
+    title: "Carrier polish",
+    notes: [
+      "New carrier landing aid: with the gear down behind a friendly carrier, a copy of the deck's lens (the meatball) shows up next to your HUD. Keep the amber ball level with the green bars; it turns red when you are dangerously low. Under it a line-up marker shows where the centreline is, with a call (HIGH, LOW, COME LEFT, COME RIGHT or ON) and the range. If you forgot the hook it flashes HOOK UP. It works in the cockpit and from outside the jet.",
+      "The catapults look the part now: the shuttle runs down the track with your jet, and on the Nimitz-class ships steam pours out of the catapult after every launch.",
+      "Carrier auto-land from high above or close to the ship: it now runs out far enough behind the ship to get all the way down in one lap, instead of circling down a lap at a time. In testing it caught a wire on the first pass from every start we tried.",
+      "Carrier auto-land is steadier lining up on the deck. It banks to correct while it is still well out, waves off sooner when it is badly off the centreline close in, and it never lets the jet sink toward the water while setting up: if it gets low it levels the wings and climbs first.",
+      "The carriers' radars now sail with their ships, so your team's air picture comes from where the carrier really is.",
+      "The map shows each carrier as a ship pointing the way it is sailing.",
+      "Fixed: in replays the carriers stood still. They now sail their loops just like they did in the flight.",
+      "Open Ocean is out of beta: the BETA TESTING tag on the menu and the warning at the start of a flight are gone.",
+    ],
+  },
+  {
     version: '4.36.1',
     date: '2026-10-03',
     title: "Carrier auto-land fixes",

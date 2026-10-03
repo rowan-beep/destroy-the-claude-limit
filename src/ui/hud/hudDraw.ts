@@ -13,6 +13,7 @@ import { gunSolution, gunLine } from '../../weapons/gunnery';
 import { AIRFIELDS, toRunwayLocal } from '../../world/islands';
 import { ONSPEED_AOA, fmtTtg, missionObjective } from '../../avionics/nav';
 import { hostile, RULES } from '../../game/rules';
+import { nearestCarrier } from '../../world/carriers';
 
 const GREEN = '#6cff9a';
 const GREEN_DIM = 'rgba(108,255,154,0.55)';
@@ -484,6 +485,56 @@ export class HudPainter {
     // landing aids: ILS needles and the AoA bracket
     if (fm.gearPos > 0.5 && !fm.onGround) this.approachCues(g, p, bx, by, fpx, fpy, halfW, top);
     c.restore();
+    // carrier: the meatball and line-up, as a repeater just left of the glass, so it never
+    // sits on top of the HUD's own speed / G / weapon text
+    let gx = left;
+    if (glass) for (let i = 0; i < glass.length; i += 2) gx = Math.min(gx, glass[i]);
+    this.carrierBall(p, Math.max(46, gx - 44), by + 10);
+  }
+
+  /**
+   * Behind a friendly carrier with the gear down: a copy of the Fresnel lens (amber ball
+   * against the green datum bars; red when dangerously low) and a line-up caret, so a
+   * trap can be flown by hand from the HUD as well as from the lens on the deck.
+   */
+  carrierBall(p: Aircraft, x: number, y: number): void {
+    const fm = p.fm;
+    if (fm.gearPos < 0.5 || fm.onGround) return;
+    const n = nearestCarrier(fm.pos.x, fm.pos.z);
+    if (!n || n.d > 6500 || n.c.f.team !== p.team) return;
+    const gp = n.c.glidePath(fm.pos.x, fm.pos.y + 1, fm.pos.z);
+    if (!gp.inSector) return;
+    const c = this.ctx;
+    const h = 64;
+    c.save();
+    c.strokeStyle = GREEN;
+    c.lineWidth = 1.5;
+    c.strokeRect(x - 7, y - h / 2, 14, h);
+    // datum bars
+    c.fillStyle = '#3dff6a';
+    c.fillRect(x - 26, y - 2, 15, 4);
+    c.fillRect(x + 11, y - 2, 15, 4);
+    // the ball: 0.75 deg off the path is the top / bottom of the lens
+    const off = clamp(gp.dev / 0.75, -1.15, 1.15);
+    const low = gp.dev < -0.6;
+    c.fillStyle = low ? RED : AMBER;
+    c.beginPath();
+    c.arc(x, y - off * (h / 2 - 6), 5, 0, Math.PI * 2);
+    c.fill();
+    c.restore();
+    this.text('BALL', x, y - h / 2 - 8, GREEN, 10, 'center');
+    // line-up: where the landing centreline is (a caret pointing toward it)
+    const lu = clamp(-gp.lat / 15, -3, 3);
+    const lux = x + lu * 9;
+    c.save();
+    c.strokeStyle = Math.abs(gp.lat) < 6 ? GREEN : AMBER;
+    c.lineWidth = 2;
+    this.line(x - 28, y + h / 2 + 14, x + 28, y + h / 2 + 14);
+    this.line(lux, y + h / 2 + 8, lux, y + h / 2 + 20);
+    c.restore();
+    const call = gp.dev > 0.45 ? 'HIGH' : gp.dev < -0.45 ? 'LOW' : Math.abs(gp.lat) > 8 ? (gp.lat > 0 ? 'COME LEFT' : 'COME RIGHT') : 'ON';
+    this.text(`${call} · ${(gp.range / NM).toFixed(1)}`, x, y + h / 2 + 34, call === 'ON' ? GREEN : AMBER, 10, 'center');
+    if (!fm.hookDown) this.text('HOOK UP', x, y + h / 2 + 48, Math.floor(performance.now() / 400) % 2 ? AMBER : GREEN, 10, 'center', true);
   }
 
   private approachCues(g: Game, p: Aircraft, bx: number, by: number, fpx: number, fpy: number, halfW: number, top: number): void {
@@ -739,6 +790,8 @@ export class HudPainter {
     const cam = g.renderer.camera;
     const c = this.ctx;
     const fm = p.fm;
+    // carrier approach: the ball and line-up, left of centre (outside the jet the HUD is gone)
+    this.carrierBall(p, this.ctx.canvas.clientWidth / 2 - 170, this.ctx.canvas.clientHeight / 2 + 40);
     c.save();
     c.lineWidth = 1.5;
     c.shadowColor = 'rgba(0,0,0,0.8)';

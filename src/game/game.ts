@@ -291,7 +291,6 @@ export class Game implements ModeHost {
     randomizeWind();
     this.mode.start();
     armCarriers(this.sim, cfg.difficulty);
-    if (activeMap.id === 'ocean') this.message('OPEN OCEAN AND THE CARRIERS ARE IN BETA TESTING. THE NEXT UPDATE FIXES THE BUGS', 'warn', 9);
     this.message(`WIND ${String(Math.round(wind.fromDeg)).padStart(3, '0')}° / ${Math.round(wind.surfaceKts)} KT${wind.turbulence > 1.1 ? ' — MODERATE TURBULENCE LOW LEVEL' : ''}`, 'info', 8);
     this.recorder = new ReplayRecorder(this.sim, cfg.mode.toUpperCase());
     this.syncPlayerControls();

@@ -109,6 +109,8 @@ export class AutoFly {
   private lastGam = 0;
   private leg: 'gate' | 'outbound' = 'gate';
   private legSide = 1;
+  /** How far astern the carrier's outbound turn point lies (longer when there is height to lose). */
+  private cvOut = CV_GATE + 4500;
   /** throttle controller: integrator (the trim that holds the speed), burner latch */
   private thrI = 0.8;
   private abOn = false;
@@ -814,9 +816,9 @@ export class AutoFly {
     let path = Math.hypot(fm.pos.x - gx, fm.pos.z - gz);
     if (this.leg === 'outbound' || cv.d < CV_GATE) {
       // out beside the final course, then back in to the gate
-      const o = CV_GATE + 4500;
+      const o = this.cvOut;
       const ox = cv.x - cv.ux * o - cv.uz * 3200 * this.legSide, oz = cv.z - cv.uz * o + cv.ux * 3200 * this.legSide;
-      path = Math.hypot(fm.pos.x - ox, fm.pos.z - oz) + 6500;
+      path = Math.hypot(fm.pos.x - ox, fm.pos.z - oz) + o - CV_GATE + 2000;
     }
     return path / vApp + CV_GATE / Math.max(vFinal, vOn);
   }
@@ -914,7 +916,8 @@ export class AutoFly {
       this.leg = 'gate';
       this.set('approach', 'RE-INTERCEPTING THE FINAL COURSE', 'warn');
     }
-    const woLat = d < 1800 && Math.abs(e) > Math.max(13, d * 0.06);
+    // off the line: fixable well out (it banks back on), not close in
+    const woLat = d < 1800 && Math.abs(e) > Math.max(13, d * 0.1);
     const woHigh = d < 1800 && fm.pos.y - this.cvPathY(d) > Math.max(9, d * 0.04);
     // low close in: never press on into the ramp
     const woLow = d < 1800 && this.cvPathY(d) - fm.pos.y > Math.max(6, d * 0.025);
@@ -941,11 +944,16 @@ export class AutoFly {
       }
       const gateAlt = this.cvPathY(CV_GATE) + 40;
       if (this.leg === 'outbound') {
-        const o = CV_GATE + 4500, side = 3200 * this.legSide;
+        // high above the pattern: run out further, so the whole descent fits in one lap
+        // (out and back at about 10 degrees) instead of circling down a lap at a time
+        const hiNow = Math.max(0, fm.pos.y - gateAlt);
+        this.cvOut = Math.max(this.cvOut, clamp((hiNow / Math.tan(10 * DEG) + CV_GATE) / 2 + 1500, CV_GATE + 4500, 35000));
+        const o = this.cvOut, side = 3200 * this.legSide;
         const gx = cv.x - cv.ux * o - cv.uz * side, gz = cv.z - cv.uz * o + cv.ux * side;
         _dir.set(gx - fm.pos.x, 0, gz - fm.pos.z).normalize();
-        if (Math.hypot(fm.pos.x - gx, fm.pos.z - gz) < 1800 || d > CV_GATE + 3000) {
+        if (Math.hypot(fm.pos.x - gx, fm.pos.z - gz) < 1800 || d > o - 1500) {
           this.leg = 'gate';
+          this.cvOut = CV_GATE + 4500;
           this.onCall?.('TURNING IN — LINING UP ON THE DECK', 'info');
         }
       } else {
@@ -961,7 +969,16 @@ export class AutoFly {
       // pull hard round to the ship (it is a fighter); low below the gate height, shallower
       // turns so the climb back up comes first; never a wings-level 'push' to descend
       const low = fm.pos.y < gateAlt - 80;
-      steerToward(p, _dir, { gCap: low ? 3 : 4.5, tau: 0.8, maxBank: low ? 30 : 70, allowPush: false });
+      // close to the water and sinking: wings level, full power, climb (never into the sea)
+      const danger = fm.pos.y < 140 && fm.vs < -2;
+      if (danger) {
+        _dir.setY(0).normalize().multiplyScalar(Math.cos(14 * DEG)).setY(Math.sin(14 * DEG));
+        steerToward(p, _dir, { gCap: 4, tau: 0.6, maxBank: 10, allowPush: false });
+        p.controls.throttle = this.abMode === 'off' ? 1 : 1.1;
+        p.controls.speedbrake = false;
+        return;
+      }
+      steerToward(p, _dir, { gCap: low ? 3 : 4.5, tau: 0.8, maxBank: low ? 25 : 70, allowPush: false });
       // slow to just above on-speed before the gate, so final is flown at one speed; a heavy
       // jet that needs a high angle of attack to hold its height gets more
       this.apBonus = clamp(this.apBonus + ((fm.alpha / DEG) - 13) * 4 * dt, 0, 120);
@@ -1002,7 +1019,7 @@ export class AutoFly {
     this.ePrev = e;
     this.eDotF += (eDot - this.eDotF) * Math.min(1, this.dtLast * 4);
     if (d > 120) {
-      const lim = d > 2500 ? 22 : 14;
+      const lim = d > 1000 ? 22 : 12;
       const wantBank = clamp(-(e * 0.25 + this.eDotF * 1.6), -lim, lim);
       c.roll = clamp((wantBank - fm.bank) * 0.06 - fm.rollRate * 0.012, -0.6, 0.6);
     }

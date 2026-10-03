@@ -11,6 +11,7 @@
 // paused, scrubbed and run from quarter to eight times speed.
 
 import * as THREE from 'three';
+import { updateCarriers } from '../world/carriers';
 import { Sim } from './sim';
 import { Aircraft } from '../aircraft/aircraft';
 import type { AircraftType, StoreType } from '../aircraft/specs';
@@ -347,6 +348,8 @@ export class ReplayPlayer {
     }
     this.evIndex = this.data.events.findIndex((e) => e.t > abs);
     if (this.evIndex < 0) this.evIndex = this.data.events.length;
+    // the carriers are where they were then (their loops run off the mission clock)
+    updateCarriers(abs);
     this.applyPose(abs);
   }
 
@@ -358,6 +361,7 @@ export class ReplayPlayer {
       const abs1 = this.data.start + t1;
       this.t = t1;
       this.fireEvents(abs1);
+      updateCarriers(abs1);
       this.applyPose(abs1);
       this.guns(step, abs1);
       this.stepDecoys(step);

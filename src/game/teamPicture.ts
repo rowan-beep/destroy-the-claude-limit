@@ -24,10 +24,14 @@ export interface GciSite {
   name: string;
   pos: THREE.Vector3;
   rangeNm: number;
+  /** a carrier's radar sails with the ship */
+  field?: (typeof AIRFIELDS)[number];
 }
 
 function buildSites(): GciSite[] {
   return AIRFIELDS.map((f) => {
+  // a carrier: the radars on the island mast, about 40 m above the deck
+  if (f.carrier) return { team: f.team, name: f.name + ' RADAR', pos: new THREE.Vector3(f.x, f.elev + 40, f.z), rangeNm: 190, field: f };
   const p = fromRunwayLocal(f, -300, 700);
   // the radar head sits on high ground / a mast above the field
   return { team: f.team, name: f.name + ' GCI', pos: new THREE.Vector3(p.x, f.elev + 260, p.z), rangeNm: 190 };
@@ -52,6 +56,8 @@ export class TeamPicture {
     if (this.timer > 0) return;
     this.timer = 1.0;
     const now = sim.time;
+    // carriers' radars move with their ships (the map and the TSD read the same positions)
+    for (const site of GCI_SITES) if (site.field) site.pos.set(site.field.x, site.field.elev + 40, site.field.z);
     for (const team of ['blue', 'red'] as Team[]) {
       const map = this.tracks[team];
       // free-for-all: no shared picture between the AI jets (each flies on its own sensors)
