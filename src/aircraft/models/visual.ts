@@ -4,6 +4,7 @@
 // diamonds, navigation / strobe lights and the stores on each station.
 
 import * as THREE from 'three';
+import { NIGHT } from '../../render/night';
 import type { Aircraft } from '../aircraft';
 import type { WeaponBay } from '../specs';
 import { airframeMaterials, Section } from './builder';
@@ -1106,7 +1107,9 @@ export class AirframeVisual {
         l.mesh.visible = k === 2 ? abI > 0.01 || dry > 0.05 : abI > 0.01;
       });
       // distant jets: the lit burner can is hidden with the other small parts
-      (f.glow.material as THREE.ShaderMaterial).uniforms.intensity.value = this.detailOn ? 0 : clamp(abI * 1.4 + dry * 0.1, 0, 1.6);
+      // on a pitch black night the hot nozzle glows at any power (all you can see of a jet)
+      const nightGlow = NIGHT.dark ? eng * (0.35 + 0.65 * dry) : 0;
+      (f.glow.material as THREE.ShaderMaterial).uniforms.intensity.value = Math.max(nightGlow, this.detailOn ? 0 : clamp(abI * 1.4 + dry * 0.1, 0, 1.6));
     }
     for (const bm of this.burners) {
       const f = this.flames[this.burnerOf.get(bm) ?? 0];

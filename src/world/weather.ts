@@ -16,6 +16,8 @@ export interface Weather {
   precip: number;
   /** visibility 0 (thick murk) .. 1 (crystal clear) */
   vis: number;
+  /** PITCH BLACK: a moonless night (works with any weather) */
+  dark?: boolean;
 }
 
 export const WEATHER_KINDS: [WeatherKind, string][] = [
@@ -66,7 +68,7 @@ export function loadWeather(): Weather {
     const j = JSON.parse(localStorage.getItem(KEY) ?? 'null') as Partial<Weather> | null;
     if (j && j.kind && j.kind in WEATHER_PRESETS) {
       const p = WEATHER_PRESETS[j.kind];
-      return { kind: j.kind, cover: clamp01(j.cover ?? p.cover), precip: clamp01(j.precip ?? p.precip), vis: clamp01(j.vis ?? p.vis) };
+      return { kind: j.kind, cover: clamp01(j.cover ?? p.cover), precip: clamp01(j.precip ?? p.precip), vis: clamp01(j.vis ?? p.vis), dark: j.dark === true };
     }
   } catch {
     /* storage unavailable */

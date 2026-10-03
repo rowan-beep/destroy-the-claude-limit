@@ -114,7 +114,8 @@ export class AutoFly {
     this.dest = dest;
     this.speedKts = speedKts;
     this.altFt = altFt;
-    this.autoLand = autoLand;
+    // no auto-landing on a carrier: it flies you there, the trap is yours
+    this.autoLand = autoLand && !dest?.field?.carrier;
     this.arrived = false;
     this.rwy = null;
     this.goArounds = 0;

@@ -4,6 +4,7 @@
 
 import { el } from './dom';
 import { Weather, WeatherKind, WEATHER_KINDS, WEATHER_PRESETS, saveWeather } from '../world/weather';
+import { NIGHT } from '../render/night';
 
 const OPEN_KEY = 'triad.weatherWidget.open';
 
@@ -34,6 +35,8 @@ export class WeatherWidget {
   private w: Weather;
   private applyTimer = 0;
   private kindName: HTMLElement;
+  private darkBtn!: HTMLButtonElement;
+  private nvgBtn!: HTMLButtonElement;
 
   constructor(
     parent: HTMLElement,
@@ -54,7 +57,7 @@ export class WeatherWidget {
       b.title = label;
       b.innerHTML = `${svg(k)}<span>${label}</span>`;
       b.addEventListener('click', () => {
-        this.w = { ...WEATHER_PRESETS[k] };
+        this.w = { ...WEATHER_PRESETS[k], dark: this.w.dark };
         this.sync();
         this.apply(true);
         b.blur();
@@ -64,6 +67,28 @@ export class WeatherWidget {
     this.cover = this.slider(panel, 'CLOUD COVER', (v) => (this.w.cover = v));
     this.precip = this.slider(panel, 'RAIN / SNOW', (v) => (this.w.precip = v));
     this.vis = this.slider(panel, 'VISIBILITY', (v) => (this.w.vis = v));
+    // pitch black night (with any weather) and the goggles to fly it
+    const night = el('div', 'wx-night', panel);
+    this.darkBtn = el('button', 'wx-toggle', night, 'PITCH BLACK');
+    this.darkBtn.type = 'button';
+    this.darkBtn.tabIndex = -1;
+    this.darkBtn.title = 'A moonless night: you see nothing but lights and your engine glow';
+    this.darkBtn.addEventListener('click', () => {
+      this.w = { ...this.w, dark: !this.w.dark };
+      this.sync();
+      this.apply(true);
+      this.darkBtn.blur();
+    });
+    this.nvgBtn = el('button', 'wx-toggle nvg', night, 'NIGHT VISION · 9');
+    this.nvgBtn.type = 'button';
+    this.nvgBtn.tabIndex = -1;
+    this.nvgBtn.title = 'Night-vision goggles (key 9)';
+    this.nvgBtn.addEventListener('click', () => {
+      NIGHT.nvg = !NIGHT.nvg;
+      this.syncNvg();
+      this.nvgBtn.blur();
+    });
+    window.setInterval(() => this.syncNvg(), 300);
     el('div', 'wx-sub', panel, 'Only changes your own screen.');
 
     this.tab = el('button', 'wx-tab', this.root);
@@ -131,7 +156,12 @@ export class WeatherWidget {
     else this.applyTimer = window.setTimeout(go, 140);
   }
 
+  private syncNvg(): void {
+    this.nvgBtn.classList.toggle('on', NIGHT.nvg);
+  }
+
   private sync(): void {
+    this.darkBtn.classList.toggle('on', !!this.w.dark);
     for (const [k, b] of this.kindButtons) b.classList.toggle('on', k === this.w.kind);
     this.kindName.textContent = WEATHER_KINDS.find(([k]) => k === this.w.kind)?.[1] ?? '';
     this.cover.input.value = String(Math.round(this.w.cover * 100));
@@ -158,7 +188,7 @@ export class WeatherWidget {
 
   /** Pick a weather preset from outside (the main menu): shows it and applies it. */
   setKind(k: WeatherKind): void {
-    this.w = { ...WEATHER_PRESETS[k] };
+    this.w = { ...WEATHER_PRESETS[k], dark: this.w.dark };
     this.sync();
     this.apply(true);
   }

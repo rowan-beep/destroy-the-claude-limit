@@ -988,7 +988,9 @@ export class FlightModel {
     const normal = Math.max(0, W - L);
     const rough = _surf.kind === 'terrain';
     const muRoll = rough ? 0.09 : 0.022;
-    const brake = clamp(c.wheelBrake, 0, 1) * (rough ? 0.35 : 0.55);
+    // on a carrier deck at idle the plane captain has you on the brakes (no rolling about a pitching deck)
+    const deckHold = _surf.kind === 'deck' && !this.trap && this.throttleLever < 0.25 && Math.abs(V) < 12 ? 1 : 0;
+    const brake = clamp(Math.max(c.wheelBrake, deckHold), 0, 1) * (rough ? 0.35 : 0.55);
     const fric = (muRoll + brake) * normal;
     const thrustH = this.thrust * Math.cos(this.alpha);
     // drag acts along the relative wind (a tailwind pushes, a headwind holds back)
@@ -1108,7 +1110,7 @@ export class FlightModel {
         const hr = cv.catHeading(k.idx) * DEG;
         windAt(this.pos.x, this.pos.y, this.pos.z, this.t, s.gear.height, this.groundHeight, this.windVel);
         const wod = cv.vx * Math.sin(hr) - cv.vz * Math.cos(hr) - (this.windVel.x * Math.sin(hr) - this.windVel.z * Math.cos(hr));
-        const endAir = Math.max(s.rotateKts * 1.15 + 12, 135) * KT;
+        const endAir = Math.max(s.rotateKts * 1.22 + 15, 140) * KT;
         const endDeck = clamp(endAir - wod, 45, 88);
         k.a = (endDeck * endDeck) / (2 * cat.stroke);
         this.catShots++;
@@ -1119,7 +1121,7 @@ export class FlightModel {
       k.v += (k.a + (this.thrust - 0.022 * m * G0) / m) * dt;
       k.s += k.v * dt;
       // the jet's own trim brings the nose up over the last stretch
-      this.groundPitch = smoothstep(cat.stroke * 0.7, cat.stroke, k.s) * 6;
+      this.groundPitch = smoothstep(cat.stroke * 0.6, cat.stroke, k.s) * 10;
       this.placeOnCat(Math.min(k.s, cat.stroke));
       if (k.s >= cat.stroke) {
         this.releaseCat();

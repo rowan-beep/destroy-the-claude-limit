@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { updateAirLight } from './airLight';
 import { clamp01, lerp, smoothstep } from '../core/math';
 import { FOG_SUN, FOG_SUN_COLOR } from './fog';
+import { NIGHT } from './night';
 
 const SRGB = THREE.SRGBColorSpace;
 
@@ -287,10 +288,33 @@ export class Environment {
     this.fog.density = (1 / 85000) * this.baseHaze * this.hazeScale * murk + this.inCloud * (1 / 260);
     if (this.inCloud > 0) this.fog.color.lerp(new THREE.Color().setRGB(0.78, 0.8, 0.84, SRGB).multiplyScalar(1 - 0.4 * wx.gloom), this.inCloud);
 
+    if (NIGHT.dark) this.goDark();
     this.sky.position.copy(camPos);
     this.sun.target.position.copy(focus);
     this.sun.position.copy(focus).addScaledVector(this.sunDir, 1500);
     this.sun.target.updateMatrixWorld();
+  }
+
+  /**
+   * PITCH BLACK: no sun, no moon, no sky glow. Only faint starlight is
+   * left (enough for night-vision goggles to amplify); the naked eye sees
+   * nothing but light sources (the night pass crushes the rest).
+   */
+  private goDark(): void {
+    const flash = this.weather.flash;
+    this.sun.intensity = 0;
+    this.hemi.intensity = 0.06 + flash * 2.5;
+    const sky = new THREE.Color().setRGB(0.004, 0.005, 0.009, SRGB).addScalar(flash * 0.4);
+    this.zenithColor.copy(sky);
+    this.horizonColor.copy(sky);
+    const u = this.skyMat.uniforms;
+    (u.zenithColor.value as THREE.Color).copy(sky);
+    (u.horizonColor.value as THREE.Color).copy(sky);
+    (u.groundHaze.value as THREE.Color).copy(sky);
+    (u.sunColor.value as THREE.Color).setRGB(0, 0, 0);
+    this.fog.color.copy(sky);
+    FOG_SUN[3] = 0;
+    FOG_SUN_COLOR[0] = FOG_SUN_COLOR[1] = FOG_SUN_COLOR[2] = 0;
   }
 
   /** Sky colour in a direction (used by the water shader and clouds). */
@@ -339,12 +363,13 @@ export class Environment {
     this.envTarget?.dispose();
     this.envTarget = rt;
     this.scene.environment = rt.texture;
-    this.scene.environmentIntensity = 0.55;
+    this.scene.environmentIntensity = NIGHT.dark ? 0.02 : 0.55;
     mat.dispose();
   }
 
   /** How bright the ambient scene is (used for cloud shading). */
   get daylight(): number {
+    if (NIGHT.dark) return 0;
     return clamp01(this.preset.sunElev / 30) * 0.6 + 0.4;
   }
 }

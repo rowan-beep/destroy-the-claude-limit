@@ -36,6 +36,7 @@ export type Action =
   | 'camWeapon'
   | 'eject'
   | 'rearm'
+  | 'nvg'
   | 'dropTanks'
   | 'labels'
   | 'help'
@@ -88,6 +89,7 @@ export const ACTION_LABELS: Record<Action, string> = {
   camWeapon: 'Weapon (missile) camera',
   eject: 'Eject (hold)',
   rearm: 'Rearm & refuel (parked on a friendly base or carrier) / tailhook (in the air)',
+  nvg: 'Night-vision goggles',
   dropTanks: 'Jettison fuel tanks',
   labels: 'Toggle aircraft labels',
   help: 'Toggle controls panel',
@@ -141,6 +143,7 @@ export const DEFAULT_BINDINGS: Record<Action, string[]> = {
   camWeapon: ['F6'],
   eject: ['KeyJ'],
   rearm: ['KeyH'],
+  nvg: ['Digit9'],
   dropTanks: ['KeyK'],
   labels: ['KeyO'],
   help: ['F9'],

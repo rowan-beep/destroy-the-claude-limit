@@ -14,6 +14,7 @@ import { CloudSystem } from './clouds';
 import { PrecipitationFx, Weather, loadWeather } from './weather';
 import { AirfieldRenderer } from './airfieldMeshes';
 import { CarrierRenderer } from '../render/carrierRenderer';
+import { NIGHT } from '../render/night';
 import type { GridResult } from './terrainGen';
 import { MapData } from './mapData';
 import { TerrainLightBaker } from '../render/terrainLight';
@@ -100,6 +101,7 @@ export class World {
   /** Change the weather (clouds, deck, rain / snow, light and visibility). */
   setWeather(w: Weather): void {
     this.weather = { ...w };
+    NIGHT.dark = !!w.dark;
     if (!this.clouds) return; // applied when the world is built
     this.clouds.setWeather(w);
     this.precip.set(w);

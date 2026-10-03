@@ -469,6 +469,11 @@ body.touch-mode .weapon-bar { bottom: auto; top: calc(96px + env(safe-area-inset
 .wx-kind span { display: none; }
 .wx-kind:hover { border-color: rgba(140, 200, 255, 0.55); color: #e6f2ff; }
 .wx-kind.on { background: rgba(60, 130, 90, 0.35); border-color: rgba(120, 255, 170, 0.7); color: #c9ffdc; }
+.wx-night { display: flex; gap: 4px; margin-top: 8px; }
+.wx-toggle { flex: 1; padding: 5px 0; background: rgba(30, 45, 60, 0.6); border: 1px solid rgba(120, 180, 255, 0.18); color: #a9c3d8; font: inherit; font-size: 9px; letter-spacing: 0.1em; cursor: pointer; }
+.wx-toggle:hover { border-color: rgba(140, 200, 255, 0.55); color: #e6f2ff; }
+.wx-toggle.on { background: rgba(10, 12, 16, 0.9); border-color: rgba(200, 210, 230, 0.7); color: #fff; }
+.wx-toggle.nvg.on { background: rgba(30, 70, 34, 0.75); border-color: rgba(110, 200, 120, 0.8); color: #c8f5c8; }
 .wx-row { margin-top: 5px; }
 .wx-row.off { opacity: 0.4; }
 .wx-row-top { display: flex; justify-content: space-between; font-size: 10px; letter-spacing: 0.1em; }

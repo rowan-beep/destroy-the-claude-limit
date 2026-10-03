@@ -10,6 +10,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import type { GraphicsOptions } from '../core/settings';
 import { installAltitudeFog } from './fog';
 import { VisionShader, VisionState } from './vision';
+import { NightShader, NIGHT } from './night';
 import { DropletShader, ScreenDroplets } from './droplets';
 import { HeatHazeShader, HazeSource, writeHaze } from './heatHaze';
 
@@ -88,6 +89,7 @@ export class GameRenderer {
   /** second scene pass drawn over the world (the cockpit) */
   private overlayPass: RenderPass;
   private visionPass: ShaderPass;
+  private nightPass: ShaderPass;
   private outputPass: OutputPass;
   private bloomPass: UnrealBloomPass;
   private gradePass: ShaderPass;
@@ -153,6 +155,8 @@ export class GameRenderer {
     this.overlayPass.clearDepth = true;
     this.overlayPass.enabled = false;
     this.visionPass = new ShaderPass(VisionShader);
+    this.nightPass = new ShaderPass(NightShader);
+    this.nightPass.enabled = false;
     this.outputPass = new OutputPass();
     // HDR bloom: only light far brighter than sunlit paint or snow glows
     // (sun disc, afterburners, flares, explosions, runway lights)
@@ -171,6 +175,7 @@ export class GameRenderer {
     this.sanitizePass = new ShaderPass(SanitizeShader);
     this.composer.addPass(this.sanitizePass);
     this.composer.addPass(this.bloomPass);
+    this.composer.addPass(this.nightPass);
     this.composer.addPass(this.visionPass);
     this.composer.addPass(this.outputPass);
     this.composer.addPass(this.gradePass);
@@ -346,6 +351,14 @@ export class GameRenderer {
   }
 
   render(): void {
+    // pitch black night and the night-vision goggles
+    const nu = this.nightPass.uniforms;
+    this.nightPass.enabled = NIGHT.dark || NIGHT.nvg;
+    nu.dark.value = NIGHT.dark ? 1 : 0;
+    nu.nvg.value = NIGHT.nvg ? 1 : 0;
+    nu.tube.value = NIGHT.tube ? 1 : 0;
+    nu.time.value = performance.now() / 1000;
+    (nu.res.value as THREE.Vector2).set(this.width * this.pixelRatio, this.height * this.pixelRatio);
     this.composer.render();
   }
 
@@ -374,6 +387,7 @@ export class GameRenderer {
   renderScene(scene: THREE.Scene, camera: THREE.Camera, toneMapping?: THREE.ToneMapping): void {
     const s = this.renderPass.scene, c = this.renderPass.camera;
     const ov = this.overlayPass.enabled, vis = this.visionPass.enabled, drp = this.dropletPass.enabled, hz = this.hazePass.enabled;
+    this.nightPass.enabled = false;
     this.dropletPass.enabled = false;
     this.hazePass.enabled = false;
     const tm = this.renderer.toneMapping;

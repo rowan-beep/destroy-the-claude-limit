@@ -14,6 +14,10 @@ import type { HeightGrid } from './heightGrid';
 import { activeMap } from './islands';
 import { MAP_HALF } from '../core/constants';
 import { TERRAIN_LIGHT, TERRAIN_LIGHT_GLSL } from '../render/terrainLight';
+import { seaMoves, wavesGlsl } from './waves';
+
+/** Radius (m) of the dense, wave-displaced patch of sea that follows the camera (open ocean). */
+const PATCH_R = 1500;
 
 /** Water depth over the theater (0 = shore, 1 = 400 m or deeper), from the height grid. */
 function depthTexture(grid: HeightGrid): THREE.DataTexture {
@@ -34,13 +38,23 @@ function depthTexture(grid: HeightGrid): THREE.DataTexture {
 const WATER_VERT = /* glsl */ `
 varying vec3 vWorldPos;
 varying vec3 vRel;
+varying vec3 vWave;
+uniform float time;
 #include <common>
 #include <fog_pars_vertex>
 #include <logdepthbuf_pars_vertex>
+// @WAVES@
 void main() {
   vec4 wp = modelMatrix * vec4( position, 1.0 );
+  vWave = vec3( 0.0 );
+#ifdef WAVES
+  // rolling swell: lift the vertex and keep the slope for the lighting
+  vec3 w = seaWaves( wp.xz, time, length( wp.xz - cameraPosition.xz ) );
+  wp.y += w.x;
+  vWave = w;
+#endif
   vWorldPos = wp.xyz;
-  vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+  vec4 mvPosition = viewMatrix * wp;
   gl_Position = projectionMatrix * mvPosition;
   vRel = transpose( mat3( viewMatrix ) ) * mvPosition.xyz;
   #include <logdepthbuf_vertex>
@@ -61,8 +75,11 @@ ${TERRAIN_LIGHT_GLSL}
 uniform float mapHalf;
 uniform vec3 shallowColor;
 uniform vec3 midColor;
+uniform float flow;
+uniform float holeR;
 varying vec3 vWorldPos;
 varying vec3 vRel;
+varying vec3 vWave;
 #include <common>
 #include <fog_pars_fragment>
 #include <logdepthbuf_pars_fragment>
@@ -73,19 +90,22 @@ vec3 sampleN( vec2 uv ) {
 
 void main() {
   #include <logdepthbuf_fragment>
+  // the open ocean's near patch draws the sea around the camera; the far disc leaves it a hole
+  if ( holeR > 0.0 && length( vWorldPos.xz - cameraPosition.xz ) < holeR ) discard;
   vec3 rel = vRel;
   float dist = length( rel );
   vec3 V = -rel / max( dist, 1e-3 );
   vec2 uv = vWorldPos.xz;
-  // still water: fixed ripple pattern at several scales
-  vec3 n1 = sampleN( uv / 210.0 );
-  vec3 n2 = sampleN( uv / 57.0 + vec2( 0.31, 0.77 ) );
-  vec3 n3 = sampleN( uv / 13.0 + vec2( 0.53, 0.19 ) );
+  // ripples at several scales (on the open ocean they drift with the wind)
+  float ft = time * flow;
+  vec3 n1 = sampleN( uv / 210.0 + vec2( 0.011, 0.006 ) * ft );
+  vec3 n2 = sampleN( uv / 57.0 + vec2( 0.31, 0.77 ) + vec2( -0.017, 0.024 ) * ft );
+  vec3 n3 = sampleN( uv / 13.0 + vec2( 0.53, 0.19 ) + vec2( 0.05, 0.035 ) * ft );
   vec3 n4 = sampleN( uv / 1400.0 );
   float fade = 1.0 - smoothstep( 800.0, 30000.0, dist );
   float fade2 = 1.0 - smoothstep( 60.0, 900.0, dist );
   vec2 slope = ( n1.xy * 0.9 + n2.xy * 0.6 ) * fade + n3.xy * 0.5 * fade2 + n4.xy * 0.8;
-  vec3 N = normalize( vec3( slope.x * 0.35, 1.0, slope.y * 0.35 ) );
+  vec3 N = normalize( vec3( slope.x * 0.35 - vWave.y, 1.0, slope.y * 0.35 - vWave.z ) );
   float ndv = max( dot( N, V ), 0.0 );
   float fresnel = 0.02 + 0.98 * pow( 1.0 - ndv, 5.0 );
   vec3 R = reflect( -V, N );
@@ -110,6 +130,11 @@ void main() {
   body *= sunLit * ( 0.62 + 0.38 * shade );
   // keep the water's own colour visible from high up (less washed-out sky)
   vec3 col = mix( body, sky, fresnel * 0.8 ) + spec;
+#ifdef WAVES
+  // white caps on the steepest crests
+  float cap = smoothstep( 0.8, 1.15, vWave.x ) * smoothstep( 0.62, 0.86, texture2D( normalMap, uv / 9.0 + vec2( 0.02, 0.01 ) * ft ).b );
+  col = mix( col, vec3( 0.85, 0.88, 0.9 ) * sunLit, cap * 0.35 * ( 1.0 - smoothstep( 300.0, 1400.0, dist ) ) );
+#endif
   float alpha = mix( mix( 0.55, 0.96, smoothstep( 0.0, 0.2, dep ) ), 1.0, clamp( fresnel * 1.4 + smoothstep( 4000.0, 30000.0, dist ) * 0.6, 0.0, 1.0 ) );
   gl_FragColor = vec4( col, alpha );
   #include <tonemapping_fragment>
@@ -118,8 +143,35 @@ void main() {
 }
 `;
 
+/** Concentric rings around the origin, dense at the centre: the near sea patch. */
+function patchGeometry(R: number): THREE.BufferGeometry {
+  const RINGS = 72, SEG = 144;
+  const pos: number[] = [0, 0, 0];
+  for (let i = 0; i < RINGS; i++) {
+    const r = i === RINGS - 1 ? R : 1.5 * Math.pow(R / 1.5, i / (RINGS - 1));
+    for (let k = 0; k < SEG; k++) {
+      const a = (k / SEG) * Math.PI * 2;
+      pos.push(Math.cos(a) * r, 0, Math.sin(a) * r);
+    }
+  }
+  const idx: number[] = [];
+  for (let k = 0; k < SEG; k++) idx.push(0, 1 + ((k + 1) % SEG), 1 + k);
+  for (let i = 0; i < RINGS - 1; i++) {
+    const a0 = 1 + i * SEG, b0 = 1 + (i + 1) * SEG;
+    for (let k = 0; k < SEG; k++) {
+      const k1 = (k + 1) % SEG;
+      idx.push(a0 + k, a0 + k1, b0 + k, a0 + k1, b0 + k1, b0 + k);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  return g;
+}
+
 export class Ocean {
   readonly water: THREE.Mesh;
+  private patch: THREE.Mesh | null = null;
   readonly abyss: THREE.Mesh;
   private mat: THREE.ShaderMaterial;
   private t = 0;
@@ -155,6 +207,8 @@ export class Ocean {
           shallowColor: { value: frost ? srgb(0.2, 0.56, 0.68) : jade ? srgb(0.16, 0.8, 0.76) : srgb(0.12, 0.6, 0.62) },
           depthMap: { value: depthTexture(grid) },
           mapHalf: { value: MAP_HALF },
+          flow: { value: seaMoves() ? 1 : 0 },
+          holeR: { value: 0 },
         },
       ]),
       transparent: true,
@@ -175,6 +229,20 @@ export class Ocean {
 
     const abyssGeo = new THREE.CircleGeometry(900000, 32);
     abyssGeo.rotateX(-Math.PI / 2);
+    // the open ocean: a dense patch around the camera carries the rolling swell
+    if (seaMoves()) {
+      const pm = this.mat.clone();
+      // same uniforms (one update drives both), but the patch never has a hole
+      pm.uniforms = { ...this.mat.uniforms, holeR: { value: 0 } };
+      pm.defines = { WAVES: 1 };
+      pm.vertexShader = WATER_VERT.replace('// @WAVES@', wavesGlsl());
+      this.patch = new THREE.Mesh(patchGeometry(PATCH_R), pm);
+      this.patch.frustumCulled = false;
+      this.patch.renderOrder = 1;
+      this.patch.name = 'water-near';
+      scene.add(this.patch);
+    }
+
     this.abyss = new THREE.Mesh(abyssGeo, new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(0.03, 0.14, 0.26, THREE.SRGBColorSpace), fog: true }));
     this.abyss.position.y = -90;
     this.abyss.frustumCulled = false;
@@ -192,6 +260,13 @@ export class Ocean {
     (u.horizonColor.value as THREE.Color).copy(e.horizon);
     (u.zenithColor.value as THREE.Color).copy(e.zenith);
     this.water.position.set(camPos.x, 0, camPos.z);
+    if (this.patch) {
+      this.patch.position.set(camPos.x, 0, camPos.z);
+      // high up, the swell is too small to see: let the flat disc draw it all
+      const near = camPos.y < 2500;
+      this.patch.visible = near;
+      u.holeR.value = near ? PATCH_R - 1 : 0;
+    }
     this.abyss.position.set(camPos.x, -90, camPos.z);
   }
 }

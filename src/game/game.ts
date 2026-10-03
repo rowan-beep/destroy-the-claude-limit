@@ -55,8 +55,9 @@ import { randomizeWind, wind } from '../core/weather';
 import { AutoFly, topSpeedKts } from './autoFly';
 import type { AutoFlyPanel, AutoFlyChoice } from '../ui/autoFlyPanel';
 import { enemyTypesFor, AIRCRAFT_TYPES } from '../aircraft/specs';
-import { CARRIERS, clearCatapults, nearestCarrier, updateCarriers } from '../world/carriers';
+import { CARRIERS, carrierOf, clearCatapults, nearestCarrier, updateCarriers } from '../world/carriers';
 import { armCarriers } from './navy';
+import { NIGHT } from '../render/night';
 
 export type GameState = 'menu' | 'loading' | 'playing' | 'paused' | 'map' | 'results' | 'replay' | 'briefing';
 
@@ -741,6 +742,8 @@ export class Game implements ModeHost {
       this.updateWarnings(dt);
     }
 
+    // night-vision goggles: the round tube view only from the cockpit
+    NIGHT.tube = this.cam.mode === 'cockpit';
     // high-refresh displays: draw everything part-way to the next physics step
     if (this.player) this.interp.apply(this.sim, this.accumulator / PHYSICS_DT);
     const p = this.player;
@@ -1183,6 +1186,11 @@ export class Game implements ModeHost {
       this.autoFly.disengage();
       this.message('AUTO-FLY DISENGAGED', 'warn', 2);
     }
+    if (inp.pressed('nvg')) {
+      NIGHT.nvg = !NIGHT.nvg;
+      this.message(NIGHT.nvg ? 'NIGHT VISION ON' : 'NIGHT VISION OFF', 'info', 2);
+      audio.mechanical();
+    }
     if (inp.pressed('rearm')) {
       // in the air near carriers the same key works the tailhook
       if (!p.fm.onGround && CARRIERS.length) {
@@ -1398,6 +1406,16 @@ export class Game implements ModeHost {
       p.rearm(true);
       this.combat.refreshStores(p);
       this.message('REARM & REFUEL COMPLETE — JET REPAIRED', 'good', 4);
+      // on a carrier the deck crew taxis you onto a free catapult
+      const cv = carrierOf(p.fm.surfaceKind === 'deck' ? p.fm.surfaceField : null);
+      if (cv && !p.fm.cat) {
+        const idx = cv.freeCat();
+        if (idx >= 0) {
+          p.fm.attachCat(cv, idx);
+          p.controls.throttle = 0;
+          p.fm.throttleLever = 0;
+        }
+      }
       audio.mechanical();
     }
   }

@@ -532,6 +532,9 @@ export class Hud {
       } else if (fm.gearPos > 0.5 && fm.cas / KT > 300 && !fm.onGround) {
         text = 'GEAR OVERSPEED';
         amber = true;
+      } else if (fm.cat && fm.cat.phase === 'hold') {
+        text = fm.cat.t > 0 ? 'SALUTE · HOLD FULL POWER · CATAPULT FIRING' : 'ON THE CATAPULT · FULL THROTTLE (SHIFT) TO LAUNCH';
+        amber = true;
       } else if (fm.onGround && fm.gs < 1 && g.config.mode !== 'duel' && fm.throttleLever < 0.3 && g.sim.time < 12) {
         text = 'SHIFT: THROTTLE UP · TAB: AFTERBURNER · PULL AT 150 KT';
         amber = true;

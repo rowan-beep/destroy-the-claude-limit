@@ -98,15 +98,22 @@ export class NavSystem {
       this.points.push({ num: n++, id: 'objective', name: objective.name, short: objective.short, kind: 'objective', x: objective.x, z: objective.z, elev: 0, field: null, tacan: '', friendly: false });
     }
     for (const f of [...own, ...other]) {
+      // read through to the airfield: a carrier's steerpoint sails with the ship
       this.points.push({
         num: n++,
         id: f.id,
         name: f.name,
         short: f.icao,
         kind: 'airfield',
-        x: f.x,
-        z: f.z,
-        elev: f.elev,
+        get x() {
+          return f.x;
+        },
+        get z() {
+          return f.z;
+        },
+        get elev() {
+          return f.elev;
+        },
         field: f,
         tacan: f.tacan,
         friendly: f.team === team,
@@ -226,7 +233,11 @@ export class NavSystem {
     let best: IlsState | null = null;
     for (const f of fields) {
       const loc = toRunwayLocal(f, p.fm.pos.x, p.fm.pos.z);
-      for (const recip of [false, true]) {
+      // a carrier is only approached from astern, on its own glide path to the target wire
+      const ship = !!f.carrier;
+      const gsDeg = f.gsDeg ?? GLIDESLOPE_DEG;
+      const aim = f.aimPoint ?? GS_AIMPOINT;
+      for (const recip of ship ? [false] : [false, true]) {
         const along = recip ? -loc.along : loc.along;
         const across = recip ? -loc.across : loc.across;
         const distThr = -along - f.length / 2;
@@ -238,13 +249,13 @@ export class NavSystem {
         // lateral cone: +-35 deg from the threshold
         if (Math.abs(across) > Math.max(1200, Math.abs(distThr) * 0.7)) continue;
         const hat = p.fm.pos.y - f.elev;
-        const gsDist = Math.max(1, distThr + GS_AIMPOINT);
+        const gsDist = Math.max(1, distThr + aim);
         const gsAngle = Math.atan2(hat, gsDist) / DEG;
         // localizer: full scale (2 dots) = 2.5 deg
         const locAng = Math.atan2(across, Math.max(50, distThr + f.length)) / DEG;
         const locDots = clamp(-locAng / 1.25, -2.5, 2.5);
         // glideslope: full scale (2 dots) = 0.7 deg
-        const gsDots = clamp((gsAngle - GLIDESLOPE_DEG) / 0.35, -2.5, 2.5);
+        const gsDots = clamp((gsAngle - gsDeg) / 0.35, -2.5, 2.5);
         const st: IlsState = {
           field: f,
           course,
