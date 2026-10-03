@@ -46,6 +46,7 @@ export const PAGE_NAMES: Record<AircraftType, PageNames> = {
   F22: { tsd: 'SA', ew: 'EW', sms: 'SMS' },
   MIG31: { tsd: 'TAK', ew: 'SPO', sms: 'SUV' },
   SR71: { tsd: 'NAV', ew: 'DEF', sms: 'SENS' },
+  X15: { tsd: 'NAV', ew: 'INST', sms: 'TANKS' },
 };
 
 export type DisplayKind = 'mfd' | 'lad' | 'ufc' | 'standby' | 'dwp' | 'efd';

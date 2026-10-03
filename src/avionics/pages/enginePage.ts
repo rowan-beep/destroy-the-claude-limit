@@ -8,8 +8,8 @@ import { LB, LBF } from '../../core/constants';
 import { clamp, lerp } from '../../core/math';
 import type { AircraftType } from '../../aircraft/specs';
 
-const TEMP_NAME: Record<AircraftType, string> = { F15EX: 'FTIT', FA18EF: 'EGT', TYPHOON: 'TBT', SU35: 'EGT', RAFALE: 'T5', F22: 'FTIT', MIG31: 'EGT', SR71: 'EGT' };
-const RPM_NAME: Record<AircraftType, string> = { F15EX: 'RPM', FA18EF: 'N2', TYPHOON: 'NH', SU35: 'N2', RAFALE: 'N2', F22: 'N2', MIG31: 'N2', SR71: 'RPM' };
+const TEMP_NAME: Record<AircraftType, string> = { F15EX: 'FTIT', FA18EF: 'EGT', TYPHOON: 'TBT', SU35: 'EGT', RAFALE: 'T5', F22: 'FTIT', MIG31: 'EGT', SR71: 'EGT', X15: 'CHMBR' };
+const RPM_NAME: Record<AircraftType, string> = { F15EX: 'RPM', FA18EF: 'N2', TYPHOON: 'NH', SU35: 'N2', RAFALE: 'N2', F22: 'N2', MIG31: 'N2', SR71: 'RPM', X15: 'PC' };
 
 export interface EngineReadout {
   rpm: number;

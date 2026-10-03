@@ -122,6 +122,8 @@ const VOICES: Record<string, EngineVoice> = {
   MIG31: { n1: 128, n2: 205, fanBlades: 28, compBlades: 36, roar: 0.8, crackle: 1.3, ab: 1.35, whine: 0.75 },
   // J58: a big single-spool turbojet, a deep howl and a huge burner
   SR71: { n1: 118, n2: 118, fanBlades: 22, compBlades: 30, roar: 0.72, crackle: 1.45, ab: 1.5, whine: 0.6 },
+  // XLR99 rocket: no turbine at all, just a 57,000 lb ripping, crackling roar
+  X15: { n1: 60, n2: 60, fanBlades: 8, compBlades: 8, roar: 0.55, crackle: 1.9, ab: 1.9, whine: 0.05 },
   // Saturn AL-41F1S: the Flanker's thunder
   SU35: { n1: 150, n2: 222, fanBlades: 30, compBlades: 38, roar: 0.85, crackle: 1.25, ab: 1.25, whine: 0.85 },
 };

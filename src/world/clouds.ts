@@ -13,6 +13,7 @@ function smoothstepN(a: number, b: number, x: number): number {
 }
 import { getCloudPuffTexture, tileableNoiseData } from '../render/textures';
 import { Environment } from '../render/environment';
+import { ringDisc } from '../render/curvature';
 import { NIGHT } from '../render/night';
 import { MAP_HALF } from '../core/constants';
 import { TERRAIN_LIGHT } from '../render/terrainLight';
@@ -58,7 +59,7 @@ uniform vec2 farFade;
 void main() {
   vUv = uv;
   vShade = iParams.y;
-  vec4 mvPosition = modelViewMatrix * vec4( iOffset, 1.0 );
+  vec4 mvPosition = curveView( modelViewMatrix * vec4( iOffset, 1.0 ) );
   float dist = length( mvPosition.xyz );
   float size = iParams.x;
   // fade puffs that the camera is flying through
@@ -123,7 +124,7 @@ varying vec2 vXZ;
 void main() {
   vec4 wp = modelMatrix * vec4( position, 1.0 );
   vXZ = wp.xz;
-  vec4 mvPosition = viewMatrix * wp;
+  vec4 mvPosition = curveView( viewMatrix * wp );
   gl_Position = projectionMatrix * mvPosition;
   #include <logdepthbuf_vertex>
   #include <fog_vertex>
@@ -258,8 +259,7 @@ export class CloudSystem {
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     tex.repeat.set(60, 60);
     const cirrusMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0.55, fog: true, side: THREE.DoubleSide });
-    this.cirrus = new THREE.Mesh(new THREE.PlaneGeometry(1200000, 1200000), cirrusMat);
-    this.cirrus.rotation.x = -Math.PI / 2;
+    this.cirrus = new THREE.Mesh(ringDisc(850000, 60, 96, 50, 1200000), cirrusMat);
     this.cirrus.position.y = 10500;
     this.cirrus.renderOrder = 9;
     this.cirrus.frustumCulled = false;
@@ -304,8 +304,7 @@ export class CloudSystem {
     this.deckBotMat = deckMat();
     this.deckTopMat.uniforms.noiseMap.value = noiseTex;
     this.deckBotMat.uniforms.noiseMap.value = noiseTex;
-    const plane = new THREE.PlaneGeometry(1600000, 1600000, 1, 1);
-    plane.rotateX(-Math.PI / 2);
+    const plane = ringDisc(1100000, 70, 96, 50);
     this.deckTop = new THREE.Mesh(plane, this.deckTopMat);
     this.deckBot = new THREE.Mesh(plane, this.deckBotMat);
     for (const m of [this.deckTop, this.deckBot]) {
@@ -548,6 +547,9 @@ export class CloudSystem {
     const mat = this.cirrus.material as THREE.MeshBasicMaterial;
     // unlit, so it must be dimmed by hand: in a pitch-black night only starlight touches it
     mat.color.setScalar(NIGHT.dark ? 0.012 + this.flash * 0.6 : 1);
+    // a thin veil from below; from far above (on the way to space) it would be a flat sheet: fade it
+    mat.opacity = 0.55 * (1 - smoothstepN(14000, 30000, camera.position.y));
+    this.cirrus.visible = mat.opacity > 0.005;
     if (mat.map) mat.map.offset.set(this.cirrus.position.x / 20000 / 60, -this.cirrus.position.z / 20000 / 60);
   }
 

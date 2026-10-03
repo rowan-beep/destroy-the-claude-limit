@@ -937,7 +937,7 @@ export class AirframeVisual {
       const cx = storeCenterX(st.def, st.store);
       const cy = storeCenterY(st.def, st.store);
       g.position.set(cx, cy, p[2]);
-      const store = new THREE.Mesh(storeGeometry(st.store), storeMaterial());
+      const store = new THREE.Mesh(storeGeometry(st.store, this.ac.type), storeMaterial());
       store.castShadow = true;
       g.add(store);
       const drop = st.def.mount === 'pylon' ? (st.def.hang !== undefined ? PYLON_DROP : 0.55) : 0.1;

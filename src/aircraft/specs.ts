@@ -6,17 +6,19 @@
 import { FT, LB, LBF } from '../core/constants';
 import type { MissileType, BombType } from '../weapons/weaponSpecs';
 
-export type AircraftType = 'F15EX' | 'FA18EF' | 'TYPHOON' | 'SU35' | 'RAFALE' | 'F22' | 'MIG31' | 'SR71';
-export const AIRCRAFT_TYPES: AircraftType[] = ['F15EX', 'FA18EF', 'TYPHOON', 'SU35', 'RAFALE', 'F22', 'MIG31', 'SR71'];
+export type AircraftType = 'F15EX' | 'FA18EF' | 'TYPHOON' | 'SU35' | 'RAFALE' | 'F22' | 'MIG31' | 'SR71' | 'X15';
+export const AIRCRAFT_TYPES: AircraftType[] = ['F15EX', 'FA18EF', 'TYPHOON', 'SU35', 'RAFALE', 'F22', 'MIG31', 'SR71', 'X15'];
 /**
  * The armed fighters: everything the AI flies and every combat mode allows.
  * The SR-71 is an unarmed reconnaissance jet still in testing: it only flies
  * Blackbird reconnaissance missions and free flight.
  */
-export const COMBAT_TYPES: AircraftType[] = AIRCRAFT_TYPES.filter((t) => t !== 'SR71');
+export const COMBAT_TYPES: AircraftType[] = AIRCRAFT_TYPES.filter((t) => t !== 'SR71' && t !== 'X15');
 /** jets only some modes may use */
 export function jetAllowedIn(t: AircraftType, mode: string): boolean {
   if (t === 'SR71') return mode === 'free' || mode === 'recon';
+  // the X-15 is a rocket research ship: dropped from its mothership in free flight only
+  if (t === 'X15') return mode === 'free';
   return mode !== 'recon';
 }
 
@@ -189,6 +191,14 @@ export interface AircraftSpec {
   hitRadius: number;
   // paint
   paint: { top: string; bottom: string; accent: string };
+  /** a rocket instead of jet engines: vacuum thrust (lbf; thrustMil is the sea-level figure) and the throttle floor */
+  rocket?: { vacLbf: number; minThrottle: number };
+  /** reaction-control thrusters: angular acceleration (rad/s^2) at full stick when the air is too thin for the surfaces */
+  reaction?: { pitch: number; roll: number; yaw: number };
+  /** this jet's own external tanks: fuel (kg) and empty mass (kg) each, instead of the standard 480 gal tank */
+  tank?: { fuel: number; mass: number; dropWhenEmpty: boolean };
+  /** dropped from a mothership instead of taking off: launch height (ft) and speed (kt true) */
+  airLaunch?: { altFt: number; kts: number; carrier: string };
 }
 
 const lbf = (v: number) => v * LBF;
@@ -1158,6 +1168,112 @@ const SR71: AircraftSpec = {
   paint: { top: '#17191c', bottom: '#1b1d20', accent: '#b8332a' },
 };
 
+
+// ---------------------------------------------------------------------------
+// North American X-15 (X-15A-2 with its drop tanks as an option)
+// ---------------------------------------------------------------------------
+const X15: AircraftSpec = {
+  type: 'X15',
+  name: 'North American X-15',
+  shortName: 'X-15',
+  role: 'Rocket-powered hypersonic research aircraft (unarmed)',
+  crew: 1,
+  description:
+    'The fastest and highest-flying winged aircraft ever flown by a pilot: Mach 6.72 (4,520 mph) and 354,200 ft, above the edge of space. A black Inconel X nickel-steel skin takes 1,200 °F of friction heat. It is dropped from under the wing of a B-52 at 45,000 ft, lights its Thiokol XLR99 rocket (57,000 lb of thrust, about 80 seconds of propellant) and climbs like nothing else. Above the air the tail surfaces do nothing: small hydrogen-peroxide thrusters in the nose and wingtips point it. Then it falls back into the atmosphere at a steep angle of attack and glides home without power to land on skids. The X-15A-2 option carries two big drop tanks for the Mach 6.7 speed run. Unarmed; flown in free flight only.',
+  lengthFt: 50.25,
+  wingspanFt: 22.33,
+  heightFt: 13,
+  length: 15.32,
+  span: 6.81,
+  height: 4.0,
+  emptyMass: 6350,
+  // 18,000 lb of liquid oxygen and anhydrous ammonia
+  internalFuel: 8165,
+  maxTakeoff: 25460,
+  maxTakeoffLb: 56130,
+  payloadLb: 0,
+  wingArea: 18.6,
+  // blunt base, wedge tails: draggy at low speed, slippery for its speed when hypersonic
+  cd0: 0.027,
+  waveDragPeak: 2.4,
+  waveDragHigh: 1.1,
+  kInduced: 0.2,
+  clAlpha: 2.7,
+  clMax: 1.15,
+  // re-entry is flown at 20-26 degrees angle of attack
+  alphaMaxDeg: 26,
+  maxMach: 6.72,
+  ceilingFt: 354200,
+  maxIasKts: 820,
+  engineName: 'Thiokol (Reaction Motors) XLR99-RM-2 throttleable liquid-propellant rocket (liquid oxygen and anhydrous ammonia)',
+  engines: 1,
+  thrustMil: lbf(57000),
+  thrustAb: lbf(57000),
+  thrustMilLbf: 57000,
+  thrustAbLbf: 57000,
+  // a rocket drinks its propellant: vacuum specific impulse about 276 s, so the 18,000 lb
+  // inside last about 82 s at full thrust (flight 91: burnout near 176,000 ft, then a
+  // ballistic coast to the 354,000 ft record)
+  tsfcMil: 13.0,
+  tsfcAb: 13.0,
+  ramFactor: 0,
+  spool: 4,
+  gLimit: 6,
+  gOverride: 7.33,
+  gStructural: 9,
+  gNeg: -3,
+  rollRate: 60,
+  pitchRate: 10,
+  cornerKts: 380,
+  rotateKts: 190,
+  approachKts: 200,
+  // the split speed brakes on the upper and lower tail
+  speedbrakeCd: 0.06,
+  combatRangeNm: 280,
+  hardpoints: 2,
+  maxAAM: 0,
+  // (no weapons are ever loaded: these only satisfy the type)
+  missiles: { radar: AIM120, ir: AIM9 },
+  tvcDeg: 0,
+  gun: {
+    name: 'None (research aircraft)',
+    caliberMm: 0,
+    rounds: 0,
+    rpm: 1,
+    muzzleVelocity: 1000,
+    damage: 0,
+    dispersionMil: 1,
+    port: [0, 0, -8],
+  },
+  // the X-15A-2's two drop tanks, along the lower fuselage under the wing roots
+  stations: [
+    { id: 1, label: 'TANK L', pos: [-0.95, -0.95, 0.6], allowed: [TANK], mount: 'pylon' },
+    { id: 2, label: 'TANK R', pos: [0.95, -0.95, 0.6], allowed: [TANK], mount: 'pylon' },
+  ],
+  loadouts: [
+    { id: 'x15-altitude', name: 'ALTITUDE — internal propellant (the 354,000 ft flight)', stores: {} },
+    { id: 'x15-speed', name: 'SPEED — X-15A-2 with two drop tanks (the Mach 6.7 flight)', stores: { 1: TANK, 2: TANK } },
+  ],
+  radar: { name: 'None (research instrumentation, ball nose air-data probe)', kind: 'PESA', rangeNm: 1, azLimitDeg: 10, elLimitDeg: 10, maxTracks: 1, frameTime: 4 },
+  irst: null,
+  ew: { name: 'None', maws: false, jamming: 0, autoDispense: false },
+  flightControl: 'Hydraulic flight controls with stability augmentation; hydrogen-peroxide reaction controls above the air',
+  chaff: 0,
+  flares: 0,
+  rcs: 3,
+  // 57,000 lb of rocket flame
+  irSignature: 5,
+  // nose wheel under the cockpit, two steel landing skids under the tail
+  gear: { nose: -5.3, main: 4.6, track: 1.5, height: 1.25 },
+  hitRadius: 5,
+  paint: { top: '#16171a', bottom: '#1a1b1e', accent: '#f0c419' },
+  rocket: { vacLbf: 61000, minThrottle: 0.5 },
+  reaction: { pitch: 0.4, roll: 0.9, yaw: 0.3 },
+  // the X-15A-2's tanks (with its heavier airframe and heat-shield coating counted in): 56,130 lb at launch
+  tank: { fuel: 2800, mass: 2570, dropWhenEmpty: true },
+  airLaunch: { altFt: 45000, kts: 420, carrier: 'B-52' },
+};
+
 export const SPECS: Record<AircraftType, AircraftSpec> = {
   F15EX: F15EX,
   FA18EF: FA18,
@@ -1167,6 +1283,7 @@ export const SPECS: Record<AircraftType, AircraftSpec> = {
   F22: F22,
   MIG31: MIG31,
   SR71: SR71,
+  X15: X15,
 };
 
 export function getSpec(t: AircraftType): AircraftSpec {

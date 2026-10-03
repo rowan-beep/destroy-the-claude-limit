@@ -174,8 +174,10 @@ export class Aircraft {
       else if (s.store) list.push(s.store);
       if (s.store === 'TANK') tanks++;
     }
-    this.fm.setStores(list, tanks * TANK_FUEL);
-    this.fm.storeMass += bayMass;
+    // (the X-15A-2 has its own, much bigger propellant tanks)
+    const tk = this.spec.tank;
+    this.fm.setStores(list, tanks * (tk ? tk.fuel : TANK_FUEL));
+    this.fm.storeMass += bayMass + (tk ? tanks * (tk.mass - STORES.TANK.mass) : 0);
     // stores far out on the wings make the jet slower to start and stop a roll
     let inertia = 0;
     for (const s of this.stations) if (s.store) inertia += STORES[s.store].mass * s.def.pos[0] * s.def.pos[0] * (s.store === 'TANK' ? 1.6 : 1);
@@ -310,6 +312,8 @@ export class Aircraft {
     }
     if (this.missileCooldown > 0) this.missileCooldown -= dt;
     if (this.hasBays) this.updateBays(dt, sim);
+    // X-15A-2: the drop tanks are let go as soon as they run dry
+    if (this.spec.tank?.dropWhenEmpty && fm.fuelExternalCap > 0 && fm.fuelExternal <= 0 && !fm.onGround) this.dropTanks(sim);
 
     if (this.alive) {
       if (this.ai) this.ai.update(dt, sim);

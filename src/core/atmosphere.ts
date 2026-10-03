@@ -1,4 +1,4 @@
-// International Standard Atmosphere up to 32 km. Everything the flight
+// Standard atmosphere from sea level to the edge of space (200 km). Everything the flight
 // model, engines and missiles need: density, pressure, temperature and the
 // local speed of sound.
 
@@ -26,19 +26,34 @@ const GAMMA = 1.4;
 const G = 9.80665;
 
 export function atmosphere(altitudeM: number, out: AtmoState = { T: 0, p: 0, rho: 0, a: 0, sigma: 0, delta: 0 }): AtmoState {
-  const h = Math.max(-500, Math.min(altitudeM, 32000));
+  const h = Math.max(-500, Math.min(altitudeM, 200000));
   let T: number, p: number;
   if (h <= 11000) {
     T = T0 - 0.0065 * h;
     p = P0 * Math.pow(T / T0, G / (0.0065 * R));
   } else if (h <= 20000) {
     T = 216.65;
-    const p11 = 22632.06;
-    p = p11 * Math.exp((-G * (h - 11000)) / (R * T));
-  } else {
-    const p20 = 5474.889;
+    p = P11 * Math.exp((-G * (h - 11000)) / (R * T));
+  } else if (h <= 32000) {
     T = 216.65 + 0.001 * (h - 20000);
-    p = p20 * Math.pow(T / 216.65, -G / (0.001 * R));
+    p = P20 * Math.pow(T / 216.65, -G / (0.001 * R));
+  } else if (h <= 47000) {
+    // the upper stratosphere and mesosphere (1976 standard atmosphere), for the X-15
+    T = 228.65 + 0.0028 * (h - 32000);
+    p = P32 * Math.pow(T / 228.65, -G / (0.0028 * R));
+  } else if (h <= 51000) {
+    T = 270.65;
+    p = P47 * Math.exp((-G * (h - 47000)) / (R * T));
+  } else if (h <= 71000) {
+    T = 270.65 - 0.0028 * (h - 51000);
+    p = P51 * Math.pow(T / 270.65, G / (0.0028 * R));
+  } else if (h <= 86000) {
+    T = 214.65 - 0.002 * (h - 71000);
+    p = P71 * Math.pow(T / 214.65, G / (0.002 * R));
+  } else {
+    // above 86 km: next to nothing, thinning by a factor of e every 5.6 km
+    T = 186.87;
+    p = P86 * Math.exp(-(h - 86000) / 5600);
   }
   const rho = p / (R * T);
   out.T = T;
@@ -49,6 +64,15 @@ export function atmosphere(altitudeM: number, out: AtmoState = { T: 0, p: 0, rho
   out.delta = p / P0;
   return out;
 }
+
+// pressure at each layer boundary, carried up from sea level so the layers join exactly
+const P11 = P0 * Math.pow(216.65 / T0, G / (0.0065 * R));
+const P20 = P11 * Math.exp((-G * 9000) / (R * 216.65));
+const P32 = P20 * Math.pow(228.65 / 216.65, -G / (0.001 * R));
+const P47 = P32 * Math.pow(270.65 / 228.65, -G / (0.0028 * R));
+const P51 = P47 * Math.exp((-G * 4000) / (R * 270.65));
+const P71 = P51 * Math.pow(214.65 / 270.65, G / (0.0028 * R));
+const P86 = P71 * Math.pow(184.65 / 214.65, G / (0.002 * R));
 
 /** Calibrated airspeed (m/s) from true airspeed at altitude (compressible). */
 export function casFromTas(tas: number, alt: number): number {

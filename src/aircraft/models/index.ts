@@ -9,6 +9,7 @@ import { buildSu35, su35PlainLivery } from './su35';
 import { buildRafale } from './rafale';
 import { buildF22 } from './f22';
 import { buildMig31 } from './mig31';
+import { buildX15 } from './x15';
 import { buildSr71 } from './sr71';
 import { partMaterials } from './parts';
 import { f15PlainLivery } from './f15ex';
@@ -85,6 +86,7 @@ function build(ac: Aircraft, d: number): AirframeVisual {
     else if (ac.type === 'F22') buildF22(t);
     else if (ac.type === 'MIG31') buildMig31(t);
     else if (ac.type === 'SR71') buildSr71(t);
+    else if (ac.type === 'X15') buildX15(t);
     else buildTyphoon(t);
   } finally {
     setModelDensity(1);

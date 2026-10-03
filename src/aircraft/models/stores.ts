@@ -271,6 +271,15 @@ function tank(): THREE.BufferGeometry {
   return paintBands(lathe(prof, 36, 0, 0, true, true), TANK, [[-0.62, -0.6, new THREE.Color('#5a6166')], [1.2, 1.22, new THREE.Color('#5a6166')]]);
 }
 
+/** X-15A-2 drop tank: a big 7 m propellant tank, bright red-orange nose and band on white. */
+function x15Tank(): THREE.BufferGeometry {
+  const L = 6.9, r = 0.49;
+  const R = curve([[-3.45, 0.01], [-3.0, 0.22], [-2.3, 0.4], [-1.5, r], [2.3, r], [3.0, 0.36], [3.4, 0.14], [3.45, 0.03]]);
+  const prof: P2[] = stations(-L / 2, L / 2, 50, 0.2, 0.2).map((z) => [Math.max(0.004, R(z)), z] as P2);
+  const red = new THREE.Color('#e0391f');
+  return paintBands(lathe(prof, 40, 0, 0, true, true), new THREE.Color('#e9e8e2'), [[-3.5, -1.55, red], [-0.35, 0.55, red], [3.05, 3.5, red]]);
+}
+
 // ---------------------------------------------------------------------------
 // Guided bombs
 // ---------------------------------------------------------------------------
@@ -379,7 +388,8 @@ function kab500(): THREE.BufferGeometry {
   return join(parts);
 }
 
-export function storeGeometry(t: StoreType): THREE.BufferGeometry {
+export function storeGeometry(t: StoreType, jet?: string): THREE.BufferGeometry {
+  if (t === 'TANK' && jet === 'X15') return (cache['X15TANK'] ??= x15Tank());
   const key = t;
   if (cache[key]) return cache[key]!;
   const g =

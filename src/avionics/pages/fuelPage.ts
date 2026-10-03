@@ -58,6 +58,11 @@ const TANKS: Record<AircraftType, TankDef[]> = {
     { name: 'WING R', frac: 0.19, box: [0.64, 0.4, 0.2, 0.24] },
     { name: 'FEED', frac: 0.16, box: [0.41, 0.3, 0.18, 0.32] },
   ],
+  // liquid oxygen ahead of the wing, anhydrous ammonia behind it
+  X15: [
+    { name: 'LOX', frac: 0.55, box: [0.42, 0.22, 0.16, 0.26] },
+    { name: 'NH3', frac: 0.45, box: [0.42, 0.5, 0.16, 0.22] },
+  ],
   SR71: [
     { name: 'TK 1', frac: 0.17, box: [0.42, 0.04, 0.16, 0.16] },
     { name: 'TK 2', frac: 0.2, box: [0.42, 0.22, 0.16, 0.18] },

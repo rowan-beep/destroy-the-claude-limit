@@ -15,9 +15,12 @@ import { activeMap } from './islands';
 import { MAP_HALF } from '../core/constants';
 import { TERRAIN_LIGHT, TERRAIN_LIGHT_GLSL } from '../render/terrainLight';
 import { seaMoves, wavesGlsl } from './waves';
+import { ringDisc } from '../render/curvature';
 
 /** Radius (m) of the dense, wave-displaced patch of sea that follows the camera (open ocean). */
 const PATCH_R = 1500;
+/** Radius (m) of the sea disc: past the horizon even from the edge of space. */
+const SEA_R = 1500000;
 
 /** Water depth over the theater (0 = shore, 1 = 400 m or deeper), from the height grid. */
 function depthTexture(grid: HeightGrid): THREE.DataTexture {
@@ -54,7 +57,7 @@ void main() {
   vWave = w;
 #endif
   vWorldPos = wp.xyz;
-  vec4 mvPosition = viewMatrix * wp;
+  vec4 mvPosition = curveView( viewMatrix * wp );
   gl_Position = projectionMatrix * mvPosition;
   vRel = transpose( mat3( viewMatrix ) ) * mvPosition.xyz;
   #include <logdepthbuf_vertex>
@@ -143,32 +146,6 @@ void main() {
 }
 `;
 
-/** Concentric rings around the origin, dense at the centre: the near sea patch. */
-function patchGeometry(R: number): THREE.BufferGeometry {
-  const RINGS = 72, SEG = 144;
-  const pos: number[] = [0, 0, 0];
-  for (let i = 0; i < RINGS; i++) {
-    const r = i === RINGS - 1 ? R : 1.5 * Math.pow(R / 1.5, i / (RINGS - 1));
-    for (let k = 0; k < SEG; k++) {
-      const a = (k / SEG) * Math.PI * 2;
-      pos.push(Math.cos(a) * r, 0, Math.sin(a) * r);
-    }
-  }
-  const idx: number[] = [];
-  for (let k = 0; k < SEG; k++) idx.push(0, 1 + ((k + 1) % SEG), 1 + k);
-  for (let i = 0; i < RINGS - 1; i++) {
-    const a0 = 1 + i * SEG, b0 = 1 + (i + 1) * SEG;
-    for (let k = 0; k < SEG; k++) {
-      const k1 = (k + 1) % SEG;
-      idx.push(a0 + k, a0 + k1, b0 + k, a0 + k1, b0 + k1, b0 + k);
-    }
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  g.setIndex(idx);
-  return g;
-}
-
 export class Ocean {
   readonly water: THREE.Mesh;
   private patch: THREE.Mesh | null = null;
@@ -218,17 +195,15 @@ export class Ocean {
     this.mat.uniforms.normalMap.value = getWaterNormalTexture();
     Object.assign(this.mat.uniforms, TERRAIN_LIGHT);
     void u;
-    // A disc of concentric rings so vertices stay dense near the camera.
-    const geo = new THREE.CircleGeometry(900000, 64);
-    geo.rotateX(-Math.PI / 2);
+    // A disc of concentric rings so vertices stay dense near the camera (and the
+    // sea follows the Earth's curve when seen from high up).
+    const geo = ringDisc(SEA_R, 100, 128, 10);
     this.water = new THREE.Mesh(geo, this.mat);
     this.water.frustumCulled = false;
     this.water.renderOrder = 1;
     this.water.name = 'water';
     scene.add(this.water);
 
-    const abyssGeo = new THREE.CircleGeometry(900000, 32);
-    abyssGeo.rotateX(-Math.PI / 2);
     // the open ocean: a dense patch around the camera carries the rolling swell
     if (seaMoves()) {
       const pm = this.mat.clone();
@@ -236,14 +211,15 @@ export class Ocean {
       pm.uniforms = { ...this.mat.uniforms, holeR: { value: 0 } };
       pm.defines = { WAVES: 1 };
       pm.vertexShader = WATER_VERT.replace('// @WAVES@', wavesGlsl());
-      this.patch = new THREE.Mesh(patchGeometry(PATCH_R), pm);
+      this.patch = new THREE.Mesh(ringDisc(PATCH_R, 72, 144, 1.5), pm);
       this.patch.frustumCulled = false;
       this.patch.renderOrder = 1;
       this.patch.name = 'water-near';
       scene.add(this.patch);
     }
 
-    this.abyss = new THREE.Mesh(abyssGeo, new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(0.03, 0.14, 0.26, THREE.SRGBColorSpace), fog: true }));
+    // same rings as the sea, so it stays 90 m under it all the way to the horizon
+    this.abyss = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(0.03, 0.14, 0.26, THREE.SRGBColorSpace), fog: true }));
     this.abyss.position.y = -90;
     this.abyss.frustumCulled = false;
     this.abyss.name = 'abyss';

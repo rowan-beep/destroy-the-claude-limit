@@ -424,7 +424,8 @@ export class Game implements ModeHost {
     p.isPlayer = true;
     this.player = p;
     this.deathHandled = false;
-    this.throttleCmd = 0.85;
+    // an air-launched rocket ship drops with its engine off: the pilot lights it
+    this.throttleCmd = p.spec.airLaunch ? 0 : 0.85;
     this.gOverride = false;
     this.aimDir.set(0, 0, -1);
     this.combat.playerAircraft = p;

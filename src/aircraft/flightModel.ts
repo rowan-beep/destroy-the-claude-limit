@@ -13,7 +13,7 @@
 import * as THREE from 'three';
 import { AircraftSpec, STORES, StoreType } from './specs';
 import { atmosphere, AtmoState, casFromTas } from '../core/atmosphere';
-import { G0, DEG, FT } from '../core/constants';
+import { G0, DEG, FT, LBF } from '../core/constants';
 import { clamp, smoothstep, lerp } from '../core/math';
 import { groundSurface, Surface } from '../world/ground';
 import { Carrier, CARRIERS } from '../world/carriers';
@@ -141,6 +141,8 @@ const AERO: Record<string, AeroData> = {
   F22: { refMass: 27000, ixx: 42000, iyy: 250000, izz: 280000, cyB: -1.0, cm0: 0, cmA: -0.04, cmQ: -5, cmD: 0.34, clP: -0.33, clB: -0.08, clR: 0.07, clD: 0.055, cnB: 0.12, cnR: -0.32, cnP: -0.03, cnD: 0.036, cnDa: -0.006, engineArm: 0.5, rateE: 2.8, rateA: 4, rateR: 3 },
   MIG31: { refMass: 36000, ixx: 55000, iyy: 360000, izz: 400000, cyB: -1.05, cm0: 0, cmA: -0.3, cmQ: -6, cmD: 0.3, clP: -0.38, clB: -0.1, clR: 0.07, clD: 0.045, cnB: 0.15, cnR: -0.36, cnP: -0.03, cnD: 0.034, cnDa: -0.006, engineArm: 0.85, rateE: 2.2, rateA: 3.2, rateR: 2.6 },
   SR71: { refMass: 50000, ixx: 160000, iyy: 1500000, izz: 1650000, cyB: -0.9, cm0: 0, cmA: -0.18, cmQ: -7, cmD: 0.5, clP: -0.3, clB: -0.06, clR: 0.06, clD: 0.04, cnB: 0.12, cnR: -0.34, cnP: -0.02, cnD: 0.03, cnDa: -0.004, engineArm: 3.8, rateE: 1.8, rateA: 2.2, rateR: 2 },
+  // short wings and big wedge tails: little roll inertia, strong weathercock stability
+  X15: { refMass: 12000, ixx: 6000, iyy: 95000, izz: 98000, cyB: -1.1, cm0: 0, cmA: -0.16, cmQ: -6, cmD: 0.42, clP: -0.3, clB: -0.05, clR: 0.05, clD: 0.05, cnB: 0.16, cnR: -0.42, cnP: -0.02, cnD: 0.045, cnDa: -0.004, engineArm: 0, rateE: 2.4, rateA: 3, rateR: 3 },
   TYPHOON: { refMass: 15000, ixx: 18000, iyy: 130000, izz: 145000, cyB: -0.95, cm0: 0, cmA: 0.08, cmQ: -4.5, cmD: 0.33, clP: -0.3, clB: -0.07, clR: 0.06, clD: 0.05, cnB: 0.11, cnR: -0.3, cnP: -0.03, cnD: 0.032, cnDa: -0.005, engineArm: 0.5, rateE: 3.0, rateA: 4.5, rateR: 3 },
 };
 
@@ -509,6 +511,16 @@ export class FlightModel {
   private engineThrust(i: number, alt: number, M: number, atm: AtmoState): { t: number; ff: number } {
     const s = this.spec;
     if (this.engineOut[i]) return { t: 0, ff: 0 };
+    if (s.rocket) {
+      // a rocket carries its own oxygen: full thrust at any height, a little more in a vacuum
+      // (less air pushing back on the nozzle exit); rpm is the chamber pressure, 0 = shut down
+      const pc = this.rpm[i];
+      if (pc < 0.3) return { t: 0, ff: 0 };
+      const vac = s.rocket.vacLbf * LBF;
+      const t = pc * (vac - (vac - s.thrustMil) * atm.delta) * this.damage.thrust[i];
+      // propellant flow is set by the chamber pressure alone (tsfc is the vacuum figure)
+      return { t, ff: pc * vac * s.tsfcMil * 2.8325e-5 };
+    }
     const sig = atm.sigma;
     let lapse: number;
     if (alt <= 11000) lapse = Math.pow(sig, 0.75);
@@ -551,6 +563,19 @@ export class FlightModel {
       ff = 0;
     const M0 = this.tas / _atm.a;
     for (let i = 0; i < this.rpm.length; i++) {
+      if (s.rocket) {
+        // the throttle runs the chamber from its minimum to full; pulled right back it shuts down
+        const on = fuelOk && !this.engineOut[i] && lever >= 0.12;
+        const target = on ? lerp(s.rocket.minThrottle, 1, clamp((lever - 0.12) / 0.88, 0, 1)) : 0;
+        this.rpm[i] += (target - this.rpm[i]) * Math.min(1, s.spool * dt);
+        // (the 'afterburner' a rocket shows: its flame is lit whenever it burns)
+        this.ab[i] = this.rpm[i] > 0.3 ? 1 : 0;
+        const e = this.engineThrust(i, alt, 0, _atm);
+        this.engThrust[i] = e.t;
+        thrust += e.t;
+        ff += e.ff;
+        continue;
+      }
       const target = fuelOk && !this.engineOut[i] ? Math.min(lever, 1) : 0;
       // thin air: less mass flow through the core, so the engines spool more slowly up high
       const thin = 0.55 + 0.45 * Math.sqrt(_atm.sigma);
@@ -709,9 +734,18 @@ export class FlightModel {
     // one down) to roll the jet, which is what keeps it controllable post-stall
     const tvcYaw = s.tvcPitchOnly ? 0 : T * Math.sin(tvc) * 7.0 * 0.8;
     const tvcRoll = T * Math.sin(tvc) * A.engineArm * (s.tvcPitchOnly ? 0.8 : 0.5);
-    const powE = eEff * kPitch + tvcPitch;
-    const powA = aEff * kRoll + tvcRoll;
-    const powR = rEff * kYaw + tvcYaw;
+    // reaction controls (X-15): small thrusters in the nose and wingtips point the jet where the
+    // air is too thin for the tail surfaces; they work the same at any speed
+    const rc = s.reaction;
+    const rcsPitch = rc ? rc.pitch * Iyy * ctl : 0;
+    const rcsRoll = rc ? rc.roll * Ixx * ctl : 0;
+    const rcsYaw = rc ? rc.yaw * Izz * ctl : 0;
+    const powE = eEff * kPitch + tvcPitch + rcsPitch;
+    const powA = aEff * kRoll + tvcRoll + rcsRoll;
+    const powR = rEff * kYaw + tvcYaw + rcsYaw;
+    // 0 in the lower air, 1 above it (dynamic pressure under ~20 psf): there the stick flies
+    // attitude rates directly instead of G, since there is no air to make G with
+    const space = rc ? 1 - smoothstep(600, 4000, this.qbar) : 0;
 
     // --- fly-by-wire: commands in, surface deflections out (dynamic inversion) ---
     const gMax = c.gOverride ? s.gOverride : s.gLimit;
@@ -763,6 +797,10 @@ export class FlightModel {
     }
     // for a few seconds after the takeoff law hands over, G builds gently
     this.gearLawFade = wGear > 0.5 ? 1 : Math.max(0, this.gearLawFade - dt / 3);
+    if (space > 0) {
+      qDes = lerp(qDes, stick * 8 * DEG, space);
+      this.nCmdF = lerp(this.nCmdF, this.nz, space);
+    }
     const qDotDes = (qDes - Q) * kQ;
     const cmReq = (qDotDes * Iyy - (Izz - Ixx) * P * R) / Math.max(kPitch, 1);
     this.dCmd.e = clamp(((cmReq - cmModel) * kPitch) / Math.max(powE, 1), -1, 1);
@@ -787,7 +825,8 @@ export class FlightModel {
     const kR = clamp(rAccMax / 0.5, 1, 6);
     const betaDotDes = (betaCmd - beta) * Math.min(2.4, kR * 0.4);
     const cosA = Math.max(0.2, Math.cos(alpha));
-    const rDes = (P * Math.sin(alpha) + aSide / Veff - betaDotDes) / cosA;
+    let rDes = (P * Math.sin(alpha) + aSide / Veff - betaDotDes) / cosA;
+    if (space > 0) rDes = lerp(rDes, clamp(c.yaw, -1, 1) * 5 * DEG, space);
     const rDotDes = (rDes - R) * kR;
     const cnReq = (rDotDes * Izz - (Ixx - Iyy) * P * Q) / Math.max(kYaw, 1);
     // aileron adverse yaw is modelled; asymmetric thrust is not (the pilot / feedback trims it)
@@ -800,9 +839,9 @@ export class FlightModel {
     this.defl.r += clamp(this.dCmd.r - this.defl.r, -A.rateR * dt, A.rateR * dt);
 
     // --- rigid-body rotation (Euler's equations, body axes) ---
-    const Mp = (cmNat + eEff * this.defl.e) * kPitch + tvcPitch * this.defl.e;
-    const Lr = (clNat + aEff * this.defl.a) * kRoll + tvcRoll * this.defl.a;
-    const Ny = (cnNat + rEff * this.defl.r + A.cnDa * this.defl.a) * kYaw + tvcYaw * this.defl.r;
+    const Mp = (cmNat + eEff * this.defl.e) * kPitch + (tvcPitch + rcsPitch) * this.defl.e;
+    const Lr = (clNat + aEff * this.defl.a) * kRoll + (tvcRoll + rcsRoll) * this.defl.a;
+    const Ny = (cnNat + rEff * this.defl.r + A.cnDa * this.defl.a) * kYaw + (tvcYaw + rcsYaw) * this.defl.r;
     this.nozzle.p = tvc * this.defl.e;
     this.nozzle.y = s.tvcPitchOnly ? 0 : tvc * this.defl.r;
     this.nozzle.roll = tvc * this.defl.a;
@@ -840,7 +879,9 @@ export class FlightModel {
     this.yawRate = this.rRate / DEG;
     this.rollRate = this.pRate / DEG;
     this.vs = this.vel.y;
-    this.departed = alpha > (tvc > 0 && c.gOverride ? 75 * DEG : aMax + 12 * DEG) || Math.abs(beta) > 20 * DEG;
+    // (above the air the nose can point anywhere: that is not a departure)
+    this.departed = space < 0.5 && (alpha > (tvc > 0 && c.gOverride ? 75 * DEG : aMax + 12 * DEG) || Math.abs(beta) > 20 * DEG);
+    if (space > 0.5) this.stallWarning = false;
 
     // --- structure ---
     // over-stress both ways: past the override limit pulling, or well past the

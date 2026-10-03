@@ -18,6 +18,14 @@ export class FreeFlightMode extends GameMode {
     h.picture.gciEnabled.blue = true;
     h.picture.gciEnabled.red = false;
     const f = this.base();
+    if (p.spec.airLaunch) {
+      h.order(
+        'X-15 RESEARCH FLIGHT',
+        `Dropped from the ${p.spec.airLaunch.carrier} at ${p.spec.airLaunch.altFt.toLocaleString('en-US')} ft. Throttle up to light the rocket, pull up to about 42 degrees (that is the 354,000 ft record profile; steeper goes higher) and hold it until the propellant runs out, about 80 seconds: you will coast up through the edge of space. For the Mach 6.7 speed run take the drop tanks, climb to 100,000 ft and level off. Above the air only the thrusters point the nose. Coming back down, hold 20-25 degrees angle of attack, then glide home to ${f.name} without power.`,
+        16,
+      );
+      return;
+    }
     h.order(
       'FREE FLIGHT',
       `${p.spec.name} at ${f.name}. The whole ${activeMap.sizeNm} x ${activeMap.sizeNm} NM theater of ${activeMap.name} is yours. Watch the afterburner fuel burn. Land on any BLUE runway and press [H] to rearm & refuel.`,
@@ -34,6 +42,16 @@ export class FreeFlightMode extends GameMode {
     const h = this.host;
     const p = h.player!;
     const f = this.base();
+    const air = p.spec.airLaunch;
+    if (air) {
+      // dropped from the mothership out on the extended centreline, pointing home, rocket off
+      const s = fromRunwayLocal(f, -40000, 0);
+      spawnInAir(p, new THREE.Vector3(s.x, air.altFt * FT, s.z), f.heading, air.kts);
+      p.controls.throttle = 0;
+      p.fm.throttleLever = 0;
+      p.fm.rpm.fill(0);
+      return;
+    }
     if (h.config.freeStart === 'runway') {
       spawnOnRunway(p, f);
     } else {

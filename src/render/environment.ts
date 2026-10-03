@@ -106,9 +106,18 @@ uniform vec3 groundHaze;
 uniform vec3 sunDir;
 uniform vec3 sunColor;
 uniform float horizonDip;
+/** 0 in the air .. 1 at the edge of space: the sky goes black, the stars come out */
+uniform float space;
+/** height of the glowing blue band of air along the horizon (in sin(elevation)) */
+uniform float limbW;
 varying vec3 vDir;
 #include <common>
 #include <logdepthbuf_pars_fragment>
+float starHash( vec3 p ) {
+  p = fract( p * 0.3183099 + 0.1 );
+  p *= 17.0;
+  return fract( p.x * p.y * p.z * ( p.x + p.y + p.z ) );
+}
 void main() {
   #include <logdepthbuf_fragment>
   vec3 d = normalize( vDir );
@@ -119,6 +128,30 @@ void main() {
     col = mix( horizonColor, zenithColor, t );
   } else {
     col = mix( horizonColor, groundHaze, smoothstep( 0.0, 0.12, -y ) );
+  }
+  if ( space > 0.0 ) {
+    // the edge of space: black overhead, a thin bright band of blue air hugging the horizon,
+    // and below it the hazy blue face of the Earth curving away
+    vec3 spc;
+    if ( y >= 0.0 ) {
+      float band = exp( -y / limbW );
+      spc = vec3( 0.35, 0.58, 1.0 ) * band * 1.15 + vec3( 0.03, 0.08, 0.22 ) * exp( -y / ( limbW * 4.0 ) );
+      spc += vec3( 0.0005, 0.001, 0.004 );
+      // stars: tiny points that come out as the sky turns black
+      vec3 sp = d * 420.0;
+      vec3 cell = floor( sp );
+      float h = starHash( cell );
+      if ( h > 0.985 ) {
+        vec3 c = cell + 0.5 + 0.35 * ( vec3( starHash( cell + 7.1 ), starHash( cell + 13.7 ), starHash( cell + 3.3 ) ) - 0.5 );
+        float r = length( sp - c );
+        float mag = ( h - 0.985 ) / 0.015;
+        spc += vec3( 0.85, 0.9, 1.0 ) * smoothstep( 0.22, 0.0, r ) * ( 0.25 + 1.6 * mag * mag ) * smoothstep( 0.0, limbW * 3.0, y );
+      }
+    } else {
+      float k = smoothstep( 0.0, max( limbW * 2.5, 0.02 ), -y );
+      spc = mix( vec3( 0.62, 0.76, 0.95 ), groundHaze * 0.55 + vec3( 0.02, 0.06, 0.16 ), k );
+    }
+    col = mix( col, spc, space );
   }
   float sd = max( dot( d, sunDir ), 0.0 );
   col += sunColor * ( pow( sd, 6.0 ) * 0.22 + pow( sd, 64.0 ) * 0.35 );
@@ -159,6 +192,8 @@ export class Environment {
         sunDir: { value: new THREE.Vector3() },
         sunColor: { value: new THREE.Color() },
         horizonDip: { value: 0 },
+        space: { value: 0 },
+        limbW: { value: 0.05 },
       },
       side: THREE.BackSide,
       depthWrite: false,
@@ -231,6 +266,8 @@ export class Environment {
   inCloud = 0;
   /** sun glow through the haze (light scattering setting) */
   scattering = true;
+  /** 0 in the air .. 1 at the edge of space (camera altitude) */
+  space = 0;
 
   /** Update per frame: move sky/sun with the camera, adapt colours to altitude. */
   update(camPos: THREE.Vector3, focus: THREE.Vector3): void {
@@ -272,6 +309,11 @@ export class Environment {
     (u.groundHaze.value as THREE.Color).copy(this.horizonColor).multiplyScalar(0.82);
     // Horizon dips below the horizontal as altitude increases (geometric dip).
     u.horizonDip.value = Math.sqrt((2 * alt) / 6371000) * 0.9;
+    // above about 20 km the sky turns black; by 80 km it is space, with a thin band of air at the limb
+    const sp = smoothstep(18000, 75000, alt);
+    this.space = sp;
+    u.space.value = NIGHT.dark ? 0 : sp;
+    u.limbW.value = lerp(0.12, 0.012, smoothstep(20000, 110000, alt));
 
     this.fog.color.copy(this.horizonColor);
     // sunlit haze: stronger forward scattering when the sun is low
@@ -285,7 +327,10 @@ export class Environment {
     FOG_SUN_COLOR[2] = sc.b;
     // visibility: rain, snow and mist thicken the haze; inside cloud it is a whiteout
     const murk = 1 + Math.pow(1 - wx.vis, 1.6) * 40 * (0.35 + 0.65 * under);
-    this.fog.density = (1 / 85000) * this.baseHaze * this.hazeScale * murk + this.inCloud * (1 / 260);
+    // high up the camera is above most of the air: the haze thins, leaving only a blue veil
+    // at the far limb of the Earth
+    const thin = Math.max(0.07, Math.exp(-Math.max(0, camPos.y - 10000) / 15000));
+    this.fog.density = (1 / 85000) * this.baseHaze * this.hazeScale * murk * thin + this.inCloud * (1 / 260);
     if (this.inCloud > 0) this.fog.color.lerp(new THREE.Color().setRGB(0.78, 0.8, 0.84, SRGB).multiplyScalar(1 - 0.4 * wx.gloom), this.inCloud);
 
     if (NIGHT.dark) this.goDark();

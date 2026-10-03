@@ -24,7 +24,7 @@ import { audio } from './audio/audio';
 import { applyMap, loadMapChoice } from './world/maps';
 import { refreshGciSites } from './game/teamPicture';
 import { activeMap } from './world/islands';
-import { jetAllowedIn } from './aircraft/specs';
+import { jetAllowedIn, AIRCRAFT_TYPES } from './aircraft/specs';
 import type { AircraftType } from './aircraft/specs';
 import { MultiplayerScreen, connectTo, JoinRequest } from './ui/menu/multiplayerScreen';
 import { setPendingJoin, takePendingJoin, loadNetPrefs, wakeOfficialServers, pendingJoinHash } from './net/servers';
@@ -80,7 +80,7 @@ async function boot(): Promise<void> {
   });
 
   const cfg: MissionConfig = defaultMission();
-  if (settings.lastAircraft === 'F15EX' || settings.lastAircraft === 'FA18EF' || settings.lastAircraft === 'TYPHOON' || settings.lastAircraft === 'SU35' || settings.lastAircraft === 'RAFALE' || settings.lastAircraft === 'F22' || settings.lastAircraft === 'MIG31' || settings.lastAircraft === 'SR71') cfg.aircraft = settings.lastAircraft as AircraftType;
+  if ((AIRCRAFT_TYPES as string[]).includes(settings.lastAircraft)) cfg.aircraft = settings.lastAircraft as AircraftType;
   cfg.loadoutId = settings.lastLoadout[cfg.aircraft] ?? '';
   cfg.timeOfDay = settings.gameplay.timeOfDay;
 

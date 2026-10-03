@@ -3,6 +3,14 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.40.0 — X-15: to the edge of space (2026-10-03)
+
+- New jet: the North American X-15, the rocket plane that flew to the edge of space. It is dropped from under a B-52 at 45,000 ft with the engine off. Throttle up to light the XLR99 rocket (57,000 lb of thrust, about 80 seconds of propellant), pull up to about 42 degrees and hold it: it burns out near 175,000 ft at Mach 5.5 and coasts up to about 354,000 ft, the real record. Climb steeper and it goes higher still.
+- X-15A-2 speed run: take the two drop tanks for about another minute of burn, level off near 100,000 ft and it reaches Mach 6.7, the fastest a winged aircraft has ever been flown. The tanks drop away on their own when they run dry.
+- Above the air the tail does nothing, so small thrusters in the nose and wingtips point the jet instead. Coming back down, hold 20 to 25 degrees angle of attack to survive re-entry, then glide home without power and land on the skids at about 200 knots.
+- The edge of space: climb high and the Earth curves away below you, the sky turns black and fills with stars, and a thin bright band of blue air hugs the horizon. The haze thins out as you climb, and high cirrus fades away below you.
+- Detailed X-15 model in black Inconel with the NASA tail band, its own cockpit, engine and propellant pages, and an entry in the aircraft library. It flies in free flight only.
+
 ## v4.39.3 — MiG-31 landings and auto-land fixes (2026-10-03)
 
 - MiG-31 landings fixed: the Foxhound could not fly slowly enough to land, so it came in at about 250 knots, far faster than the real jet. It now has its landing flaps: with the gear down at low speed they add the lift it needs, and it lands at about 175 to 185 knots. It flies exactly as before with the gear up. On auto-land it now catches a carrier wire on the first pass and lands softly on a runway.

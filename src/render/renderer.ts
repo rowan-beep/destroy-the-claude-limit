@@ -2,6 +2,7 @@
 // G-force vision effects, tone mapping / output).
 
 import * as THREE from 'three';
+import './curvature';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
@@ -141,7 +142,7 @@ export class GameRenderer {
     this.renderer.toneMappingExposure = 1.0;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-    this.camera = new THREE.PerspectiveCamera(70, 1, 0.3, 1200000);
+    this.camera = new THREE.PerspectiveCamera(70, 1, 0.3, 1700000);
     this.camera.rotation.order = 'YXZ';
 
     const rt = new THREE.WebGLRenderTarget(1, 1, {

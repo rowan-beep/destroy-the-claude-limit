@@ -176,6 +176,24 @@ export const LIBRARY: Record<AircraftType, LibraryEntry> = {
     weaknesses: ['Completely unarmed: no gun, no missiles, no flares', 'Turns like an ocean liner: 3 G limit and a vast turn radius', 'Long take-off roll; slow and heavy at low speed'],
     tactics: 'Never fight. Plan the route, climb to 75,000 ft and above, push past Mach 3 and let altitude and speed keep you alive. Turns cost miles: start them early. If a missile comes, accelerate and turn away; it will run out of energy long before you do.',
   },
+  X15: {
+    nation: 'United States',
+    region: 'usa',
+    flag: ['#b22234', '#ffffff', '#3c3b6e'],
+    manufacturer: 'North American Aviation',
+    generation: '3',
+    firstFlight: '8 Jun 1959',
+    inService: '1959 (research)',
+    built: '3',
+    operators: 'NASA, US Air Force, US Navy',
+    carrier: false,
+    nickname: 'X-15',
+    history:
+      'Three were built to find out what happens to a winged aircraft, and its pilot, at hypersonic speed and at the edge of space. Between 1959 and 1968 they flew 199 times, dropped from a B-52 over the Nevada and Utah desert. Joe Walker took one to 354,200 ft in 1963; Pete Knight flew the rebuilt X-15A-2, with drop tanks and a white heat-shield coating, to Mach 6.72 (4,520 mph) in 1967, a record no winged crewed aircraft has beaten. Eight of its pilots earned astronaut wings. Neil Armstrong flew it before he flew to the Moon.',
+    strengths: ['Highest-flying jet in the game: 354,000 ft, above the edge of space', 'Fastest jet in the game: Mach 6.7 with drop tanks', '57,000 lb rocket: climbs at more than 2 G straight up'],
+    weaknesses: ['About 80 seconds of propellant, then it is a glider', 'Unarmed, and no radar', 'Lands without power, fast, on skids: there is no second chance'],
+    tactics: 'Light the rocket, pull up to a 70-80 degree climb and hold it until the propellant runs out: that is the way to the edge of space. For speed, take the drop tanks and level off at 100,000 ft. Above the air only the thrusters point the nose: keep it pointed along your path. Coming back down, hold 20-25 degrees angle of attack so the thickening air slows you before it crushes you, then glide home and pick your runway early.',
+  },
 };
 
 export const REGION_NAME: Record<Region, string> = { usa: 'USA', europe: 'EUROPE', russia: 'RUSSIA' };

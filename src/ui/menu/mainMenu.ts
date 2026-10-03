@@ -463,7 +463,7 @@ export class MainMenu {
       const q = el('div', 'mm-jet-q', tx);
       el('span', '', q, `M${s.maxMach.toFixed(1)}`);
       el('span', '', q, `T/W ${tw(s).toFixed(2)}`);
-      el('span', '', q, t === 'SR71' ? 'RECON ONLY' : `${s.maxAAM} AAM`);
+      el('span', '', q, t === 'SR71' ? 'RECON ONLY' : t === 'X15' ? 'RESEARCH ONLY' : `${s.maxAAM} AAM`);
       r.addEventListener('click', () => this.selectJet(t));
     }
   }
@@ -525,7 +525,7 @@ export class MainMenu {
   private lastFighter: AircraftType = 'F15EX';
 
   selectJet(t: AircraftType): void {
-    if (t !== 'SR71') this.lastFighter = t;
+    if (t !== 'SR71' && t !== 'X15') this.lastFighter = t;
     if (!jetAllowedIn(t, this.cfg.mode)) this.cfg.mode = t === 'SR71' ? 'recon' : 'free';
     this.cfg.aircraft = t;
     const s = getSpec(t);
