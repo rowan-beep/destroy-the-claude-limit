@@ -3,6 +3,13 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.39.3 — MiG-31 landings and auto-land fixes (2026-10-03)
+
+- MiG-31 landings fixed: the Foxhound could not fly slowly enough to land, so it came in at about 250 knots, far faster than the real jet. It now has its landing flaps: with the gear down at low speed they add the lift it needs, and it lands at about 175 to 185 knots. It flies exactly as before with the gear up. On auto-land it now catches a carrier wire on the first pass and lands softly on a runway.
+- Auto-land: a fast-sinking heavy jet now starts its flare higher above the runway, so it has room to round out.
+- Auto-land: when it circles back to set up an approach again, it no longer flies into rising ground. If high ground comes up close ahead of where the jet is really heading, it rolls the wings level and climbs on full power first.
+- Multiplayer screen: after a disconnect it could show the SR-71 as your jet. Online you always fly a fighter, and the screen now says so.
+
 ## v4.39.2 — Bug fixes (2026-10-03)
 
 - Fixed: long fights slowly used up more and more graphics memory. The burning wreckage from every jet shot down in the air, and every ejected pilot's seat and parachute, was taken out of the world after it landed but never freed, so a long free-for-all or online session kept piling it up. It is now all cleaned up properly.
