@@ -1179,7 +1179,7 @@ const X15: AircraftSpec = {
   role: 'Rocket-powered hypersonic research aircraft (unarmed)',
   crew: 1,
   description:
-    'The fastest and highest-flying winged aircraft ever flown by a pilot: Mach 6.72 (4,520 mph) and 354,200 ft, above the edge of space. A black Inconel X nickel-steel skin takes 1,200 °F of friction heat. It is dropped from under the wing of a B-52 at 45,000 ft, lights its Thiokol XLR99 rocket (57,000 lb of thrust, about 80 seconds of propellant) and climbs like nothing else. Above the air the tail surfaces do nothing: small hydrogen-peroxide thrusters in the nose and wingtips point it. Then it falls back into the atmosphere at a steep angle of attack and glides home without power to land on skids. Unarmed; flown in free flight only.',
+    'The fastest and highest-flying winged aircraft ever flown by a pilot: Mach 6.72 (4,520 mph) and 354,200 ft, above the edge of space. A black Inconel X nickel-steel skin takes 1,200 °F of friction heat. It is dropped from under the wing of a B-52 at 45,000 ft, lights its Thiokol XLR99 rocket (57,000 lb of thrust) and climbs like nothing else. Here it carries about 5 minutes of propellant inside, and two drop tanks double that to about 10 minutes at full power. Above the air the tail surfaces do nothing: small hydrogen-peroxide thrusters in the nose and wingtips point it. Then it falls back into the atmosphere at a steep angle of attack and glides home without power to land on skids. Unarmed; flown in free flight only.',
   lengthFt: 50.25,
   wingspanFt: 22.33,
   heightFt: 13,
@@ -1211,11 +1211,10 @@ const X15: AircraftSpec = {
   thrustAb: lbf(57000),
   thrustMilLbf: 57000,
   thrustAbLbf: 57000,
-  // a rocket drinks its propellant: vacuum specific impulse about 276 s, so the 18,000 lb
-  // inside last about 82 s at full thrust (flight 91: burnout near 176,000 ft, then a
-  // ballistic coast to the 354,000 ft record)
-  tsfcMil: 13.0,
-  tsfcAb: 13.0,
+  // propellant flow at full thrust: the 8,165 kg inside last about 5 minutes, and with
+  // the two drop tanks about 10 (far longer than the real rocket's 80 seconds)
+  tsfcMil: 3.5,
+  tsfcAb: 3.5,
   ramFactor: 0,
   spool: 4,
   gLimit: 6,
@@ -1245,9 +1244,15 @@ const X15: AircraftSpec = {
     dispersionMil: 1,
     port: [0, 0, -8],
   },
-  // clean: no pylons, no drop tanks
-  stations: [],
-  loadouts: [{ id: 'x15-clean', name: 'CLEAN — internal propellant only', stores: {} }],
+  // two big drop tanks along the lower fuselage under the wing roots
+  stations: [
+    { id: 1, label: 'TANK L', pos: [-0.95, -0.95, 0.6], allowed: [TANK], mount: 'pylon' },
+    { id: 2, label: 'TANK R', pos: [0.95, -0.95, 0.6], allowed: [TANK], mount: 'pylon' },
+  ],
+  loadouts: [
+    { id: 'x15-tanks', name: 'LONG BURN — two drop tanks (about 10 minutes at full power)', stores: { 1: TANK, 2: TANK } },
+    { id: 'x15-clean', name: 'CLEAN — internal propellant only (about 5 minutes)', stores: {} },
+  ],
   radar: { name: 'None (research instrumentation, ball nose air-data probe)', kind: 'PESA', rangeNm: 1, azLimitDeg: 10, elLimitDeg: 10, maxTracks: 1, frameTime: 4 },
   irst: null,
   ew: { name: 'None', maws: false, jamming: 0, autoDispense: false },
@@ -1263,6 +1268,8 @@ const X15: AircraftSpec = {
   paint: { top: '#16171a', bottom: '#1a1b1e', accent: '#f0c419' },
   rocket: { vacLbf: 61000, minThrottle: 0.5 },
   reaction: { pitch: 0.4, roll: 0.9, yaw: 0.3 },
+  // each drop tank: 4,000 kg of propellant, 600 kg empty; let go when it runs dry
+  tank: { fuel: 4000, mass: 600, dropWhenEmpty: true },
   airLaunch: { altFt: 45000, kts: 420, carrier: 'B-52' },
 };
 

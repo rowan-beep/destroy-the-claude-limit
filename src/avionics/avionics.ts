@@ -21,6 +21,7 @@ import { hsiPage } from './pages/hsiPage';
 import { fcsPage } from './pages/fcsPage';
 import { menuPage } from './pages/menuPage';
 import { drawUfc, drawStandby, drawWarningPanel, drawEfd } from './special';
+import { drawGauge, GaugeId } from './gauges';
 import { audio } from '../audio/audio';
 
 export const PAGES: Record<PageId, MfdPage> = {
@@ -49,7 +50,7 @@ export const PAGE_NAMES: Record<AircraftType, PageNames> = {
   X15: { tsd: 'NAV', ew: 'INST', sms: 'SMS' },
 };
 
-export type DisplayKind = 'mfd' | 'lad' | 'ufc' | 'standby' | 'dwp' | 'efd';
+export type DisplayKind = 'mfd' | 'lad' | 'ufc' | 'standby' | 'dwp' | 'efd' | 'gauge';
 
 export interface PortalDef {
   x: number;
@@ -70,6 +71,8 @@ export interface DisplayDef {
   hz?: number;
   /** keyboard cycling slot (0 = left, 1 = centre, 2 = right), per portal */
   slots?: number[];
+  /** which round instrument a 'gauge' display shows */
+  gauge?: GaugeId;
 }
 
 export class Portal {
@@ -209,6 +212,9 @@ export class Avionics {
         return;
       case 'efd':
         drawEfd(d.pen, d.def.w, d.def.h, this);
+        return;
+      case 'gauge':
+        drawGauge(ctx, d.def.w, d.def.h, this, d.def.gauge ?? 'adi');
         return;
     }
     for (const portal of d.portals) {

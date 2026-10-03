@@ -465,6 +465,7 @@ export class Cockpit {
     const L = this.layout;
     const eye = this.eye;
     const h = L.hud;
+    if (h.style === 'none') return;
     const gy = eye.y - L.glareDrop;
     const z = eye.z - h.dist;
     // projector housing on the glare shield

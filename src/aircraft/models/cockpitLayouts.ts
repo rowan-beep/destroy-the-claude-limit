@@ -45,7 +45,7 @@ export interface CockpitLayout {
   glareDrop: number;
   /** how far the glare shield lip overhangs toward the pilot */
   glareLip: number;
-  hud: { dist: number; halfW: number; top: number; bottom: number; style: 'single' | 'wide' | 'dual' };
+  hud: { dist: number; halfW: number; top: number; bottom: number; style: 'single' | 'wide' | 'dual' | 'none' };
   consoleDrop: number;
   displays: DisplayMount[];
   /** colours */
@@ -315,7 +315,8 @@ export const COCKPIT_LAYOUTS: Record<AircraftType, CockpitLayout> = {
     panelHeight: 0.42,
     glareDrop: 0.24,
     glareLip: 0.1,
-    hud: { dist: 0.6, halfW: 0.12, top: 0.08, bottom: -0.15, style: 'single' },
+    // no head-up display in 1959: the pilot flew on the round dials
+    hud: { dist: 0.6, halfW: 0.12, top: 0.08, bottom: -0.15, style: 'none' },
     consoleDrop: 0.5,
     tub: 0x30343a,
     panel: 0x1f2225,
@@ -325,35 +326,19 @@ export const COCKPIT_LAYOUTS: Record<AircraftType, CockpitLayout> = {
     seatKind: 'aces',
     label: 'X-15',
     lockShoot: false,
+    // 1960s round dials: the attitude ball in the middle, flight instruments around it,
+    // the rocket's chamber pressure and propellant on the outboard columns
     displays: [
-      {
-        def: { id: 'mfd-l', kind: 'mfd', w: CANVAS_MFD, h: CANVAS_MFD, hz: 8, portals: [{ x: 0, y: 0, w: CANVAS_MFD, h: CANVAS_MFD, page: 'ENG' }], slots: [0] },
-        px: -0.21,
-        py: 0.15,
-        sw: 0.14,
-        sh: 0.14,
-        bezel: 'osb',
-        yaw: 0.12,
-      },
-      {
-        def: { id: 'mfd-c', kind: 'mfd', w: CANVAS_MFD, h: CANVAS_MFD, hz: 8, portals: [{ x: 0, y: 0, w: CANVAS_MFD, h: CANVAS_MFD, page: 'FUEL' }], slots: [1] },
-        px: 0,
-        py: 0.16,
-        sw: 0.14,
-        sh: 0.14,
-        bezel: 'osb',
-      },
-      {
-        def: { id: 'mfd-r', kind: 'mfd', w: CANVAS_MFD, h: CANVAS_MFD, hz: 8, portals: [{ x: 0, y: 0, w: CANVAS_MFD, h: CANVAS_MFD, page: 'HSI' }], slots: [2] },
-        px: 0.21,
-        py: 0.15,
-        sw: 0.14,
-        sh: 0.14,
-        bezel: 'osb',
-        yaw: -0.12,
-      },
-      { def: { id: 'sfd', kind: 'standby', w: 256, h: 256, hz: 15 }, px: -0.36, py: 0.1, sw: 0.065, sh: 0.065, bezel: 'plain' },
-      { def: { id: 'cau', kind: 'dwp', w: 256, h: 384, hz: 4 }, px: 0.36, py: 0.1, sw: 0.055, sh: 0.085, bezel: 'plain' },
+      { def: { id: 'adi', kind: 'gauge', gauge: 'adi', w: 256, h: 256, hz: 20 }, px: 0, py: 0.125, sw: 0.135, sh: 0.135, bezel: 'plain' },
+      { def: { id: 'mach', kind: 'gauge', gauge: 'mach', w: 256, h: 256, hz: 12 }, px: -0.155, py: 0.085, sw: 0.085, sh: 0.085, bezel: 'plain' },
+      { def: { id: 'alt', kind: 'gauge', gauge: 'alt', w: 256, h: 256, hz: 12 }, px: 0.155, py: 0.085, sw: 0.085, sh: 0.085, bezel: 'plain' },
+      { def: { id: 'alpha', kind: 'gauge', gauge: 'alpha', w: 256, h: 256, hz: 12 }, px: -0.155, py: 0.19, sw: 0.085, sh: 0.085, bezel: 'plain' },
+      { def: { id: 'vvi', kind: 'gauge', gauge: 'vvi', w: 256, h: 256, hz: 12 }, px: 0.155, py: 0.19, sw: 0.085, sh: 0.085, bezel: 'plain' },
+      { def: { id: 'hdg', kind: 'gauge', gauge: 'hdg', w: 256, h: 256, hz: 12 }, px: 0, py: 0.265, sw: 0.08, sh: 0.08, bezel: 'plain' },
+      { def: { id: 'g', kind: 'gauge', gauge: 'g', w: 256, h: 256, hz: 12 }, px: -0.265, py: 0.085, sw: 0.07, sh: 0.07, bezel: 'plain' },
+      { def: { id: 'pc', kind: 'gauge', gauge: 'pc', w: 256, h: 256, hz: 12 }, px: -0.265, py: 0.18, sw: 0.07, sh: 0.07, bezel: 'plain' },
+      { def: { id: 'prop', kind: 'gauge', gauge: 'prop', w: 256, h: 256, hz: 6 }, px: 0.265, py: 0.085, sw: 0.07, sh: 0.07, bezel: 'plain' },
+      { def: { id: 'cau', kind: 'dwp', w: 256, h: 384, hz: 4 }, px: 0.27, py: 0.19, sw: 0.05, sh: 0.075, bezel: 'plain' },
     ],
   },
   SR71: {

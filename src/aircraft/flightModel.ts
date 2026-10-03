@@ -479,6 +479,23 @@ export class FlightModel {
     return (-Math.atanh(r) * nmax - d0) / a;
   }
 
+  /** The speed-limit drag: past the top Mach or the max airspeed the jet is held back hard. */
+  private barrierCd(M: number): number {
+    const s = this.spec;
+    let cd = 0;
+    // limit-Mach barrier (inlet / structural limit) so the jet tops out at its spec
+    const over = M - (s.maxMach - 0.04);
+    if (over > 0) cd += 0.9 * over * over + 0.05 * over;
+    // past the rated top speed the inlets and structure say no, whatever the thrust
+    const beyond = M - s.maxMach;
+    if (beyond > 0) cd += 6 * beyond * beyond + 0.3 * beyond;
+    // max-IAS (dynamic pressure) limit: keeps sea-level dashes realistic
+    const casKts = this.cas / 0.514444;
+    const iasOver = casKts - (s.maxIasKts - 25);
+    if (iasOver > 0) cd += 0.00004 * iasOver * iasOver;
+    return cd;
+  }
+
   cdOf(cl: number, M: number): number {
     const s = this.spec;
     let wave = 1;
@@ -486,17 +503,7 @@ export class FlightModel {
       if (M < 1.1) wave = 1 + (s.waveDragPeak - 1) * smoothstep(0.78, 1.1, M);
       else wave = s.waveDragPeak + (s.waveDragHigh - s.waveDragPeak) * smoothstep(1.1, s.maxMach, M);
     }
-    let cd0 = s.cd0 * wave;
-    // limit-Mach barrier (inlet / structural limit) so the jet tops out at its spec
-    const over = M - (s.maxMach - 0.04);
-    if (over > 0) cd0 += 0.9 * over * over + 0.05 * over;
-    // past the rated top speed the inlets and structure say no, whatever the thrust
-    const beyond = M - s.maxMach;
-    if (beyond > 0) cd0 += 6 * beyond * beyond + 0.3 * beyond;
-    // max-IAS (dynamic pressure) limit: keeps sea-level dashes realistic
-    const casKts = this.cas / 0.514444;
-    const iasOver = casKts - (s.maxIasKts - 25);
-    if (iasOver > 0) cd0 += 0.00004 * iasOver * iasOver;
+    let cd0 = s.cd0 * wave + this.barrierCd(M);
     // stores (pylons, fins, tanks) add their own drag rise through the transonic
     cd0 += this.storeCd * (1 + 0.4 * smoothstep(0.85, 1.15, M));
     cd0 += 0.028 * this.gearPos + s.speedbrakeCd * this.speedbrakePos + this.damage.drag;
@@ -517,9 +524,19 @@ export class FlightModel {
       const pc = this.rpm[i];
       if (pc < 0.3) return { t: 0, ff: 0 };
       const vac = s.rocket.vacLbf * LBF;
-      const t = pc * (vac - (vac - s.thrustMil) * atm.delta) * this.damage.thrust[i];
+      // the engine control holds the record envelope: it throttles back as the jet nears
+      // its top speed (Mach 6.72, about 2,020 m/s) and as the top of its climb (where it
+      // would coast to now) nears the ceiling, so long burns stay at the edge of space
+      const vMax = s.maxMach * 301;
+      const capV = 1 - smoothstep(vMax * 0.96, vMax, this.vel.length());
+      const vy = Math.max(0, this.vel.y);
+      const apex = alt + (vy * vy) / (2 * G0);
+      const ceil = s.ceilingFt * FT;
+      const capH = 1 - smoothstep(ceil - 6000, ceil, apex);
+      const k = pc * Math.min(capV, capH);
+      const t = k * (vac - (vac - s.thrustMil) * atm.delta) * this.damage.thrust[i];
       // propellant flow is set by the chamber pressure alone (tsfc is the vacuum figure)
-      return { t, ff: pc * vac * s.tsfcMil * 2.8325e-5 };
+      return { t, ff: k * vac * s.tsfcMil * 2.8325e-5 };
     }
     const sig = atm.sigma;
     let lapse: number;
@@ -669,7 +686,10 @@ export class FlightModel {
     this.cl = cl;
     this.cd = cd;
     const L = qS * cl;
-    const D = qS * cd;
+    // the speed-limit drag brakes hard but never more than a few G: diving fast from
+    // high up into thick air used to stop the jet so violently it broke up
+    const cdB = this.barrierCd(M);
+    const D = qS * (cd - cdB) + Math.min(qS * cdB, m * 3.5 * G0);
     const Y = qS * A.cyB * beta;
 
     _acc.set(0, 0, 0);
@@ -686,6 +706,8 @@ export class FlightModel {
     _tmp.y += G0;
     this.nz = _tmp.dot(this.up) / G0;
     this.ny = _tmp.dot(this.right) / G0;
+    // what the wings carry (the structure's load): lift and thrust, not the drag
+    const nzWing = (L * _lift.dot(this.up) + this.thrust * this.fwd.dot(this.up)) / (m * G0);
 
     // --- moments of inertia: fuel and wing stores change them ---
     const mScale = m / A.refMass;
@@ -886,7 +908,7 @@ export class FlightModel {
     // --- structure ---
     // over-stress both ways: past the override limit pulling, or well past the
     // negative limit pushing (the structure is much weaker in negative G)
-    const nz = this.nz;
+    const nz = nzWing;
     if (nz > s.gOverride + 0.4) this.overG += (nz - s.gOverride) * dt;
     const negLim = s.gNeg - 1.5;
     if (nz < negLim) this.overG += (negLim - nz) * dt;

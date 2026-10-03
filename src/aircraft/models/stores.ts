@@ -271,13 +271,17 @@ function tank(): THREE.BufferGeometry {
   return paintBands(lathe(prof, 36, 0, 0, true, true), TANK, [[-0.62, -0.6, new THREE.Color('#5a6166')], [1.2, 1.22, new THREE.Color('#5a6166')]]);
 }
 
-/** X-15A-2 drop tank: a big 7 m propellant tank, bright red-orange nose and band on white. */
+/** X-15 drop tank: a long, slim propellant tank in the jet's own black, a bare-metal nose cap and a thin NASA-yellow band. */
 function x15Tank(): THREE.BufferGeometry {
-  const L = 6.9, r = 0.49;
-  const R = curve([[-3.45, 0.01], [-3.0, 0.22], [-2.3, 0.4], [-1.5, r], [2.3, r], [3.0, 0.36], [3.4, 0.14], [3.45, 0.03]]);
+  const L = 6.9, r = 0.42;
+  const R = curve([[-3.45, 0.01], [-3.1, 0.15], [-2.5, 0.31], [-1.7, r], [2.4, r], [3.0, 0.34], [3.38, 0.2], [3.45, 0.06]]);
   const prof: P2[] = stations(-L / 2, L / 2, 50, 0.2, 0.2).map((z) => [Math.max(0.004, R(z)), z] as P2);
-  const red = new THREE.Color('#e0391f');
-  return paintBands(lathe(prof, 40, 0, 0, true, true), new THREE.Color('#e9e8e2'), [[-3.5, -1.55, red], [-0.35, 0.55, red], [3.05, 3.5, red]]);
+  const black = new THREE.Color('#1b1c1f');
+  return paintBands(lathe(prof, 40, 0, 0, true, true), black, [
+    [-3.5, -3.05, new THREE.Color('#a9adb1')],
+    [-1.25, -1.1, new THREE.Color('#e8bb18')],
+    [3.3, 3.5, new THREE.Color('#2c2e31')],
+  ]);
 }
 
 // ---------------------------------------------------------------------------

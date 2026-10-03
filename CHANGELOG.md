@@ -3,6 +3,15 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.41.0 — X-15 rebuilt, and a high-speed dive fix (2026-10-03)
+
+- Fixed jets breaking apart in a fast dive into thicker, lower air. The overspeed drag that holds every jet to its top speed could brake so violently that it counted as a fatal over-G. It now slows you hard but safely, and only real G on the wings can overstress the airframe.
+- X-15: the drop tanks are back, now in the jet's own black with a bare-metal nose and a thin yellow band. Full power lasts about 10 minutes with the tanks (about 5 without), and the tanks fall away when they run dry.
+- X-15: the rocket's control now holds the record envelope. It throttles itself back as you near Mach 6.72 or as your climb heads past about 354,000 ft, so long burns keep you fast and at the edge of space instead of flying off into orbit.
+- X-15 rebuilt to match the real jet: the wide body with the big side fairings running nose to tail, a proper canopy hump faired into the spine, the correct short wing, tailplanes mounted on the fairings, a polished ball nose, and a closed tail base around the rocket (you could see into the hollow body from behind before). The paint is now a satin black without the streaks.
+- X-15 rocket plume: no more long thin laser beam. The exhaust is short and bright, and spreads out wide as the air thins with height.
+- X-15 cockpit: 1960s round dials in place of modern screens. An attitude ball sits in the middle, with Mach, altitude, angle of attack, climb rate, heading, G, chamber pressure and propellant around it. The head-up display is gone (the X-15 never had one), and the canopy frames are no longer in your line of sight. The weapons bar is hidden too, since it carries no weapons.
+
 ## v4.40.1 — X-15 flies clean (2026-10-03)
 
 - The X-15 now flies clean, like the real one in its NASA colours: the two big red and white drop tanks are gone. It still reaches about 354,000 ft, and climbing to 100,000 ft and levelling off with the rocket burning takes it past Mach 6.

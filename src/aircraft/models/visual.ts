@@ -1095,8 +1095,11 @@ export class AirframeVisual {
       f.ab = abI;
       f.dry = dry;
       f.heat = Math.min(1, abI + dry * 0.45);
-      // the plume grows with the burner stage and stretches in thin air
-      const stretch = 1 + 0.45 * thin;
+      // the plume grows with the burner stage and stretches in thin air; a rocket's
+      // exhaust balloons out wide instead as the air pressure around it falls away
+      const rocket = this.ac.spec.rocket ? 1 : 0;
+      const stretch = 1 + (rocket ? 0.15 : 0.45) * thin;
+      const widen = 1 + rocket * (0.25 + 1.1 * thin);
       const pulse = 1 + 0.035 * Math.sin(this.t * 37 + i * 2.1) + 0.025 * Math.sin(this.t * 23.3 + i) + 0.02 * Math.sin(this.t * 61 + i * 5);
       f.layers.forEach((l, k) => {
         const u = l.mat.uniforms;
@@ -1107,7 +1110,7 @@ export class AirframeVisual {
         const grow = k === 2 ? 0.45 + 0.55 * Math.max(abI, dry * 0.5) : 0.35 + 0.65 * abI;
         // a flat (2D) nozzle's jet starts as a wide, flat ribbon; the jet is as wide as the nozzle exit
         const ex = this.nozzleExit(i);
-        l.mesh.scale.set(f.aspect * ex, ex / f.aspect, grow * stretch * pulse);
+        l.mesh.scale.set(f.aspect * ex * widen, (ex / f.aspect) * widen, grow * stretch * pulse);
         l.mesh.visible = k === 2 ? abI > 0.01 || dry > 0.05 : abI > 0.01;
       });
       // distant jets: the lit burner can is hidden with the other small parts

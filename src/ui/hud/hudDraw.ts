@@ -329,6 +329,8 @@ export class HudPainter {
   // -------------------------------------------------------------------------
 
   drawCockpit(g: Game): void {
+    // a jet without a head-up display (the X-15) flies on its panel instruments
+    if (g.cockpitView.active?.layout.hud.style === 'none') return;
     const p = g.player!;
     const cam = g.renderer.camera;
     const c = this.ctx;

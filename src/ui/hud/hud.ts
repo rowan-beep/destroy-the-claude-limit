@@ -176,7 +176,7 @@ export class Hud {
     this.orderBox.classList.add('hidden');
     this.buildHelp(g);
     // an unarmed jet (the SR-71) has no weapons to show
-    setClass(this.weaponBar, 'hidden', !!g.player && g.player.spec.stations.length === 0);
+    setClass(this.weaponBar, 'hidden', !!g.player && !g.player.spec.stations.some((st) => st.allowed.some((t) => t !== 'TANK')) && g.player.spec.gun.rounds === 0);
     this.root.classList.remove('hidden');
     setClass(this.help, 'hidden', !g.settings.gameplay.showHelp);
   }
@@ -439,7 +439,8 @@ export class Hud {
     // stores
     clearEl(this.stores);
     const sel = p.selectedWeapon;
-    if (p.spec.stations.length === 0) el('div', 'pline', this.stores, p.spec.rocket ? 'UNARMED: RESEARCH INSTRUMENTS' : 'UNARMED: CAMERAS · IR · ASARS · ELINT');
+    if (p.spec.stations.length === 0) el('div', 'pline', this.stores, 'UNARMED: CAMERAS · IR · ASARS · ELINT');
+    else if (p.spec.rocket) el('div', 'pline', this.stores, `UNARMED · DROP TANKS ${p.countOf('TANK')}`);
     else {
       const selName = sel === 'GUN' ? p.spec.gun.name.split(' ').slice(0, 2).join(' ') : weaponShort(sel);
       const lockTxt = isBomb(sel) ? (p.groundTarget ? `TGT ${p.groundTarget.label}` : 'NO TGT: [R]') : p.lockedTarget ? `LOCK ${p.lockedTarget.spec.shortName.toUpperCase()} ${(p.distanceTo(p.lockedTarget) / NM).toFixed(1)}NM`   : sel === p.irMissile ? (p.seekerTarget ? 'SEEKER LOCK' : 'SEEKER SEARCH') : 'NO LOCK: [R]';
