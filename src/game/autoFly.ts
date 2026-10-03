@@ -619,6 +619,19 @@ export class AutoFly {
       this.limitTurn(p, _dir);
       const ground = Math.max(this.groundAhead(p, _dir.x, _dir.z, Math.max(6000, fm.tas * 45)), terrainHeight(fm.pos.x, fm.pos.z));
       const wantAlt = Math.max(this.glideY(GATE_DIST) - 150, ground + 450);
+      // terrain escape: rising ground close ahead of where the jet is actually going (the look-ahead
+      // above follows the wanted heading, which keeps swinging round in a turn): wings level, full
+      // power, climb, and only then carry on with the pattern
+      const vh = Math.max(1, Math.hypot(fm.vel.x, fm.vel.z));
+      const near = Math.max(this.groundAhead(p, fm.vel.x / vh, fm.vel.z / vh, Math.max(3000, fm.tas * 25)), terrainHeight(fm.pos.x, fm.pos.z));
+      if (fm.pos.y - near < 300) {
+        _dir.set(fm.vel.x / vh, 0, fm.vel.z / vh).multiplyScalar(Math.cos(15 * DEG)).setY(Math.sin(15 * DEG));
+        steerToward(p, _dir, { gCap: 4, tau: 0.6, maxBank: 10, allowPush: false });
+        p.controls.throttle = this.abMode === 'off' ? 1 : 1.1;
+        p.controls.speedbrake = false;
+        p.controls.gearDown = false;
+        return;
+      }
       const climb = clamp((wantAlt - fm.pos.y) / 1200, -1, 1) * (wantAlt > fm.pos.y ? 16 : 8) * DEG;
       _dir.multiplyScalar(Math.cos(climb)).setY(Math.sin(climb));
       steerToward(p, _dir, { gCap: 2.5, tau: 1.3, maxBank: 30 });
