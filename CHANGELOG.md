@@ -3,6 +3,14 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.36.0 — Carrier auto-land (2026-10-03)
+
+- Auto-land on carriers. Open AUTO-FLY (U), pick a carrier as the destination with AUTO-LAND ticked and it does the whole thing: flies to the ship, sets up behind it, drops the gear and the hook, flies the ball down the glide path and catches a wire. It even works from the catapult: it launches, comes back round and traps on the same ship.
+- It aims for where the deck will be when it gets there, not where it is now, because the ship keeps sailing its circle and the deck keeps pitching. In testing with every jet it caught a wire on the first pass almost every time. If something goes wrong close in (too low, too high or off the centreline) it waves off and comes round again, and a bolter makes it power up and go around.
+- Fixed: a jet sitting on the moving deck slowly turned on its own, which could make it slide off the side after catching a wire.
+- Fixed: the wire now holds the jet straight down the landing area while it stops it.
+- Fixed: after catching a wire with the engines still spooled up, the jet could roll on toward the end of the deck.
+
 ## v4.35.0 — Pitch black nights, night vision and a rolling sea (2026-10-03)
 
 - New weather option: PITCH BLACK. Turn it on in the weather panel (top left) with any weather, on every map and in every mode. It is a moonless night: the sky, the sea and the land go completely dark, and all you can see are lights: runway and deck lights, afterburners, explosions and the glow of your own engine.

@@ -411,7 +411,7 @@ export class AutoFly {
       c.throttle = this.takeoffPower(fm.cas < 250 * KT);
       if (this.carrier && fm.agl > 250 && fm.cas > 170 * KT && this.phaseT > 12) {
         this.thrI = Math.min(1, c.throttle);
-        this.set('approach', 'CLIMBING OUT — BACK AROUND FOR ANOTHER PASS');
+        this.set('approach', this.goArounds > 0 || this.cvBolters > 0 ? 'CLIMBING OUT — BACK AROUND FOR ANOTHER PASS' : 'TURNING BACK FOR THE CARRIER APPROACH');
         return;
       }
       if (fm.agl > 1500 * FT && fm.cas > 230 * KT) {
@@ -923,6 +923,7 @@ export class AutoFly {
       this.cvTd = -1;
       this.leg = 'outbound';
       this.rollCalled = true;
+      this.goArounds++;
       this.set('climb', 'WAVE OFF — GOING AROUND FOR ANOTHER PASS', 'warn');
       return;
     }
