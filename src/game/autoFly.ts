@@ -663,7 +663,8 @@ export class AutoFly {
 
     // flare: round out a few metres up, then settle on
     // flare height from the sink rate: about two seconds before the wheels would touch
-    const hFlare = clamp(-fm.vs * 2.1, 7, 18);
+    // (a heavy jet coming down fast needs the room: up to 26 m)
+    const hFlare = clamp(-fm.vs * 2.1, 7, 26);
     if ((hRwy < hFlare && s < 1100) || this.phase === 'flare') {
       if (this.phase !== 'flare') {
         this.set('flare', 'FLARE');
