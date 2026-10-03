@@ -7,6 +7,7 @@
 // parked on deck and the white wake curling behind the ship.
 
 import * as THREE from 'three';
+import { keepLightsVisible } from './night';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { CARRIERS, Carrier, CarrierLayout } from '../world/carriers';
 import { DECK_HEIGHT, LANDING_AREA } from '../world/islands';
@@ -490,7 +491,7 @@ function mats() {
 let dotTex: THREE.Texture | null = null;
 function lightMaterial(size: number, attenuate: boolean): THREE.PointsMaterial {
   dotTex ??= getSoftDotTexture();
-  return new THREE.PointsMaterial({
+  const m = new THREE.PointsMaterial({
     size,
     sizeAttenuation: attenuate,
     vertexColors: true,
@@ -500,6 +501,7 @@ function lightMaterial(size: number, attenuate: boolean): THREE.PointsMaterial {
     blending: THREE.AdditiveBlending,
     toneMapped: false,
   });
+  return attenuate ? keepLightsVisible(m) : m;
 }
 
 function points(list: [number, number, number, [number, number, number]][], mat: THREE.PointsMaterial): THREE.Points {
@@ -822,17 +824,17 @@ class CarrierView {
     for (let s = 0; s <= LANDING_AREA.length; s += 12) {
       for (const lat of [-12.9, 12.9]) {
         const [u, v] = landingPoint(L, s, lat);
-        lights.push([u, v, 0.15, W]);
+        lights.push([u, v, 0.4, W]);
       }
       const [u, v] = landingPoint(L, s + 6, 0);
-      if (s + 6 < LANDING_AREA.length) lights.push([u, v, 0.08, W]);
+      if (s + 6 < LANDING_AREA.length) lights.push([u, v, 0.3, W]);
     }
     for (let y = -1.2; y > -13; y -= 1.3) lights.push([L.rampU - 0.6, L.rampV, y, [1, 0.55, 0.15]]);
     const D = L.deck;
     for (let i = 0; i < D.length; i++) {
       const [au, av] = D[i], [bu, bv] = D[(i + 1) % D.length];
       const n = Math.max(1, Math.round(Math.hypot(bu - au, bv - av) / 14));
-      for (let k = 0; k < n; k++) lights.push([au + ((bu - au) * k) / n, av + ((bv - av) * k) / n, 0.2, [0.35, 0.5, 1]]);
+      for (let k = 0; k < n; k++) lights.push([au + ((bu - au) * k) / n, av + ((bv - av) * k) / n, 0.45, [0.35, 0.5, 1]]);
     }
     this.lights = points(lights, lightMaterial(1.3, true));
     this.root.add(this.lights);

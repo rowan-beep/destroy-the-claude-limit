@@ -3,6 +3,14 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.38.0 — Lights in the dark (2026-10-03)
+
+- Pitch-black nights are easier to fly: runway, approach and carrier deck lights now stay visible as bright points however far away they are, so you can find a runway or a ship from miles out with the naked eye.
+- Every jet now shows its navigation lights at night: red on the left wingtip, green on the right, and a flashing white strobe. Other jets (friend or enemy) show up as moving lights in the dark, and your own wingtips glow in the outside view.
+- Carrier deck lights sat so low that the deck hid most of them. They now outline the landing area and the deck edge properly at night.
+- Night vision: the high, thin cirrus clouds no longer glow bright green overhead. They were not being darkened at night at all.
+- Pitch black: the cockpit screens and other dim lights are no longer crushed to black, so your displays stay readable without night vision.
+
 ## v4.37.0 — Carrier polish (2026-10-03)
 
 - New carrier landing aid: with the gear down behind a friendly carrier, a copy of the deck's lens (the meatball) shows up next to your HUD. Keep the amber ball level with the green bars; it turns red when you are dangerously low. Under it a line-up marker shows where the centreline is, with a call (HIGH, LOW, COME LEFT, COME RIGHT or ON) and the range. If you forgot the hook it flashes HOOK UP. It works in the cockpit and from outside the jet.

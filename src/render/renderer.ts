@@ -10,7 +10,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import type { GraphicsOptions } from '../core/settings';
 import { installAltitudeFog } from './fog';
 import { VisionShader, VisionState } from './vision';
-import { NightShader, NIGHT } from './night';
+import { NightShader, NIGHT, updateLights } from './night';
 import { DropletShader, ScreenDroplets } from './droplets';
 import { HeatHazeShader, HazeSource, writeHaze } from './heatHaze';
 
@@ -354,6 +354,7 @@ export class GameRenderer {
     // pitch black night and the night-vision goggles
     const nu = this.nightPass.uniforms;
     this.nightPass.enabled = NIGHT.dark || NIGHT.nvg;
+    updateLights();
     nu.dark.value = NIGHT.dark ? 1 : 0;
     nu.nvg.value = NIGHT.nvg ? 1 : 0;
     nu.tube.value = NIGHT.tube ? 1 : 0;

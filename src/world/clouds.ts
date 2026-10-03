@@ -13,6 +13,7 @@ function smoothstepN(a: number, b: number, x: number): number {
 }
 import { getCloudPuffTexture, tileableNoiseData } from '../render/textures';
 import { Environment } from '../render/environment';
+import { NIGHT } from '../render/night';
 import { MAP_HALF } from '../core/constants';
 import { TERRAIN_LIGHT } from '../render/terrainLight';
 import { Weather, WEATHER_PRESETS, CloudDeck, deckFor } from './weather';
@@ -545,6 +546,8 @@ export class CloudSystem {
     this.cirrus.position.x = Math.round(cam.x / 20000) * 20000;
     this.cirrus.position.z = Math.round(cam.z / 20000) * 20000;
     const mat = this.cirrus.material as THREE.MeshBasicMaterial;
+    // unlit, so it must be dimmed by hand: in a pitch-black night only starlight touches it
+    mat.color.setScalar(NIGHT.dark ? 0.012 + this.flash * 0.6 : 1);
     if (mat.map) mat.map.offset.set(this.cirrus.position.x / 20000 / 60, -this.cirrus.position.z / 20000 / 60);
   }
 

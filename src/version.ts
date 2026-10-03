@@ -10,6 +10,18 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.38.0',
+    date: '2026-10-03',
+    title: "Lights in the dark",
+    notes: [
+      "Pitch-black nights are easier to fly: runway, approach and carrier deck lights now stay visible as bright points however far away they are, so you can find a runway or a ship from miles out with the naked eye.",
+      "Every jet now shows its navigation lights at night: red on the left wingtip, green on the right, and a flashing white strobe. Other jets (friend or enemy) show up as moving lights in the dark, and your own wingtips glow in the outside view.",
+      "Carrier deck lights sat so low that the deck hid most of them. They now outline the landing area and the deck edge properly at night.",
+      "Night vision: the high, thin cirrus clouds no longer glow bright green overhead. They were not being darkened at night at all.",
+      "Pitch black: the cockpit screens and other dim lights are no longer crushed to black, so your displays stay readable without night vision.",
+    ],
+  },
+  {
     version: '4.37.0',
     date: '2026-10-03',
     title: "Carrier polish",

@@ -4,6 +4,7 @@
 // Static structures only -- there are no ground vehicles in this theater.
 
 import * as THREE from 'three';
+import { keepLightsVisible } from '../render/night';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { AIRFIELDS, AirfieldDef } from './islands';
 import { makePavementTexture, makeTextTexture, getSoftDotTexture } from '../render/textures';
@@ -379,16 +380,19 @@ export class AirfieldView {
     lg.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
     this.lights = new THREE.Points(
       lg,
-      new THREE.PointsMaterial({
-        size: 2.2,
-        sizeAttenuation: true,
-        vertexColors: true,
-        map: getSoftDotTexture(),
-        transparent: true,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-        opacity: 0.8,
-      }),
+      keepLightsVisible(
+        new THREE.PointsMaterial({
+          size: 2.2,
+          sizeAttenuation: true,
+          vertexColors: true,
+          map: getSoftDotTexture(),
+          transparent: true,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+          opacity: 0.9,
+          toneMapped: false,
+        }),
+      ),
     );
     g.add(this.lights);
 

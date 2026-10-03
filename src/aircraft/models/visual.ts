@@ -4,7 +4,8 @@
 // diamonds, navigation / strobe lights and the stores on each station.
 
 import * as THREE from 'three';
-import { NIGHT } from '../../render/night';
+import { NIGHT, keepLightsVisible } from '../../render/night';
+import { getSoftDotTexture } from '../../render/textures';
 import type { Aircraft } from '../aircraft';
 import type { WeaponBay } from '../specs';
 import { airframeMaterials, Section } from './builder';
@@ -241,6 +242,9 @@ export class AirframeVisual {
   private burnerOf = new Map<THREE.Material, number>();
   private navLights: { mesh: THREE.Object3D; kind: 'red' | 'green' | 'strobe' | 'formation' }[] = [];
   private strobeT = Math.random() * 2;
+  /** pitch black: the nav lights and strobes as glowing points that carry for miles */
+  private navGlow: THREE.Points | null = null;
+  private strobeGlow: THREE.Points | null = null;
   private t = 0;
   canopy: THREE.Mesh | null = null;
   /** loft sections, so the cockpit interior can follow the real canopy / fuselage shape */
@@ -1126,6 +1130,44 @@ export class AirframeVisual {
       if (l.kind === 'strobe') l.mesh.visible = strobeOn && alive;
       else l.mesh.visible = alive;
     }
+    if (NIGHT.dark && !this.navGlow && this.navLights.length) this.buildNavGlow();
+    if (this.navGlow) {
+      const show = NIGHT.dark && alive && !this.insideView;
+      this.navGlow.visible = show;
+      this.strobeGlow!.visible = show && strobeOn;
+    }
+  }
+
+  private buildNavGlow(): void {
+    this.root.updateMatrixWorld(true);
+    const inv = this.root.matrixWorld.clone().invert();
+    const v = new THREE.Vector3();
+    const mk = (kinds: string[], size: number): THREE.Points => {
+      const pos: number[] = [];
+      const col: number[] = [];
+      for (const l of this.navLights) {
+        if (!kinds.includes(l.kind)) continue;
+        v.setFromMatrixPosition(l.mesh.matrixWorld).applyMatrix4(inv);
+        pos.push(v.x, v.y, v.z);
+        const c = l.kind === 'red' ? [1, 0.12, 0.06] : l.kind === 'green' ? [0.1, 1, 0.3] : l.kind === 'formation' ? [0.35, 0.6, 0.25] : [1, 1, 1];
+        col.push(...c);
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+      const pts = new THREE.Points(
+        g,
+        keepLightsVisible(
+          new THREE.PointsMaterial({ size, sizeAttenuation: true, vertexColors: true, map: getSoftDotTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
+        ),
+      );
+      pts.frustumCulled = false;
+      pts.visible = false;
+      this.root.add(pts);
+      return pts;
+    };
+    this.navGlow = mk(['red', 'green', 'formation'], 1.6);
+    this.strobeGlow = mk(['strobe'], 4);
   }
 
   /**

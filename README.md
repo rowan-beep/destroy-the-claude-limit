@@ -19,8 +19,8 @@ terrain against you.
 
 **Windows app:** [download TRIAD-Air-Combat.exe](https://github.com/rowan-beep/destroy-the-claude-limit/releases/download/desktop/TRIAD-Air-Combat.exe) (portable, updates itself).
 
-Current version: **v4.37.0** — see [CHANGELOG.md](CHANGELOG.md) (also in the game
-under **v4.37.0 · NOTES** on the main menu).
+Current version: **v4.38.0** — see [CHANGELOG.md](CHANGELOG.md) (also in the game
+under **v4.38.0 · NOTES** on the main menu).
 
 Each jet is a high-detail procedural model: about 250k-390k triangles for the jets
 around you, and a hero build with about 10x that (2.5-4 million triangles) for your

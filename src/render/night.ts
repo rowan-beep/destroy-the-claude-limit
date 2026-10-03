@@ -16,6 +16,32 @@ export const NIGHT = {
   tube: false,
 };
 
+/** Shared by every light-point material: the smallest a light may shrink to on screen (px). */
+export const LIGHT_MIN_PX = { value: 1.2 };
+const LIGHT_MATS = new Set<THREE.PointsMaterial>();
+
+/** Per frame: in a pitch-black night the lights are what the eye adapts to, so they burn brighter. */
+export function updateLights(): void {
+  LIGHT_MIN_PX.value = NIGHT.dark ? 3 : 0;
+  const k = NIGHT.dark ? 3 : 1;
+  for (const m of LIGHT_MATS) m.color.setScalar(k);
+}
+
+/**
+ * Runway, deck and ship lights are points sized in metres, so far off they shrink below
+ * a pixel and vanish; real lights stay a bright dot however far away they are. This
+ * keeps them at least LIGHT_MIN_PX across (larger in a pitch-black night).
+ */
+export function keepLightsVisible(mat: THREE.PointsMaterial): THREE.PointsMaterial {
+  LIGHT_MATS.add(mat);
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.lightMinPx = LIGHT_MIN_PX;
+    sh.vertexShader = 'uniform float lightMinPx;\n' + sh.vertexShader.replace('#include <fog_vertex>', 'gl_PointSize = max( gl_PointSize, lightMinPx );\n#include <fog_vertex>');
+  };
+  mat.customProgramCacheKey = () => 'lightMinPx';
+  return mat;
+}
+
 export const NightShader = {
   name: 'NightShader',
   uniforms: {
@@ -82,7 +108,8 @@ export const NightShader = {
         c.rgb = col;
       } else if ( dark > 0.5 ) {
         // the naked eye in a moonless night: only light sources show
-        c.rgb = c.rgb * 0.02 + max( c.rgb - 0.6, 0.0 ) * 1.1;
+        // (the lit scene is near black already; anything brighter than that is a light)
+        c.rgb = c.rgb * 0.03 + max( c.rgb - 0.22, 0.0 ) * 1.3;
       }
       gl_FragColor = c;
     }
