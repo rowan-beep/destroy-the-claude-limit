@@ -10,6 +10,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.40.1',
+    date: '2026-10-03',
+    title: "X-15 flies clean",
+    notes: [
+      "The X-15 now flies clean, like the real one in its NASA colours: the two big red and white drop tanks are gone. It still reaches about 354,000 ft, and climbing to 100,000 ft and levelling off with the rocket burning takes it past Mach 6.",
+    ],
+  },
+  {
     version: '4.40.0',
     date: '2026-10-03',
     title: "X-15: to the edge of space",

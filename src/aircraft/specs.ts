@@ -1170,7 +1170,7 @@ const SR71: AircraftSpec = {
 
 
 // ---------------------------------------------------------------------------
-// North American X-15 (X-15A-2 with its drop tanks as an option)
+// North American X-15
 // ---------------------------------------------------------------------------
 const X15: AircraftSpec = {
   type: 'X15',
@@ -1179,7 +1179,7 @@ const X15: AircraftSpec = {
   role: 'Rocket-powered hypersonic research aircraft (unarmed)',
   crew: 1,
   description:
-    'The fastest and highest-flying winged aircraft ever flown by a pilot: Mach 6.72 (4,520 mph) and 354,200 ft, above the edge of space. A black Inconel X nickel-steel skin takes 1,200 °F of friction heat. It is dropped from under the wing of a B-52 at 45,000 ft, lights its Thiokol XLR99 rocket (57,000 lb of thrust, about 80 seconds of propellant) and climbs like nothing else. Above the air the tail surfaces do nothing: small hydrogen-peroxide thrusters in the nose and wingtips point it. Then it falls back into the atmosphere at a steep angle of attack and glides home without power to land on skids. The X-15A-2 option carries two big drop tanks for the Mach 6.7 speed run. Unarmed; flown in free flight only.',
+    'The fastest and highest-flying winged aircraft ever flown by a pilot: Mach 6.72 (4,520 mph) and 354,200 ft, above the edge of space. A black Inconel X nickel-steel skin takes 1,200 °F of friction heat. It is dropped from under the wing of a B-52 at 45,000 ft, lights its Thiokol XLR99 rocket (57,000 lb of thrust, about 80 seconds of propellant) and climbs like nothing else. Above the air the tail surfaces do nothing: small hydrogen-peroxide thrusters in the nose and wingtips point it. Then it falls back into the atmosphere at a steep angle of attack and glides home without power to land on skids. Unarmed; flown in free flight only.',
   lengthFt: 50.25,
   wingspanFt: 22.33,
   heightFt: 13,
@@ -1245,15 +1245,9 @@ const X15: AircraftSpec = {
     dispersionMil: 1,
     port: [0, 0, -8],
   },
-  // the X-15A-2's two drop tanks, along the lower fuselage under the wing roots
-  stations: [
-    { id: 1, label: 'TANK L', pos: [-0.95, -0.95, 0.6], allowed: [TANK], mount: 'pylon' },
-    { id: 2, label: 'TANK R', pos: [0.95, -0.95, 0.6], allowed: [TANK], mount: 'pylon' },
-  ],
-  loadouts: [
-    { id: 'x15-altitude', name: 'ALTITUDE — internal propellant (the 354,000 ft flight)', stores: {} },
-    { id: 'x15-speed', name: 'SPEED — X-15A-2 with two drop tanks (the Mach 6.7 flight)', stores: { 1: TANK, 2: TANK } },
-  ],
+  // clean: no pylons, no drop tanks
+  stations: [],
+  loadouts: [{ id: 'x15-clean', name: 'CLEAN — internal propellant only', stores: {} }],
   radar: { name: 'None (research instrumentation, ball nose air-data probe)', kind: 'PESA', rangeNm: 1, azLimitDeg: 10, elLimitDeg: 10, maxTracks: 1, frameTime: 4 },
   irst: null,
   ew: { name: 'None', maws: false, jamming: 0, autoDispense: false },
@@ -1269,8 +1263,6 @@ const X15: AircraftSpec = {
   paint: { top: '#16171a', bottom: '#1a1b1e', accent: '#f0c419' },
   rocket: { vacLbf: 61000, minThrottle: 0.5 },
   reaction: { pitch: 0.4, roll: 0.9, yaw: 0.3 },
-  // the X-15A-2's tanks (with its heavier airframe and heat-shield coating counted in): 56,130 lb at launch
-  tank: { fuel: 2800, mass: 2570, dropWhenEmpty: true },
   airLaunch: { altFt: 45000, kts: 420, carrier: 'B-52' },
 };
 

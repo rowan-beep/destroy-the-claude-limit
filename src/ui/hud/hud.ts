@@ -439,7 +439,7 @@ export class Hud {
     // stores
     clearEl(this.stores);
     const sel = p.selectedWeapon;
-    if (p.spec.stations.length === 0) el('div', 'pline', this.stores, 'UNARMED: CAMERAS · IR · ASARS · ELINT');
+    if (p.spec.stations.length === 0) el('div', 'pline', this.stores, p.spec.rocket ? 'UNARMED: RESEARCH INSTRUMENTS' : 'UNARMED: CAMERAS · IR · ASARS · ELINT');
     else {
       const selName = sel === 'GUN' ? p.spec.gun.name.split(' ').slice(0, 2).join(' ') : weaponShort(sel);
       const lockTxt = isBomb(sel) ? (p.groundTarget ? `TGT ${p.groundTarget.label}` : 'NO TGT: [R]') : p.lockedTarget ? `LOCK ${p.lockedTarget.spec.shortName.toUpperCase()} ${(p.distanceTo(p.lockedTarget) / NM).toFixed(1)}NM`   : sel === p.irMissile ? (p.seekerTarget ? 'SEEKER LOCK' : 'SEEKER SEARCH') : 'NO LOCK: [R]';

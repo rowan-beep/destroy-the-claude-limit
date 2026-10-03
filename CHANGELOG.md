@@ -3,6 +3,10 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.40.1 — X-15 flies clean (2026-10-03)
+
+- The X-15 now flies clean, like the real one in its NASA colours: the two big red and white drop tanks are gone. It still reaches about 354,000 ft, and climbing to 100,000 ft and levelling off with the rocket burning takes it past Mach 6.
+
 ## v4.40.0 — X-15: to the edge of space (2026-10-03)
 
 - New jet: the North American X-15, the rocket plane that flew to the edge of space. It is dropped from under a B-52 at 45,000 ft with the engine off. Throttle up to light the XLR99 rocket (57,000 lb of thrust, about 80 seconds of propellant), pull up to about 42 degrees and hold it: it burns out near 175,000 ft at Mach 5.5 and coasts up to about 354,000 ft, the real record. Climb steeper and it goes higher still.

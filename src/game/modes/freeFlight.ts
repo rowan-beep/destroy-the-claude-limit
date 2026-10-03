@@ -21,7 +21,7 @@ export class FreeFlightMode extends GameMode {
     if (p.spec.airLaunch) {
       h.order(
         'X-15 RESEARCH FLIGHT',
-        `Dropped from the ${p.spec.airLaunch.carrier} at ${p.spec.airLaunch.altFt.toLocaleString('en-US')} ft. Throttle up to light the rocket, pull up to about 42 degrees (that is the 354,000 ft record profile; steeper goes higher) and hold it until the propellant runs out, about 80 seconds: you will coast up through the edge of space. For the Mach 6.7 speed run take the drop tanks, climb to 100,000 ft and level off. Above the air only the thrusters point the nose. Coming back down, hold 20-25 degrees angle of attack, then glide home to ${f.name} without power.`,
+        `Dropped from the ${p.spec.airLaunch.carrier} at ${p.spec.airLaunch.altFt.toLocaleString('en-US')} ft. Throttle up to light the rocket, pull up to about 42 degrees (that is the 354,000 ft record profile; steeper goes higher) and hold it until the propellant runs out, about 80 seconds: you will coast up through the edge of space. For top speed, climb to about 100,000 ft and level off with the rocket still burning. Above the air only the thrusters point the nose. Coming back down, hold 20-25 degrees angle of attack, then glide home to ${f.name} without power.`,
         16,
       );
       return;
