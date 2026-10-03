@@ -128,6 +128,8 @@ export interface AircraftSpec {
   kInduced: number;
   clAlpha: number; // per radian (subsonic)
   clMax: number;
+  /** extra lift at zero AoA from landing flaps (out with the gear, slow); jets without it fly it on AoA alone */
+  flapCl0?: number;
   alphaMaxDeg: number; // FBW alpha limit
   maxMach: number;
   ceilingFt: number;
@@ -971,6 +973,8 @@ const MIG31: AircraftSpec = {
   kInduced: 0.125,
   clAlpha: 3.4,
   clMax: 1.55,
+  // big plain flaps and leading-edge flaps: a heavy jet that still lands at about 150 kt
+  flapCl0: 0.45,
   alphaMaxDeg: 20,
   maxMach: 2.83,
   ceilingFt: 67600,

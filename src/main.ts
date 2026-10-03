@@ -229,7 +229,7 @@ async function boot(): Promise<void> {
     });
   }
   game.onNetLost = (reason) => {
-    mp.jet = menu.cfg.aircraft;
+    mp.jet = jetAllowedIn(menu.cfg.aircraft, 'online') ? menu.cfg.aircraft : 'F15EX';
     mp.show(true);
     mp.setStatus(`DISCONNECTED: ${reason}`);
   };
@@ -318,7 +318,7 @@ async function boot(): Promise<void> {
   // came back from loading a server's theater: finish joining
   const pj = takePendingJoin();
   if (pj) {
-    mp.jet = menu.cfg.aircraft;
+    mp.jet = jetAllowedIn(menu.cfg.aircraft, 'online') ? menu.cfg.aircraft : 'F15EX';
     mp.show(true);
     mp.setStatus('CONNECTING…');
     join({ url: pj.url, room: pj.room, map: activeMap.id, callsign: loadNetPrefs().callsign || 'PILOT' }).catch((e) => mp.setStatus(`COULD NOT JOIN: ${(e as Error).message}`));

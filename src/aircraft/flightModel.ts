@@ -444,29 +444,37 @@ export class FlightModel {
     return c;
   }
 
+  /** Lift the landing flaps add at zero angle of attack: they come out with the gear, slow. */
+  private flapCl0(M: number): number {
+    const f = this.spec.flapCl0;
+    return f ? f * this.gearPos * (1 - smoothstep(0.35, 0.5, M)) : 0;
+  }
+
   clOf(alpha: number, M: number): number {
     const a = this.clAlphaAt(M);
     const cmax = this.clMaxEff(M);
-    if (alpha >= 0) {
-      const lin = cmax * Math.tanh((a * alpha) / cmax);
+    const x = a * alpha + this.flapCl0(M);
+    if (x >= 0) {
+      const lin = cmax * Math.tanh(x / cmax);
       // mild post-stall loss beyond the AoA limit
       const post = smoothstep(this.spec.alphaMaxDeg * DEG + 0.08, this.spec.alphaMaxDeg * DEG + 0.5, alpha);
       return lin * (1 - 0.45 * post);
     }
     const nmax = cmax * 0.75;
-    return -nmax * Math.tanh((a * -alpha) / nmax);
+    return -nmax * Math.tanh(-x / nmax);
   }
 
   alphaForCl(cl: number, M: number): number {
     const a = this.clAlphaAt(M);
     const cmax = this.clMaxEff(M);
+    const d0 = this.flapCl0(M);
     if (cl >= 0) {
       const r = Math.min(cl / cmax, 0.995);
-      return (Math.atanh(r) * cmax) / a;
+      return (Math.atanh(r) * cmax - d0) / a;
     }
     const nmax = cmax * 0.75;
     const r = Math.min(-cl / nmax, 0.995);
-    return (-Math.atanh(r) * nmax) / a;
+    return (-Math.atanh(r) * nmax - d0) / a;
   }
 
   cdOf(cl: number, M: number): number {
