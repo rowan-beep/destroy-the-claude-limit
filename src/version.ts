@@ -10,6 +10,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.45.1',
+    date: '2026-10-04',
+    title: "Inverted vertical look in the space menu",
+    notes: [
+      "Space menu: dragging up and down to look around is now inverted. Left and right work the same as before.",
+    ],
+  },
+  {
     version: '4.45.0',
     date: '2026-10-04',
     title: "A living launch site and a real shoreline",

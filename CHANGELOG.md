@@ -3,6 +3,10 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.45.1 — Inverted vertical look in the space menu (2026-10-04)
+
+- Space menu: dragging up and down to look around is now inverted. Left and right work the same as before.
+
 ## v4.45.0 — A living launch site and a real shoreline (2026-10-04)
 
 - Every car around the launch site is rebuilt with a real shape: sedans, hatchbacks, SUVs, pickups and vans with curved bodies, glass, glossy clear-coated paint, wheels with silver hubs, and head and tail lights. They park in painted bays in a car park and along the road, and traffic now drives up and down the coast road with its headlights on.
