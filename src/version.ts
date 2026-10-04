@@ -10,6 +10,18 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.45.0',
+    date: '2026-10-04',
+    title: "A living launch site and a real shoreline",
+    notes: [
+      "Every car around the launch site is rebuilt with a real shape: sedans, hatchbacks, SUVs, pickups and vans with curved bodies, glass, glossy clear-coated paint, wheels with silver hubs, and head and tail lights. They park in painted bays in a car park and along the road, and traffic now drives up and down the coast road with its headlights on.",
+      "The crawler crane is rebuilt: tracks with shoe plates, a machinery house with louvres, an operator's cab with windows, a stacked counterweight and an A-frame gantry. Its lattice boom now tapers at both ends and is braced on all four sides, with pendant lines and hoist ropes down to a hook block. The small crane is now a real truck crane, with a telescopic boom, ten wheels and outriggers.",
+      "The site buildings have rows of windows (a few still lit), parapets, rooftop air handlers with fans, vent stacks, roll-up bay doors, entrance canopies with lamps, and outside stairs.",
+      "Lots of new things around the pad: fuel tankers at the tank farm, box trucks, a shuttle bus, three tracking dishes and a radome, stacks of shipping containers, and concrete barriers. There's also a gatehouse with a boom barrier on a new access road, street lights, two mobile lighting towers on the pad, a windsock, a half-buried concrete blockhouse, a pipe rack from the tank farm to the pad, and sand fences along the dunes.",
+      "The beach meets the sea properly now. The water is glass-clear over the sand at the edge, turquoise in the shallows and deep blue-green further out. Lines of breakers roll in with lacy foam behind each crest, a sheet of water washes up the sand and slides back, and the sand is dark and glossy where the waves have been.",
+    ],
+  },
+  {
     version: '4.44.0',
     date: '2026-10-04',
     title: "A sunrise launch site and a new space menu",
