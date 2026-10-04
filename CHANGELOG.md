@@ -3,6 +3,10 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.42.1 — SR-71 slimmed down (2026-10-04)
+
+- SR-71 reshaped to match the real three-view: no more wedge. The forebody is now long and slim, with the nose tapering over its first six metres before the body and chines run parallel back to the wing. The inner wing starts much further aft, and the outer wing panels are smaller and set back behind the nacelles, so the Blackbird has its long, thin, elongated look.
+
 ## v4.42.0 — F-22 underside and SR-71 front end (2026-10-04)
 
 - F-22 underside redone after photos of the real jet, keeping the working weapons-bay doors. The belly is now a neutral metallic grey with a patchwork of radar-absorbent panels in slightly different shades. You can see the big boxy intake-duct panels down each side, sawtooth edges on the bay doors, the small black diamond vents by the engines, lighter heat-resistant panels over the engine bays, flaperon breaks on the wings, and fluid streaks running aft.

@@ -10,6 +10,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.42.1',
+    date: '2026-10-04',
+    title: "SR-71 slimmed down",
+    notes: [
+      "SR-71 reshaped to match the real three-view: no more wedge. The forebody is now long and slim, with the nose tapering over its first six metres before the body and chines run parallel back to the wing. The inner wing starts much further aft, and the outer wing panels are smaller and set back behind the nacelles, so the Blackbird has its long, thin, elongated look.",
+    ],
+  },
+  {
     version: '4.42.0',
     date: '2026-10-04',
     title: "F-22 underside and SR-71 front end",

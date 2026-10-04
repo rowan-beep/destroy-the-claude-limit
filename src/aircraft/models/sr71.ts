@@ -47,17 +47,18 @@ function chined(R: number, xc: number, cy: number): P2[] {
 
 // z, body radius, chine half-width, body centre height
 const BODY_KEYS: [number, number, number, number][] = [
+  // a long, slim forebody: the nose tapers over its first six metres, then the
+  // body and its chines run parallel back to the wing (as in the three-view)
   [-18.6, 0.012, 0.016, 0.0],
-  [-17.8, 0.14, 0.22, 0.0],
-  [-16.5, 0.38, 0.68, 0.05],
-  [-15.0, 0.58, 1.06, 0.1],
-  [-13.0, 0.72, 1.48, 0.14],
-  [-11.0, 0.78, 1.9, 0.15],
-  [-9.0, 0.8, 2.28, 0.15],
-  [-7.0, 0.79, 2.7, 0.15],
-  [-5.5, 0.75, 3.1, 0.14],
-  [-4.0, 0.77, 3.42, 0.14],
-  [-2.0, 0.78, 2.0, 0.14],
+  [-17.8, 0.14, 0.24, 0.0],
+  [-16.5, 0.38, 0.72, 0.05],
+  [-15.0, 0.56, 1.16, 0.1],
+  [-13.5, 0.68, 1.48, 0.13],
+  [-12.0, 0.74, 1.62, 0.15],
+  [-9.0, 0.78, 1.65, 0.15],
+  [-6.0, 0.78, 1.67, 0.15],
+  [-4.0, 0.78, 1.72, 0.14],
+  [-2.0, 0.78, 1.3, 0.14],
   [0.0, 0.78, 0.86, 0.13],
   [4.0, 0.74, 0.79, 0.11],
   [8.0, 0.62, 0.66, 0.08],
@@ -93,12 +94,13 @@ const RSO_EYE = new THREE.Vector3(0, 1.11, -9.35);
 const NAC_X = 4.0;
 const NAC_Y = -0.02;
 const WING: WingStation[] = [
-  { x: 0.7, le: -9.6, te: 10.7, y: -0.01, t: 0.024 },
-  { x: 2.2, le: -8.3, te: 10.6, y: -0.01, t: 0.024 },
-  { x: 3.25, le: -4.5, te: 10.3, y: -0.02, t: 0.026 },
-  { x: 4.7, le: -1.6, te: 9.9, y: -0.05, t: 0.03 },
-  { x: 7.4, le: 4.4, te: 9.0, y: -0.12, t: 0.034 },
-  { x: 8.47, le: 6.9, te: 8.6, y: -0.15, t: 0.04 },
+  { x: 0.7, le: -3.9, te: 10.7, y: -0.01, t: 0.024 },
+  { x: 1.75, le: -3.4, te: 10.6, y: -0.01, t: 0.024 },
+  { x: 3.25, le: -1.4, te: 10.3, y: -0.02, t: 0.026 },
+  { x: 4.7, le: 1.2, te: 9.9, y: -0.05, t: 0.03 },
+  { x: 5.6, le: 2.6, te: 9.6, y: -0.08, t: 0.032 },
+  { x: 7.4, le: 6.1, te: 9.0, y: -0.12, t: 0.034 },
+  { x: 8.47, le: 8.1, te: 8.6, y: -0.15, t: 0.04 },
 ];
 const wingLe = (x: number): number => {
   for (let i = 0; i < WING.length - 1; i++) {
@@ -195,14 +197,14 @@ function livery(team: string): Livery {
   for (const sx of [-1, 1]) {
     const W = (x: number, z: number) => T(x * sx, z);
     line(gt, [W(0.62, -6.6), W(0.62, 9.6), W(1.15, 10.0), W(3.0, 10.0), W(3.0, 9.0)], 3.6, RED);
-    line(gt, [W(1.0, -4.0), W(2.85, -2.6), W(2.95, 8.4)], 3.6, RED);
-    line(gt, [W(0.62, -6.6), W(1.0, -6.6), W(1.0, -4.0)], 3.6, RED);
+    line(gt, [W(1.0, -3.3), W(2.7, -2.0), W(2.95, 8.4)], 3.6, RED);
+    line(gt, [W(0.62, -6.6), W(1.0, -6.6), W(1.0, -3.3)], 3.6, RED);
     // the red no-step border along the chine up to the cockpit, as on the real jet
     line(gt, [W(0.75, -12.4), W(0.85, -9.0), W(0.75, -6.6)], 2.6, RED);
   }
   // the radome joint near the nose: a darker band all the way round
-  for (const [g, M, k] of [[gt, T, L.pt], [gb, B, L.pb]] as const) line(g, [M(-0.6, -16.4), M(0.6, -16.4)], 0.14 * k, 'rgba(3,3,4,0.95)');
-  line(gs, [S(-16.4, -0.5), S(-16.4, 0.5)], 0.14 * L.ps, 'rgba(3,3,4,0.95)');
+  for (const [g, M, k] of [[gt, T, L.pt], [gb, B, L.pb]] as const) line(g, [M(-0.7, -15.6), M(0.7, -15.6)], 0.14 * k, 'rgba(3,3,4,0.95)');
+  line(gs, [S(-15.6, -0.6), S(-15.6, 0.6)], 0.14 * L.ps, 'rgba(3,3,4,0.95)');
   weather(gt, L.top.width, L.top.height, rnd, 0.45, [0, 1]);
   weather(gb, L.bot.width, L.bot.height, rnd, 0.4, [0, 1]);
   weather(gs, L.side.width, L.side.height, rnd, 0.4, [1, 0.1]);
