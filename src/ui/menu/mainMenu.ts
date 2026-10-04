@@ -20,6 +20,7 @@ import { MISSILES } from '../../weapons/weaponSpecs';
 import { LIBRARY } from '../../aircraft/library';
 import { loadLogbook } from '../../game/logbook';
 import { loadNetPrefs } from '../../net/servers';
+import { programLogo, Program } from './program';
 import type { TimeOfDay } from '../../render/environment';
 
 const DIFF_TEXT: Record<Difficulty, string> = {
@@ -62,6 +63,8 @@ export interface MainMenuCallbacks {
   onCustomize: (t: AircraftType) => void;
   onMultiplayer: () => void;
   onLibrary: () => void;
+  /** switch to the other program (space exploration) */
+  onProgram?: (p: Program) => void;
   /** studio portrait of a jet (image URL, '' if unavailable) */
   thumbnail?: (t: AircraftType) => string;
 }
@@ -93,9 +96,7 @@ export class MainMenu {
 
     // --- navigation rail -------------------------------------------------------------------------------------------
     const rail = el('nav', 'mm-rail mm-block', this.root);
-    const logo = el('div', 'mm-logo', rail);
-    el('div', 'mm-logo-mark', logo, 'TRIAD');
-    el('div', 'mm-logo-sub', logo, 'AIR COMBAT SIMULATOR');
+    programLogo(rail, 'air', 'AIR COMBAT SIMULATOR', (p) => cb.onProgram?.(p));
     const nav = el('div', 'mm-nav', rail);
     const sec = (id: Section, n: string, label: string, sub: string) => {
       const b = el('button', 'mm-nav-item', nav);

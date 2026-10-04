@@ -15,6 +15,9 @@ import { WeatherWidget } from './ui/weatherWidget';
 import { MainMenu } from './ui/menu/mainMenu';
 import { PerfWatch } from './ui/perfWarning';
 import { Hangar } from './ui/menu/hangar';
+import { LaunchSite } from './ui/menu/launchSite';
+import { SpaceMenu } from './ui/menu/spaceMenu';
+import { loadProgram, saveProgram, Program } from './ui/menu/program';
 import { LoadingScreen, PauseMenu, ResultsScreen, ControlsModal, BriefingModal } from './ui/menu/screens';
 import { SettingsModal } from './ui/menu/settingsModal';
 import { LogbookModal } from './ui/menu/logbookScreen';
@@ -136,7 +139,50 @@ async function boot(): Promise<void> {
     },
     thumbnail: (t) => hangar.thumbnail(t),
   });
+  // --- the two programs: TRIAD air combat and SPACE EXPLORATION ------------------
+  // each keeps its own data; switching only swaps the menu and its 3D showcase
+  let program: Program = loadProgram();
+  let factory: LaunchSite | null = null;
+  const getFactory = (): LaunchSite => {
+    if (!factory) {
+      factory = new LaunchSite(game.renderer.renderer);
+      factory.drawWith = (sc, cam) => {
+        // outdoor daylight under a physical sky: a lower exposure than the hangar's
+        const r = game.renderer.renderer;
+        const e = r.toneMappingExposure;
+        r.toneMappingExposure = e * 0.95;
+        game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping);
+        r.toneMappingExposure = e;
+      };
+    }
+    return factory;
+  };
+  const setProgram = (p: Program) => {
+    program = p;
+    saveProgram(p);
+    audio.init();
+    audio.click();
+    showMenus(game.state === 'menu');
+    if (p === 'air') hangar.setJet(menu.cfg.aircraft, menu.cfg.loadoutId);
+  };
+  const showMenus = (v: boolean) => {
+    const space = program === 'space';
+    menu.show(v && !space);
+    spaceMenu.show(v && space);
+    if (factory) factory.active = v && space;
+    else if (v && space) getFactory().active = true;
+  };
+  const spaceMenu = new SpaceMenu(document.body, {
+    onProgram: (p) => setProgram(p),
+    onSettings: () => {
+      audio.init();
+      settingsModal.show(true);
+    },
+    onControls: () => controls.show(true, settings.input),
+  });
+
   menu = new MainMenu(document.body, cfg, {
+    onProgram: (p) => setProgram(p),
     onFly: (c) => void fly(c),
     onSettings: () => {
       audio.init();
@@ -256,7 +302,7 @@ async function boot(): Promise<void> {
   game.onResults = (r) => results.show(r);
 
   game.onStateChange = (s) => {
-    menu.show(s === 'menu');
+    showMenus(s === 'menu');
     briefing.show(s === 'briefing' ? game.briefing : null);
     hud.setVisible(s === 'playing' || s === 'paused' || s === 'results' || s === 'map' || s === 'briefing');
     pause.show(s === 'paused');
@@ -277,7 +323,8 @@ async function boot(): Promise<void> {
     const step = Math.min(dt, 0.1);
     game.renderer.adaptFrame(step);
     const sz = game.renderer.size;
-    hangar.render(step, sz.w, sz.h);
+    if (program === 'space') getFactory().render(step, sz.w, sz.h);
+    else hangar.render(step, sz.w, sz.h);
   };
   game.onAfterFrame = (dt) => {
     perfWatch.update(dt, game.state === 'playing', game.fps);

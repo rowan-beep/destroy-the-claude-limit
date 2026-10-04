@@ -795,3 +795,45 @@ body:has(#hud.cockpit-clean) .wx-widget { opacity: 0; pointer-events: none; }
 .perf-warn { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 9000; width: min(620px, calc(100vw - 32px)); box-sizing: border-box; padding: 14px 16px 12px; background: rgba(40, 10, 6, 0.94); border: 1px solid #ff7a3d; color: #ffe9dc; font-size: 13px; line-height: 1.45; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6); }
 .perf-warn b { display: block; color: #ffb547; letter-spacing: 0.12em; margin-bottom: 6px; font-size: 12px; }
 .perf-warn .perf-warn-x { margin-top: 10px; padding: 4px 18px; background: #ff7a3d; color: #1a0703; border: none; font-weight: 700; cursor: pointer; }
+
+/* ------------------------------------------------------------ program switch (logo dropdown) */
+.mm-logo-btn { display: flex; align-items: center; gap: 10px; padding: 0; background: none; border: none; cursor: pointer; color: inherit; }
+.mm-logo-arrow { font-size: 14px; color: var(--mm-acc); transition: transform 0.2s; margin-top: 4px; }
+.mm-logo-btn.open .mm-logo-arrow { transform: rotate(180deg); }
+.mm-logo { position: relative; }
+.mm-prog { position: absolute; left: 18px; right: -60px; top: 54px; z-index: 30; display: none; flex-direction: column; padding: 6px; background: rgba(8, 8, 10, 0.96); border: 1px solid var(--mm-line); border-radius: 8px; box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6); }
+.mm-prog.open { display: flex; }
+.mm-prog-item { display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; border-radius: 6px; background: transparent; border: 1px solid transparent; color: var(--mm-ink); text-align: left; cursor: pointer; }
+.mm-prog-item:hover { background: rgba(255, 255, 255, 0.06); }
+.mm-prog-item.on { border-color: var(--mm-acc); }
+.mm-prog-l { font-size: 13px; font-weight: 800; letter-spacing: 0.2em; }
+.mm-prog-s { font-size: 10.5px; color: var(--mm-dim); letter-spacing: 0.04em; }
+.mm-prog-item.space .mm-prog-l { color: #8fbcff; }
+.mm-prog-item.air .mm-prog-l { color: #ffc27a; }
+
+/* ------------------------------------------------------------ SPACE EXPLORATION: blue and black, white trim */
+.mm.sx { --mm-acc: #3d8bff; --mm-acc2: #a9cbff; --mm-ink: #f4f8ff; --mm-dim: #8ea3c2; --mm-glass: rgba(3, 8, 20, 0.8); --mm-line: rgba(140, 185, 255, 0.2);
+  background: radial-gradient(ellipse at 60% 45%, rgba(0, 0, 0, 0) 40%, rgba(1, 4, 12, 0.6) 100%), linear-gradient(90deg, rgba(2, 6, 16, 0.75) 0%, rgba(2, 6, 16, 0) 32%); }
+.mm.sx .mm-rail { background: linear-gradient(180deg, rgba(2, 6, 16, 0.95), rgba(4, 12, 30, 0.88)); border-right: 1px solid rgba(255, 255, 255, 0.22); box-shadow: inset -2px 0 0 rgba(61, 139, 255, 0.25); }
+.mm.sx .mm-logo-mark { background: linear-gradient(90deg, #fff, #9cc4ff); -webkit-background-clip: text; background-clip: text; }
+.mm.sx .mm-nav-item:hover { background: rgba(61, 139, 255, 0.1); }
+.mm.sx .mm-nav-item.on { background: linear-gradient(90deg, rgba(61, 139, 255, 0.28), rgba(61, 139, 255, 0)); border-left-color: #fff; }
+.mm.sx .mm-nav-n { color: #6fa8ff; }
+.mm.sx .mm-foot-btn:hover { border-color: rgba(255, 255, 255, 0.6); }
+.mm.sx .mm-pilot-badge { background: radial-gradient(circle at 35% 30%, #9cc4ff, #10357a); box-shadow: 0 0 16px rgba(61, 139, 255, 0.55); border: 1px solid rgba(255, 255, 255, 0.7); }
+.mm.sx .mm-panel, .mm.sx .mm-launch, .mm.sx .mm-pilot { border-color: rgba(255, 255, 255, 0.18); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08); }
+.mm.sx .mm-mode:hover { background: rgba(61, 139, 255, 0.1); }
+.mm.sx .mm-mode.on { background: linear-gradient(90deg, rgba(61, 139, 255, 0.24), rgba(61, 139, 255, 0.05)); border-color: rgba(255, 255, 255, 0.55); }
+.mm.sx .mm-tag { background: rgba(61, 139, 255, 0.22); color: #cfe0ff; }
+.mm.sx .mm-launch-btn { background: linear-gradient(90deg, #1f5fd6, #3d8bff); color: #fff; border: 1px solid rgba(255, 255, 255, 0.5); }
+.mm.sx .mm-launch-btn:hover { box-shadow: 0 8px 32px rgba(61, 139, 255, 0.5); }
+.mm.sx .mm-launch-btn.locked { background: linear-gradient(90deg, #121a2b, #18243b); color: #7d8fae; cursor: not-allowed; transform: none; box-shadow: none; }
+.mm.sx .mm-cap-k { color: #9cc4ff; }
+.sx-slot { margin-top: 6px; padding: 18px 16px; border: 1px dashed rgba(255, 255, 255, 0.3); border-radius: 8px; background: repeating-linear-gradient(135deg, rgba(61, 139, 255, 0.06) 0 10px, rgba(0, 0, 0, 0) 10px 20px); }
+.sx-slot-t { font-size: 15px; font-weight: 800; letter-spacing: 0.18em; }
+.sx-slot-s { font-size: 12px; color: var(--mm-dim); margin-top: 6px; line-height: 1.5; }
+.sx-soon { font-size: 9.5px; font-weight: 700; letter-spacing: 0.16em; padding: 2px 6px; border-radius: 3px; border: 1px solid rgba(255, 255, 255, 0.35); color: #dbe8ff; }
+.sx-dest { display: flex; align-items: center; gap: 12px; }
+.sx-orb { width: 34px; height: 34px; border-radius: 50%; flex: none; box-shadow: inset -6px -4px 10px rgba(0, 0, 0, 0.55), 0 0 12px rgba(120, 170, 255, 0.25); }
+.sx-kv { display: flex; justify-content: space-between; font-size: 12px; padding: 6px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.07); }
+.sx-kv span:first-child { color: var(--mm-dim); letter-spacing: 0.14em; font-size: 10.5px; }
