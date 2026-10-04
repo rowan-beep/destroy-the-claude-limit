@@ -3,6 +3,15 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.44.0 — A sunrise launch site and a new space menu (2026-10-04)
+
+- Space Exploration has a brand-new menu built like mission control. A glass top bar holds the program switch, three tabs with a sliding highlight, a live UTC clock and your commander badge. Panels slide in one after another when the menu opens, the big title types itself out letter by letter, the launch button sits in a slowly turning ring with status lights beside it, and switching tabs replays the animations. The menu is lighter too, so the view behind it shows through.
+- The launch site is rebuilt from the ground up as a sunrise over the sea. The sun sits right on the horizon behind the pad, gold at its heart, with rays fanning up through a deck of broken cloud. The clouds glow at their edges near the sun and turn rose and lilac further round. The sky fades from orange at the horizon to blue overhead.
+- New sea: waves drift in several directions at once, the sun throws a glittering path across the water toward you, and surf rolls in and breaks on the beach. The water is clear and sandy in the shallows and deep blue-green further out.
+- The land now runs all the way to the horizon instead of stopping after half a mile. Past the beach and dunes come scrub flats dotted with thousands of bushes and grass clumps, then hills and far mountains inland. A long, hazy shore closes the far side of the bay, with an island off to the right and ships out on the water. Distant land fades into golden haze toward the sun and lilac haze away from it.
+- The pad itself: a raised concrete hardstand with a sooted flame trench, an access ramp and scorched sand where the trench vents. Two lightning masts stand taller than the 145 m tower, which now has catwalks, an elevator and swing arms. A water tower stands beside the pad, two big propellant spheres join the tank farm, and the sheds are corrugated metal. Further inland you can see a vehicle assembly hall and a town. Gulls wheel over the pad.
+- Lighting is warm, low sunrise light with long shadows and soft skylight in the shade.
+
 ## v4.43.0 — Space Exploration (2026-10-04)
 
 - New: SPACE EXPLORATION. Click the arrow next to TRIAD at the top left of the menu to switch between TRIAD (air combat) and Space Exploration. The space program has its own blue, black and white menu: Missions, Launch Pad and Destinations, plus a commander card with its own record.

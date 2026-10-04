@@ -146,11 +146,12 @@ async function boot(): Promise<void> {
   const getFactory = (): LaunchSite => {
     if (!factory) {
       factory = new LaunchSite(game.renderer.renderer);
+      if (import.meta.env.DEV) Object.assign(window, { __site: factory });
       factory.drawWith = (sc, cam) => {
         // outdoor daylight under a physical sky: a lower exposure than the hangar's
         const r = game.renderer.renderer;
         const e = r.toneMappingExposure;
-        r.toneMappingExposure = e * 0.95;
+        r.toneMappingExposure = e * 1.05;
         game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping);
         r.toneMappingExposure = e;
       };
