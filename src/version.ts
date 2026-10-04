@@ -10,6 +10,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.41.1',
+    date: '2026-10-04',
+    title: "Contrail fix",
+    notes: [
+      "Contrails no longer show as a hard, glitchy straight line behind the jet. Every jet's trail now builds up softly a little way behind the engines. It fades out when you look straight down its length instead of collapsing into a thin stripe, and it follows the curve of the Earth up high.",
+      "Contrails only form in the altitude band where they really do (about 27,000 to 56,000 ft). There are none in the thin air near space.",
+    ],
+  },
+  {
     version: '4.41.0',
     date: '2026-10-03',
     title: "X-15 rebuilt, and a high-speed dive fix",

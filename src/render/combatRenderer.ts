@@ -507,11 +507,12 @@ export class CombatRenderer {
     const q = fm.quat;
     const tmp = new THREE.Vector3();
     // contrails at altitude
-    const wantContrail = alt > 8200 && !fm.onGround;
+    // (only in the band where they really form: none in the thin air near space)
+    const wantContrail = alt > 8200 && alt < 17000 && !fm.onGround;
     let cts = this.contrails.get(a);
     if (wantContrail) {
       if (!cts) {
-        cts = v.nozzles.map(() => this.trails.create({ width0: 1.2, width1: 22, life: 40, color: WHITE_SMOKE, alpha: 0.5 * Math.min(1, (alt - 8200) / 1500), spacing: 30 }));
+        cts = v.nozzles.map(() => this.trails.create({ width0: 3, width1: 26, life: 40, color: WHITE_SMOKE, alpha: 0.45 * Math.min(1, (alt - 8200) / 1500), spacing: 30, fadeIn: 1.2 }));
         this.contrails.set(a, cts);
       }
       v.nozzles.forEach((n, i) => {

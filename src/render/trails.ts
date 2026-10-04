@@ -13,7 +13,7 @@ varying float vSide;
 void main() {
   vColor = color4;
   vSide = side;
-  vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+  vec4 mvPosition = curveView( modelViewMatrix * vec4( position, 1.0 ) );
   gl_Position = projectionMatrix * mvPosition;
   #include <logdepthbuf_vertex>
   #include <fog_vertex>
@@ -45,6 +45,8 @@ export interface TrailStyle {
   color: THREE.Color;
   alpha: number;
   spacing: number;
+  /** seconds over which a new point fades in (a contrail forms behind the jet, not at the nozzle) */
+  fadeIn?: number;
 }
 
 export class Trail {
@@ -165,10 +167,17 @@ export class TrailRenderer {
         view.set(tr.xs[i] - cam.x, tr.ys[i] - cam.y, tr.zs[i] - cam.z);
         tmp.crossVectors(tan, view);
         const l = tmp.length();
+        // how side-on the ribbon is to the eye: looking straight along it, a flat ribbon
+        // collapses into a hard line, so it fades out there instead
+        const tl = tan.length(), vl = view.length();
+        const sideOn = tl > 1e-6 && vl > 1e-6 ? l / (tl * vl) : 1;
         if (l > 1e-6) tmp.multiplyScalar(w / l);
         else tmp.set(w, 0, 0);
         const x = tr.xs[i] - this.origin.x, y = tr.ys[i] - this.origin.y, z = tr.zs[i] - this.origin.z;
         let a = st.alpha * (1 - f) * (1 - f);
+        const sv = Math.min(1, Math.max(0, (sideOn - 0.06) / 0.3));
+        a *= sv * sv * (3 - 2 * sv);
+        if (st.fadeIn) a *= Math.min(1, age / st.fadeIn);
         // soften the head so it grows out of the emitter
         if (i === n - 1) a *= 0.3;
         for (let s = 0; s < 2; s++) {

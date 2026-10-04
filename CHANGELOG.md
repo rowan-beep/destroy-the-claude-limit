@@ -3,6 +3,11 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.41.1 — Contrail fix (2026-10-04)
+
+- Contrails no longer show as a hard, glitchy straight line behind the jet. Every jet's trail now builds up softly a little way behind the engines. It fades out when you look straight down its length instead of collapsing into a thin stripe, and it follows the curve of the Earth up high.
+- Contrails only form in the altitude band where they really do (about 27,000 to 56,000 ft). There are none in the thin air near space.
+
 ## v4.41.0 — X-15 rebuilt, and a high-speed dive fix (2026-10-03)
 
 - Fixed jets breaking apart in a fast dive into thicker, lower air. The overspeed drag that holds every jet to its top speed could brake so violently that it counted as a fatal over-G. It now slows you hard but safely, and only real G on the wings can overstress the airframe.
