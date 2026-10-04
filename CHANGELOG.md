@@ -3,6 +3,13 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.46.0 — The Saturn V (2026-10-04)
+
+- The Saturn V is on the pad. It's built at full scale, 110.6 m from the F-1 engines to the tip of the escape tower, stage by stage: the S-IC first stage with its five F-1s, four fins and engine fairings; the S-II on its interstage with the ullage motors; the S-IVB above its conical adapter; the Instrument Unit ring; then the Apollo spacecraft with the lunar module adapter, the service module with its thruster quads, the command module under its boost cover, and the orange launch escape tower.
+- It wears the Apollo paint scheme: white with the black-and-white roll pattern on the first stage, intertank, interstages and third stage, "USA" down the first stage, "UNITED STATES" and the flag, ribbed skirts and intertanks, and a little weathering.
+- The pad is ready for it. Four hold-down arms carry the rocket on the launch mount, the tower is now the red-orange of the real umbilical towers with a hammerhead crane on top, every swing arm reaches across to the rocket's skin, and the crew access arm ends in the white room at the command module hatch. Two searchlights light the vehicle, and liquid oxygen vapour drifts off its vents.
+- The Launch Pad page shows the Saturn V's figures: height, diameter, liftoff mass and thrust, payload to low orbit and to the Moon, and a card for each stage (engines, propellants, thrust, length, fuelled mass and burn time) plus the Instrument Unit's guidance computer.
+
 ## v4.45.1 — Inverted vertical look in the space menu (2026-10-04)
 
 - Space menu: dragging up and down to look around is now inverted. Left and right work the same as before.

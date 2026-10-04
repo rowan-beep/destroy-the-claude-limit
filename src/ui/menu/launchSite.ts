@@ -12,6 +12,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { buildSaturnV, saturnRadiusAt } from '../../space/saturnVModel';
 import { Fleet, containerTexture, crawlerCrane, facadeTexture, semiTruck, trackingDish, truckCrane, type PropMats } from './siteProps';
 
 const ZOOM_MIN = 0.35;
@@ -163,6 +164,7 @@ const NEAR = 6000; // the detailed ground round the site
 const FAR = 90000; // the land and sea run out to here
 const PAD_Y = 4; // the hardstand's deck
 const SEA_Y = -2.5; // the sea sits a little below the flattened site
+const ROCKET_Y = 24.5; // the base of the Saturn V's first stage, standing on the mount's hold-down arms
 const HAZE = 3.4e-5; // aerial perspective (exp2 density)
 
 // the coastline: straight past the site, wandering further out (shared by the ground and the sea shader)
@@ -399,6 +401,7 @@ export class LaunchSite {
   private oceanMat!: THREE.ShaderMaterial;
   private blinkers: THREE.Mesh[] = [];
   private steam: THREE.Sprite[] = [];
+  private vapour: THREE.Sprite[] = [];
   private birds!: THREE.InstancedMesh;
   private fleet = new Fleet();
   private traffic: { i: number; x: number; z: number; dir: number; v: number }[] = [];
@@ -826,6 +829,7 @@ export class LaunchSite {
     this.buildCrane();
     this.buildRoadAndYard();
     this.buildExtras();
+    this.buildVehicle();
     this.buildDistance();
     this.buildLife();
 
@@ -1010,11 +1014,13 @@ export class LaunchSite {
     rtop.position.y = deck + 1.6;
     rtop.castShadow = true;
     s.add(rtop);
-    for (let i = 0; i < 20; i++) {
-      const a = (i / 20) * Math.PI * 2;
-      const cl = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.4, 1.4), this.steel);
-      cl.position.set(Math.cos(a) * R, deck + 2.2, Math.sin(a) * R);
-      cl.rotation.y = -a;
+    // four hold-down arms between the fins carry the vehicle
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2;
+      const cl = new THREE.Mesh(new RoundedBoxGeometry(1.8, ROCKET_Y - deck - 1.6, 1.4, 2, 0.12), this.darkSteel);
+      cl.position.set(Math.sin(a) * 6.0, (deck + 1.6 + ROCKET_Y) / 2, Math.cos(a) * 6.0);
+      cl.rotation.y = a;
+      cl.castShadow = true;
       s.add(cl);
     }
     // floodlight masts on the hardstand corners, their lamps still burning at dawn
@@ -1091,17 +1097,42 @@ export class LaunchSite {
       }
     }
     b.box(cx, y0 + Ht + 2, cz, 15, 4, 15);
-    // swing arms reaching to where the vehicle will stand
-    for (const [y, len] of [[118, 22], [96, 22], [62, 20], [30, 18]] as [number, number][]) {
+    // swing arms reaching across to the vehicle's skin at each level
+    const armLevels = [116, 98, 79, 62, 44, 26];
+    for (const y of armLevels) {
+      const r = saturnRadiusAt(y0 + y - ROCKET_Y);
+      const len = cx - half - (r + 0.9);
       for (const dz of [-2, 2]) {
-        b.add(V(-half, y, dz), V(-half - len, y, dz * 0.6), 1.2, 1.8);
-        b.add(V(-half, y + 4, dz), V(-half - len * 0.85, y, dz * 0.6), 0.5);
+        b.add(V(-half, y, dz), V(-half - len, y, -cz + dz * 0.6), 1.0, 1.6);
+        b.add(V(-half, y + 4, dz), V(-half - len * 0.85, y, -cz * 0.85 + dz * 0.6), 0.45);
       }
-      b.box(cx - half - len, y0 + y, cz, 2.5, 2.6, 5);
+      b.box(cx - half - len + 0.6, y0 + y, 0, 1.6, 2.4, 4.2);
     }
     b.box(cx + half + 1.4, y0 + Ht / 2, cz, 2.6, Ht, 2.6);
     b.add(V(0, Ht + 4, 0), V(0, Ht + 30, 0), 0.5);
-    s.add(b.build(this.steel));
+    // the red-orange of the real umbilical towers
+    s.add(b.build(new THREE.MeshStandardMaterial({ color: '#c24a22', roughness: 0.55, metalness: 0.35 })));
+    // the crew access arm ends in the white room at the command module hatch
+    const room = new THREE.Mesh(new RoundedBoxGeometry(3.2, 3.0, 3.4, 2, 0.15), this.paint);
+    const hRoom = 99.6;
+    room.position.set(saturnRadiusAt(hRoom) + 1.7, ROCKET_Y + hRoom, 0);
+    room.castShadow = true;
+    s.add(room);
+    const crew = new Beams();
+    crew.add(new THREE.Vector3(cx - half, ROCKET_Y + hRoom, cz), new THREE.Vector3(room.position.x + 1.6, ROCKET_Y + hRoom, 0), 1.6, 2.4);
+    s.add(crew.build(new THREE.MeshStandardMaterial({ color: '#c24a22', roughness: 0.55, metalness: 0.35 })));
+    // a hammerhead crane on the roof
+    const hh = new Beams();
+    hh.box(cx, y0 + Ht + 9, cz, 1.6, 10, 1.6);
+    hh.add(new THREE.Vector3(cx - 16, y0 + Ht + 14.5, cz), new THREE.Vector3(cx + 9, y0 + Ht + 14.5, cz), 1.4, 1.6);
+    hh.add(new THREE.Vector3(cx, y0 + Ht + 20, cz), new THREE.Vector3(cx - 16, y0 + Ht + 15.2, cz), 0.25);
+    hh.add(new THREE.Vector3(cx, y0 + Ht + 20, cz), new THREE.Vector3(cx + 9, y0 + Ht + 15.2, cz), 0.25);
+    hh.add(new THREE.Vector3(cx, y0 + Ht + 14, cz), new THREE.Vector3(cx, y0 + Ht + 21, cz), 0.5);
+    s.add(hh.build(new THREE.MeshStandardMaterial({ color: '#c24a22', roughness: 0.55, metalness: 0.35 })));
+    const cwt = new THREE.Mesh(new RoundedBoxGeometry(4.2, 2.4, 2.4, 2, 0.3), new THREE.MeshStandardMaterial({ color: '#d8b026', roughness: 0.45, metalness: 0.3 }));
+    cwt.position.set(cx + 7.5, y0 + Ht + 14.5, cz);
+    cwt.castShadow = true;
+    s.add(cwt);
     // the elevator cab partway up
     const cab = new THREE.Mesh(new THREE.BoxGeometry(2.8, 3.4, 3), this.paint);
     cab.position.set(cx + half + 1.4, y0 + 74, cz + 2.8);
@@ -1527,6 +1558,55 @@ export class LaunchSite {
     f.build(s);
   }
 
+  /** the Saturn V on the mount, lit by searchlights and breathing vapour from its vents */
+  private buildVehicle(): void {
+    const s = this.scene;
+    const rocket = buildSaturnV();
+    rocket.position.y = ROCKET_Y;
+    s.add(rocket);
+    for (const [x, z] of [[-70, 160], [110, 150]] as [number, number][]) {
+      const sl = new THREE.SpotLight(0xfff1dc, 9000, 0, 0.36, 0.6, 2);
+      sl.position.set(x, 18, z);
+      sl.target.position.set(0, ROCKET_Y + 60, 0);
+      s.add(sl, sl.target);
+      const base = new THREE.Mesh(new RoundedBoxGeometry(2.4, 2.4, 2.4, 2, 0.2), this.darkSteel);
+      base.position.set(x, 1.2, z);
+      s.add(base);
+      const can = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 1.6, 20), this.darkSteel);
+      can.position.set(x, 3.2, z);
+      can.lookAt(0, ROCKET_Y + 60, 0);
+      can.rotateX(Math.PI / 2);
+      s.add(can);
+      this.lamp(x * 0.985, 3.25, z * 0.985, new THREE.Color(14, 13, 11), 0.75);
+      // a stand mast so the searchlight sits clear of the ground clutter
+      const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.3, 16, 10), this.steel);
+      mast.position.set(x, 10, z);
+      s.add(mast);
+      sl.position.y = 18;
+    }
+    const puff = tex(
+      canvas(128, 128, (g) => {
+        const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+        gr.addColorStop(0, 'rgba(255,250,246,0.7)');
+        gr.addColorStop(0.6, 'rgba(255,250,246,0.25)');
+        gr.addColorStop(1, 'rgba(255,250,246,0)');
+        g.fillStyle = gr;
+        g.fillRect(0, 0, 128, 128);
+      }),
+    );
+    // LOX boiling off from the first and second stages and the third stage's vents
+    const vents: [number, number, number][] = [[37, -1, 0.9], [37, 1, 0.9], [64, -1, 0.7], [82, 1, 0.5], [15, -1, 0.6]];
+    for (const [h, side, k] of vents) {
+      for (let i = 0; i < 5; i++) {
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: puff, transparent: true, depthWrite: false, opacity: 0, fog: true }));
+        const r = saturnRadiusAt(h);
+        sp.userData = { x: side * (r + 0.3), y: ROCKET_Y + h, phase: i / 5 + h * 0.013, side, k };
+        this.vapour.push(sp);
+        s.add(sp);
+      }
+    }
+  }
+
   /** the clutter of a working site: trucks, dishes, containers, barriers, lights, a gatehouse, sand fences */
   private buildExtras(): void {
     const s = this.scene;
@@ -1916,8 +1996,8 @@ export class LaunchSite {
     this.yawS += (this.yaw - this.yawS) * a;
     this.pitchS += (this.pitch - this.pitchS) * a;
     this.zoomS += (this.zoom - this.zoomS) * a;
-    const d = 520 * this.zoomS;
-    const tx = -10, ty = 95, tz = -14;
+    const d = 400 * this.zoomS;
+    const tx = -4, ty = 82, tz = -8;
     const cp = Math.cos(this.pitchS);
     const p = this.camera.position;
     p.set(tx + Math.sin(this.yawS) * cp * d, ty + Math.sin(this.pitchS) * d, tz + Math.cos(this.yawS) * cp * d);
@@ -1944,6 +2024,14 @@ export class LaunchSite {
       const sc = 5 + ph * 22;
       sp.scale.set(sc, sc, 1);
       (sp.material as THREE.SpriteMaterial).opacity = 0.22 * Math.sin(ph * Math.PI);
+    }
+    for (const sp of this.vapour) {
+      const u = sp.userData as { x: number; y: number; phase: number; side: number; k: number };
+      const ph = (this.t * 0.11 + u.phase) % 1;
+      sp.position.set(u.x + u.side * ph * 9, u.y - ph * 7, 1.5 + ph * 6);
+      const sc = (2 + ph * 9) * u.k;
+      sp.scale.set(sc, sc, 1);
+      (sp.material as THREE.SpriteMaterial).opacity = 0.5 * Math.sin(ph * Math.PI) * u.k;
     }
     // gulls: long glides broken by a few wingbeats
     const bm = this.birdM, q = this.birdQ, q2 = this.birdQ2, e = this.birdE;

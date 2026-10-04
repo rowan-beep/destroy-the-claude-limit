@@ -4,6 +4,7 @@
 // the launch ring on the right, and the pad's status across the bottom. Panels
 // rise in one after another when the menu opens and when a section changes.
 
+import { SATURN_V } from '../../space/saturnV';
 import { el, clearEl, button } from '../dom';
 import { VERSION } from '../../version';
 import { loadNetPrefs } from '../../net/servers';
@@ -126,7 +127,7 @@ export class SpaceMenu {
     const lb = el('button', 'sx2-launch-btn', ring);
     lb.disabled = true;
     el('span', 'sx2-lb-l', lb, 'LAUNCH');
-    el('span', 'sx2-lb-s', lb, 'NO VEHICLE');
+    el('span', 'sx2-lb-s', lb, 'FLIGHT SOON');
     const lst = el('div', 'sx2-launch-st', launch);
     const st = (k: string, v: string, dot: string) => {
       const r = el('div', 'sx2-st', lst);
@@ -134,7 +135,7 @@ export class SpaceMenu {
       el('span', 'sx2-k', r, k);
       el('span', 'sx2-v', r, v);
     };
-    st('VEHICLE', 'NONE ON PAD', 'off');
+    st('VEHICLE', 'SATURN V', 'ok');
     st('PROPELLANT', 'TANK FARM FULL', 'ok');
     st('TOWER', 'READY', 'ok');
     st('WEATHER', 'GO', 'ok');
@@ -216,7 +217,7 @@ export class SpaceMenu {
     }
     const hero: Record<Section, [string, string]> = {
       missions: ['MISSION PROGRAM', 'CHOOSE YOUR MISSION'],
-      factory: ['COASTAL LAUNCH COMPLEX · PAD 1', 'AWAITING VEHICLE'],
+      factory: ['COASTAL LAUNCH COMPLEX · PAD 1', 'SATURN V'],
       destinations: ['FLIGHT PLANNING', 'ORBIT · MOON · MARS'],
     };
     this.heroK.textContent = hero[s][0];
@@ -268,25 +269,54 @@ export class SpaceMenu {
       el('div', 'sx2-card-s', tx, s);
       el('div', 'sx2-lock', r, 'SOON');
     });
-    el('div', 'sx2-note', this.side, 'The first vehicle, the Saturn V, is on its way to the pad. Missions open as the rockets and rovers arrive.');
+    el('div', 'sx2-note', this.side, 'The Saturn V stands on Pad 1. Missions open as the flight model and the rovers arrive.');
   }
 
   private renderPad(): void {
-    this.head('LAUNCH PAD', 'Where the rockets stand.');
-    const slot = el('div', 'sx2-slot', this.side);
-    el('div', 'sx2-slot-k', slot, 'PAD 1');
-    el('div', 'sx2-slot-t', slot, 'EMPTY');
-    el('div', 'sx2-slot-s', slot, 'The launch mount and tower are ready. The Saturn V will stand here.');
+    const v = SATURN_V;
+    const n = (x: number, d = 0) => x.toLocaleString('en-US', { maximumFractionDigits: d });
+    this.head('LAUNCH PAD', 'The Saturn V, stacked on Pad 1.');
+    const slot = el('div', 'sx2-slot on', this.side);
+    el('div', 'sx2-slot-k', slot, 'PAD 1 · ON THE MOUNT');
+    el('div', 'sx2-slot-t', slot, 'SATURN V');
+    el('div', 'sx2-slot-s', slot, `Three-stage super heavy-lift launch vehicle. ${v.launches} launches, ${v.service}. Swing arms connected, crew access arm at the command module.`);
     el('div', 'sx2-scan', slot);
+    const grid = el('div', 'sx2-grid', this.side);
+    for (const [k, val] of [
+      ['HEIGHT', `${n(v.height, 1)} m`],
+      ['DIAMETER', `${n(v.diameter, 1)} m`],
+      ['LIFTOFF MASS', `${n(v.liftoffMass / 1000)} t`],
+      ['LIFTOFF THRUST', `${n(v.liftoffThrust / 1000, 1)} MN`],
+      ['TO LOW ORBIT', `${n(v.payloadLEO / 1000)} t`],
+      ['TO THE MOON', `${n(v.payloadTLI / 1000, 1)} t`],
+    ]) {
+      const c = el('div', 'sx2-cell', grid);
+      el('div', 'sx2-cell-v', c, val);
+      el('div', 'sx2-cell-k', c, k);
+    }
+    for (const st of v.stages) {
+      const c = el('div', 'sx2-stage', this.side);
+      const h = el('div', 'sx2-stage-h', c);
+      el('span', 'sx2-stage-id', h, st.id);
+      el('span', 'sx2-stage-n', h, `${st.name.toUpperCase()} · ${st.maker}`);
+      el('div', 'sx2-stage-r', c, `${st.engines.count} × ${st.engines.name.replace('Rocketdyne ', '')} · ${st.engines.propellants} · ${n(st.thrustVac)} kN vac`);
+      el('div', 'sx2-stage-r dim', c, `${n(st.length, 1)} m · ${n(st.grossMass / 1000)} t fuelled · burn ${st.burnTime}`);
+    }
+    const iu = el('div', 'sx2-stage', this.side);
+    const ih = el('div', 'sx2-stage-h', iu);
+    el('span', 'sx2-stage-id', ih, 'IU');
+    el('span', 'sx2-stage-n', ih, 'INSTRUMENT UNIT · THE BRAIN');
+    el('div', 'sx2-stage-r', iu, 'IBM LVDC · 32,768 words · 12,195 instructions/s');
+    el('div', 'sx2-stage-r dim', iu, `${n(v.instrumentUnit.mass)} kg · ST-124-M3 inertial platform · ~900 telemetry channels`);
     const slot2 = el('div', 'sx2-slot dim', this.side);
     el('div', 'sx2-slot-k', slot2, 'ROVER BAY');
     el('div', 'sx2-slot-t', slot2, 'EMPTY');
     el('div', 'sx2-slot-s', slot2, 'Moon and Mars rovers, later.');
     const spec = el('div', 'sx2-spec', this.side);
-    for (const [k, v] of [['LAUNCH TOWER', '145 m'], ['LAUNCH MOUNT', '18 m deck'], ['LIGHTNING MASTS', '2 × 194 m'], ['WATER TOWER', '87 m'], ['TANK FARM', '11 tanks'], ['CRAWLER CRANE', '120 m boom']]) {
+    for (const [k, val] of [['LAUNCH TOWER', '145 m'], ['LIGHTNING MASTS', '2 × 194 m'], ['TANK FARM', '11 tanks']]) {
       const r = el('div', 'sx2-kv', spec);
       el('span', 'sx2-k', r, k);
-      el('span', 'sx2-v', r, v);
+      el('span', 'sx2-v', r, val);
     }
   }
 
