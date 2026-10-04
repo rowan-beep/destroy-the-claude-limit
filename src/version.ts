@@ -10,6 +10,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.43.0',
+    date: '2026-10-04',
+    title: "Space Exploration",
+    notes: [
+      "New: SPACE EXPLORATION. Click the arrow next to TRIAD at the top left of the menu to switch between TRIAD (air combat) and Space Exploration. The space program has its own blue, black and white menu: Missions, Launch Pad and Destinations, plus a commander card with its own record.",
+      "Your air-combat game is kept exactly as you left it. Switch back to TRIAD and your jet, its paint, your logbook and the hangar are all there. The game also remembers which program you were last in.",
+      "The space menu opens over a coastal launch site on a clear morning. A 145 m launch tower and an empty launch mount wait for the first rocket, with a tank farm, a crawler crane, sand flats, tidal channels and the sea beyond. Drag to look around, scroll to zoom, double-click to reset.",
+      "Coming next: the Saturn V on the pad, then missions to orbit, the Moon and Mars, and rovers to drive there.",
+    ],
+  },
+  {
     version: '4.42.1',
     date: '2026-10-04',
     title: "SR-71 slimmed down",

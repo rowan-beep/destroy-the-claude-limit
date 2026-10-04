@@ -3,6 +3,13 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.43.0 — Space Exploration (2026-10-04)
+
+- New: SPACE EXPLORATION. Click the arrow next to TRIAD at the top left of the menu to switch between TRIAD (air combat) and Space Exploration. The space program has its own blue, black and white menu: Missions, Launch Pad and Destinations, plus a commander card with its own record.
+- Your air-combat game is kept exactly as you left it. Switch back to TRIAD and your jet, its paint, your logbook and the hangar are all there. The game also remembers which program you were last in.
+- The space menu opens over a coastal launch site on a clear morning. A 145 m launch tower and an empty launch mount wait for the first rocket, with a tank farm, a crawler crane, sand flats, tidal channels and the sea beyond. Drag to look around, scroll to zoom, double-click to reset.
+- Coming next: the Saturn V on the pad, then missions to orbit, the Moon and Mars, and rovers to drive there.
+
 ## v4.42.1 — SR-71 slimmed down (2026-10-04)
 
 - SR-71 reshaped to match the real three-view: no more wedge. The forebody is now long and slim, with the nose tapering over its first six metres before the body and chines run parallel back to the wing. The inner wing starts much further aft, and the outer wing panels are smaller and set back behind the nacelles, so the Blackbird has its long, thin, elongated look.
