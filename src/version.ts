@@ -10,6 +10,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.42.0',
+    date: '2026-10-04',
+    title: "F-22 underside and SR-71 front end",
+    notes: [
+      "F-22 underside redone after photos of the real jet, keeping the working weapons-bay doors. The belly is now a neutral metallic grey with a patchwork of radar-absorbent panels in slightly different shades. You can see the big boxy intake-duct panels down each side, sawtooth edges on the bay doors, the small black diamond vents by the engines, lighter heat-resistant panels over the engine bays, flaperon breaks on the wings, and fluid streaks running aft.",
+      "SR-71 front half reshaped: the nose and forward fuselage are fuller and deeper like the real Blackbird, and the canopy sits on top as dark smoked glass instead of a see-through bubble. There is now a radome band near the nose.",
+      "SR-71 paint: a deeper iron-ball black, with bolder red trim outlining the walkways on the wings and fuselage. A new red border runs along the chines up to the cockpit.",
+    ],
+  },
+  {
     version: '4.41.3',
     date: '2026-10-04',
     title: "F-22 matched to the real jet",

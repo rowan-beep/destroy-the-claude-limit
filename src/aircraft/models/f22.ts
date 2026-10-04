@@ -158,7 +158,7 @@ function livery(team: string): Livery {
     g.restore();
   };
   for (const sx of [-1, 1]) {
-    for (const [g, M, k] of [[gt, T, pt], [gb, B, L.pb]] as const) {
+    for (const [g, M, k] of [[gt, T, pt]] as const) {
       blob(g, M, 4.2 * sx, 2.4, 1.9, 1.1, 0.5 * sx, k);
       blob(g, M, 2.6 * sx, 0.6, 1.3, 0.8, -0.3 * sx, k);
       blob(g, M, 1.2 * sx, -3.8, 0.7, 1.4, 0.1 * sx, k);
@@ -214,9 +214,87 @@ function livery(team: string): Livery {
     rect(gb, Wb(0.03, MAIN_BAY[0]), Wb(0.9, MAIN_BAY[1]));
     rect(gs, S(SIDE_BAY[0], -0.36), S(SIDE_BAY[1], -0.66));
   }
+  // --- the underside, after photos of the real jet ---------------------------------------
+  {
+    const pb = L.pb;
+    const poly = (pts: [number, number][], fill: string) => {
+      gb.fillStyle = fill;
+      gb.beginPath();
+      pts.forEach((p, i) => (i ? gb.lineTo(p[0], p[1]) : gb.moveTo(p[0], p[1])));
+      gb.closePath();
+      gb.fill();
+    };
+    // radar-absorbent panels in slightly different greys (the patchwork you see from below)
+    const tones = ['rgba(150,152,150,0.22)', 'rgba(60,62,64,0.18)', 'rgba(190,190,186,0.16)', 'rgba(95,97,99,0.2)'];
+    for (const sx of [-1, 1]) {
+      const Wb = (x: number, z: number) => B(x * sx, z);
+      // the intake ducts: long boxy panels either side of the belly, edged by a crease
+      poly([Wb(0.95, -4.3), Wb(1.75, -4.3), Wb(1.85, -1.8), Wb(1.8, 3.6), Wb(1.25, 5.2), Wb(0.95, 4.6)], 'rgba(170,171,168,0.16)');
+      line(gb, [Wb(0.95, -4.3), Wb(0.95, 4.6), Wb(1.25, 5.2), Wb(1.8, 3.6)], 2.2, LINE);
+      line(gb, [Wb(1.75, -4.3), Wb(1.85, -1.8), Wb(1.8, 3.6)], 1.6, LINE_LIGHT);
+      // big access panels along the ducts, each its own tone
+      const panels: [number, number, number, number][] = [[1.0, 1.7, -3.9, -2.6], [1.0, 1.75, -2.4, -0.6], [1.0, 1.78, -0.4, 1.4], [1.0, 1.72, 1.6, 3.2], [0.98, 1.4, 3.4, 4.5]];
+      panels.forEach(([x0, x1, z0, z1], i) => {
+        poly([Wb(x0, z0), Wb(x1, z0), Wb(x1, z1), Wb(x0, z1)], tones[(i + (sx > 0 ? 1 : 0)) % tones.length]);
+        line(gb, [Wb(x0, z0), Wb(x1, z0), Wb(x1, z1), Wb(x0, z1)], 1.1, LINE, true);
+      });
+      // engine bays aft: lighter, more metallic heat-resistant panels with staggered edges
+      poly([Wb(0.15, 3.2), Wb(1.1, 3.6), Wb(1.25, 6.9), Wb(0.25, 6.9)], 'rgba(205,203,196,0.2)');
+      for (const z of [3.9, 4.7, 5.5, 6.3]) {
+        const pts: [number, number][] = [];
+        for (let i = 0; i <= 6; i++) pts.push(Wb(0.2 + i * 0.17, z + (i % 2 ? 0.12 : 0)));
+        line(gb, pts, 1.2, LINE);
+      }
+      // the little diamond-shaped vents and drains near the engines
+      for (const [x, z, r] of [[0.55, 2.9, 0.07], [0.75, 3.15, 0.06], [0.42, 3.5, 0.06], [0.7, 3.75, 0.07], [0.95, 2.6, 0.05], [0.5, 4.3, 0.05]] as [number, number, number][]) {
+        const [cx, cy] = Wb(x, z);
+        poly([[cx, cy - r * pb], [cx + r * 0.8 * pb, cy], [cx, cy + r * pb], [cx - r * 0.8 * pb, cy]], 'rgba(14,15,16,0.92)');
+      }
+      // sawtooth ends on the weapons-bay doors (a radar-signature trick)
+      const sawB = (x0: number, x1: number, z: number) => {
+        const pts: [number, number][] = [];
+        for (let i = 0; i <= 8; i++) pts.push(Wb(x0 + ((x1 - x0) * i) / 8, z + (i % 2 ? 0.16 : 0)));
+        line(gb, pts, 1.6, LINE);
+      };
+      sawB(0.03, 0.9, MAIN_BAY[0]);
+      sawB(0.03, 0.9, MAIN_BAY[1] - 0.16);
+      // wing undersides: flaperon and leading-edge flap breaks, sawtooth access doors
+      line(gb, [Wb(2.1, wte(2.1) - 0.7), Wb(4.3, wte(4.3) - 0.7)], 1.4, LINE);
+      line(gb, [Wb(4.4, wte(4.4) - 0.5), Wb(5.95, wte(5.95) - 0.5)], 1.4, LINE);
+      line(gb, [Wb(4.35, wte(4.35) - 0.75), Wb(4.35, wte(4.35))], 1.4, LINE);
+      for (const [x, z] of [[3.0, 2.2], [4.3, 3.2], [2.6, 0.9]] as [number, number][]) {
+        const pts: [number, number][] = [];
+        for (let i = 0; i <= 4; i++) pts.push(Wb(x + i * 0.18, z + (i % 2 ? 0.12 : 0)));
+        line(gb, pts, 1.2, LINE_LIGHT);
+      }
+      // a soft sheen down each duct (the coating catches the light like dull metal)
+      const [hx, hy] = Wb(1.35, -4.0);
+      const [hx2, hy2] = Wb(1.35, 4.0);
+      const gr = gb.createLinearGradient(hx - 0.4 * pb, hy, hx + 0.4 * pb, hy);
+      gr.addColorStop(0, 'rgba(230,230,226,0)');
+      gr.addColorStop(0.5, 'rgba(230,230,226,0.12)');
+      gr.addColorStop(1, 'rgba(230,230,226,0)');
+      gb.fillStyle = gr;
+      gb.fillRect(Math.min(hx, hx2) - 0.4 * pb, Math.min(hy, hy2), 0.8 * pb, Math.abs(hy2 - hy));
+    }
+    // the centre keel line and the stinger between the nozzles
+    line(gb, [B(0, -4.4), B(0, 7.4)], 1.4, LINE_LIGHT);
+    // fluid and exhaust streaks running aft from the engine bays
+    gb.lineCap = 'round';
+    for (let i = 0; i < 90; i++) {
+      const x = (rnd() - 0.5) * 3.2, z = 1 + rnd() * 5.5;
+      const [px, py] = B(x, z);
+      gb.strokeStyle = `rgba(32,30,28,${0.04 + rnd() * 0.06})`;
+      gb.lineWidth = 1 + rnd() * 4;
+      gb.beginPath();
+      gb.moveTo(px, py);
+      gb.lineTo(px, py + (0.4 + rnd() * 1.6) * pb);
+      gb.stroke();
+    }
+  }
   line(gs, [S(-6.5, -0.02), S(7.3, -0.1)], 1.3, LINE_LIGHT); // chine
   weather(gt, L.top.width, L.top.height, rnd, 0.7, [0, 1]);
-  weather(gb, L.bot.width, L.bot.height, rnd, 0.6, [0, 1]);
+  weather(gb, L.bot.width, L.bot.height, rnd, 0.9, [0, 1]);
   weather(gs, L.side.width, L.side.height, rnd, 0.6, [1, 0.1]);
   for (const [g, M, s] of [[gt, T, pt], [gb, B, L.pb]] as const) {
     for (const sx of [-1, 1]) {
@@ -390,7 +468,7 @@ export function buildF22(v: AirframeVisual): void {
   }
   // the Raptor's coating has a slight metallic sheen
   // the two-tone medium greys (FS 36170 / 36176) with the coating's faint sheen
-  const paint = skinMaterial({ top: new THREE.Color('#74726d'), bottom: new THREE.Color('#7e7b75'), livery: L, roughness: 0.38, metalness: 0.22 });
+  const paint = skinMaterial({ top: new THREE.Color('#74726d'), bottom: new THREE.Color('#8e9296'), livery: L, roughness: 0.34, metalness: 0.3 });
   v.paintMat = paint;
   const skin = (g: THREE.BufferGeometry) => v.addMesh(stamp(g), paint);
 

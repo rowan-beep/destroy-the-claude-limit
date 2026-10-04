@@ -3,6 +3,12 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.42.0 — F-22 underside and SR-71 front end (2026-10-04)
+
+- F-22 underside redone after photos of the real jet, keeping the working weapons-bay doors. The belly is now a neutral metallic grey with a patchwork of radar-absorbent panels in slightly different shades. You can see the big boxy intake-duct panels down each side, sawtooth edges on the bay doors, the small black diamond vents by the engines, lighter heat-resistant panels over the engine bays, flaperon breaks on the wings, and fluid streaks running aft.
+- SR-71 front half reshaped: the nose and forward fuselage are fuller and deeper like the real Blackbird, and the canopy sits on top as dark smoked glass instead of a see-through bubble. There is now a radome band near the nose.
+- SR-71 paint: a deeper iron-ball black, with bolder red trim outlining the walkways on the wings and fuselage. A new red border runs along the chines up to the cockpit.
+
 ## v4.41.3 — F-22 matched to the real jet (2026-10-04)
 
 - F-22 rebuilt from a top-down photo of the real jet. The wing is now the true clipped diamond: a steep leading edge from the intake shoulders, a cut-off tip, and a near-straight trailing edge. The tailplanes have the real kinked trailing edge (swept forward outboard, notched back beside the nozzles) and a squared-off tip.
