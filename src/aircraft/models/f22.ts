@@ -105,24 +105,27 @@ const CANOPY: Section[] = [
 
 // diamond wing: 42 deg leading edge, forward-swept trailing edge, 3 deg anhedral
 const WING: WingStation[] = [
-  { x: 1.4, le: -2.35, te: 5.2, y: 0.02, t: 0.05 },
-  { x: 1.9, le: -1.9, te: 5.09, y: 0.0, t: 0.046 },
-  { x: 6.78, le: 2.49, te: 3.6, y: -0.28, t: 0.032 },
+  { x: 1.4, le: -3.45, te: 4.4, y: 0.02, t: 0.05 },
+  { x: 1.9, le: -3.0, te: 4.29, y: 0.0, t: 0.046 },
+  { x: 6.78, le: 1.39, te: 2.8, y: -0.28, t: 0.032 },
 ];
-const wle = (x: number) => -1.9 + (x - 1.9) * 0.9;
-const wte = (x: number) => 3.6 + (6.78 - x) * 0.306;
+const wle = (x: number) => -3.0 + (x - 1.9) * 0.9;
+const wte = (x: number) => 2.8 + (6.78 - x) * 0.306;
 // all-moving tailplanes on the tail booms
+// big clipped diamonds like the wing: 42 deg leading edge, forward-swept trailing
+// edge, the roots reaching well aft of the nozzles
 const STAB: WingStation[] = [
-  { x: 1.8, le: 5.85, te: 8.9, y: -0.12, t: 0.04 },
-  { x: 4.45, le: 8.25, te: 9.42, y: -0.14, t: 0.03 },
+  { x: 1.8, le: 5.3, te: 9.35, y: -0.12, t: 0.042 },
+  { x: 4.45, le: 7.95, te: 8.6, y: -0.14, t: 0.028 },
 ];
 const STAB_PIVOT = 7.25;
 // broad trapezoidal fins, swept leading edge, slightly forward-swept trailing edge
+// (23 deg leading edge, trailing edge swept forward about as much, clipped tip)
 const FIN: WingStation[] = [
-  { x: 0, le: 2.75, te: 7.15, t: 0.046 },
-  { x: 3.05, le: 5.0, te: 6.6, t: 0.03 },
+  { x: 0, le: 3.0, te: 7.15, t: 0.046 },
+  { x: 2.75, le: 4.2, te: 6.0, t: 0.03 },
 ];
-const RUDDER = { h0: 0.2, h1: 2.1, hinge: (h: number) => 7.15 - 0.18 * h - 0.7 };
+const RUDDER = { h0: 0.2, h1: 1.95, hinge: (h: number) => 7.15 - 0.418 * h - 0.65 };
 const FIN_ROOT = { x: 1.45, y: 0.28, cant: 28 };
 
 function livery(team: string): Livery {
@@ -378,7 +381,8 @@ export function buildF22(v: AirframeVisual): void {
     liveries.set(team, L);
   }
   // the Raptor's coating has a slight metallic sheen
-  const paint = skinMaterial({ top: new THREE.Color('#8e959a'), bottom: new THREE.Color('#9da3a8'), livery: L, roughness: 0.44, metalness: 0.14 });
+  // the two-tone medium greys (FS 36170 / 36176) with the coating's faint sheen
+  const paint = skinMaterial({ top: new THREE.Color('#6b7277'), bottom: new THREE.Color('#787f84'), livery: L, roughness: 0.4, metalness: 0.2 });
   v.paintMat = paint;
   const skin = (g: THREE.BufferGeometry) => v.addMesh(stamp(g), paint);
 
@@ -451,11 +455,11 @@ export function buildF22(v: AirframeVisual): void {
   if (v.canopy) {
     const gm = (v.canopy.material as THREE.MeshStandardMaterial).clone();
     // the indium-tin-oxide coating: a mirror-like gold from outside
-    gm.color.set('#e4b44a');
-    gm.opacity = 0.9;
+    gm.color.set('#5a4620');
+    gm.opacity = 0.94;
     gm.metalness = 1;
-    gm.roughness = 0.03;
-    gm.envMapIntensity = 2.6;
+    gm.roughness = 0.06;
+    gm.envMapIntensity = 1.0;
     v.canopy.material = gm;
   }
   // canopy sill: the raised rail the canopy seals onto
@@ -531,8 +535,8 @@ export function buildF22(v: AirframeVisual): void {
     const f = finPanels(FIN, RUDDER, m, { chordPts: 30 });
     skin(f.fixed);
     v.addSurface(stamp(f.rudder.geo), paint, f.rudder.hinge, f.rudder.axis, 'rudder', side, 30);
-    const top = new THREE.Vector3(3.0, 0, 0).applyMatrix4(m);
-    v.addNavLight(new THREE.Vector3(top.x, top.y, 6.0), 'formation');
+    const top = new THREE.Vector3(2.75, 0, 0).applyMatrix4(m);
+    v.addNavLight(new THREE.Vector3(top.x, top.y, 5.2), 'formation');
   }
 
   // --- flat "beaver tail" between the engines
@@ -641,8 +645,8 @@ export function buildF22(v: AirframeVisual): void {
   ]), pm.formation, v.body, false);
   buildBays(v, paint);
 
-  v.addNavLight(new THREE.Vector3(-6.72, -0.28, 3.0), 'red');
-  v.addNavLight(new THREE.Vector3(6.72, -0.28, 3.0), 'green');
+  v.addNavLight(new THREE.Vector3(-6.72, -0.28, 2.2), 'red');
+  v.addNavLight(new THREE.Vector3(6.72, -0.28, 2.2), 'green');
   v.addNavLight(new THREE.Vector3(0, -0.84, 0.4), 'strobe');
 
   // --- landing gear: nose leg behind the radome, mains fold into the fuselage sides

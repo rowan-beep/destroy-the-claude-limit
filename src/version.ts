@@ -10,6 +10,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.41.2',
+    date: '2026-10-04',
+    title: "F-22 reshaped",
+    notes: [
+      "F-22 reshaped to match the real Raptor. The tailplanes are now the big clipped diamonds that reach well past the nozzles, with the trailing edge swept forward like the wing. The fins are shorter and broader, with the real 23-degree leading edge and forward-swept trailing edge. The wing sits a metre further forward so it grows out of the intakes.",
+      "F-22 colours: the paint is now the real two-tone medium grey with a faint sheen instead of near-white, and the canopy is a dark smoky gold instead of bright yellow.",
+    ],
+  },
+  {
     version: '4.41.1',
     date: '2026-10-04',
     title: "Contrail fix",

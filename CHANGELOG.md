@@ -3,6 +3,11 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.41.2 — F-22 reshaped (2026-10-04)
+
+- F-22 reshaped to match the real Raptor. The tailplanes are now the big clipped diamonds that reach well past the nozzles, with the trailing edge swept forward like the wing. The fins are shorter and broader, with the real 23-degree leading edge and forward-swept trailing edge. The wing sits a metre further forward so it grows out of the intakes.
+- F-22 colours: the paint is now the real two-tone medium grey with a faint sheen instead of near-white, and the canopy is a dark smoky gold instead of bright yellow.
+
 ## v4.41.1 — Contrail fix (2026-10-04)
 
 - Contrails no longer show as a hard, glitchy straight line behind the jet. Every jet's trail now builds up softly a little way behind the engines. It fades out when you look straight down its length instead of collapsing into a thin stripe, and it follows the curve of the Earth up high.
