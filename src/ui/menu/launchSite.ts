@@ -195,8 +195,8 @@ const HORIZON_GLSL = /* glsl */ `
 #define SKYK 0.6
 vec3 horizonCol(vec3 d, vec3 sd) {
   float toSun = dot(normalize(d.xz + vec2(1e-5)), normalize(sd.xz)) * 0.5 + 0.5;
-  vec3 c = mix(vec3(0.5, 0.45, 0.62), vec3(0.98, 0.5, 0.34), smoothstep(0.05, 0.75, toSun));
-  return mix(c, vec3(1.65, 0.74, 0.24), pow(toSun, 7.0));
+  vec3 c = mix(vec3(0.42, 0.34, 0.5), vec3(1.05, 0.42, 0.22), smoothstep(0.05, 0.75, toSun));
+  return mix(c, vec3(1.9, 0.72, 0.18), pow(toSun, 6.0));
 }`;
 
 const ATMOS_GLSL = /* glsl */ `
@@ -204,14 +204,14 @@ vec3 skyClear(vec3 d, vec3 sd) {
   float e = max(d.y, 0.0);
   float m = max(dot(d, sd), 0.0);
   float toSun = dot(normalize(d.xz + vec2(1e-5)), normalize(sd.xz)) * 0.5 + 0.5;
-  vec3 mid = mix(vec3(0.3, 0.38, 0.68), vec3(0.95, 0.5, 0.3), pow(toSun, 2.5));
-  vec3 zen = vec3(0.09, 0.18, 0.48);
-  vec3 c = mix(horizonCol(d, sd), mid, smoothstep(0.0, 0.14, e));
-  c = mix(c, zen, smoothstep(0.1, 0.7, e));
+  vec3 mid = mix(vec3(0.16, 0.24, 0.55), vec3(0.85, 0.34, 0.2), pow(toSun, 3.0));
+  vec3 zen = vec3(0.05, 0.11, 0.34);
+  vec3 c = mix(horizonCol(d, sd), mid, smoothstep(0.0, 0.1, e));
+  c = mix(c, zen, smoothstep(0.08, 0.5, e));
   // the belt of Venus: a rose band over the earth's shadow, opposite the sun
   c += vec3(0.34, 0.14, 0.17) * exp(-pow((e - 0.13) / 0.07, 2.0)) * pow(1.0 - toSun, 2.0);
   // the glow round the sun: forward scattering in the morning haze
-  c += vec3(1.0, 0.58, 0.26) * (pow(m, 4.0) * 0.18 + pow(m, 32.0) * 0.4 + pow(m, 160.0) * 0.5) + vec3(1.0, 0.74, 0.42) * pow(m, 900.0) * 1.6;
+  c += vec3(1.0, 0.42, 0.14) * (pow(m, 6.0) * 0.06 + pow(m, 40.0) * 0.22 + pow(m, 200.0) * 0.45) + vec3(1.0, 0.66, 0.32) * pow(m, 1200.0) * 1.6;
   return c;
 }
 // a deck of broken altocumulus, lit from below by the low sun: gold toward it,
@@ -222,15 +222,15 @@ vec3 addClouds(vec3 d, vec3 col, vec3 sd, float detail) {
   if (e < 0.002) return col;
   float m = max(dot(d, sd), 0.0);
   float toSun = dot(normalize(d.xz + vec2(1e-5)), normalize(sd.xz)) * 0.5 + 0.5;
-  vec2 uv = d.xz / (e + 0.03) * 0.75 + vec2(time * 0.0025, time * 0.0009);
+  vec2 uv = d.xz / (e + 0.05) * 0.55 + vec2(time * 0.0025, time * 0.0009);
   float n = fbm4(uv * 0.8) * 0.74 + fbm4(uv * 3.1 + 4.7) * 0.34 * detail + 0.17 * (1.0 - detail);
-  float cover = smoothstep(0.52, 0.68, n) * smoothstep(0.002, 0.035, e) * (1.0 - 0.55 * smoothstep(0.45, 1.0, e));
+  float cover = smoothstep(0.48, 0.64, n) * smoothstep(0.002, 0.035, e) * (1.0 - 0.55 * smoothstep(0.45, 1.0, e));
   float dens = smoothstep(0.52, 0.8, n);
-  vec3 lit = mix(vec3(0.98, 0.46, 0.5), vec3(1.55, 0.7, 0.3), smoothstep(0.35, 1.0, toSun));
-  vec3 shade = mix(vec3(0.3, 0.27, 0.46), vec3(0.36, 0.2, 0.22), smoothstep(0.4, 1.0, toSun));
+  vec3 lit = mix(vec3(0.95, 0.3, 0.28), vec3(1.6, 0.52, 0.2), smoothstep(0.35, 1.0, toSun));
+  vec3 shade = mix(vec3(0.1, 0.12, 0.24), vec3(0.24, 0.12, 0.14), smoothstep(0.4, 1.0, toSun));
   float back = pow(m, 3.0);
-  vec3 cc = mix(lit, shade, clamp(dens * (0.55 + back * 0.45) + back * 0.4, 0.0, 1.0));
-  cc += vec3(2.6, 1.35, 0.5) * pow(m, 10.0) * (1.0 - dens) * 1.6;
+  vec3 cc = mix(lit, shade, clamp(dens * (0.75 + back * 0.25) + back * 0.3 + smoothstep(0.05, 0.4, e) * 0.25, 0.0, 1.0));
+  cc += vec3(2.6, 1.0, 0.3) * pow(m, 14.0) * (1.0 - dens) * 1.4;
   // higher clouds catch the rose light
   cc = mix(cc, cc * vec3(1.05, 0.82, 0.95), smoothstep(0.06, 0.25, e) * (1.0 - back));
   cc = mix(cc, cc * vec3(0.78, 0.86, 1.05), smoothstep(0.3, 0.9, e));
@@ -265,7 +265,7 @@ void main() {
     float ang = atan(dy, dx) + time * 0.0015;
     float rays = noise(vec2(ang * 7.0, 1.3)) * 0.55 + noise(vec2(ang * 19.0, 7.1)) * 0.45;
     rays = smoothstep(0.35, 0.95, rays);
-    col += vec3(1.0, 0.62, 0.3) * rays * pow(max(fwd, 0.0), 10.0) * smoothstep(0.0, 0.05, d.y) * 0.24;
+    col += vec3(1.0, 0.5, 0.2) * rays * pow(max(fwd, 0.0), 14.0) * smoothstep(0.0, 0.05, d.y) * 0.2;
     col = addClouds(d, col, sd, 1.0);
   }
   col *= SKYK;
@@ -372,7 +372,7 @@ function hazePatch(sh: THREE.WebGLProgramParametersWithUniforms, sun: THREE.Vect
 
 export class LaunchSite {
   readonly scene = new THREE.Scene();
-  readonly camera = new THREE.PerspectiveCamera(36, 1, 1, 130000);
+  readonly camera = new THREE.PerspectiveCamera(46, 1, 1, 130000);
   drawWith: ((scene: THREE.Scene, camera: THREE.Camera) => void) | null = null;
   active = false;
   private yaw = -0.3;
@@ -1585,6 +1585,8 @@ export class LaunchSite {
   private birdE = new THREE.Euler();
 
   render(dt: number, w: number, h: number): void {
+    // a frame step can arrive negative or huge (clock resets, tab switches); the smoothing below must never see that
+    dt = Number.isFinite(dt) ? clampN(dt, 0, 0.1) : 0;
     this.t += dt;
     if (!this.drag) {
       this.yaw += this.userView ? this.vYaw * dt : Math.sin(this.t * 0.03) * dt * 0.012;
@@ -1598,7 +1600,7 @@ export class LaunchSite {
     this.pitchS += (this.pitch - this.pitchS) * a;
     this.zoomS += (this.zoom - this.zoomS) * a;
     const d = 520 * this.zoomS;
-    const tx = -10, ty = 68, tz = -14;
+    const tx = -10, ty = 95, tz = -14;
     const cp = Math.cos(this.pitchS);
     const p = this.camera.position;
     p.set(tx + Math.sin(this.yawS) * cp * d, ty + Math.sin(this.pitchS) * d, tz + Math.cos(this.yawS) * cp * d);
