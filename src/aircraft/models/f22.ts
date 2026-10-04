@@ -93,30 +93,34 @@ const INTAKE_END: P2[] = (() => {
 // sharp creases: the belly edge and the straight lower wall up to the chine
 const BODY_SUB = [3, 1, 1, 1, 1, 1, 3, 3, 3, 3, 3];
 
+// one-piece bubble set well forward, as in the photos
 const CANOPY: Section[] = [
-  { z: -6.55, w: 0.03, top: 0.02, bot: 0.02, y: 0.4, n: 2 },
-  { z: -5.95, w: 0.36, top: 0.3, bot: 0.03, y: 0.42, n: 2.3 },
-  { z: -5.2, w: 0.47, top: 0.54, bot: 0.03, y: 0.44, n: 2.3 },
-  { z: -4.3, w: 0.5, top: 0.64, bot: 0.03, y: 0.45, n: 2.3 },
-  { z: -3.4, w: 0.46, top: 0.56, bot: 0.03, y: 0.47, n: 2.3 },
-  { z: -2.8, w: 0.33, top: 0.34, bot: 0.03, y: 0.5, n: 2.3 },
-  { z: -2.3, w: 0.16, top: 0.1, bot: 0.03, y: 0.55, n: 2 },
+  { z: -6.9, w: 0.03, top: 0.02, bot: 0.02, y: 0.4, n: 2 },
+  { z: -6.36, w: 0.36, top: 0.3, bot: 0.03, y: 0.42, n: 2.3 },
+  { z: -5.685, w: 0.47, top: 0.54, bot: 0.03, y: 0.44, n: 2.3 },
+  { z: -4.875, w: 0.5, top: 0.64, bot: 0.03, y: 0.45, n: 2.3 },
+  { z: -4.065, w: 0.46, top: 0.56, bot: 0.03, y: 0.47, n: 2.3 },
+  { z: -3.525, w: 0.33, top: 0.34, bot: 0.03, y: 0.5, n: 2.3 },
+  { z: -3.075, w: 0.16, top: 0.1, bot: 0.03, y: 0.55, n: 2 },
 ];
 
-// diamond wing: 42 deg leading edge, forward-swept trailing edge, 3 deg anhedral
+// diamond wing, measured off a top-down photo: about 48 deg of leading-edge sweep
+// from the intake shoulders, a clipped tip, and a trailing edge swept slightly forward
 const WING: WingStation[] = [
-  { x: 1.4, le: -3.45, te: 4.4, y: 0.02, t: 0.05 },
-  { x: 1.9, le: -3.0, te: 4.29, y: 0.0, t: 0.046 },
-  { x: 6.78, le: 1.39, te: 2.8, y: -0.28, t: 0.032 },
+  { x: 1.4, le: -1.87, te: 5.96, y: 0.02, t: 0.05 },
+  { x: 1.9, le: -1.32, te: 5.87, y: 0.0, t: 0.046 },
+  { x: 6.0, le: 3.18, te: 5.16, y: -0.25, t: 0.034 },
+  { x: 6.78, le: 4.04, te: 4.45, y: -0.28, t: 0.03 },
 ];
-const wle = (x: number) => -3.0 + (x - 1.9) * 0.9;
-const wte = (x: number) => 2.8 + (6.78 - x) * 0.306;
+const wle = (x: number) => -1.32 + (x - 1.9) * 1.098;
+const wte = (x: number) => (x <= 6 ? 5.16 + (6 - x) * 0.174 : 5.16 - (x - 6) * 0.91);
 // all-moving tailplanes on the tail booms
-// big clipped diamonds like the wing: 42 deg leading edge, forward-swept trailing
-// edge, the roots reaching well aft of the nozzles
+// the tailplanes, off the same photo: a swept leading edge, a streamwise tip, the
+// outer trailing edge swept forward and the inner part notched back beside the nozzle
 const STAB: WingStation[] = [
-  { x: 1.8, le: 5.3, te: 9.35, y: -0.12, t: 0.042 },
-  { x: 4.45, le: 7.95, te: 8.6, y: -0.14, t: 0.028 },
+  { x: 1.8, le: 5.6, te: 8.15, y: -0.12, t: 0.042 },
+  { x: 3.03, le: 6.12, te: 9.19, y: -0.13, t: 0.036 },
+  { x: 4.57, le: 7.63, te: 8.86, y: -0.14, t: 0.028 },
 ];
 const STAB_PIVOT = 7.25;
 // broad trapezoidal fins, swept leading edge, slightly forward-swept trailing edge
@@ -143,9 +147,9 @@ function livery(team: string): Livery {
     g.translate(px, py);
     g.rotate(a);
     const grad = g.createRadialGradient(0, 0, 0, 0, 0, rx * k);
-    grad.addColorStop(0, 'rgba(82,88,94,0.55)');
-    grad.addColorStop(0.7, 'rgba(82,88,94,0.42)');
-    grad.addColorStop(1, 'rgba(82,88,94,0)');
+    grad.addColorStop(0, 'rgba(78,76,72,0.55)');
+    grad.addColorStop(0.7, 'rgba(78,76,72,0.42)');
+    grad.addColorStop(1, 'rgba(78,76,72,0)');
     g.fillStyle = grad;
     g.scale(1, rz / rx);
     g.beginPath();
@@ -197,7 +201,11 @@ function livery(team: string): Livery {
       line(g, [M(2.0, wte(2.0) - 0.8), M(6.5, wte(6.5) - 0.55)], 1.2, LINE_LIGHT);
       rivets(g, M(2.0, wle(2.0) + 0.6), M(6.6, wle(6.6) + 0.35), 9, 0.8);
       for (const x of [2.8, 3.9, 5.0, 6.0]) line(g, [M(x, wle(x) + 0.35), M(x, wte(x) - 0.6)], 1.0, LINE_LIGHT);
-      line(g, [M(1.6, 6.2), M(4.2, 8.0)], 1.0, LINE_LIGHT); // tailplane
+      // the pale edge strips framing the wing and tailplane (the coating's edge treatment)
+      const edge = 'rgba(170,165,155,0.38)';
+      const wk = (g === gt ? pt : L.pb) * 0.2;
+      line(g, [M(1.9, wle(1.9) + 0.1), M(6.7, 3.98), M(6.7, 4.5), M(6.0, 5.08), M(2.0, 5.78)], wk, edge);
+      line(g, [M(1.85, 5.7), M(3.0, 6.18), M(4.5, 7.66), M(4.5, 8.8), M(3.05, 9.1), M(2.0, 8.2)], wk, edge);
     }
     if (sx < 0) roundel(gt, team, ...W(4.6, 2.9), 0.42 * pt);
     else roundel(gb, team, ...Wb(4.6, 2.9), 0.42 * L.pb);
@@ -382,7 +390,7 @@ export function buildF22(v: AirframeVisual): void {
   }
   // the Raptor's coating has a slight metallic sheen
   // the two-tone medium greys (FS 36170 / 36176) with the coating's faint sheen
-  const paint = skinMaterial({ top: new THREE.Color('#6b7277'), bottom: new THREE.Color('#787f84'), livery: L, roughness: 0.4, metalness: 0.2 });
+  const paint = skinMaterial({ top: new THREE.Color('#74726d'), bottom: new THREE.Color('#7e7b75'), livery: L, roughness: 0.38, metalness: 0.22 });
   v.paintMat = paint;
   const skin = (g: THREE.BufferGeometry) => v.addMesh(stamp(g), paint);
 
@@ -438,14 +446,14 @@ export function buildF22(v: AirframeVisual): void {
   }
 
   // --- canopy: one-piece, frameless, gold tinted; seat and pilot
-  v.cockpitEye.set(0, 0.86, -4.8);
+  v.cockpitEye.set(0, 0.86, -5.325);
   // the only hoop is the one at the back of the canopy
-  buildCanopy(v, CANOPY, -2.55, []);
-  addPilot(v, new THREE.Vector3(0, 0.86, -4.8), 0.26, { style: 'us', stick: 'side', martinBaker: false });
+  buildCanopy(v, CANOPY, -3.3, []);
+  addPilot(v, new THREE.Vector3(0, 0.86, -5.325), 0.26, { style: 'us', stick: 'side', martinBaker: false });
   const shroud = loftProfile({
-    stations: stations(-5.75, -5.35, 6),
+    stations: stations(-6.18, -5.82, 6),
     profile: (z) => {
-      const u = sstep(-5.75, -5.35, z);
+      const u = sstep(-6.18, -5.82, z);
       return [[0, 0.1], [0.42, 0.12], [0.46, 0.44], [0.33, 0.52 - u * 0.06], [0, 0.54 - u * 0.06]] as P2[];
     },
     sub: 3,
@@ -464,7 +472,7 @@ export function buildF22(v: AirframeVisual): void {
   }
   // canopy sill: the raised rail the canopy seals onto
   const sill = loftProfile({
-    stations: stations(-6.4, -2.4, 30),
+    stations: stations(-6.765, -3.165, 30),
     profile: (z) => {
       const c = CANOPY;
       let w = 0.03, y = 0.42;
@@ -490,7 +498,7 @@ export function buildF22(v: AirframeVisual): void {
     [
       { x0: 2.05, x1: 6.6, hinge: (x) => wle(x) + 0.12 * (wte(x) - wle(x)) + 0.05, kind: 'lef', maxDeg: 25, leading: true },
       { x0: 2.1, x1: 4.3, hinge: (x) => wte(x) - 0.7, kind: 'flap', maxDeg: 30 },
-      { x0: 4.4, x1: 6.5, hinge: (x) => wte(x) - 0.5, kind: 'aileron', maxDeg: 25 },
+      { x0: 4.4, x1: 5.95, hinge: (x) => wte(x) - 0.5, kind: 'aileron', maxDeg: 25 },
     ],
     { chordPts: 36, thickPos: 0.42 },
   );
@@ -645,8 +653,8 @@ export function buildF22(v: AirframeVisual): void {
   ]), pm.formation, v.body, false);
   buildBays(v, paint);
 
-  v.addNavLight(new THREE.Vector3(-6.72, -0.28, 2.2), 'red');
-  v.addNavLight(new THREE.Vector3(6.72, -0.28, 2.2), 'green');
+  v.addNavLight(new THREE.Vector3(-6.72, -0.28, 4.25), 'red');
+  v.addNavLight(new THREE.Vector3(6.72, -0.28, 4.25), 'green');
   v.addNavLight(new THREE.Vector3(0, -0.84, 0.4), 'strobe');
 
   // --- landing gear: nose leg behind the radome, mains fold into the fuselage sides

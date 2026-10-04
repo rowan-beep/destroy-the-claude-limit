@@ -3,6 +3,12 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.41.3 — F-22 matched to the real jet (2026-10-04)
+
+- F-22 rebuilt from a top-down photo of the real jet. The wing is now the true clipped diamond: a steep leading edge from the intake shoulders, a cut-off tip, and a near-straight trailing edge. The tailplanes have the real kinked trailing edge (swept forward outboard, notched back beside the nozzles) and a squared-off tip.
+- F-22 upper body: the canopy sits further forward and is a little shorter, like the real jet's.
+- F-22 colours: a warmer two-tone grey with darker patches, and the pale edge strips that frame the real Raptor's wings and tailplanes.
+
 ## v4.41.2 — F-22 reshaped (2026-10-04)
 
 - F-22 reshaped to match the real Raptor. The tailplanes are now the big clipped diamonds that reach well past the nozzles, with the trailing edge swept forward like the wing. The fins are shorter and broader, with the real 23-degree leading edge and forward-swept trailing edge. The wing sits a metre further forward so it grows out of the intakes.

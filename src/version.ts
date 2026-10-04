@@ -10,6 +10,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.41.3',
+    date: '2026-10-04',
+    title: "F-22 matched to the real jet",
+    notes: [
+      "F-22 rebuilt from a top-down photo of the real jet. The wing is now the true clipped diamond: a steep leading edge from the intake shoulders, a cut-off tip, and a near-straight trailing edge. The tailplanes have the real kinked trailing edge (swept forward outboard, notched back beside the nozzles) and a squared-off tip.",
+      "F-22 upper body: the canopy sits further forward and is a little shorter, like the real jet's.",
+      "F-22 colours: a warmer two-tone grey with darker patches, and the pale edge strips that frame the real Raptor's wings and tailplanes.",
+    ],
+  },
+  {
     version: '4.41.2',
     date: '2026-10-04',
     title: "F-22 reshaped",
