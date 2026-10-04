@@ -10,6 +10,26 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.47.0',
+    date: '2026-10-04',
+    title: "Fly the Saturn V",
+    notes: [
+      "The Saturn V flies. Press LAUNCH on the Launch Pad page (or FLY on the Orbital Flight mission) and choose where to start: on Pad 1 with the count holding at T-20 seconds, or already in a 185 km parking orbit with the S-IVB and the Apollo spacecraft.",
+      "From the pad, press SPACE to resume the count. The five F-1s light in sequence at T-8.9 s, the hold-down arms let go at zero, the swing arms pull back, and the rocket climbs out of a cloud of steam and smoke lit orange by the fire, and the roar changes as the air thins.",
+      "Every stage is a real stage. The S-IC burns out and drops away, the S-II's interstage and the escape tower are jettisoned, the S-II's centre engine shuts down early to stop pogo, and the S-IVB burns to orbit. Each spent stage tumbles away on its own path and falls back into the atmosphere. Auto-staging (T) drops stages as they burn out, or you can turn it off and stage yourself with SPACE.",
+      "The physics run at full scale: a real-size Earth spinning under you, gravity that weakens with height, a standard atmosphere, F-1 thrust that grows as the air thins, propellant burned engine by engine, drag, and aerodynamic loads. The rocket steers by gimballing its engines, so it turns slowly and heavily. Turn too hard through max Q and the aero load breaks it apart.",
+      "The Instrument Unit can fly the ascent for you (G): straight up off the pad, a pitch-over, a gravity turn, then a closed-loop climb into a 185 km parking orbit, with S-IVB cutoff when the orbit is reached. Take over at any time with W/S to pitch, A/D to yaw and Q/E to roll, or hand the attitude to the stability system: hold, prograde, retrograde, normal, anti-normal, radial out or radial in (keys 1 to 8, 0 for free).",
+      "The S-IVB can restart its J-2 twice in orbit (Z), with ullage motors settling the propellant first. X cuts the engines. Burn retrograde to bring your periapsis down into the atmosphere, then separate the command module (J twice) for the ride home.",
+      "A new flight UI built for spaceflight. A mission clock and a status badge sit at the top with three lamps: ORBIT when the orbit clears the atmosphere, FALLING when you're coming down, and SAFE when you're on an escape path, free of Earth's pull. The vehicle panel shows what's left of the stack, each engine's state, propellant, mass, thrust-to-weight, Δv and burn time. The orbit panel draws your orbit and lists apoapsis, periapsis, time to each, inclination, period and eccentricity, and what you're flying over. The attitude ball in the middle shows prograde, retrograde, normal and radial markers, with altitude, vertical speed, g, orbital and surface speed, and Mach on either side. Below that are dynamic pressure and aero load bars, and there's a flight log of every event.",
+      "Map view (M) pulls back to show the whole Earth and your predicted path. The line is green for a stable orbit, amber when it dips into the air, orange-red inside the atmosphere and blue on an escape path, with apoapsis and periapsis markers, an IMPACT marker where a falling path meets the ground, and a dashed line where the orbit passes behind the planet.",
+      "The universe: the Earth is drawn at full size with continents, deserts, forests, ice caps, oceans that catch the sunlight and city lights on the night side, under a drifting cloud deck. A real scattering atmosphere paints the blue limb, the sky as you climb, and sunrise along the terminator. In orbit the stars and the Milky Way come out, and they shine brightest when you pass into Earth's shadow.",
+      "Three cameras (C): a chase camera you can drag around and zoom (it closes in as stages fall away), a long-lens tracking camera on the causeway, and an onboard camera looking down past the stages at the plume and the Earth. The F-1 plume is long and narrow at sea level and balloons into a huge glowing cloud as the air thins. The J-2s burn an almost invisible pale blue.",
+      "Time warp up to 10,000× (comma and period) while coasting. Under power or in the atmosphere it's limited to 4×.",
+      "Abort (B twice) fires the launch escape tower on the pad or during ascent, pitches the command module out over the sea and jettisons the tower. Coming home, the command module glows with re-entry plasma, the drogues open, then the three striped main chutes, and it splashes down. Each flight ends with a card showing your max altitude, speed, g, max Q and time in space. Launches, missions and days in space count toward your commander record.",
+      "Press ESC to pause, restart, or switch to the other starting point, and H for the full controls list.",
+    ],
+  },
+  {
     version: '4.46.0',
     date: '2026-10-04',
     title: "The Saturn V",

@@ -93,6 +93,7 @@ export class FlightUI {
   private overlay: HTMLElement;
   private helpEl: HTMLElement;
   private labels: HTMLElement;
+  readonly mapCanvas: HTMLCanvasElement;
   readonly labelAp: HTMLElement;
   readonly labelPe: HTMLElement;
   private lastEvent = 0;
@@ -228,6 +229,7 @@ export class FlightUI {
 
     this.flashEl = el('div', 'fx-flash', this.root);
     this.labels = el('div', 'fx-labels', this.root);
+    this.mapCanvas = el('canvas', 'fx-mapc', this.labels) as HTMLCanvasElement;
     this.labelAp = el('div', 'fx-mlabel ap', this.labels, 'AP');
     this.labelPe = el('div', 'fx-mlabel pe', this.labels, 'PE');
     this.overlay = el('div', 'fx-overlay hidden', this.root);

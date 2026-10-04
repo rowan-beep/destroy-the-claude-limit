@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import { Debris, FlightSim, PartId, PARTS, PART_ORDER, Q, SasMode, qrot, sunDirection } from './flightSim';
 import { EARTH, V3, add, air, cross, dot, earthAngle, ecefDir, len, norm, orbitPoint, padScene, rotY, scale, sub, toEcef, PAD } from './universe';
-import { SpaceScene } from './spaceScene';
+import { SpaceScene, orbitTrack } from './spaceScene';
 import { Plumes } from './plumes';
 import { FlightUI } from './flightUI';
 import { buildSaturnV, saturnParts } from './saturnVModel';
@@ -245,6 +245,7 @@ export class SpaceFlight {
     this.liftoffCounted = false;
     this.orbitTime = 0;
     this.lastStatus = '';
+    this.stackLen = 0;
     this.local = mode === 'pad';
     this.site.setFlying(true);
     this.attachTo(this.local ? this.site.scene : this.space.scene);
@@ -511,6 +512,7 @@ export class SpaceFlight {
     this.fade = Math.max(0, this.fade - dt * 1.6);
     this.fadeEl.style.opacity = String(this.fade * 0.85);
 
+    this.fitChase();
     this.placeVehicle();
     const at = air(sim.alt);
     this.plumes.update(sim, dt, at.p);
@@ -672,12 +674,33 @@ export class SpaceFlight {
       cam.up.set(ul[0], ul[1], ul[2]);
       cam.lookAt(look);
     }
+    this.frameOffset(cam, w, h, this.camMode === 'CHASE');
     cam.near = 0.5;
     cam.far = 140_000;
     cam.updateProjectionMatrix();
     cam.updateMatrixWorld();
     const vy = this.scenePos(sim.origin).y;
     this.site!.renderFlight(dt, cam, this.plumes.fireLevel * (sim.alt < 1500 ? 1 : 0), vy, sim.alt);
+  }
+
+  /** in the chase view, lift the vehicle above the attitude ball and tapes at the bottom of the screen */
+  private frameOffset(cam: THREE.PerspectiveCamera, w: number, h: number, on: boolean): void {
+    if (on) cam.setViewOffset(w, h, 0, h * 0.11, w, h);
+    else cam.clearViewOffset();
+  }
+
+  /** keep the chase camera's framing as stages fall away: scale the distance with the length of what is left */
+  private stackLen = 0;
+  private fitChase(): void {
+    const sim = this.sim!;
+    let y0 = Infinity, y1 = -Infinity;
+    for (const p of sim.attached) {
+      y0 = Math.min(y0, Math.max(PARTS[p].y0, 0));
+      y1 = Math.max(y1, PARTS[p].y1);
+    }
+    const L = Math.max(3, y1 - y0);
+    if (this.stackLen && Math.abs(L - this.stackLen) > 0.5) this.camDist = Math.max(12, Math.min(3e6, this.camDist * (L / this.stackLen)));
+    this.stackLen = L;
   }
 
   /** a camera on the side of the vehicle, looking down past the stage below at the plume and the Earth */
@@ -730,27 +753,119 @@ export class SpaceFlight {
       lookAt = look;
       cam.fov = 50;
     }
+    this.frameOffset(cam, w, h, !this.map && this.camMode === 'CHASE');
     sp.update({ origin: sim.r, cam: camPos, camUp, look: lookAt, earthAngle: earthAngle(sim.time), time: sim.time }, w, h, this.map);
-    sp.setOrbit(this.map ? sim.orbit : null, sim.r, this.map);
-    if (this.map) sp.marker.position.set(0, 0, 0);
     this.plumes.group.visible = true;
     if (this.drawWith) this.drawWith(sp.scene, cam);
   }
 
+  /** the map overlay: the predicted track drawn over the globe, dimmed where the Earth hides it, with the vehicle, apsides and impact point */
   private updateMapLabels(w: number, h: number): void {
-    const show = this.map && !!this.sim && this.sim.orbit.e < 1 && !this.local;
+    const cv = this.ui.mapCanvas;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const show = this.map && !!this.sim && !this.local;
+    const W = Math.round(w * dpr), H = Math.round(h * dpr);
+    if (cv.width !== W || cv.height !== H) {
+      cv.width = W;
+      cv.height = H;
+    }
+    const g = cv.getContext('2d')!;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, W, H);
+    this.ui.labelAp.style.display = this.ui.labelPe.style.display = 'none';
+    if (!show) return;
+    g.scale(dpr, dpr);
+    const sim = this.sim!;
+    const o = sim.orbit;
+    const cam = this.space!.camera;
+    const camEci = add(sim.r, [cam.position.x, cam.position.y, cam.position.z]);
+    const R2 = EARTH.R * EARTH.R;
+    const tmp = new THREE.Vector3();
+    /** screen position of a point (ECI), and whether the Earth hides it from the camera */
+    const proj = (p: V3): { x: number; y: number; hid: boolean } | null => {
+      tmp.set(p[0] - sim.r[0], p[1] - sim.r[1], p[2] - sim.r[2]).project(cam);
+      if (tmp.z > 1 || tmp.z < -1) return null;
+      const d = sub(p, camEci);
+      const dd = dot(d, d);
+      const t = Math.max(0, Math.min(1, -dot(camEci, d) / dd));
+      const c = add(camEci, scale(d, t));
+      const hid = t > 0 && t < 0.999 && dot(c, c) < R2 * 0.999;
+      return { x: ((tmp.x + 1) / 2) * w, y: ((1 - tmp.y) / 2) * h, hid };
+    };
+    const COL: Record<string, string> = { air: '255,120,60', escape: '110,190,255', stable: '90,240,140', decay: '255,190,70' };
+    const { pts, impact } = orbitTrack(o);
+    const sp = pts.map((t) => proj(t.p));
+    // two passes: a soft glow, then the line; hidden stretches are thin and dashed
+    for (const pass of [0, 1]) {
+      for (let i = 1; i < sp.length; i++) {
+        const a = sp[i - 1], b = sp[i];
+        if (!a || !b) continue;
+        const hid = a.hid || b.hid;
+        if (hid && pass === 0) continue;
+        g.beginPath();
+        g.moveTo(a.x, a.y);
+        g.lineTo(b.x, b.y);
+        const c = COL[pts[i].kind];
+        g.setLineDash(hid ? [3, 5] : []);
+        g.lineWidth = pass === 0 ? 7 : hid ? 1 : 2.2;
+        g.strokeStyle = pass === 0 ? `rgba(${c},0.18)` : `rgba(${c},${hid ? 0.35 : 0.95})`;
+        g.stroke();
+      }
+    }
+    g.setLineDash([]);
+    // the impact point
+    if (impact) {
+      const e = sp[sp.length - 1];
+      if (e) {
+        g.strokeStyle = e.hid ? 'rgba(255,90,70,0.4)' : '#ff5a46';
+        g.lineWidth = 2;
+        g.beginPath();
+        g.moveTo(e.x - 6, e.y - 6);
+        g.lineTo(e.x + 6, e.y + 6);
+        g.moveTo(e.x + 6, e.y - 6);
+        g.lineTo(e.x - 6, e.y + 6);
+        g.stroke();
+        g.font = '11px Consolas, monospace';
+        g.fillStyle = g.strokeStyle;
+        g.fillText('IMPACT', e.x + 9, e.y + 4);
+      }
+    }
+    // the vehicle
+    const me = proj(sim.r);
+    if (me) {
+      const vNext = proj(add(sim.r, scale(sim.v, 60)));
+      g.fillStyle = 'rgba(150,215,255,0.25)';
+      g.beginPath();
+      g.arc(me.x, me.y, 11, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = '#bfe4ff';
+      g.beginPath();
+      g.arc(me.x, me.y, 4.5, 0, Math.PI * 2);
+      g.fill();
+      if (vNext) {
+        const ang = Math.atan2(vNext.y - me.y, vNext.x - me.x);
+        g.strokeStyle = '#bfe4ff';
+        g.lineWidth = 1.6;
+        g.beginPath();
+        g.moveTo(me.x + Math.cos(ang) * 8, me.y + Math.sin(ang) * 8);
+        g.lineTo(me.x + Math.cos(ang) * 20, me.y + Math.sin(ang) * 20);
+        g.stroke();
+      }
+    }
+    // apoapsis and periapsis
+    if (o.e >= 1) return;
     for (const [lab, nu, name] of [[this.ui.labelAp, Math.PI, 'AP'], [this.ui.labelPe, 0, 'PE']] as [HTMLElement, number, string][]) {
-      lab.style.display = 'none';
-      if (!show) continue;
-      const sim = this.sim!;
-      const o = sim.orbit;
       if (name === 'PE' && o.rp < EARTH.R) continue;
-      const p = sub(orbitPoint(o, nu), sim.r);
-      const v = new THREE.Vector3(...p).project(this.space!.camera);
-      if (v.z > 1) continue;
+      const q = proj(orbitPoint(o, nu));
+      if (!q) continue;
+      g.fillStyle = q.hid ? 'rgba(255,255,255,0.35)' : '#ffffff';
+      g.beginPath();
+      g.arc(q.x, q.y, 3.5, 0, Math.PI * 2);
+      g.fill();
       lab.style.display = 'block';
-      lab.style.left = `${((v.x + 1) / 2) * w}px`;
-      lab.style.top = `${((1 - v.y) / 2) * h}px`;
+      lab.style.opacity = q.hid ? '0.45' : '1';
+      lab.style.left = `${q.x}px`;
+      lab.style.top = `${q.y}px`;
       const alt = (name === 'AP' ? o.ra : o.rp) - EARTH.R;
       lab.textContent = `${name} ${(alt / 1000).toFixed(0)} km`;
     }

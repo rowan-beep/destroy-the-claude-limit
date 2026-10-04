@@ -1081,6 +1081,7 @@ body:has(#hud.cockpit-clean) .wx-widget { opacity: 0; pointer-events: none; }
 .fx-flash.on { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 .fx-flash.good { color: #b9ffd2; } .fx-flash.bad { color: #ffb4aa; } .fx-flash.warn { color: #ffd9a0; }
 .fx-labels { position: absolute; inset: 0; }
+.fx-mapc { position: absolute; inset: 0; width: 100%; height: 100%; }
 .fx-mlabel { position: absolute; transform: translate(10px, -50%); font-family: 'Consolas', monospace; font-size: 11px; padding: 2px 6px; border-radius: 4px; background: rgba(4, 10, 24, 0.7); border: 1px solid var(--line); white-space: nowrap; display: none; }
 /* overlays */
 .fx-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 3, 12, 0.55); backdrop-filter: blur(3px); }

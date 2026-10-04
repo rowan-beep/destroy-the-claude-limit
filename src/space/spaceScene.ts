@@ -15,7 +15,7 @@ const RA_KM = RP_KM + 100;
 const SCATTER_GLSL = /* glsl */ `
 const float RP = ${RP_KM.toFixed(1)}, RA = ${RA_KM.toFixed(1)};
 const vec3 KR = vec3(5.5e-3, 13.0e-3, 22.4e-3);
-const float KM = 21e-3, HR = 8.0, HM = 1.2, GMIE = 0.76;
+const float KM = 9e-3, HR = 8.0, HM = 1.2, GMIE = 0.76;
 vec2 rsi(vec3 r0, vec3 rd, float sr) {
   float b = dot(rd, r0);
   float c = dot(r0, r0) - sr * sr;
@@ -64,7 +64,7 @@ vec3 scatter(vec3 ro, vec3 rd, float ta, float tb, vec3 sd, out vec3 T) {
     tM += dM * att;
   }
   T = exp(-(KR * odR + KM * 1.1 * odM));
-  return 15.0 * (pR * KR * tR + pM * KM * tM);
+  return 9.0 * (pR * KR * tR + pM * KM * tM);
 }
 `;
 
@@ -120,10 +120,11 @@ void main() {
   vec3 albedo;
   float water = step(h, 0.0);
   if (h > 0.0) {
-    vec3 forest = vec3(0.045, 0.085, 0.035), grass = vec3(0.16, 0.19, 0.08), desert = vec3(0.52, 0.42, 0.28);
+    vec3 forest = vec3(0.03, 0.06, 0.025), grass = vec3(0.1, 0.12, 0.05), desert = vec3(0.42, 0.32, 0.2);
     vec3 tundra = vec3(0.3, 0.27, 0.22), rock = vec3(0.32, 0.29, 0.26), snow = vec3(0.85, 0.88, 0.92);
     float desertBand = exp(-pow((alat - 24.0) / 9.0, 2.0));
-    albedo = mix(forest, grass, smoothstep(0.35, 0.7, hum));
+    albedo = mix(forest, grass, smoothstep(0.45, 0.8, hum));
+    albedo = mix(albedo, vec3(0.13, 0.1, 0.06), smoothstep(0.55, 0.75, vnoise3(d * 40.0 + 2.0)) * 0.6);
     albedo = mix(albedo, desert, clamp(desertBand * 1.9 * (1.0 - hum) - 0.25, 0.0, 1.0));
     albedo = mix(albedo, tundra, smoothstep(52.0, 66.0, alat));
     albedo = mix(albedo, rock, smoothstep(0.38, 0.62, h));
@@ -137,7 +138,7 @@ void main() {
   vec3 pKm = d * RP;
   vec3 sunC = sunTrans(pKm + N * 0.05, sd);
   float ndl = dot(N, sd);
-  vec3 col = albedo * sunC * max(ndl, 0.0) * 3.2;
+  vec3 col = albedo * sunC * max(ndl, 0.0) * 2.4;
   // a little skylight in the shade near the terminator
   col += albedo * vec3(0.15, 0.25, 0.45) * smoothstep(-0.15, 0.25, ndl) * 0.25;
   // the sun on the sea
@@ -288,11 +289,6 @@ export class SpaceScene {
   private milkyMat: THREE.ShaderMaterial;
   /** a group positioned at the origin, for the vehicle and nearby things */
   readonly local = new THREE.Group();
-  // map view
-  private orbitLine: THREE.Line;
-  private orbitPos = new Float32Array(722 * 3);
-  private orbitCol = new Float32Array(722 * 3);
-  readonly marker: THREE.Sprite;
 
   constructor(private sunDirEci: V3) {
     const sunV = new THREE.Vector3(...sunDirEci);
@@ -343,10 +339,10 @@ export class SpaceScene {
         fragmentShader: MILKY_FRAG,
         side: THREE.BackSide,
         depthWrite: false,
-        depthTest: false,
       });
     const milky = new THREE.Mesh(new THREE.SphereGeometry(1e8, 64, 32), this.milkyMat);
-    milky.renderOrder = -11;
+    // drawn after the opaque planet, depth-tested against it, so it never shows through the night side
+    milky.renderOrder = 1;
     milky.frustumCulled = false;
     this.skyGroup.add(milky);
     const N = 7000;
@@ -374,9 +370,9 @@ export class SpaceScene {
     sg.setAttribute('position', new THREE.BufferAttribute(pos.slice(0, k * 3), 3));
     sg.setAttribute('color', new THREE.BufferAttribute(col.slice(0, k * 3), 3));
     sg.setAttribute('size', new THREE.BufferAttribute(size.slice(0, k), 1));
-    this.starMat = new THREE.ShaderMaterial({ uniforms: { bright: { value: 1 } }, vertexShader: STAR_VERT, fragmentShader: STAR_FRAG, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending });
+    this.starMat = new THREE.ShaderMaterial({ uniforms: { bright: { value: 1 } }, vertexShader: STAR_VERT, fragmentShader: STAR_FRAG, depthWrite: false, blending: THREE.AdditiveBlending });
     const stars = new THREE.Points(sg, this.starMat);
-    stars.renderOrder = -10;
+    stars.renderOrder = 1.5;
     stars.frustumCulled = false;
     this.skyGroup.add(stars);
     this.scene.add(this.skyGroup);
@@ -417,35 +413,6 @@ export class SpaceScene {
     this.scene.add(this.ambient);
     this.scene.add(this.local);
 
-    // ---- map view: the orbit and a marker for the vehicle
-    const og = new THREE.BufferGeometry();
-    og.setAttribute('position', new THREE.BufferAttribute(this.orbitPos, 3));
-    og.setAttribute('color', new THREE.BufferAttribute(this.orbitCol, 3));
-    this.orbitLine = new THREE.Line(og, new THREE.LineBasicMaterial({ vertexColors: true, toneMapped: false, transparent: true, opacity: 0.95 }));
-    this.orbitLine.frustumCulled = false;
-    this.orbitLine.visible = false;
-    this.orbitLine.renderOrder = 4;
-    this.scene.add(this.orbitLine);
-    const dot = (() => {
-      const c = document.createElement('canvas');
-      c.width = c.height = 64;
-      const g = c.getContext('2d')!;
-      g.strokeStyle = '#ffffff';
-      g.lineWidth = 6;
-      g.beginPath();
-      g.arc(32, 32, 20, 0, Math.PI * 2);
-      g.stroke();
-      g.fillStyle = '#ffffff';
-      g.beginPath();
-      g.arc(32, 32, 7, 0, Math.PI * 2);
-      g.fill();
-      return new THREE.CanvasTexture(c);
-    })();
-    this.marker = new THREE.Sprite(new THREE.SpriteMaterial({ map: dot, color: new THREE.Color(0.6, 0.85, 1.6), sizeAttenuation: false, depthTest: false, toneMapped: false, transparent: true }));
-    this.marker.scale.set(0.028, 0.028, 1);
-    this.marker.renderOrder = 6;
-    this.marker.visible = false;
-    this.scene.add(this.marker);
   }
 
   /** place the planet, sky and camera around the vehicle */
@@ -510,51 +477,41 @@ export class SpaceScene {
     const perp = len(sub(p, [s[0] * along, s[1] * along, s[2] * along]));
     return perp < EARTH.R;
   }
+}
 
-  /** draw the orbit (or the arc to the ground) for the map view */
-  setOrbit(o: Orbit | null, origin: V3, visible: boolean): void {
-    this.orbitLine.visible = visible && !!o;
-    this.marker.visible = visible;
-    if (!o || !visible) return;
-    const pts: V3[] = [];
-    const cols: [number, number, number][] = [];
-    const R = EARTH.R;
-    const atm = R + EARTH.atmosphereTop;
-    if (o.e < 1) {
-      // from now round the orbit, stopping where it meets the ground
-      let end = o.nu + 2 * Math.PI;
-      if (o.rp < R) {
-        const ni = descendingAnomaly(o, R);
-        if (Number.isFinite(ni)) {
-          end = ni;
-          while (end < o.nu) end += 2 * Math.PI;
-        }
+/** a point on the predicted track for the map view, coloured by what it means */
+export interface TrackPoint {
+  p: V3;
+  /** 'air' inside the atmosphere, 'escape' on a hyperbola, 'stable' if the orbit clears the air, 'decay' if it dips into it */
+  kind: 'air' | 'escape' | 'stable' | 'decay';
+}
+
+/** the predicted path from now: round the orbit, or down to where it meets the ground, or out on an escape */
+export function orbitTrack(o: Orbit, n = 360): { pts: TrackPoint[]; impact: boolean } {
+  const R = EARTH.R;
+  const atm = R + EARTH.atmosphereTop;
+  const raw: V3[] = [];
+  let impact = false;
+  if (o.e < 1) {
+    let end = o.nu + 2 * Math.PI;
+    if (o.rp < R) {
+      const ni = descendingAnomaly(o, R);
+      if (Number.isFinite(ni)) {
+        end = ni;
+        while (end < o.nu) end += 2 * Math.PI;
+        impact = true;
       }
-      const n = 720;
-      for (let i = 0; i <= n; i++) {
-        const nu = o.nu + ((end - o.nu) * i) / n;
-        pts.push(orbitPoint(o, nu));
-      }
-    } else {
-      const lim = Math.acos(-1 / o.e) * 0.985;
-      const n = 720;
-      let start = o.nu > Math.PI ? o.nu - 2 * Math.PI : o.nu;
-      start = Math.max(-lim, start);
-      for (let i = 0; i <= n; i++) pts.push(orbitPoint(o, start + ((lim - start) * i) / n));
     }
-    for (const p of pts) {
-      const r = len(p);
-      cols.push(r < atm ? [1.6, 0.5, 0.2] : o.e >= 1 ? [0.4, 0.8, 1.8] : o.rp > atm ? [0.3, 1.5, 0.6] : [1.6, 1.1, 0.3]);
-    }
-    const n = Math.min(pts.length, 722);
-    for (let i = 0; i < 722; i++) {
-      const p = pts[Math.min(i, n - 1)];
-      this.orbitPos.set([p[0] - origin[0], p[1] - origin[1], p[2] - origin[2]], i * 3);
-      this.orbitCol.set(cols[Math.min(i, n - 1)], i * 3);
-    }
-    const g = this.orbitLine.geometry;
-    g.attributes.position.needsUpdate = true;
-    g.attributes.color.needsUpdate = true;
-    g.setDrawRange(0, 722);
+    for (let i = 0; i <= n; i++) raw.push(orbitPoint(o, o.nu + ((end - o.nu) * i) / n));
+  } else {
+    const lim = Math.acos(-1 / o.e) * 0.985;
+    let start = o.nu > Math.PI ? o.nu - 2 * Math.PI : o.nu;
+    start = Math.max(-lim, start);
+    for (let i = 0; i <= n; i++) raw.push(orbitPoint(o, start + ((lim - start) * i) / n));
   }
+  const pts = raw.map((p): TrackPoint => {
+    const r = len(p);
+    return { p, kind: r < atm ? 'air' : o.e >= 1 ? 'escape' : o.rp > atm ? 'stable' : 'decay' };
+  });
+  return { pts, impact };
 }
