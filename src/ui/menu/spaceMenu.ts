@@ -5,6 +5,7 @@
 // rise in one after another when the menu opens and when a section changes.
 
 import { SATURN_V } from '../../space/saturnV';
+import { loadRecord } from '../../space/record';
 import { el, clearEl, button } from '../dom';
 import { VERSION } from '../../version';
 import { loadNetPrefs } from '../../net/servers';
@@ -16,25 +17,11 @@ export interface SpaceMenuCallbacks {
   onProgram: (p: Program) => void;
   onSettings: () => void;
   onControls: () => void;
+  /** fly the Saturn V: from the pad, or already in orbit */
+  onLaunch: (mode: 'pad' | 'orbit') => void;
 }
 
-interface SpaceRecord {
-  missions: number;
-  launches: number;
-  daysInSpace: number;
-  samples: number;
-}
-const REC_KEY = 'triad.space.record';
 const SEC_KEY = 'triad.space.section';
-
-function loadRecord(): SpaceRecord {
-  const d: SpaceRecord = { missions: 0, launches: 0, daysInSpace: 0, samples: 0 };
-  try {
-    return { ...d, ...JSON.parse(localStorage.getItem(REC_KEY) || '{}') };
-  } catch {
-    return d;
-  }
-}
 
 const SECTIONS: [Section, string][] = [
   ['missions', 'MISSIONS'],
@@ -125,9 +112,10 @@ export class SpaceMenu {
     ring.innerHTML =
       '<svg viewBox="0 0 120 120"><circle class="r0" cx="60" cy="60" r="54"/><circle class="r1" cx="60" cy="60" r="54"/><circle class="r2" cx="60" cy="60" r="46"/></svg>';
     const lb = el('button', 'sx2-launch-btn', ring);
-    lb.disabled = true;
+    lb.type = 'button';
     el('span', 'sx2-lb-l', lb, 'LAUNCH');
-    el('span', 'sx2-lb-s', lb, 'FLIGHT SOON');
+    el('span', 'sx2-lb-s', lb, 'SATURN V');
+    lb.addEventListener('click', () => this.chooseSpawn());
     const lst = el('div', 'sx2-launch-st', launch);
     const st = (k: string, v: string, dot: string) => {
       const r = el('div', 'sx2-st', lst);
@@ -239,7 +227,7 @@ export class SpaceMenu {
     el('div', 'sx2-cmdr-n', t, cs);
     el('div', 'sx2-cmdr-r', t, 'ASTRONAUT CANDIDATE');
     const stats = el('div', 'sx2-stats', this.commander);
-    for (const [v, k] of [[r.missions, 'MSN'], [r.launches, 'LCH'], [r.daysInSpace, 'DAYS'], [r.samples, 'SMPL']] as [number, string][]) {
+    for (const [v, k] of [[r.missions, 'MSN'], [r.launches, 'LCH'], [r.daysInSpace < 10 ? Number(r.daysInSpace.toFixed(2)) : Math.round(r.daysInSpace), 'DAYS'], [r.samples, 'SMPL']] as [number, string][]) {
       const b = el('div', 'sx2-stat', stats);
       el('div', 'sx2-stat-v', b, String(v));
       el('div', 'sx2-stat-k', b, k);
@@ -261,15 +249,46 @@ export class SpaceMenu {
       ['MARS ROVER', 'Explore the red planet', 'MARS'],
     ];
     items.forEach(([t, s, tag], i) => {
-      const r = el('div', 'sx2-card locked', this.side);
+      const open = i === 0;
+      const r = el('div', 'sx2-card' + (open ? ' open' : ' locked'), this.side);
       el('div', 'sx2-card-n', r, String(i + 1).padStart(2, '0'));
       const tx = el('div', 'sx2-card-t', r);
       const tl = el('div', 'sx2-card-l', tx, t);
       el('span', 'sx2-tag', tl, tag);
       el('div', 'sx2-card-s', tx, s);
-      el('div', 'sx2-lock', r, 'SOON');
+      el('div', 'sx2-lock', r, open ? 'FLY' : 'SOON');
+      if (open) r.addEventListener('click', () => this.chooseSpawn());
     });
-    el('div', 'sx2-note', this.side, 'The Saturn V stands on Pad 1. Missions open as the flight model and the rovers arrive.');
+    el('div', 'sx2-note', this.side, 'Orbital flight is open: launch the Saturn V from Pad 1, or start in a parking orbit, and bring the crew home. The Moon and Mars come next.');
+  }
+
+  /** pick where the flight starts */
+  private chooseSpawn(): void {
+    const back = el('div', 'sx2-choice', this.root);
+    const box = el('div', 'sx2-choice-box', back);
+    el('div', 'sx2-h', box, 'SATURN V · FLIGHT');
+    el('div', 'sx2-choice-t', box, 'WHERE DO YOU START?');
+    const row = el('div', 'sx2-choice-row', box);
+    const opt = (mode: 'pad' | 'orbit', title: string, sub: string, desc: string) => {
+      const b = el('button', 'sx2-opt ' + mode, row) as HTMLButtonElement;
+      b.type = 'button';
+      el('div', 'sx2-opt-art', b);
+      el('div', 'sx2-opt-t', b, title);
+      el('div', 'sx2-opt-s', b, sub);
+      el('div', 'sx2-opt-d', b, desc);
+      b.addEventListener('click', () => {
+        back.remove();
+        this.cb.onLaunch(mode);
+      });
+    };
+    opt('pad', 'ON THE PAD', 'PAD 1 · T-20 s', 'The full stack on the mount. Run the count, ride the F-1s off the pad, stage your way to orbit, by hand or with the IU guidance.');
+    opt('orbit', 'IN ORBIT', '185 KM · 32.5°', 'The S-IVB and the Apollo spacecraft in a parking orbit, with propellant for two more burns. Re-entry and splashdown are up to you.');
+    const x = el('button', 'sx2-choice-x', box, 'CANCEL') as HTMLButtonElement;
+    x.type = 'button';
+    x.addEventListener('click', () => back.remove());
+    back.addEventListener('click', (e) => {
+      if (e.target === back) back.remove();
+    });
   }
 
   private renderPad(): void {

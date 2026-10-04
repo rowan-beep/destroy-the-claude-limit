@@ -17,6 +17,7 @@ import { PerfWatch } from './ui/perfWarning';
 import { Hangar } from './ui/menu/hangar';
 import { LaunchSite } from './ui/menu/launchSite';
 import { SpaceMenu } from './ui/menu/spaceMenu';
+import { SpaceFlight } from './space/spaceFlight';
 import { loadProgram, saveProgram, Program } from './ui/menu/program';
 import { LoadingScreen, PauseMenu, ResultsScreen, ControlsModal, BriefingModal } from './ui/menu/screens';
 import { SettingsModal } from './ui/menu/settingsModal';
@@ -166,8 +167,14 @@ async function boot(): Promise<void> {
     showMenus(game.state === 'menu');
     if (p === 'air') hangar.setJet(menu.cfg.aircraft, menu.cfg.loadoutId);
   };
+  // flying the Saturn V: the space program's own flight, drawn in place of the menu
+  const flight = new SpaceFlight(() => getFactory(), document.body);
+  flight.drawWith = (sc, cam) => game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping);
+  flight.onExit = () => showMenus(game.state === 'menu');
+  if (import.meta.env.DEV) Object.assign(window, { __flight: flight });
   const showMenus = (v: boolean) => {
     const space = program === 'space';
+    if (flight.active) v = false;
     menu.show(v && !space);
     spaceMenu.show(v && space);
     if (factory) factory.active = v && space;
@@ -180,6 +187,13 @@ async function boot(): Promise<void> {
       settingsModal.show(true);
     },
     onControls: () => controls.show(true, settings.input),
+    onLaunch: (mode) => {
+      audio.init();
+      audio.click();
+      flight.start(mode);
+      showMenus(false);
+      if (factory) factory.active = false;
+    },
   });
 
   menu = new MainMenu(document.body, cfg, {
@@ -324,7 +338,8 @@ async function boot(): Promise<void> {
     const step = Math.min(dt, 0.1);
     game.renderer.adaptFrame(step);
     const sz = game.renderer.size;
-    if (program === 'space') getFactory().render(step, sz.w, sz.h);
+    if (flight.active) flight.frame(step, sz.w, sz.h);
+    else if (program === 'space') getFactory().render(step, sz.w, sz.h);
     else hangar.render(step, sz.w, sz.h);
   };
   game.onAfterFrame = (dt) => {
@@ -358,7 +373,7 @@ async function boot(): Promise<void> {
   game.startLoop();
   // new versions install themselves: straight away in the menu, or once you are back from a flight
   watchForUpdates(
-    () => game.state === 'menu' && !customize.open && !library.open,
+    () => game.state === 'menu' && !customize.open && !library.open && !flight.active,
     () => {
       if (game.state !== 'menu') game.message('A NEW VERSION IS READY: IT INSTALLS WHEN YOU RETURN TO THE MENU', 'info', 10);
     },

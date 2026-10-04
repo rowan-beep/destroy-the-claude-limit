@@ -371,10 +371,60 @@ export function buildSaturnV(): THREE.Group {
     can.rotation.y = k * Math.PI;
     rocket.add(can);
   }
+  // the J-2s, hidden inside the interstages until the stage below drops away
+  const j2Bell = new THREE.LatheGeometry([new THREE.Vector2(0.18, 0.15), new THREE.Vector2(0.42, 0.1), new THREE.Vector2(0.45, -0.4), new THREE.Vector2(0.32, -0.75), new THREE.Vector2(0.62, -1.4), new THREE.Vector2(0.86, -2.4), new THREE.Vector2(1.0, -3.4), new THREE.Vector2(0.97, -3.42)], 32);
+  const j2 = (y: number, x: number, z: number) => {
+    const g = new THREE.Group();
+    const bell = new THREE.Mesh(j2Bell, new THREE.MeshStandardMaterial({ color: '#3a3a3d', roughness: 0.4, metalness: 0.8, side: THREE.DoubleSide }));
+    g.add(bell);
+    const pump = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.8, 12), foil);
+    pump.position.set(0.55, -0.4, 0);
+    g.add(pump);
+    g.position.set(x, y, z);
+    rocket.add(g);
+  };
+  j2(47.6, 0, 0);
+  for (let k = 0; k < 4; k++) {
+    const th = Math.PI / 4 + (k * Math.PI) / 2;
+    j2(47.6, 2.7 * Math.sin(th), 2.7 * Math.cos(th));
+  }
+  j2(72.0, 0, 0);
+  const sIIBase = new THREE.Mesh(new THREE.CircleGeometry(R1, 64), dark);
+  sIIBase.rotation.x = Math.PI / 2;
+  sIIBase.position.y = 47.62;
+  rocket.add(sIIBase);
+  const sIVBBase = new THREE.Mesh(new THREE.CircleGeometry(R3, 48), dark);
+  sIVBBase.rotation.x = Math.PI / 2;
+  sIVBBase.position.y = 72.02;
+  rocket.add(sIVBBase);
+
+  // sort everything into the parts that separate in flight
+  const parts: Record<SaturnPart, THREE.Group> = { sic: new THREE.Group(), siiInter: new THREE.Group(), sii: new THREE.Group(), sivb: new THREE.Group(), slaSm: new THREE.Group(), cm: new THREE.Group(), les: new THREE.Group() };
+  const box = new THREE.Box3();
+  for (const o of [...rocket.children]) {
+    box.setFromObject(o);
+    const y = (box.min.y + box.max.y) / 2;
+    // the J-2 clusters hang below their stages' bases: place them by where they are mounted
+    const part: SaturnPart =
+      o.position.y === 72.0 ? 'sivb' : o.position.y === 47.6 ? 'sii' : y < 42 ? 'sic' : y < 47.6 ? 'siiInter' : y < 72 ? 'sii' : y < 85.6 ? 'sivb' : y < 98.3 ? 'slaSm' : y < 101.55 ? 'cm' : 'les';
+    parts[part].add(o);
+  }
+  for (const [k, g] of Object.entries(parts)) {
+    g.name = 'part:' + k;
+    rocket.add(g);
+  }
   rocket.traverse((o) => {
     if ((o as THREE.Mesh).isMesh) o.castShadow = true;
   });
   return rocket;
+}
+
+export type SaturnPart = 'sic' | 'siiInter' | 'sii' | 'sivb' | 'slaSm' | 'cm' | 'les';
+/** the separable parts of a built Saturn V */
+export function saturnParts(rocket: THREE.Object3D): Record<SaturnPart, THREE.Group> {
+  const out = {} as Record<SaturnPart, THREE.Group>;
+  for (const c of rocket.children) if (c.name.startsWith('part:')) out[c.name.slice(5) as SaturnPart] = c as THREE.Group;
+  return out;
 }
 
 /** body radius at a height above the base of the first stage (for the tower's arms) */

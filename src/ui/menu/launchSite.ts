@@ -249,6 +249,7 @@ void main() {
 const SKY_FRAG = /* glsl */ `
 uniform vec3 sunDir;
 uniform float time;
+uniform float darken;
 varying vec3 vDir;
 ${NOISE_GLSL}
 ${HORIZON_GLSL}
@@ -270,6 +271,8 @@ void main() {
     rays = smoothstep(0.35, 0.95, rays);
     col += vec3(1.0, 0.5, 0.2) * rays * pow(max(fwd, 0.0), 14.0) * smoothstep(0.0, 0.05, d.y) * 0.2;
     col = addClouds(d, col, sd, 1.0);
+    // seen from high up, the sky overhead deepens toward the black of space
+    col = mix(col, col * vec3(0.12, 0.16, 0.32), darken * smoothstep(0.0, 0.5, d.y));
   }
   col *= SKYK;
   // the sun, three-quarters risen, a touch flattened by refraction
@@ -402,6 +405,13 @@ export class LaunchSite {
   private blinkers: THREE.Mesh[] = [];
   private steam: THREE.Sprite[] = [];
   private vapour: THREE.Sprite[] = [];
+  private arms: THREE.Group[] = [];
+  /** the Saturn V standing on the pad (hidden while one is flying) */
+  rocket: THREE.Object3D | null = null;
+  private flying = false;
+  private smoke: { sp: THREE.Sprite; v: THREE.Vector3; age: number; life: number; s0: number; grow: number }[] = [];
+  private smokeTex: THREE.Texture | null = null;
+  private smokeAcc = 0;
   private birds!: THREE.InstancedMesh;
   private fleet = new Fleet();
   private traffic: { i: number; x: number; z: number; dir: number; v: number }[] = [];
@@ -439,7 +449,7 @@ export class LaunchSite {
       side: THREE.BackSide,
       depthWrite: false,
       fog: false,
-      uniforms: { sunDir: { value: this.sunDir.clone() }, time: { value: 0 } },
+      uniforms: { sunDir: { value: this.sunDir.clone() }, time: { value: 0 }, darken: { value: 0 } },
       vertexShader: SKY_VERT,
       fragmentShader: SKY_FRAG,
     });
@@ -1097,16 +1107,24 @@ export class LaunchSite {
       }
     }
     b.box(cx, y0 + Ht + 2, cz, 15, 4, 15);
-    // swing arms reaching across to the vehicle's skin at each level
+    // swing arms reaching across to the vehicle's skin at each level; each hinges at the tower face
+    const armMat = new THREE.MeshStandardMaterial({ color: '#c24a22', roughness: 0.55, metalness: 0.35 });
     const armLevels = [116, 98, 79, 62, 44, 26];
     for (const y of armLevels) {
       const r = saturnRadiusAt(y0 + y - ROCKET_Y);
       const len = cx - half - (r + 0.9);
+      const a = new Beams();
+      const L = (x: number, yy: number, z: number) => new THREE.Vector3(x, yy, z);
       for (const dz of [-2, 2]) {
-        b.add(V(-half, y, dz), V(-half - len, y, -cz + dz * 0.6), 1.0, 1.6);
-        b.add(V(-half, y + 4, dz), V(-half - len * 0.85, y, -cz * 0.85 + dz * 0.6), 0.45);
+        a.add(L(0, y0 + y, dz), L(-len, y0 + y, -cz + dz * 0.6), 1.0, 1.6);
+        a.add(L(0, y0 + y + 4, dz), L(-len * 0.85, y0 + y, -cz * 0.85 + dz * 0.6), 0.45);
       }
-      b.box(cx - half - len + 0.6, y0 + y, 0, 1.6, 2.4, 4.2);
+      a.box(-len + 0.6, y0 + y, -cz, 1.6, 2.4, 4.2);
+      const g = new THREE.Group();
+      g.position.set(cx - half, 0, cz);
+      g.add(a.build(armMat));
+      s.add(g);
+      this.arms.push(g);
     }
     b.box(cx + half + 1.4, y0 + Ht / 2, cz, 2.6, Ht, 2.6);
     b.add(V(0, Ht + 4, 0), V(0, Ht + 30, 0), 0.5);
@@ -1115,12 +1133,16 @@ export class LaunchSite {
     // the crew access arm ends in the white room at the command module hatch
     const room = new THREE.Mesh(new RoundedBoxGeometry(3.2, 3.0, 3.4, 2, 0.15), this.paint);
     const hRoom = 99.6;
-    room.position.set(saturnRadiusAt(hRoom) + 1.7, ROCKET_Y + hRoom, 0);
+    const crewArm = new THREE.Group();
+    crewArm.position.set(cx - half, 0, cz);
+    room.position.set(saturnRadiusAt(hRoom) + 1.7 - (cx - half), ROCKET_Y + hRoom, -cz);
     room.castShadow = true;
-    s.add(room);
+    crewArm.add(room);
     const crew = new Beams();
-    crew.add(new THREE.Vector3(cx - half, ROCKET_Y + hRoom, cz), new THREE.Vector3(room.position.x + 1.6, ROCKET_Y + hRoom, 0), 1.6, 2.4);
-    s.add(crew.build(new THREE.MeshStandardMaterial({ color: '#c24a22', roughness: 0.55, metalness: 0.35 })));
+    crew.add(new THREE.Vector3(0, ROCKET_Y + hRoom, 0), new THREE.Vector3(room.position.x + 1.6, ROCKET_Y + hRoom, -cz), 1.6, 2.4);
+    crewArm.add(crew.build(armMat));
+    s.add(crewArm);
+    this.arms.push(crewArm);
     // a hammerhead crane on the roof
     const hh = new Beams();
     hh.box(cx, y0 + Ht + 9, cz, 1.6, 10, 1.6);
@@ -1564,6 +1586,7 @@ export class LaunchSite {
     const rocket = buildSaturnV();
     rocket.position.y = ROCKET_Y;
     s.add(rocket);
+    this.rocket = rocket;
     for (const [x, z] of [[-70, 160], [110, 150]] as [number, number][]) {
       const sl = new THREE.SpotLight(0xfff1dc, 9000, 0, 0.36, 0.6, 2);
       sl.position.set(x, 18, z);
@@ -2006,6 +2029,108 @@ export class LaunchSite {
     this.camera.aspect = w / Math.max(1, h);
     this.camera.setViewOffset(w, h, w > 900 ? -w * 0.05 : 0, 0, w, h);
     this.camera.updateProjectionMatrix();
+    this.animate(dt);
+    if (this.drawWith) this.drawWith(this.scene, this.camera);
+    else this.renderer.render(this.scene, this.camera);
+  }
+
+  /** ground height of the scene at a point (for cameras) */
+  groundAt(x: number, z: number): number {
+    return this.height(x, z);
+  }
+
+  /** hand the scene over to a flight: hide the standing rocket, reset the arms and the smoke */
+  setFlying(on: boolean): void {
+    this.flying = on;
+    if (this.rocket) this.rocket.visible = !on;
+    for (const sp of this.vapour) sp.visible = !on;
+    this.setArms(0);
+    for (const p of this.smoke) this.scene.remove(p.sp);
+    this.smoke = [];
+    (this.skyMat.uniforms.darken.value as number) = 0;
+    this.skyMat.uniforms.darken.value = 0;
+  }
+
+  /** swing the service arms clear of the vehicle (0 = connected, 1 = retracted) */
+  setArms(k: number): void {
+    const kk = clampN(k, 0, 1);
+    this.arms.forEach((g, i) => {
+      g.rotation.y = -1.35 * Math.min(1, Math.max(0, kk * 1.4 - i * 0.05));
+    });
+  }
+
+  /** draw the scene from a flight camera; fire (0..1) feeds the exhaust clouds round the mount */
+  renderFlight(dt: number, cam: THREE.PerspectiveCamera, fire: number, vehicleY: number, altitude: number): void {
+    dt = Number.isFinite(dt) ? clampN(dt, 0, 0.25) : 0;
+    this.t += dt;
+    this.skyMat.uniforms.darken.value = clampN((altitude - 3000) / 22000, 0, 1);
+    this.updateSmoke(dt, fire, vehicleY);
+    this.animate(dt);
+    if (this.drawWith) this.drawWith(this.scene, cam);
+    else this.renderer.render(this.scene, cam);
+  }
+
+  private updateSmoke(dt: number, fire: number, vehicleY: number): void {
+    if (!this.smokeTex) {
+      this.smokeTex = tex(
+        canvas(128, 128, (g) => {
+          const r = prng(5);
+          for (let i = 0; i < 26; i++) {
+            const x = 30 + r() * 68, y = 30 + r() * 68, rr = 14 + r() * 30;
+            const gr = g.createRadialGradient(x, y, 0, x, y, rr);
+            gr.addColorStop(0, 'rgba(255,255,255,0.35)');
+            gr.addColorStop(1, 'rgba(255,255,255,0)');
+            g.fillStyle = gr;
+            g.fillRect(0, 0, 128, 128);
+          }
+        }),
+      );
+    }
+    // the exhaust pours out of the flame trench to the east and boils up round the mount
+    const near = fire * clampN(1 - (vehicleY - ROCKET_Y) / 260, 0, 1);
+    this.smokeAcc += dt * near * 45;
+    while (this.smokeAcc > 1 && this.smoke.length < 320) {
+      this.smokeAcc -= 1;
+      const r = Math.random();
+      const mat = new THREE.SpriteMaterial({ map: this.smokeTex, transparent: true, depthWrite: false, opacity: 0, fog: true, rotation: Math.random() * 6.28 });
+      const sp = new THREE.Sprite(mat);
+      let pos: THREE.Vector3, v: THREE.Vector3;
+      if (r < 0.55) {
+        pos = new THREE.Vector3((Math.random() - 0.5) * 10, 2, -78);
+        v = new THREE.Vector3((Math.random() - 0.5) * 18, 6 + Math.random() * 10, -45 - Math.random() * 40);
+      } else {
+        const a = Math.random() * Math.PI * 2;
+        pos = new THREE.Vector3(Math.cos(a) * 14, PAD_Y + 4, Math.sin(a) * 14);
+        v = new THREE.Vector3(Math.cos(a) * (14 + Math.random() * 22), 4 + Math.random() * 12, Math.sin(a) * (14 + Math.random() * 22));
+      }
+      sp.position.copy(pos);
+      this.scene.add(sp);
+      this.smoke.push({ sp, v, age: 0, life: 14 + Math.random() * 16, s0: 10 + Math.random() * 10, grow: 6 + Math.random() * 6 });
+    }
+    for (const p of this.smoke) {
+      p.age += dt;
+      p.v.multiplyScalar(Math.exp(-dt * 0.45));
+      p.v.y += dt * 2.2;
+      p.sp.position.addScaledVector(p.v, dt);
+      if (p.sp.position.y < 2) p.sp.position.y = 2;
+      const s = p.s0 + p.age * p.grow;
+      p.sp.scale.set(s, s, 1);
+      const k = p.age / p.life;
+      const m = p.sp.material as THREE.SpriteMaterial;
+      m.opacity = Math.min(1, p.age * 2) * (1 - k) * 0.85;
+      // lit orange by the fire while it burns close by, then plain sunlit white-grey
+      const glow = fire * Math.exp(-p.sp.position.distanceTo(new THREE.Vector3(0, vehicleY - 10, 0)) / 90);
+      m.color.setRGB(0.78 + glow * 3.2, 0.72 + glow * 1.8, 0.68 + glow * 0.6);
+    }
+    const dead = this.smoke.filter((p) => p.age > p.life);
+    for (const p of dead) {
+      this.scene.remove(p.sp);
+      p.sp.material.dispose();
+    }
+    this.smoke = this.smoke.filter((p) => p.age <= p.life);
+  }
+
+  private animate(dt: number): void {
     this.skyMat.uniforms.time.value = this.t;
     this.oceanMat.uniforms.time.value = this.t;
     this.groundTime.value = this.t;
@@ -2026,6 +2151,7 @@ export class LaunchSite {
       (sp.material as THREE.SpriteMaterial).opacity = 0.22 * Math.sin(ph * Math.PI);
     }
     for (const sp of this.vapour) {
+      if (this.flying) break;
       const u = sp.userData as { x: number; y: number; phase: number; side: number; k: number };
       const ph = (this.t * 0.11 + u.phase) % 1;
       sp.position.set(u.x + u.side * ph * 9, u.y - ph * 7, 1.5 + ph * 6);
@@ -2051,7 +2177,5 @@ export class LaunchSite {
       this.birds.setMatrixAt(i * 2 + 1, bm);
     });
     this.birds.instanceMatrix.needsUpdate = true;
-    if (this.drawWith) this.drawWith(this.scene, this.camera);
-    else this.renderer.render(this.scene, this.camera);
   }
 }
