@@ -5,10 +5,12 @@
 // (chase, tracking, onboard and the map), reads the keys, plays the roar and
 // shows the pause and end-of-flight cards.
 
+import { SUITS, saveSuit } from './suits';
 import * as THREE from 'three';
 import { Debris, FlightSim, PartId, PART_ORDER, Q, SasMode, SpawnMode, DOCK_C, qrot, sunDirection } from './flightSim';
 import { EARTH, MOON, V3, add, air, cross, dot, earthAngle, ecefDir, len, moonPos, norm, orbitPoint, padScene, rotY, scale, sub, toEcef, PAD } from './universe';
 import { coast } from './lunarPlan';
+import { Moonwalk } from './moonwalk';
 import { SpaceScene, orbitTrack } from './spaceScene';
 import { Plumes } from './plumes';
 import { FlightUI } from './flightUI';
@@ -119,6 +121,11 @@ export class SpaceFlight {
   private flagT = -1;
   private flag: THREE.Group | null = null;
   private dust: THREE.Sprite[] = [];
+  /** the moonwalk, after touchdown: the player takes the astronaut out */
+  private walk: Moonwalk | null = null;
+  private walkAt = -1;
+  private walkJump = false;
+  private walkUse = false;
   private dustT = 0;
   private space: SpaceScene | null = null;
   private rocket: THREE.Group | null = null;
@@ -264,6 +271,7 @@ export class SpaceFlight {
     }
     this.tde = -1;
     this.flagT = -1;
+    this.endWalk();
     if (this.flag) this.flag.visible = false;
     for (const b of this.bursts) b.group.parent?.remove(b.group);
     this.bursts = [];
@@ -315,6 +323,7 @@ export class SpaceFlight {
     for (const p of this.plasma) p.parent?.remove(p);
     for (const b of this.bursts) b.group.parent?.remove(b.group);
     this.bursts = [];
+    this.endWalk();
     this.site?.setFlying(false);
     this.fadeEl.style.opacity = '0';
     this.recordTime();
@@ -352,7 +361,38 @@ export class SpaceFlight {
     const tgt = e.target as HTMLElement | null;
     if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA')) return;
     const c = e.code;
-    const flightKeys = ['KeyW', 'KeyS', 'KeyA', 'KeyD', 'KeyQ', 'KeyE'];
+    if (this.walk && this.walk.mode !== 'done' && !this.ui.cardOpen) {
+      // on the Moon: the astronaut's keys
+      if (['KeyW', 'KeyS', 'KeyA', 'KeyD', 'ShiftLeft', 'ShiftRight', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(c)) {
+        e.preventDefault();
+        if (down) this.keys.add(c);
+        else this.keys.delete(c);
+        return;
+      }
+      if (down && c === 'Space') {
+        e.preventDefault();
+        e.stopPropagation();
+        this.walkJump = true;
+        return;
+      }
+      if (down && (c === 'KeyE' || c === 'KeyF')) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.walkUse = true;
+        return;
+      }
+      if (down && c === 'KeyV' && this.walk) {
+        e.preventDefault();
+        e.stopPropagation();
+        const i = SUITS.findIndex((x) => x.id === this.walk!.suit);
+        const nx = SUITS[(i + 1) % SUITS.length];
+        this.walk.setSuit(nx.id);
+        saveSuit(nx.id);
+        this.ui.flash(nx.name.toUpperCase(), 'good');
+        return;
+      }
+    }
+    const flightKeys = ['KeyW', 'KeyS', 'KeyA', 'KeyD', 'KeyQ', 'KeyE', 'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight'];
     if (flightKeys.includes(c)) {
       e.preventDefault();
       if (down) this.keys.add(c);
@@ -621,7 +661,9 @@ export class SpaceFlight {
         const onMoon = sim.outcome.status === 'landed' && sim.nearMoon;
         this.endAt = performance.now() + (sim.outcome.status === 'lost' ? 3200 : onMoon ? 11000 : 2500);
         if (onMoon) {
-          this.flagT = 0;
+          this.flagT = -1;
+          this.walkAt = 0;
+          this.endAt = Infinity;
           this.camDist = 30;
           this.camPitch = 0.16;
           // swing round to the sunlit side, a little off the Sun line so the shadows show
@@ -652,6 +694,7 @@ export class SpaceFlight {
     this.fade = Math.max(0, this.fade - dt * 1.6);
     this.fadeEl.style.opacity = String(this.fade * 0.85);
 
+    this.updateWalk(dt);
     this.fitChase();
     this.updateTde(dt);
     this.placeVehicle();
@@ -680,6 +723,23 @@ export class SpaceFlight {
     const sim = this.sim!;
     const o = sim.outcome!;
     this.endShown = true;
+    if (this.walk) {
+      const ws = this.walk.stats;
+      const mm = (t: number) => `${Math.floor(t / 60)}m ${Math.floor(t % 60)}s`;
+      this.ui.card('MISSION COMPLETE', `${o.text} The crew walked on the Moon${ws.flag ? ', planted the flag' : ''} and climbed back aboard the lunar module.`, 'good', [
+        ['MOONWALK', mm(ws.time)],
+        ['DISTANCE WALKED', `${ws.walked.toFixed(0)} m`],
+        ['JUMPS', String(ws.jumps)],
+        ['HIGHEST JUMP', `${ws.highest.toFixed(2)} m`],
+        ['FLAG', ws.flag ? 'PLANTED' : 'NOT PLANTED'],
+        ['MISSION TIME', `${(Math.max(0, sim.met) / 86400).toFixed(2)} days`],
+      ], [
+        ['FLY AGAIN', () => this.restart(this.spawnMode)],
+        ...this.otherSpawns(),
+        ['EXIT TO MENU', () => this.exit(), 'red'],
+      ]);
+      return;
+    }
     const s = sim.stats;
     this.ui.card(o.title.toUpperCase(), o.text, o.status === 'lost' ? 'bad' : 'good', [
       ['MAX ALTITUDE', s.maxAlt > 1e5 ? `${(s.maxAlt / 1000).toFixed(0)} km` : `${(s.maxAlt / 1000).toFixed(1)} km`],
@@ -887,7 +947,13 @@ export class SpaceFlight {
     const cam = sp.camera;
     const look = sub(this.lookPoint(), sim.r);
     let camPos: V3, camUp: V3, lookAt: V3;
-    if (this.map) {
+    if (this.walk && !this.map) {
+      const wc = this.walk.camera(this.camYaw, this.camPitch, Math.max(2.5, Math.min(30, this.camDist)));
+      camPos = [wc.pos.x, wc.pos.y, wc.pos.z];
+      lookAt = [wc.look.x, wc.look.y, wc.look.z];
+      camUp = [wc.up.x, wc.up.y, wc.up.z];
+      cam.fov = 55;
+    } else if (this.map) {
       const c = sub(this.mapCenter(), sim.r);
       const cp = Math.cos(this.mapPitch);
       const dir: V3 = [cp * Math.sin(this.mapYaw), Math.sin(this.mapPitch), cp * Math.cos(this.mapYaw)];
@@ -1167,6 +1233,51 @@ export class SpaceFlight {
       else sim.dock(15);
       this.camDist = 55;
     }
+  }
+
+  /** after touchdown the dust settles, then the moonwalk: the player takes the astronaut out */
+  private updateWalk(dt: number): void {
+    const sim = this.sim!;
+    if (this.walkAt >= 0 && !this.walk) {
+      this.walkAt += dt;
+      if (this.walkAt > 3.5 && sim.restFixed) {
+        this.walk = new Moonwalk(() => this.sim!.time, sim.restFixed, sim.q, () => this.sim!.r, this.glowTex());
+        this.space!.scene.add(this.walk.group);
+        this.camDist = 7;
+        this.camPitch = 0.25;
+        this.ui.flash('MOONWALK', 'good');
+      }
+    }
+    const w = this.walk;
+    if (!w) {
+      this.ui.setEva(null);
+      return;
+    }
+    const k = (c: string) => (this.keys.has(c) ? 1 : 0);
+    if (w.mode !== 'done') {
+      w.update(dt, {
+        fwd: k('KeyW') + k('ArrowUp') - k('KeyS') - k('ArrowDown'),
+        side: k('KeyD') + k('ArrowRight') - k('KeyA') - k('ArrowLeft'),
+        run: this.keys.has('ShiftLeft') || this.keys.has('ShiftRight'),
+        jump: this.walkJump,
+        use: this.walkUse,
+        camYaw: this.camYaw,
+      });
+      if (Math.random() < dt / 3) w.refresh();
+    }
+    this.walkJump = this.walkUse = false;
+    if (w.mode === 'done' && !this.endShown && this.endAt === Infinity) {
+      this.endAt = performance.now() + 600;
+      updateRecord((r) => (r.samples += 1));
+    }
+    this.ui.setEva(w.mode === 'done' ? null : { prompt: w.prompt, stats: w.stats });
+  }
+
+  private endWalk(): void {
+    if (this.walk) this.walk.group.parent?.remove(this.walk.group);
+    this.walk = null;
+    this.walkAt = -1;
+    this.ui.setEva(null);
   }
 
   /** the lander's legs, the dust its engine blasts off the ground, and the flag after touchdown */

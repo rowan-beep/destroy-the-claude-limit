@@ -4,6 +4,7 @@
 // the launch ring on the right, and the pad's status across the bottom. Panels
 // rise in one after another when the menu opens and when a section changes.
 
+import { SUITS, loadSuit, saveSuit } from '../../space/suits';
 import { SATURN_V } from '../../space/saturnV';
 import { loadRecord } from '../../space/record';
 import { el, clearEl, button } from '../dom';
@@ -311,6 +312,22 @@ export class SpaceMenu {
     el('div', 'sx2-slot-t', slot, 'SATURN V');
     el('div', 'sx2-slot-s', slot, `Three-stage super heavy-lift launch vehicle. ${v.launches} launches, ${v.service}. Swing arms connected, crew access arm at the command module.`);
     el('div', 'sx2-scan', slot);
+    // the crew's spacesuit for the moonwalk
+    el('div', 'sx2-suit-h', this.side, 'SPACESUIT');
+    const suits = el('div', 'sx2-suits', this.side);
+    const cur = loadSuit();
+    for (const su of SUITS) {
+      const b = el('button', 'sx2-suit' + (su.id === cur ? ' on' : ''), suits) as HTMLButtonElement;
+      b.type = 'button';
+      const art = el('div', 'sx2-suit-art', b);
+      art.style.background = su.art;
+      el('div', 'sx2-suit-n', b, su.name);
+      el('div', 'sx2-suit-s', b, su.sub);
+      b.addEventListener('click', () => {
+        saveSuit(su.id);
+        suits.querySelectorAll('.sx2-suit').forEach((x) => x.classList.toggle('on', x === b));
+      });
+    }
     const grid = el('div', 'sx2-grid', this.side);
     for (const [k, val] of [
       ['HEIGHT', `${n(v.height, 1)} m`],

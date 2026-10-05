@@ -488,6 +488,19 @@ export class SpaceScene {
       this.earthshine.position.copy(toEarth).multiplyScalar(300);
       this.earthshine.intensity = 0.08;
       this.ambient.intensity = 0.02;
+      // on the surface the sunlit dust throws light back up into every shadow
+      if (len(relM) < MOON.R + 30000) {
+        const up = new THREE.Vector3(relM[0], relM[1], relM[2]).normalize();
+        const sunUp = Math.max(0, up.dot(sd));
+        this.ambient.position.copy(up);
+        this.ambient.color.set(0x05070c);
+        this.ambient.groundColor.set(0xb0a690);
+        this.ambient.intensity = shadowed ? 0.03 : 0.25 + 1.1 * sunUp;
+      }
+    } else {
+      this.ambient.position.set(0, 1, 0);
+      this.ambient.color.set(0x9ab8e8);
+      this.ambient.groundColor.set(0x2a2622);
     }
   }
 

@@ -11,6 +11,7 @@ import { el, clearEl } from '../ui/dom';
 import { EARTH, MOON, V3, cross, dot, enu, len, moonPos, norm, orbitPoint, rotY, scale, sub, earthAngle, toMoonFixed, PAD } from './universe';
 import { ENGINES, FlightSim, PART_ORDER, PartId, PARTS, SasMode, Status, qrot } from './flightSim';
 import type { Action } from './autopilot';
+import type { MoonwalkStats } from './moonwalk';
 
 export interface FlightHandlers {
   stage(): void;
@@ -121,6 +122,10 @@ export class FlightUI {
   private ezSig = '';
   private ezBtn: Record<string, HTMLButtonElement> = {};
   private ezWarp: HTMLElement;
+  private eva: HTMLElement;
+  private evaPrompt: HTMLElement;
+  private evaRows: Record<string, HTMLElement> = {};
+  private evaFlag: HTMLElement;
 
   constructor(parent: HTMLElement, private h: FlightHandlers) {
     this.root = el('div', 'fx hidden', parent);
@@ -293,6 +298,26 @@ export class FlightUI {
     eb('pro', 'PRO', 'P', () => h.pro(), 'sm');
     this.hint = el('div', 'fx-hint', this.root, '');
 
+    // ---- the moonwalk: controls, objectives and a running tally
+    this.eva = el('div', 'fx-eva', this.root);
+    const ep = el('div', 'fx-panel fx-eva-p', this.eva);
+    el('div', 'fx-h', ep, 'MOONWALK');
+    for (const [k, t] of [['time', 'TIME OUTSIDE'], ['walked', 'DISTANCE'], ['jumps', 'JUMPS'], ['highest', 'HIGHEST JUMP']]) {
+      const r = el('div', 'fx-kv', ep);
+      el('span', 'k', r, t);
+      this.evaRows[k] = el('span', 'v', r, '—');
+    }
+    const ob = el('div', 'fx-eva-ob', ep);
+    this.evaFlag = el('div', 'fx-eva-o', ob, 'Plant the flag');
+    el('div', 'fx-eva-o', ob, 'Climb back aboard to finish');
+    const keys = el('div', 'fx-panel fx-eva-k', this.eva);
+    for (const [k, t] of [['W A S D', 'walk'], ['SHIFT', 'lope (the Apollo bunny hop)'], ['SPACE', 'jump'], ['E', 'plant the flag · climb aboard'], ['V', 'change spacesuit'], ['MOUSE', 'drag to look round · scroll to zoom']]) {
+      const r = el('div', 'fx-eva-key', keys);
+      el('span', 'k', r, k);
+      el('span', 't', r, t);
+    }
+    this.evaPrompt = el('div', 'fx-eva-prompt', this.eva, '');
+
     this.flashEl = el('div', 'fx-flash', this.root);
     this.labels = el('div', 'fx-labels', this.root);
     this.mapCanvas = el('canvas', 'fx-mapc', this.labels) as HTMLCanvasElement;
@@ -407,6 +432,20 @@ export class FlightUI {
   }
   get cardOpen(): boolean {
     return !this.overlay.classList.contains('hidden');
+  }
+
+  /** the moonwalk's panel (null: hide it and bring the flight displays back) */
+  setEva(v: { prompt: string; stats: MoonwalkStats } | null): void {
+    this.root.classList.toggle('eva', !!v);
+    if (!v) return;
+    const s = v.stats;
+    this.evaRows.time.textContent = `${Math.floor(s.time / 60)}:${String(Math.floor(s.time % 60)).padStart(2, '0')}`;
+    this.evaRows.walked.textContent = `${s.walked.toFixed(0)} m`;
+    this.evaRows.jumps.textContent = String(s.jumps);
+    this.evaRows.highest.textContent = `${s.highest.toFixed(2)} m`;
+    this.evaFlag.classList.toggle('done', s.flag);
+    this.evaPrompt.textContent = v.prompt;
+    this.evaPrompt.classList.toggle('on', !!v.prompt);
   }
 
   setHint(t: string): void {

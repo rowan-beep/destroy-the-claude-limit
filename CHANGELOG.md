@@ -3,6 +3,17 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.51.0 — Moonwalk (2026-10-05)
+
+- Walk on the Moon. A few seconds after touchdown the astronaut climbs down the ladder, and from then on you're in control. Move with W A S D, hold SHIFT to lope in the bouncing Apollo stride, and press SPACE to jump: in one-sixth gravity you crouch, spring and hang in the air for a long, slow arc before landing in a puff of dust.
+- Every step leaves a ridged bootprint in the regolith, and every footfall kicks up grains of dust that fly in clean arcs and drop straight back down, because there's no air to hold them.
+- Plant the flag: walk somewhere you like and press E. The astronaut lifts the pole, drives it into the ground twice, unfurls the flag along its top bar, steps back and salutes.
+- To finish, walk back to the ladder and press E. The astronaut climbs aboard, and the mission ends with a MISSION COMPLETE card showing your time outside, distance walked, jumps and highest jump.
+- Three spacesuits, each built in detail. The Apollo A7L, the white moonwalking suit with its gold sun visor, life-support backpack, chest control box and red and blue hose connectors. The Axiom AxEMU, black with orange and blue bands, under a clear bubble helmet with its light bar. The orange ACES pressure suit, with its white harness straps, white helmet with dark visor and black boots. Every suit has woven, creased fabric, and dust gathers from the knees down.
+- Pick your suit under SPACESUIT on the Launch Pad page, or press V during the moonwalk to change suits on the spot.
+- The shadowed side of the astronaut and the lander is now lit softly by sunlight bouncing back off the bright ground, as in the Apollo photos.
+- The moonwalk camera rises over crater rims and ridges by itself, so the ground never hides the astronaut.
+
 ## v4.50.0 — To the Moon (2026-10-05)
 
 - The Moon is here, at full size and at its real distance, circling Earth and turning to keep one face toward us. Its gravity pulls on everything nearby, and from orbit you see dark maria, pale highlands, craters on craters and the bright rays of young ones, with faint blue earthshine on the night side.

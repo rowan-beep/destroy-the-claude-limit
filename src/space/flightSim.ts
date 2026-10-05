@@ -209,6 +209,10 @@ export class FlightSim {
   legsOut = false;
   /** where the lander rests on the Moon (Moon-fixed), once down */
   private moonRest: { p: V3; q: Q } | null = null;
+  /** where the lander rests on the Moon (Moon-fixed position of its centre of mass), once down */
+  get restFixed(): V3 | null {
+    return this.moonRest ? this.moonRest.p : null;
+  }
   engines: Engine[] = [];
   sivbStarts = 0;
   held = true;
