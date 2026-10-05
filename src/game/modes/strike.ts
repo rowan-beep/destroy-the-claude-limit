@@ -437,7 +437,7 @@ export class StrikeMode extends GameMode {
         `Fly to the target: steerpoint 1 (TGT), ${d} NM, bearing ${brg}. [U] auto-fly can take you there.`,
         'Bombs are selected [4]. The computer boxes a target ([R] picks another) and counts down, just below the middle of the screen, to the release point. Press [SPACE] when it says RELEASE.',
         `Destroy all ${n} primary targets (amber diamonds). The gun works on vehicles too.`,
-        'Then fly home and land at any friendly airfield (auto-fly can land for you). Out of bombs? Land, stop and rearm [K].',
+        'Then fly home and land at any friendly airfield (auto-fly can land for you). Out of bombs? Land, stop and press [H] to rearm.',
       ],
       footer: `Every airstrike is different: a new target, defences, fighters and start each time. Difficulty: ${h.config.difficulty}.`,
       onOk: () => {
@@ -527,10 +527,12 @@ export class StrikeMode extends GameMode {
       h.order('IP INBOUND', `${P.name} is ${Math.round(d / NM)} NM ahead. Follow the release countdown below the middle of the screen; press [SPACE] on RELEASE.`, 8);
       h.voice('I P inbound');
     }
-    // seen: inside 30 NM of the target at any height, or 45 NM up high
+    // seen: inside 30 NM of the target at any height, or 45 NM up high;
+    // and a patrol that is shot at (or loses a jet) knows it too
     if (!this.capAwake || !this.scrambled) {
       const high = p.fm.pos.y > mapAlt(3500);
-      if (d < (high ? 45 : 30) * NM) this.alert();
+      const firedOn = this.enemies.some((e) => !e.alive) || h.sim.missiles.some((m) => m.shooter === p && !!m.target && this.enemies.includes(m.target));
+      if (d < (high ? 45 : 30) * NM || firedOn) this.alert();
     }
     // GCI picture calls for enemy fighters
     this.gciTimer -= dt;

@@ -29,6 +29,11 @@ export class WavesMode extends GameMode {
   private totalKills = 0;
   private deadTimer = 0;
 
+  /** the wave picked in the menu */
+  private get firstWave(): number {
+    return Math.max(1, Math.min(10, this.host.config.startWave));
+  }
+
   start(): void {
     const h = this.host;
     resetCallsigns();
@@ -158,7 +163,7 @@ export class WavesMode extends GameMode {
           ]),
           buttons: [
             { label: `RETRY WAVE ${this.wave}`, action: 'retryWave' },
-            { label: 'RESTART FROM WAVE 1', action: 'retry' },
+            { label: `RESTART FROM WAVE ${this.firstWave}`, action: 'retry' },
             { label: 'MAIN MENU', action: 'menu' },
           ],
         });
@@ -188,7 +193,12 @@ export class WavesMode extends GameMode {
             for (const t of tracks) if (t.pos.distanceTo(p.fm.pos) < nearest.pos.distanceTo(p.fm.pos)) nearest = t;
             h.message(`OVERLORD: BANDIT ${braa(p.fm.pos, nearest.target)}.`, 'gci', 8);
           } else {
-            h.message('OVERLORD: PICTURE FADED — BANDITS LOW OR TERRAIN MASKED. LAST KNOWN TO THE EAST.', 'gci', 8);
+            // the direction of the freshest old track (or the enemy's home island), not always "east"
+            const old = h.picture.tracksFor('blue').filter((t) => t.target.alive).sort((a, b) => b.time - a.time)[0];
+            const tx = old ? old.pos.x : ROLES.redHome.cx, tz = old ? old.pos.z : ROLES.redHome.cz;
+            const brg = ((Math.atan2(tx - p.fm.pos.x, -(tz - p.fm.pos.z)) * 180) / Math.PI + 360) % 360;
+            const dir = ['NORTH', 'NORTH-EAST', 'EAST', 'SOUTH-EAST', 'SOUTH', 'SOUTH-WEST', 'WEST', 'NORTH-WEST'][Math.round(brg / 45) % 8];
+            h.message(`OVERLORD: PICTURE FADED — BANDITS LOW OR TERRAIN MASKED. LAST KNOWN TO THE ${dir}.`, 'gci', 8);
           }
         }
         if (alive.length === 0) {
@@ -251,7 +261,8 @@ export class WavesMode extends GameMode {
       h.sim.bullets.clear();
       h.sim.cms.clear();
       h.picture.clear();
-      const w = action === 'retry' ? 1 : this.wave;
+      // a restart goes back to the wave the mission was set up to start on (not always wave 1)
+      const w = action === 'retry' ? this.firstWave : this.wave;
       this.over = false;
       this.deadTimer = 0;
       this.gciTimer = 20;

@@ -115,6 +115,9 @@ export class FreeFlightMode extends GameMode {
       h.sim.add(p);
       this.over = false;
       this.deadTimer = 0;
+      // a fresh flight: the clock restarts and a runway respawn is not a landing
+      this.elapsed = 0;
+      this.landedAnnounced = false;
     }
   }
 }

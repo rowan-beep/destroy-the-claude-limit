@@ -3,6 +3,29 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.52.1 — Twenty fixes (2026-10-05)
+
+- Kill camera: pressing [F] to skip it now takes you back to the view you had. It used to drop you into the cockpit even if you were flying in the chase view. It also ends cleanly if you change the view any other way.
+- Campaign: a mission you've won stays won. If a last missile caught you during the closing radio calls, the result used to flip to MISSION FAILED.
+- Shepherd: the mission no longer counts as complete when only one Strike Eagle reaches the target. At least two have to get there, as the briefing says.
+- Campaign: after FLY IT AGAIN or a restart, the objective at the top of the screen no longer shows the previous attempt's goal, or a broken countdown, while the briefing is up.
+- Rearming on the ground keeps the weapon you had selected. After reloading a strike loadout you stay on bombs, instead of being switched to missiles and firing one by mistake.
+- Missions now run on game time, not real time. In a free-for-all, once you're out and watching, fast-forward [T] now speeds up the shrinking zone as well as the jets, and mission timers pause properly during the kill camera's slow motion.
+- The pause menu no longer offers RESTART MISSION in an online match, where it did nothing.
+- Flight School: RESTART MISSION during the lessons starts the lessons again. It used to skip straight to the checkride.
+- Campaign: when you come home to land, VIPER 1-2 now breaks off and circles high over the field. He used to try to hold formation next to you all the way down to the runway.
+- Night Hunter: GHOST no longer runs out of fuel on its long afterburner dash and falls into the sea on its own.
+- The LONG SHOT decoration now counts kills from beyond 30 NM with the MiG-31's R-37M. Its description and KNIFE FIGHT's now cover every jet's missiles, not just the AIM-120D and AIM-9X.
+- Airstrike briefing: it said to rearm with [K], which drops your fuel tanks. It now says [H].
+- The message you get pressing [I] in a jet without an infrared tracker now lists every jet that has one, the MiG-31 included, and so does the key's description in the controls list.
+- Free Flight: after a respawn on the runway you no longer get a "welcome to the field" landing message straight away, and the flight time on the results screen starts again from zero.
+- Campaign: an enemy patrol waiting to be woken now reacts when you fire at it or shoot one of its jets down. Before, you could pick it off from long range while it kept flying in circles.
+- Airstrike: the same fix for the patrol over the target. It turns on you when you shoot at it, not only once you get close.
+- Main menu: clicking CAMPAIGN again keeps the mission you picked from the list, instead of jumping back to the first mission you haven't finished.
+- Wave Combat: when the radar picture fades, the controller now gives the right direction to the bandits' last known position. It used to say "to the east" every time.
+- Main menu: coming back from a mission now refreshes everything at once, so new campaign stars, newly unlocked missions and the daily mission's DONE tag show without having to click around first.
+- Wave Combat: RESTART takes you back to the wave you chose to start on, and the button now says which wave that is. It always used to go back to wave 1.
+
 ## v4.52.0 — Wolf of the Strait (2026-10-05)
 
 - New: CAMPAIGN, a story in eight missions called Wolf of the Strait. It's at the top of the game modes. The RED coalition stops turning back at the line, and its ace, WOLF 1, leads them. Each mission unlocks the next one.

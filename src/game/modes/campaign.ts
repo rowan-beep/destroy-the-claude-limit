@@ -228,6 +228,12 @@ export class CampaignMode extends GameMode {
     return list.filter((a) => a.alive);
   }
 
+  /** a sleeping patrol notices when it is shot at (or loses a jet): no sniping it from long range */
+  private firedOn(list: Aircraft[]): boolean {
+    const p = this.host.player;
+    return list.some((e) => !e.alive) || this.host.sim.missiles.some((m) => m.shooter === p && !!m.target && list.includes(m.target));
+  }
+
   private killedByPlayer(a: Aircraft): boolean {
     return !a.alive && this.killers.get(a) === this.host.player;
   }
@@ -336,6 +342,7 @@ export class CampaignMode extends GameMode {
     this.landClock = -1;
     this.landed = false;
     this.flags = {};
+    this.phase = 'start';
     this.elapsed = 0;
     this.over = false;
   }
@@ -764,7 +771,8 @@ export class CampaignMode extends GameMode {
     for (const e of [...h.sim.aircraft]) {
       if (e !== p && !e.alive && e.fm.crashed && h.sim.time - e.destroyedAt > 25) h.sim.remove(e);
     }
-    if (!p.alive) {
+    // once the mission is won it stays won, even if a last missile finds you
+    if (!p.alive && this.endTimer <= 0) {
       this.deadTimer += dt;
       if (this.deadTimer > 3.5) this.finish(false, `You were lost: ${p.damage.destroyCause || p.fm.crashCause || 'shot down'}.`);
       return;
@@ -885,7 +893,7 @@ export class CampaignMode extends GameMode {
     const p = this.host.player!;
     if (this.phase === 'ingress') {
       const d = this.dist(p.fm.pos, this.site);
-      if (d < Math.max(14 * NM, (this.M.id === 'command' ? 0.22 : 0.2) * this.D)) this.alarm();
+      if (d < Math.max(14 * NM, (this.M.id === 'command' ? 0.22 : 0.2) * this.D) || this.firedOn(this.escorts)) this.alarm();
       if (this.primaries.every((u) => !u.alive)) {
         this.say('OVERLORD', this.M.id === 'radar' ? 'Good hits! The radar station is off the air. Bring it home, VIPER.' : 'Shack! The command post is gone. Get out of there and come home.', 0.5, 'good', 'Shack');
         if (this.M.id === 'radar') this.say('WOLF 1 (INTERCEPT)', 'Our eyes are gone... Viper again. Always Viper.', 8, 'warn');
@@ -899,15 +907,15 @@ export class CampaignMode extends GameMode {
     const p = h.player!;
     const hawgs = this.targets;
     const left = this.alive(hawgs);
-    const reached = this.flags.reached as number;
-    if (left.length + reached < 2 && !this.flags.bombed) {
+    // the Strike Eagles that have bombed, or are still flying and could
+    if (new Set([...this.bombed, ...left]).size < 2) {
       this.finish(false, 'Too many Strike Eagles were shot down to hit the target.');
       return;
     }
     // the patrol wakes when anyone gets close
     if (!this.flags.cap) {
       const cap = this.alive(this.escorts);
-      const close = cap.some((e) => [p, ...left].some((b) => this.dist(b.fm.pos, e.fm.pos) < Math.max(14 * NM, 0.15 * this.D)));
+      const close = cap.some((e) => [p, ...left].some((b) => this.dist(b.fm.pos, e.fm.pos) < Math.max(14 * NM, 0.15 * this.D))) || this.firedOn(this.escorts);
       if (close) {
         this.flags.cap = true;
         this.wake(cap);
@@ -965,6 +973,8 @@ export class CampaignMode extends GameMode {
   private runGhost(dt: number): void {
     const p = this.host.player!;
     const g = this.targets[0];
+    // a long afterburner dash would drain GHOST's tanks and drop it in the sea on its own
+    if (g.alive) g.fm.fuelInternal = Math.max(g.fm.fuelInternal, g.spec.internalFuel * 0.5);
     if (this.phase === 'inbound' || this.phase === 'outbound') {
       if (g.alive) setMissionObjective({ name: 'GHOST', short: 'GHST', x: g.fm.pos.x, z: g.fm.pos.z });
       if (!g.alive) {
@@ -1007,6 +1017,20 @@ export class CampaignMode extends GameMode {
     }
   }
 
+  /** the wingman leaves the formation and orbits high over our field */
+  private holdOverhead(): void {
+    const w = this.wing;
+    const ai = w?.ai as AIPilot | null;
+    if (!w || !w.alive || !ai) return;
+    ai.leader = null;
+    ai.formationHold = false;
+    const alt = Math.max(mapAlt(3000), this.host.sim.grid.height(this.H.x, this.H.z) + 1500);
+    const r = 5000;
+    ai.setRoute([0, 1, 2, 3, 4, 5].map((k) => new THREE.Vector3(this.H.x + Math.sin((k / 6) * Math.PI * 2) * r, alt, this.H.z - Math.cos((k / 6) * Math.PI * 2) * r)), alt);
+    ai.state = 'PATROL';
+    this.say('VIPER 1-2', "I'll hold high over the field. You land first, lead.", 1);
+  }
+
   // ---- coming home ------------------------------------------------------------
   private startRtb(): void {
     this.phase = 'rtb';
@@ -1027,6 +1051,9 @@ export class CampaignMode extends GameMode {
     if (near && this.landClock < 0) {
       this.landClock = LAND_CLOCK;
       this.host.order('WELCOME BACK', 'Land for a star, or fly on: the mission ends in 2:30. Lowering the gear holds the clock.', 10);
+      // VIPER 1-2 stops following you down: a formation slot next to a jet on
+      // the runway is in the ground. He circles high over the field instead.
+      this.holdOverhead();
     }
     if (this.landClock > 0) {
       if (!p.controls.gearDown) this.landClock -= dt;

@@ -326,7 +326,7 @@ async function boot(): Promise<void> {
     showMenus(s === 'menu');
     briefing.show(s === 'briefing' ? game.briefing : null);
     hud.setVisible(s === 'playing' || s === 'paused' || s === 'results' || s === 'map' || s === 'briefing');
-    pause.show(s === 'paused');
+    pause.show(s === 'paused', !game.online);
     weather.show(s === 'playing' || s === 'paused');
     mapView.show(s === 'map', game);
     if (s !== 'results') results.show(null);

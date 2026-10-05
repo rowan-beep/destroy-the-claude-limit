@@ -72,7 +72,7 @@ export const ACTION_LABELS: Record<Action, string> = {
   lock: 'Radar lock / next target',
   unlock: 'Break lock',
   radarMode: 'Radar mode (TWS/RWS/ACM/OFF)',
-  irst: 'IRST lock (Typhoon PIRATE)',
+  irst: 'IRST lock (Typhoon, Su-35S, Rafale, MiG-31)',
   flare: 'Flares',
   chaff: 'Chaff',
   gear: 'Landing gear',

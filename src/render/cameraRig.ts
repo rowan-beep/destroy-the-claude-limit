@@ -106,6 +106,11 @@ export class CameraRig {
   }
 
   toggleCockpit(): void {
+    // during the kill camera the key just skips it, back to the view you had
+    if (this.mode === 'kill') {
+      this.endKill();
+      return;
+    }
     this.setMode(this.mode === 'cockpit' ? 'chase' : 'cockpit');
   }
 

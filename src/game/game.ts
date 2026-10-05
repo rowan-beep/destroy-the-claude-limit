@@ -57,7 +57,7 @@ import { prewarmAirframes, setHeroDetail } from '../aircraft/models';
 import { randomizeWind, wind } from '../core/weather';
 import { AutoFly, topSpeedKts } from './autoFly';
 import type { AutoFlyPanel, AutoFlyChoice } from '../ui/autoFlyPanel';
-import { enemyTypesFor, AIRCRAFT_TYPES } from '../aircraft/specs';
+import { enemyTypesFor, AIRCRAFT_TYPES, getSpec } from '../aircraft/specs';
 import { CARRIERS, carrierOf, clearCatapults, nearestCarrier, updateCarriers } from '../world/carriers';
 import { armCarriers } from './navy';
 import { NIGHT } from '../render/night';
@@ -650,7 +650,8 @@ export class Game implements ModeHost {
       const killed = !kc.t.alive;
       const hold = killed ? 2.3 : 0.9;
       const skip = this.input.pressed('camera') || this.input.pressed('camChase') || this.input.pressed('camCockpit') || this.input.pressed('camFlyby');
-      if (skip || !p || !p.alive || p.rwr.primaryMissile || kc.age > 7 || (kc.hitAt >= 0 && kc.age - kc.hitAt > hold)) {
+      // (the view changed some other way, e.g. the cockpit key: the shot is over)
+      if (skip || this.cam.mode !== 'kill' || !p || !p.alive || p.rwr.primaryMissile || kc.age > 7 || (kc.hitAt >= 0 && kc.age - kc.hitAt > hold)) {
         this.stopKillCam();
         return;
       }
@@ -842,7 +843,9 @@ export class Game implements ModeHost {
       }
       if (steps >= 30) this.accumulator = 0;
       this.sortie?.update(steps * PHYSICS_DT);
-      this.mode?.update(dt);
+      // the mission runs on simulated time: it slows with the kill camera and
+      // speeds up with fast-forward (the free-for-all zone used to ignore it)
+      this.mode?.update(steps * PHYSICS_DT);
       this.updateRearm(dt);
       this.updateCarrierCalls();
       this.updateWarnings(dt);
@@ -1236,7 +1239,7 @@ export class Game implements ModeHost {
       p.radar.scopeRange = r[(r.indexOf(p.radar.scopeRange) + 1) % r.length];
     }
     if (inp.pressed('irst')) {
-      if (!p.irst) this.message('NO IRST ON THIS AIRCRAFT (TYPHOON, SU-35S AND RAFALE ONLY)', 'warn', 2);
+      if (!p.irst) this.message(`NO IRST ON THIS AIRCRAFT (${AIRCRAFT_TYPES.filter((t) => getSpec(t).irst).map((t) => getSpec(t).shortName.toUpperCase()).join(', ')} ONLY)`, 'warn', 2.5);
       else {
         let best: Aircraft | null = null;
         let bd = Infinity;

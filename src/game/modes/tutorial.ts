@@ -495,11 +495,13 @@ export class TutorialMode extends GameMode {
   }
 
   handle(action: ResultButton['action']): void {
-    if (action === 'retry') {
+    // RESTART from the pause menu during the lessons starts the lessons again
+    // (it used to jump straight into the checkride)
+    if (action === 'retry' && this.phase !== 'lessons') {
       this.resetWorld();
       this.placePlayer();
       this.startCheckride();
-    } else if (action === 'continue') {
+    } else if (action === 'continue' || action === 'retry') {
       this.resetWorld();
       this.start();
     }

@@ -162,7 +162,9 @@ export class MainMenu {
     this.root.classList.toggle('hidden', !v);
     menuMusic.want('air', v);
     this.musBtn.textContent = menuMusic.enabled ? 'MUSIC ON' : 'MUSIC OFF';
-    if (v) this.renderPilot();
+    // back from a mission: redraw everything, so new campaign stars, unlocked
+    // missions and the daily mission's DONE tag show at once
+    if (v) this.render();
   }
 
   private go(s: Section): void {
@@ -290,8 +292,10 @@ export class MainMenu {
       if (on) el('div', 'mm-mode-d', t, info.description);
       r.addEventListener('click', () => {
         if (off) return;
+        // coming into the campaign from another mode: the first mission not yet done
+        // (clicking it again keeps the mission you picked)
+        if (m === 'campaign' && this.cfg.mode !== 'campaign') this.cfg.campaignMission = nextCampaignMission();
         this.cfg.mode = m;
-        if (m === 'campaign') this.cfg.campaignMission = nextCampaignMission();
         // the SR-71 flies only reconnaissance and free flight; reconnaissance only the SR-71
         if (!jetAllowedIn(this.cfg.aircraft, m)) {
           this.selectJet(m === 'recon' ? 'SR71' : this.lastFighter);

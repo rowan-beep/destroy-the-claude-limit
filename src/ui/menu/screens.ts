@@ -58,11 +58,14 @@ export class PauseMenu {
     button('RESUME', 'primary', m, cb.resume);
     button('SETTINGS', '', m, cb.settings);
     button('CONTROLS', '', m, cb.controls);
-    button('RESTART MISSION', '', m, cb.restart);
+    this.restartBtn = button('RESTART MISSION', '', m, cb.restart);
     button('QUIT TO MAIN MENU', '', m, cb.quit);
   }
-  show(v: boolean): void {
+  private restartBtn: HTMLElement;
+  /** (an online match can't be restarted: the button is hidden there) */
+  show(v: boolean, canRestart = true): void {
     this.root.classList.toggle('hidden', !v);
+    this.restartBtn.style.display = canRestart ? '' : 'none';
   }
 }
 

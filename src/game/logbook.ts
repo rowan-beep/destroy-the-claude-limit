@@ -69,8 +69,8 @@ export const MEDALS: MedalDef[] = [
   { id: 'first-blood', name: 'FIRST BLOOD', desc: 'Score your first air-to-air kill.' },
   { id: 'ace', name: 'ACE IN A DAY', desc: 'Five kills in a single sortie.' },
   { id: 'guns', name: 'GUNSLINGER', desc: 'A kill with the cannon.' },
-  { id: 'long-shot', name: 'LONG SHOT', desc: 'An AIM-120D kill from beyond 30 NM.' },
-  { id: 'knife', name: 'KNIFE FIGHT', desc: 'An AIM-9X kill inside 1 NM.' },
+  { id: 'long-shot', name: 'LONG SHOT', desc: 'A radar-missile kill from beyond 30 NM.' },
+  { id: 'knife', name: 'KNIFE FIGHT', desc: 'A heat-seeker kill inside 1 NM.' },
   { id: 'notch', name: 'IN THE NOTCH', desc: 'Defeat a radar missile by beaming it.' },
   { id: 'masker', name: 'TERRAIN MASKER', desc: 'Defeat a missile by putting terrain between you and it.' },
   { id: 'flares', name: 'SPOOFED', desc: 'Decoy an IR missile with flares.' },
@@ -374,7 +374,7 @@ export function commitSortie(book: LogbookData, s: SortieRecorder, outcome: Miss
   give('first-blood', tot.kills > 0);
   give('ace', s.kills.length >= 5);
   give('guns', gunKill);
-  give('long-shot', s.kills.some((k) => (k.weapon.startsWith('AIM-120') || k.weapon.startsWith('R-77') || k.weapon.startsWith('METEOR')) && k.rangeNm > 30));
+  give('long-shot', s.kills.some((k) => (k.weapon.startsWith('AIM-120') || k.weapon.startsWith('R-77') || k.weapon.startsWith('R-37') || k.weapon.startsWith('METEOR')) && k.rangeNm > 30));
   give('knife', s.kills.some((k) => (k.weapon.startsWith('AIM-9') || k.weapon.startsWith('R-74') || k.weapon.startsWith('MICA')) && k.rangeNm < 1));
   give('notch', s.defeated.includes('NOTCH'));
   give('masker', s.defeated.includes('TERRAIN MASK'));

@@ -217,7 +217,11 @@ export class Aircraft {
   }
 
   rearm(fullFuel = true): void {
+    // keep the weapon the pilot had selected (bombs stay bombs) if there is still some of it
+    const sel = this.selectedWeapon;
     this.applyLoadout(this.loadout);
+    if (sel !== 'GUN' && this.countOf(sel) > 0) this.selectedWeapon = sel;
+    else if (sel === 'GUN') this.selectedWeapon = 'GUN';
     this.gunAmmo = this.spec.gun.rounds;
     this.chaff = this.spec.chaff;
     this.flares = this.spec.flares;
