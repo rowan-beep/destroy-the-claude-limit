@@ -374,7 +374,7 @@ export class SpaceFlight {
     if (this.ui.cardOpen) return;
     if (e.repeat && c !== 'Comma' && c !== 'Period') return handled();
     // easy flying: SPACE (or 1) does the highlighted goal, 2 and 3 the others
-    const pick: Record<string, number> = { Space: 0, Digit1: 0, Digit2: 1, Digit3: 2 };
+    const pick: Record<string, number> = { Space: 0, Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3 };
     if (this.easy && c in pick) {
       handled();
       this.doAction(pick[c]);

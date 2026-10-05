@@ -3,6 +3,22 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.50.0 — To the Moon (2026-10-05)
+
+- The Moon is here, at full size and at its real distance, circling Earth and turning to keep one face toward us. Its gravity pulls on everything nearby, and from orbit you see dark maria, pale highlands, craters on craters and the bright rays of young ones, with faint blue earthshine on the night side.
+- Fly to the Moon and land on it. In Earth orbit, press GO TO THE MOON and the autopilot flies the whole trip. It waits for the right moment, then fires the S-IVB to push you out of Earth orbit. Small correction burns trim the aim, three days of coasting follow, and a braking burn behind the Moon captures you into a 110 km lunar orbit. Then press LAND ON THE MOON. It's a one-way trip: the lander stays.
+- Transposition and docking, animated: the adapter's four panels swing open and tumble away, the command module backs off, turns round, comes back nose first and docks with the lunar module, then pulls it free of the S-IVB.
+- The lunar module, built in detail: the gold- and black-foil descent stage, the faceted crew cabin with its triangular windows, the docking tunnel, thruster quads, antennas, and four legs with footpads, contact probes and a ladder. Its legs swing out before it goes down.
+- The landing: the lander undocks, and the command module stays up in orbit. The computer picks a spot on the near side with the Sun low behind you. It lowers the orbit to 15 km, then flies the powered descent: braking along the path, pitching up through the high gate with the ground ahead, then a slow, almost vertical descent with the throttle easing back, dust blasting out across the ground, contact light, engine stop.
+- After touchdown the camera swings round to the sunlit side, an astronaut steps off the ladder, bounds out and plants the flag, and Earth hangs in the black sky.
+- The lunar surface up close looks like the Apollo photos: warm grey regolith full of small pits and grain, craters of every size, thousands of rocks and pebbles, and hard black shadows under a low Sun.
+- A new way to start: LUNAR ORBIT, with the command module docked to the lunar module 110 km above the Moon, ready to land. The pause and end screens let you jump between all three starts.
+- Pick your time warp: 1×, 2×, 10×, 100× or 500×, or AUTO, which races through long coasts (up to 10,000×) and slows down by itself for every burn, the docking and the landing.
+- New engine fire on every engine. Each plume now has a white-hot core and an outer flame, with turbulence streaming down it. The F-1s get shock diamonds in thick air and the dark curtain of their turbine exhaust near the nozzles, and their flames balloon as the air thins. The J-2s burn a pale blue. The service module's and lunar module's engines burn with a faint, translucent glow. There's a hot glow at every nozzle cluster.
+- Fixed the rainbow-coloured bands across Earth near the line between day and night: the atmosphere now fades smoothly into Earth's shadow.
+- Music: fixed the menu music being silent. It now plays through the game's own sound system. It also keeps playing, looping seamlessly, while you fly the Saturn V.
+- The ORBIT, FALLING and SAFE lamps, the orbit panel, the attitude ball and the map all work round the Moon too. On the way out, the map shows your predicted path to the Moon and the Moon's own orbit.
+
 ## v4.49.0 — Menu music (2026-10-05)
 
 - Menu music: "High Up" now plays in the main menus of both games, Air Combat and Space Exploration. It's only in the menus: it fades out smoothly when a mission or flight starts and fades back in when you return.

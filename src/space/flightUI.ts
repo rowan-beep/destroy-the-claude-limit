@@ -330,9 +330,10 @@ export class FlightUI {
     el('div', 'fx-h', hp, 'FLYING THE SATURN V');
     const easy = el('div', 'fx-help-easy', hp);
     const easyRows: [string, string][] = [
-      ['SPACE', 'Do the highlighted goal: LAUNCH, GO HOME…'],
-      ['2 · 3', 'The other goal buttons'],
-      ['F', 'Fast forward: skips the waiting and slows down by itself for every burn'],
+      ['SPACE', 'Do the highlighted goal: LAUNCH, GO TO THE MOON, LAND ON THE MOON…'],
+      ['2 · 3 · 4', 'The other goal buttons'],
+      ['AUTO · F', 'Fast forward: skips the waiting and slows down by itself for every burn'],
+      ['1× … 500×', 'Pick a time-warp speed (the autopilot still slows it for precise moments)'],
       ['W A S D', 'Steer yourself (this switches the autopilot off)'],
       ['Mouse', 'Drag to look around, scroll to zoom'],
       ['M · C', 'Map of your orbit · change camera'],
@@ -345,7 +346,7 @@ export class FlightUI {
       el('span', 'k', r, k);
       el('span', 't', r, t);
     }
-    el('div', 'fx-note', easy, 'Press LAUNCH and the autopilot flies you to orbit. Once you are up there, pick GO HOME to come back down by parachute, GO HIGHER for a bigger orbit, or LEAVE EARTH to break free. The line above the buttons always tells you what is happening.');
+    el('div', 'fx-note', easy, 'Press LAUNCH and the autopilot flies you to orbit. From there, GO TO THE MOON flies the whole trip: the push out of Earth orbit, docking with the lunar module, three days of coasting and the braking burn into lunar orbit. Then LAND ON THE MOON flies the lander down to a soft touchdown. Or pick GO HOME, GO HIGHER or LEAVE EARTH. The line above the buttons always tells you what is happening.');
     const pro = el('div', 'fx-help-pro', hp);
     const rows: [string, string][] = [
       ['SPACE', 'Resume the count on the pad · stage in flight'],
@@ -353,12 +354,13 @@ export class FlightUI {
       ['G', 'IU guidance on/off: the Instrument Unit flies the real ascent to a 185 km orbit'],
       ['Z / X', 'Ignite the S-IVB (restartable J-2) / engine cutoff'],
       ['1 – 8, 0', 'Attitude: stabilise, hold, prograde, retrograde, normal, anti-normal, radial out, radial in, free'],
-      [', / .', 'Time warp down / up (4× at most under power or in the air)'],
+      [', / .', 'Time warp down / up: 1×, 2×, 10×, 100×, 500×'],
       ['M', 'Map view: your orbit, apoapsis and periapsis'],
       ['C', 'Camera: chase, tracking, onboard'],
       ['B B', 'ABORT: the escape tower pulls the command module clear (while the tower is on)'],
       ['J J', 'CM SEP: separate the command module for re-entry'],
       ['Mouse', 'Drag to look around, scroll to zoom'],
+      ['SHIFT / CTRL', 'Lunar module: descent engine throttle up / down'],
       ['ESC', 'Pause'],
     ];
     for (const [k, t] of rows) {
