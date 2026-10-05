@@ -3,6 +3,16 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.48.0 — Easy rocket controls (2026-10-05)
+
+- Flying the Saturn V is much simpler now. The wall of switches is gone. In its place, one line tells you what's happening and what to do next, with a few big buttons for the things you can do right now.
+- On the pad there's just LAUNCH (SPACE). The autopilot counts down, lifts off, drops each stage as it burns out and flies you all the way to orbit. All you do is watch.
+- Once you're in orbit you get three goals, and the autopilot flies whichever you pick. GO HOME turns the rocket round, fires the braking burn, separates the capsule, and lets the heat shield and parachutes bring you down to a splashdown. GO HIGHER climbs to a bigger orbit in two burns, a step at a time from 400 km up to geostationary height. LEAVE EARTH burns outward until you break free of Earth's pull. Each button says beforehand whether you have the fuel: GO HIGHER only offers a climb you can come back from, and LEAVE EARTH tells you how far you'd get if you can't break free.
+- New FAST FORWARD button (F): it speeds through the waiting and slows down by itself for every burn, staging and re-entry, so nothing gets skipped. On the way home the capsule now speeds down under its parachutes too.
+- STOP AUTOPILOT or a touch of W A S D hands you the controls at any time. During the climb an ABORT button appears in case you need to save the crew.
+- Want every switch of the real rocket? Press PRO (P) for the full panel with staging, engine restarts, attitude modes and time warp. Press EASY to go back. Your choice is remembered.
+- Fixes: the countdown no longer logs "Ignition sequence start" twice, and the rocket holds its attitude steadily at high time warp.
+
 ## v4.47.0 — Fly the Saturn V (2026-10-04)
 
 - The Saturn V flies. Press LAUNCH on the Launch Pad page (or FLY on the Orbital Flight mission) and choose where to start: on Pad 1 with the count holding at T-20 seconds, or already in a 185 km parking orbit with the S-IVB and the Apollo spacecraft.

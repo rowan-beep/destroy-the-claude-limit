@@ -190,6 +190,11 @@ export class FlightSim {
   guidance = true;
   sas: SasMode = 'stab';
   autoStage = true;
+  /** easy flying: the S-IVB's J-2 can be restarted as often as you like */
+  unlimitedRestarts = false;
+  private ignitionLogged = false;
+  /** called after every physics substep, so an autopilot can cut an engine at the exact moment */
+  stepHook: (() => void) | null = null;
   input: Controls = { pitch: 0, yaw: 0, roll: 0 };
   chute: Chute = 'none';
   chuteLevel = 0;
@@ -337,7 +342,8 @@ export class FlightSim {
     if (this.outcome) return this.outcome.status;
     if (this.held) return 'pad';
     const o = this.orbit;
-    if (o.energy >= 0 || len(this.r) > EARTH.soi) return 'safe';
+    // free of Earth: on an escape path, or on an orbit that reaches past Earth's sphere of influence
+    if (o.energy >= 0 || o.ra > EARTH.soi || len(this.r) > EARTH.soi) return 'safe';
     if (o.rp > R_E + EARTH.atmosphereTop) return 'orbit';
     if (this.thrust > 0) return 'ascent';
     if (this.vVert > 0) return 'suborbital';
@@ -444,8 +450,8 @@ export class FlightSim {
     if (this.stage === 'sivb') {
       if (this.engines[0].on) return;
       if (this.prop.sivb <= 0) return this.log('S-IVB is out of propellant.', 'warn');
-      if (this.sivbStarts <= 0) return this.log('No J-2 restarts left: the helium for the restart is used up.', 'warn');
-      this.sivbStarts--;
+      if (this.sivbStarts <= 0 && !this.unlimitedRestarts) return this.log('No J-2 restarts left: the helium for the restart is used up.', 'warn');
+      if (!this.unlimitedRestarts) this.sivbStarts--;
       this.cutoffCommanded = false;
       this.log('S-IVB APS ullage burn: settling the propellant.', 'info');
       this.at(3, () => {
@@ -465,6 +471,7 @@ export class FlightSim {
     this.cutoffCommanded = true;
     if (this.held && this.met < 0) {
       this.counting = false;
+      this.ignitionLogged = false;
       this.timeline = [];
       this.met = Math.min(this.met, -20);
       if (any) this.log('Pad shutdown: engines cut on the hold-down arms. Count recycled to T-20 s.', 'warn');
@@ -636,6 +643,7 @@ export class FlightSim {
     for (let i = 0; i < n; i++) {
       this.step(h);
       if (this.outcome) break;
+      this.stepHook?.();
     }
     // stages and other cast-off parts fall on their own
     for (const d of this.debris) if (!d.gone) this.stepDebris(d, dt);
@@ -702,6 +710,7 @@ export class FlightSim {
         } else if (this.met > 1.5) {
           for (const e of this.engines) e.on = false;
           this.counting = false;
+          this.ignitionLogged = false;
           this.met = -20;
           this.log('Hold-down release inhibited: engines not at full thrust. Count recycled.', 'warn');
         }
@@ -750,8 +759,10 @@ export class FlightSim {
     const acc = addScaled(gvec, F, 1 / this.mass);
     this.lastAccel = scale(F, 1 / this.mass);
 
-    // torques: steering (engine gimbal, APS / RCS) against aerodynamic moments
-    this.attitude(dt, thrust, vrel, alpha);
+    // torques: steering (engine gimbal, APS / RCS) against aerodynamic moments, in short
+    // steps so the attitude control stays steady through long time-warped substeps
+    const na = Math.min(50, Math.ceil(dt / 0.1));
+    for (let i = 0; i < na; i++) this.attitude(dt / na, thrust, vrel, alpha);
 
     // integrate translation (RK4 for gravity; the other forces held over the substep)
     const aOther = scale(F, 1 / this.mass);
@@ -806,7 +817,10 @@ export class FlightSim {
     this.engines.forEach((e, i) => {
       if (!e.on && t >= ign[i] && t < 0 && !this.cutoffCommanded) e.on = true;
     });
-    if (t >= -8.9 && t - 0.02 < -8.9) this.log('Ignition sequence start.', 'stage');
+    if (t >= -8.9 && !this.ignitionLogged) {
+      this.ignitionLogged = true;
+      this.log('Ignition sequence start.', 'stage');
+    }
   }
 
   // timed and threshold events during flight

@@ -1074,6 +1074,29 @@ body:has(#hud.cockpit-clean) .wx-widget { opacity: 0; pointer-events: none; }
 .fx-btn.red { border-color: rgba(255, 90, 74, 0.6); color: #ffb4aa; } .fx-btn.red:hover:not(:disabled) { background: rgba(160, 30, 20, 0.6); }
 .fx-btn.amber { border-color: rgba(255, 179, 71, 0.6); color: #ffd9a0; }
 .fx-warp { min-width: 64px; text-align: center; font-family: 'Consolas', monospace; font-size: 13px; }
+/* easy flying: one line of guidance, big goal buttons, a few essentials */
+.fx-easy { right: 14px; bottom: 14px; width: 360px; display: flex; flex-direction: column; gap: 10px; }
+.fx:not(.easy) .fx-easy, .fx.easy .fx-ctl, .fx.easy .fx-loads { display: none; }
+.fx:not(.easy) .fx-help-easy, .fx.easy .fx-help-pro { display: none; }
+.fx-ez-guide { font-size: 14px; line-height: 1.45; color: #eaf3ff; padding: 2px 2px 0; }
+.fx-ez-acts { display: flex; flex-direction: column; gap: 7px; }
+.fx-ez-act { display: flex; flex-direction: column; gap: 3px; text-align: left; padding: 10px 14px; border-radius: 9px; border: 1px solid var(--line); background: rgba(20, 34, 60, 0.6); color: #eaf3ff; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+.fx-ez-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.fx-ez-act .l { font-size: 14px; font-weight: 800; letter-spacing: 0.16em; }
+.fx-ez-act .kk { font-family: 'Consolas', monospace; font-size: 10px; color: var(--dim); padding: 1px 6px; border: 1px solid var(--line); border-radius: 4px; }
+.fx-ez-act .s { font-size: 11.5px; color: #a9bcd6; }
+.fx-ez-act:hover:not(:disabled) { border-color: var(--a); background: rgba(40, 70, 120, 0.7); transform: translateY(-1px); }
+.fx-ez-act:disabled { opacity: 0.45; cursor: default; }
+.fx-ez-act.primary { padding: 14px 16px; background: linear-gradient(180deg, rgba(60, 130, 230, 0.55), rgba(30, 70, 150, 0.55)); border-color: rgba(124, 192, 255, 0.7); box-shadow: 0 0 22px rgba(124, 192, 255, 0.25); }
+.fx-ez-act.primary .l { font-size: 18px; }
+.fx-ez-act.primary.go:not(:disabled) { animation: fx-ez-glow 2.2s ease-in-out infinite; }
+.fx-ez-act.stop { background: rgba(90, 50, 16, 0.55); border-color: rgba(255, 179, 71, 0.65); box-shadow: none; }
+@keyframes fx-ez-glow { 50% { box-shadow: 0 0 34px rgba(124, 192, 255, 0.6); } }
+.fx-ez-row { display: flex; gap: 5px; flex-wrap: wrap; }
+.fx-ez-row .fx-btn { min-width: 50px; }
+.fx-ez-row .fx-btn.ff, .fx-ez-row .fx-btn.red { flex: 1 1 100%; position: relative; padding: 8px 4px; }
+.fx-ez-row .fx-btn.ff .l { font-size: 12px; letter-spacing: 0.2em; }
+.fx-ez-warp { position: absolute; right: 7px; top: 4px; font-family: 'Consolas', monospace; font-size: 10px; color: #bfe4ff; }
 .fx-hint { position: absolute; top: 108px; left: 50%; transform: translateX(-50%); padding: 7px 16px; border-radius: 999px; background: rgba(255, 179, 71, 0.15); border: 1px solid rgba(255, 179, 71, 0.6); color: #ffd9a0; font-size: 12px; letter-spacing: 0.08em; opacity: 0; transition: opacity 0.3s; }
 .fx-hint.on { opacity: 1; }
 /* flashes and labels */
@@ -1109,7 +1132,7 @@ body:has(#hud.cockpit-clean) .wx-widget { opacity: 0; pointer-events: none; }
 @keyframes fx-pulse { 50% { box-shadow: 0 0 24px rgba(255, 90, 74, 0.6); } }
 @keyframes fx-blink { 50% { opacity: 0.25; } }
 @media (max-width: 1100px) { .fx-orb { display: none; } .fx-log { display: none; } .fx-veh { width: 250px; } }
-@media (max-width: 760px) { .fx-veh { display: none; } .fx-tape { min-width: 100px; } .fx-tv .v { font-size: 16px; } .fx-ball { width: 160px; height: 160px; } .fx-loads { width: 92vw; } .fx-lamps { display: none; } .fx-state { min-width: 0; } .fx-ctl { width: auto; left: 14px; } .fx-mid { bottom: 230px; } }
+@media (max-width: 760px) { .fx-veh { display: none; } .fx-tape { min-width: 100px; } .fx-tv .v { font-size: 16px; } .fx-ball { width: 160px; height: 160px; } .fx-loads { width: 92vw; } .fx-lamps { display: none; } .fx-state { min-width: 0; } .fx-ctl { width: auto; left: 14px; } .fx-easy { width: auto; left: 14px; } .fx-mid { bottom: 230px; } }
 .sx2-card.open { cursor: pointer; border-color: rgba(124, 192, 255, 0.55); background: linear-gradient(90deg, rgba(124, 192, 255, 0.16), rgba(124, 192, 255, 0.02)); }
 .sx2-card.open .sx2-lock { color: #0a1424; background: var(--a); border-color: var(--a); }
 .sx2-card.open:hover { transform: translateX(3px); box-shadow: 0 0 22px rgba(124, 192, 255, 0.25); }

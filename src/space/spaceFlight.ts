@@ -13,12 +13,21 @@ import { Plumes } from './plumes';
 import { FlightUI } from './flightUI';
 import { buildSaturnV, saturnParts } from './saturnVModel';
 import { updateRecord } from './record';
+import { Autopilot } from './autopilot';
 import { audio } from '../audio/audio';
 import type { LaunchSite } from '../ui/menu/launchSite';
 
 const WARPS = [1, 2, 4, 10, 50, 100, 1000, 10000];
 type CamMode = 'CHASE' | 'TRACKING' | 'ONBOARD';
 const ROCKET_BASE = 24.5;
+const PRO_KEY = 'triad.space.pro';
+const loadPro = (): boolean => {
+  try {
+    return localStorage.getItem(PRO_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
 
 /** a fireball: sprites that swell and fade */
 interface Burst {
@@ -140,6 +149,11 @@ export class SpaceFlight {
   private fadeEl: HTMLElement;
   private site: LaunchSite | null = null;
   private lastStatus = '';
+  /** easy flying: goal buttons and an autopilot instead of the full panel */
+  private easy = !loadPro();
+  private ap = new Autopilot();
+  /** fast forward: time warp chosen automatically, dropping back for every burn and event */
+  private ff = false;
 
   constructor(
     private getSite: () => LaunchSite,
@@ -163,6 +177,9 @@ export class SpaceFlight {
       cmSep: () => this.guarded('sep'),
       pause: () => this.setPaused(!this.paused),
       help: () => this.ui.toggleHelp(),
+      action: (i) => this.doAction(i),
+      ff: () => this.toggleFF(),
+      pro: () => this.togglePro(),
     });
     this.fadeEl = document.createElement('div');
     this.fadeEl.style.cssText = 'position:fixed;inset:0;background:#cfe0f5;opacity:0;pointer-events:none;z-index:29;transition:none';
@@ -231,7 +248,11 @@ export class SpaceFlight {
     for (const b of this.bursts) b.group.parent?.remove(b.group);
     this.bursts = [];
     this.rocket!.visible = true;
-    this.sim = new FlightSim({ mode });
+    const sim = (this.sim = new FlightSim({ mode }));
+    sim.unlimitedRestarts = this.easy;
+    sim.stepHook = () => this.ap.onStep(sim);
+    this.ap.reset();
+    this.ff = false;
     this.warpI = 0;
     this.map = false;
     this.camMode = 'CHASE';
@@ -326,7 +347,22 @@ export class SpaceFlight {
     }
     if (this.ui.cardOpen) return;
     if (e.repeat && c !== 'Comma' && c !== 'Period') return handled();
+    // easy flying: SPACE (or 1) does the highlighted goal, 2 and 3 the others
+    const pick: Record<string, number> = { Space: 0, Digit1: 0, Digit2: 1, Digit3: 2 };
+    if (this.easy && c in pick) {
+      handled();
+      this.doAction(pick[c]);
+      return;
+    }
     switch (c) {
+      case 'KeyF':
+        handled();
+        this.toggleFF();
+        break;
+      case 'KeyP':
+        handled();
+        this.togglePro();
+        break;
       case 'Space':
         handled();
         sim.stageNext();
@@ -370,14 +406,17 @@ export class SpaceFlight {
         break;
       case 'Comma':
         handled();
+        this.ff = false;
         this.setWarp(this.warpI - 1);
         break;
       case 'Period':
         handled();
+        this.ff = false;
         this.setWarp(this.warpI + 1);
         break;
       case 'Slash':
         handled();
+        this.ff = false;
         this.setWarp(0);
         break;
       default: {
@@ -423,12 +462,41 @@ export class SpaceFlight {
     const sim = this.sim;
     if (!sim) return 0;
     const powered = sim.thrust > 0 || sim.engines.some((e) => e.on || e.level > 0.01) || sim.lesBurn > 0;
-    if (sim.outcome) return 2;
-    if (powered || sim.alt < EARTH.atmosphereTop || sim.held) return 2;
+    if (sim.outcome || powered || sim.held) return 2;
+    // in the air: 4×, or up to 50× for the capsule coming down
+    if (sim.alt < EARTH.atmosphereTop) return sim.isCm ? 4 : 2;
     return WARPS.length - 1;
   }
   private setWarp(i: number): void {
     this.warpI = Math.max(0, Math.min(this.warpMax(), i));
+  }
+
+  private toggleFF(): void {
+    this.ff = !this.ff;
+    if (!this.ff) this.warpI = 0;
+  }
+
+  private togglePro(): void {
+    this.easy = !this.easy;
+    try {
+      localStorage.setItem(PRO_KEY, this.easy ? '0' : '1');
+    } catch {
+      /* the choice lasts for this session */
+    }
+    if (this.sim) {
+      if (this.easy) this.sim.unlimitedRestarts = true;
+      else this.ap.stop(this.sim, 'Autopilot off: full manual controls.');
+    }
+    this.ui.flash(this.easy ? 'EASY CONTROLS' : 'PRO CONTROLS', '');
+  }
+
+  /** the n-th goal button on the easy panel */
+  private doAction(n: number): void {
+    const sim = this.sim;
+    if (!sim) return;
+    const a = this.ap.actions(sim)[n];
+    if (!a || !a.enabled) return;
+    this.ap.run(a.id, sim);
   }
 
   private toggleMap(): void {
@@ -479,11 +547,21 @@ export class SpaceFlight {
     sim.input.pitch = k('KeyS') - k('KeyW');
     sim.input.yaw = k('KeyD') - k('KeyA');
     sim.input.roll = k('KeyE') - k('KeyQ');
+    // steering by hand takes over from the autopilot
+    if (this.ap.prog && (sim.input.pitch || sim.input.yaw || sim.input.roll)) this.ap.stop(sim, 'Autopilot off: you are steering.');
+    if (this.ff) {
+      // fast forward: the biggest warp that still stops in time for the next burn or event
+      const want = this.ap.wantWarp(sim);
+      let i = this.warpMax();
+      while (i > 0 && WARPS[i] > want) i--;
+      this.warpI = i;
+    }
     if (this.warpI > this.warpMax()) this.warpI = this.warpMax();
     const warp = WARPS[this.warpI];
     if (!this.paused) {
       const before = sim.status();
       sim.advance(dt * warp);
+      this.ap.update(sim, dt * warp);
       const st = sim.status();
       if (st === 'orbit' || st === 'safe') this.orbitTime += dt * warp;
       if (!this.liftoffCounted && !sim.held && this.spawnMode === 'pad' && !sim.aborted) {
@@ -523,7 +601,13 @@ export class SpaceFlight {
 
     if (this.local) this.renderLocal(dt, w, h);
     else this.renderSpace(w, h);
-    this.ui.update(sim, { warp, warpMax: WARPS[this.warpMax()], camMode: this.map ? 'MAP' : this.camMode, map: this.map });
+    this.ui.update(sim, {
+      warp,
+      warpMax: WARPS[this.warpMax()],
+      camMode: this.map ? 'MAP' : this.camMode,
+      map: this.map,
+      easy: this.easy ? { guide: this.ap.guide(sim), actions: this.ap.actions(sim), ff: this.ff, abort: sim.canAbort && (!sim.held || sim.engines.some((e) => e.on)) } : null,
+    });
     this.updateMapLabels(w, h);
   }
 

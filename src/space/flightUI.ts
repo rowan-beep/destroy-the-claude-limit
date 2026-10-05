@@ -10,6 +10,7 @@
 import { el, clearEl } from '../ui/dom';
 import { EARTH, V3, cross, dot, enu, len, norm, orbitPoint, rotY, scale, sub, earthAngle, PAD } from './universe';
 import { ENGINES, FlightSim, PART_ORDER, PartId, PARTS, SasMode, Status, qrot } from './flightSim';
+import type { Action } from './autopilot';
 
 export interface FlightHandlers {
   stage(): void;
@@ -25,6 +26,18 @@ export interface FlightHandlers {
   cmSep(): void;
   pause(): void;
   help(): void;
+  /** easy flying: the n-th goal button */
+  action(n: number): void;
+  ff(): void;
+  pro(): void;
+}
+
+/** what the easy panel shows */
+export interface EasyView {
+  guide: string;
+  actions: Action[];
+  ff: boolean;
+  abort: boolean;
 }
 
 export interface FlightInfo {
@@ -32,6 +45,7 @@ export interface FlightInfo {
   warpMax: number;
   camMode: string;
   map: boolean;
+  easy: EasyView | null;
 }
 
 const fmtT = (t: number) => {
@@ -97,6 +111,11 @@ export class FlightUI {
   readonly labelAp: HTMLElement;
   readonly labelPe: HTMLElement;
   private lastEvent = 0;
+  private ezGuide: HTMLElement;
+  private ezActs: HTMLElement;
+  private ezSig = '';
+  private ezBtn: Record<string, HTMLButtonElement> = {};
+  private ezWarp: HTMLElement;
 
   constructor(parent: HTMLElement, private h: FlightHandlers) {
     this.root = el('div', 'fx hidden', parent);
@@ -225,6 +244,34 @@ export class FlightUI {
     b(r5, 'cmsep', 'CM SEP', 'J ×2', () => h.cmSep(), 'amber wide');
     b(r5, 'help', '?', 'H', () => h.help(), 'sm');
     b(r5, 'pause', 'II', 'ESC', () => h.pause(), 'sm');
+    b(r5, 'easy', 'EASY', 'P', () => h.pro(), 'sm');
+
+    // ---- bottom right, easy flying: one line saying what to do, big goal buttons, a few essentials
+    const ez = el('div', 'fx-panel fx-easy', this.root);
+    this.ezGuide = el('div', 'fx-ez-guide', ez, '');
+    this.ezActs = el('div', 'fx-ez-acts', ez);
+    const er = el('div', 'fx-ez-row', ez);
+    const eb = (k: string, t: string, key: string, fn: () => void, cls = '') => {
+      const x = el('button', 'fx-btn ' + cls, er) as HTMLButtonElement;
+      x.type = 'button';
+      el('span', 'l', x, t);
+      el('span', 'kk', x, key);
+      x.addEventListener('click', (e) => {
+        e.stopPropagation();
+        fn();
+        x.blur();
+      });
+      this.ezBtn[k] = x;
+      return x;
+    };
+    eb('abort', 'ABORT · SAVE THE CREW', 'B ×2', () => h.abort(), 'red');
+    eb('ff', 'FAST FORWARD', 'F', () => h.ff(), 'wide ff');
+    this.ezWarp = el('span', 'fx-ez-warp', this.ezBtn.ff, '');
+    eb('map', 'MAP', 'M', () => h.map());
+    eb('cam', 'CAMERA', 'C', () => h.camera());
+    eb('help', '?', 'H', () => h.help(), 'sm');
+    eb('pause', 'II', 'ESC', () => h.pause(), 'sm');
+    eb('pro', 'PRO', 'P', () => h.pro(), 'sm');
     this.hint = el('div', 'fx-hint', this.root, '');
 
     this.flashEl = el('div', 'fx-flash', this.root);
@@ -262,6 +309,25 @@ export class FlightUI {
   private buildHelp(): void {
     const hp = this.helpEl;
     el('div', 'fx-h', hp, 'FLYING THE SATURN V');
+    const easy = el('div', 'fx-help-easy', hp);
+    const easyRows: [string, string][] = [
+      ['SPACE', 'Do the highlighted goal: LAUNCH, GO HOME…'],
+      ['2 · 3', 'The other goal buttons'],
+      ['F', 'Fast forward: skips the waiting and slows down by itself for every burn'],
+      ['W A S D', 'Steer yourself (this switches the autopilot off)'],
+      ['Mouse', 'Drag to look around, scroll to zoom'],
+      ['M · C', 'Map of your orbit · change camera'],
+      ['B B', 'ABORT during the climb: the escape tower saves the crew'],
+      ['P', 'Pro controls: every switch of the real rocket'],
+      ['ESC', 'Pause'],
+    ];
+    for (const [k, t] of easyRows) {
+      const r = el('div', 'fx-help-r', easy);
+      el('span', 'k', r, k);
+      el('span', 't', r, t);
+    }
+    el('div', 'fx-note', easy, 'Press LAUNCH and the autopilot flies you to orbit. Once you are up there, pick GO HOME to come back down by parachute, GO HIGHER for a bigger orbit, or LEAVE EARTH to break free. The line above the buttons always tells you what is happening.');
+    const pro = el('div', 'fx-help-pro', hp);
     const rows: [string, string][] = [
       ['SPACE', 'Resume the count on the pad · stage in flight'],
       ['W S · A D · Q E', 'Pitch · yaw · roll (turns off IU guidance)'],
@@ -277,14 +343,14 @@ export class FlightUI {
       ['ESC', 'Pause'],
     ];
     for (const [k, t] of rows) {
-      const r = el('div', 'fx-help-r', hp);
+      const r = el('div', 'fx-help-r', pro);
       el('span', 'k', r, k);
       el('span', 't', r, t);
     }
     el(
       'div',
       'fx-note',
-      hp,
+      pro,
       'Coming home: from orbit, point retrograde (4), burn the S-IVB until the periapsis is about 40 km, then separate the command module. Its heat shield and parachutes bring the crew down. Without separating, the vehicle burns up on re-entry.',
     );
     const close = el('button', 'fx-btn wide', hp) as HTMLButtonElement;
@@ -382,7 +448,7 @@ export class FlightUI {
     this.vehRows.dv.textContent = `${dv.stage.toFixed(0)} · ${dv.total.toFixed(0)} m/s`;
     this.vehRows.burn.textContent = st ? mmss(dv.burn) : '—';
     this.vehRows.ctl.textContent = sim.guidance ? 'IU GUIDANCE' : sim.sas === 'off' ? 'FREE' : `SAS ${sim.sas.toUpperCase()}`;
-    this.vehRows.restart.textContent = sim.attached.has('sivb') ? String(sim.sivbStarts) : '—';
+    this.vehRows.restart.textContent = sim.attached.has('sivb') ? (sim.unlimitedRestarts ? '∞' : String(sim.sivbStarts)) : '—';
 
     // the orbit
     const closed = o.e < 1;
@@ -416,6 +482,10 @@ export class FlightUI {
 
     this.drawBall(sim);
 
+    // easy flying
+    this.root.classList.toggle('easy', !!info.easy);
+    if (info.easy) this.updateEasy(info.easy, info);
+
     // controls
     this.btn.guid.classList.toggle('on', sim.guidance);
     this.btn.auto.classList.toggle('on', sim.autoStage);
@@ -444,6 +514,37 @@ export class FlightUI {
         if (last.kind !== 'info') this.flash(last.text.split(/[.:]/)[0].toUpperCase(), last.kind);
       }
     }
+  }
+
+  private updateEasy(ez: EasyView, info: FlightInfo): void {
+    this.ezGuide.textContent = ez.guide;
+    this.ezGuide.style.display = ez.guide ? '' : 'none';
+    // rebuild the goal buttons only when they change, so a click is never lost
+    const sig = ez.actions.map((a) => `${a.id}|${a.label}|${a.sub}|${a.enabled}`).join('#');
+    if (sig !== this.ezSig) {
+      this.ezSig = sig;
+      clearEl(this.ezActs);
+      ez.actions.forEach((a, i) => {
+        const x = el('button', `fx-ez-act${i === 0 ? ' primary' : ''}${a.kind ? ' ' + a.kind : ''}`, this.ezActs) as HTMLButtonElement;
+        x.type = 'button';
+        x.disabled = !a.enabled;
+        const top = el('div', 'fx-ez-top', x);
+        el('span', 'l', top, a.label);
+        el('span', 'kk', top, i === 0 ? 'SPACE' : String(i + 1));
+        el('span', 's', x, a.sub);
+        x.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.h.action(i);
+          x.blur();
+        });
+      });
+    }
+    this.ezActs.style.display = ez.actions.length ? '' : 'none';
+    this.ezBtn.ff.classList.toggle('on', ez.ff);
+    this.ezWarp.textContent = ez.ff || info.warp > 1 ? `${info.warp}×` : '';
+    this.ezBtn.map.classList.toggle('on', info.map);
+    this.ezBtn.cam.querySelector('.l')!.textContent = info.camMode === 'MAP' ? 'CAMERA' : info.camMode;
+    this.ezBtn.abort.style.display = ez.abort ? '' : 'none';
   }
 
   private subStatus(sim: FlightSim, s: Status): string {
