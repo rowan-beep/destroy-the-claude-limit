@@ -7,7 +7,8 @@
 // so the 6,371 km planet and a 110 m rocket share one scene without jitter.
 
 import * as THREE from 'three';
-import { EARTH, V3, CONTINENT_GLSL, ecefDir, enu, PAD, orbitPoint, Orbit, descendingAnomaly, len, sub } from './universe';
+import { MoonView } from './moonView';
+import { MOON, moonPos, EARTH, Body, V3, CONTINENT_GLSL, ecefDir, enu, PAD, orbitPoint, Orbit, descendingAnomaly, len, sub } from './universe';
 
 const RP_KM = EARTH.R / 1000;
 const RA_KM = RP_KM + 100;
@@ -27,15 +28,18 @@ vec2 rsi(vec3 r0, vec3 rd, float sr) {
 // optical depth from p toward the sun (Rayleigh, Mie); large if the planet is in the way
 vec2 sunDepth(vec3 p, vec3 sd) {
   vec2 ls = rsi(p, sd, RA);
-  vec2 pl = rsi(p, sd, RP - 0.5);
-  if (pl.x > 0.0 && pl.x < pl.y) return vec2(1e4);
-  float dl = max(ls.y, 0.0) / 5.0;
+  float dl = max(ls.y, 0.0) / 6.0;
   vec2 od = vec2(0.0);
-  for (int j = 0; j < 5; j++) {
-    float hq = length(p + sd * ((float(j) + 0.5) * dl)) - RP;
+  for (int j = 0; j < 6; j++) {
+    // the height along the sunward ray, floored so a ray grazing the planet piles up depth smoothly
+    float hq = max(length(p + sd * ((float(j) + 0.5) * dl)) - RP, -1.5);
     od += vec2(exp(-hq / HR), exp(-hq / HM)) * dl;
   }
-  return od;
+  // the planet's own shadow, with a soft edge rather than a hard step
+  float along = dot(p, sd);
+  float perp = length(p - sd * along);
+  float shade = along > 0.0 ? 1.0 : smoothstep(RP - 25.0, RP + 8.0, perp);
+  return od + vec2(400.0, 400.0) * (1.0 - shade);
 }
 vec3 sunTrans(vec3 p, vec3 sd) {
   vec2 od = sunDepth(p, sd);
@@ -43,8 +47,10 @@ vec3 sunTrans(vec3 p, vec3 sd) {
 }
 // single scattering along ro + rd * t, t in [ta, tb] (km); T is the transmittance
 vec3 scatter(vec3 ro, vec3 rd, float ta, float tb, vec3 sd, out vec3 T) {
-  const int IS = 12;
+  const int IS = 16;
   float ds = max(tb - ta, 0.0) / float(IS);
+  // a different offset for every pixel, so the samples' steps dissolve instead of banding
+  float jit = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
   vec3 tR = vec3(0.0), tM = vec3(0.0);
   float odR = 0.0, odM = 0.0;
   float mu = dot(rd, sd);
@@ -53,7 +59,7 @@ vec3 scatter(vec3 ro, vec3 rd, float ta, float tb, vec3 sd, out vec3 T) {
   float pR = 3.0 / (16.0 * PI) * (1.0 + mumu);
   float pM = 3.0 / (8.0 * PI) * ((1.0 - gg) * (mumu + 1.0)) / (pow(1.0 + gg - 2.0 * mu * GMIE, 1.5) * (2.0 + gg));
   for (int i = 0; i < IS; i++) {
-    vec3 p = ro + rd * (ta + (float(i) + 0.5) * ds);
+    vec3 p = ro + rd * (ta + (float(i) + jit) * ds);
     float h = max(length(p) - RP, 0.0);
     float dR = exp(-h / HR) * ds, dM = exp(-h / HM) * ds;
     odR += dR;
@@ -273,6 +279,7 @@ export interface ViewState {
 export class SpaceScene {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(50, 1, 0.5, 6e9);
+  private moon: MoonView;
   readonly earth: THREE.Mesh;
   private clouds: THREE.Mesh;
   private sky: THREE.Mesh;
@@ -398,7 +405,7 @@ export class SpaceScene {
     this.scene.add(this.sun, this.sunGlow);
     this.sunLight = new THREE.DirectionalLight(0xfff6ec, 3.4);
     this.sunLight.castShadow = true;
-    this.sunLight.shadow.mapSize.set(2048, 2048);
+    this.sunLight.shadow.mapSize.set(4096, 4096);
     const sc = this.sunLight.shadow.camera as THREE.OrthographicCamera;
     sc.left = sc.bottom = -70;
     sc.right = sc.top = 70;
@@ -412,6 +419,8 @@ export class SpaceScene {
     this.ambient = new THREE.HemisphereLight(0x9ab8e8, 0x2a2622, 0.1);
     this.scene.add(this.ambient);
     this.scene.add(this.local);
+    this.moon = new MoonView(sunDirEci);
+    this.scene.add(this.moon.group);
 
   }
 
@@ -443,6 +452,11 @@ export class SpaceScene {
     this.skyMat.uniforms.camKm.value.copy(camKm);
     this.cloudMat.uniforms.time.value = v.time;
     this.cloudMat.uniforms.camAlt.value = camAlt;
+    // the Moon, and the ground under the lander
+    const mp = moonPos(v.time);
+    const relM = sub(o, mp);
+    const nearMoon = len(relM) < MOON.soi;
+    this.moon.update(o, v.time, nearMoon ? relM : null);
     // the Sun, far beyond everything
     const sd = new THREE.Vector3(...this.sunDirEci);
     this.sun.position.copy(cam.position).addScaledVector(sd, 1e8);
@@ -456,7 +470,7 @@ export class SpaceScene {
     const alt = len(o) - EARTH.R;
     const dayside = Math.max(0, up.dot(sd));
     // in Earth's shadow the sunlight goes out
-    const shadowed = this.inShadow(o);
+    const shadowed = this.inShadow(o) || this.inMoonShadow(o, mp);
     this.sunLight.intensity = shadowed ? 0 : 3.4 * Math.min(1, 0.25 + Math.max(0, up.dot(sd) + 0.15) * 3);
     this.earthshine.position.copy(up).multiplyScalar(-300);
     this.earthshine.intensity = 0.9 * dayside * Math.min(1, EARTH.R / (EARTH.R + alt));
@@ -467,6 +481,23 @@ export class SpaceScene {
     this.starMat.uniforms.bright.value = starB;
     this.milkyMat.uniforms.bright.value = starB;
     this.ambient.intensity = 0.06 + 0.9 * inAir * Math.max(0.1, dayside);
+    if (nearMoon) {
+      // no air: hard sunlight, inky shadows, and a little blue earthshine
+      this.sunLight.intensity = shadowed ? 0 : 3.4;
+      const toEarth = new THREE.Vector3(-o[0], -o[1], -o[2]).normalize();
+      this.earthshine.position.copy(toEarth).multiplyScalar(300);
+      this.earthshine.intensity = 0.08;
+      this.ambient.intensity = 0.02;
+    }
+  }
+
+  /** is a point (ECI) in the Moon's shadow? */
+  private inMoonShadow(p: V3, mp: V3): boolean {
+    const s = this.sunDirEci;
+    const d = sub(p, mp);
+    const along = d[0] * s[0] + d[1] * s[1] + d[2] * s[2];
+    if (along > 0) return false;
+    return len(sub(d, [s[0] * along, s[1] * along, s[2] * along])) < MOON.R;
   }
 
   /** is a point (ECI) in Earth's shadow? */
@@ -487,9 +518,9 @@ export interface TrackPoint {
 }
 
 /** the predicted path from now: round the orbit, or down to where it meets the ground, or out on an escape */
-export function orbitTrack(o: Orbit, n = 360): { pts: TrackPoint[]; impact: boolean } {
-  const R = EARTH.R;
-  const atm = R + EARTH.atmosphereTop;
+export function orbitTrack(o: Orbit, n = 360, body: Body = EARTH): { pts: TrackPoint[]; impact: boolean } {
+  const R = body.R;
+  const atm = R + body.atmosphereTop;
   const raw: V3[] = [];
   let impact = false;
   if (o.e < 1) {
@@ -511,7 +542,7 @@ export function orbitTrack(o: Orbit, n = 360): { pts: TrackPoint[]; impact: bool
   }
   const pts = raw.map((p): TrackPoint => {
     const r = len(p);
-    return { p, kind: r < atm ? 'air' : o.e >= 1 ? 'escape' : o.rp > atm ? 'stable' : 'decay' };
+    return { p, kind: r < atm ? 'air' : o.e >= 1 ? 'escape' : o.rp > atm + (body === EARTH ? 0 : 3000) ? 'stable' : 'decay' };
   });
   return { pts, impact };
 }

@@ -295,17 +295,46 @@ export function buildSaturnV(): THREE.Group {
     ring(p, 0.84, 'rgba(0,0,0,0.4)');
   }), { metal: 0.5, rough: 0.35 });
 
-  // ---- the Apollo spacecraft
-  section(rocket, R3, RSM, 85.6, 94.1, skin((R3 + RSM) / 2, 8.5, (p) => {
+  // ---- the Apollo spacecraft: the adapter's fixed lower ring stays on the S-IVB,
+  // its four upper panels open like petals to let the command module back in for the lunar module
+  const slaTex = skin((R3 + RSM) / 2, 8.5, (p) => {
     band(p, 0, 8.5, '#e8e7e2');
     for (let k = 0; k < 4; k++) {
       p.g.fillStyle = 'rgba(0,0,0,0.3)';
       p.g.fillRect(((k / 4 + 1 / 8) % 1) * p.W - 1, 0, 3, p.H);
     }
     ring(p, 0.1, 'rgba(0,0,0,0.3)');
+    ring(p, 2.1, 'rgba(0,0,0,0.35)');
     ring(p, 4.2, 'rgba(0,0,0,0.12)');
     weather(p, 41, 0.5);
-  }), { metal: 0.35, rough: 0.35 });
+  });
+  const slaMat = new THREE.MeshStandardMaterial({ map: slaTex.map, roughness: 0.35, metalness: 0.35, side: THREE.DoubleSide });
+  const rHinge = saturnRadiusAt(SLA_HINGE);
+  const lowerSla = new THREE.Mesh(new THREE.CylinderGeometry(rHinge, R3, SLA_HINGE - 85.6, 96, 1, true), slaMat);
+  lowerSla.position.y = (85.6 + SLA_HINGE) / 2;
+  rocket.add(lowerSla);
+  const slaG = new THREE.Group();
+  const panels: THREE.Group[] = [];
+  for (let k = 0; k < 4; k++) {
+    const th0 = (k / 4) * Math.PI * 2 + Math.PI / 4;
+    const geo = new THREE.CylinderGeometry(RSM, rHinge, 94.1 - SLA_HINGE, 32, 1, true, th0, Math.PI / 2);
+    geo.translate(0, (94.1 + SLA_HINGE) / 2, 0);
+    const mid = th0 + Math.PI / 4;
+    const pivot = around(rHinge, mid, SLA_HINGE);
+    geo.translate(-pivot.x, -pivot.y, -pivot.z);
+    const g = new THREE.Group();
+    g.position.copy(pivot);
+    const m = new THREE.Mesh(geo, slaMat);
+    m.castShadow = true;
+    g.add(m);
+    // which way it swings open, and the hinge line
+    g.userData.radial = new THREE.Vector3(Math.sin(mid), 0, Math.cos(mid));
+    g.userData.axis = new THREE.Vector3(Math.cos(mid), 0, -Math.sin(mid));
+    g.userData.home = pivot.clone();
+    panels.push(g);
+    slaG.add(g);
+  }
+  slaG.userData.panels = panels;
   section(rocket, RSM, RSM, 94.1, 98.3, skin(RSM, 4.2, (p) => {
     band(p, 0, 4.2, '#c9cbcd');
     for (let k = 0; k < 16; k++) {
@@ -321,7 +350,37 @@ export function buildSaturnV(): THREE.Group {
     quad.position.copy(around(RSM + 0.2, th, 96.6));
     quad.rotation.y = th;
     rocket.add(quad);
+    // the four thruster nozzles of each quad
+    for (const [dy, dz] of [[0.55, 0], [-0.55, 0], [0, 0.42], [0, -0.42]]) {
+      const n = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.22, 8, 1, true), dark);
+      n.position.copy(around(RSM + 0.25, th, 96.6 + dy)).add(new THREE.Vector3(Math.cos(th), 0, -Math.sin(th)).multiplyScalar(dz));
+      if (dy) n.rotation.z = dy > 0 ? 0 : Math.PI;
+      else n.rotation.x = dz > 0 ? Math.PI / 2 : -Math.PI / 2;
+      rocket.add(n);
+    }
   }
+  // the Service Propulsion System's big bell, hidden in the adapter until the command module pulls away
+  const sps = new THREE.Mesh(
+    new THREE.LatheGeometry([new THREE.Vector2(0.32, 0), new THREE.Vector2(0.42, -0.25), new THREE.Vector2(0.36, -0.55), new THREE.Vector2(0.62, -1.2), new THREE.Vector2(0.95, -2.1), new THREE.Vector2(1.18, -2.7), new THREE.Vector2(1.15, -2.72)], 40),
+    new THREE.MeshStandardMaterial({ color: '#8e8c88', roughness: 0.35, metalness: 0.85, side: THREE.DoubleSide }),
+  );
+  sps.position.y = 94.1;
+  rocket.add(sps);
+  const smBase = new THREE.Mesh(new THREE.CircleGeometry(RSM, 48), dark);
+  smBase.rotation.x = Math.PI / 2;
+  smBase.position.y = 94.08;
+  rocket.add(smBase);
+  // the high-gain antenna, folded against the aft end
+  const hga = new THREE.Group();
+  for (let k = 0; k < 4; k++) {
+    const dish = new THREE.Mesh(new THREE.SphereGeometry(0.42, 16, 6, 0, Math.PI * 2, 0, 0.6), foil);
+    dish.position.set(((k % 2) - 0.5) * 0.9, 0, (Math.floor(k / 2) - 0.5) * 0.9);
+    dish.rotation.x = -Math.PI / 2;
+    hga.add(dish);
+  }
+  hga.position.copy(around(RSM + 0.55, Math.PI, 94.8));
+  hga.scale.setScalar(0.7);
+  rocket.add(hga);
   // the command module under its boost protective cover
   const cmGeo = new THREE.CylinderGeometry(0.36, RSM, 3.2, 96, 1, false);
   cmGeo.translate(0, 98.3 + 1.6, 0);
@@ -399,14 +458,14 @@ export function buildSaturnV(): THREE.Group {
   rocket.add(sIVBBase);
 
   // sort everything into the parts that separate in flight
-  const parts: Record<SaturnPart, THREE.Group> = { sic: new THREE.Group(), siiInter: new THREE.Group(), sii: new THREE.Group(), sivb: new THREE.Group(), slaSm: new THREE.Group(), cm: new THREE.Group(), les: new THREE.Group() };
+  const parts: Record<SaturnPart, THREE.Group> = { sic: new THREE.Group(), siiInter: new THREE.Group(), sii: new THREE.Group(), sivb: new THREE.Group(), sla: slaG, lm: buildLM(), sm: new THREE.Group(), cm: new THREE.Group(), les: new THREE.Group() };
   const box = new THREE.Box3();
   for (const o of [...rocket.children]) {
     box.setFromObject(o);
     const y = (box.min.y + box.max.y) / 2;
     // the J-2 clusters hang below their stages' bases: place them by where they are mounted
     const part: SaturnPart =
-      o.position.y === 72.0 ? 'sivb' : o.position.y === 47.6 ? 'sii' : y < 42 ? 'sic' : y < 47.6 ? 'siiInter' : y < 72 ? 'sii' : y < 85.6 ? 'sivb' : y < 98.3 ? 'slaSm' : y < 101.55 ? 'cm' : 'les';
+      o === lowerSla ? 'sivb' : o === sps || o === smBase ? 'sm' : o.position.y === 72.0 ? 'sivb' : o.position.y === 47.6 ? 'sii' : y < 42 ? 'sic' : y < 47.6 ? 'siiInter' : y < 72 ? 'sii' : y < 85.6 ? 'sivb' : y < 98.3 ? 'sm' : y < 101.55 ? 'cm' : 'les';
     parts[part].add(o);
   }
   for (const [k, g] of Object.entries(parts)) {
@@ -419,7 +478,186 @@ export function buildSaturnV(): THREE.Group {
   return rocket;
 }
 
-export type SaturnPart = 'sic' | 'siiInter' | 'sii' | 'sivb' | 'slaSm' | 'cm' | 'les';
+export type SaturnPart = 'sic' | 'siiInter' | 'sii' | 'sivb' | 'sla' | 'lm' | 'sm' | 'cm' | 'les';
+/** where the adapter's upper panels hinge */
+const SLA_HINGE = 87.7;
+
+/**
+ * The lunar module, standing upright in the launch-stack frame (its descent
+ * stage on the Instrument Unit at 86 m, inside the adapter). The descent stage:
+ * an octagon wrapped in crinkled gold and black foil, the throttleable engine's
+ * bell underneath, four legs with footpads and contact probes (folded up for
+ * launch; `userData.legs` swing out). The ascent stage above: the faceted crew
+ * cabin with its two triangular windows and hatch, thruster quads, the docking
+ * tunnel on top, the rendezvous radar and the steerable antenna.
+ */
+function buildLM(): THREE.Group {
+  const lm = new THREE.Group();
+  const B = 86.0;
+  // crinkled foil: a canvas of random facets as colour and bump
+  const foilTex = (base: string, hi: string, seed: number) => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const g = c.getContext('2d')!;
+    g.fillStyle = base;
+    g.fillRect(0, 0, 256, 256);
+    let s = seed;
+    const r = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+    for (let i = 0; i < 900; i++) {
+      g.fillStyle = r() < 0.5 ? hi : 'rgba(0,0,0,0.25)';
+      g.globalAlpha = 0.12 + r() * 0.35;
+      g.beginPath();
+      const x = r() * 256, y = r() * 256;
+      g.moveTo(x, y);
+      g.lineTo(x + (r() - 0.5) * 40, y + (r() - 0.5) * 40);
+      g.lineTo(x + (r() - 0.5) * 40, y + (r() - 0.5) * 40);
+      g.fill();
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(2, 1);
+    return t;
+  };
+  const gold = new THREE.MeshStandardMaterial({ color: '#e0b04a', map: foilTex('#c9952e', '#fff1b0', 7), roughness: 0.28, metalness: 0.95 });
+  const blackFoil = new THREE.MeshStandardMaterial({ color: '#2a2a2c', map: foilTex('#202022', '#8a8a90', 9), roughness: 0.4, metalness: 0.7 });
+  const silver = new THREE.MeshStandardMaterial({ color: '#c9c9c4', roughness: 0.32, metalness: 0.85 });
+  const grey = new THREE.MeshStandardMaterial({ color: '#a7a7a2', roughness: 0.55, metalness: 0.4 });
+  const darkM = new THREE.MeshStandardMaterial({ color: '#1b1b1d', roughness: 0.5, metalness: 0.4 });
+  const glass = new THREE.MeshStandardMaterial({ color: '#0d1116', roughness: 0.08, metalness: 0.9 });
+  const add = (m: THREE.Mesh) => {
+    m.castShadow = true;
+    m.receiveShadow = true;
+    lm.add(m);
+    return m;
+  };
+  // descent stage: the octagon, gold with black panels on alternate faces
+  const oct = new THREE.CylinderGeometry(2.1, 2.1, 1.6, 8, 1, false);
+  oct.rotateY(Math.PI / 8);
+  add(new THREE.Mesh(oct, gold)).position.y = B + 0.8;
+  for (let k = 0; k < 4; k++) {
+    const th = (k / 4) * Math.PI * 2;
+    const panel = add(new THREE.Mesh(new THREE.PlaneGeometry(1.55, 1.45), blackFoil));
+    panel.position.copy(around(2.0, th + Math.PI / 4, B + 0.8));
+    panel.rotation.y = th + Math.PI / 4;
+  }
+  // its engine bell, underneath
+  const bell = add(new THREE.Mesh(new THREE.LatheGeometry([new THREE.Vector2(0.3, 0.2), new THREE.Vector2(0.45, -0.05), new THREE.Vector2(0.66, -0.25)], 32), new THREE.MeshStandardMaterial({ color: '#3a3836', roughness: 0.4, metalness: 0.8, side: THREE.DoubleSide })));
+  bell.position.y = B - 0.0;
+  // ascent stage: the faceted cabin
+  const cab = new THREE.CylinderGeometry(1.45, 1.55, 2.0, 7, 1, false);
+  add(new THREE.Mesh(cab, grey)).position.y = B + 2.6;
+  const cabTop = new THREE.CylinderGeometry(0.9, 1.45, 0.6, 7, 1, false);
+  add(new THREE.Mesh(cabTop, grey)).position.y = B + 3.9;
+  // black thermal blankets on the sides and the aft equipment bay
+  const aft = add(new THREE.Mesh(new THREE.BoxGeometry(2.0, 1.4, 0.9), blackFoil));
+  aft.position.set(0, B + 2.5, -1.35);
+  // the front: two triangular windows and the square hatch
+  const front = new THREE.Vector3(0, 0, 1);
+  for (const sx of [-1, 1]) {
+    const tri = new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(0.55 * sx, 0), new THREE.Vector2(0.1 * sx, 0.55)]);
+    const w = add(new THREE.Mesh(new THREE.ShapeGeometry(tri), glass));
+    w.position.set(0.12 * sx, B + 3.05, 1.47);
+    if (sx < 0) w.scale.x = 1;
+    w.material = glass;
+    (w.material as THREE.Material).side = THREE.DoubleSide;
+  }
+  const hatch = add(new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.8), darkM));
+  hatch.position.set(0, B + 2.1, 1.53);
+  void front;
+  // thruster quads at the four corners
+  for (let k = 0; k < 4; k++) {
+    const th = Math.PI / 4 + (k * Math.PI) / 2;
+    const q = add(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), silver));
+    q.position.copy(around(1.9, th, B + 3.2));
+    for (const [dx, dy, dz] of [[0, 0.25, 0], [0, -0.25, 0], [0.25, 0, 0]]) {
+      const n = add(new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.2, 8, 1, true), darkM));
+      n.position.copy(q.position).add(new THREE.Vector3(dx * Math.cos(th), dy, -dx * Math.sin(th)));
+      if (dy) n.rotation.z = dy > 0 ? 0 : Math.PI;
+      else n.rotation.z = Math.PI / 2;
+      void dz;
+    }
+    const strut = add(new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.6, 6), silver));
+    strut.position.copy(around(1.6, th, B + 3.2));
+    strut.rotation.z = Math.PI / 2;
+    strut.rotation.y = th;
+  }
+  // the docking tunnel and drogue on top
+  add(new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.48, 0.8, 24), silver)).position.y = B + 4.6;
+  const ringTop = add(new THREE.Mesh(new THREE.TorusGeometry(0.45, 0.05, 8, 24), darkM));
+  ringTop.rotation.x = Math.PI / 2;
+  ringTop.position.y = B + 5.0;
+  // rendezvous radar and the steerable S-band dish
+  const rr = add(new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.12, 20), silver));
+  rr.position.set(0.4, B + 4.35, 0.9);
+  rr.rotation.x = Math.PI / 2.6;
+  const dish = add(new THREE.Mesh(new THREE.SphereGeometry(0.42, 18, 6, 0, Math.PI * 2, 0, 0.7), silver));
+  dish.position.set(-1.3, B + 4.4, -0.4);
+  dish.rotation.set(-0.6, 0, 0.5);
+  const mast = add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.8, 6), silver));
+  mast.position.set(-1.1, B + 4.0, -0.3);
+  // the four legs: each swings about its upper attachment, folded for launch
+  const legs: THREE.Group[] = [];
+  for (let k = 0; k < 4; k++) {
+    const th = Math.PI / 4 + (k * Math.PI) / 2;
+    const leg = new THREE.Group();
+    const top = around(1.95, th, B + 1.4);
+    leg.position.copy(top);
+    leg.rotation.y = th;
+    // in the leg's frame: +z outward from the body, +y up
+    const foot = new THREE.Vector3(0, -(B + 1.4) + (B - 1.55), 2.45);
+    const primary = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.07, foot.length(), 10), gold);
+    primary.position.copy(foot).multiplyScalar(0.5);
+    primary.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), foot.clone().normalize());
+    primary.castShadow = true;
+    leg.add(primary);
+    // secondary struts back to the body's lower edge
+    for (const s of [-1, 1]) {
+      const a = new THREE.Vector3(0.9 * s, -1.25, -0.15);
+      const b = foot.clone().multiplyScalar(0.55);
+      const st = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, a.distanceTo(b), 6), silver);
+      st.position.copy(a).add(b).multiplyScalar(0.5);
+      st.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
+      leg.add(st);
+    }
+    const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.47, 0.4, 0.16, 20), gold);
+    pad.position.copy(foot).add(new THREE.Vector3(0, 0.08, 0));
+    pad.castShadow = true;
+    leg.add(pad);
+    // the contact probes (not on the ladder leg)
+    if (k !== 0) {
+      const probe = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.7, 4), silver);
+      probe.position.copy(foot).add(new THREE.Vector3(0, -0.85, 0));
+      leg.add(probe);
+    } else {
+      // the ladder up the front leg
+      for (let i = 0; i < 9; i++) {
+        const rung = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.03, 0.03), silver);
+        rung.position.copy(foot).multiplyScalar(0.12 + i * 0.09).add(new THREE.Vector3(0, 0.05, 0.08));
+        leg.add(rung);
+      }
+    }
+    leg.userData.deployed = 0;
+    legs.push(leg);
+    lm.add(leg);
+  }
+  lm.userData.legs = legs;
+  setLmLegs(lm, 0);
+  return lm;
+}
+
+/** swing the lunar module's legs between folded (0) and deployed (1) */
+export function setLmLegs(lm: THREE.Object3D, k: number): void {
+  const legs = lm.userData.legs as THREE.Group[] | undefined;
+  if (!legs) return;
+  const e = k * k * (3 - 2 * k);
+  for (const leg of legs) {
+    // folded for launch the leg is drawn in against the body and retracted; deploying, it swings out and extends
+    leg.rotation.order = 'YXZ';
+    leg.rotation.x = (1 - e) * 0.55;
+    leg.scale.setScalar(0.45 + 0.55 * e);
+  }
+}
 /** the separable parts of a built Saturn V */
 export function saturnParts(rocket: THREE.Object3D): Record<SaturnPart, THREE.Group> {
   const out = {} as Record<SaturnPart, THREE.Group>;
@@ -429,6 +667,7 @@ export function saturnParts(rocket: THREE.Object3D): Record<SaturnPart, THREE.Gr
 
 /** body radius at a height above the base of the first stage (for the tower's arms) */
 export function saturnRadiusAt(y: number): number {
+  if (y >= 85.6 && y < 94.1) return R3 + ((RSM - R3) * (y - 85.6)) / 8.5;
   if (y < 66.9) return R1;
   if (y < 72) return R1 + ((R3 - R1) * (y - 66.9)) / 5.1;
   if (y < 85.6) return R3;

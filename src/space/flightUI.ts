@@ -8,7 +8,7 @@
 // controls, every one of them also clickable.
 
 import { el, clearEl } from '../ui/dom';
-import { EARTH, V3, cross, dot, enu, len, norm, orbitPoint, rotY, scale, sub, earthAngle, PAD } from './universe';
+import { EARTH, MOON, V3, cross, dot, enu, len, moonPos, norm, orbitPoint, rotY, scale, sub, earthAngle, toMoonFixed, PAD } from './universe';
 import { ENGINES, FlightSim, PART_ORDER, PartId, PARTS, SasMode, Status, qrot } from './flightSim';
 import type { Action } from './autopilot';
 
@@ -20,6 +20,8 @@ export interface FlightHandlers {
   autoStage(): void;
   sas(m: SasMode): void;
   warp(d: number): void;
+  /** pick a time-warp speed by its place in the list */
+  pickWarp(i: number): void;
   map(): void;
   camera(): void;
   abort(): void;
@@ -43,6 +45,8 @@ export interface EasyView {
 export interface FlightInfo {
   warp: number;
   warpMax: number;
+  /** which of the pickable speeds is chosen */
+  warpI: number;
   camMode: string;
   map: boolean;
   easy: EasyView | null;
@@ -67,6 +71,7 @@ const STATUS_TEXT: Record<Status, [string, string]> = {
   suborbital: ['SUBORBITAL', 'warn'],
   falling: ['FALLING', 'bad'],
   orbit: ['IN ORBIT', 'good'],
+  transit: ['COASTING', 'safe'],
   safe: ['SAFE', 'safe'],
   landed: ['CREW SAFE', 'good'],
   lost: ['VEHICLE LOST', 'bad'],
@@ -140,7 +145,7 @@ export class FlightUI {
     el('div', 'fx-h', veh, 'VEHICLE');
     const vb = el('div', 'fx-veh-body', veh);
     this.stack = el('div', 'fx-stack', vb);
-    const labels: Record<PartId, string> = { les: 'LES', cm: 'CM', slaSm: 'SM · LM', sivb: 'S-IVB', sii: 'S-II', siiInter: '', sic: 'S-IC' };
+    const labels: Record<PartId, string> = { les: 'LES', cm: 'CM', sm: 'SM', lm: 'LM', sla: '', sivb: 'S-IVB', sii: 'S-II', siiInter: '', sic: 'S-IC' };
     for (const p of [...PART_ORDER].reverse()) {
       const d = PARTS[p];
       const b = el('div', 'fx-stk ' + p, this.stack);
@@ -265,8 +270,22 @@ export class FlightUI {
       return x;
     };
     eb('abort', 'ABORT · SAVE THE CREW', 'B ×2', () => h.abort(), 'red');
-    eb('ff', 'FAST FORWARD', 'F', () => h.ff(), 'wide ff');
-    this.ezWarp = el('span', 'fx-ez-warp', this.ezBtn.ff, '');
+    // time warp: AUTO (fast forward that stops for every event) or a fixed speed
+    const wr = el('div', 'fx-ez-warps', er);
+    const wb = (k: string, t: string, fn: () => void) => {
+      const x = el('button', 'fx-wbtn', wr) as HTMLButtonElement;
+      x.type = 'button';
+      x.textContent = t;
+      x.addEventListener('click', (e) => {
+        e.stopPropagation();
+        fn();
+        x.blur();
+      });
+      this.ezBtn[k] = x;
+    };
+    wb('ff', 'AUTO', () => h.ff());
+    ['1×', '2×', '10×', '100×', '500×'].forEach((t, i) => wb('w' + i, t, () => h.pickWarp(i)));
+    this.ezWarp = el('span', 'fx-ez-warp', wr, '');
     eb('map', 'MAP', 'M', () => h.map());
     eb('cam', 'CAMERA', 'C', () => h.camera());
     eb('help', '?', 'H', () => h.help(), 'sm');
@@ -396,18 +415,23 @@ export class FlightUI {
   // ------------------------------------------------------------------ per frame
   update(sim: FlightSim, info: FlightInfo): void {
     const status = sim.status();
-    const o = sim.orbit;
-    const R = EARTH.R;
+    const o = sim.orb;
+    const body = sim.body;
+    const R = body.R;
+    const moon = sim.nearMoon;
     // the clock and the state
     this.clock.textContent = fmtT(sim.met);
     const [txt, cls] = STATUS_TEXT[status];
     let label = txt;
+    if (status === 'orbit' && moon) label = 'LUNAR ORBIT';
+    if (status === 'transit') label = moon ? 'APPROACHING THE MOON' : 'COASTING TO THE MOON';
+    if (status === 'ascent' && moon) label = sim.isLm ? 'POWERED DESCENT' : 'ENGINE BURNING';
     if (status === 'landed' && sim.outcome) label = sim.outcome.title.toUpperCase();
     if (sim.isCm && sim.chute === 'main' && status === 'falling') label = 'UNDER PARACHUTES';
     this.badge.textContent = label;
     this.badge.className = 'fx-badge ' + cls;
     this.badgeSub.textContent = this.subStatus(sim, status);
-    const lit = status === 'orbit' ? 'orbit' : status === 'safe' || status === 'landed' ? 'safe' : status === 'falling' || status === 'lost' ? 'falling' : '';
+    const lit = status === 'orbit' ? 'orbit' : status === 'safe' || status === 'landed' || status === 'transit' ? 'safe' : status === 'falling' || status === 'lost' ? 'falling' : '';
     for (const k of ['orbit', 'falling', 'safe'] as const) this.lamps[k].classList.toggle('on', lit === k);
 
     // the vehicle
@@ -442,36 +466,45 @@ export class FlightUI {
     this.propBar.className = frac < 0.1 ? 'low' : '';
     this.propText.textContent = st ? `${(sim.prop[st] / 1000).toFixed(1)} t · ${(frac * 100).toFixed(0)}%` : '';
     const dv = sim.deltaV();
-    const g = EARTH.GM / (len(sim.r) ** 2);
+    const g = body.GM / (len(sim.rel) ** 2);
     this.vehRows.mass.textContent = `${(sim.mass / 1000).toFixed(1)} t`;
     this.vehRows.twr.textContent = sim.thrust > 0 ? (sim.thrust / (sim.mass * g)).toFixed(2) : '0.00';
     this.vehRows.dv.textContent = `${dv.stage.toFixed(0)} · ${dv.total.toFixed(0)} m/s`;
     this.vehRows.burn.textContent = st ? mmss(dv.burn) : '—';
-    this.vehRows.ctl.textContent = sim.guidance ? 'IU GUIDANCE' : sim.sas === 'off' ? 'FREE' : `SAS ${sim.sas.toUpperCase()}`;
-    this.vehRows.restart.textContent = sim.attached.has('sivb') ? (sim.unlimitedRestarts ? '∞' : String(sim.sivbStarts)) : '—';
+    this.vehRows.ctl.textContent = sim.guidance ? 'IU GUIDANCE' : sim.sas === 'off' ? 'FREE' : sim.sas === 'aim' ? 'COMPUTER' : `SAS ${sim.sas.toUpperCase()}`;
+    this.vehRows.restart.textContent = sim.attached.has('sivb') ? (sim.unlimitedRestarts ? '∞' : String(sim.sivbStarts)) : sim.isLm ? `THROTTLE ${Math.round(sim.throttle * 100)}%` : sim.stage === 'sm' ? '∞' : '—';
 
     // the orbit
     const closed = o.e < 1;
     this.orbRows.ap.textContent = closed ? km(o.ra - R) : '∞ (escape)';
     this.orbRows.pe.textContent = km(o.rp - R);
-    this.orbRows.pe.className = 'v ' + (o.rp < R ? 'bad' : o.rp < R + EARTH.atmosphereTop ? 'warn' : 'good');
+    this.orbRows.pe.className = 'v ' + (o.rp < R ? 'bad' : o.rp < R + body.atmosphereTop + (moon ? 4000 : 0) ? 'warn' : 'good');
     this.orbRows.tap.textContent = closed ? mmss(o.tAp) : '—';
     this.orbRows.tpe.textContent = mmss(o.tPe);
     this.orbRows.inc.textContent = `${((o.i * 180) / Math.PI).toFixed(2)}°`;
     this.orbRows.per.textContent = Number.isFinite(o.period) ? mmss(o.period) : '—';
     this.orbRows.ecc.textContent = o.e.toFixed(4);
-    const ecef = rotY(sim.r, -earthAngle(sim.time));
-    const lat = (Math.asin(ecef[1] / len(ecef)) * 180) / Math.PI, lon = (Math.atan2(-ecef[2], ecef[0]) * 180) / Math.PI;
-    this.orbRows.ground.textContent = `${Math.abs(lat).toFixed(2)}°${lat >= 0 ? 'N' : 'S'} ${Math.abs(lon).toFixed(2)}°${lon >= 0 ? 'E' : 'W'} · ${sim.overSea() ? 'SEA' : 'LAND'}`;
+    if (moon) {
+      const f = toMoonFixed(norm(sim.rel), sim.time);
+      const lat = (Math.asin(Math.max(-1, Math.min(1, f[2]))) * 180) / Math.PI, lon = (Math.atan2(f[1], f[0]) * 180) / Math.PI;
+      this.orbRows.ground.textContent = `${Math.abs(lat).toFixed(2)}°${lat >= 0 ? 'N' : 'S'} ${Math.abs(lon).toFixed(2)}°${lon >= 0 ? 'E' : 'W'} · ${Math.abs(lon) < 90 ? 'NEAR SIDE' : 'FAR SIDE'}`;
+    } else if (status === 'transit') {
+      this.orbRows.ground.textContent = `${km(len(sim.r) - EARTH.R)} OUT · MOON ${km(len(sub(sim.r, moonPos(sim.time))) - MOON.R)}`;
+    } else {
+      const ecef = rotY(sim.r, -earthAngle(sim.time));
+      const lat = (Math.asin(ecef[1] / len(ecef)) * 180) / Math.PI, lon = (Math.atan2(-ecef[2], ecef[0]) * 180) / Math.PI;
+      this.orbRows.ground.textContent = `${Math.abs(lat).toFixed(2)}°${lat >= 0 ? 'N' : 'S'} ${Math.abs(lon).toFixed(2)}°${lon >= 0 ? 'E' : 'W'} · ${sim.overSea() ? 'SEA' : 'LAND'}`;
+    }
     this.drawOrbit(sim);
 
     // tapes
-    this.tapeL.alt.textContent = sim.alt < 100_000 ? `${(sim.alt / 1000).toFixed(2)} km` : km(sim.alt);
-    this.tapeL.vv.textContent = `${sim.vVert >= 0 ? '+' : ''}${sim.vVert.toFixed(0)} m/s`;
+    const alt = moon && sim.altB < 30_000 ? sim.lowAlt : sim.altB;
+    this.tapeL.alt.textContent = alt < 1000 && moon ? `${alt.toFixed(1)} m` : alt < 100_000 ? `${(alt / 1000).toFixed(2)} km` : km(alt);
+    this.tapeL.vv.textContent = `${sim.vVert >= 0 ? '+' : ''}${Math.abs(sim.vVert) < 10 ? sim.vVert.toFixed(1) : sim.vVert.toFixed(0)} m/s`;
     this.tapeL.g.textContent = `${sim.gLoad.toFixed(2)} g`;
-    this.tapeR.v.textContent = `${len(sim.v).toFixed(0)} m/s`;
-    this.tapeR.vs.textContent = `${len(sim.vSurf).toFixed(0)} m/s`;
-    this.tapeR.mach.textContent = sim.alt < 90_000 ? sim.mach.toFixed(2) : '—';
+    this.tapeR.v.textContent = `${len(sim.vRel).toFixed(0)} m/s`;
+    this.tapeR.vs.textContent = `${len(sim.vSurf) < 10 ? len(sim.vSurf).toFixed(1) : len(sim.vSurf).toFixed(0)} m/s`;
+    this.tapeR.mach.textContent = !moon && sim.alt < 90_000 ? sim.mach.toFixed(2) : '—';
     const qk = sim.qDyn / 1000;
     this.qBar.style.width = `${Math.min(100, (qk / 40) * 100)}%`;
     this.qText.textContent = `${qk.toFixed(1)} kPa${sim.stats.maxQ > 15000 && !sim.held ? ` · max ${(sim.stats.maxQ / 1000).toFixed(1)}` : ''}`;
@@ -541,16 +574,38 @@ export class FlightUI {
     }
     this.ezActs.style.display = ez.actions.length ? '' : 'none';
     this.ezBtn.ff.classList.toggle('on', ez.ff);
-    this.ezWarp.textContent = ez.ff || info.warp > 1 ? `${info.warp}×` : '';
+    for (let i = 0; i < 5; i++) this.ezBtn['w' + i].classList.toggle('on', !ez.ff && info.warpI === i);
+    const wv = info.warp >= 100 ? Math.round(info.warp).toLocaleString('en-US') : info.warp >= 10 ? info.warp.toFixed(0) : info.warp.toFixed(1).replace(/\.0$/, '');
+    this.ezWarp.textContent = `${wv}×`;
     this.ezBtn.map.classList.toggle('on', info.map);
     this.ezBtn.cam.querySelector('.l')!.textContent = info.camMode === 'MAP' ? 'CAMERA' : info.camMode;
     this.ezBtn.abort.style.display = ez.abort ? '' : 'none';
   }
 
   private subStatus(sim: FlightSim, s: Status): string {
-    const o = sim.orbit;
-    const R = EARTH.R;
+    const o = sim.orb;
+    const R = sim.body.R;
+    if (sim.nearMoon) {
+      switch (s) {
+        case 'orbit':
+          return `Round the Moon · ${km(o.rp - R)} × ${km(o.ra - R)} · ${mmss(o.period)} per orbit`;
+        case 'transit':
+          return `In the Moon's pull · closest pass ${km(o.rp - R)} in ${mmss(o.tPe)}`;
+        case 'ascent':
+          return sim.isLm ? `Descent engine ${Math.round(sim.throttle * 100)}% · ${Math.round(sim.lowAlt)} m above the surface` : 'Service module engine burning';
+        case 'falling':
+        case 'suborbital': {
+          const t = sim.timeToImpact();
+          return `Coming down · ${Math.round(sim.lowAlt)} m up${Number.isFinite(t) ? ` · surface in ${mmss(t)}` : ''}`;
+        }
+        case 'landed':
+        case 'lost':
+          return sim.outcome?.text ?? '';
+      }
+    }
     switch (s) {
+      case 'transit':
+        return `On the way · ${km(len(sim.r) - EARTH.R)} from Earth, ${km(len(sub(sim.r, moonPos(sim.time))) - MOON.R)} from the Moon`;
       case 'pad':
         return sim.counting ? (sim.met < -8.9 ? 'Count running' : 'Ignition: thrust building on the hold-down arms') : 'Count holding · press SPACE to resume';
       case 'ascent':
@@ -584,8 +639,9 @@ export class FlightUI {
     const c = this.orbCanvas, g = c.getContext('2d')!;
     const W = c.width, H = c.height;
     g.clearRect(0, 0, W, H);
-    const o = sim.orbit;
-    const R = EARTH.R;
+    const o = sim.orb;
+    const R = sim.body.R;
+    const moon = sim.nearMoon;
     const P = o.P, Q = cross(o.W, o.P);
     const pts: [number, number][] = [];
     let maxR = R * 1.25;
@@ -608,18 +664,18 @@ export class FlightUI {
     // atmosphere and Earth
     g.fillStyle = 'rgba(80,150,255,0.12)';
     g.beginPath();
-    g.arc(cx, cy, (R + EARTH.atmosphereTop) * s, 0, Math.PI * 2);
+    g.arc(cx, cy, (R + (moon ? 0 : EARTH.atmosphereTop)) * s, 0, Math.PI * 2);
     g.fill();
     const gr = g.createRadialGradient(cx - R * s * 0.3, cy - R * s * 0.3, 0, cx, cy, R * s);
-    gr.addColorStop(0, '#2c6aa8');
-    gr.addColorStop(1, '#0c2440');
+    gr.addColorStop(0, moon ? '#b9b8b2' : '#2c6aa8');
+    gr.addColorStop(1, moon ? '#3e3d3a' : '#0c2440');
     g.fillStyle = gr;
     g.beginPath();
     g.arc(cx, cy, R * s, 0, Math.PI * 2);
     g.fill();
     // the orbit
     g.lineWidth = 2;
-    g.strokeStyle = o.e >= 1 ? '#6fb8ff' : o.rp > R + EARTH.atmosphereTop ? '#4fe08a' : '#ffb347';
+    g.strokeStyle = o.e >= 1 ? '#6fb8ff' : o.rp > R + (moon ? 4000 : EARTH.atmosphereTop) ? '#4fe08a' : '#ffb347';
     g.beginPath();
     pts.forEach(([x, y], i) => (i ? g.lineTo(cx + x * s, cy - y * s) : g.moveTo(cx + x * s, cy - y * s)));
     g.stroke();
@@ -637,7 +693,7 @@ export class FlightUI {
       mark(orbitPoint(o, Math.PI), '#9fd0ff', 'AP');
       mark(orbitPoint(o, 0), '#9fd0ff', 'PE');
     }
-    const x = cx + dot(sim.r, P) * s, y = cy - dot(sim.r, Q) * s;
+    const x = cx + dot(sim.rel, P) * s, y = cy - dot(sim.rel, Q) * s;
     g.strokeStyle = '#ffffff';
     g.lineWidth = 2;
     g.beginPath();
@@ -744,12 +800,12 @@ export class FlightUI {
         g.fillText(kind === 'normal' ? 'N' : kind === 'anti' ? 'A' : kind === 'rad' ? 'R+' : 'R-', sx, sy + 3.5);
       }
     };
-    const vref = sim.alt < 70_000 ? sim.vSurf : sim.v;
+    const vref = sim.nearMoon ? (sim.altB < 15_000 ? sim.vSurf : sim.vRel) : sim.alt < 70_000 ? sim.vSurf : sim.v;
     if (len(vref) > 2) {
       draw(vref, '#e8ff5a', 'pro');
       draw(scale(vref, -1), '#e8ff5a', 'retro');
     }
-    const h = cross(sim.r, sim.v);
+    const h = cross(sim.rel, sim.vRel);
     if (len(h) > 1) {
       draw(h, '#d58bff', 'normal');
       draw(scale(h, -1), '#d58bff', 'anti');

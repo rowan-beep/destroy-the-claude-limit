@@ -19,7 +19,7 @@ export interface SpaceMenuCallbacks {
   onSettings: () => void;
   onControls: () => void;
   /** fly the Saturn V: from the pad, or already in orbit */
-  onLaunch: (mode: 'pad' | 'orbit') => void;
+  onLaunch: (mode: 'pad' | 'orbit' | 'lunar') => void;
 }
 
 const SEC_KEY = 'triad.space.section';
@@ -279,7 +279,7 @@ export class SpaceMenu {
     el('div', 'sx2-h', box, 'SATURN V · FLIGHT');
     el('div', 'sx2-choice-t', box, 'WHERE DO YOU START?');
     const row = el('div', 'sx2-choice-row', box);
-    const opt = (mode: 'pad' | 'orbit', title: string, sub: string, desc: string) => {
+    const opt = (mode: 'pad' | 'orbit' | 'lunar', title: string, sub: string, desc: string) => {
       const b = el('button', 'sx2-opt ' + mode, row) as HTMLButtonElement;
       b.type = 'button';
       el('div', 'sx2-opt-art', b);
@@ -291,8 +291,9 @@ export class SpaceMenu {
         this.cb.onLaunch(mode);
       });
     };
-    opt('pad', 'ON THE PAD', 'PAD 1 · T-20 s', 'The full stack on the mount. Run the count, ride the F-1s off the pad, stage your way to orbit, by hand or with the IU guidance.');
-    opt('orbit', 'IN ORBIT', '185 KM · 32.5°', 'The S-IVB and the Apollo spacecraft in a parking orbit, with propellant for two more burns. Re-entry and splashdown are up to you.');
+    opt('pad', 'ON THE PAD', 'PAD 1 · T-20 s', 'The full stack on the mount. Press LAUNCH and the autopilot flies you to orbit; from there you can go home, go higher, or go to the Moon.');
+    opt('orbit', 'EARTH ORBIT', '185 KM · READY FOR THE MOON', 'The S-IVB and the Apollo spacecraft in a parking orbit, fuelled for the trip. Press GO TO THE MOON, or come home.');
+    opt('lunar', 'LUNAR ORBIT', '110 KM ROUND THE MOON', 'The command module docked to the lunar module, circling the Moon. Undock and fly the lander down to the surface.');
     const x = el('button', 'sx2-choice-x', box, 'CANCEL') as HTMLButtonElement;
     x.type = 'button';
     x.addEventListener('click', () => back.remove());

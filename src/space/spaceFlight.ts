@@ -6,19 +6,21 @@
 // shows the pause and end-of-flight cards.
 
 import * as THREE from 'three';
-import { Debris, FlightSim, PartId, PARTS, PART_ORDER, Q, SasMode, qrot, sunDirection } from './flightSim';
-import { EARTH, V3, add, air, cross, dot, earthAngle, ecefDir, len, norm, orbitPoint, padScene, rotY, scale, sub, toEcef, PAD } from './universe';
+import { Debris, FlightSim, PartId, PART_ORDER, Q, SasMode, SpawnMode, DOCK_C, qrot, sunDirection } from './flightSim';
+import { EARTH, MOON, V3, add, air, cross, dot, earthAngle, ecefDir, len, moonPos, norm, orbitPoint, padScene, rotY, scale, sub, toEcef, PAD } from './universe';
+import { coast } from './lunarPlan';
 import { SpaceScene, orbitTrack } from './spaceScene';
 import { Plumes } from './plumes';
 import { FlightUI } from './flightUI';
-import { buildSaturnV, saturnParts } from './saturnVModel';
+import { buildSaturnV, saturnParts, setLmLegs } from './saturnVModel';
 import { updateRecord } from './record';
 import { Autopilot } from './autopilot';
 import { menuMusic } from '../audio/menuMusic';
 import { audio } from '../audio/audio';
 import type { LaunchSite } from '../ui/menu/launchSite';
 
-const WARPS = [1, 2, 4, 10, 50, 100, 1000, 10000];
+/** the time-warp speeds you can pick; fast forward (AUTO) goes as high as 10,000× on long coasts */
+export const WARPS = [1, 2, 10, 100, 500];
 type CamMode = 'CHASE' | 'TRACKING' | 'ONBOARD';
 const ROCKET_BASE = 24.5;
 const PRO_KEY = 'triad.space.pro';
@@ -110,7 +112,14 @@ export class SpaceFlight {
   sim: FlightSim | null = null;
   drawWith: ((scene: THREE.Scene, camera: THREE.Camera) => void) | null = null;
   onExit: (() => void) | null = null;
-  private spawnMode: 'pad' | 'orbit' = 'pad';
+  private spawnMode: SpawnMode = 'pad';
+  /** transposition, docking and extraction, animated: seconds into it */
+  private tde = -1;
+  private legsK = 0;
+  private flagT = -1;
+  private flag: THREE.Group | null = null;
+  private dust: THREE.Sprite[] = [];
+  private dustT = 0;
   private space: SpaceScene | null = null;
   private rocket: THREE.Group | null = null;
   private parts: Record<PartId, THREE.Group> | null = null;
@@ -172,6 +181,7 @@ export class SpaceFlight {
       },
       sas: (m) => this.sim?.setSas(m),
       warp: (d) => this.setWarp(this.warpI + d),
+      pickWarp: (i) => this.setWarp(i),
       map: () => this.toggleMap(),
       camera: () => this.cycleCamera(),
       abort: () => this.guarded('abort'),
@@ -221,7 +231,7 @@ export class SpaceFlight {
         const t = e.target as HTMLElement | null;
         if (t && t.closest && t.closest('.fx-panel, .fx-help, .fx-card')) return;
         const k = Math.exp(Math.max(-120, Math.min(120, e.deltaY)) * 0.0018);
-        if (this.map) this.mapDist = Math.max(EARTH.R * 1.15, Math.min(2e9, this.mapDist * k));
+        if (this.map) this.mapDist = Math.max((this.sim?.body.R ?? EARTH.R) * 1.15, Math.min(2.5e9, this.mapDist * k));
         else this.camDist = Math.max(12, Math.min(3e6, this.camDist * k));
       },
       { passive: true },
@@ -229,7 +239,7 @@ export class SpaceFlight {
   }
 
   // ------------------------------------------------------------------ lifecycle
-  start(mode: 'pad' | 'orbit'): void {
+  start(mode: SpawnMode): void {
     this.spawnMode = mode;
     this.site = this.getSite();
     if (!this.rocket) {
@@ -243,23 +253,34 @@ export class SpaceFlight {
       const g = this.parts![p];
       g.position.set(0, 0, 0);
       g.quaternion.identity();
+      g.scale.setScalar(1);
       g.visible = true;
       this.rocket!.add(g);
     }
+    for (const pnl of this.slaPanels()) {
+      pnl.position.copy(pnl.userData.home);
+      pnl.quaternion.identity();
+      pnl.visible = true;
+    }
+    this.tde = -1;
+    this.flagT = -1;
+    if (this.flag) this.flag.visible = false;
     for (const b of this.bursts) b.group.parent?.remove(b.group);
     this.bursts = [];
     this.rocket!.visible = true;
     const sim = (this.sim = new FlightSim({ mode }));
     sim.unlimitedRestarts = this.easy;
-    sim.stepHook = () => this.ap.onStep(sim);
+    sim.stepHook = (h) => this.ap.onStep(sim, h);
     this.ap.reset();
+    this.ap.lunar.viewer = true;
+    this.legsK = sim.legsOut ? 1 : 0;
     this.ff = false;
     this.warpI = 0;
     this.map = false;
     this.camMode = 'CHASE';
     this.camYaw = mode === 'pad' ? -1.25 : 2.6;
     this.camPitch = mode === 'pad' ? 0.1 : 0.25;
-    this.camDist = mode === 'pad' ? 300 : 120;
+    this.camDist = mode === 'pad' ? 300 : mode === 'lunar' ? 45 : 120;
     this.mapDist = 0;
     this.endShown = false;
     this.endAt = 0;
@@ -279,7 +300,8 @@ export class SpaceFlight {
     // the music carries on through the flight, looping seamlessly
     menuMusic.want('flight', true);
     if (mode === 'pad') this.ui.flash('SATURN V · PAD 1', '');
-    else this.ui.flash('PARKING ORBIT · 185 KM', 'good');
+    else if (mode === 'orbit') this.ui.flash('PARKING ORBIT · 185 KM', 'good');
+    else this.ui.flash('LUNAR ORBIT · 110 KM', 'good');
   }
 
   stop(): void {
@@ -462,22 +484,30 @@ export class SpaceFlight {
     }
   }
 
-  private warpMax(): number {
+  /** the fastest the clock may run now */
+  private warpCap(): number {
     const sim = this.sim;
-    if (!sim) return 0;
+    if (!sim) return 1;
     const powered = sim.thrust > 0 || sim.engines.some((e) => e.on || e.level > 0.01) || sim.lesBurn > 0;
-    if (sim.outcome || powered || sim.held) return 2;
-    // in the air: 4×, or up to 50× for the capsule coming down
-    if (sim.alt < EARTH.atmosphereTop) return sim.isCm ? 4 : 2;
-    return WARPS.length - 1;
+    if (sim.outcome) return 10;
+    if (sim.held) return 10;
+    // low over Earth: the climb and the capsule's descent
+    if (!sim.nearMoon && sim.alt < EARTH.atmosphereTop) return powered ? 10 : sim.isCm ? 50 : 10;
+    return powered ? 100 : 10_000;
   }
+  /** pick one of the warp speeds (and leave fast forward) */
   private setWarp(i: number): void {
-    this.warpI = Math.max(0, Math.min(this.warpMax(), i));
+    this.ff = false;
+    this.warpI = Math.max(0, Math.min(WARPS.length - 1, i));
   }
 
   private toggleFF(): void {
     this.ff = !this.ff;
     if (!this.ff) this.warpI = 0;
+  }
+
+  private slaPanels(): THREE.Group[] {
+    return (this.parts?.sla.userData.panels as THREE.Group[] | undefined) ?? [];
   }
 
   private togglePro(): void {
@@ -505,9 +535,11 @@ export class SpaceFlight {
 
   private toggleMap(): void {
     this.map = !this.map;
-    if (this.map && this.sim && !this.mapDist) {
-      const o = this.sim.orbit;
-      this.mapDist = Math.min(4e8, Math.max(EARTH.R * 3.2, (Number.isFinite(o.ra) ? o.ra : len(this.sim.r)) * 2.6));
+    if (this.map && this.sim) {
+      const sim = this.sim;
+      const o = sim.orb;
+      const R = sim.body.R;
+      this.mapDist = sim.status() === 'transit' && !sim.nearMoon ? 1.25e9 : Math.min(4e8, Math.max(R * 3.2, (Number.isFinite(o.ra) ? o.ra : len(sim.rel)) * 2.6));
       // look at the orbit from above its plane
       const n = o.W;
       this.mapYaw = Math.atan2(n[0], n[2]);
@@ -528,14 +560,19 @@ export class SpaceFlight {
     if (p) {
       this.ui.card('PAUSED', 'The flight is frozen.', '', [], [
         ['RESUME', () => this.setPaused(false)],
-        [this.spawnMode === 'pad' ? 'RESTART ON PAD' : 'RESTART IN ORBIT', () => this.restart(this.spawnMode)],
-        [this.spawnMode === 'pad' ? 'SPAWN IN ORBIT' : 'SPAWN ON PAD', () => this.restart(this.spawnMode === 'pad' ? 'orbit' : 'pad')],
+        ['RESTART', () => this.restart(this.spawnMode)],
+        ...this.otherSpawns(),
         ['EXIT TO MENU', () => this.exit(), 'red'],
       ]);
     } else this.ui.card('', '', '', [], []);
   }
 
-  private restart(mode: 'pad' | 'orbit'): void {
+  private otherSpawns(): [string, () => void][] {
+    const names: Record<SpawnMode, string> = { pad: 'START ON THE PAD', orbit: 'START IN EARTH ORBIT', lunar: 'START IN LUNAR ORBIT' };
+    return (['pad', 'orbit', 'lunar'] as SpawnMode[]).filter((m) => m !== this.spawnMode).map((m) => [names[m], () => this.restart(m)] as [string, () => void]);
+  }
+
+  private restart(mode: SpawnMode): void {
     this.recordTime();
     this.stop();
     this.start(mode);
@@ -551,17 +588,24 @@ export class SpaceFlight {
     sim.input.pitch = k('KeyS') - k('KeyW');
     sim.input.yaw = k('KeyD') - k('KeyA');
     sim.input.roll = k('KeyE') - k('KeyQ');
-    // steering by hand takes over from the autopilot
-    if (this.ap.prog && (sim.input.pitch || sim.input.yaw || sim.input.roll)) this.ap.stop(sim, 'Autopilot off: you are steering.');
-    if (this.ff) {
-      // fast forward: the biggest warp that still stops in time for the next burn or event
-      const want = this.ap.wantWarp(sim);
-      let i = this.warpMax();
-      while (i > 0 && WARPS[i] > want) i--;
-      this.warpI = i;
+    if (sim.isLm && !this.ap.busy) {
+      // the descent engine's throttle, by hand
+      if (this.keys.has('ShiftLeft') || this.keys.has('ShiftRight')) sim.throttle = Math.min(1, sim.throttle + dt * 0.5);
+      if (this.keys.has('ControlLeft') || this.keys.has('ControlRight')) sim.throttle = Math.max(0.1, sim.throttle - dt * 0.5);
     }
-    if (this.warpI > this.warpMax()) this.warpI = this.warpMax();
-    const warp = WARPS[this.warpI];
+    // steering by hand takes over from the autopilot
+    if (this.ap.busy && (sim.input.pitch || sim.input.yaw || sim.input.roll) && this.tde < 0) this.ap.stop(sim, 'Autopilot off: you are steering.');
+    const cap = this.warpCap();
+    let warp: number;
+    if (this.ff) {
+      // fast forward: as fast as it can go while still stopping in time for the next burn or event
+      warp = Math.max(1, Math.min(cap, this.ap.wantWarp(sim)));
+    } else {
+      warp = Math.min(WARPS[this.warpI], cap);
+      // a program in the middle of something precise keeps the clock in check
+      if (this.ap.busy) warp = Math.max(1, Math.min(warp, this.ap.wantWarp(sim) * 2));
+    }
+    if (this.tde >= 0) warp = 1;
     if (!this.paused) {
       const before = sim.status();
       sim.advance(dt * warp);
@@ -574,7 +618,21 @@ export class SpaceFlight {
       }
       if (before !== st) this.lastStatus = st;
       if (sim.outcome && !this.endAt) {
-        this.endAt = performance.now() + (sim.outcome.status === 'lost' ? 3200 : 2500);
+        const onMoon = sim.outcome.status === 'landed' && sim.nearMoon;
+        this.endAt = performance.now() + (sim.outcome.status === 'lost' ? 3200 : onMoon ? 11000 : 2500);
+        if (onMoon) {
+          this.flagT = 0;
+          this.camDist = 30;
+          this.camPitch = 0.16;
+          // swing round to the sunlit side, a little off the Sun line so the shadows show
+          const up = sim.up;
+          let north = sub([0, 1, 0], scale(up, up[1]));
+          north = len(north) > 1e-6 ? norm(north) : [1, 0, 0];
+          const east = norm(cross(north, up));
+          const sd = sunDirection();
+          this.camYaw = Math.atan2(dot(sd, east), dot(sd, north)) + 0.75;
+          this.ui.flash('THE EAGLE HAS LANDED', 'good');
+        }
         this.setWarp(0);
         if (sim.outcome.status === 'lost') this.burst();
         else updateRecord((r) => r.missions++);
@@ -595,7 +653,9 @@ export class SpaceFlight {
     this.fadeEl.style.opacity = String(this.fade * 0.85);
 
     this.fitChase();
+    this.updateTde(dt);
     this.placeVehicle();
+    this.updateLanding(dt);
     const at = air(sim.alt);
     this.plumes.update(sim, dt, at.p);
     this.updateChutes();
@@ -607,7 +667,8 @@ export class SpaceFlight {
     else this.renderSpace(w, h);
     this.ui.update(sim, {
       warp,
-      warpMax: WARPS[this.warpMax()],
+      warpMax: cap,
+      warpI: this.warpI,
       camMode: this.map ? 'MAP' : this.camMode,
       map: this.map,
       easy: this.easy ? { guide: this.ap.guide(sim), actions: this.ap.actions(sim), ff: this.ff, abort: sim.canAbort && (!sim.held || sim.engines.some((e) => e.on)) } : null,
@@ -632,7 +693,7 @@ export class SpaceFlight {
       ['TIME IN SPACE', `${(this.orbitTime / 60).toFixed(1)} min`],
     ], [
       ['FLY AGAIN', () => this.restart(this.spawnMode)],
-      [this.spawnMode === 'pad' ? 'SPAWN IN ORBIT' : 'SPAWN ON PAD', () => this.restart(this.spawnMode === 'pad' ? 'orbit' : 'pad')],
+      ...this.otherSpawns(),
       ['EXIT TO MENU', () => this.exit(), 'red'],
     ]);
   }
@@ -699,6 +760,16 @@ export class SpaceFlight {
         parts[p].visible = true;
       } else if (!inDebris.has(p)) parts[p].visible = false;
     }
+    // docked, the lunar module rides turned round on the command module's nose
+    if (this.tde < 0 && parts.lm.parent === this.rocket) {
+      if (sim.layout === 'docked') {
+        parts.lm.quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI);
+        parts.lm.position.set(0, DOCK_C, 0);
+      } else {
+        parts.lm.quaternion.identity();
+        parts.lm.position.set(0, 0, 0);
+      }
+    }
     // the pad's fire light
     const fire = this.plumes.fireLevel;
     if (this.local) {
@@ -731,8 +802,8 @@ export class SpaceFlight {
     const sim = this.sim!;
     let y0 = Infinity, y1 = -Infinity;
     for (const p of sim.attached) {
-      y0 = Math.min(y0, Math.max(PARTS[p].y0, 0));
-      y1 = Math.max(y1, PARTS[p].y1);
+      y0 = Math.min(y0, Math.max(sim.py(p).y0, 0));
+      y1 = Math.max(y1, sim.py(p).y1);
     }
     const mid = (y0 + y1) / 2;
     return add(sim.r, qrot(sim.q, [0, mid - sim.ycg, 0]));
@@ -783,8 +854,8 @@ export class SpaceFlight {
     const sim = this.sim!;
     let y0 = Infinity, y1 = -Infinity;
     for (const p of sim.attached) {
-      y0 = Math.min(y0, Math.max(PARTS[p].y0, 0));
-      y1 = Math.max(y1, PARTS[p].y1);
+      y0 = Math.min(y0, Math.max(sim.py(p).y0, 0));
+      y1 = Math.max(y1, sim.py(p).y1);
     }
     const L = Math.max(3, y1 - y0);
     if (this.stackLen && Math.abs(L - this.stackLen) > 0.5) this.camDist = Math.max(12, Math.min(3e6, this.camDist * (L / this.stackLen)));
@@ -796,10 +867,10 @@ export class SpaceFlight {
     const sim = this.sim!;
     let y0 = Infinity, rMax = 2.2;
     for (const p of sim.attached) {
-      if (PARTS[p].y0 < y0) y0 = PARTS[p].y0;
-      rMax = Math.max(rMax, PARTS[p].radius);
+      if (sim.py(p).y0 < y0) y0 = sim.py(p).y0;
+      rMax = Math.max(rMax, sim.py(p).radius);
     }
-    const top = sim.attached.has('slaSm') ? Math.min(90, Math.max(y0 + 30, 50)) : 99;
+    const top = sim.isLm ? 90.2 : sim.layout === 'docked' ? 97 : sim.attached.has('sm') ? Math.min(90, Math.max(y0 + 30, 50)) : 99;
     const ref = (by: number, bx: number) => sub(add(sim.origin, qrot(sim.q, [bx, by, 0])), [0, 0, 0]);
     const pos = this.scenePos(ref(top, rMax + 0.9));
     const at = this.scenePos(ref(top - 80, rMax + 0.3));
@@ -817,7 +888,7 @@ export class SpaceFlight {
     const look = sub(this.lookPoint(), sim.r);
     let camPos: V3, camUp: V3, lookAt: V3;
     if (this.map) {
-      const c = scale(sim.r, -1);
+      const c = sub(this.mapCenter(), sim.r);
       const cp = Math.cos(this.mapPitch);
       const dir: V3 = [cp * Math.sin(this.mapYaw), Math.sin(this.mapPitch), cp * Math.cos(this.mapYaw)];
       camPos = add(c, scale(dir, this.mapDist));
@@ -834,9 +905,15 @@ export class SpaceFlight {
     } else {
       const { off, up } = this.chaseOffset();
       camPos = add(look, off);
-      // keep the camera above the ground
-      const ra = len(add(sim.r, camPos)) - EARTH.R;
-      if (ra < 5) camPos = add(camPos, scale(sim.up, 5 - ra));
+      // keep the camera above the ground (or the lunar surface)
+      if (sim.nearMoon) {
+        const rel = sub(add(sim.r, camPos), moonPos(sim.time));
+        const gh = len(rel) - MOON.R - (len(rel) - MOON.R < 30_000 ? sim.groundAt(rel) : 0);
+        if (gh < 2) camPos = add(camPos, scale(norm(rel), 2 - gh));
+      } else {
+        const ra = len(add(sim.r, camPos)) - EARTH.R;
+        if (ra < 5) camPos = add(camPos, scale(sim.up, 5 - ra));
+      }
       camUp = up;
       lookAt = look;
       cam.fov = 50;
@@ -847,7 +924,35 @@ export class SpaceFlight {
     if (this.drawWith) this.drawWith(sp.scene, cam);
   }
 
-  /** the map overlay: the predicted track drawn over the globe, dimmed where the Earth hides it, with the vehicle, apsides and impact point */
+  /** the map's centre: the Moon while near it, Earth otherwise */
+  private mapCenter(): V3 {
+    const sim = this.sim!;
+    return sim.nearMoon ? moonPos(sim.time) : [0, 0, 0];
+  }
+
+  /** the coast ahead, propagated with both bodies' gravity (for the trip between Earth and the Moon) */
+  private pathCache: { at: number; pts: V3[]; t: number } | null = null;
+  private transitPath(): V3[] {
+    const sim = this.sim!;
+    const now = performance.now();
+    if (this.pathCache && now - this.pathCache.at < 600 && Math.abs(this.pathCache.t - sim.time) < 3600 * 6) return this.pathCache.pts;
+    const pts: V3[] = [];
+    let s = { r: sim.r, v: sim.v };
+    let t = sim.time;
+    for (let i = 0; i < 160; i++) {
+      const relM = sub(s.r, moonPos(t));
+      pts.push(s.r);
+      if (len(relM) < MOON.R || len(s.r) < EARTH.R) break;
+      const step = Math.min(3 * 3600, Math.max(300, len(relM) / 4000));
+      s = coast(s.r, s.v, t, step);
+      t += step;
+      if (t - sim.time > 6 * 86400) break;
+    }
+    this.pathCache = { at: now, pts, t: sim.time };
+    return pts;
+  }
+
+  /** the map overlay: the predicted track drawn over the globe, dimmed where a body hides it, with the vehicle, apsides and impact point */
   private updateMapLabels(w: number, h: number): void {
     const cv = this.ui.mapCanvas;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -864,46 +969,94 @@ export class SpaceFlight {
     if (!show) return;
     g.scale(dpr, dpr);
     const sim = this.sim!;
-    const o = sim.orbit;
+    const body = sim.body;
+    const o = sim.orb;
+    const center = this.mapCenter();
     const cam = this.space!.camera;
     const camEci = add(sim.r, [cam.position.x, cam.position.y, cam.position.z]);
-    const R2 = EARTH.R * EARTH.R;
+    const mNow = moonPos(sim.time);
     const tmp = new THREE.Vector3();
-    /** screen position of a point (ECI), and whether the Earth hides it from the camera */
+    const hiddenBy = (p: V3, c: V3, R: number): boolean => {
+      const d = sub(p, camEci);
+      const dd = dot(d, d);
+      const oc = sub(camEci, c);
+      const t = Math.max(0, Math.min(1, -dot(oc, d) / dd));
+      const q = add(oc, scale(d, t));
+      return t > 0 && t < 0.999 && dot(q, q) < R * R * 0.999;
+    };
+    /** screen position of a point (ECI), and whether Earth or the Moon hides it */
     const proj = (p: V3): { x: number; y: number; hid: boolean } | null => {
       tmp.set(p[0] - sim.r[0], p[1] - sim.r[1], p[2] - sim.r[2]).project(cam);
       if (tmp.z > 1 || tmp.z < -1) return null;
-      const d = sub(p, camEci);
-      const dd = dot(d, d);
-      const t = Math.max(0, Math.min(1, -dot(camEci, d) / dd));
-      const c = add(camEci, scale(d, t));
-      const hid = t > 0 && t < 0.999 && dot(c, c) < R2 * 0.999;
+      const hid = hiddenBy(p, [0, 0, 0], EARTH.R) || hiddenBy(p, mNow, MOON.R);
       return { x: ((tmp.x + 1) / 2) * w, y: ((1 - tmp.y) / 2) * h, hid };
     };
-    const COL: Record<string, string> = { air: '255,120,60', escape: '110,190,255', stable: '90,240,140', decay: '255,190,70' };
-    const { pts, impact } = orbitTrack(o);
-    const sp = pts.map((t) => proj(t.p));
-    // two passes: a soft glow, then the line; hidden stretches are thin and dashed
-    for (const pass of [0, 1]) {
-      for (let i = 1; i < sp.length; i++) {
-        const a = sp[i - 1], b = sp[i];
-        if (!a || !b) continue;
-        const hid = a.hid || b.hid;
-        if (hid && pass === 0) continue;
-        g.beginPath();
-        g.moveTo(a.x, a.y);
-        g.lineTo(b.x, b.y);
-        const c = COL[pts[i].kind];
-        g.setLineDash(hid ? [3, 5] : []);
-        g.lineWidth = pass === 0 ? 7 : hid ? 1 : 2.2;
-        g.strokeStyle = pass === 0 ? `rgba(${c},0.18)` : `rgba(${c},${hid ? 0.35 : 0.95})`;
-        g.stroke();
+    const line = (pts: (V3 | null)[], col: string, width = 2.2, glow = true) => {
+      const sp = pts.map((p) => (p ? proj(p) : null));
+      for (const pass of glow ? [0, 1] : [1]) {
+        for (let i = 1; i < sp.length; i++) {
+          const a = sp[i - 1], b = sp[i];
+          if (!a || !b) continue;
+          const hid = a.hid || b.hid;
+          if (hid && pass === 0) continue;
+          g.beginPath();
+          g.moveTo(a.x, a.y);
+          g.lineTo(b.x, b.y);
+          g.setLineDash(hid ? [3, 5] : []);
+          g.lineWidth = pass === 0 ? 7 : hid ? 1 : width;
+          g.strokeStyle = pass === 0 ? `rgba(${col},0.18)` : `rgba(${col},${hid ? 0.35 : 0.95})`;
+          g.stroke();
+        }
+      }
+      g.setLineDash([]);
+    };
+    // the Moon's own orbit, faint, for scale
+    if (!sim.nearMoon) {
+      const ring: V3[] = [];
+      for (let i = 0; i <= 180; i++) ring.push(moonPos(sim.time + (i / 180) * 27.32 * 86400));
+      line(ring, '170,170,190', 1, false);
+      const mp = proj(mNow);
+      if (mp) {
+        g.fillStyle = 'rgba(220,220,230,0.9)';
+        g.font = '11px Consolas, monospace';
+        g.fillText('MOON', mp.x + 10, mp.y - 8);
       }
     }
-    g.setLineDash([]);
+    const COL: Record<string, string> = { air: '255,120,60', escape: '110,190,255', stable: '90,240,140', decay: '255,190,70' };
+    const st = sim.status();
+    let impact = false;
+    let endP: V3 | null = null;
+    if (st === 'transit' && !sim.nearMoon) {
+      const pts = this.transitPath();
+      line(pts, '120,200,255');
+      endP = pts[pts.length - 1] ?? null;
+    } else {
+      const tr = orbitTrack(o, 360, body);
+      impact = tr.impact;
+      const pts = tr.pts.map((t) => add(center, t.p));
+      const sp = pts.map((p) => proj(p));
+      for (const pass of [0, 1]) {
+        for (let i = 1; i < sp.length; i++) {
+          const a = sp[i - 1], b = sp[i];
+          if (!a || !b) continue;
+          const hid = a.hid || b.hid;
+          if (hid && pass === 0) continue;
+          g.beginPath();
+          g.moveTo(a.x, a.y);
+          g.lineTo(b.x, b.y);
+          const c = COL[tr.pts[i].kind];
+          g.setLineDash(hid ? [3, 5] : []);
+          g.lineWidth = pass === 0 ? 7 : hid ? 1 : 2.2;
+          g.strokeStyle = pass === 0 ? `rgba(${c},0.18)` : `rgba(${c},${hid ? 0.35 : 0.95})`;
+          g.stroke();
+        }
+      }
+      g.setLineDash([]);
+      if (impact) endP = pts[pts.length - 1];
+    }
     // the impact point
-    if (impact) {
-      const e = sp[sp.length - 1];
+    if (impact && endP) {
+      const e = proj(endP);
       if (e) {
         g.strokeStyle = e.hid ? 'rgba(255,90,70,0.4)' : '#ff5a46';
         g.lineWidth = 2;
@@ -915,13 +1068,13 @@ export class SpaceFlight {
         g.stroke();
         g.font = '11px Consolas, monospace';
         g.fillStyle = g.strokeStyle;
-        g.fillText('IMPACT', e.x + 9, e.y + 4);
+        g.fillText(sim.nearMoon ? 'TOUCHDOWN' : 'IMPACT', e.x + 9, e.y + 4);
       }
     }
     // the vehicle
     const me = proj(sim.r);
     if (me) {
-      const vNext = proj(add(sim.r, scale(sim.v, 60)));
+      const vNext = proj(add(sim.r, scale(sim.vRel, 60)));
       g.fillStyle = 'rgba(150,215,255,0.25)';
       g.beginPath();
       g.arc(me.x, me.y, 11, 0, Math.PI * 2);
@@ -941,10 +1094,10 @@ export class SpaceFlight {
       }
     }
     // apoapsis and periapsis
-    if (o.e >= 1) return;
+    if (o.e >= 1 || st === 'transit') return;
     for (const [lab, nu, name] of [[this.ui.labelAp, Math.PI, 'AP'], [this.ui.labelPe, 0, 'PE']] as [HTMLElement, number, string][]) {
-      if (name === 'PE' && o.rp < EARTH.R) continue;
-      const q = proj(orbitPoint(o, nu));
+      if (name === 'PE' && o.rp < body.R) continue;
+      const q = proj(add(center, orbitPoint(o, nu)));
       if (!q) continue;
       g.fillStyle = q.hid ? 'rgba(255,255,255,0.35)' : '#ffffff';
       g.beginPath();
@@ -954,9 +1107,221 @@ export class SpaceFlight {
       lab.style.opacity = q.hid ? '0.45' : '1';
       lab.style.left = `${q.x}px`;
       lab.style.top = `${q.y}px`;
-      const alt = (name === 'AP' ? o.ra : o.rp) - EARTH.R;
+      const alt = (name === 'AP' ? o.ra : o.rp) - body.R;
       lab.textContent = `${name} ${(alt / 1000).toFixed(0)} km`;
     }
+  }
+
+  // ------------------------------------------------------------------ the Moon trip's set pieces
+  /** transposition, docking and extraction, played out on the parts while the sim coasts */
+  private updateTde(dt: number): void {
+    const sim = this.sim!;
+    const lp = this.ap.lunar.prog;
+    if (this.tde < 0 && lp?.id === 'moon' && lp.phase === 'tde') {
+      this.tde = 0;
+      this.camDist = 70;
+      this.camPitch = 0.35;
+      this.ui.flash('TRANSPOSITION & DOCKING', 'good');
+    }
+    if (this.tde < 0) return;
+    this.tde += dt;
+    const t = this.tde;
+    const sm = (x: number) => {
+      const c = Math.max(0, Math.min(1, x));
+      return c * c * (3 - 2 * c);
+    };
+    const parts = this.parts!;
+    // the adapter's panels swing open, then fly off
+    const open = sm(t / 3) * 0.95;
+    const drift = Math.max(0, t - 2.5);
+    for (const pnl of this.slaPanels()) {
+      pnl.quaternion.setFromAxisAngle(pnl.userData.axis as THREE.Vector3, open + drift * 0.12);
+      pnl.position.copy(pnl.userData.home as THREE.Vector3).addScaledVector(pnl.userData.radial as THREE.Vector3, drift * 2.4).add(new THREE.Vector3(0, drift * 0.4, 0));
+    }
+    // the command and service module backs off, turns round, comes back nose first and docks
+    const c0 = 96.4;
+    const dockY = DOCK_C - c0;
+    const ext = 15 * sm((t - 29) / 11);
+    let Y = c0 + 22 * sm((t - 2) / 6);
+    if (t > 18) Y = c0 + 22 + (dockY - c0 - 22) * sm((t - 18) / 9);
+    Y += ext;
+    const th = Math.PI * sm((t - 8) / 10);
+    const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), th);
+    for (const g of [parts.sm, parts.cm]) {
+      g.quaternion.copy(q);
+      g.position.set(0, Y - c0 * Math.cos(th), -c0 * Math.sin(th));
+    }
+    // and pulls the lunar module out of the S-IVB
+    parts.lm.position.set(0, ext, 0);
+    parts.lm.quaternion.identity();
+    if (t > 27 && t - dt <= 27) this.ui.flash('DOCKED', 'good');
+    if (t > 29 && t - dt <= 29) this.ui.flash('EXTRACTING THE LUNAR MODULE', '');
+    if (t >= 40) {
+      this.tde = -1;
+      for (const g of [parts.sm, parts.cm, parts.lm]) {
+        g.position.set(0, 0, 0);
+        g.quaternion.identity();
+      }
+      for (const pnl of this.slaPanels()) pnl.visible = false;
+      if (this.ap.lunar.prog?.phase === 'tde') this.ap.lunar.tdeDone(sim, 15);
+      else sim.dock(15);
+      this.camDist = 55;
+    }
+  }
+
+  /** the lander's legs, the dust its engine blasts off the ground, and the flag after touchdown */
+  private updateLanding(dt: number): void {
+    const sim = this.sim!;
+    const parts = this.parts!;
+    // legs swing out when the lander gets ready
+    const want = sim.legsOut ? 1 : 0;
+    this.legsK += Math.sign(want - this.legsK) * Math.min(Math.abs(want - this.legsK), dt * 0.35);
+    setLmLegs(parts.lm, this.legsK);
+    // dust: a sheet of regolith racing out from under the engine, low and fast
+    const space = this.space!;
+    if (!this.dust.length) {
+      const tex = this.glowTex();
+      for (let i = 0; i < 160; i++) {
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: new THREE.Color(0.95, 0.92, 0.86), transparent: true, depthWrite: false, opacity: 0 }));
+        sp.visible = false;
+        sp.renderOrder = 7;
+        sp.userData = { life: 0, max: 1, off: new THREE.Vector3(), vel: new THREE.Vector3(), size: 1 };
+        this.dust.push(sp);
+      }
+    }
+    const eng = sim.isLm ? sim.engines[0]?.level ?? 0 : 0;
+    const hgt = sim.nearMoon && sim.isLm ? sim.lowAlt : Infinity;
+    const strength = Math.max(0, Math.min(1, eng * (1 - hgt / 45)));
+    const up = sim.up;
+    let y0 = Infinity;
+    for (const p of sim.attached) y0 = Math.min(y0, sim.py(p).y0);
+    const low = add(sim.r, qrot(sim.q, [0, y0 - sim.ycg, 0]));
+    const ground = sub(low, scale(up, Number.isFinite(hgt) ? Math.max(0, hgt) : 0));
+    const U = new THREE.Vector3(...up);
+    const e1 = new THREE.Vector3().crossVectors(U, Math.abs(U.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0)).normalize();
+    const e2 = new THREE.Vector3().crossVectors(U, e1);
+    this.dustT += dt * strength * 140;
+    for (const sp of this.dust) {
+      if (sp.parent !== space.scene && !this.local) space.scene.add(sp);
+      const d = sp.userData as { life: number; max: number; off: THREE.Vector3; vel: THREE.Vector3; size: number };
+      if (d.life <= 0 && this.dustT >= 1) {
+        this.dustT -= 1;
+        const a = Math.random() * Math.PI * 2;
+        const dir = e1.clone().multiplyScalar(Math.cos(a)).addScaledVector(e2, Math.sin(a));
+        d.off.copy(dir).multiplyScalar(1 + Math.random() * 2).addScaledVector(U, 0.2 + Math.random() * 0.4);
+        d.vel.copy(dir).multiplyScalar(18 + Math.random() * 26).addScaledVector(U, Math.random() * 1.5);
+        d.max = d.life = 1.1 + Math.random() * 1.1;
+        d.size = 1.5 + Math.random() * 2;
+      }
+      if (d.life > 0) {
+        d.life -= dt;
+        d.off.addScaledVector(d.vel, dt);
+        d.vel.multiplyScalar(Math.exp(-dt * 0.6));
+        const k = d.life / d.max;
+        const p = this.scenePos(ground).add(d.off);
+        sp.position.copy(p);
+        const s = d.size + (1 - k) * 9;
+        sp.scale.set(s, s * 0.45, 1);
+        (sp.material as THREE.SpriteMaterial).opacity = 0.5 * k * Math.min(1, (1 - k) * 6);
+        sp.visible = !this.local;
+      } else sp.visible = false;
+    }
+    // after touchdown: the camera drifts round, and a flag goes up beside the lander
+    if (this.flagT >= 0 && sim.outcome?.status === 'landed') {
+      this.flagT += dt;
+      if (!this.drag) this.camYaw += dt * 0.07;
+      if (!this.flag) this.flag = this.buildFlag();
+      if (this.flag.parent !== this.holder) this.holder.add(this.flag);
+      const k = Math.max(0, Math.min(1, (this.flagT - 5.5) / 1.5));
+      const c = Math.max(0, Math.min(1, (this.flagT - 7) / 1.5));
+      this.flag.visible = true;
+      const pole = this.flag.userData.pole as THREE.Object3D;
+      pole.visible = k > 0;
+      pole.scale.y = Math.max(0.01, k);
+      (this.flag.userData.cloth as THREE.Object3D).scale.set(Math.max(0.01, c), 1, 1);
+      // an astronaut steps off the ladder and bounds out to plant it
+      const astro = this.flag.userData.astro as THREE.Group;
+      const w = Math.max(0, Math.min(1, (this.flagT - 2) / 3.5));
+      astro.visible = this.flagT > 1.5;
+      astro.position.set(-2.4 + 1.9 * w, 0, -0.6 + 1.4 * w);
+      astro.position.y = w > 0 && w < 1 ? Math.abs(Math.sin(this.flagT * 5.5)) * 0.22 : 0;
+      astro.rotation.y = w < 1 ? Math.atan2(1.9, 1.4) : -0.5;
+    } else if (this.flag) this.flag.visible = false;
+  }
+
+  private buildFlag(): THREE.Group {
+    const g = new THREE.Group();
+    const c = document.createElement('canvas');
+    c.width = 190;
+    c.height = 100;
+    const x = c.getContext('2d')!;
+    for (let i = 0; i < 13; i++) {
+      x.fillStyle = i % 2 ? '#f4f3ef' : '#b22234';
+      x.fillRect(0, (i * 100) / 13, 190, 100 / 13 + 1);
+    }
+    x.fillStyle = '#3c3b6e';
+    x.fillRect(0, 0, 76, 54);
+    x.fillStyle = '#f4f3ef';
+    for (let r = 0; r < 9; r++) for (let k = 0; k < (r % 2 ? 5 : 6); k++) x.fillRect(4 + k * 12.5 + (r % 2 ? 6 : 0), 3 + r * 5.6, 2.4, 2.4);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const pole = new THREE.Group();
+    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 2.4, 8), new THREE.MeshStandardMaterial({ color: '#d8d8d4', metalness: 0.8, roughness: 0.3 }));
+    rod.position.y = 1.2;
+    rod.castShadow = true;
+    pole.add(rod);
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.0, 6), rod.material);
+    bar.rotation.z = Math.PI / 2;
+    bar.position.set(0.5, 2.35, 0);
+    pole.add(bar);
+    const cloth = new THREE.Group();
+    const geo = new THREE.PlaneGeometry(1.0, 0.62, 12, 1);
+    const pos = geo.attributes.position as THREE.BufferAttribute;
+    for (let i = 0; i < pos.count; i++) pos.setZ(i, Math.sin(pos.getX(i) * 6) * 0.03);
+    geo.translate(0.5, 0, 0);
+    const cm = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, side: THREE.DoubleSide, roughness: 0.8 }));
+    cm.castShadow = true;
+    cm.position.y = 2.03;
+    cloth.add(cm);
+    pole.add(cloth);
+    g.add(pole);
+    g.add(this.buildAstronaut());
+    g.position.set(5.5, 84.45, 4.0);
+    g.userData.pole = pole;
+    g.userData.cloth = cloth;
+    g.userData.astro = g.children[g.children.length - 1];
+    return g;
+  }
+
+  /** a moonwalker in the white suit, backpack on, gold visor down */
+  private buildAstronaut(): THREE.Group {
+    const a = new THREE.Group();
+    const suit = new THREE.MeshStandardMaterial({ color: '#f1efe9', roughness: 0.85 });
+    const grey = new THREE.MeshStandardMaterial({ color: '#b9b8b2', roughness: 0.7 });
+    const visor = new THREE.MeshStandardMaterial({ color: '#d4a440', roughness: 0.08, metalness: 1 });
+    const add = (geo: THREE.BufferGeometry, m: THREE.Material, x: number, y: number, z: number, rx = 0, rz = 0) => {
+      const o = new THREE.Mesh(geo, m);
+      o.position.set(x, y, z);
+      o.rotation.set(rx, 0, rz);
+      o.castShadow = true;
+      a.add(o);
+      return o;
+    };
+    for (const s of [-1, 1]) {
+      add(new THREE.CylinderGeometry(0.12, 0.1, 0.85, 10), suit, 0.13 * s, 0.5, 0);
+      add(new THREE.BoxGeometry(0.17, 0.12, 0.3), grey, 0.13 * s, 0.06, 0.04);
+      add(new THREE.CylinderGeometry(0.08, 0.07, 0.7, 10), suit, 0.33 * s, 1.15, 0.05, 0.2, 0.25 * s);
+      add(new THREE.SphereGeometry(0.08, 10, 8), grey, 0.4 * s, 0.82, 0.12);
+    }
+    add(new THREE.CapsuleGeometry(0.24, 0.5, 6, 12), suit, 0, 1.25, 0);
+    add(new THREE.BoxGeometry(0.5, 0.65, 0.3), suit, 0, 1.32, -0.3);
+    add(new THREE.BoxGeometry(0.3, 0.18, 0.08), grey, 0, 1.25, 0.24);
+    add(new THREE.SphereGeometry(0.2, 18, 14), suit, 0, 1.78, 0);
+    const v = add(new THREE.SphereGeometry(0.205, 18, 10, -Math.PI / 2.4, Math.PI / 1.2, Math.PI / 4, Math.PI / 2.6), visor, 0, 1.78, 0.005);
+    v.rotation.y = 0;
+    a.position.set(-2.4, 0, -0.6);
+    a.visible = false;
+    return a;
   }
 
   // ------------------------------------------------------------------ effects

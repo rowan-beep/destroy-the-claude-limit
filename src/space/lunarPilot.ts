@@ -56,7 +56,7 @@ const HIGH_GATE = 2_200;
 /** how far the braking phase carries the lander, as an angle round the Moon */
 const BRAKING_ARC = (15.5 * Math.PI) / 180;
 /** the Sun's height over the landing site the planner looks for */
-const SUN_EL = (13 * Math.PI) / 180;
+const SUN_EL = (18 * Math.PI) / 180;
 
 export class LunarPilot {
   prog: Lunar | null = null;
@@ -121,6 +121,7 @@ export class LunarPilot {
   tdeDone(sim: FlightSim, pulled: number): void {
     if (this.prog?.id !== 'moon' || this.prog.phase !== 'tde') return;
     sim.dock(pulled);
+    sim.setSas('pro');
     this.set('topup');
   }
 
@@ -181,8 +182,12 @@ export class LunarPilot {
       case 'topup':
         // the S-IVB ran short: the service module's engine finishes the injection
         if (!p.burning) {
-          if (this.energyE(sim) >= p.plan!.energy - 2_000) return this.set('mccWait');
-          if (this.aligned(sim, sim.v) || p.t > 60) this.fire(sim);
+          if (this.energyE(sim) >= p.plan!.energy - 2_000) {
+            sim.setSas('stab');
+            return this.set('mccWait');
+          }
+          sim.setSas('pro');
+          if (this.aligned(sim, sim.v, 2)) this.fire(sim);
         } else if (p.t > 8 && !sim.engines.some((e) => e.on)) {
           p.burning = false;
           this.set('mccWait');
@@ -355,6 +360,7 @@ export class LunarPilot {
       } else if (p.phase === 'topup' && p.burning) {
         if (this.energyE(sim) >= p.plan!.energy) {
           this.cut(sim);
+          sim.setSas('stab');
           sim.log('Service module burn done: the injection is complete.', 'good');
           this.set('mccWait');
         }
