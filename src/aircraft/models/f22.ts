@@ -11,7 +11,7 @@ import { AirframeVisual } from './visual';
 import { addPilot } from './pilot';
 import { Section } from './builder';
 import { P2, loftProfile, keyedProfile, stations, mergeStations, wing, WingStation, finMatrix, both, mirror, join, stamp, lathe, rrect, Livery, skinMaterial, line, rivets, weather, prng, roundel, LINE, LINE_LIGHT, curve, sstep, roundBox, colorize, resample } from './kit';
-import { intake, partMaterials, blade, probe, formationStrip, withMorph } from './parts';
+import { intake, partMaterials, blade, probe, formationStrip, withMorph, glassify } from './parts';
 import { DEG } from '../../core/constants';
 import { buildCanopy, buildGearSet, wingPanels, finPanels, sectionsFromProfile } from './common';
 
@@ -546,6 +546,8 @@ export function buildF22(v: AirframeVisual): void {
     gm.metalness = 1;
     gm.roughness = 0.06;
     gm.envMapIntensity = 1.0;
+    // (the copy needs the edge reflections put back: clones lose them)
+    glassify(gm, 0.97);
     v.canopy.material = gm;
   }
   // canopy sill: the raised rail the canopy seals onto

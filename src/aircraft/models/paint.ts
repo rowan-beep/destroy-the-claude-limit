@@ -85,8 +85,30 @@ export function defaultPaint(): PaintConfig {
 }
 
 const KEY = 'triad.paint.v1';
+/** set once the one-time "back to factory paint" reset has been done */
+const RESET_KEY = 'triad.paint.factoryReset.v2';
+
+/**
+ * One time, after the realism update: every jet goes back to its factory paint
+ * so the new detail can be seen in the hangar. The colours and wrap picked
+ * before stay stored, so the paint shop opens on them: one click puts them back.
+ */
+function factoryResetOnce(): void {
+  try {
+    if (localStorage.getItem(RESET_KEY)) return;
+    localStorage.setItem(RESET_KEY, '1');
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return;
+    const all = JSON.parse(raw) as Record<string, Partial<PaintConfig>>;
+    for (const k of Object.keys(all)) if (all[k]) all[k] = { ...all[k], mode: 'factory' };
+    localStorage.setItem(KEY, JSON.stringify(all));
+  } catch {
+    /* storage unavailable */
+  }
+}
 
 export function loadPaint(t: AircraftType): PaintConfig {
+  factoryResetOnce();
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) {

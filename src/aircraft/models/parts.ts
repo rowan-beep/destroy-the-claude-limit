@@ -102,6 +102,28 @@ export function burnerMaterial(): THREE.MeshStandardMaterial {
   return m;
 }
 
+/**
+ * Canopy glass the way it looks on a real jet: almost clear looking straight
+ * through it (you see the seats and the pilot), turning into a mirror of the
+ * sky and hangar toward the edges, where you look across the curve (Fresnel).
+ * Works on clones too: call it again on a copied material.
+ */
+export function glassify<T extends THREE.MeshStandardMaterial>(m: T, edge = 0.88): T {
+  m.onBeforeCompile = (sh) => {
+    sh.fragmentShader = sh.fragmentShader.replace(
+      '#include <opaque_fragment>',
+      `{
+        float glassCos = clamp( abs( dot( normalize( vViewPosition ), normal ) ), 0.0, 1.0 );
+        float glassFr = pow( 1.0 - glassCos, 3.0 );
+        diffuseColor.a = mix( diffuseColor.a, ${edge.toFixed(3)}, glassFr );
+      }
+      #include <opaque_fragment>`,
+    );
+  };
+  m.customProgramCacheKey = () => `glass-fresnel-${edge.toFixed(3)}`;
+  return m;
+}
+
 export function partMaterials(): PartMaterials {
   if (PM) return PM;
   PM = {
@@ -116,7 +138,8 @@ export function partMaterials(): PartMaterials {
     flight: new THREE.MeshStandardMaterial({ color: 0x5e6247, roughness: 0.9, metalness: 0 }),
     helmet: new THREE.MeshStandardMaterial({ color: 0x6f7263, roughness: 0.55, metalness: 0.05 }),
     visor: new THREE.MeshStandardMaterial({ color: 0x1a1a14, roughness: 0.08, metalness: 0.9 }),
-    glass: new THREE.MeshStandardMaterial({ color: 0x9fb2bf, roughness: 0.04, metalness: 0.9, transparent: true, opacity: 0.26, depthWrite: false, envMapIntensity: 1.6 }),
+    // (a dielectric, not a metal: clear head-on, reflective at a glancing angle)
+    glass: glassify(new THREE.MeshStandardMaterial({ color: 0xa9bcc8, roughness: 0.025, metalness: 0.0, transparent: true, opacity: 0.16, depthWrite: false, envMapIntensity: 2.4 })),
     frame: new THREE.MeshStandardMaterial({ color: 0x2f3337, roughness: 0.6, metalness: 0.3 }),
     antenna: new THREE.MeshStandardMaterial({ color: 0x4b5054, roughness: 0.6, metalness: 0.3 }),
     rubber: new THREE.MeshStandardMaterial({ color: 0x151617, roughness: 0.85, metalness: 0 }),

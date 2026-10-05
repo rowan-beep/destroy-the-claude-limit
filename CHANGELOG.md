@@ -3,6 +3,14 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.53.0 — Up close (2026-10-05)
+
+- All nine jets look much more like the real thing up close. Bring the hangar camera right up to one and you'll see rows of flush rivets along the frames and stringers, screws round the access panels, a fine texture in the paint that breaks up the reflections, and paint worn back to grey primer along the leading edges and panel lines. From further away the jets stay as clean as before, with no shimmer.
+- Panel lines are cut deeper, so the seams catch the light the way they do on a real airframe.
+- Canopies are proper glass now. Look straight through one and it's almost clear, so you can see the pilot and the cockpit; towards the edges it turns to a mirror. The F-22 keeps its gold-tinted canopy, now with the same glassy edges.
+- In the hangar, light bounces up off the floor onto the jet, so the intakes, the belly and the undersides of the wings no longer look almost black. The portraits in the JET LIBRARY get a little of the same light.
+- Everyone's jet is back in its factory paint for this update, so you can see the new detail as it really is. Your wrap or colour hasn't been lost: open the PAINT SHOP, pick WRAP or SOLID COLOUR, and the one you had comes straight back. Press APPLY to keep it. This happens only once.
+
 ## v4.52.2 — No kill camera (2026-10-05)
 
 - The kill camera is gone. When your missile hits, the view stays with your own jet at normal speed, and the KILL CAMERA option has been taken out of the settings.

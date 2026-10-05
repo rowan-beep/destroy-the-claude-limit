@@ -11,6 +11,27 @@ import { loadPaint, PaintConfig } from '../../aircraft/models/paint';
 import { AircraftType } from '../../aircraft/specs';
 import { VERSION } from '../../version';
 import { buildHangarInterior, HangarInterior, HANGAR } from './hangarInterior';
+import { AIR_LIGHT } from '../../render/airLight';
+
+/**
+ * Light bounced up off the hangar floor (linear RGB). The paint shader adds it
+ * to every surface facing the ground, the way the sunlit ground lights a jet's
+ * belly in flight; without it the intakes and undersides go almost black.
+ */
+const HANGAR_BOUNCE = new THREE.Color(0.2, 0.185, 0.165);
+/** the studio portraits: a little light off the dark floor */
+const STUDIO_BOUNCE = new THREE.Color(0.08, 0.085, 0.09);
+const savedBounce = new THREE.Color();
+/** draw with the given floor bounce, then put the flight value back */
+function withBounce(c: THREE.Color, draw: () => void): void {
+  savedBounce.copy(AIR_LIGHT.airBounce.value);
+  AIR_LIGHT.airBounce.value.copy(c);
+  try {
+    draw();
+  } finally {
+    AIR_LIGHT.airBounce.value.copy(savedBounce);
+  }
+}
 
 export class Hangar {
   readonly scene = new THREE.Scene();
@@ -271,14 +292,15 @@ export class Hangar {
     else this.camera.clearViewOffset();
     this.camera.updateProjectionMatrix();
     this.camera.lookAt(tx, ty, 0);
-    if (this.drawWith) {
-      this.drawWith(this.scene, this.camera);
+    const draw = this.drawWith;
+    if (draw) {
+      withBounce(HANGAR_BOUNCE, () => draw(this.scene, this.camera));
       return;
     }
     this.renderer.setRenderTarget(null);
     const tm = this.renderer.toneMapping;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.render(this.scene, this.camera);
+    withBounce(HANGAR_BOUNCE, () => this.renderer.render(this.scene, this.camera));
     this.renderer.toneMapping = tm;
   }
 
@@ -343,7 +365,7 @@ export class Hangar {
       r.setViewport(0, 0, tw, th);
       r.setScissor(0, 0, tw, th);
       r.setScissorTest(true);
-      r.render(sc, cam);
+      withBounce(STUDIO_BOUNCE, () => r.render(sc, cam));
       const c = document.createElement('canvas');
       c.width = Math.round(tw * pr);
       c.height = Math.round(th * pr);
