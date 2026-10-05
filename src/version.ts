@@ -10,6 +10,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.52.2',
+    date: '2026-10-05',
+    title: "No kill camera",
+    notes: [
+      "The kill camera is gone. When your missile hits, the view stays with your own jet at normal speed, and the KILL CAMERA option has been taken out of the settings.",
+    ],
+  },
+  {
     version: '4.52.1',
     date: '2026-10-05',
     title: "Twenty fixes",

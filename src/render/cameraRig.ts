@@ -13,7 +13,7 @@ const LOOK_IDLE = 1.8;
 import { surfaceHeight } from '../world/terrain';
 import { HeadModel } from './head';
 
-export type CameraMode = 'cockpit' | 'chase' | 'flyby' | 'target' | 'weapon' | 'death' | 'kill';
+export type CameraMode = 'cockpit' | 'chase' | 'flyby' | 'target' | 'weapon' | 'death';
 
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
@@ -62,39 +62,9 @@ export class CameraRig {
 
   constructor(readonly camera: THREE.PerspectiveCamera) {}
 
-  /** kill camera: the missile and the jet it is about to hit */
-  killMissile: Missile | null = null;
-  killTarget: Aircraft | null = null;
-  private killOff = new THREE.Vector3();
-  private killLook = new THREE.Vector3();
-  private killT = 0;
-
-  /** Cut to a camera beside the target, watching the missile come in. */
-  startKill(m: Missile, t: Aircraft): void {
-    this.killMissile = m;
-    this.killTarget = t;
-    this.killT = 0;
-    // off to one side of the missile's path, a little ahead of and above the target
-    const path = _v.subVectors(t.fm.pos, m.pos).normalize();
-    const side = _v2.crossVectors(path, new THREE.Vector3(0, 1, 0));
-    if (side.lengthSq() < 1e-4) side.set(1, 0, 0);
-    side.normalize().multiplyScalar(Math.random() < 0.5 ? -1 : 1);
-    const size = Math.max(20, t.spec.length * 2.6);
-    this.killOff.copy(side).multiplyScalar(size * 2.4).addScaledVector(path, size * 1.4).add(new THREE.Vector3(0, size * 0.55, 0));
-    this.killLook.lerpVectors(m.pos, t.fm.pos, 0.55);
-    this.setMode('kill');
-  }
-
-  endKill(): void {
-    this.killMissile = null;
-    this.killTarget = null;
-    if (this.mode === 'kill') this.mode = this.prevMode;
-    this.chaseInit = false;
-  }
-
   setMode(m: CameraMode): void {
     if (m === this.mode) return;
-    if (this.mode !== 'weapon' && this.mode !== 'death' && this.mode !== 'kill') this.prevMode = this.mode;
+    if (this.mode !== 'weapon' && this.mode !== 'death') this.prevMode = this.mode;
     this.mode = m;
     this.chaseInit = false;
     if (m === 'flyby') this.flybyTimer = 0;
@@ -106,11 +76,6 @@ export class CameraRig {
   }
 
   toggleCockpit(): void {
-    // during the kill camera the key just skips it, back to the view you had
-    if (this.mode === 'kill') {
-      this.endKill();
-      return;
-    }
     this.setMode(this.mode === 'cockpit' ? 'chase' : 'cockpit');
   }
 
@@ -180,24 +145,6 @@ export class CameraRig {
         return;
       }
       this.mode = this.prevMode;
-    }
-
-    if (this.mode === 'kill' && this.killTarget) {
-      const t = this.killTarget;
-      const m = this.killMissile;
-      this.killT += dt;
-      // ride along with the target (the wreck as it falls), drifting a little
-      const drift = 1 + this.killT * 0.12;
-      cam.position.copy(t.fm.pos).addScaledVector(this.killOff, drift);
-      const want = m && m.alive ? _v.lerpVectors(m.pos, t.fm.pos, 0.6) : _v.copy(t.fm.pos);
-      this.killLook.lerp(want, 1 - Math.exp(-dt * 6));
-      cam.up.set(0, 1, 0);
-      cam.lookAt(this.killLook);
-      this.keepAboveGround(cam);
-      if (this.shake > 0.001) this.applyShake(cam, ac, true);
-      cam.fov = 48;
-      cam.updateProjectionMatrix();
-      return;
     }
 
     if (this.mode === 'cockpit' && eye) {

@@ -3,6 +3,10 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.52.2 — No kill camera (2026-10-05)
+
+- The kill camera is gone. When your missile hits, the view stays with your own jet at normal speed, and the KILL CAMERA option has been taken out of the settings.
+
 ## v4.52.1 — Twenty fixes (2026-10-05)
 
 - Kill camera: pressing [F] to skip it now takes you back to the view you had. It used to drop you into the cockpit even if you were flying in the chase view. It also ends cleanly if you change the view any other way.

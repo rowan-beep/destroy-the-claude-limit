@@ -1211,14 +1211,3 @@ body:has(#hud.cockpit-clean) .wx-widget { opacity: 0; pointer-events: none; }
 .fx-eva-prompt.on { opacity: 1; }
 @media (max-width: 760px) { .fx-eva-k { display: none; } .fx-eva-p { width: 200px; } }
 
-/* kill camera: letterbox bars and a caption */
-.killcam { position: fixed; inset: 0; pointer-events: none; z-index: 30; }
-.killcam .kc-bar { position: absolute; left: 0; right: 0; height: 0; background: #000; transition: height 0.35s ease; }
-.killcam .kc-top { top: 0; }
-.killcam .kc-bot { bottom: 0; }
-.killcam.on .kc-bar { height: 9vh; }
-.killcam .kc-tag, .killcam .kc-skip { position: absolute; bottom: calc(9vh + 14px); font: 700 13px/1 'Consolas', 'Menlo', monospace; letter-spacing: 0.22em; color: #ffd27a; opacity: 0; transition: opacity 0.3s 0.15s; text-shadow: 0 0 10px rgba(0, 0, 0, 0.8); }
-.killcam .kc-tag { left: 28px; }
-.killcam .kc-skip { right: 28px; color: rgba(255, 255, 255, 0.55); font-size: 11px; }
-.killcam.on .kc-tag, .killcam.on .kc-skip { opacity: 1; }
-body.killcam-on .wx-widget, body.killcam-on .touch-controls { visibility: hidden; }
