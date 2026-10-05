@@ -172,7 +172,8 @@ async function boot(): Promise<void> {
   const flight = new SpaceFlight(() => getFactory(), document.body);
   flight.drawWith = (sc, cam) => game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping);
   flight.onExit = () => showMenus(game.state === 'menu');
-  if (import.meta.env.DEV) Object.assign(window, { __flight: flight, __music: menuMusic });
+  if (import.meta.env.DEV) Object.assign(window, { __flight: flight });
+  Object.assign(window, { __music: menuMusic });
   const showMenus = (v: boolean) => {
     const space = program === 'space';
     if (flight.active) v = false;
