@@ -76,7 +76,8 @@ export class AIPilot {
   private rudder = 0;
   private triggerWanted = false;
   private patrolAlt = 7000;
-  private cruiseMach = 0.85;
+  /** cruise speed on patrol and along a route (above Mach 1 it lights the afterburner) */
+  cruiseMach = 0.85;
   private weaveT = rand(0, 40);
   private readonly visualSeen = new Map<number, number>();
   private aimNoise = new THREE.Vector3();
@@ -86,6 +87,8 @@ export class AIPilot {
   passive = false;
   /** manoeuvres and defends like a real bandit but never fires (training) */
   weaponsHold = false;
+  /** a wingman told to stay on the leader's wing: defends itself but holds formation and fire */
+  formationHold = false;
 
   constructor(
     readonly ac: Aircraft,
@@ -348,6 +351,11 @@ export class AIPilot {
       } else return;
     }
     if (this.state === 'RTB') return;
+    if (this.formationHold && this.leader && this.leader.ac.alive) {
+      this.state = 'FORMATION';
+      this.manageRadar(sim, null);
+      return;
+    }
 
     if (!this.target) {
       this.state = this.leader && this.leader.ac.alive && this.leader.state !== 'DEFENSIVE' ? 'FORMATION' : 'PATROL';
@@ -759,7 +767,7 @@ export class AIPilot {
     const fm = ac.fm;
     this.maxBank = Math.min(45, this.skill.gentleBank);
     this.gCap = Math.min(this.gCap, 3);
-    this.useAb = false;
+    this.useAb = this.cruiseMach > 1;
     if (this.route.length === 0) {
       _tmp.set(fm.fwd.x, 0, fm.fwd.z);
     } else {

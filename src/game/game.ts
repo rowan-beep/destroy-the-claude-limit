@@ -23,6 +23,9 @@ import { GameMode, ModeHost, MissionResult, MsgKind, Briefing } from './modes/mo
 import { DailyMode } from './modes/daily';
 import { StrikeMode } from './modes/strike';
 import { ReconMode } from './modes/recon';
+import { CampaignMode } from './modes/campaign';
+import { CAMPAIGN } from './campaign';
+import type { Weather } from '../world/weather';
 import { GroundRenderer } from '../render/groundRenderer';
 import { todaysMission } from './daily';
 import { FreeFlightMode } from './modes/freeFlight';
@@ -58,6 +61,7 @@ import { enemyTypesFor, AIRCRAFT_TYPES } from '../aircraft/specs';
 import { CARRIERS, carrierOf, clearCatapults, nearestCarrier, updateCarriers } from '../world/carriers';
 import { armCarriers } from './navy';
 import { NIGHT } from '../render/night';
+import type { Missile } from '../weapons/missile';
 
 export type GameState = 'menu' | 'loading' | 'playing' | 'paused' | 'map' | 'results' | 'replay' | 'briefing';
 
@@ -160,6 +164,7 @@ export class Game implements ModeHost {
 
   setState(s: GameState): void {
     this.state = s;
+    if (s !== 'playing' && this.kc) this.stopKillCam();
     if (s !== 'playing') this.autoFlyPanel?.hide();
     this.input.enabled = s === 'playing';
     audio.setPaused(s !== 'playing');
@@ -221,6 +226,8 @@ export class Game implements ModeHost {
 
   async startMission(cfg: MissionConfig, progress: (f: number, label: string) => void): Promise<void> {
     let onProgress = progress;
+    // a campaign mission sets its own time of day
+    if (cfg.mode === 'campaign') cfg = { ...cfg, timeOfDay: CAMPAIGN[Math.max(0, Math.min(CAMPAIGN.length - 1, cfg.campaignMission ?? 0))].time };
     this.config = cfg;
     this.briefing = null;
     setMissionObjective(null);
@@ -260,7 +267,7 @@ export class Game implements ModeHost {
     const pre = [new Aircraft(cfg.aircraft, 'blue', 'PRE')];
     if (cfg.mode === 'online') for (const t of AIRCRAFT_TYPES) pre.push(new Aircraft(t, 'red', 'PRE'));
     else if (cfg.mode !== 'free') for (const t of enemyTypesFor(cfg.aircraft)) pre.push(new Aircraft(t, 'red', 'PRE'));
-    if (cfg.mode === 'team' || cfg.mode === 'recon') for (const t of enemyTypesFor(cfg.aircraft)) pre.push(new Aircraft(t, 'blue', 'PRE'));
+    if (cfg.mode === 'team' || cfg.mode === 'recon' || cfg.mode === 'campaign') for (const t of enemyTypesFor(cfg.aircraft)) pre.push(new Aircraft(t, 'blue', 'PRE'));
     if (cfg.mode === 'ffa') pre.push(new Aircraft(cfg.aircraft, 'red', 'PRE'));
     if (cfg.mode === 'daily') pre.push(new Aircraft(todaysMission().enemy.type, 'red', 'PRE'));
     prewarmAirframes(pre);
@@ -287,7 +294,9 @@ export class Game implements ModeHost {
                     ? new StrikeMode(this)
                     : cfg.mode === 'recon'
                       ? new ReconMode(this)
-                      : new DuelMode(this);
+                      : cfg.mode === 'campaign'
+                        ? new CampaignMode(this)
+                        : new DuelMode(this);
     randomizeWind();
     // every sortie starts with the goggles stowed (left on from a night flight they would
     // wash a daylight one out in green)
@@ -623,7 +632,100 @@ export class Game implements ModeHost {
     this.aimDir.copy(p.fm.fwd);
   }
 
+  // ---------------------------------------------------------------------
+  // Kill camera: a slow-motion shot of the player's missile hitting home
+  // ---------------------------------------------------------------------
+
+  private kc: { m: Missile; t: Aircraft; age: number; hitAt: number } | null = null;
+  private kcCool = 0;
+  private kcEl: HTMLDivElement | null = null;
+
+  private updateKillCam(dt: number): void {
+    const p = this.player;
+    this.kcCool -= dt;
+    const kc = this.kc;
+    if (kc) {
+      kc.age += dt;
+      if (kc.hitAt < 0 && (!kc.t.alive || !kc.m.alive)) kc.hitAt = kc.age;
+      const killed = !kc.t.alive;
+      const hold = killed ? 2.3 : 0.9;
+      const skip = this.input.pressed('camera') || this.input.pressed('camChase') || this.input.pressed('camCockpit') || this.input.pressed('camFlyby');
+      if (skip || !p || !p.alive || p.rwr.primaryMissile || kc.age > 7 || (kc.hitAt >= 0 && kc.age - kc.hitAt > hold)) {
+        this.stopKillCam();
+        return;
+      }
+      // slow on the way in and through the blast, then easing back to full speed
+      const after = kc.hitAt >= 0 ? kc.age - kc.hitAt : -1;
+      this.timeScale = after < 0 ? 0.22 : after < hold - 0.8 ? 0.25 : 0.25 + (0.75 * (after - (hold - 0.8))) / 0.8;
+      return;
+    }
+    if (!p || !p.alive || this.kcCool > 0 || this.online || !this.settings.gameplay.killCam) return;
+    if (this.spectator.active || this.cam.mode === 'weapon' || this.cam.mode === 'death' || p.rwr.primaryMissile || this.timeScale !== 1) return;
+    for (const m of this.sim.missiles) {
+      const t = m.target;
+      if (!m.alive || m.shooter !== p || !t || !t.alive || t.team === p.team || m.mode === 'LOST' || m.mode === 'EJECT') continue;
+      const rel = t.fm.pos.clone().sub(m.pos);
+      const d = rel.length();
+      if (d > 1500) continue;
+      const closing = -rel.dot(t.fm.vel.clone().sub(m.vel)) / Math.max(1, d);
+      if (closing < 80 || d / closing > 0.45) continue;
+      this.startKillCam(m, t);
+      return;
+    }
+  }
+
+  private startKillCam(m: Missile, t: Aircraft): void {
+    this.kc = { m, t, age: 0, hitAt: -1 };
+    this.cam.startKill(m, t);
+    this.timeScale = 0.22;
+    this.hud.setVisible(false);
+    if (!this.kcEl) {
+      const e = document.createElement('div');
+      e.className = 'killcam';
+      e.innerHTML = '<div class="kc-bar kc-top"></div><div class="kc-bar kc-bot"></div><div class="kc-tag">◉ KILL CAM</div><div class="kc-skip">[F] SKIP</div>';
+      document.body.appendChild(e);
+      this.kcEl = e;
+    }
+    const tag = this.kcEl.querySelector('.kc-tag') as HTMLElement;
+    tag.textContent = `◉ ${m.spec.short} → ${t.callsign}`;
+    void this.kcEl.offsetWidth;
+    this.kcEl.classList.add('on');
+    document.body.classList.add('killcam-on');
+  }
+
+  private stopKillCam(): void {
+    this.kc = null;
+    this.kcCool = 8;
+    this.cam.endKill();
+    if (this.timeScale < 1) this.timeScale = 1;
+    this.kcEl?.classList.remove('on');
+    document.body.classList.remove('killcam-on');
+    if (this.state === 'playing') this.hud.setVisible(true);
+  }
+
+  /** the campaign's NEXT MISSION button (the app shell loads it) */
+  onNextMission: ((cfg: MissionConfig) => void) | null = null;
+  /** the player's own weather while a mission has made the night pitch black */
+  private savedWeather: Weather | null = null;
+
+  setDark(on: boolean): void {
+    if (on) {
+      if (!this.savedWeather) this.savedWeather = { ...this.world.weather };
+      this.world.setWeather({ ...this.world.weather, dark: true });
+    } else if (this.savedWeather) {
+      this.world.setWeather(this.savedWeather);
+      this.savedWeather = null;
+    } else return;
+    if (this.world.ready) this.world.env.buildEnvMap(this.renderer.renderer);
+  }
+
   handleResult(action: string): void {
+    if (action === 'next' && this.mode instanceof CampaignMode) {
+      const cfg = { ...this.config, campaignMission: this.mode.idx + 1 };
+      this.endMission();
+      this.onNextMission?.(cfg);
+      return;
+    }
     if (action === 'replay') {
       this.startReplay();
       return;
@@ -722,6 +824,7 @@ export class Game implements ModeHost {
     this.input.update(dt);
     if (playing) this.handleInput(dt);
     else if (this.input.pressed('pause') && this.state === 'map') this.setState('playing');
+    if (this.state === 'playing') this.updateKillCam(dt);
 
     const simOn = playing || (this.online && (this.state === 'paused' || this.state === 'map'));
     if (simOn && this.player) {

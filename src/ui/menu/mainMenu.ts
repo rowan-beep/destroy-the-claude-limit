@@ -13,6 +13,7 @@ import { el, clearEl, button } from '../dom';
 import { AIRCRAFT_TYPES, AircraftType, AircraftSpec, SPECS, enemyTypesFor, getSpec, strikeLoadout, jetAllowedIn } from '../../aircraft/specs';
 import { MissionConfig, MODE_INFO, ModeId } from '../../game/mission';
 import { todaysMission, dailyDone } from '../../game/daily';
+import { CAMPAIGN, CAMPAIGN_PROLOGUE, CAMPAIGN_TITLE, campaignText, loadCampaign, missionUnlocked, nextCampaignMission, starCount } from '../../game/campaign';
 import { FFA_JETS } from '../../game/modes/ffa';
 import { DIFFICULTIES, Difficulty } from '../../ai/skill';
 import { airfieldsOf } from '../../world/islands';
@@ -31,9 +32,9 @@ const DIFF_TEXT: Record<Difficulty, string> = {
   EXTREME: 'Operates at the absolute limits of the airframe: max-G snapshots, instant switching between gun and AIM-9X, perfect intercept geometry, and it punishes fuel or G-LOC mistakes.',
 };
 
-const MODES: ModeId[] = ['daily', 'recon', 'strike', 'tutorial', 'free', 'waves', 'duel', 'team', 'ffa'];
+const MODES: ModeId[] = ['campaign', 'daily', 'recon', 'strike', 'tutorial', 'free', 'waves', 'duel', 'team', 'ffa'];
 /** modes that need land (targets, sites, the lesson course) */
-const OCEAN_OFF: ModeId[] = ['daily', 'recon', 'strike', 'tutorial'];
+const OCEAN_OFF: ModeId[] = ['campaign', 'daily', 'recon', 'strike', 'tutorial'];
 
 const TIMES: [TimeOfDay, string, string][] = [
   ['dawn', 'DAWN', 'linear-gradient(180deg,#2b3a67 0%,#c46b8a 60%,#f4b27a 100%)'],
@@ -248,9 +249,9 @@ export class MainMenu {
       el('span', 'mm-li-k', r, k);
       el('span', 'mm-li-v', r, v);
     };
-    row('MODE', MODE_INFO[this.cfg.mode].title);
+    row('MODE', this.cfg.mode === 'campaign' ? `CAMPAIGN · ${this.cfg.campaignMission + 1}. ${CAMPAIGN[this.cfg.campaignMission]?.title ?? ''}` : MODE_INFO[this.cfg.mode].title);
     row('AIRCRAFT', s.shortName.toUpperCase() + (lo ? ` · ${lo.name.split('—')[0].trim()}` : ''));
-    row('THEATER', `${activeMap.name} · ${this.cfg.timeOfDay.toUpperCase()}`);
+    row('THEATER', `${activeMap.name} · ${(this.cfg.mode === 'campaign' ? CAMPAIGN[this.cfg.campaignMission]?.time ?? this.cfg.timeOfDay : this.cfg.timeOfDay).toUpperCase()}`);
   }
 
   private renderCaption(): void {
@@ -276,6 +277,11 @@ export class MainMenu {
       el('div', 'mm-mode-n', r, String(i + 1).padStart(2, '0'));
       const t = el('div', 'mm-mode-t', r);
       const tl = el('div', 'mm-mode-l', t, info.title);
+      if (m === 'campaign') {
+        const prog = loadCampaign();
+        const n = prog.reduce((a, b) => a + starCount(b), 0);
+        el('span', 'mm-tag' + (prog.every((b) => b & 1) ? ' done' : ''), tl, `★ ${n}/${CAMPAIGN.length * 3}`);
+      }
       if (m === 'daily') {
         const dm = todaysMission();
         el('span', 'mm-tag' + (dailyDone(dm.date) ? ' done' : ''), tl, dailyDone(dm.date) ? '✓ DONE' : dm.date.slice(5).replace('-', '/'));
@@ -285,6 +291,7 @@ export class MainMenu {
       r.addEventListener('click', () => {
         if (off) return;
         this.cfg.mode = m;
+        if (m === 'campaign') this.cfg.campaignMission = nextCampaignMission();
         // the SR-71 flies only reconnaissance and free flight; reconnaissance only the SR-71
         if (!jetAllowedIn(this.cfg.aircraft, m)) {
           this.selectJet(m === 'recon' ? 'SR71' : this.lastFighter);
@@ -386,6 +393,9 @@ export class MainMenu {
         }
       }
       if (dm.realJet && dm.realJet !== cfg.aircraft) el('div', 'mm-note', c, `The real pilots flew the ${SPECS[dm.realJet].shortName}. Any jet works.`);
+    } else if (cfg.mode === 'campaign') {
+      this.renderCampaign(c);
+      return;
     } else if (cfg.mode === 'strike') {
       this.difficulty(c);
       const lo = strikeLoadout(SPECS[cfg.aircraft]);
@@ -409,6 +419,35 @@ export class MainMenu {
       this.pills(c, 'WEAPONS', [['all', 'ALL'], ['ir', 'HEATERS + GUN'], ['guns', 'GUNS ONLY']], cfg.duelRules, (v) => (cfg.duelRules = v));
     }
     this.timePicker(c);
+  }
+
+  private renderCampaign(c: HTMLElement): void {
+    const cfg = this.cfg;
+    const prog = loadCampaign();
+    if (!missionUnlocked(cfg.campaignMission, prog)) cfg.campaignMission = nextCampaignMission(prog);
+    el('div', 'mm-cm-k', c, CAMPAIGN_TITLE);
+    el('div', 'mm-note', c, campaignText(CAMPAIGN_PROLOGUE));
+    const list = el('div', 'mm-cms', c);
+    CAMPAIGN.forEach((m, i) => {
+      const open = missionUnlocked(i, prog);
+      const on = i === cfg.campaignMission;
+      const r = el('div', 'mm-cm' + (on ? ' on' : '') + (open ? '' : ' locked'), list);
+      el('div', 'mm-cm-n', r, open ? String(i + 1) : '🔒');
+      const t = el('div', 'mm-cm-t', r);
+      el('div', 'mm-cm-l', t, m.title);
+      el('div', 'mm-cm-s', t, open ? campaignText(m.teaser) : 'Complete the mission before to unlock');
+      const st = el('div', 'mm-cm-st', r);
+      for (let k = 0; k < 3; k++) el('span', (prog[i] >> k) & 1 ? 'got' : '', st, '★');
+      if (open)
+        r.addEventListener('click', () => {
+          cfg.campaignMission = i;
+          this.render();
+        });
+    });
+    const m = CAMPAIGN[cfg.campaignMission];
+    el('div', 'mm-note', c, `MISSION ${cfg.campaignMission + 1} · ${m.time.toUpperCase()}${m.dark ? ' · PITCH BLACK' : ''} · STARS: ${m.stars.map((x) => campaignText(x)).join(' · ')}`);
+    this.difficulty(c);
+    el('div', 'mm-note', c, 'Fly any fighter. Your wingmen fly the same jet; the enemy flies the others.');
   }
 
   private timePicker(c: HTMLElement): void {

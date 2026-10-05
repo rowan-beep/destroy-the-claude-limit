@@ -409,6 +409,7 @@ export class SettingsModal {
     const f = this.section('FLIGHT');
     this.toggle(f, 'AUTO COUNTERMEASURES', 'EPAWSS pops flares and chaff automatically against incoming missiles.', g.autoCountermeasures, (v) => (g.autoCountermeasures = v));
     this.seg(f, 'CHASE CAMERA', undefined, [['level', 'HORIZON LEVEL'], ['roll', 'FOLLOWS ROLL']], g.cameraRoll ? 'roll' : 'level', (v) => (g.cameraRoll = v === 'roll'));
+    this.toggle(f, 'KILL CAMERA', 'A short slow-motion shot of your missile hitting home (not online, and never while a missile is chasing you).', g.killCam, (v) => (g.killCam = v));
     this.toggle(f, 'INFO PANELS IN COCKPIT', 'Show the flight, engine and stores panels in the cockpit view. Off: a clean view with everything on the jet\'s own HUD and displays.', g.cockpitPanels, (v) => (g.cockpitPanels = v));
     this.slider(f, 'HEAD MOVEMENT', 'How much G, turbulence, the runway and the engines move your head in the cockpit.', 0, 1, 0.05, g.headMotion, (v) => (g.headMotion = v), (v) => (v < 0.01 ? 'OFF' : `${Math.round(v * 100)}%`));
   }

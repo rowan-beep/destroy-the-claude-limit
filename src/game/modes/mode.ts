@@ -13,7 +13,7 @@ export type MsgKind = 'info' | 'warn' | 'good' | 'bad' | 'order' | 'gci';
 
 export interface ResultButton {
   label: string;
-  action: 'retry' | 'retryWave' | 'nextWave' | 'menu' | 'respawn' | 'continue' | 'replay';
+  action: 'retry' | 'retryWave' | 'nextWave' | 'menu' | 'respawn' | 'continue' | 'replay' | 'next';
 }
 
 export interface MissionResult {
@@ -62,6 +62,8 @@ export interface ModeHost {
   throttle?(): number;
   /** show a briefing box; the mission waits for OKAY */
   brief?(b: Briefing): void;
+  /** a mission that needs a pitch-black night (false puts the player's own weather back) */
+  setDark?(on: boolean): void;
 }
 
 export interface ModeStatus {

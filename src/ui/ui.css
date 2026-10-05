@@ -709,6 +709,19 @@ body.touch-mode .weapon-bar { bottom: auto; top: calc(96px + env(safe-area-inset
 .mm-time-sw { height: 30px; display: block; }
 .mm-time-l { font-size: 8.5px; font-weight: 700; letter-spacing: 0.04em; white-space: nowrap; }
 .mm-time.on { border-color: var(--mm-acc); box-shadow: 0 0 0 1px var(--mm-acc); }
+.mm-cm-k { font-size: 18px; font-weight: 800; letter-spacing: 0.16em; color: var(--mm-acc2); margin: 2px 0 2px; }
+.mm-cms { display: flex; flex-direction: column; gap: 5px; margin: 10px 0 4px; }
+.mm-cm { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 6px; border: 1px solid transparent; background: rgba(255, 255, 255, 0.03); cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+.mm-cm:hover { background: rgba(255, 170, 60, 0.08); }
+.mm-cm.on { background: linear-gradient(90deg, rgba(255, 170, 60, 0.18), rgba(255, 170, 60, 0.04)); border-color: rgba(255, 170, 60, 0.5); }
+.mm-cm.locked { opacity: 0.4; cursor: not-allowed; }
+.mm-cm.locked:hover { background: rgba(255, 255, 255, 0.03); }
+.mm-cm-n { width: 22px; font-size: 18px; font-weight: 200; color: var(--mm-acc); text-align: center; }
+.mm-cm-t { flex: 1; min-width: 0; }
+.mm-cm-l { font-size: 13px; font-weight: 800; letter-spacing: 0.12em; }
+.mm-cm-s { font-size: 11px; color: var(--mm-dim); margin-top: 1px; }
+.mm-cm-st { font-size: 14px; letter-spacing: 1px; color: rgba(255, 255, 255, 0.18); white-space: nowrap; }
+.mm-cm-st .got { color: #ffc44d; text-shadow: 0 0 8px rgba(255, 190, 70, 0.6); }
 .mm-daily { padding: 12px 14px; border-radius: 6px; background: linear-gradient(135deg, rgba(255, 170, 60, 0.14), rgba(255, 170, 60, 0.03)); border: 1px solid rgba(255, 170, 60, 0.35); }
 .mm-daily-k { font-size: 10px; letter-spacing: 0.2em; color: var(--mm-acc2); font-weight: 700; }
 .mm-daily-t { font-size: 20px; font-weight: 800; letter-spacing: 0.12em; margin: 4px 0 6px; }
@@ -1197,3 +1210,15 @@ body:has(#hud.cockpit-clean) .wx-widget { opacity: 0; pointer-events: none; }
 .fx-eva-prompt { position: absolute; left: 50%; bottom: 60px; transform: translateX(-50%); padding: 9px 20px; border-radius: 999px; background: rgba(4, 10, 24, 0.7); border: 1px solid var(--line); font-size: 13px; letter-spacing: 0.08em; color: #eaf3ff; opacity: 0; transition: opacity 0.3s; white-space: nowrap; pointer-events: none; }
 .fx-eva-prompt.on { opacity: 1; }
 @media (max-width: 760px) { .fx-eva-k { display: none; } .fx-eva-p { width: 200px; } }
+
+/* kill camera: letterbox bars and a caption */
+.killcam { position: fixed; inset: 0; pointer-events: none; z-index: 30; }
+.killcam .kc-bar { position: absolute; left: 0; right: 0; height: 0; background: #000; transition: height 0.35s ease; }
+.killcam .kc-top { top: 0; }
+.killcam .kc-bot { bottom: 0; }
+.killcam.on .kc-bar { height: 9vh; }
+.killcam .kc-tag, .killcam .kc-skip { position: absolute; bottom: calc(9vh + 14px); font: 700 13px/1 'Consolas', 'Menlo', monospace; letter-spacing: 0.22em; color: #ffd27a; opacity: 0; transition: opacity 0.3s 0.15s; text-shadow: 0 0 10px rgba(0, 0, 0, 0.8); }
+.killcam .kc-tag { left: 28px; }
+.killcam .kc-skip { right: 28px; color: rgba(255, 255, 255, 0.55); font-size: 11px; }
+.killcam.on .kc-tag, .killcam.on .kc-skip { opacity: 1; }
+body.killcam-on .wx-widget, body.killcam-on .touch-controls { visibility: hidden; }

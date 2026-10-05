@@ -30,7 +30,7 @@ import { GroundUnit, GroundKind, AirDefense, DEFENSES, UNIT_DEFS } from '../grou
 import { BOMBS } from '../../weapons/weaponSpecs';
 import { bearingXZ } from '../../core/math';
 
-type SiteType = 'depot' | 'command' | 'sam' | 'camp' | 'radar' | 'airbase';
+export type SiteType = 'depot' | 'command' | 'sam' | 'camp' | 'radar' | 'airbase';
 type Phase = 'ingress' | 'attack' | 'rtb' | 'done';
 type AirThreat = 'none' | 'cap' | 'scramble';
 
@@ -73,6 +73,46 @@ interface Plan {
   start: { kind: 'runway'; field: AirfieldDef } | { kind: 'air'; pos: THREE.Vector3; hdg: number };
 }
 
+function enemySide(x: number, z: number): boolean {
+  const b = ROLES.blueHome, r = ROLES.redHome;
+  return Math.hypot(x - r.cx, z - r.cz) < Math.hypot(x - b.cx, z - b.cz);
+}
+
+/** A spot on enemy land, flat enough to build on (hilltops for radars). */
+export function findEnemySite(grid: { height(x: number, z: number): number }, type: SiteType): { x: number; z: number } {
+  const lim = MAP_HALF * 0.85;
+  let best: { x: number; z: number; score: number } | null = null;
+  for (let i = 0; i < 1400; i++) {
+    const x = rnd(-lim, lim), z = rnd(-lim, lim);
+    if (!enemySide(x, z)) continue;
+    const h = grid.height(x, z);
+    if (h < 25 || h > activeMap.maxTerrain * 0.55) continue;
+    if (AIRFIELDS.some((f) => Math.hypot(f.x - x, f.z - z) < 7000)) continue;
+    if (airfieldsOf('blue').some((f) => Math.hypot(f.x - x, f.z - z) < 45 * NM * mapScale())) continue;
+    let lo = h, hi = h, water = false;
+    for (const r of [250, 520]) {
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI * 2;
+        const hh = grid.height(x + Math.cos(a) * r, z + Math.sin(a) * r);
+        if (hh < 4) water = true;
+        lo = Math.min(lo, hh);
+        hi = Math.max(hi, hh);
+      }
+    }
+    if (water) continue;
+    const rough = hi - lo;
+    // radar stations want the high ground, everything else flat ground
+    const score = type === 'radar' ? rough * 0.3 - (h - lo) : rough;
+    if (!best || score < best.score) best = { x, z, score };
+    if (i > 250 && best.score < (type === 'radar' ? -20 : 18)) break;
+  }
+  if (best) return best;
+  // fallback: beside an enemy airfield
+  const f = pick(airfieldsOf('red'));
+  return fromRunwayLocal(f, 0, 1800);
+}
+
+
 export class StrikeMode extends GameMode {
   /** testing: force the next target type */
   static forceSite: SiteType | null = null;
@@ -106,44 +146,8 @@ export class StrikeMode extends GameMode {
   // Scenario generation
   // -------------------------------------------------------------------------
 
-  private enemySide(x: number, z: number): boolean {
-    const b = ROLES.blueHome, r = ROLES.redHome;
-    return Math.hypot(x - r.cx, z - r.cz) < Math.hypot(x - b.cx, z - b.cz);
-  }
-
-  /** A spot on enemy land, flat enough to build on (hilltops for radars). */
   private findSite(type: SiteType): { x: number; z: number } {
-    const grid = this.host.sim.grid;
-    const lim = MAP_HALF * 0.85;
-    let best: { x: number; z: number; score: number } | null = null;
-    for (let i = 0; i < 1400; i++) {
-      const x = rnd(-lim, lim), z = rnd(-lim, lim);
-      if (!this.enemySide(x, z)) continue;
-      const h = grid.height(x, z);
-      if (h < 25 || h > activeMap.maxTerrain * 0.55) continue;
-      if (AIRFIELDS.some((f) => Math.hypot(f.x - x, f.z - z) < 7000)) continue;
-      if (airfieldsOf('blue').some((f) => Math.hypot(f.x - x, f.z - z) < 45 * NM * mapScale())) continue;
-      let lo = h, hi = h, water = false;
-      for (const r of [250, 520]) {
-        for (let k = 0; k < 8; k++) {
-          const a = (k / 8) * Math.PI * 2;
-          const hh = grid.height(x + Math.cos(a) * r, z + Math.sin(a) * r);
-          if (hh < 4) water = true;
-          lo = Math.min(lo, hh);
-          hi = Math.max(hi, hh);
-        }
-      }
-      if (water) continue;
-      const rough = hi - lo;
-      // radar stations want the high ground, everything else flat ground
-      const score = type === 'radar' ? rough * 0.3 - (h - lo) : rough;
-      if (!best || score < best.score) best = { x, z, score };
-      if (i > 250 && best.score < (type === 'radar' ? -20 : 18)) break;
-    }
-    if (best) return best;
-    // fallback: beside an enemy airfield
-    const f = pick(airfieldsOf('red'));
-    return fromRunwayLocal(f, 0, 1800);
+    return findEnemySite(this.host.sim.grid, type);
   }
 
   private makePlan(): Plan {

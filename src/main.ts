@@ -128,6 +128,10 @@ async function boot(): Promise<void> {
     await game.startMission(c, (f, l) => loading.set(0.1 + f * 0.9, l));
     loading.show(false);
   };
+  game.onNextMission = (c) => {
+    menu.cfg.campaignMission = c.campaignMission;
+    void fly(c);
+  };
   const library = new JetLibrary(document.body, {
     onSelect: (t, l) => {
       menu.cfg.loadoutId = l;

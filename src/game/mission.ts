@@ -4,7 +4,7 @@ import type { AircraftType } from '../aircraft/specs';
 import type { Difficulty } from '../ai/skill';
 import type { TimeOfDay } from '../render/environment';
 
-export type ModeId = 'free' | 'waves' | 'duel' | 'team' | 'ffa' | 'online' | 'tutorial' | 'daily' | 'strike' | 'recon';
+export type ModeId = 'free' | 'waves' | 'duel' | 'team' | 'ffa' | 'online' | 'tutorial' | 'daily' | 'strike' | 'recon' | 'campaign';
 
 export interface MissionConfig {
   mode: ModeId;
@@ -29,6 +29,8 @@ export interface MissionConfig {
   // free-for-all
   ffaPace: 'quick' | 'standard' | 'long';
   ffaJets: 'mixed' | 'same';
+  // campaign: which mission (0-based)
+  campaignMission: number;
 }
 
 export function defaultMission(): MissionConfig {
@@ -50,10 +52,17 @@ export function defaultMission(): MissionConfig {
     teamWins: 3,
     ffaPace: 'standard',
     ffaJets: 'mixed',
+    campaignMission: 0,
   };
 }
 
 export const MODE_INFO: Record<ModeId, { title: string; subtitle: string; description: string }> = {
+  campaign: {
+    title: 'CAMPAIGN',
+    subtitle: 'Wolf of the Strait · 8 missions',
+    description:
+      'A story in eight missions. The RED coalition stops turning back at the line, and its ace, WOLF 1, leads them. Intercept, defend your own base, bomb a radar and a command post, escort Strike Eagles, hunt a MiG-31 in the pitch dark, lead a six-ship into the biggest air battle of the war, and finally meet WOLF 1 himself. Wingmen and radio calls throughout. Each mission unlocks the next and has three stars to earn.',
+  },
   recon: {
     title: 'BLACKBIRD',
     subtitle: 'SR-71 spy missions · story',

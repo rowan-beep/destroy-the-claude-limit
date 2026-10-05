@@ -3,6 +3,15 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.52.0 — Wolf of the Strait (2026-10-05)
+
+- New: CAMPAIGN, a story in eight missions called Wolf of the Strait. It's at the top of the game modes. The RED coalition stops turning back at the line, and its ace, WOLF 1, leads them. Each mission unlocks the next one.
+- The eight missions: FIRST CONTACT, meet two fighters at the line. WOLF AT THE DOOR, scramble from the runway and stop four bombers before they reach your base. BLIND THEIR EYES, bomb the radar station that saw you coming. SHEPHERD, escort four Strike Eagles to the enemy airbase and watch it burn. NIGHT HUNTER, catch a MiG-31 running in high and fast on a pitch-black night. ANVIL, hit the well-defended command post. FULL SKY, lead six jets into an eight-ship battle. THE WHITE WOLF, meet WOLF 1 himself.
+- You fly with a wingman, VIPER 1-2, who holds formation until the fight starts and then fights on his own. The story plays out over the radio: your controller calls the bandits, the bomber leads call for help, and you hear WOLF 1 on the enemy channel, who learns your name and comes looking for you.
+- Every mission has three stars: one for completing it and two for flying it well (bring your wingman home, land back at base, take no damage, protect every bomber, and more). Stars you earn stay earned, the mission list shows them, and the total is on the CAMPAIGN button. Finish a mission and NEXT MISSION takes you straight to the following one.
+- The campaign sets the time of day for each mission, from dawn scrambles to a dusk showdown, and the night mission turns the sky pitch black for your night-vision goggles. The difficulty slider makes the enemy pilots sharper or softer. It plays on Triad Isles, Frostfall Strait and the Jade Archipelago with the place names of each, using any fighter.
+- New kill camera: when one of your missiles is about to hit, the view cuts to a slow-motion shot beside the target, the missile streaks in, the jet blows apart, and the game eases back to full speed. Press [F] to skip it. It never plays online or while a missile is chasing you, and you can turn it off under KILL CAMERA in the settings.
+
 ## v4.51.0 — Moonwalk (2026-10-05)
 
 - Walk on the Moon. A few seconds after touchdown the astronaut climbs down the ladder, and from then on you're in control. Move with W A S D, hold SHIFT to lope in the bouncing Apollo stride, and press SPACE to jump: in one-sixth gravity you crouch, spring and hang in the air for a long, slow arc before landing in a puff of dust.

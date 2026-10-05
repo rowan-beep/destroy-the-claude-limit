@@ -20,6 +20,8 @@ export interface GameSettings {
     cockpitPanels: boolean;
     /** how much G, turbulence and the engines move the pilot's head, 0..1 */
     headMotion: number;
+    /** slow-motion camera on your missile kills */
+    killCam: boolean;
   };
   input: InputSettings;
   lastAircraft: string;
@@ -114,6 +116,7 @@ export function defaultSettings(): GameSettings {
       touchControls: 'auto',
       cockpitPanels: false,
       headMotion: 1,
+      killCam: true,
     },
     input: defaultInputSettings(),
     lastAircraft: 'F15EX',
