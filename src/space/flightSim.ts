@@ -92,7 +92,7 @@ export const PARTS: Record<PartId, PartDef> = {
   sic: { name: 'S-IC', dry: 135_000, prop: 2_082_285, y0: -5.8, y1: 42, yDry: 16, yProp: 24, radius: 5.03, area: 80 },
   siiInter: { name: 'S-II interstage', dry: 4_800, prop: 0, y0: 42, y1: 47.6, yDry: 44.8, yProp: 44.8, radius: 5.03, area: 80 },
   sii: { name: 'S-II', dry: 36_200, prop: 439_000, y0: 44.2, y1: 72, yDry: 57, yProp: 57, radius: 5.03, area: 80 },
-  sivb: { name: 'S-IVB + IU', dry: 15_316, prop: 106_600, y0: 68.6, y1: 85.6, yDry: 77, yProp: 78, radius: 3.3, area: 34 },
+  sivb: { name: 'S-IVB + IU', dry: 13_300, prop: 108_000, y0: 68.6, y1: 85.6, yDry: 77, yProp: 78, radius: 3.3, area: 34 },
   slaSm: { name: 'Spacecraft (SLA, LM, SM)', dry: 41_400, prop: 0, y0: 85.6, y1: 98.3, yDry: 92, yProp: 92, radius: 3.3, area: 34 },
   cm: { name: 'Command module', dry: 5_560, prop: 0, y0: 98.3, y1: 101.5, yDry: 99.4, yProp: 99.4, radius: 1.96, area: 12 },
   les: { name: 'Launch escape tower', dry: 4_170, prop: 0, y0: 101.5, y1: 110.6, yDry: 105.5, yProp: 105.5, radius: 0.5, area: 1 },
@@ -652,7 +652,9 @@ export class FlightSim {
 
   private step(dt: number): void {
     this.met += dt;
-    this.time += dt;
+    // the universe waits while the count holds on the pad: liftoff always comes at the same
+    // moment, so the parking orbit always lies in the Moon's plane (a launch window that never closes)
+    if (!(this.held && !this.counting)) this.time += dt;
     // count and timeline
     if (this.held) {
       if (this.counting) this.countdown();

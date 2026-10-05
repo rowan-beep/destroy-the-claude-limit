@@ -3,6 +3,11 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.49.0 — Music in the space menu (2026-10-05)
+
+- The Space Exploration menu has its own music now: "High Up" plays on a loop while you're in the menu. It fades in when the menu opens and fades out when you launch.
+- A MUSIC button in the top bar turns it on or off, with little bars that bounce while it plays. Your choice is remembered.
+
 ## v4.48.0 — Easy rocket controls (2026-10-05)
 
 - Flying the Saturn V is much simpler now. The wall of switches is gone. In its place, one line tells you what's happening and what to do next, with a few big buttons for the things you can do right now.

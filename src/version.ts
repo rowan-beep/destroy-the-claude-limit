@@ -10,6 +10,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.49.0',
+    date: '2026-10-05',
+    title: "Music in the space menu",
+    notes: [
+      "The Space Exploration menu has its own music now: \"High Up\" plays on a loop while you're in the menu. It fades in when the menu opens and fades out when you launch.",
+      "A MUSIC button in the top bar turns it on or off, with little bars that bounce while it plays. Your choice is remembered.",
+    ],
+  },
+  {
     version: '4.48.0',
     date: '2026-10-05',
     title: "Easy rocket controls",

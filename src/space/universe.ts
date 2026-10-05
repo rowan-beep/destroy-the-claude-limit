@@ -2,8 +2,8 @@
 // Earth-centred inertial frame (ECI): metres, seconds, +Y along Earth's
 // rotation axis (north), and the X axis through the prime meridian at t = 0.
 // Earth turns under that frame; the Sun is fixed in it for the length of a
-// flight. Only Earth is a body for now: the Moon and the planets slot into
-// BODIES later, each with its own gravity and sphere of influence.
+// flight. The Moon circles Earth at its real distance, turning to keep one
+// face toward us; the planets slot into BODIES later.
 
 export interface Body {
   name: string;
@@ -28,7 +28,16 @@ export const EARTH: Body = {
   soi: 924_000_000,
 };
 
-export const BODIES: Body[] = [EARTH];
+export const MOON: Body = {
+  name: 'Moon',
+  GM: 4.9048695e12,
+  R: 1_737_400,
+  spin: (2 * Math.PI) / (27.321661 * 86400),
+  atmosphereTop: 0,
+  soi: 66_100_000,
+};
+
+export const BODIES: Body[] = [EARTH, MOON];
 
 export const G0 = 9.80665;
 
@@ -287,3 +296,176 @@ float vnoise3(vec3 x) {
   return mix(mix(mix(a000, a100, u.x), mix(a010, a110, u.x), u.y), mix(mix(a001, a101, u.x), mix(a011, a111, u.x), u.y), u.z);
 }
 `;
+
+// ---------------------------------------------------------------- the Moon
+/**
+ * The Moon's orbit: circular, 384,400 km, in the plane of the parking orbit the
+ * Saturn V reaches from Pad 1 (the launch is timed for it, as real lunar
+ * launches were), so the trip there needs no plane change.
+ */
+export const MOON_ORBIT = (() => {
+  const N = norm([-0.341623, 0.846355, -0.408628]);
+  const e1 = norm(cross([0, 1, 0], N));
+  const e2 = cross(N, e1);
+  return { D: 384_400_000, n: MOON.spin, N, e1, e2, phase0: 2.25 };
+})();
+
+/** the Moon's position and velocity (ECI) at sim time t */
+export function moonState(t: number): { r: V3; v: V3 } {
+  const { D, n, e1, e2, phase0 } = MOON_ORBIT;
+  const th = phase0 + n * t;
+  const c = Math.cos(th), s = Math.sin(th);
+  return { r: add(scale(e1, D * c), scale(e2, D * s)), v: add(scale(e1, -D * n * s), scale(e2, D * n * c)) };
+}
+export const moonPos = (t: number): V3 => moonState(t).r;
+
+/** the Moon-fixed axes in ECI: X toward Earth (the near side), Z along its spin axis */
+export function moonAxes(t: number): { X: V3; Y: V3; Z: V3 } {
+  const X = scale(norm(moonPos(t)), -1);
+  const Z = MOON_ORBIT.N;
+  return { X, Y: cross(Z, X), Z };
+}
+export function toMoonFixed(rel: V3, t: number): V3 {
+  const { X, Y, Z } = moonAxes(t);
+  return [dot(rel, X), dot(rel, Y), dot(rel, Z)];
+}
+export function fromMoonFixed(f: V3, t: number): V3 {
+  const { X, Y, Z } = moonAxes(t);
+  return add(add(scale(X, f[0]), scale(Y, f[1])), scale(Z, f[2]));
+}
+/** velocity of the Moon's surface (turning with it) at a Moon-relative position, ECI, relative to its centre */
+export const moonSpinVel = (rel: V3): V3 => cross(scale(MOON_ORBIT.N, MOON.spin), rel);
+
+/** gravity of Earth and the Moon at an ECI point, in Earth's (accelerating) frame */
+export function gravityAt(r: V3, t: number): V3 {
+  const rm = len(r);
+  let a = scale(r, -EARTH.GM / (rm * rm * rm));
+  const m = moonPos(t);
+  const d = sub(r, m);
+  const dm = len(d);
+  const D = len(m);
+  a = addScaled(a, d, -MOON.GM / (dm * dm * dm));
+  // Earth itself falls toward the Moon: the frame's own acceleration
+  a = addScaled(a, m, -MOON.GM / (D * D * D));
+  return a;
+}
+
+// The lunar surface: craters on craters. Each octave scatters craters on a
+// jittered grid over the sphere (most cells hold one), with bowl, raised rim
+// and ejecta; big ones are shallow, small ones deep for their size. The GLSL
+// twin draws the same craters on the globe; the CPU version shapes the ground
+// near the lander and tells the simulation where the surface is.
+const CRATER_OCT: [number, number, number][] = [
+  // [cell size in km, depth / diameter, share of cells with a crater]
+  [260, 0.035, 0.5],
+  [90, 0.06, 0.6],
+  [30, 0.09, 0.62],
+  [10, 0.12, 0.66],
+  [3.2, 0.15, 0.7],
+  [1.0, 0.17, 0.72],
+  [0.32, 0.19, 0.75],
+  [0.1, 0.2, 0.75],
+  [0.032, 0.2, 0.7],
+  [0.011, 0.18, 0.6],
+];
+function hashI(x: number, y: number, z: number, k: number): number {
+  let h = Math.imul(x | 0, 0x8da6b343) ^ Math.imul(y | 0, 0xd8163841) ^ Math.imul(z | 0, 0xcb1ab31f) ^ Math.imul(k | 0, 0x2c1b3c6d);
+  h = Math.imul(h ^ (h >>> 13), 0x5bd1e995);
+  h ^= h >>> 15;
+  return (h >>> 0) / 4294967295;
+}
+/** height (m) of the lunar surface above the mean radius, at a Moon-fixed unit vector */
+export function moonHeight(d: V3, octaves = CRATER_OCT.length): number {
+  let h = 0;
+  for (let o = 0; o < octaves; o++) {
+    const [cellKm, dr, share] = CRATER_OCT[o];
+    const s = (cellKm * 1000) / MOON.R;
+    const px = d[0] / s, py = d[1] / s, pz = d[2] / s;
+    const bx = Math.floor(px - 0.5), by = Math.floor(py - 0.5), bz = Math.floor(pz - 0.5);
+    for (let i = 0; i < 8; i++) {
+      const cx = bx + (i & 1), cy = by + ((i >> 1) & 1), cz = bz + ((i >> 2) & 1);
+      if (hashI(cx, cy, cz, o * 7 + 1) > share) continue;
+      const jx = cx + 0.25 + 0.5 * hashI(cx, cy, cz, o * 7 + 2);
+      const jy = cy + 0.25 + 0.5 * hashI(cx, cy, cz, o * 7 + 3);
+      const jz = cz + 0.25 + 0.5 * hashI(cx, cy, cz, o * 7 + 4);
+      const rr = 0.12 + 0.33 * Math.pow(hashI(cx, cy, cz, o * 7 + 5), 2);
+      const q = Math.hypot(px - jx, py - jy, pz - jz) / rr;
+      if (q > 2.2) continue;
+      const depth = dr * 2 * rr * cellKm * 1000;
+      h += craterProfile(q) * depth;
+    }
+  }
+  // gentle rolling ground between the craters
+  h += (vnoise(d[0] * 900, d[1] * 900, d[2] * 900) - 0.5) * 900 + (vnoise(d[0] * 9000, d[1] * 9000, d[2] * 9000) - 0.5) * 120;
+  return h;
+}
+/** crater cross-section: -1 at the floor, a rim at q = 1, ejecta fading by q = 2.2 */
+function craterProfile(q: number): number {
+  const bowl = q < 1 ? q * q * (1.25 - 0.25 * q * q) - 1 : 0;
+  const rim = 0.32 * Math.exp(-(((q - 1) / (q < 1 ? 0.14 : 0.32)) ** 2));
+  const ej = q > 1 ? 0.05 * Math.max(0, 1 - (q - 1) / 1.2) : 0;
+  return bowl + rim + ej;
+}
+/** how dark the ground is: the maria are dark basalt, the highlands pale */
+export function moonMare(d: V3): number {
+  let s = 0, a = 0.5, f = 1.7;
+  for (let k = 0; k < 5; k++) {
+    s += a * vnoise(d[0] * f + 3.1, d[1] * f - 5.2, d[2] * f + 1.7);
+    f *= 2.1;
+    a *= 0.5;
+  }
+  return Math.max(0, Math.min(1, (s - 0.5) * 6 + 0.5));
+}
+
+export const MOON_GLSL = /* glsl */ `
+float hashI(ivec3 p, int k) {
+  uint h = uint(p.x) * 0x8da6b343u ^ uint(p.y) * 0xd8163841u ^ uint(p.z) * 0xcb1ab31fu ^ uint(k) * 0x2c1b3c6du;
+  h = (h ^ (h >> 13u)) * 0x5bd1e995u;
+  h ^= h >> 15u;
+  return float(h) / 4294967295.0;
+}
+float craterProfile(float q) {
+  float bowl = q < 1.0 ? q * q * (1.25 - 0.25 * q * q) - 1.0 : 0.0;
+  float w = q < 1.0 ? 0.14 : 0.32;
+  float rim = 0.32 * exp(-pow((q - 1.0) / w, 2.0));
+  float ej = q > 1.0 ? 0.05 * max(0.0, 1.0 - (q - 1.0) / 1.2) : 0.0;
+  return bowl + rim + ej;
+}
+// height (m) from the crater octaves cellKm[0..n), and how fresh (bright) the ground is
+float moonCraters(vec3 d, int first, int last, out float fresh) {
+  float cells[${CRATER_OCT.length}] = float[](${CRATER_OCT.map((c) => c[0].toFixed(4)).join(', ')});
+  float drs[${CRATER_OCT.length}] = float[](${CRATER_OCT.map((c) => c[1].toFixed(4)).join(', ')});
+  float shares[${CRATER_OCT.length}] = float[](${CRATER_OCT.map((c) => c[2].toFixed(4)).join(', ')});
+  float h = 0.0;
+  fresh = 0.0;
+  for (int o = first; o < last; o++) {
+    float s = cells[o] * 1000.0 / ${MOON.R.toFixed(1)};
+    vec3 p = d / s;
+    ivec3 b = ivec3(floor(p - 0.5));
+    for (int i = 0; i < 8; i++) {
+      ivec3 c = b + ivec3(i & 1, (i >> 1) & 1, (i >> 2) & 1);
+      if (hashI(c, o * 7 + 1) > shares[o]) continue;
+      vec3 j = vec3(c) + 0.25 + 0.5 * vec3(hashI(c, o * 7 + 2), hashI(c, o * 7 + 3), hashI(c, o * 7 + 4));
+      float hr = hashI(c, o * 7 + 5);
+      float rr = 0.12 + 0.33 * hr * hr;
+      float q = length(p - j) / rr;
+      if (q > 2.2) continue;
+      h += craterProfile(q) * drs[o] * 2.0 * rr * cells[o] * 1000.0;
+      // young craters keep bright rims and rays
+      float young = step(0.82, hashI(c, o * 7 + 6));
+      fresh += young * (smoothstep(2.2, 1.0, q) * 0.6 + 0.4 * smoothstep(1.3, 0.9, q));
+    }
+  }
+  return h;
+}
+float moonMare(vec3 d) {
+  float s = 0.0, a = 0.5, f = 1.7;
+  for (int k = 0; k < 5; k++) {
+    s += a * vnoise3(vec3(d.x * f + 3.1, d.y * f - 5.2, d.z * f + 1.7));
+    f *= 2.1;
+    a *= 0.5;
+  }
+  return clamp((s - 0.5) * 6.0 + 0.5, 0.0, 1.0);
+}
+`;
+export const MOON_OCTAVES = CRATER_OCT.length;

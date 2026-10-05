@@ -10,6 +10,7 @@ import { el, clearEl, button } from '../dom';
 import { VERSION } from '../../version';
 import { loadNetPrefs } from '../../net/servers';
 import { programLogo, Program } from './program';
+import { menuMusic } from '../../audio/menuMusic';
 
 type Section = 'missions' | 'factory' | 'destinations';
 
@@ -82,6 +83,12 @@ export class SpaceMenu {
     });
     this.tabInd = el('div', 'sx2-tab-ind', tabs);
     const right = el('div', 'sx2-top-r', top);
+    const mus = el('button', 'sx2-music' + (menuMusic.enabled ? ' on' : ''), right) as HTMLButtonElement;
+    mus.type = 'button';
+    mus.title = 'Music on / off';
+    el('span', 'sx2-music-bars', mus).append(...[0, 1, 2, 3].map(() => document.createElement('i')));
+    el('span', 'sx2-music-t', mus, 'MUSIC');
+    mus.addEventListener('click', () => mus.classList.toggle('on', menuMusic.toggle()));
     this.clock = el('div', 'sx2-clock', right);
     this.commander = el('div', 'sx2-cmdr', right);
 
@@ -146,6 +153,7 @@ export class SpaceMenu {
   show(v: boolean): void {
     const was = !this.root.classList.contains('hidden');
     this.root.classList.toggle('hidden', !v);
+    menuMusic.want(v);
     window.clearInterval(this.timer);
     if (v) {
       this.renderCommander();
