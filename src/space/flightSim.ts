@@ -13,7 +13,8 @@
 
 import {
   EARTH, G0, V3, add, addScaled, air, airVelocity, cross, dot, ecefDir, enu, len, norm, orbitOf, rotY, scale, sub, toEcef, earthAngle,
-  PAD, descendingAnomaly, timeBetween, continent, Orbit, padScene,
+  PAD, descendingAnomaly, timeBetween, continent, Orbit, padScene, MOON, MOON_ORBIT, Body, moonState, moonPos, moonSpinVel, gravityAt,
+  toMoonFixed, fromMoonFixed, moonAxes, moonHeight,
 } from './universe';
 
 // ------------------------------------------------------------ quaternions [w, x, y, z]
@@ -71,10 +72,18 @@ function qAxisAngle(axis: V3, ang: number): Q {
 }
 
 // ------------------------------------------------------------ the vehicle's parts
-export type PartId = 'sic' | 'siiInter' | 'sii' | 'sivb' | 'slaSm' | 'cm' | 'les';
-export const PART_ORDER: PartId[] = ['sic', 'siiInter', 'sii', 'sivb', 'slaSm', 'cm', 'les'];
+export type PartId = 'sic' | 'siiInter' | 'sii' | 'sivb' | 'sla' | 'lm' | 'sm' | 'cm' | 'les';
+export const PART_ORDER: PartId[] = ['sic', 'siiInter', 'sii', 'sivb', 'sla', 'lm', 'sm', 'cm', 'les'];
+/**
+ * How the parts sit: the launch stack; the command and service module docked
+ * nose to nose with the lunar module (after transposition and docking, with the
+ * LM turned round above the CM); or the lunar module flying alone.
+ */
+export type Layout = 'stack' | 'docked' | 'lm';
+/** docked, the LM is turned end for end about this height: its hatch meets the CM's nose */
+export const DOCK_C = 192.5;
 
-interface PartDef {
+export interface PartDef {
   name: string;
   dry: number;
   prop: number;
@@ -93,12 +102,15 @@ export const PARTS: Record<PartId, PartDef> = {
   siiInter: { name: 'S-II interstage', dry: 4_800, prop: 0, y0: 42, y1: 47.6, yDry: 44.8, yProp: 44.8, radius: 5.03, area: 80 },
   sii: { name: 'S-II', dry: 36_200, prop: 439_000, y0: 44.2, y1: 72, yDry: 57, yProp: 57, radius: 5.03, area: 80 },
   sivb: { name: 'S-IVB + IU', dry: 13_300, prop: 108_000, y0: 68.6, y1: 85.6, yDry: 77, yProp: 78, radius: 3.3, area: 34 },
-  slaSm: { name: 'Spacecraft (SLA, LM, SM)', dry: 41_400, prop: 0, y0: 85.6, y1: 98.3, yDry: 92, yProp: 92, radius: 3.3, area: 34 },
+  sla: { name: 'Lunar module adapter', dry: 1_800, prop: 0, y0: 85.6, y1: 94.1, yDry: 89, yProp: 89, radius: 3.3, area: 34 },
+  lm: { name: 'Lunar module', dry: 6_800, prop: 8_200, y0: 84.4, y1: 91.0, yDry: 88.6, yProp: 86.8, radius: 2.1, area: 20 },
+  sm: { name: 'Service module', dry: 6_100, prop: 18_400, y0: 91.4, y1: 98.3, yDry: 96, yProp: 96, radius: 1.96, area: 12 },
   cm: { name: 'Command module', dry: 5_560, prop: 0, y0: 98.3, y1: 101.5, yDry: 99.4, yProp: 99.4, radius: 1.96, area: 12 },
   les: { name: 'Launch escape tower', dry: 4_170, prop: 0, y0: 101.5, y1: 110.6, yDry: 105.5, yProp: 105.5, radius: 0.5, area: 1 },
 };
 
-export type EngineKind = 'F-1' | 'J-2';
+export type EngineKind = 'F-1' | 'J-2' | 'SPS' | 'DPS';
+export type StageId = 'sic' | 'sii' | 'sivb' | 'sm' | 'lm';
 export interface EngineSet {
   part: PartId;
   kind: EngineKind;
@@ -116,14 +128,17 @@ export interface EngineSet {
   spoolUp: number;
 }
 const diag = (r: number): [number, number][] => [0, 1, 2, 3].map((k) => [r * Math.sin(Math.PI / 4 + (k * Math.PI) / 2), r * Math.cos(Math.PI / 4 + (k * Math.PI) / 2)] as [number, number]);
-export const ENGINES: Record<'sic' | 'sii' | 'sivb', EngineSet> = {
+export const ENGINES: Record<StageId, EngineSet> = {
   sic: { part: 'sic', kind: 'F-1', at: [[0, 0], ...diag(3.9)], gimbals: [false, true, true, true, true], yGimbal: -1.0, yExit: -5.8, thrustVac: 38_257_000 / 5, thrustSL: 34_500_000 / 5, mdot: 2578, gimbalMax: (5.17 * Math.PI) / 180, spoolUp: 1.4 },
   sii: { part: 'sii', kind: 'J-2', at: [[0, 0], ...diag(2.7)], gimbals: [false, true, true, true, true], yGimbal: 46.9, yExit: 44.2, thrustVac: 5_165_000 / 5, thrustSL: 486_000, mdot: 250.2, gimbalMax: (7 * Math.PI) / 180, spoolUp: 2.4 },
   sivb: { part: 'sivb', kind: 'J-2', at: [[0, 0]], gimbals: [true], yGimbal: 71.4, yExit: 68.6, thrustVac: 1_033_000, thrustSL: 486_000, mdot: 250.2, gimbalMax: (7 * Math.PI) / 180, spoolUp: 2.4 },
+  // the service module's Service Propulsion System and the lunar module's throttleable descent engine
+  sm: { part: 'sm', kind: 'SPS', at: [[0, 0]], gimbals: [true], yGimbal: 94.0, yExit: 91.4, thrustVac: 91_190, thrustSL: 45_000, mdot: 29.6, gimbalMax: (6 * Math.PI) / 180, spoolUp: 0.4 },
+  lm: { part: 'lm', kind: 'DPS', at: [[0, 0]], gimbals: [true], yGimbal: 87.2, yExit: 86.0, thrustVac: 45_040, thrustSL: 30_000, mdot: 14.77, gimbalMax: (6 * Math.PI) / 180, spoolUp: 0.6 },
 };
 
-export type SasMode = 'off' | 'stab' | 'hold' | 'pro' | 'retro' | 'normal' | 'anti' | 'radOut' | 'radIn';
-export type Status = 'pad' | 'ascent' | 'suborbital' | 'falling' | 'orbit' | 'safe' | 'landed' | 'lost';
+export type SasMode = 'off' | 'stab' | 'hold' | 'pro' | 'retro' | 'normal' | 'anti' | 'radOut' | 'radIn' | 'aim';
+export type Status = 'pad' | 'ascent' | 'suborbital' | 'falling' | 'orbit' | 'transit' | 'safe' | 'landed' | 'lost';
 export type Chute = 'none' | 'drogue' | 'main';
 
 export interface FlightEvent {
@@ -166,9 +181,11 @@ const QA_LIMIT = 170_000; // Pa·deg the structure takes
 const TARGET_ALT = 185_000;
 const AZIMUTH = (72 * Math.PI) / 180; // launch azimuth, from north toward east
 
+export type SpawnMode = 'pad' | 'orbit' | 'lunar';
 export interface SpawnOpts {
-  mode: 'pad' | 'orbit';
+  mode: SpawnMode;
 }
+const RX_PI: Q = [0, 1, 0, 0];
 
 export class FlightSim {
   // ---- state: centre of mass position and velocity (ECI), attitude body->ECI, body rates
@@ -180,9 +197,18 @@ export class FlightSim {
   met = -20;
   time = 0;
   attached = new Set<PartId>();
-  prop: Record<PartId, number> = { sic: 0, siiInter: 0, sii: 0, sivb: 0, slaSm: 0, cm: 0, les: 0 };
+  prop: Record<PartId, number> = { sic: 0, siiInter: 0, sii: 0, sivb: 0, sla: 0, lm: 0, sm: 0, cm: 0, les: 0 };
+  layout: Layout = 'stack';
   /** the active stage's engines */
-  stage: 'sic' | 'sii' | 'sivb' | null = 'sic';
+  stage: StageId | null = 'sic';
+  /** the descent engine's throttle (10 to 100%) */
+  throttle = 1;
+  /** the direction the 'aim' attitude mode points the vehicle's nose (thrust axis) */
+  aim: V3 | null = null;
+  /** the lunar module's landing legs are out */
+  legsOut = false;
+  /** where the lander rests on the Moon (Moon-fixed), once down */
+  private moonRest: { p: V3; q: Q } | null = null;
   engines: Engine[] = [];
   sivbStarts = 0;
   held = true;
@@ -194,7 +220,7 @@ export class FlightSim {
   unlimitedRestarts = false;
   private ignitionLogged = false;
   /** called after every physics substep, so an autopilot can cut an engine at the exact moment */
-  stepHook: (() => void) | null = null;
+  stepHook: ((h: number) => void) | null = null;
   input: Controls = { pitch: 0, yaw: 0, roll: 0 };
   chute: Chute = 'none';
   chuteLevel = 0;
@@ -233,7 +259,8 @@ export class FlightSim {
 
   constructor(opts: SpawnOpts) {
     if (opts.mode === 'pad') this.spawnPad();
-    else this.spawnOrbit();
+    else if (opts.mode === 'orbit') this.spawnOrbit();
+    else this.spawnLunar();
   }
 
   // ------------------------------------------------------------ spawning
@@ -256,7 +283,8 @@ export class FlightSim {
   }
 
   private spawnOrbit(): void {
-    for (const p of ['sivb', 'slaSm', 'cm'] as PartId[]) this.attached.add(p);
+    for (const p of ['sivb', 'sla', 'lm', 'sm', 'cm'] as PartId[]) this.attached.add(p);
+    for (const p of ['lm', 'sm'] as PartId[]) this.prop[p] = PARTS[p].prop;
     this.prop.sivb = 74_000;
     this.stage = 'sivb';
     this.engines = [{ on: false, level: 0 }];
@@ -265,13 +293,13 @@ export class FlightSim {
     this.met = 11 * 60 + 49;
     this.guidance = false;
     this.sas = 'pro';
-    // a 185 km circular parking orbit at 32.5°, over the day side
+    // a 185 km circular parking orbit in the Moon's plane (as the launch puts it), over the day side
     const rr = R_E + TARGET_ALT;
-    const inc = (32.5 * Math.PI) / 180;
-    const sunEq = norm([sunDirection()[0], 0, sunDirection()[2]]);
-    const pos = rotY(sunEq, -0.55);
-    const east = norm(cross([0, 1, 0], pos));
-    const vdir = norm(add(scale(east, Math.cos(inc)), scale([0, 1, 0], Math.sin(inc))));
+    const N = MOON_ORBIT.N;
+    const sd = sunDirection();
+    const sunIn = norm(sub(sd, scale(N, dot(sd, N))));
+    const pos = norm(add(scale(sunIn, Math.cos(-0.55)), scale(cross(N, sunIn), Math.sin(-0.55))));
+    const vdir = norm(cross(N, pos));
     const vc = Math.sqrt(EARTH.GM / rr);
     this.massProps();
     this.r = scale(pos, rr);
@@ -284,6 +312,38 @@ export class FlightSim {
     this.log('In a 185 km parking orbit. The S-IVB has propellant for about 300 s of burning and two restarts.', 'good');
     this.orbitAnnounced = true;
     this.towerCleared = this.machPassed = this.maxQPassed = true;
+  }
+
+  /** the command and service module docked to the lunar module, in a 110 km orbit round the Moon */
+  private spawnLunar(): void {
+    for (const p of ['lm', 'sm', 'cm'] as PartId[]) this.attached.add(p);
+    this.prop.lm = PARTS.lm.prop;
+    this.prop.sm = 9_000;
+    this.layout = 'docked';
+    this.stage = 'sm';
+    this.engines = [{ on: false, level: 0 }];
+    this.held = false;
+    this.guidance = false;
+    this.sas = 'pro';
+    this.legsOut = true;
+    this.time = 3.3 * 86400;
+    this.met = this.time;
+    this.massProps();
+    const m = moonState(this.time);
+    const N = MOON_ORBIT.N;
+    const rr = MOON.R + 110_000;
+    // start on the day side
+    const sd = sunDirection();
+    const sunIn = norm(sub(sd, scale(N, dot(sd, N))));
+    const pos = norm(add(scale(sunIn, Math.cos(-1.2)), scale(cross(N, sunIn), Math.sin(-1.2))));
+    const vdir = norm(cross(N, pos));
+    this.r = add(m.r, scale(pos, rr));
+    this.v = add(m.v, scale(vdir, Math.sqrt(MOON.GM / rr)));
+    const x = norm(cross(vdir, pos));
+    this.q = qFromAxes(x, vdir, norm(cross(x, vdir)));
+    this.towerCleared = this.machPassed = this.maxQPassed = true;
+    this.orbitAnnounced = true;
+    this.log('In lunar orbit, 110 km up: the command and service module docked to the lunar module.', 'good');
   }
 
   private placeOnPad(): void {
@@ -299,49 +359,100 @@ export class FlightSim {
   }
 
   // ------------------------------------------------------------ queries
+  /** height above Earth's mean radius (the air, the pad, re-entry) */
   get alt(): number {
     return len(this.r) - R_E;
   }
-  /** height of the lowest point of the vehicle */
+  /** a part's span and centres of mass as the parts sit now */
+  py(p: PartId): PartDef {
+    const d = PARTS[p];
+    if (p !== 'lm' || this.layout !== 'docked') return d;
+    return { ...d, y0: DOCK_C - d.y1, y1: DOCK_C - d.y0, yDry: DOCK_C - d.yDry, yProp: DOCK_C - d.yProp };
+  }
+  /** inside the Moon's sphere of influence: its gravity rules, and positions are measured from it */
+  get nearMoon(): boolean {
+    return len(sub(this.r, moonPos(this.time))) < MOON.soi;
+  }
+  get body(): Body {
+    return this.nearMoon ? MOON : EARTH;
+  }
+  /** position and velocity relative to the body we are near */
+  get rel(): V3 {
+    return this.nearMoon ? sub(this.r, moonPos(this.time)) : this.r;
+  }
+  get vRel(): V3 {
+    return this.nearMoon ? sub(this.v, moonState(this.time).v) : this.v;
+  }
+  /** height above the body's mean radius */
+  get altB(): number {
+    return len(this.rel) - this.body.R;
+  }
+  /** height of the lunar ground (above the mean radius) under a Moon-relative position */
+  groundAt(rel: V3): number {
+    return moonHeight(toMoonFixed(norm(rel), this.time));
+  }
+  /** height of the lowest point of the vehicle above the ground (or the sea) */
   get lowAlt(): number {
     let y0 = Infinity;
-    for (const p of this.attached) y0 = Math.min(y0, PARTS[p].y0);
+    for (const p of this.attached) y0 = Math.min(y0, this.py(p).y0);
     const low = add(this.r, qrot(this.q, [0, y0 - this.ycg, 0]));
-    return len(low) - R_E;
+    if (!this.nearMoon) return len(low) - R_E;
+    const rel = sub(low, moonPos(this.time));
+    const rl = len(rel);
+    return rl - MOON.R - (rl - MOON.R < 30_000 ? this.groundAt(rel) : 0);
   }
   get up(): V3 {
-    return norm(this.r);
+    return norm(this.rel);
   }
   get forward(): V3 {
     return qrot(this.q, [0, 1, 0]);
   }
+  /** velocity over the ground (the air near Earth, the turning surface near the Moon) */
   get vSurf(): V3 {
-    return sub(this.v, airVelocity(this.r));
+    if (!this.nearMoon) return sub(this.v, airVelocity(this.r));
+    return sub(this.vRel, moonSpinVel(this.rel));
   }
   get vVert(): number {
-    return dot(this.v, this.up);
+    return dot(this.vRel, this.up);
   }
+  /** the orbit round Earth */
   get orbit(): Orbit {
     return orbitOf(this.r, this.v);
+  }
+  /** the orbit round whichever body we are near (positions relative to it) */
+  get orb(): Orbit {
+    return this.nearMoon ? orbitOf(this.rel, this.vRel, MOON.GM) : this.orbit;
   }
   /** model-frame position of the vehicle's origin (base of S-IC) in ECI */
   get origin(): V3 {
     return sub(this.r, qrot(this.q, [0, this.ycg, 0]));
   }
   get isCm(): boolean {
-    return this.attached.has('cm') && !this.attached.has('slaSm');
+    return this.attached.has('cm') && !this.attached.has('sm');
+  }
+  get isLm(): boolean {
+    return this.layout === 'lm';
   }
   get canAbort(): boolean {
     return this.attached.has('les') && !this.isCm && !this.outcome;
   }
   get canCmSep(): boolean {
-    return !this.attached.has('les') && this.attached.has('slaSm') && this.attached.has('cm') && !this.held && !this.outcome;
+    return !this.attached.has('les') && this.attached.has('sm') && this.attached.has('cm') && this.layout === 'stack' && !this.nearMoon && !this.held && !this.outcome;
   }
 
   status(): Status {
     if (this.outcome) return this.outcome.status;
     if (this.held) return 'pad';
+    if (this.nearMoon) {
+      const om = this.orb;
+      if (om.energy >= 0) return this.thrust > 0 ? 'ascent' : 'transit';
+      if (om.rp > MOON.R + 4_000) return 'orbit';
+      if (this.thrust > 0) return 'ascent';
+      return this.vVert > 0 ? 'suborbital' : 'falling';
+    }
     const o = this.orbit;
+    // on the way out toward the Moon's distance
+    if (o.e < 1 && o.ra > 250_000_000 && o.ra < EARTH.soi && o.rp > R_E + EARTH.atmosphereTop) return 'transit';
     // free of Earth: on an escape path, or on an orbit that reaches past Earth's sphere of influence
     if (o.energy >= 0 || o.ra > EARTH.soi || len(this.r) > EARTH.soi) return 'safe';
     if (o.rp > R_E + EARTH.atmosphereTop) return 'orbit';
@@ -352,6 +463,15 @@ export class FlightSim {
 
   /** seconds until the trajectory meets the ground (vacuum estimate), or NaN */
   timeToImpact(): number {
+    if (this.nearMoon) {
+      const om = this.orb;
+      if (om.energy >= 0 || om.rp > MOON.R) return NaN;
+      if (this.lowAlt < 20_000) {
+        const vv = this.vVert, g = MOON.GM / len(this.rel) ** 2;
+        return (vv + Math.sqrt(vv * vv + 2 * g * Math.max(0, this.lowAlt))) / g;
+      }
+      return timeBetween(om, om.nu, descendingAnomaly(om, MOON.R), MOON.GM);
+    }
     const o = this.orbit;
     if (o.energy >= 0 || o.rp > R_E) return NaN;
     if (this.alt < 40_000) {
@@ -364,7 +484,7 @@ export class FlightSim {
   }
   timeToEntry(): number {
     const o = this.orbit;
-    if (this.alt < 122_000 || o.energy >= 0 || o.rp > R_E + 122_000) return NaN;
+    if (this.nearMoon || this.alt < 122_000 || o.energy >= 0 || o.rp > R_E + 122_000) return NaN;
     return timeBetween(o, o.nu, descendingAnomaly(o, R_E + 122_000));
   }
 
@@ -372,6 +492,20 @@ export class FlightSim {
   deltaV(): { stage: number; total: number; burn: number } {
     let m = this.mass;
     let total = 0, stageDv = 0, burn = 0;
+    if (this.stage === 'sm' || this.stage === 'lm') {
+      // the spacecraft: the service module's engine with the lander aboard, then the lander's own
+      const st = this.stage;
+      const E = ENGINES[st];
+      const isp = E.thrustVac / E.mdot;
+      stageDv = isp * Math.log(m / Math.max(1, m - this.prop[st]));
+      burn = this.prop[st] / E.mdot;
+      total = stageDv;
+      if (st === 'sm' && this.attached.has('lm')) {
+        const ml = PARTS.lm.dry + this.prop.lm;
+        total += (ENGINES.lm.thrustVac / ENGINES.lm.mdot) * Math.log(ml / PARTS.lm.dry);
+      }
+      return { stage: stageDv, total, burn };
+    }
     for (const s of ['sic', 'sii', 'sivb'] as const) {
       if (!this.attached.has(s)) continue;
       const E = ENGINES[s];
@@ -401,7 +535,7 @@ export class FlightSim {
   massProps(): void {
     let m = 0, my = 0;
     for (const p of this.attached) {
-      const d = PARTS[p];
+      const d = this.py(p);
       m += d.dry + this.prop[p];
       my += d.dry * d.yDry + this.prop[p] * d.yProp;
     }
@@ -409,7 +543,7 @@ export class FlightSim {
     this.ycg = my / this.mass;
     let I = 0, Ir = 0;
     for (const p of this.attached) {
-      const d = PARTS[p];
+      const d = this.py(p);
       const mm = d.dry + this.prop[p];
       const yc = (d.dry * d.yDry + this.prop[p] * d.yProp) / Math.max(1, mm);
       const L = d.y1 - d.y0;
@@ -447,6 +581,14 @@ export class FlightSim {
   ignite(): void {
     if (this.held) return this.stageNext();
     if (this.outcome || !this.stage) return;
+    if (this.stage === 'sm' || this.stage === 'lm') {
+      if (this.engines[0].on) return;
+      if (this.prop[this.stage] <= 0) return this.log(`${ENGINES[this.stage].kind} is out of propellant.`, 'warn');
+      this.cutoffCommanded = false;
+      this.engines[0].on = true;
+      this.log(this.stage === 'sm' ? 'Service propulsion system ignition.' : 'Descent engine ignition.', 'stage');
+      return;
+    }
     if (this.stage === 'sivb') {
       if (this.engines[0].on) return;
       if (this.prop.sivb <= 0) return this.log('S-IVB is out of propellant.', 'warn');
@@ -477,7 +619,7 @@ export class FlightSim {
       if (any) this.log('Pad shutdown: engines cut on the hold-down arms. Count recycled to T-20 s.', 'warn');
       return;
     }
-    if (any) this.log(`${ENGINES[this.stage].kind === 'F-1' ? 'F-1' : 'J-2'} cutoff commanded.`, 'info');
+    if (any) this.log(`${ENGINES[this.stage].kind} cutoff.`, 'info');
   }
 
   setGuidance(on: boolean): void {
@@ -544,6 +686,55 @@ export class FlightSim {
     this.log('CM separation: the command module is on its own, heat shield first for entry.', 'stage');
   }
 
+  /** turn the vehicle frame end for end about height c: the part that was flipped becomes the reference */
+  private reframe(c: number, layout: Layout): void {
+    const o = this.origin;
+    const q0 = this.q;
+    this.q = qnorm(qmul(q0, RX_PI));
+    this.w = [this.w[0], -this.w[1], -this.w[2]];
+    const no = add(o, qrot(q0, [0, c, 0]));
+    this.layout = layout;
+    this.massProps();
+    this.r = add(no, qrot(this.q, [0, this.ycg, 0]));
+  }
+
+  /**
+   * Transposition, docking and extraction are done (the screen animates them):
+   * the S-IVB drifts away with the adapter's panels gone, and the command and
+   * service module flies on with the lunar module on its nose. `pulled` is how
+   * far the docked pair backed away from the S-IVB along the old axis.
+   */
+  dock(pulled: number): void {
+    if (this.layout !== 'stack' || !this.attached.has('lm')) return;
+    for (const e of this.engines) e.on = false;
+    this.attached.delete('sla');
+    this.massProps();
+    this.splitOff(['sivb'], 0, 0, 0);
+    // the S-IVB is left behind where it was; the pair moves on
+    this.reframe(DOCK_C + pulled, 'docked');
+    this.stage = 'sm';
+    this.engines = [{ on: false, level: 0 }];
+    this.guidance = false;
+    this.sas = 'stab';
+    this.holdQ = null;
+    this.log('Docked: the command module has the lunar module on its nose. The S-IVB is cast off.', 'stage');
+  }
+
+  /** the lunar module undocks and flies on its own; the command module stays up in orbit */
+  undock(): void {
+    if (this.layout !== 'docked') return;
+    for (const e of this.engines) e.on = false;
+    this.splitOff(['sm', 'cm'], -0.4, 0, 0);
+    this.reframe(DOCK_C, 'lm');
+    this.stage = 'lm';
+    this.engines = [{ on: false, level: 0 }];
+    this.legsOut = true;
+    this.throttle = 1;
+    this.sas = 'stab';
+    this.holdQ = null;
+    this.log('Undocked: the lunar module is flying on its own. The command module stays in orbit.', 'stage');
+  }
+
   // ------------------------------------------------------------ staging
   private splitOff(parts: PartId[], dv: number, burn: number, push: number): void {
     const oldY = this.ycg;
@@ -552,7 +743,7 @@ export class FlightSim {
     // the debris' own centre of mass
     let m = 0, my = 0;
     for (const p of moved) {
-      const d = PARTS[p];
+      const d = this.py(p);
       m += d.dry + this.prop[p];
       my += d.dry * d.yDry + this.prop[p] * d.yProp;
     }
@@ -631,19 +822,28 @@ export class FlightSim {
   advance(dt: number): void {
     if (this.outcome) {
       this.time += dt;
+      if (this.moonRest) {
+        const m = moonState(this.time);
+        const rel = fromMoonFixed(this.moonRest.p, this.time);
+        this.r = add(m.r, rel);
+        this.v = add(m.v, moonSpinVel(rel));
+        const A = moonAxes(this.time);
+        this.q = qnorm(qmul(qFromAxes(A.X, A.Y, A.Z), this.moonRest.q));
+      }
       for (const d of this.debris) if (!d.gone) this.stepDebris(d, dt);
       this.debris = this.debris.filter((d) => !d.gone);
       return;
     }
     const powered = this.thrust > 0 || this.lesBurn > 0 || this.engines.some((e) => e.on || e.level > 0);
     const inAir = this.alt < EARTH.atmosphereTop;
-    const maxSub = powered || inAir || this.held ? 0.02 : this.alt < 2_000_000 ? 2 : 10;
+    const dMoon = len(sub(this.r, moonPos(this.time)));
+    const maxSub = powered || inAir || this.held ? 0.02 : dMoon < MOON.R + 300_000 ? 1 : dMoon < 20_000_000 ? 2 : this.alt < 2_000_000 ? 2 : 10;
     const n = Math.min(4000, Math.max(1, Math.ceil(dt / maxSub)));
     const h = dt / n;
     for (let i = 0; i < n; i++) {
       this.step(h);
       if (this.outcome) break;
-      this.stepHook?.();
+      this.stepHook?.(h);
     }
     // stages and other cast-off parts fall on their own
     for (const d of this.debris) if (!d.gone) this.stepDebris(d, dt);
@@ -673,7 +873,7 @@ export class FlightSim {
     const p = air(this.alt).p;
     if (E) {
       for (const e of this.engines) {
-        const target = e.on ? 1 : 0;
+        const target = e.on ? (this.stage === 'lm' ? Math.max(0.1, Math.min(1, this.throttle)) : 1) : 0;
         e.level += Math.sign(target - e.level) * Math.min(Math.abs(target - e.level), (target > e.level ? 1 / E.spoolUp : 2.5) * dt);
         thrust += e.level * Math.max(0, E.thrustVac - (E.thrustVac - E.thrustSL) * (p / 101325));
         flow += e.level * E.mdot;
@@ -722,8 +922,6 @@ export class FlightSim {
     }
 
     // forces
-    const rm = len(this.r);
-    const gvec = scale(this.r, -EARTH.GM / (rm * rm * rm));
     const fwd = this.forward;
     let F: V3 = scale(fwd, thrust);
     const at = air(this.alt);
@@ -758,7 +956,7 @@ export class FlightSim {
     }
     this.alpha = alpha;
     this.qAlpha = this.qDyn * ((alpha * 180) / Math.PI);
-    const acc = addScaled(gvec, F, 1 / this.mass);
+    const acc = scale(F, 1 / this.mass);
     this.lastAccel = scale(F, 1 / this.mass);
 
     // torques: steering (engine gimbal, APS / RCS) against aerodynamic moments, in short
@@ -768,14 +966,12 @@ export class FlightSim {
 
     // integrate translation (RK4 for gravity; the other forces held over the substep)
     const aOther = scale(F, 1 / this.mass);
-    const gAt = (r: V3): V3 => {
-      const m = len(r);
-      return scale(r, -EARTH.GM / (m * m * m));
-    };
+    const t0 = this.time - dt;
+    const gAt = (r: V3, h = 0): V3 => gravityAt(r, t0 + h);
     const k1v = add(gAt(this.r), aOther), k1r = this.v;
-    const k2v = add(gAt(addScaled(this.r, k1r, dt / 2)), aOther), k2r = addScaled(this.v, k1v, dt / 2);
-    const k3v = add(gAt(addScaled(this.r, k2r, dt / 2)), aOther), k3r = addScaled(this.v, k2v, dt / 2);
-    const k4v = add(gAt(addScaled(this.r, k3r, dt)), aOther), k4r = addScaled(this.v, k3v, dt);
+    const k2v = add(gAt(addScaled(this.r, k1r, dt / 2), dt / 2), aOther), k2r = addScaled(this.v, k1v, dt / 2);
+    const k3v = add(gAt(addScaled(this.r, k2r, dt / 2), dt / 2), aOther), k3r = addScaled(this.v, k2v, dt / 2);
+    const k4v = add(gAt(addScaled(this.r, k3r, dt), dt), aOther), k4r = addScaled(this.v, k3v, dt);
     this.r = add(this.r, scale(add(add(k1r, scale(k2r, 2)), add(scale(k3r, 2), k4r)), dt / 6));
     this.v = add(this.v, scale(add(add(k1v, scale(k2v, 2)), add(scale(k3v, 2), k4v)), dt / 6));
     void acc;
@@ -809,7 +1005,7 @@ export class FlightSim {
     } else if (s === 'sii') {
       if (this.autoStage) this.separateSii();
       else this.log('S-II propellant depleted. Press SPACE to stage.', 'warn');
-    } else this.log('S-IVB propellant depleted.', 'warn');
+    } else this.log(`${s === 'sivb' ? 'S-IVB' : ENGINES[s].kind} propellant depleted.`, 'warn');
   }
 
   private countdown(): void {
@@ -864,6 +1060,11 @@ export class FlightSim {
     const vr = len(this.vSurf);
     this.heat = air(this.alt).rho * vr * vr * vr;
     if (!this.isCm && this.vVert < 0 && this.heat > 1.0e8 && vr > 2000) return this.lose('Burned up on re-entry', 'Without a heat shield the vehicle broke up and burned in the upper atmosphere. Separate the command module before entry to bring the crew home.');
+    // the Moon's surface: a lander standing on its legs, or a crash
+    if (this.nearMoon) {
+      if (this.lowAlt <= 0) this.touchMoon();
+      return;
+    }
     // the ground
     if (this.lowAlt <= 0) {
       const v = len(this.vSurf);
@@ -887,6 +1088,38 @@ export class FlightSim {
       this.orbitAnnounced = false;
       this.log('Orbit decaying: periapsis is inside the atmosphere.', 'warn');
     }
+  }
+
+  private touchMoon(): void {
+    const vs = this.vSurf;
+    const up = this.up;
+    const vz = dot(vs, up);
+    const vh = len(sub(vs, scale(up, vz)));
+    const tilt = (Math.acos(Math.max(-1, Math.min(1, dot(this.forward, up)))) * 180) / Math.PI;
+    for (const e of this.engines) e.on = false;
+    if (this.isLm && this.legsOut && -vz < 3.5 && vh < 2.5 && tilt < 15) {
+      const rel = this.rel;
+      const A = moonAxes(this.time);
+      const qa = qFromAxes(A.X, A.Y, A.Z);
+      // settle on the surface, upright on the four footpads
+      const lowNow = this.lowAlt;
+      const relSet = sub(rel, scale(up, lowNow));
+      this.moonRest = { p: toMoonFixed(relSet, this.time), q: qnorm(qmul(qconj(qa), this.q)) };
+      const f = toMoonFixed(norm(rel), this.time);
+      const lat = (Math.asin(Math.max(-1, Math.min(1, f[2]))) * 180) / Math.PI, lon = (Math.atan2(f[1], f[0]) * 180) / Math.PI;
+      this.outcome = {
+        status: 'landed',
+        title: 'Landed on the Moon',
+        text: `Contact light, engine stop. The lunar module is down at ${Math.abs(lat).toFixed(2)}°${lat >= 0 ? 'N' : 'S'} ${Math.abs(lon).toFixed(2)}°${lon >= 0 ? 'E' : 'W'}, touching down at ${(-vz).toFixed(1)} m/s with ${(this.prop.lm / 1000).toFixed(2)} t of fuel to spare.`,
+      };
+      this.thrust = 0;
+      this.log('Engine stop. The lunar module has landed on the Moon.', 'good');
+      this.w = [0, 0, 0];
+      this.advance(0);
+      return;
+    }
+    const v = len(vs);
+    this.lose('Crashed on the Moon', this.isLm ? `The lunar module hit the surface at ${v.toFixed(1)} m/s${tilt > 15 ? `, tilted ${tilt.toFixed(0)}°` : ''}. A safe landing needs under 3.5 m/s down, under 2.5 m/s sideways and the lander upright.` : `The spacecraft hit the Moon at ${v.toFixed(0)} m/s.`);
   }
 
   private lose(title: string, text: string): void {
@@ -916,8 +1149,9 @@ export class FlightSim {
       if (this.qDyn > 30 || this.chute !== 'none') return { f: len(vrel) > 1 ? scale(norm(vrel), -1) : up };
     }
     if (this.guidance) return this.guide(vrel);
-    const vref = this.alt < 70_000 ? vrel : this.v;
-    const o = cross(this.r, this.v);
+    if (this.sas === 'aim' && this.aim) return { f: this.aim };
+    const vref = this.nearMoon ? (this.altB < 15_000 ? vrel : this.vRel) : this.alt < 70_000 ? vrel : this.v;
+    const o = cross(this.rel, this.vRel);
     switch (this.sas) {
       case 'pro':
         return { f: norm(vref) };
@@ -1010,12 +1244,14 @@ export class FlightSim {
     }
     const cm = this.isCm;
     const aps = this.attached.has('sivb') ? 4.0e5 : 0;
-    const rcs = cm ? 1.2e4 : this.attached.has('slaSm') ? 6.0e4 : 0;
+    const lm = this.isLm;
+    const rcs = cm ? 1.2e4 : lm ? 9.0e3 : this.attached.has('sm') ? 6.0e4 : 0;
     const tauP = Math.max(tauG, aps, rcs, 2000);
     const tauR = Math.max(tauRollG, aps * 0.6, rcs, 1000);
     const aMax = tauP / this.Itr;
-    const maxRate = Math.max(0.004, Math.min((cm ? 6 : 2.5) * (Math.PI / 180), aMax * 6));
-    const maxRateRoll = Math.max(0.004, Math.min((cm ? 6 : 3) * (Math.PI / 180), (tauR / this.Iroll) * 6));
+    const nimble = cm || lm || this.layout === 'docked';
+    const maxRate = Math.max(0.004, Math.min((nimble ? 7 : 2.5) * (Math.PI / 180), aMax * 6));
+    const maxRateRoll = Math.max(0.004, Math.min((nimble ? 7 : 3) * (Math.PI / 180), (tauR / this.Iroll) * 6));
 
     // desired body rates
     const inp = this.input;
@@ -1104,7 +1340,12 @@ export class FlightSim {
     for (let i = 0; i < n; i++) {
       const rm = len(d.r);
       const alt = rm - R_E;
-      let a = scale(d.r, -EARTH.GM / (rm * rm * rm));
+      let a = gravityAt(d.r, this.time + i * h);
+      const dm = len(sub(d.r, moonPos(this.time + i * h)));
+      if (dm < MOON.R) {
+        d.gone = true;
+        break;
+      }
       if (alt < 200_000) {
         const vrel = sub(d.v, airVelocity(d.r));
         const vr = len(vrel);
@@ -1125,7 +1366,7 @@ export class FlightSim {
         break;
       }
     }
-    if (len(sub(d.r, this.r)) > 4_000_000) d.gone = true;
+    if (len(sub(d.r, this.r)) > 8_000_000) d.gone = true;
   }
 }
 

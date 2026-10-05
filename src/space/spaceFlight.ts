@@ -14,6 +14,7 @@ import { FlightUI } from './flightUI';
 import { buildSaturnV, saturnParts } from './saturnVModel';
 import { updateRecord } from './record';
 import { Autopilot } from './autopilot';
+import { menuMusic } from '../audio/menuMusic';
 import { audio } from '../audio/audio';
 import type { LaunchSite } from '../ui/menu/launchSite';
 
@@ -275,6 +276,8 @@ export class SpaceFlight {
     this.ui.show(true);
     this.ui.toggleHelp(false);
     this.sound.start();
+    // the music carries on through the flight, looping seamlessly
+    menuMusic.want('flight', true);
     if (mode === 'pad') this.ui.flash('SATURN V · PAD 1', '');
     else this.ui.flash('PARKING ORBIT · 185 KM', 'good');
   }
@@ -283,6 +286,7 @@ export class SpaceFlight {
     this.active = false;
     this.ui.show(false);
     this.sound.stop();
+    menuMusic.want('flight', false);
     this.clearDebris();
     this.holder.parent?.remove(this.holder);
     this.padLight.parent?.remove(this.padLight);

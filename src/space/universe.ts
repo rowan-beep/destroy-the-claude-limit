@@ -307,7 +307,7 @@ export const MOON_ORBIT = (() => {
   const N = norm([-0.341623, 0.846355, -0.408628]);
   const e1 = norm(cross([0, 1, 0], N));
   const e2 = cross(N, e1);
-  return { D: 384_400_000, n: MOON.spin, N, e1, e2, phase0: 2.25 };
+  return { D: 384_400_000, n: MOON.spin, N, e1, e2, phase0: 0.1 };
 })();
 
 /** the Moon's position and velocity (ECI) at sim time t */
@@ -357,11 +357,11 @@ export function gravityAt(r: V3, t: number): V3 {
 // near the lander and tells the simulation where the surface is.
 const CRATER_OCT: [number, number, number][] = [
   // [cell size in km, depth / diameter, share of cells with a crater]
-  [260, 0.035, 0.5],
-  [90, 0.06, 0.6],
-  [30, 0.09, 0.62],
-  [10, 0.12, 0.66],
-  [3.2, 0.15, 0.7],
+  [260, 0.012, 0.5],
+  [90, 0.03, 0.6],
+  [30, 0.06, 0.62],
+  [10, 0.1, 0.66],
+  [3.2, 0.14, 0.7],
   [1.0, 0.17, 0.72],
   [0.32, 0.19, 0.75],
   [0.1, 0.2, 0.75],

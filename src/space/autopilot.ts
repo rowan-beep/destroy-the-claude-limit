@@ -8,8 +8,9 @@
 
 import { FlightSim, ENGINES } from './flightSim';
 import { EARTH, V3, dot, len, norm, scale } from './universe';
+import { LunarPilot } from './lunarPilot';
 
-export type ActionId = 'launch' | 'toOrbit' | 'home' | 'higher' | 'leave' | 'stop';
+export type ActionId = 'launch' | 'toOrbit' | 'home' | 'higher' | 'leave' | 'stop' | 'moon' | 'land';
 export interface Action {
   id: ActionId;
   label: string;
@@ -47,9 +48,17 @@ const mmss = (t: number) => {
 
 export class Autopilot {
   prog: Program | null = null;
+  /** the trip to the Moon and the landing */
+  readonly lunar = new LunarPilot();
 
   reset(): void {
     this.prog = null;
+    this.lunar.reset();
+  }
+
+  /** some program is flying the vehicle */
+  get busy(): boolean {
+    return !!this.prog || !!this.lunar.prog;
   }
 
   // ------------------------------------------------------------------ what the vehicle can still do
@@ -108,6 +117,8 @@ export class Autopilot {
 
   // ------------------------------------------------------------------ the choices on screen
   actions(sim: FlightSim): Action[] {
+    const la = this.prog ? null : this.lunar.actions(sim);
+    if (la) return la;
     if (sim.outcome) return [];
     if (this.prog) return [{ id: 'stop', label: 'STOP AUTOPILOT', sub: 'take the controls yourself', enabled: true, kind: 'stop' }];
     if (sim.held) {
@@ -129,6 +140,8 @@ export class Autopilot {
     // in orbit, or free of Earth
     const avail = this.dvAvail(sim);
     const list: Action[] = [];
+    const moon = this.lunar.moonAction(sim);
+    if (moon) list.push(moon);
     if (o.e < 1) {
       const need = this.homeNeed(sim);
       const ok = need === 0 || avail >= need * 1.1 + 10;
@@ -149,6 +162,7 @@ export class Autopilot {
 
   /** do what the player picked */
   run(id: ActionId, sim: FlightSim): void {
+    if (id === 'moon' || id === 'land') return this.lunar.run(id, sim);
     switch (id) {
       case 'launch':
         if (!sim.held || sim.counting) return;
@@ -193,6 +207,7 @@ export class Autopilot {
   }
 
   stop(sim: FlightSim, why: string): void {
+    if (this.lunar.prog) return this.lunar.stop(sim, why);
     if (!this.prog) return;
     if (this.prog.burning) sim.cutoff();
     this.prog = null;
@@ -235,6 +250,7 @@ export class Autopilot {
 
   /** once a frame, after the physics */
   update(sim: FlightSim, dt: number): void {
+    if (this.lunar.prog) return this.lunar.update(sim, dt);
     const p = this.prog;
     if (!p) return;
     if (sim.outcome) {
@@ -292,7 +308,8 @@ export class Autopilot {
   }
 
   /** after every physics substep: cut the engine the moment a burn has done its job */
-  onStep(sim: FlightSim): void {
+  onStep(sim: FlightSim, h = 0): void {
+    if (this.lunar.prog) return this.lunar.onStep(sim, h);
     const p = this.prog;
     if (!p || !p.burning) return;
     const o = sim.orbit;
@@ -331,6 +348,8 @@ export class Autopilot {
   /** one line: what is happening and what to do */
   guide(sim: FlightSim): string {
     if (sim.outcome) return '';
+    const lg = this.prog ? null : this.lunar.guide(sim);
+    if (lg) return lg;
     const o = sim.orbit;
     const p = this.prog;
     if (sim.held) {
@@ -386,6 +405,8 @@ export class Autopilot {
 
   /** the time warp fast-forward may use right now */
   wantWarp(sim: FlightSim): number {
+    const lw = this.prog ? null : this.lunar.wantWarp(sim);
+    if (lw !== null) return lw;
     const o = sim.orbit;
     const p = this.prog;
     if (sim.held) return 4;

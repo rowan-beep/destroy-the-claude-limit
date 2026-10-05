@@ -1,5 +1,5 @@
-// Menu music for both games: "High Up", looping, heard only while a main menu
-// (Air Combat or Space Exploration) is on screen. It plays through the game's
+// Music for both games: "High Up", looping, heard while a main menu (Air
+// Combat or Space Exploration) is on screen and while flying the Saturn V. It plays through the game's
 // own audio context (the one the engines and clicks already use), decoded
 // once straight from the page so no network request is needed, and loops
 // without a gap: each pass starts a few seconds before the last one ends and
