@@ -47,6 +47,7 @@ export class SpaceMenu {
   private heroK: HTMLElement;
   private heroT: HTMLElement;
   private timer = 0;
+  private musBtn!: HTMLButtonElement;
 
   constructor(parent: HTMLElement, private cb: SpaceMenuCallbacks) {
     this.root = el('div', 'screen menu-root sx2 hidden', parent);
@@ -83,7 +84,7 @@ export class SpaceMenu {
     });
     this.tabInd = el('div', 'sx2-tab-ind', tabs);
     const right = el('div', 'sx2-top-r', top);
-    const mus = el('button', 'sx2-music' + (menuMusic.enabled ? ' on' : ''), right) as HTMLButtonElement;
+    const mus = (this.musBtn = el('button', 'sx2-music' + (menuMusic.enabled ? ' on' : ''), right) as HTMLButtonElement);
     mus.type = 'button';
     mus.title = 'Music on / off';
     el('span', 'sx2-music-bars', mus).append(...[0, 1, 2, 3].map(() => document.createElement('i')));
@@ -153,7 +154,8 @@ export class SpaceMenu {
   show(v: boolean): void {
     const was = !this.root.classList.contains('hidden');
     this.root.classList.toggle('hidden', !v);
-    menuMusic.want(v);
+    menuMusic.want('space', v);
+    this.musBtn.classList.toggle('on', menuMusic.enabled);
     window.clearInterval(this.timer);
     if (v) {
       this.renderCommander();

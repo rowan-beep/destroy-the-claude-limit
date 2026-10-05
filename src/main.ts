@@ -17,6 +17,7 @@ import { PerfWatch } from './ui/perfWarning';
 import { Hangar } from './ui/menu/hangar';
 import { LaunchSite } from './ui/menu/launchSite';
 import { SpaceMenu } from './ui/menu/spaceMenu';
+import { menuMusic } from './audio/menuMusic';
 import { SpaceFlight } from './space/spaceFlight';
 import { loadProgram, saveProgram, Program } from './ui/menu/program';
 import { LoadingScreen, PauseMenu, ResultsScreen, ControlsModal, BriefingModal } from './ui/menu/screens';
@@ -171,7 +172,7 @@ async function boot(): Promise<void> {
   const flight = new SpaceFlight(() => getFactory(), document.body);
   flight.drawWith = (sc, cam) => game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping);
   flight.onExit = () => showMenus(game.state === 'menu');
-  if (import.meta.env.DEV) Object.assign(window, { __flight: flight });
+  if (import.meta.env.DEV) Object.assign(window, { __flight: flight, __music: menuMusic });
   const showMenus = (v: boolean) => {
     const space = program === 'space';
     if (flight.active) v = false;

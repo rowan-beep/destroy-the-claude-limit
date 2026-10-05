@@ -3,10 +3,11 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
-## v4.49.0 — Music in the space menu (2026-10-05)
+## v4.49.0 — Menu music (2026-10-05)
 
-- The Space Exploration menu has its own music now: "High Up" plays on a loop while you're in the menu. It fades in when the menu opens and fades out when you launch.
-- A MUSIC button in the top bar turns it on or off, with little bars that bounce while it plays. Your choice is remembered.
+- Menu music: "High Up" now plays in the main menus of both games, Air Combat and Space Exploration. It's only in the menus: it fades out smoothly when a mission or flight starts and fades back in when you return.
+- It loops seamlessly: the end of the track crossfades into the start, so there's never a gap or a jump.
+- Turn it on or off with MUSIC ON/OFF at the bottom of the Air Combat menu, or the MUSIC button in the Space Exploration top bar (its little bars bounce while it plays). The choice is shared by both menus and remembered.
 
 ## v4.48.0 — Easy rocket controls (2026-10-05)
 

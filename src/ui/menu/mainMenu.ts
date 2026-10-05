@@ -21,6 +21,7 @@ import { LIBRARY } from '../../aircraft/library';
 import { loadLogbook } from '../../game/logbook';
 import { loadNetPrefs } from '../../net/servers';
 import { programLogo, Program } from './program';
+import { menuMusic } from '../../audio/menuMusic';
 import type { TimeOfDay } from '../../render/environment';
 
 const DIFF_TEXT: Record<Difficulty, string> = {
@@ -76,6 +77,7 @@ function tw(s: AircraftSpec): number {
 
 export class MainMenu {
   readonly root: HTMLDivElement;
+  private musBtn!: HTMLButtonElement;
   private section: Section = 'play';
   private navBtns = new Map<Section, HTMLElement>();
   private titleEl: HTMLElement;
@@ -129,6 +131,9 @@ export class MainMenu {
     small('SETTINGS', () => cb.onSettings());
     small('CONTROLS', () => cb.onControls());
     small(`v${VERSION} NOTES`, () => wn.show(true));
+    const mus = (this.musBtn = small(menuMusic.enabled ? 'MUSIC ON' : 'MUSIC OFF', () => {
+      mus.textContent = menuMusic.toggle() ? 'MUSIC ON' : 'MUSIC OFF';
+    }));
     // only pop the notes up if the menu is still on screen (not after LAUNCH was pressed)
     setTimeout(() => {
       if (!this.root.classList.contains('hidden')) wn.showIfNew();
@@ -154,6 +159,8 @@ export class MainMenu {
 
   show(v: boolean): void {
     this.root.classList.toggle('hidden', !v);
+    menuMusic.want('air', v);
+    this.musBtn.textContent = menuMusic.enabled ? 'MUSIC ON' : 'MUSIC OFF';
     if (v) this.renderPilot();
   }
 
