@@ -13,7 +13,8 @@
 // ship (a floating origin).
 
 import * as THREE from 'three';
-import { MAP_W, MAP_H, buildMarsMaps, marsMaps, marsHeight, mapAlbedo } from './marsGlobe';
+import { MAP_W, MAP_H, buildMarsMaps, marsMaps, marsHeight, marsHeightParts, mapAlbedo, groundTint, setMarsPhoto, marsPhotoScale, hasMarsPhoto } from './marsGlobe';
+import marsPhotoUrl from './assets/mars_viking_mdim21.jpg';
 import type { Vec } from './marsPhysics';
 import { MARS } from './marsPhysics';
 import { boulderGeometry, groundMaterial } from './marsSurface';
@@ -50,12 +51,15 @@ void main() {
 
 const GLOBE_FRAG = /* glsl */ `
 uniform sampler2D albedoTex;
+uniform sampler2D photoTex;
+uniform float photo;
 uniform sampler2D heightTex;
 uniform vec3 sunF;
 uniform vec3 camW;
 uniform float ready;
 uniform float sunI;
 uniform vec3 hazeCol;
+uniform vec3 ctrW;
 varying vec3 vP;
 varying vec3 vW;
 #include <common>
@@ -65,24 +69,54 @@ vec2 llUV(vec3 d) {
   float lon = atan(d.y, d.x);
   return vec2(lon / (2.0 * PI) + 0.5, 0.5 - lat / PI);
 }
-float h3(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+// (no sin(): it loses precision far from the origin, and the lattice here reaches the tens of thousands)
+float h3(vec3 p) {
+  p = mod(p, 4096.0);
+  p = fract(p * vec3(0.1031, 0.1030, 0.0973));
+  p += dot(p, p.yxz + 33.33);
+  return fract((p.x + p.y) * p.z);
+}
 float vn(vec3 p) {
   vec3 i = floor(p), f = fract(p);
   f = f * f * (3.0 - 2.0 * f);
   return mix(mix(mix(h3(i), h3(i + vec3(1,0,0)), f.x), mix(h3(i + vec3(0,1,0)), h3(i + vec3(1,1,0)), f.x), f.y),
              mix(mix(h3(i + vec3(0,0,1)), h3(i + vec3(1,0,1)), f.x), mix(h3(i + vec3(0,1,1)), h3(i + vec3(1,1,1)), f.x), f.y), f.z);
 }
+float fbm5(vec3 p) {
+  float s = 0.0, a = 0.5;
+  for (int i = 0; i < 5; i++) { s += a * vn(p); p = p * 2.03 + vec3(1.7, 9.2, 3.1); a *= 0.5; }
+  return s / 0.97;
+}
 void main() {
   #include <logdepthbuf_fragment>
   vec3 d = normalize(vP);
   vec2 uv = llUV(d);
+  float camDist = length(camW - vW);
   vec3 alb = ready > 0.5 ? texture2D(albedoTex, uv).rgb : vec3(0.45, 0.26, 0.15);
   // the rich butterscotch of the orbital photographs: deeper and more saturated than the raw map
   float al = dot(alb, vec3(0.3, 0.55, 0.15));
   alb = max(vec3(0.0), mix(vec3(al), alb, 1.45)) * vec3(0.95, 0.82, 0.74);
-  // fine streaks and mottling below the map's resolution
-  float n = vn(d * 900.0) * 0.5 + vn(d * 3000.0) * 0.3 + vn(d * 9000.0) * 0.2;
-  alb *= 0.86 + 0.28 * n;
+  // Mars reflects about a quarter of the light: dark regions darker, bright dust brighter
+  alb = pow(alb / 0.42, vec3(1.5)) * 0.3;
+  // the Viking orbiters' real colours, once loaded (the texture's own mip filtering handles the distance)
+  if (photo > 0.0) {
+    // (graded as gradeMars() does for the ground)
+    vec3 c = texture2D(photoTex, uv).rgb;
+    float l = dot(c, vec3(0.3, 0.55, 0.15));
+    c = max(vec3(0.0), mix(vec3(l), c, 1.5)) * pow(max(1e-4, l) / 0.25, 0.25);
+    alb = c * vec3(1.12, 0.9, 0.68) * photo;
+  }
+  // the map is 20 km a pixel: below that, mottling, dark sand and bright dust at every scale,
+  // fading in as the camera comes close enough to see it
+  float near1 = 1.0 - smoothstep(4.0e6, 1.2e7, camDist);
+  float near2 = 1.0 - smoothstep(4.0e5, 2.0e6, camDist);
+  // (fbm clusters round 0.5: stretch it to the full range)
+  float m1 = smoothstep(0.32, 0.68, fbm5(d * 140.0));
+  float m2 = smoothstep(0.3, 0.7, fbm5(d * 1100.0));
+  float n = vn(d * 6000.0) * 0.6 + vn(d * 15000.0) * 0.4;
+  alb *= mix(1.0, 0.62 + 0.75 * m1, near1);
+  alb *= mix(1.0, 0.72 + 0.56 * m2, near2);
+  alb *= 0.9 + 0.2 * n;
   // relief from the height map: east and north slopes
   vec3 E = normalize(vec3(-d.y, d.x, 0.0) + 1e-6);
   vec3 N = cross(d, E);
@@ -91,7 +125,12 @@ void main() {
   float hN = texture2D(heightTex, uv - vec2(0.0, dv)).r - texture2D(heightTex, uv + vec2(0.0, dv)).r;
   float cl = max(0.05, sqrt(1.0 - d.z * d.z));
   float kmE = 2.0 * du * 2.0 * PI * ${(R / 1000).toFixed(1)} * cl, kmN = 2.0 * dv * PI * ${(R / 1000).toFixed(1)};
-  vec3 nrm = normalize(d - E * (hE / kmE) * 6.0 - N * (hN / kmN) * 6.0);
+  vec3 nrm = normalize(d - E * (hE / kmE) * 8.0 - N * (hN / kmN) * 8.0);
+  // hills, ridges and crater walls too small for the map: relief from noise, lit by the Sun
+  float bs = 2.2e-4;
+  float b0 = fbm5(d * 2200.0);
+  float bE = fbm5((d + E * bs) * 2200.0), bN = fbm5((d + N * bs) * 2200.0);
+  nrm = normalize(nrm - (E * (bE - b0) + N * (bN - b0)) / bs * 0.006 * near2);
   float mu0 = dot(nrm, sunF);
   float muG = dot(d, sunF);
   float lit = max(mu0, 0.0) * smoothstep(-0.08, 0.06, muG);
@@ -99,8 +138,9 @@ void main() {
   float day = smoothstep(-0.1, 0.15, muG);
   vec3 col = alb * (lit * sunI * RECIPROCAL_PI + vec3(0.34, 0.24, 0.17) * 0.35 * day);
   // dusty air: haze toward the limb, lit by the Sun
-  vec3 toCam = normalize(camW - vW);
-  float muV = max(0.02, dot(d, normalize(camW - vW + d * 0.0)));
+  // (in world space: d is Mars-fixed, the camera is not)
+  vec3 nW = normalize(vW - ctrW);
+  float muV = max(0.02, dot(nW, normalize(camW - vW)));
   float haze = (1.0 - exp(-0.07 / muV)) * smoothstep(-0.25, 0.2, muG);
   col = mix(col, hazeCol * max(0.0, muG + 0.15), clamp(haze, 0.0, 0.7));
   // a little skylight on the night side near the terminator
@@ -134,7 +174,7 @@ void main() {
   float k = pow(rim, 5.0) * day * (1.0 - 0.92 * hitsGround);
   // the limb: dusty pink in daylight, blue where the light comes in low
   vec3 c = mix(vec3(0.35, 0.5, 0.95), vec3(0.95, 0.62, 0.42), smoothstep(-0.1, 0.45, s));
-  gl_FragColor = vec4(c * k * 1.4, 1.0);
+  gl_FragColor = vec4(c * k * 0.75, 1.0);
 }`;
 
 const SIMPLE_VERT = /* glsl */ `
@@ -245,12 +285,34 @@ export class MarsView {
     const dummyH = new THREE.DataTexture(new Float32Array([0]), 1, 1, THREE.RedFormat, THREE.FloatType);
     dummyH.needsUpdate = true;
     this.globeMat = new THREE.ShaderMaterial({
-      uniforms: { albedoTex: { value: dummy }, heightTex: { value: dummyH }, sunF: { value: new THREE.Vector3(1, 0, 0) }, camW: { value: new THREE.Vector3() }, ready: { value: 0 }, lift: { value: 1 }, sunI: { value: 3.2 }, hazeCol: { value: new THREE.Vector3(0.6, 0.38, 0.23) } },
+      uniforms: { albedoTex: { value: dummy }, heightTex: { value: dummyH }, sunF: { value: new THREE.Vector3(1, 0, 0) }, camW: { value: new THREE.Vector3() }, ready: { value: 0 }, lift: { value: 1 }, photoTex: { value: dummy }, photo: { value: 0 }, sunI: { value: 3.2 }, ctrW: { value: new THREE.Vector3() }, hazeCol: { value: new THREE.Vector3(0.6, 0.38, 0.23) } },
       vertexShader: GLOBE_VERT,
       fragmentShader: GLOBE_FRAG,
     });
     const sg = new THREE.SphereGeometry(1, 512, 256);
     sg.rotateX(Math.PI / 2); // the pole along +Z
+    // the Viking colour mosaic: the globe's colours and, close up, the ground's
+    const img = new Image();
+    img.onload = () => {
+      try {
+        setMarsPhoto(img);
+        const t = new THREE.Texture(img);
+        t.colorSpace = THREE.SRGBColorSpace;
+        t.wrapS = THREE.RepeatWrapping;
+        t.anisotropy = 8;
+        t.generateMipmaps = true;
+        t.minFilter = THREE.LinearMipmapLinearFilter;
+        t.needsUpdate = true;
+        this.globeMat.uniforms.photoTex.value = t;
+        this.globeMat.uniforms.photo.value = marsPhotoScale();
+        // rebuild the ground in its new colours
+        this.patchAt = null;
+        this.rocksAt = null;
+      } catch {
+        /* the generated map stays */
+      }
+    };
+    img.src = marsPhotoUrl;
     this.globe = new THREE.Mesh(sg, this.globeMat);
     this.globe.frustumCulled = false;
     this.scene.add(this.globe);
@@ -262,7 +324,7 @@ export class MarsView {
       depthWrite: false,
       blending: THREE.AdditiveBlending,
     });
-    this.atmo = new THREE.Mesh(new THREE.SphereGeometry(R + 70_000, 192, 96), this.atmoMat);
+    this.atmo = new THREE.Mesh(new THREE.SphereGeometry(R + 70_000, 384, 192), this.atmoMat);
     this.atmo.frustumCulled = false;
     this.atmo.renderOrder = 2;
     this.scene.add(this.atmo);
@@ -294,9 +356,11 @@ export class MarsView {
     const stg = new THREE.BufferGeometry();
     stg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     stg.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    this.starMat = new THREE.PointsMaterial({ size: 1.6, sizeAttenuation: false, vertexColors: true, transparent: true, depthWrite: false, depthTest: false, fog: false, blending: THREE.AdditiveBlending });
+    this.starMat = new THREE.PointsMaterial({ size: 1.6, sizeAttenuation: false, vertexColors: true, transparent: false, depthWrite: false, depthTest: true, fog: false, blending: THREE.AdditiveBlending });
     this.stars = new THREE.Points(stg, this.starMat);
     this.stars.renderOrder = -9;
+    // out near the far plane, so the planet hides them
+    this.stars.scale.setScalar(1.6e6);
     this.stars.frustumCulled = false;
     this.scene.add(this.stars);
     // the Sun (a smaller disc than from Earth: Mars is half again as far)
@@ -352,10 +416,13 @@ export class MarsView {
     at.generateMipmaps = true;
     at.anisotropy = 8;
     at.needsUpdate = true;
-    const ht = new THREE.DataTexture(m.height, MAP_W, MAP_H, THREE.RedFormat, THREE.FloatType);
+    // half floats filter linearly everywhere: smooth relief instead of 20 km steps
+    const hh = new Uint16Array(n);
+    for (let i = 0; i < n; i++) hh[i] = THREE.DataUtils.toHalfFloat(m.height[i]);
+    const ht = new THREE.DataTexture(hh, MAP_W, MAP_H, THREE.RedFormat, THREE.HalfFloatType);
     ht.wrapS = THREE.RepeatWrapping;
-    ht.magFilter = THREE.NearestFilter;
-    ht.minFilter = THREE.NearestFilter;
+    ht.magFilter = THREE.LinearFilter;
+    ht.minFilter = THREE.LinearFilter;
     ht.needsUpdate = true;
     this.globeMat.uniforms.albedoTex.value = at;
     this.globeMat.uniforms.heightTex.value = ht;
@@ -387,6 +454,7 @@ export class MarsView {
     const sunF = sun.clone().applyMatrix4(new THREE.Matrix4().makeRotationZ(-v.angle));
     (this.globeMat.uniforms.sunF.value as THREE.Vector3).copy(sunF);
     (this.globeMat.uniforms.camW.value as THREE.Vector3).copy(cam.position);
+    (this.globeMat.uniforms.ctrW.value as THREE.Vector3).copy(this.globe.position);
     (this.atmoMat.uniforms.sunF.value as THREE.Vector3).copy(sun);
     (this.atmoMat.uniforms.camW.value as THREE.Vector3).copy(cam.position);
     (this.atmoMat.uniforms.ctr.value as THREE.Vector3).copy(this.globe.position);
@@ -401,9 +469,10 @@ export class MarsView {
     const dayAir = Math.min(1, thick * 3) * THREE.MathUtils.smoothstep(sunUp, -0.18, 0.12);
     this.skyMat.uniforms.thick.value = Math.min(1, thick * 3);
     this.sky.visible = camAlt < 90_000;
-    this.starMat.opacity = Math.max(0, 1 - dayAir * 1.6);
-    this.sunSprite.position.copy(cam.position).addScaledVector(sun, 800);
-    this.sunSprite.scale.setScalar(800 * 0.04);
+    this.starMat.color.setScalar(Math.max(0, 1 - dayAir * 1.6));
+    // (far out, so the planet hides the Sun when it is behind it)
+    this.sunSprite.position.copy(cam.position).addScaledVector(sun, 1.4e9);
+    this.sunSprite.scale.setScalar(1.4e9 * 0.04);
     // lights
     this.sunLight.position.copy(sun).multiplyScalar(250);
     this.sunLight.target.position.set(0, 0, 0);
@@ -534,15 +603,21 @@ export class MarsView {
     const put = (i: number, d: THREE.Vector3, rho: number, th: number) => {
       const lat = Math.asin(Math.max(-1, Math.min(1, d.z))) / D2R;
       const lon = Math.atan2(d.y, d.x) / D2R;
-      const hgt = marsHeight(lat, lon);
+      const hp = marsHeightParts(lat, lon);
+      const hgt = hp.base + hp.detail;
       const p = d.clone().multiplyScalar(R + hgt).sub(P0);
       pos.set([p.x, p.y, p.z], i * 3);
       mapAlbedo(lat, lon, alb);
+      groundTint(hp.px, hp.py, hp.pz, hp.detail, alb);
       // a little local variation in the dust
-      const vv = 0.92 + 0.16 * Math.sin(lat * 1300 + lon * 900) * Math.sin(lat * 470 - lon * 610);
+      const vv = 1;
       // (the same richer colour as the globe's, so the two meet without a seam)
       const al = alb[0] * 0.3 + alb[1] * 0.55 + alb[2] * 0.15;
-      col.set([Math.max(0, al + (alb[0] - al) * 1.45) * 0.95 * vv, Math.max(0, al + (alb[1] - al) * 1.45) * 0.82 * vv, Math.max(0, al + (alb[2] - al) * 1.45) * 0.74 * vv], i * 3);
+      if (hasMarsPhoto()) col.set([alb[0] * vv, alb[1] * vv, alb[2] * vv], i * 3);
+      else {
+        const g3 = [Math.max(0, al + (alb[0] - al) * 1.45) * 0.95, Math.max(0, al + (alb[1] - al) * 1.45) * 0.82, Math.max(0, al + (alb[2] - al) * 1.45) * 0.74];
+        col.set([Math.pow(g3[0] / 0.42, 1.5) * 0.3 * vv, Math.pow(g3[1] / 0.42, 1.5) * 0.3 * vv, Math.pow(g3[2] / 0.42, 1.5) * 0.3 * vv], i * 3);
+      }
       uv.set([(rho * Math.cos(th)) / 9, (rho * Math.sin(th)) / 9], i * 2);
     };
     put(0, cx.clone(), 0, 0);

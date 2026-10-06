@@ -37,7 +37,11 @@ void main() {
   float r2 = dot(q, q);
   if (r2 > 1.0) discard;
   // soft billows (lit a little more on top) or hard grains
-  float a = soft > 0.5 ? pow(1.0 - r2, 1.6) : 1.0 - smoothstep(0.6, 1.0, r2);
+  // billows: a soft, lumpy puff (no hard disc edge); grains: a small hard speck
+  float seed = vCol.r * 97.0 + vCol.g * 53.0;
+  vec2 nq = q * 2.3 + seed;
+  float lump = 0.55 + 0.45 * (sin(nq.x * 1.7 + sin(nq.y * 2.3)) * 0.5 + 0.5) * (sin(nq.y * 1.9 + sin(nq.x * 1.3 + 1.0)) * 0.5 + 0.5) * 2.0;
+  float a = soft > 0.5 ? pow(1.0 - r2, 2.6) * clamp(lump, 0.0, 1.0) : 1.0 - smoothstep(0.6, 1.0, r2);
   float shade = soft > 0.5 ? 0.8 + 0.35 * (-q.y) : 1.0;
   vec3 c = vCol.rgb * light * shade + glowCol * vCol.a;
   gl_FragColor = vec4(c, a * vCol.a);
@@ -144,11 +148,10 @@ export class LandingDust {
   readonly group = new THREE.Group();
   private billow = new Particles(1400, true);
   private grit = new Particles(700, false);
-  private haze = new Particles(160, true);
   private acc = 0;
   private gAcc = 0;
   constructor() {
-    this.group.add(this.haze.points, this.billow.points, this.grit.points);
+    this.group.add(this.billow.points, this.grit.points);
   }
   /**
    * @param ground  the point on the ground under the engines (scene coords)
@@ -160,7 +163,7 @@ export class LandingDust {
    * @param glow    the engines' orange light on the dust (0..1)
    */
   update(dt: number, h: number, ground: THREE.Vector3, up: THREE.Vector3, power: number, shift: THREE.Vector3, soil: THREE.Color, light: THREE.Vector3, glow: number, groundBelow: (p: THREE.Vector3) => number | null): void {
-    const side = new THREE.Vector3(), b2 = new THREE.Vector3();
+    const side = new THREE.Vector3();
     const t1 = new THREE.Vector3().crossVectors(up, Math.abs(up.z) < 0.9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(1, 0, 0)).normalize();
     const t2 = new THREE.Vector3().crossVectors(up, t1);
     const ring = (sp: number) => {
@@ -188,22 +191,16 @@ export class LandingDust {
         const d = 0.25 + Math.random() * 0.25;
         this.grit.spawn(p, v, 3 + Math.random() * 4, 0.3 + Math.random() * 0.9, 0, d * 0.9, d * 0.6, d * 0.45, 1);
       }
-      // a slow pall of fine dust that hangs in the air round the ship
-      if (Math.random() < dt * 18 * power) {
-        b2.copy(ring(8 + Math.random() * 14)).addScaledVector(up, 2 + Math.random() * 5);
-        this.haze.spawn(ground.clone().addScaledVector(up, 4 + Math.random() * 10), b2, 18 + Math.random() * 14, 30 + Math.random() * 30, 4 + Math.random() * 4, soil.r * 1.05, soil.g * 1.05, soil.b * 1.05, 0.1);
-      }
     }
     const scale = h / (2 * Math.tan((55 * Math.PI) / 360));
-    for (const pp of [this.billow, this.grit, this.haze]) pp.mat.uniforms.pxScale.value = scale;
-    for (const pp of [this.billow, this.haze]) {
+    for (const pp of [this.billow, this.grit]) pp.mat.uniforms.pxScale.value = scale;
+    for (const pp of [this.billow]) {
       (pp.mat.uniforms.light.value as THREE.Vector3).copy(light);
       (pp.mat.uniforms.glowCol.value as THREE.Vector3).set(1.6 * glow, 0.62 * glow, 0.2 * glow);
     }
     (this.grit.mat.uniforms.light.value as THREE.Vector3).copy(light);
     const none = () => null;
     this.billow.step(dt, shift, 0.55, -0.4, up, none);
-    this.haze.step(dt, shift, 0.25, -0.15, up, none, 0.3);
     this.grit.step(dt, shift, 0.05, 3.71, up, groundBelow, 0.01);
   }
 }

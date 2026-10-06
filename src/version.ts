@@ -10,6 +10,19 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.56.1',
+    date: '2026-10-06',
+    title: "The real Mars",
+    notes: [
+      "Mars rebuilt from the real thing. The planet's colours now come from the Viking orbiters' global colour mosaic (NASA/JPL/USGS), so every dark region, bright dust plain, canyon, volcano and polar cap is where it really is, in its real colours, warmed to the butterscotch of true colour.",
+      "Fixed the bug that made Mars look like flat beige paint from space. The dusty-haze effect was measuring the view angle in Mars's rotating frame instead of the world's, so it treated the whole planet as if it were seen edge-on and hid 70% of it behind haze. Now the haze only thickens at the edge of the disc, as it should.",
+      "From orbit, Mars has detail below the map's resolution: mottling of dark sand and bright dust, plus small hills and crater walls shaded by the Sun, fading in as you get closer. The stars and the Sun now sit behind the planet instead of showing through it, and the Sun is no longer drawn on top of the planet.",
+      "On the ground, the terrain is smooth instead of stair-stepped: the height map is now interpolated with smooth curves, and the planet's height texture is filtered. The landscape has rolling hills, flat-topped rises, dune fields with long crests, and craters at four sizes from 10 m to 2.6 km. Dark sand gathers in low ground and bright dust lies on the rises, and the old stripy colour pattern on the ground is gone.",
+      "The landing dust is a fine dust storm instead of big round blobs, and the ignition flash no longer whites out the screen.",
+      "Fixed a crash when starting the campaign on the Open Ocean map with a campaign mission saved from another theater. Modes that need land (campaign, daily, recon, strike and the tutorial) now fall back to free flight on the ocean.",
+    ],
+  },
+  {
     version: '4.56.0',
     date: '2026-10-06',
     title: "Red planet, for real",

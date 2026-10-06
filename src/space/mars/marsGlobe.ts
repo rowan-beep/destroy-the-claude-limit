@@ -364,26 +364,124 @@ function stampCraters(height: Float32Array, albedo: Float32Array): void {
 
 /** bilinear sample of the global height map (km) */
 function mapHeightKm(lat: number, lon: number): number {
+  // bicubic (Catmull-Rom) over the 20 km map cells: smooth slopes, no creases along the grid
   const m = marsMaps();
   const W = MAP_W, H = MAP_H;
   const fx = ((lon + 180) / 360) * W - 0.5;
   const fy = ((90 - lat) / 180) * H - 0.5;
-  const x0 = Math.floor(fx), y0 = Math.max(0, Math.min(H - 2, Math.floor(fy)));
-  const tx = fx - x0, ty = Math.max(0, Math.min(1, fy - y0));
-  const xa = ((x0 % W) + W) % W, xb = (xa + 1) % W;
+  const x0 = Math.floor(fx), y0 = Math.floor(fy);
+  const tx = fx - x0, ty = fy - y0;
   const h = m.height;
-  const a = h[y0 * W + xa], b = h[y0 * W + xb], c = h[(y0 + 1) * W + xa], d = h[(y0 + 1) * W + xb];
-  return (a + (b - a) * tx) * (1 - ty) + (c + (d - c) * tx) * ty;
+  const cr = (p0: number, p1: number, p2: number, p3: number, t: number) => p1 + 0.5 * t * (p2 - p0 + t * (2 * p0 - 5 * p1 + 4 * p2 - p3 + t * (3 * (p1 - p2) + p3 - p0)));
+  const row = (y: number) => {
+    const yy = Math.max(0, Math.min(H - 1, y));
+    const o = yy * W;
+    const at = (x: number) => h[o + (((x % W) + W) % W)];
+    return cr(at(x0 - 1), at(x0), at(x0 + 1), at(x0 + 2), tx);
+  };
+  return cr(row(y0 - 1), row(y0), row(y0 + 1), row(y0 + 2), ty);
 }
-/** the map's albedo at a point (linear RGB) */
+// ------------------------------------------------------------------ the real colours
+/**
+ * The Viking orbiters' colour mosaic of Mars (MDIM 2.1, NASA / JPL / USGS,
+ * public domain), equirectangular from 180 W: when it has loaded, the ground's
+ * colours come from it, scaled so the planet reflects what Mars really does.
+ */
+let photo: { lin: Float32Array; w: number; h: number; scale: number } | null = null;
+export function setMarsPhoto(img: HTMLImageElement): void {
+  const w = img.naturalWidth, h = img.naturalHeight;
+  const cv = document.createElement('canvas');
+  cv.width = w;
+  cv.height = h;
+  const g = cv.getContext('2d', { willReadFrequently: true })!;
+  g.drawImage(img, 0, 0);
+  const px = g.getImageData(0, 0, w, h).data;
+  const lut = new Float32Array(256);
+  for (let i = 0; i < 256; i++) {
+    const c = i / 255;
+    lut[i] = c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  }
+  const lin = new Float32Array(w * h * 3);
+  let sum = 0;
+  const c = [0, 0, 0];
+  for (let i = 0; i < w * h; i++) {
+    c[0] = lut[px[i * 4]];
+    c[1] = lut[px[i * 4 + 1]];
+    c[2] = lut[px[i * 4 + 2]];
+    gradeMars(c);
+    lin.set(c, i * 3);
+    sum += c[0] * 0.3 + c[1] * 0.55 + c[2] * 0.15;
+  }
+  photo = { lin, w, h, scale: PHOTO_MEAN / (sum / (w * h)) };
+}
+/**
+ * The mosaic's colours lean grey-pink; true colour, as the rovers and orbiters
+ * see it, is a warmer butterscotch: a little more saturation and contrast,
+ * shifted toward orange. (The globe's shader does the same: keep them matched.)
+ */
+export function gradeMars(c: number[]): void {
+  const l = c[0] * 0.3 + c[1] * 0.55 + c[2] * 0.15;
+  const k = Math.pow(Math.max(1e-4, l) / 0.25, 0.25);
+  for (let i = 0; i < 3; i++) c[i] = Math.max(0, l + (c[i] - l) * 1.5) * k;
+  c[0] *= 1.12;
+  c[1] *= 0.9;
+  c[2] *= 0.68;
+}
+/** what the photo's average is brought to (Mars's ground reflects about a quarter of the light) */
+export const PHOTO_MEAN = 0.17;
+export function hasMarsPhoto(): boolean {
+  return !!photo;
+}
+export function marsPhotoScale(): number {
+  return photo ? photo.scale : 1;
+}
+
+/** the map's albedo at a point (linear RGB), smoothly interpolated */
 export function mapAlbedo(lat: number, lon: number, out: number[]): void {
+  if (photo) {
+    const P = photo;
+    const fx = ((lon + 180) / 360) * P.w - 0.5;
+    const fy = Math.max(0, Math.min(P.h - 1.001, ((90 - lat) / 180) * P.h - 0.5));
+    const x0 = Math.floor(fx), y0 = Math.floor(fy);
+    const tx = fx - x0, ty = fy - y0;
+    const xa = ((x0 % P.w) + P.w) % P.w, xb = (xa + 1) % P.w, yb = Math.min(P.h - 1, y0 + 1);
+    for (let c = 0; c < 3; c++) {
+      const a = P.lin[(y0 * P.w + xa) * 3 + c], b = P.lin[(y0 * P.w + xb) * 3 + c], d = P.lin[(yb * P.w + xa) * 3 + c], e = P.lin[(yb * P.w + xb) * 3 + c];
+      out[c] = ((a + (b - a) * tx) * (1 - ty) + (d + (e - d) * tx) * ty) * P.scale;
+    }
+    return;
+  }
   const m = marsMaps();
-  const i = Math.min(MAP_W - 1, Math.max(0, Math.floor(((lon + 180) / 360) * MAP_W)));
-  const j = Math.min(MAP_H - 1, Math.max(0, Math.floor(((90 - lat) / 180) * MAP_H)));
-  const o = (j * MAP_W + i) * 3;
-  out[0] = m.albedo[o];
-  out[1] = m.albedo[o + 1];
-  out[2] = m.albedo[o + 2];
+  const fx = ((lon + 180) / 360) * MAP_W - 0.5;
+  const fy = Math.max(0, Math.min(MAP_H - 1.001, ((90 - lat) / 180) * MAP_H - 0.5));
+  const x0 = Math.floor(fx), y0 = Math.floor(fy);
+  let tx = fx - x0, ty = fy - y0;
+  tx = tx * tx * (3 - 2 * tx);
+  ty = ty * ty * (3 - 2 * ty);
+  const xa = ((x0 % MAP_W) + MAP_W) % MAP_W, xb = (xa + 1) % MAP_W, yb = Math.min(MAP_H - 1, y0 + 1);
+  const A = m.albedo;
+  for (let c = 0; c < 3; c++) {
+    const a = A[(y0 * MAP_W + xa) * 3 + c], b = A[(y0 * MAP_W + xb) * 3 + c], d = A[(yb * MAP_W + xa) * 3 + c], e = A[(yb * MAP_W + xb) * 3 + c];
+    out[c] = (a + (b - a) * tx) * (1 - ty) + (d + (e - d) * tx) * ty;
+  }
+}
+
+/**
+ * The ground's colour close up: the map's albedo broken up at every scale
+ * below its 20 km cells. Dark basaltic sand gathers in the low ground and the
+ * dune fields; bright dust lies on the rises; streaks and mottling between.
+ * (pos in metres on the sphere; detail = local relief in metres)
+ */
+export function groundTint(px: number, py: number, pz: number, detail: number, out: number[]): void {
+  const big = fbm(px / 9000, py / 9000, pz / 9000, 3);
+  const mid = fbm(px / 1400 + 7, py / 1400, pz / 1400, 3);
+  const fine = fbm(px / 160, py / 160 + 3, pz / 160, 2);
+  // low ground collects dark sand, high ground bright dust
+  const sand = Math.max(0, Math.min(1, 0.45 - detail / 120 + big * 0.6 + mid * 0.3));
+  const k = 0.88 + 0.22 * big + 0.12 * mid + 0.06 * fine;
+  out[0] *= k * (1 - 0.32 * sand);
+  out[1] *= k * (1 - 0.3 * sand);
+  out[2] *= k * (1 - 0.18 * sand);
 }
 
 /** small craters from a grid of cells in metres on the sphere: each cell may hold one */
@@ -406,18 +504,40 @@ function smallCraters(px: number, py: number, pz: number, cell: number, maxR: nu
   return h;
 }
 
-/** the ground's height above the datum (m) at a point: the global map plus the fine detail */
-export function marsHeight(lat: number, lon: number): number {
-  const base = mapHeightKm(lat, lon) * 1000;
-  const cl = Math.cos(lat * D2R);
-  const R = R_KM * 1000;
-  const px = R * cl * Math.cos(lon * D2R), py = R * cl * Math.sin(lon * D2R), pz = R * Math.sin(lat * D2R);
-  // rolling ground, a few tens of metres, down to a few metres
-  let h = base;
+/** relief below the map's resolution (m): hills and mesas, dune fields, craters of every size */
+export function marsDetail(px: number, py: number, pz: number): number {
+  // rolling hills and flat-topped rises, a few hundred metres
+  const rid = 1 - Math.abs(fbm(px / 14000, py / 14000, pz / 14000, 3));
+  let h = 260 * (rid * rid - 0.45);
+  const mesa = fbm(px / 7000 + 11, py / 7000, pz / 7000, 3);
+  h += 140 * Math.max(-0.4, Math.min(0.35, mesa * 1.6));
   h += 55 * fbm(px / 3000, py / 3000, pz / 3000, 4);
+  // dunes in the low ground: long crests a few hundred metres apart
+  const field = fbm(px / 20000 + 5, py / 20000, pz / 20000, 2);
+  if (field > 0.05) {
+    const warp = fbm(px / 2500, py / 2500, pz / 2500, 2) * 900;
+    const w = Math.sin((px * 0.8 + py * 0.6 + warp) / 70);
+    h += Math.min(1, (field - 0.05) * 5) * 9 * w * w;
+  }
   h += 6 * fbm(px / 240, py / 240, pz / 240, 3);
+  h += smallCraters(px, py, pz, 6000, 2600, 5);
   h += smallCraters(px, py, pz, 900, 380, 11);
   h += smallCraters(px, py, pz, 160, 60, 23);
   h += smallCraters(px, py, pz, 32, 10, 37);
   return h;
+}
+
+/** the ground's height above the datum (m) at a point: the global map plus the fine detail */
+export function marsHeight(lat: number, lon: number): number {
+  const cl = Math.cos(lat * D2R);
+  const R = R_KM * 1000;
+  return mapHeightKm(lat, lon) * 1000 + marsDetail(R * cl * Math.cos(lon * D2R), R * cl * Math.sin(lon * D2R), R * Math.sin(lat * D2R));
+}
+
+/** the height split into the map's part and the local relief (m), and the point on the sphere */
+export function marsHeightParts(lat: number, lon: number): { base: number; detail: number; px: number; py: number; pz: number } {
+  const cl = Math.cos(lat * D2R);
+  const R = R_KM * 1000;
+  const px = R * cl * Math.cos(lon * D2R), py = R * cl * Math.sin(lon * D2R), pz = R * Math.sin(lat * D2R);
+  return { base: mapHeightKm(lat, lon) * 1000, detail: marsDetail(px, py, pz), px, py, pz };
 }

@@ -813,9 +813,9 @@ export class MarsMission {
       this.plasma.visible = a > 0;
       if (a > 0) {
         this.plasma.position.copy(this.scenePos(vsub(f.r, vscale(f.axis, SHIP_COM + 3))));
-        const sz = 30 + 60 * (1 - a);
+        const sz = 14 + 22 * (1 - a);
         this.plasma.scale.set(sz, sz, 1);
-        (this.plasma.material as THREE.SpriteMaterial).color.setRGB(5 * a, 3.6 * a, 2.6 * a);
+        (this.plasma.material as THREE.SpriteMaterial).color.setRGB(3.2 * a * a, 2.2 * a * a, 1.5 * a * a);
       } else this.ignT = -1;
     } else this.plasma.visible = false;
     // after shutdown the nozzles glow dull orange, cooling over half a minute

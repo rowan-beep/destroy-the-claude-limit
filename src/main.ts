@@ -119,6 +119,8 @@ async function boot(): Promise<void> {
   const fly = async (c: MissionConfig) => {
     audio.init();
     audio.click();
+    // the open ocean has no land: a mode that needs it (kept from another theater) falls back to free flight
+    if (activeMap.id === 'ocean' && ['campaign', 'daily', 'recon', 'strike', 'tutorial'].includes(c.mode)) c = { ...c, mode: 'free' };
     settings.lastAircraft = c.aircraft;
     settings.lastLoadout[c.aircraft] = c.loadoutId;
     settings.gameplay.timeOfDay = c.timeOfDay;
