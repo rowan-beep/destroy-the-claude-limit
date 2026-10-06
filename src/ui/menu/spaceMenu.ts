@@ -21,6 +21,8 @@ export interface SpaceMenuCallbacks {
   onControls: () => void;
   /** fly the Saturn V: from the pad, or already in orbit */
   onLaunch: (mode: 'pad' | 'orbit' | 'lunar') => void;
+  /** fly Starship from the pad to the ground on Mars */
+  onMars: () => void;
 }
 
 const SEC_KEY = 'triad.space.section';
@@ -34,7 +36,7 @@ const SECTIONS: [Section, string][] = [
 const DESTINATIONS: [string, string, string, string][] = [
   ['EARTH ORBIT', '400 KM · 90 MIN / ORBIT', 'radial-gradient(circle at 32% 28%, #bfe6ff, #2b7fd6 45%, #0b2350 75%)', 'First stop for every mission.'],
   ['THE MOON', '384,400 KM · 3 DAYS', 'radial-gradient(circle at 32% 28%, #ffffff, #a9a9a4 45%, #3b3b3a 80%)', 'Land, drive the lunar rover, bring rocks home.'],
-  ['MARS', '225 M KM · 7 MONTHS', 'radial-gradient(circle at 32% 28%, #ffd0a8, #c9542b 45%, #4a1a0e 80%)', 'Rovers across the red planet.'],
+  ['MARS', '225 M KM · 7 MONTHS', 'radial-gradient(circle at 32% 28%, #ffd0a8, #c9542b 45%, #4a1a0e 80%)', 'Starship lands on the red planet.'],
 ];
 
 export class SpaceMenu {
@@ -257,10 +259,10 @@ export class SpaceMenu {
       ['ORBITAL FLIGHT', 'Reach orbit and come home', 'LEO'],
       ['LUNAR LANDING', 'Land on the Moon', 'MOON'],
       ['LUNAR ROVER', 'Drive across the Moon', 'MOON'],
-      ['MARS ROVER', 'Explore the red planet', 'MARS'],
+      ['STARSHIP TO MARS', 'Fly Starship from the pad to Mars and land', 'MARS'],
     ];
     items.forEach(([t, s, tag], i) => {
-      const open = i === 0;
+      const open = i === 0 || i === 3;
       const r = el('div', 'sx2-card' + (open ? ' open' : ' locked'), this.side);
       el('div', 'sx2-card-n', r, String(i + 1).padStart(2, '0'));
       const tx = el('div', 'sx2-card-t', r);
@@ -268,9 +270,9 @@ export class SpaceMenu {
       el('span', 'sx2-tag', tl, tag);
       el('div', 'sx2-card-s', tx, s);
       el('div', 'sx2-lock', r, open ? 'FLY' : 'SOON');
-      if (open) r.addEventListener('click', () => this.chooseSpawn());
+      if (open) r.addEventListener('click', () => (i === 3 ? this.cb.onMars() : this.chooseSpawn()));
     });
-    el('div', 'sx2-note', this.side, 'Orbital flight is open: launch the Saturn V from Pad 1, or start in a parking orbit, and bring the crew home. The Moon and Mars come next.');
+    el('div', 'sx2-note', this.side, 'Orbital flight: launch the Saturn V from Pad 1, or start in a parking orbit, and bring the crew home. Starship to Mars: launch Super Heavy and Starship, refuel in orbit, ride the transfer window to Mars, and land.');
   }
 
   /** pick where the flight starts */
@@ -356,9 +358,11 @@ export class SpaceMenu {
     el('div', 'sx2-stage-r', iu, 'IBM LVDC · 32,768 words · 12,195 instructions/s');
     el('div', 'sx2-stage-r dim', iu, `${n(v.instrumentUnit.mass)} kg · ST-124-M3 inertial platform · ~900 telemetry channels`);
     const slot2 = el('div', 'sx2-slot dim', this.side);
-    el('div', 'sx2-slot-k', slot2, 'ROVER BAY');
-    el('div', 'sx2-slot-t', slot2, 'EMPTY');
-    el('div', 'sx2-slot-s', slot2, 'Moon and Mars rovers, later.');
+    el('div', 'sx2-slot-k', slot2, 'PAD 2 · MARS');
+    el('div', 'sx2-slot-t', slot2, 'STARSHIP');
+    el('div', 'sx2-slot-s', slot2, 'Super Heavy and Starship: 124 m, 33 + 6 Raptors. Click to fly to Mars.');
+    slot2.style.cursor = 'pointer';
+    slot2.addEventListener('click', () => this.cb.onMars());
     const spec = el('div', 'sx2-spec', this.side);
     for (const [k, val] of [['LAUNCH TOWER', '145 m'], ['LIGHTNING MASTS', '2 × 194 m'], ['TANK FARM', '11 tanks']]) {
       const r = el('div', 'sx2-kv', spec);

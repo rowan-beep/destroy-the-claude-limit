@@ -3,6 +3,16 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.55.0 — Starship to Mars (2026-10-06)
+
+- New mission: Starship to Mars. Open MISSIONS in the space program (or click STARSHIP on the LAUNCH PAD page) and fly the whole trip, from the pad to the ground on Mars. The window is the real one from today: leave Earth in early November 2026 and arrive in September 2027.
+- Super Heavy and Starship are built to the next-generation figures: a 72.3 m booster with 33 Raptor 3s, 3,650 t of propellant and 8,240 tf of thrust, three grid fins, four chines and the hot-staging ring built into its top; and a 52.1 m ship with 1,550 t of propellant, three sea-level and three vacuum Raptors, black hexagonal heat-shield tiles over the stainless steel on its windward side, two forward and two aft flaps, the raceway and six landing legs.
+- The flight: 33 engines light at liftoff, the stack throttles back through max-Q, then hot-stages: the ship lights its engines while still on the booster, and Super Heavy flips for its boostback burn. The ship flies on to a 200 km orbit, where tankers refuel it over three weeks. When the window opens, the trans-Mars injection burn sends it on a seven-month coast, with course corrections along the way.
+- Mars: the planet is built from its real geography: Olympus Mons and the Tharsis volcanoes, the Valles Marineris canyons, the Hellas and Argyre basins, the northern lowlands, the polar caps and thousands of craters, with its dark and bright regions. The thin air glows butterscotch by day with a blue halo round the Sun. Starship enters belly first at over 5 km/s in a glow of plasma, banks to bleed off speed, falls belly-down with its flaps, then flips upright and fires its engines to land on its legs. Engine blast kicks up dust off the boulder-strewn ground.
+- The autopilot can fly every step for you: press SPACE for the next step (launch, refuel, the injection burn), and the fast-forward button warps through the quiet parts and drops back to real time for every event. Turn the autopilot off (T) to steer and throttle the landing yourself. The map (M) shows your orbit, and in deep space the Sun, the orbits of Earth and Mars, and your path to Mars.
+- Time warp now runs at exactly the speed you pick. Choose 500x and you get 500x: it no longer drops back on its own. The Starship mission has speeds from 1x to 1,000,000x.
+- The F-16's intake is less of a smile now: the lower lip is flatter across the middle and the corners don't ride up as high, closer to the real jet.
+
 ## v4.54.2 — The Viper's smile (2026-10-06)
 
 - The F-16's intake now has the real shape. Head on, the mouth is a wide crescent "smile": the lower lip curves down deepest in the middle, the upper lip sags with it, and the corners ride high at the sides. From the side it's steeply raked, with the upper lip jutting forward like a hood and the sides sweeping back to a lower lip half a metre further aft. The nose gear now sits just behind that lip, as on the real jet.

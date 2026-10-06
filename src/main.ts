@@ -19,6 +19,7 @@ import { LaunchSite } from './ui/menu/launchSite';
 import { SpaceMenu } from './ui/menu/spaceMenu';
 import { menuMusic } from './audio/menuMusic';
 import { SpaceFlight } from './space/spaceFlight';
+import { MarsMission } from './space/mars/marsMission';
 import { loadProgram, saveProgram, Program } from './ui/menu/program';
 import { LoadingScreen, PauseMenu, ResultsScreen, ControlsModal, BriefingModal } from './ui/menu/screens';
 import { SettingsModal } from './ui/menu/settingsModal';
@@ -176,11 +177,15 @@ async function boot(): Promise<void> {
   const flight = new SpaceFlight(() => getFactory(), document.body);
   flight.drawWith = (sc, cam) => game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping);
   flight.onExit = () => showMenus(game.state === 'menu');
-  if (import.meta.env.DEV) Object.assign(window, { __flight: flight });
+  // Starship to Mars, drawn the same way
+  const marsMission = new MarsMission(() => getFactory(), () => game.renderer.renderer, document.body);
+  marsMission.drawWith = (sc, cam) => game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping);
+  marsMission.onExit = () => showMenus(game.state === 'menu');
+  if (import.meta.env.DEV) Object.assign(window, { __flight: flight, __mars: marsMission });
   Object.assign(window, { __music: menuMusic });
   const showMenus = (v: boolean) => {
     const space = program === 'space';
-    if (flight.active) v = false;
+    if (flight.active || marsMission.active) v = false;
     menu.show(v && !space);
     spaceMenu.show(v && space);
     if (factory) factory.active = v && space;
@@ -197,6 +202,13 @@ async function boot(): Promise<void> {
       audio.init();
       audio.click();
       flight.start(mode);
+      showMenus(false);
+      if (factory) factory.active = false;
+    },
+    onMars: () => {
+      audio.init();
+      audio.click();
+      marsMission.start();
       showMenus(false);
       if (factory) factory.active = false;
     },
@@ -345,6 +357,7 @@ async function boot(): Promise<void> {
     game.renderer.adaptFrame(step);
     const sz = game.renderer.size;
     if (flight.active) flight.frame(step, sz.w, sz.h);
+    else if (marsMission.active) marsMission.frame(step, sz.w, sz.h);
     else if (program === 'space') getFactory().render(step, sz.w, sz.h);
     else hangar.render(step, sz.w, sz.h);
   };
@@ -379,7 +392,7 @@ async function boot(): Promise<void> {
   game.startLoop();
   // new versions install themselves: straight away in the menu, or once you are back from a flight
   watchForUpdates(
-    () => game.state === 'menu' && !customize.open && !library.open && !flight.active,
+    () => game.state === 'menu' && !customize.open && !library.open && !flight.active && !marsMission.active,
     () => {
       if (game.state !== 'menu') game.message('A NEW VERSION IS READY: IT INSTALLS WHEN YOU RETURN TO THE MENU', 'info', 10);
     },
