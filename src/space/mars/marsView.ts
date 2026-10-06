@@ -396,7 +396,8 @@ export class MarsView {
     cam.aspect = w / Math.max(1, h);
     const camR = Math.hypot(o[0] + v.cam[0], o[1] + v.cam[1], o[2] + v.cam[2]);
     const camAlt = camR - R;
-    cam.near = camAlt > 200_000 ? Math.max(5, camAlt * 0.002) : 0.5;
+    // (the renderer's depth buffer is logarithmic: a near plane this close costs nothing far out)
+    cam.near = 0.5;
     cam.far = 2e9;
     cam.updateProjectionMatrix();
     cam.updateMatrixWorld();

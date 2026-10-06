@@ -141,6 +141,8 @@ export class MarsFlight {
   private tmiVinf = 0;
   private flipT = -1;
   maxQ = 0;
+  /** mission time of liftoff */
+  launchT = 0;
   touchdown: { vz: number; vh: number; tilt: number } | null = null;
 
   constructor(nowJd: number) {
@@ -250,6 +252,7 @@ export class MarsFlight {
   launch(): void {
     if (this.phase !== 'pad') return;
     this.phase = 'boost';
+    this.launchT = this.t;
     this.bEng = 33;
     this.throttle = 1;
     this.say('Liftoff! All 33 Raptors running.', 'good');
@@ -440,8 +443,22 @@ export class MarsFlight {
     // propagate on the conic; switch to the atmosphere at the entry interface
     const tEnd = this.t + dt;
     const at = (t: number) => propagate(c.r0, c.v0, t - c.t0, MARS.mu);
-    const s = at(tEnd);
-    if (vlen(s.r) - MARS.R > MARS.top) {
+    // a long step must not jump over the atmosphere: look for the crossing all along it
+    // (sub-steps no longer than the time to fall from here to the entry interface)
+    let lo = this.t, hi = -1;
+    while (lo < tEnd) {
+      const p = at(lo);
+      const room = vlen(p.r) - MARS.R - MARS.top;
+      const step = Math.min(tEnd - lo, Math.max(2, room / Math.max(1, vlen(p.v)) * 0.5));
+      const next = lo + step;
+      if (vlen(at(next).r) - MARS.R <= MARS.top) {
+        hi = next;
+        break;
+      }
+      lo = next;
+    }
+    if (hi < 0) {
+      const s = at(tEnd);
       this.t = tEnd;
       this.r = s.r;
       this.v = s.v;
@@ -449,7 +466,6 @@ export class MarsFlight {
       return;
     }
     // find the crossing of the entry interface
-    let lo = this.t, hi = tEnd;
     for (let i = 0; i < 60; i++) {
       const m = 0.5 * (lo + hi);
       if (vlen(at(m).r) - MARS.R > MARS.top) lo = m;

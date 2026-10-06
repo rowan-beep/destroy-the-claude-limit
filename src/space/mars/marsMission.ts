@@ -89,8 +89,10 @@ const CSS = `
 .mm-card-t{font-size:24px;font-weight:800;letter-spacing:.12em}
 .mm-card-s{font-size:14px;color:#cfd9e4;margin:10px 0 16px;line-height:1.5}
 .mm-card-r{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.mm-cv{position:absolute;inset:0;width:100%;height:100%}
 .mm-hint{position:absolute;right:16px;bottom:16px;font-size:11px;color:#8fa3b8;letter-spacing:.14em}
-@media (max-width:700px){.mm-tr{width:190px;padding:8px}.mm-ph{font-size:18px}.mm-log{bottom:140px}.mm-hint{display:none}}
+@media (max-width:700px){.mm-tr{width:190px;padding:8px}.mm-ph{font-size:18px}.mm-log{bottom:140px}.mm-cv{position:absolute;inset:0;width:100%;height:100%}
+.mm-hint{display:none}}
 `;
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, parent: HTMLElement, text?: string): HTMLElementTagNameMap[K] {
@@ -150,7 +152,6 @@ export class MarsMission {
   private siteCam = new THREE.PerspectiveCamera(50, 1, 0.5, 140_000);
   private padLight = new THREE.PointLight(0xff9a40, 0, 0, 2);
   private plasma: THREE.Sprite;
-  private track: THREE.Line;
   private trackAt = -1;
   private belly: Vec = [1, 0, 0];
   private bBelly: Vec = [1, 0, 0];
@@ -193,6 +194,9 @@ export class MarsMission {
   private elCardS: HTMLElement;
   private elCardR: HTMLElement;
   private flashT = 0;
+  private cv: HTMLCanvasElement;
+  /** the path drawn on the map (scene coordinates when it was computed, relative to the ship then) */
+  private trackPts: Vec[] = [];
   private telKey = '';
 
   constructor(
@@ -204,6 +208,7 @@ export class MarsMission {
     st.textContent = CSS;
     document.head.appendChild(st);
     this.ui = el('div', 'mm-ui hidden', parent);
+    this.cv = el('canvas', 'mm-cv', this.ui);
     const tl = el('div', 'mm-tl', this.ui);
     el('div', 'mm-k', tl, 'STARSHIP · MISSION TO MARS');
     this.elPhase = el('div', 'mm-ph', tl, '');
@@ -268,8 +273,6 @@ export class MarsMission {
     this.plasma = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: new THREE.Color(0, 0, 0), toneMapped: false, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
     this.plasma.renderOrder = 12;
     this.plasma.visible = false;
-    this.track = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x8fd0ff, transparent: true, opacity: 0.85 }));
-    this.track.frustumCulled = false;
 
     window.addEventListener('keydown', (e) => this.onKey(e, true), { capture: true });
     window.addEventListener('keyup', (e) => this.onKey(e, false), { capture: true });
@@ -386,7 +389,6 @@ export class MarsMission {
     this.bHolder.parent?.remove(this.bHolder);
     this.padLight.parent?.remove(this.padLight);
     this.plasma.parent?.remove(this.plasma);
-    this.track.parent?.remove(this.track);
     this.site?.setFlying(false);
     if (this.spaceT > 0) {
       const d = this.spaceT / DAY;
@@ -414,8 +416,6 @@ export class MarsMission {
     s.add(this.plasma);
     if (this.view === 'site') s.add(this.padLight);
     else this.padLight.parent?.remove(this.padLight);
-    if (this.view === 'earth' || this.view === 'mars') s.add(this.track);
-    else this.track.parent?.remove(this.track);
   }
 
   // ------------------------------------------------------------------ input
@@ -609,16 +609,8 @@ export class MarsMission {
     const was = this.lastPhase;
     this.lastPhase = f.phase;
     if (was === 'pad') {
-      this.liftT = f.t;
+      this.liftT = f.launchT;
       updateRecord((r) => r.launches++);
-    }
-    if (f.phase === 'stage' || f.phase === 'ship') {
-      if (this.booster!.group.parent !== this.bHolder) {
-        this.bHolder.add(this.booster!.group);
-        this.booster!.group.position.set(0, 0, 0);
-        this.ship!.group.position.set(0, 0, 0);
-        this.bBelly = [...this.belly] as Vec;
-      }
     }
     // automatic stops: everything that wants the pilot's eyes drops back to real time
     if (f.phase === 'entry' || f.phase === 'landing') {
@@ -713,8 +705,16 @@ export class MarsMission {
   }
 
   private placeVehicle(f: MarsFlight): void {
+    // separation: Super Heavy goes its own way, the ship's engines become the base
+    if (!f.stacked && this.booster!.group.parent !== this.bHolder) {
+      this.bHolder.add(this.booster!.group);
+      this.booster!.group.position.set(0, 0, 0);
+      this.ship!.group.position.set(0, 0, 0);
+      this.bBelly = [...this.belly] as Vec;
+    }
     const lost = f.phase === 'lost' && f.frame !== 'mars';
-    this.holder.visible = !lost;
+    // (on the solar-system map the ship is a marker; the model would sit on the Sun)
+    this.holder.visible = !lost && !(this.map && this.view === 'cruise');
     this.holder.position.copy(this.scenePos(this.base(f)));
     this.holder.quaternion.copy(this.orient(f.axis, this.belly));
     // super heavy on its own: shown while it is still in the sky near the ship
@@ -800,6 +800,7 @@ export class MarsMission {
       cam.updateProjectionMatrix();
       cam.updateMatrixWorld();
       this.site!.renderFlight(dt, cam, this.fire!.fireLevel * (f.alt < 1500 ? 1 : 0), this.scenePos(this.base(f)).y, f.alt);
+      this.drawOverlay(f, cam, EARTH.R, '');
       return;
     }
     if (this.view === 'earth') {
@@ -823,9 +824,9 @@ export class MarsMission {
         at = lk;
         sp.camera.fov = 50;
       }
-      this.track.visible = this.map;
       sp.update({ origin: f.r as V3, cam: cam as V3, camUp: camUp as V3, look: at as V3, earthAngle: earthAngle(f.t), time: f.t }, w, h, this.map);
       this.drawWith?.(sp.scene, sp.camera);
+      this.drawOverlay(f, sp.camera, EARTH.R, 'EARTH');
       return;
     }
     if (this.view === 'cruise') {
@@ -840,6 +841,7 @@ export class MarsMission {
         cv.update({ r: f.r, v: f.v, jd: f.jd, cam: vadd(lk, off), camUp: up, look: lk, map: false, arriveJd: f.window.arr }, w, h);
       }
       this.drawWith?.(cv.scene, cv.camera);
+      this.drawOverlay(f, cv.camera, 1, '');
       return;
     }
     // Mars
@@ -870,32 +872,107 @@ export class MarsMission {
       at = lk;
       mv.camera.fov = 55;
     }
-    this.track.visible = this.map;
     const dust = f.sEng > 0 ? (f.throttle * f.sEng) / 3 : 0;
     mv.update({ origin: f.r, cam, camUp, look: at, angle: f.marsAngle(), sun: f.sunDir(), dust }, w, h, dt * Math.min(warp, 4));
     this.drawWith?.(mv.scene, mv.camera);
+    this.drawOverlay(f, mv.camera, MARS.R, 'MARS');
   }
 
   /** the orbit (or the path ahead) drawn on the map */
   private updateTrack(f: MarsFlight, mu: number, R: number): void {
     const now = performance.now();
-    if (now - this.trackAt < 400) {
-      this.track.position.set(0, 0, 0);
-      return;
-    }
+    if (now - this.trackAt < 400) return;
     this.trackAt = now;
     const vr = vlen(f.r);
     const en = (vlen(f.v) ** 2) / 2 - mu / vr;
     const span = en < 0 ? 2 * Math.PI * Math.sqrt((-mu / (2 * en)) ** 3 / mu) : Math.min(5 * DAY, (vr * 2) / Math.max(1, vlen(f.v)));
-    const pts: THREE.Vector3[] = [];
-    const n = 256;
+    const pts: Vec[] = [];
+    const n = 360;
     for (let i = 0; i <= n; i++) {
-      const s = i === 0 ? { r: f.r } : propagate(f.r, f.v, (span * i) / n, mu);
-      if (vlen(s.r) < R) break;
-      pts.push(new THREE.Vector3(s.r[0] - f.r[0], s.r[1] - f.r[1], s.r[2] - f.r[2]));
+      const st = propagate(f.r, f.v, (span * i) / n, mu);
+      pts.push(st.r);
+      if (vlen(st.r) < R) break;
     }
-    this.track.geometry.dispose();
-    this.track.geometry = new THREE.BufferGeometry().setFromPoints(pts);
+    this.trackPts = pts;
+  }
+
+  /** draw the map's path over the scene: bright where it is in view, dashed behind the planet */
+  private drawOverlay(f: MarsFlight, cam: THREE.PerspectiveCamera, R: number, name: string): void {
+    const cv = this.cv;
+    const w = cv.clientWidth, h = cv.clientHeight;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+      cv.width = Math.round(w * dpr);
+      cv.height = Math.round(h * dpr);
+    }
+    const g = cv.getContext('2d')!;
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, w, h);
+    if (!this.map || this.view === 'cruise' || this.view === 'site') return;
+    // the planet's centre is at -r in the scene; the camera is in scene coordinates
+    const c = new THREE.Vector3(-f.r[0], -f.r[1], -f.r[2]);
+    const cp = cam.position;
+    const v = new THREE.Vector3();
+    const proj = (p: Vec): { x: number; y: number; hid: boolean } | null => {
+      v.set(p[0] - f.r[0], p[1] - f.r[1], p[2] - f.r[2]);
+      // behind the planet? (the line of sight from the camera passes through the sphere first)
+      const d = v.clone().sub(cp);
+      const L = d.length();
+      d.divideScalar(L);
+      const oc = cp.clone().sub(c);
+      const b = oc.dot(d), cc = oc.lengthSq() - R * R;
+      const disc = b * b - cc;
+      const hid = disc > 0 && -b - Math.sqrt(disc) > 0 && -b - Math.sqrt(disc) < L * 0.999;
+      v.project(cam);
+      if (v.z > 1 || v.z < -1) return null;
+      return { x: (v.x * 0.5 + 0.5) * w, y: (-v.y * 0.5 + 0.5) * h, hid };
+    };
+    const sp = this.trackPts.map(proj);
+    for (const pass of [0, 1]) {
+      for (let i = 1; i < sp.length; i++) {
+        const a = sp[i - 1], b = sp[i];
+        if (!a || !b) continue;
+        const hid = a.hid || b.hid;
+        if (hid && pass === 0) continue;
+        g.beginPath();
+        g.moveTo(a.x, a.y);
+        g.lineTo(b.x, b.y);
+        g.setLineDash(hid ? [3, 5] : []);
+        g.lineWidth = pass === 0 ? 7 : hid ? 1 : 2.2;
+        g.strokeStyle = pass === 0 ? 'rgba(120,200,255,0.18)' : `rgba(150,215,255,${hid ? 0.35 : 0.95})`;
+        g.stroke();
+      }
+    }
+    g.setLineDash([]);
+    g.font = '600 12px Rajdhani, system-ui, sans-serif';
+    const ship = proj(f.r);
+    if (ship) {
+      g.fillStyle = '#fff';
+      g.beginPath();
+      g.arc(ship.x, ship.y, 4, 0, Math.PI * 2);
+      g.fill();
+      g.fillText('STARSHIP', ship.x + 8, ship.y - 6);
+    }
+    v.copy(c).project(cam);
+    if (v.z < 1) {
+      g.fillStyle = 'rgba(230,236,245,0.85)';
+      g.fillText(name, (v.x * 0.5 + 0.5) * w - 20, (-v.y * 0.5 + 0.5) * h);
+    }
+    // where the path meets the ground
+    const last = this.trackPts[this.trackPts.length - 1];
+    if (last && vlen(last) < R * 1.0001) {
+      const e = proj(last);
+      if (e) {
+        g.strokeStyle = e.hid ? 'rgba(255,90,70,0.45)' : '#ff5a46';
+        g.lineWidth = 2;
+        g.beginPath();
+        g.moveTo(e.x - 6, e.y - 6);
+        g.lineTo(e.x + 6, e.y + 6);
+        g.moveTo(e.x + 6, e.y - 6);
+        g.lineTo(e.x - 6, e.y + 6);
+        g.stroke();
+      }
+    }
   }
 
   // ------------------------------------------------------------------ the HUD
@@ -910,7 +987,7 @@ export class MarsMission {
     }
     // telemetry, rebuilt only when it changes
     const rows: [string, string][] = [];
-    const km = (m: number) => (Math.abs(m) >= 1e6 ? `${(m / 1e6).toFixed(2)} Mkm` : Math.abs(m) >= 10_000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`);
+    const km = (m: number) => (Math.abs(m) >= 1e9 ? `${(m / 1e9).toFixed(2)} million km` : Math.abs(m) >= 1e6 ? `${Math.round(m / 1000).toLocaleString('en-US')} km` : Math.abs(m) >= 10_000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`);
     const sp = f.speeds();
     if (f.frame === 'sun') {
       const e = earthState(f.jd).r, m = marsState(f.jd).r;
@@ -943,7 +1020,9 @@ export class MarsMission {
         rows.push(['WINDOW', tw > 0 ? `${Math.floor(tw / DAY)}d ${Math.floor((tw % DAY) / 3600)}h` : 'OPEN']);
       }
     }
-    rows.push(['G', `${f.gLoad.toFixed(2)} g`]);
+    // what the crew feel: nothing while coasting
+    const felt = ['pad', 'landed', 'lost'].includes(f.phase) ? 1 : ['orbit', 'refuel', 'depart', 'cruise', 'approach'].includes(f.phase) ? 0 : f.gLoad;
+    rows.push(['G', `${(f.phase === 'landed' ? 0.38 : felt).toFixed(2)} g`]);
     const eng = f.stacked && f.phase === 'boost' ? `${f.bEng} RAPTOR` : f.sEng + f.vEng > 0 ? `${f.sEng} SL + ${f.vEng} VAC` : 'OFF';
     rows.push(['ENGINES', eng + (eng !== 'OFF' ? ` · ${Math.round(f.throttle * 100)}%` : '')]);
     rows.push(['AUTOPILOT', f.auto ? 'ON' : 'MANUAL']);
