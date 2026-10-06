@@ -339,7 +339,7 @@ export class MarsMission {
     if (!this.mars) {
       this.mars = new MarsView();
       this.mars.scene.environment = this.envMars;
-      this.mars.scene.environmentIntensity = 0.45;
+      this.mars.scene.environmentIntensity = 1.1;
     }
     const now = Date.now() / 86_400_000 + 2_440_587.5;
     const f = (this.flight = new MarsFlight(now));

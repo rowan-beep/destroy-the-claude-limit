@@ -438,7 +438,7 @@ export class MarsView {
     this.sunLight.intensity = shadowed ? 0 : 2.6 * (0.25 + 0.75 * ext);
     this.sunLight.color.setRGB(1, 0.92 + 0.06 * ext, 0.82 + 0.15 * ext);
     this.hemi.position.copy(oUp);
-    this.hemi.intensity = 0.05 + 0.75 * air * Math.max(0, elev + 0.1);
+    this.hemi.intensity = 0.12 + 1.1 * air * Math.max(0.15, elev + 0.25);
     // the dust haze over the ground
     const near = camAlt < 40_000;
     this.fog.density = near ? 1 / 32_000 * Math.min(1, thick * 2.5) : 0;

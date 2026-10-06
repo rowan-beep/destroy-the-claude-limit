@@ -132,7 +132,12 @@ export const REGIONS: Region[] = [
   { name: 'Noachis Terra', lat: -45, lon: -5, r: 20 },
   { name: 'Terra Cimmeria', lat: -35, lon: 145, r: 22 },
   { name: 'Terra Sirenum', lat: -40, lon: -150, r: 22 },
-  { name: 'Vastitas Borealis', lat: 70, lon: 0, r: 180 },
+  { name: 'Xanthe Terra', lat: 2, lon: -47, r: 12 },
+  { name: 'Margaritifer Terra', lat: -5, lon: -25, r: 12 },
+  { name: 'Lunae Planum', lat: 11, lon: -67, r: 10 },
+  { name: 'Promethei Terra', lat: -58, lon: 100, r: 15 },
+  { name: 'Planum Australe', lat: -84, lon: 0, r: 8 },
+  { name: 'Planum Boreum', lat: 86, lon: 0, r: 7 },
 ];
 export function regionName(lat: number, lon: number): string {
   let best = '', bestK = Infinity;
@@ -143,7 +148,9 @@ export function regionName(lat: number, lon: number): string {
       best = r.name;
     }
   }
-  return best || (lat < 0 ? 'the southern highlands' : 'the northern plains');
+  if (best) return best;
+  if (lat > 55) return 'Vastitas Borealis';
+  return lat < 0 ? 'the southern highlands' : 'the northern plains';
 }
 
 // ------------------------------------------------------------------ the global map
