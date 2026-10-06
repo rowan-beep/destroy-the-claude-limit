@@ -10,6 +10,18 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.56.0',
+    date: '2026-10-06',
+    title: "Red planet, for real",
+    notes: [
+      "Mars now looks like the rovers' photographs. The ground is fine reddish-brown dust and sand drifted into low ripples, strewn with pebbles and cobbles of dark basalt, rusty fragments and the odd pale stone, many half sunk in the drift. The detail holds up from right next to the ship out to the horizon without visibly repeating. Steep slopes show darker exposed rock, and boulders of several shapes sit half-buried round the landing site.",
+      "New lighting on Mars. The sky is captured as light: the steel reflects the real butterscotch sky, and every shadow is filled with the warm light of the dusty air and the sunlit ground. The sky is butterscotch at the horizon, a deeper brownish tan overhead, with a bluish glow round the Sun that spreads into the famous blue sunset when the Sun goes down. The distant haze is the colour of the sky, and night is truly dark.",
+      "From orbit, Mars is the rich butterscotch of the orbital photographs instead of a washed-out cream, and the glowing rim of the atmosphere only shows past the edge of the planet.",
+      "A much more dramatic landing. On entry a sheath of glowing plasma hugs the belly, flickering, with a long pink-orange wake streaming behind the ship and embers torn off the flaps; the camera shakes with the heating. In the belly-flop the flaps visibly work to steer the fall.",
+      "The landing burn opens with an ignition flash, and the camera swings low and wide for the landing. The Raptors light the ground and the dust orange from below as they blast out a ring of dust that races outward and billows up, flinging grit and pebbles across the ground. On touchdown the legs take the weight and spring back, the nozzles glow hot and slowly cool, the dust drifts and settles, and the camera circles the ship.",
+    ],
+  },
+  {
     version: '4.55.0',
     date: '2026-10-06',
     title: "Starship to Mars",

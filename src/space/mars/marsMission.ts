@@ -19,6 +19,7 @@ import { MarsView } from './marsView';
 import { CruiseView } from './cruiseView';
 import { BoosterRig, ShipRig, buildBooster, buildShip, poseShip } from './starshipModel';
 import { StarshipFire } from './starshipFire';
+import { EntryFx } from './marsFx';
 
 /** the time-warp speeds; the one picked is the one used */
 export const MARS_WARPS = [1, 2, 5, 10, 50, 100, 1000, 10_000, 100_000, 1_000_000];
@@ -152,6 +153,16 @@ export class MarsMission {
   private siteCam = new THREE.PerspectiveCamera(50, 1, 0.5, 140_000);
   private padLight = new THREE.PointLight(0xff9a40, 0, 0, 2);
   private plasma: THREE.Sprite;
+  private entry = new EntryFx();
+  /** the Raptors' light on the ground and the dust during the landing burn */
+  private engineLight = new THREE.PointLight(0xff9a50, 0, 900, 2);
+  /** the nozzles still glowing after shutdown */
+  private nozzleGlow: THREE.Sprite[] = [];
+  private ignT = -1;
+  private landedAt = -1;
+  private lastDragAt = -1e9;
+  private shakeT = 0;
+  private wallT = 0;
   private trackAt = -1;
   private belly: Vec = [1, 0, 0];
   private bBelly: Vec = [1, 0, 0];
@@ -282,6 +293,7 @@ export class MarsMission {
       const t = e.target as HTMLElement | null;
       if (t && t.closest && t.closest('button, .mm-tr, .mm-help, .mm-card')) return;
       this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+      this.lastDragAt = performance.now();
     });
     window.addEventListener('pointermove', (e) => {
       if (!this.drag || this.drag.id !== e.pointerId) return;
@@ -293,6 +305,7 @@ export class MarsMission {
         this.mapPitch = Math.max(-1.5, Math.min(1.5, this.mapPitch + dy * 0.005));
       } else {
         this.camYaw -= dx * 0.005;
+        this.lastDragAt = performance.now();
         this.camPitch = Math.max(-1.45, Math.min(1.45, this.camPitch + dy * 0.004));
       }
     });
@@ -323,6 +336,18 @@ export class MarsMission {
       this.ship = buildShip(true);
       this.booster = buildBooster();
       this.fire = new StarshipFire(this.ship.group, this.ship.engines, this.booster.group, this.booster.engines);
+      this.ship.group.add(this.entry.sheath);
+      this.engineLight.position.set(0, -8, 0);
+      this.ship.group.add(this.engineLight);
+      const gm = (this.plasma.material as THREE.SpriteMaterial).map;
+      for (const e of this.ship.engines.filter((x) => !x.vac)) {
+        const g = new THREE.Sprite(new THREE.SpriteMaterial({ map: gm, color: new THREE.Color(0, 0, 0), toneMapped: false, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+        g.position.copy(e.pos).add(new THREE.Vector3(0, 1.2, 0));
+        g.scale.setScalar(2.6);
+        g.visible = false;
+        this.ship.group.add(g);
+        this.nozzleGlow.push(g);
+      }
       this.envSpace = neutralEnv(renderer, new THREE.Color(0.62, 0.64, 0.68), new THREE.Color(0.32, 0.33, 0.35), new THREE.Color(0.1, 0.1, 0.11));
       this.envMars = neutralEnv(renderer, new THREE.Color(0.7, 0.58, 0.48), new THREE.Color(0.55, 0.38, 0.25), new THREE.Color(0.3, 0.18, 0.1));
     }
@@ -338,8 +363,10 @@ export class MarsMission {
     }
     if (!this.mars) {
       this.mars = new MarsView();
+      this.mars.renderer = renderer;
+      // (until Mars captures its own sky as the light, the tinted grey stands in)
       this.mars.scene.environment = this.envMars;
-      this.mars.scene.environmentIntensity = 1.1;
+      this.mars.scene.environmentIntensity = 1;
     }
     const now = Date.now() / 86_400_000 + 2_440_587.5;
     const f = (this.flight = new MarsFlight(now));
@@ -365,6 +392,8 @@ export class MarsMission {
     this.endShown = false;
     this.lastPhase = 'pad';
     this.logSeen = 0;
+    this.landedAt = -1;
+    this.ignT = -1;
     this.trackAt = -1;
     this.elLog.textContent = '';
     this.elCard.classList.remove('show');
@@ -389,6 +418,8 @@ export class MarsMission {
     this.bHolder.parent?.remove(this.bHolder);
     this.padLight.parent?.remove(this.padLight);
     this.plasma.parent?.remove(this.plasma);
+    this.entry.wake.parent?.remove(this.entry.wake);
+    this.entry.embers.points.parent?.remove(this.entry.embers.points);
     this.site?.setFlying(false);
     if (this.spaceT > 0) {
       const d = this.spaceT / DAY;
@@ -414,6 +445,7 @@ export class MarsMission {
     s.add(this.holder);
     s.add(this.bHolder);
     s.add(this.plasma);
+    s.add(this.entry.wake, this.entry.embers.points);
     if (this.view === 'site') s.add(this.padLight);
     else this.padLight.parent?.remove(this.padLight);
   }
@@ -598,7 +630,10 @@ export class MarsMission {
     // hot staging: the ship lights while still sitting on the booster
     const sOn = !f.stacked || f.phase === 'stage';
     this.fire!.update(dt, bN, sOn ? f.sEng : 0, sOn ? f.vEng : 0, f.phase === 'stage' ? 1 : f.throttle, f.stacked ? f.throttle : 1, p);
-    poseShip(this.ship!, f.flaps, f.legs);
+    this.wallT += dt;
+    this.shakeT = Math.max(0, this.shakeT - dt);
+    this.direct(f, dt);
+    this.updateFx(f, dt, h);
     this.render(f, dt, w, h, warp);
     this.updateHud(f, warp, dt);
   }
@@ -622,7 +657,15 @@ export class MarsMission {
     if (f.phase === 'cruise') this.flash('BOUND FOR MARS');
     if (f.phase === 'approach') this.flash('MARS');
     if (f.phase === 'entry') this.flash('ENTRY INTERFACE');
-    if (f.phase === 'landing') this.flash('LANDING BURN');
+    if (f.phase === 'landing') {
+      this.flash('LANDING BURN');
+      this.ignT = 0;
+      this.shakeT = 1.2;
+    }
+    if (f.phase === 'landed' || (f.phase === 'lost' && f.frame === 'mars')) {
+      this.landedAt = this.wallT;
+      this.shakeT = f.phase === 'lost' ? 2.5 : 0.7;
+    }
     if (f.phase === 'landed') {
       this.flash('STARSHIP HAS LANDED');
       updateRecord((r) => r.missions++);
@@ -732,20 +775,92 @@ export class MarsMission {
       this.padLight.intensity = this.fire!.fireLevel * 18000 * (0.9 + 0.1 * Math.random());
       this.site!.setArms(f.phase === 'pad' ? 0 : Math.min(1, 0.3 + (f.t - this.liftT) / 3));
     }
-    // the glow of entry: a hot sheath round the belly and the wake behind it
-    if (f.frame === 'mars' && (f.phase === 'entry' || f.phase === 'descent')) {
-      const k = Math.min(1, f.heat / 9e4);
-      this.plasma.visible = k > 0.03;
-      if (this.plasma.visible) {
-        const va = f.airVel();
-        const c = this.scenePos(vadd(this.middle(f), vscale(vnorm(va), 6)));
-        this.plasma.position.copy(c);
-        const s = 70 + 40 * k;
-        this.plasma.scale.set(s, s, 1);
-        const fl = 0.85 + 0.15 * Math.random();
-        (this.plasma.material as THREE.SpriteMaterial).color.setRGB(3.2 * k * fl, 1.3 * k * fl, 1.1 * k * fl);
-      }
+    // touchdown: the legs take the weight, sink and spring back
+    if (this.landedAt >= 0 && f.phase === 'landed') {
+      const t = this.wallT - this.landedAt;
+      const sink = -0.55 * Math.exp(-t * 2.2) * Math.cos(t * 8.5) - 0.12 * (1 - Math.exp(-t * 3));
+      this.holder.position.add(this.sceneDir(vscale(f.axis, sink)));
+    }
+  }
+
+  /** the show: the plasma of entry, the flaps at work, the engines lighting the ground, the cooling nozzles */
+  private updateFx(f: MarsFlight, dt: number, h: number): void {
+    const onMars = f.frame === 'mars';
+    // entry plasma, while the heating lasts
+    const k = onMars && (f.phase === 'entry' || f.phase === 'descent') ? Math.min(1, Math.pow(f.heat / 7e4, 0.8)) : 0;
+    const va = f.airVel();
+    const down = this.sceneDir(vscale(vnorm(va), -1));
+    this.ship!.group.updateMatrixWorld();
+    this.entry.update(dt, h, k, this.scenePos(this.middle(f)), down, this.ship!.group.matrixWorld, new THREE.Vector3());
+    // the flaps: working all through the belly-flop, small quick corrections
+    poseShip(this.ship!, f.flaps, f.legs);
+    if (f.phase === 'descent' || (f.phase === 'landing' && this.wallT - this.flashLit < 4)) {
+      const amp = f.phase === 'descent' ? 1 : 0.5;
+      this.ship!.flaps.forEach((fl, i) => {
+        const j = amp * (0.07 * Math.sin(this.wallT * 1.9 + i * 1.7) + 0.035 * Math.sin(this.wallT * 5.3 + i * 2.9));
+        fl.pivot.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(fl.axis, j));
+      });
+    }
+    // the Raptors' light: orange on the ground and the dust below
+    const lit = onMars && f.sEng > 0 ? (f.throttle * f.sEng) / 3 : 0;
+    this.engineLight.intensity = lit * 26000 * (0.9 + 0.1 * Math.random());
+    this.engineLight.visible = lit > 0;
+    // the ignition flash
+    if (this.ignT >= 0) {
+      if (this.ignT === 0) this.flashLit = this.wallT;
+      this.ignT += dt;
+      const a = Math.max(0, 1 - this.ignT / 0.45);
+      this.plasma.visible = a > 0;
+      if (a > 0) {
+        this.plasma.position.copy(this.scenePos(vsub(f.r, vscale(f.axis, SHIP_COM + 3))));
+        const sz = 30 + 60 * (1 - a);
+        this.plasma.scale.set(sz, sz, 1);
+        (this.plasma.material as THREE.SpriteMaterial).color.setRGB(5 * a, 3.6 * a, 2.6 * a);
+      } else this.ignT = -1;
     } else this.plasma.visible = false;
+    // after shutdown the nozzles glow dull orange, cooling over half a minute
+    const cool = f.phase === 'landed' && this.landedAt >= 0 ? Math.max(0, 1 - (this.wallT - this.landedAt) / 30) : 0;
+    for (const g of this.nozzleGlow) {
+      g.visible = cool > 0.01;
+      (g.material as THREE.SpriteMaterial).color.setRGB(2.4 * cool * cool, 0.7 * cool * cool * cool, 0.15 * cool ** 4);
+    }
+  }
+  private flashLit = -1e9;
+
+  /** the camera trembles under entry, the landing burn and touchdown */
+  private shake(f: MarsFlight): Vec {
+    let a = 0;
+    if (f.frame === 'mars') {
+      if (f.phase === 'entry') a += Math.min(1, f.heat / 8e4) * 0.5 + Math.max(0, f.gLoad - 0.3) * 0.25;
+      if (f.phase === 'landing') a += 0.35 * f.throttle * (f.sEng / 3) * (0.5 + 0.5 * THREE.MathUtils.smoothstep(-f.agl, -200, -5));
+    }
+    if (f.phase === 'boost' && f.alt < 3000) a += 0.6 * (1 - f.alt / 3000);
+    a += this.shakeT * 0.9;
+    if (a <= 0.001) return [0, 0, 0];
+    const t = this.wallT;
+    const amp = a * Math.min(2.5, 0.006 * this.camDist + 0.15);
+    return [
+      amp * (Math.sin(t * 37.1) * 0.6 + Math.sin(t * 61.7 + 1.3) * 0.4),
+      amp * (Math.sin(t * 41.3 + 2.1) * 0.6 + Math.sin(t * 73.9) * 0.4),
+      amp * (Math.sin(t * 53.9 + 0.7) * 0.6 + Math.sin(t * 29.3 + 4.1) * 0.4),
+    ];
+  }
+
+  /** the director: on the way down the camera swings low and wide for the landing, then circles the ship on the ground */
+  private direct(f: MarsFlight, dt: number): void {
+    if (this.map || f.frame !== 'mars') return;
+    const idle = performance.now() - this.lastDragAt > 4000;
+    if (!idle) return;
+    const ease = (cur: number, to: number, rate: number) => cur + (to - cur) * (1 - Math.exp(-dt * rate));
+    if (f.phase === 'landing') {
+      this.camPitch = ease(this.camPitch, f.agl > 600 ? 0.12 : 0.03, 0.8);
+      this.camDist = ease(this.camDist, f.agl > 600 ? 300 : 230, 0.6);
+    } else if (f.phase === 'landed' && this.landedAt >= 0) {
+      const t = this.wallT - this.landedAt;
+      if (t > 2) this.camYaw += dt * 0.045;
+      this.camPitch = ease(this.camPitch, 0.07, 0.3);
+      this.camDist = ease(this.camDist, 190, 0.3);
+    }
   }
 
   // ------------------------------------------------------------------ cameras and drawing
@@ -765,7 +880,7 @@ export class MarsMission {
     const cp = Math.cos(this.camPitch);
     const dir = vadd(vadd(vscale(north, cp * Math.cos(this.camYaw)), vscale(east, cp * Math.sin(this.camYaw))), vscale(up, Math.sin(this.camPitch)));
     const dist = this.camDist * (f.stacked ? 1 : 0.62);
-    return { off: vscale(dir, dist), up };
+    return { off: vadd(vscale(dir, dist), this.paused ? [0, 0, 0] : this.shake(f)), up };
   }
 
   private mapMin(): number {
@@ -873,7 +988,7 @@ export class MarsMission {
       mv.camera.fov = 55;
     }
     const dust = f.sEng > 0 ? (f.throttle * f.sEng) / 3 : 0;
-    mv.update({ origin: f.r, cam, camUp, look: at, angle: f.marsAngle(), sun: f.sunDir(), dust }, w, h, dt * Math.min(warp, 4));
+    mv.update({ origin: f.r, cam, camUp, look: at, angle: f.marsAngle(), sun: f.sunDir(), dust, axis: f.axis, engineAgl: f.agl + (f.phase === 'landing' || f.phase === 'landed' ? 0 : 4) }, w, h, dt * Math.min(warp, 4));
     this.drawWith?.(mv.scene, mv.camera);
     this.drawOverlay(f, mv.camera, MARS.R, 'MARS');
   }

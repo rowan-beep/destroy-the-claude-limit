@@ -16,9 +16,14 @@ import * as THREE from 'three';
 import { MAP_W, MAP_H, buildMarsMaps, marsMaps, marsHeight, mapAlbedo } from './marsGlobe';
 import type { Vec } from './marsPhysics';
 import { MARS } from './marsPhysics';
+import { boulderGeometry, groundMaterial } from './marsSurface';
+import { LandingDust } from './marsFx';
 
 const R = MARS.R;
+/** the Sun's light at Mars (renderer units, as the other scenes' suns) */
+const SUN_I = 3.4;
 const D2R = Math.PI / 180;
+const RECIP_PI = 1 / Math.PI;
 
 const GLOBE_VERT = /* glsl */ `
 uniform sampler2D heightTex;
@@ -49,6 +54,8 @@ uniform sampler2D heightTex;
 uniform vec3 sunF;
 uniform vec3 camW;
 uniform float ready;
+uniform float sunI;
+uniform vec3 hazeCol;
 varying vec3 vP;
 varying vec3 vW;
 #include <common>
@@ -70,6 +77,9 @@ void main() {
   vec3 d = normalize(vP);
   vec2 uv = llUV(d);
   vec3 alb = ready > 0.5 ? texture2D(albedoTex, uv).rgb : vec3(0.45, 0.26, 0.15);
+  // the rich butterscotch of the orbital photographs: deeper and more saturated than the raw map
+  float al = dot(alb, vec3(0.3, 0.55, 0.15));
+  alb = max(vec3(0.0), mix(vec3(al), alb, 1.45)) * vec3(0.95, 0.82, 0.74);
   // fine streaks and mottling below the map's resolution
   float n = vn(d * 900.0) * 0.5 + vn(d * 3000.0) * 0.3 + vn(d * 9000.0) * 0.2;
   alb *= 0.86 + 0.28 * n;
@@ -85,12 +95,14 @@ void main() {
   float mu0 = dot(nrm, sunF);
   float muG = dot(d, sunF);
   float lit = max(mu0, 0.0) * smoothstep(-0.08, 0.06, muG);
-  vec3 col = alb * lit * 2.6;
+  // the same light as the ground close up: Lambert under the Sun, plus the dusty sky's glow
+  float day = smoothstep(-0.1, 0.15, muG);
+  vec3 col = alb * (lit * sunI * RECIPROCAL_PI + vec3(0.34, 0.24, 0.17) * 0.35 * day);
   // dusty air: haze toward the limb, lit by the Sun
   vec3 toCam = normalize(camW - vW);
   float muV = max(0.02, dot(d, normalize(camW - vW + d * 0.0)));
   float haze = (1.0 - exp(-0.07 / muV)) * smoothstep(-0.25, 0.2, muG);
-  col = mix(col, vec3(0.62, 0.42, 0.28) * 1.2 * max(0.0, muG + 0.15), clamp(haze, 0.0, 0.7));
+  col = mix(col, hazeCol * max(0.0, muG + 0.15), clamp(haze, 0.0, 0.7));
   // a little skylight on the night side near the terminator
   col += alb * vec3(0.06, 0.07, 0.1) * smoothstep(-0.25, 0.0, muG) * (1.0 - smoothstep(0.0, 0.1, muG));
   gl_FragColor = vec4(col, 1.0);
@@ -101,6 +113,7 @@ void main() {
 const ATMO_FRAG = /* glsl */ `
 uniform vec3 sunF;
 uniform vec3 camW;
+uniform vec3 ctr;
 varying vec3 vP;
 varying vec3 vW;
 #include <common>
@@ -112,7 +125,13 @@ void main() {
   float rim = 1.0 - abs(dot(n, v));
   float s = dot(n, sunF);
   float day = smoothstep(-0.25, 0.25, s);
-  float k = pow(rim, 5.0) * day;
+  // only the air seen past the edge of the planet glows: where the line of sight
+  // meets the ground, the globe's own haze does the work
+  vec3 oc = camW - ctr;
+  float b = dot(oc, v);
+  float disc = b * b - (dot(oc, oc) - ${(R * R).toExponential(6)});
+  float hitsGround = disc > 0.0 && -b - sqrt(disc) > 0.0 ? 1.0 : 0.0;
+  float k = pow(rim, 5.0) * day * (1.0 - 0.92 * hitsGround);
   // the limb: dusty pink in daylight, blue where the light comes in low
   vec3 c = mix(vec3(0.35, 0.5, 0.95), vec3(0.95, 0.62, 0.42), smoothstep(-0.1, 0.45, s));
   gl_FragColor = vec4(c * k * 1.4, 1.0);
@@ -142,22 +161,26 @@ void main() {
   float e = dot(v, upW);
   float se = dot(sunW, upW);
   float cs = dot(v, sunW);
-  float day = smoothstep(-0.18, 0.12, se);
-  // butterscotch near the horizon, a darker brownish-tan overhead
-  vec3 hor = vec3(0.86, 0.6, 0.4);
-  vec3 zen = vec3(0.45, 0.31, 0.22);
-  vec3 c = mix(hor, zen, pow(clamp(e, 0.0, 1.0), 0.55));
-  // below the horizon line the haze is thickest
-  c = mix(c, hor * 0.9, smoothstep(0.02, -0.15, e));
-  // the blue glow round the Sun (fine dust scatters blue forward): strongest at sunrise and sunset
-  float halo = exp(-(1.0 - cs) * 14.0);
-  float low = 1.0 - smoothstep(0.05, 0.6, se);
-  c = mix(c, vec3(0.5, 0.66, 0.95), halo * (0.35 + 0.6 * low));
-  c += vec3(1.0, 0.95, 0.85) * exp(-(1.0 - cs) * 400.0) * 3.0;
-  // twilight: the sky dims and reddens as the Sun goes down
-  c *= day * (0.55 + 0.45 * smoothstep(0.0, 0.4, se));
-  c += vec3(0.08, 0.1, 0.18) * (1.0 - day) * 0.15;
-  gl_FragColor = vec4(c * thick * 1.6, 1.0);
+  float day = smoothstep(-0.2, 0.1, se);
+  // the dust lights the whole sky: butterscotch at the horizon, a deeper brownish
+  // tan overhead (as the rovers photograph it), brighter on the Sun's side
+  vec3 hor = vec3(0.62, 0.40, 0.25);
+  vec3 zen = vec3(0.30, 0.18, 0.11);
+  float ee = clamp(e, 0.0, 1.0);
+  vec3 c = mix(hor, zen, pow(ee, 0.6));
+  c *= 0.85 + 0.35 * pow(max(cs, 0.0), 3.0);
+  // below the horizon line: the hazy far ground
+  c = mix(c, hor * 0.82, smoothstep(0.01, -0.12, e));
+  // the bluish-white aureole round the Sun (fine dust scatters blue forward):
+  // a soft glow by day, a wide blue halo at sunrise and sunset
+  float low = 1.0 - smoothstep(0.05, 0.5, se);
+  float aure = exp(-(1.0 - cs) * mix(60.0, 12.0, low));
+  c = mix(c, vec3(0.52, 0.6, 0.78), clamp(aure * (0.45 + 0.5 * low), 0.0, 0.9));
+  c += vec3(1.0, 0.97, 0.92) * exp(-(1.0 - cs) * 900.0) * 6.0;
+  // twilight: the sky dims as the Sun goes down, holding a blue glow in the west
+  c *= day * (0.45 + 0.55 * smoothstep(0.0, 0.35, se));
+  c += vec3(0.05, 0.07, 0.13) * aure * (1.0 - day) * smoothstep(-0.35, -0.05, se);
+  gl_FragColor = vec4(c * thick, 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
 }`;
@@ -173,8 +196,11 @@ export interface MarsViewState {
   angle: number;
   /** the Sun's direction (Mars frame) */
   sun: Vec;
-  /** fraction of engine power on and the exhaust's ground point, for the dust */
+  /** fraction of engine power on, for the dust */
   dust: number;
+  /** the ship's axis (to find where the engines are), and the height of the engines over the ground */
+  axis?: Vec;
+  engineAgl?: number;
 }
 
 export class MarsView {
@@ -195,16 +221,23 @@ export class MarsView {
   private patch: THREE.Mesh | null = null;
   private patchMat: THREE.MeshStandardMaterial;
   private patchAt: { c: Vec; outer: number } | null = null;
-  private rocks: THREE.InstancedMesh | null = null;
+  private rocks: THREE.InstancedMesh[] = [];
   private rocksAt: Vec | null = null;
   private fog = new THREE.FogExp2(0xc08a60, 0);
   private texReady = false;
-  private dust: THREE.Points;
-  private dustPos: Float32Array;
-  private dustVel: Float32Array;
-  private dustAge: Float32Array;
-  private dustN = 400;
-  private dustNext = 0;
+  /** the renderer, for capturing the sky as the light that fills every shadow */
+  renderer: THREE.WebGLRenderer | null = null;
+  private envTex: THREE.Texture | null = null;
+  private envScene: THREE.Scene | null = null;
+  private envSkyMat: THREE.ShaderMaterial | null = null;
+  private envGround: THREE.Mesh | null = null;
+  private envKey = '';
+  private pmrem: THREE.PMREMGenerator | null = null;
+  private envRT: THREE.WebGLRenderTarget | null = null;
+  private envAt = 0;
+  private dust = new LandingDust();
+  private prevO: Vec | null = null;
+  private prevAngle = 0;
 
   constructor() {
     const dummy = new THREE.DataTexture(new Uint8Array([110, 70, 40, 255]), 1, 1);
@@ -212,7 +245,7 @@ export class MarsView {
     const dummyH = new THREE.DataTexture(new Float32Array([0]), 1, 1, THREE.RedFormat, THREE.FloatType);
     dummyH.needsUpdate = true;
     this.globeMat = new THREE.ShaderMaterial({
-      uniforms: { albedoTex: { value: dummy }, heightTex: { value: dummyH }, sunF: { value: new THREE.Vector3(1, 0, 0) }, camW: { value: new THREE.Vector3() }, ready: { value: 0 }, lift: { value: 1 } },
+      uniforms: { albedoTex: { value: dummy }, heightTex: { value: dummyH }, sunF: { value: new THREE.Vector3(1, 0, 0) }, camW: { value: new THREE.Vector3() }, ready: { value: 0 }, lift: { value: 1 }, sunI: { value: 3.2 }, hazeCol: { value: new THREE.Vector3(0.6, 0.38, 0.23) } },
       vertexShader: GLOBE_VERT,
       fragmentShader: GLOBE_FRAG,
     });
@@ -222,7 +255,7 @@ export class MarsView {
     this.globe.frustumCulled = false;
     this.scene.add(this.globe);
     this.atmoMat = new THREE.ShaderMaterial({
-      uniforms: { sunF: { value: new THREE.Vector3(1, 0, 0) }, camW: { value: new THREE.Vector3() } },
+      uniforms: { sunF: { value: new THREE.Vector3(1, 0, 0) }, camW: { value: new THREE.Vector3() }, ctr: { value: new THREE.Vector3() } },
       vertexShader: SIMPLE_VERT,
       fragmentShader: ATMO_FRAG,
       transparent: true,
@@ -294,60 +327,9 @@ export class MarsView {
     this.hemi = new THREE.HemisphereLight(0xd9a77a, 0x7a4a30, 0.4);
     this.scene.add(this.hemi);
     this.scene.add(this.local);
-    // the ground's fine texture: pebbles, grains and small pits
-    const reg = (() => {
-      const N2 = 512;
-      const cv = document.createElement('canvas');
-      cv.width = cv.height = N2;
-      const gg = cv.getContext('2d')!;
-      const img = gg.createImageData(N2, N2);
-      let s2 = 777;
-      const rr = () => ((s2 = (s2 * 1664525 + 1013904223) >>> 0) / 4294967296);
-      const h = new Float32Array(N2 * N2);
-      for (let i = 0; i < N2 * N2; i++) h[i] = rr() * 0.3;
-      for (let k = 0; k < 1400; k++) {
-        const cx = rr() * N2, cy = rr() * N2, rad = 1.5 + Math.pow(rr(), 3) * 18, pebble = rr() < 0.7;
-        for (let y = -rad - 2; y <= rad + 2; y++)
-          for (let x = -rad - 2; x <= rad + 2; x++) {
-            const dd = Math.hypot(x, y) / rad;
-            if (dd > 1.3) continue;
-            const xi = (Math.floor(cx + x) + N2) % N2, yi = (Math.floor(cy + y) + N2) % N2;
-            h[yi * N2 + xi] += pebble ? Math.max(0, 1 - dd * dd) * 0.7 : dd < 1 ? -(1 - dd * dd) * 0.5 : 0;
-          }
-      }
-      for (let i = 0; i < N2 * N2; i++) {
-        const v = Math.max(0, Math.min(255, 140 + h[i] * 90));
-        img.data[i * 4] = v;
-        img.data[i * 4 + 1] = v * 0.97;
-        img.data[i * 4 + 2] = v * 0.94;
-        img.data[i * 4 + 3] = 255;
-      }
-      gg.putImageData(img, 0, 0);
-      const t = new THREE.CanvasTexture(cv);
-      t.wrapS = t.wrapT = THREE.RepeatWrapping;
-      t.anisotropy = 8;
-      t.colorSpace = THREE.SRGBColorSpace;
-      return t;
-    })();
-    this.patchMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.96, metalness: 0, map: reg, bumpMap: reg, bumpScale: 1.6 });
+    this.patchMat = groundMaterial();
     this.scene.fog = this.fog;
-    // dust kicked up by the engines
-    this.dustPos = new Float32Array(this.dustN * 3);
-    this.dustVel = new Float32Array(this.dustN * 3);
-    this.dustAge = new Float32Array(this.dustN).fill(99);
-    const dg = new THREE.BufferGeometry();
-    dg.setAttribute('position', new THREE.BufferAttribute(this.dustPos, 3));
-    const dc = document.createElement('canvas');
-    dc.width = dc.height = 64;
-    const dgc = dc.getContext('2d')!;
-    const dgr = dgc.createRadialGradient(32, 32, 0, 32, 32, 32);
-    dgr.addColorStop(0, 'rgba(190,130,90,0.55)');
-    dgr.addColorStop(1, 'rgba(190,130,90,0)');
-    dgc.fillStyle = dgr;
-    dgc.fillRect(0, 0, 64, 64);
-    this.dust = new THREE.Points(dg, new THREE.PointsMaterial({ map: new THREE.CanvasTexture(dc), size: 26, transparent: true, depthWrite: false, color: 0xd6a072 }));
-    this.dust.frustumCulled = false;
-    this.local.add(this.dust);
+    this.scene.add(this.dust.group);
   }
 
   /** feed the textures once the global maps are built (call each frame: cheap when done) */
@@ -407,6 +389,7 @@ export class MarsView {
     (this.globeMat.uniforms.camW.value as THREE.Vector3).copy(cam.position);
     (this.atmoMat.uniforms.sunF.value as THREE.Vector3).copy(sun);
     (this.atmoMat.uniforms.camW.value as THREE.Vector3).copy(cam.position);
+    (this.atmoMat.uniforms.ctr.value as THREE.Vector3).copy(this.globe.position);
     // the sky dome follows the camera
     const upW = new THREE.Vector3(o[0] + v.cam[0], o[1] + v.cam[1], o[2] + v.cam[2]).normalize();
     this.sky.position.copy(cam.position);
@@ -435,14 +418,21 @@ export class MarsView {
     const elev = oUp.dot(sun);
     const air = Math.exp(-Math.max(0, Math.hypot(...o) - R) / 11_100);
     const ext = air > 0.01 ? THREE.MathUtils.smoothstep(elev, -0.05, 0.3) : 1;
-    this.sunLight.intensity = shadowed ? 0 : 2.6 * (0.25 + 0.75 * ext);
-    this.sunLight.color.setRGB(1, 0.92 + 0.06 * ext, 0.82 + 0.15 * ext);
+    // sunlight at Mars: 43% of Earth's, a little warmer and dimmer through the dust when low
+    const sunI = SUN_I * (0.2 + 0.8 * ext);
+    this.sunLight.intensity = shadowed ? 0 : sunI;
+    this.sunLight.color.setRGB(1, 0.9 + 0.08 * ext, 0.78 + 0.18 * ext);
+    this.globeMat.uniforms.sunI.value = SUN_I;
+    // the sky and the sunlit ground light everything else (image-based: see updateEnv)
     this.hemi.position.copy(oUp);
-    this.hemi.intensity = 0.12 + 1.1 * air * Math.max(0.15, elev + 0.25);
-    // the dust haze over the ground
+    this.hemi.intensity = this.envTex ? 0 : 0.12 + 1.1 * air * Math.max(0.15, elev + 0.25);
+    // the dust haze over the ground, the colour of the sky at the horizon
     const near = camAlt < 40_000;
-    this.fog.density = near ? 1 / 32_000 * Math.min(1, thick * 2.5) : 0;
-    this.fog.color.setRGB(0.62 * dayAir + 0.02, 0.43 * dayAir + 0.02, 0.3 * dayAir + 0.03);
+    const hz = THREE.MathUtils.smoothstep(sunUp, -0.2, 0.1) * (0.45 + 0.55 * THREE.MathUtils.smoothstep(sunUp, 0, 0.35));
+    this.fog.density = near ? (1 / 38_000) * Math.min(1, thick * 2.5) : 0;
+    this.fog.color.setRGB(0.5 * hz + 0.01, 0.3 * hz + 0.012, 0.18 * hz + 0.02);
+    (this.globeMat.uniforms.hazeCol.value as THREE.Vector3).set(0.62, 0.4, 0.25);
+    this.updateEnv(sun, upW, Math.min(1, thick * 3), Math.max(0, elev), shadowed ? 0 : sunI);
     // the ground mesh while low
     const shipAlt = Math.hypot(...o) - R;
     if (shipAlt < 60_000) {
@@ -462,16 +452,69 @@ export class MarsView {
       // boulders round the landing point
       if (shipAlt < 4000) {
         if (!this.rocksAt || Math.hypot(c[0] - this.rocksAt[0], c[1] - this.rocksAt[1], c[2] - this.rocksAt[2]) * R > 300) this.buildRocks(c);
-        this.rocks!.position.copy(this.patch!.position);
-        this.rocks!.quaternion.copy(this.patch!.quaternion);
-        this.rocks!.visible = true;
-      } else if (this.rocks) this.rocks.visible = false;
+        for (const rk of this.rocks) {
+          rk.position.copy(this.patch!.position);
+          rk.quaternion.copy(this.patch!.quaternion);
+          rk.visible = true;
+        }
+      } else for (const rk of this.rocks) rk.visible = false;
     } else {
       if (this.patch) this.patch.visible = false;
-      if (this.rocks) this.rocks.visible = false;
+      for (const rk of this.rocks) rk.visible = false;
       this.globe.scale.setScalar(1);
     }
-    this.stepDust(v, dt);
+    this.stepDust(v, dt, h, sunI, sun, thick);
+  }
+
+  /**
+   * Image-based light: the sky dome (as it looks from here) over the sunlit
+   * ground, rendered into an environment map, so the steel reflects the real
+   * sky and every shadow is filled by the dusty sky's light and the warm glow
+   * off the ground. Recaptured when the Sun or the height changes.
+   */
+  private updateEnv(sun: THREE.Vector3, upW: THREE.Vector3, thick: number, sunUp: number, sunI: number): void {
+    const r = this.renderer;
+    if (!r) return;
+    const key = `${sun.x.toFixed(2)},${sun.y.toFixed(2)},${sun.z.toFixed(2)}|${upW.x.toFixed(2)},${upW.y.toFixed(2)},${upW.z.toFixed(2)}|${thick.toFixed(2)}|${(sunI * sunUp).toFixed(2)}`;
+    const now = performance.now();
+    if (key === this.envKey || (this.envTex && now - this.envAt < 700)) return;
+    this.envKey = key;
+    this.envAt = now;
+    if (!this.envScene) {
+      this.envScene = new THREE.Scene();
+      this.envSkyMat = new THREE.ShaderMaterial({
+        uniforms: { sunW: { value: new THREE.Vector3() }, upW: { value: new THREE.Vector3() }, thick: { value: 1 } },
+        vertexShader: SIMPLE_VERT,
+        fragmentShader: SKY_FRAG,
+        side: THREE.BackSide,
+        depthWrite: false,
+      });
+      const sky = new THREE.Mesh(new THREE.SphereGeometry(100, 48, 24), this.envSkyMat);
+      sky.renderOrder = -1;
+      this.envScene.add(sky);
+      // the ground: a lower hemisphere a little inside the sky
+      this.envGround = new THREE.Mesh(new THREE.SphereGeometry(90, 48, 12, 0, Math.PI * 2, Math.PI / 2 + 0.01, Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide }));
+      this.envScene.add(this.envGround);
+    }
+    const u = this.envSkyMat!.uniforms;
+    (u.sunW.value as THREE.Vector3).copy(sun);
+    (u.upW.value as THREE.Vector3).copy(upW);
+    u.thick.value = thick;
+    this.envGround!.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), upW);
+    // what the ground sends back up: its albedo under the Sun and the sky
+    const gl = sunI * sunUp * RECIP_PI + 0.12 * thick + 0.012;
+    (this.envGround!.material as THREE.MeshBasicMaterial).color.setRGB(0.42 * gl, 0.26 * gl, 0.16 * gl);
+    try {
+      this.pmrem ??= new THREE.PMREMGenerator(r);
+      const rt = this.pmrem.fromScene(this.envScene, 0, 0.1, 500);
+      this.envRT?.dispose();
+      this.envRT = rt;
+      this.envTex = rt.texture;
+      this.scene.environment = this.envTex;
+      this.scene.environmentIntensity = 1;
+    } catch {
+      /* the hemisphere light carries it */
+    }
   }
 
   /** the ground mesh: rings from under the ship out to `outer` metres (Mars-fixed, about c) */
@@ -496,8 +539,10 @@ export class MarsView {
       pos.set([p.x, p.y, p.z], i * 3);
       mapAlbedo(lat, lon, alb);
       // a little local variation in the dust
-      const vv = 0.88 + 0.24 * Math.sin(lat * 1300 + lon * 900) * Math.sin(lat * 470 - lon * 610);
-      col.set([alb[0] * vv * 1.15, alb[1] * vv * 1.1, alb[2] * vv * 1.05], i * 3);
+      const vv = 0.92 + 0.16 * Math.sin(lat * 1300 + lon * 900) * Math.sin(lat * 470 - lon * 610);
+      // (the same richer colour as the globe's, so the two meet without a seam)
+      const al = alb[0] * 0.3 + alb[1] * 0.55 + alb[2] * 0.15;
+      col.set([Math.max(0, al + (alb[0] - al) * 1.45) * 0.95 * vv, Math.max(0, al + (alb[1] - al) * 1.45) * 0.82 * vv, Math.max(0, al + (alb[2] - al) * 1.45) * 0.74 * vv], i * 3);
       uv.set([(rho * Math.cos(th)) / 9, (rho * Math.sin(th)) / 9], i * 2);
     };
     put(0, cx.clone(), 0, 0);
@@ -523,6 +568,21 @@ export class MarsView {
     g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     g.setIndex(idx);
     g.computeVertexNormals();
+    // steep ground sheds its dust: slopes show darker, greyer bedrock
+    const nrm = g.attributes.normal as THREE.BufferAttribute;
+    const up = new THREE.Vector3(), nn = new THREE.Vector3();
+    for (let i = 0; i < nV; i++) {
+      up.set(pos[i * 3] + P0.x, pos[i * 3 + 1] + P0.y, pos[i * 3 + 2] + P0.z).normalize();
+      nn.set(nrm.getX(i), nrm.getY(i), nrm.getZ(i));
+      const steep = THREE.MathUtils.smoothstep(1 - up.dot(nn), 0.04, 0.22);
+      if (steep > 0) {
+        const cr = col[i * 3], cg = col[i * 3 + 1], cb = col[i * 3 + 2];
+        const grey = (cr + cg + cb) / 3 * 0.55;
+        col[i * 3] = cr + (grey * 1.15 - cr) * steep;
+        col[i * 3 + 1] = cg + (grey * 0.95 - cg) * steep;
+        col[i * 3 + 2] = cb + (grey * 0.85 - cb) * steep;
+      }
+    }
     if (this.patch) {
       this.patch.geometry.dispose();
       this.patch.geometry = g;
@@ -535,87 +595,93 @@ export class MarsView {
     this.patchAt = { c, outer };
   }
 
-  /** boulders strewn round the landing point (Mars-fixed, in the patch's frame) */
+  /** boulders strewn round the landing point (Mars-fixed, in the patch's frame): many small, a few big, half sunk */
   private buildRocks(c: Vec): void {
-    const N = 900;
-    if (!this.rocks) {
-      const g = new THREE.IcosahedronGeometry(1, 1);
-      const p = g.attributes.position as THREE.BufferAttribute;
-      for (let i = 0; i < p.count; i++) {
-        const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
-        const n = 0.75 + 0.35 * Math.sin(x * 5.1 + y * 3.3) * Math.cos(z * 4.7 - x * 2.1);
-        p.setXYZ(i, x * n * 1.2, y * n * 0.62, z * n);
+    const PER = 700;
+    if (!this.rocks.length) {
+      const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.88, metalness: 0 });
+      for (let k = 0; k < 4; k++) {
+        const rk = new THREE.InstancedMesh(boulderGeometry(11 + k * 7), mat, PER);
+        rk.castShadow = true;
+        rk.receiveShadow = true;
+        rk.frustumCulled = false;
+        this.rocks.push(rk);
+        this.scene.add(rk);
       }
-      g.computeVertexNormals();
-      this.rocks = new THREE.InstancedMesh(g, new THREE.MeshStandardMaterial({ color: 0x6a4030, roughness: 0.9, flatShading: true }), N);
-      this.rocks.castShadow = true;
-      this.rocks.receiveShadow = true;
-      this.rocks.frustumCulled = false;
-      this.scene.add(this.rocks);
     }
     const cx = new THREE.Vector3(...c);
     const t1 = new THREE.Vector3().crossVectors(Math.abs(c[2]) < 0.9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(1, 0, 0), cx).normalize();
     const t2 = new THREE.Vector3().crossVectors(cx, t1);
     const P0 = new THREE.Vector3(...this.patchAt!.c).multiplyScalar(R);
     let s = Math.floor((c[0] + c[1] * 7 + c[2] * 13) * 1e6) >>> 0;
-    const r = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+    const r = () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296);
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion();
-    for (let i = 0; i < N; i++) {
-      const rho = 14 + Math.pow(r(), 0.7) * 420, th = r() * Math.PI * 2;
-      const a = rho / R;
-      const d = cx.clone().multiplyScalar(Math.cos(a)).addScaledVector(t1, Math.sin(a) * Math.cos(th)).addScaledVector(t2, Math.sin(a) * Math.sin(th)).normalize();
-      const lat = Math.asin(d.z) / D2R, lon = Math.atan2(d.y, d.x) / D2R;
-      const size = 0.08 + Math.pow(r(), 4) * 1.6;
-      const p = d.clone().multiplyScalar(R + marsHeight(lat, lon) + size * 0.25).sub(P0);
-      q.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), r() * 6.28));
-      m.compose(p, q, new THREE.Vector3(size, size, size));
-      this.rocks.setMatrixAt(i, m);
+    const col = new THREE.Color();
+    const alb = [0, 0, 0];
+    // rocks tinted from dark basalt to rusty, all dusted with the local soil's colour
+    const tones: [number, number, number][] = [[0.13, 0.11, 0.1], [0.17, 0.13, 0.11], [0.26, 0.16, 0.11], [0.32, 0.21, 0.14], [0.38, 0.3, 0.24]];
+    for (const rk of this.rocks)
+      for (let i = 0; i < PER; i++) {
+        // denser close to the ship (where the camera is), thinning out to 700 m
+        const rho = 6 + Math.pow(r(), 1.6) * 700, th = r() * Math.PI * 2;
+        const a = rho / R;
+        const d = cx.clone().multiplyScalar(Math.cos(a)).addScaledVector(t1, Math.sin(a) * Math.cos(th)).addScaledVector(t2, Math.sin(a) * Math.sin(th)).normalize();
+        const lat = Math.asin(d.z) / D2R, lon = Math.atan2(d.y, d.x) / D2R;
+        const size = 0.12 + Math.pow(r(), 5) * 2.4;
+        const sink = 0.15 + r() * 0.35;
+        const p = d.clone().multiplyScalar(R + marsHeight(lat, lon) - size * 0.62 * sink).sub(P0);
+        // sitting on the ground, turned at random and tipped a little
+        q.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d)
+          .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), r() * 6.28))
+          .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), (r() - 0.5) * 0.5));
+        m.compose(p, q, new THREE.Vector3(size * (0.8 + r() * 0.5), size, size * (0.8 + r() * 0.5)));
+        rk.setMatrixAt(i, m);
+        const t = tones[Math.floor(r() * tones.length)];
+        mapAlbedo(lat, lon, alb);
+        const dust = 0.25 + r() * 0.35;
+        col.setRGB(t[0] * (1 - dust) + alb[0] * 0.75 * dust, t[1] * (1 - dust) + alb[1] * 0.75 * dust, t[2] * (1 - dust) + alb[2] * 0.75 * dust);
+        rk.setColorAt(i, col);
+      }
+    for (const rk of this.rocks) {
+      rk.instanceMatrix.needsUpdate = true;
+      if (rk.instanceColor) rk.instanceColor.needsUpdate = true;
     }
-    this.rocks.instanceMatrix.needsUpdate = true;
     this.rocksAt = c;
   }
 
-  /** dust blown out from under the engines when they fire near the ground */
-  private stepDust(v: MarsViewState, dt: number): void {
+  /** the dust storm under the engines: placed on the ground below, carried round with Mars */
+  private stepDust(v: MarsViewState, dt: number, h: number, sunI: number, sun: THREE.Vector3, thick: number): void {
     const o = v.origin;
     const up = new THREE.Vector3(...o).normalize();
-    const lat = Math.asin(Math.max(-1, Math.min(1, new THREE.Vector3(...o).applyMatrix4(new THREE.Matrix4().makeRotationZ(-v.angle)).normalize().z)));
-    void lat;
-    const ll = (() => {
-      const f = new THREE.Vector3(...o).applyMatrix4(new THREE.Matrix4().makeRotationZ(-v.angle)).normalize();
-      return { lat: Math.asin(f.z) / D2R, lon: Math.atan2(f.y, f.x) / D2R };
-    })();
-    const ground = R + marsHeight(ll.lat, ll.lon);
+    const rz = new THREE.Matrix4().makeRotationZ(-v.angle);
+    const f = new THREE.Vector3(...o).applyMatrix4(rz).normalize();
+    const lat = Math.asin(f.z) / D2R, lon = Math.atan2(f.y, f.x) / D2R;
+    const ground = R + marsHeight(lat, lon);
     const agl = Math.hypot(...o) - ground;
     const groundPt = up.clone().multiplyScalar(-agl);
-    if (v.dust > 0.05 && agl < 120) {
-      const n = Math.floor(dt * 160 * v.dust * (1 - agl / 120)) + 1;
-      for (let k = 0; k < n; k++) {
-        const i = this.dustNext;
-        this.dustNext = (this.dustNext + 1) % this.dustN;
-        const a = Math.random() * Math.PI * 2;
-        const side = new THREE.Vector3(Math.cos(a), Math.sin(a), 0);
-        side.addScaledVector(up, -side.dot(up)).normalize();
-        const sp = 25 + Math.random() * 40;
-        this.dustPos.set([groundPt.x, groundPt.y, groundPt.z], i * 3);
-        const vel = side.multiplyScalar(sp).addScaledVector(up, 3 + Math.random() * 8);
-        this.dustVel.set([vel.x, vel.y, vel.z], i * 3);
-        this.dustAge[i] = 0;
-      }
+    // where the scene's particles were last frame, relative to the ship now: the ground turns with Mars
+    const shift = new THREE.Vector3();
+    if (this.prevO) {
+      const pa = new THREE.Vector3(...this.prevO).applyAxisAngle(new THREE.Vector3(0, 0, 1), v.angle - this.prevAngle);
+      shift.set(pa.x - o[0], pa.y - o[1], pa.z - o[2]);
+      if (shift.length() > 500) shift.set(0, 0, 0);
     }
-    for (let i = 0; i < this.dustN; i++) {
-      if (this.dustAge[i] > 6) {
-        this.dustPos[i * 3 + 2] = 1e9;
-        continue;
-      }
-      this.dustAge[i] += dt;
-      const dmp = Math.exp(-dt * 0.9);
-      for (let k = 0; k < 3; k++) {
-        this.dustVel[i * 3 + k] *= dmp;
-        this.dustPos[i * 3 + k] += this.dustVel[i * 3 + k] * dt;
-      }
-    }
-    (this.dust.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
+    this.prevO = [o[0], o[1], o[2]];
+    this.prevAngle = v.angle;
+    const eAgl = v.engineAgl ?? agl;
+    const power = v.dust * THREE.MathUtils.smoothstep(-eAgl, -170, -20);
+    const alb = [0, 0, 0];
+    mapAlbedo(lat, lon, alb);
+    const soil = new THREE.Color(alb[0] * 0.95, alb[1] * 0.9, alb[2] * 0.85);
+    const el = Math.max(0, up.dot(sun));
+    const li = (sunI * el) / Math.PI + 0.3 * thick;
+    const light = new THREE.Vector3(li, li * 0.92, li * 0.84);
+    const glow = v.dust * THREE.MathUtils.smoothstep(-eAgl, -120, -5) * 0.35;
+    const floor = (p: THREE.Vector3) => {
+      const d = (p.x - groundPt.x) * up.x + (p.y - groundPt.y) * up.y + (p.z - groundPt.z) * up.z;
+      return d < 0 ? -d : null;
+    };
+    this.dust.update(dt, h, groundPt, up, power, shift, soil, light, glow, floor);
   }
 }
