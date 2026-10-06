@@ -566,9 +566,9 @@ export function mirror(g: THREE.BufferGeometry): THREE.BufferGeometry {
     }
     index.needsUpdate = true;
   }
-  // normals mirror exactly: flip x instead of recomputing (keeps seams identical)
-  const n = m.attributes.normal as THREE.BufferAttribute | undefined;
-  if (n) for (let i = 0; i < n.count; i++) n.setX(i, -n.getX(i));
+  // (scale() already mirrors the normals exactly, which keeps the seams identical:
+  // flipping their x again here used to turn every mirrored part's normals inward,
+  // so the left-hand intakes, booms, tanks and tails were lit as if from inside)
   const s = m.attributes.skin as THREE.BufferAttribute | undefined;
   if (s) for (let i = 0; i < s.count; i++) s.setX(i, -s.getX(i));
   return m;
@@ -921,41 +921,50 @@ const SKIN_FRAG = /* glsl */ `
     base *= 1.0 + lead * 0.05 * ( 0.5 + n2 );
     skinRough -= lead * 0.12;
     // --- close range: fasteners, paint texture and chips ----------------------
-    // (metres covered by one pixel here: the fine detail fades out long before it
-    // could shimmer, so from a distance the jet looks exactly as before)
+    // (skinPx: metres of skin covered by one pixel here. Each detail is drawn no
+    // smaller than about a pixel, a little fainter as it grows, and fades out
+    // before it could shimmer, so from a distance the jet looks just as before)
     float skinPx = length( fwidth( vSkin ) );
     float skinNear = 1.0 - smoothstep( 0.0018, 0.007, skinPx );
-    if ( skinNear > 0.001 ) {
+    float skinMid = 1.0 - smoothstep( 0.012, 0.03, skinPx );
+    if ( skinMid > 0.001 ) {
       // the coordinate around the body: across the jet on top and bottom, up the side
       float sAcross = mix( vSkin.x, vSkin.y, wS );
+      // fastener heads are about 4.5 mm across; further away they are drawn a pixel
+      // wide, so the rows still read as the stitched lines you see in photos
+      float rr = max( 0.0022, skinPx * 0.6 );
+      float rk = sqrt( 0.0022 / rr ) * skinMid;
       // frame lines: a row of flush fasteners at every fuselage frame, 0.5 m apart,
       // panel by panel (broken up so they never read as a grid)
       float fz = vSkin.z / 0.5 + 0.5;
       float dz = ( fract( fz ) - 0.5 ) * 0.5;
       float rowOn = step( 0.38, skinHash( vec3( floor( fz ), floor( sAcross / 1.3 ), 3.0 ) ) );
       float ds = ( fract( sAcross / 0.045 + 0.5 ) - 0.5 ) * 0.045;
-      float rivA = ( 1.0 - smoothstep( 0.0016, 0.0028, length( vec2( dz, ds ) ) ) ) * rowOn;
+      float rivA = ( 1.0 - smoothstep( rr * 0.7, rr * 1.25, length( vec2( dz, ds ) ) ) ) * rowOn;
       // stringers: rows running along the jet, 0.42 m apart
       float fs = sAcross / 0.42 + 0.5;
       float ds2 = ( fract( fs ) - 0.5 ) * 0.42;
       float rowOn2 = step( 0.5, skinHash( vec3( floor( fs ), floor( vSkin.z / 1.6 ), 7.0 ) ) );
       float dz2 = ( fract( vSkin.z / 0.05 + 0.5 ) - 0.5 ) * 0.05;
-      float rivB = ( 1.0 - smoothstep( 0.0016, 0.0028, length( vec2( dz2, ds2 ) ) ) ) * rowOn2;
+      float rivB = ( 1.0 - smoothstep( rr * 0.7, rr * 1.25, length( vec2( dz2, ds2 ) ) ) ) * rowOn2;
       // screws round the access panels: along the drawn seams, every 6 cm
-      float sc = ( 1.0 - smoothstep( 0.0024, 0.0036, length( vec2( ( fract( vSkin.z / 0.06 + 0.5 ) - 0.5 ) * 0.06, ( fract( sAcross / 0.06 + 0.5 ) - 0.5 ) * 0.06 ) ) ) ) * smoothstep( 0.15, 0.5, dark );
-      float fast = max( max( rivA, rivB ) * 0.8, sc ) * skinNear;
-      // heads sit a hair proud of the paint, a little darker where the paint is thin
-      skinDepth -= fast * 0.00045;
-      base *= 1.0 - fast * 0.07;
-      skinRough += fast * 0.06;
+      float sr = max( 0.003, skinPx * 0.6 );
+      float sc = ( 1.0 - smoothstep( sr * 0.8, sr * 1.2, length( vec2( ( fract( vSkin.z / 0.06 + 0.5 ) - 0.5 ) * 0.06, ( fract( sAcross / 0.06 + 0.5 ) - 0.5 ) * 0.06 ) ) ) ) * smoothstep( 0.15, 0.5, dark ) * sqrt( 0.003 / sr );
+      float fast = max( max( rivA, rivB ) * 0.8 * rk, sc * skinMid );
+      // heads sit a hair proud of the paint, a little darker and duller where it is thin
+      skinDepth -= fast * 0.00045 * skinNear;
+      base *= 1.0 - fast * 0.1;
+      skinRough += fast * 0.09;
       // the paint itself: a fine "orange peel" texture that breaks up the reflections
       float peel = skinNoise( vSkin * 260.0 ) - 0.5;
       skinDepth += peel * 0.00003 * skinNear;
       // chipped paint on the leading edges and round the panels: grey primer showing
-      float chipN = skinNoise( vSkin * 55.0 + 17.0 );
-      float chip = smoothstep( 0.82, 0.86, chipN ) * clamp( lead * 1.4 + dark * 0.6 + under * 0.15, 0.0, 1.0 ) * skinNear;
-      base = mix( base, vec3( 0.46, 0.47, 0.44 ), chip * 0.7 );
-      skinRough += chip * 0.15;
+      // (drawn as a colour, whatever the paint, so it shows on light and dark jets alike)
+      float chipN = skinNoise( vSkin * 24.0 + 17.0 );
+      float chip = smoothstep( 0.8, 0.84, chipN ) * clamp( lead * 1.4 + dark * 0.6 + under * 0.15, 0.0, 1.0 ) * ( 1.0 - smoothstep( 0.01, 0.028, skinPx ) );
+      vec3 primer = min( vec3( 0.25, 0.26, 0.24 ) / max( diffuse, vec3( 0.02 ) ), vec3( 12.0 ) );
+      base = mix( base, primer, chip * 0.75 );
+      skinRough += chip * 0.18;
     }
     diffuseColor.rgb *= ( base * ( 1.0 - m.a ) + m.rgb ) * brightness;
   }
@@ -1073,7 +1082,7 @@ function applySkin(mat: THREE.MeshStandardMaterial, uniforms: Record<string, THR
       .replace('#include <aomap_fragment>', '#include <aomap_fragment>\n' + SKIN_AO)
       .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n' + SKIN_BOUNCE);
   };
-  mat.customProgramCacheKey = () => 'skin-v8';
+  mat.customProgramCacheKey = () => 'skin-v9';
   void id;
 }
 
