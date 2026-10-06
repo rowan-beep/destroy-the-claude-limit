@@ -13,7 +13,7 @@
 import * as THREE from 'three';
 import { ENGINES, FlightSim, StageId } from './flightSim';
 
-const PLUME_VERT = /* glsl */ `
+export const PLUME_VERT = /* glsl */ `
 uniform float r0;
 uniform float r1;
 uniform float spread;
@@ -34,7 +34,7 @@ void main() {
   gl_Position = projectionMatrix * mv;
   #include <logdepthbuf_vertex>
 }`;
-const PLUME_FRAG = /* glsl */ `
+export const PLUME_FRAG = /* glsl */ `
 uniform vec3 core;
 uniform vec3 outer;
 uniform vec3 smoke;

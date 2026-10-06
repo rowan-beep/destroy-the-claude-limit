@@ -358,7 +358,7 @@ export class FlightUI {
       ['SPACE', 'Do the highlighted goal: LAUNCH, GO TO THE MOON, LAND ON THE MOON…'],
       ['2 · 3 · 4', 'The other goal buttons'],
       ['AUTO · F', 'Fast forward: skips the waiting and slows down by itself for every burn'],
-      ['1× … 500×', 'Pick a time-warp speed (the autopilot still slows it for precise moments)'],
+      ['1× … 500×', 'Pick a time-warp speed: the clock runs at exactly the speed you pick'],
       ['W A S D', 'Steer yourself (this switches the autopilot off)'],
       ['Mouse', 'Drag to look around, scroll to zoom'],
       ['M · C', 'Map of your orbit · change camera'],

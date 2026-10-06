@@ -1,0 +1,416 @@
+// Mars itself: the shape of the ground and the colour of the dust, built once
+// from the planet's real features and shared by everything that draws or
+// lands on it.
+//
+// A global map (equirectangular, 2048 x 1024) holds the large-scale relief
+// and albedo: the crustal dichotomy between the low, smooth northern plains
+// and the high, cratered south; the Tharsis rise with Olympus Mons and the
+// three Tharsis Montes, Alba Mons and the Elysium volcanoes; Valles Marineris
+// with Noctis Labyrinthus at its head; the Hellas, Argyre, Isidis and Utopia
+// basins; thousands of craters; the dark regions (Syrtis Major, Acidalia,
+// Mare Erythraeum, Sinus Meridiani and the rest), the bright dusty uplands and
+// both polar caps. Close to the ground, `marsHeight` adds what the map cannot
+// hold: rolling terrain and craters down to a few metres across, the same
+// everywhere, so the ship lands on exactly the ground that is drawn.
+//
+// Coordinates: latitude north, longitude east (-180..180); Mars-fixed unit
+// vectors are (cos lat cos lon, cos lat sin lon, sin lat).
+
+export const MAP_W = 1024;
+export const MAP_H = 512;
+const R_KM = 3389.5;
+const D2R = Math.PI / 180;
+
+// ------------------------------------------------------------------ noise
+function hash3(x: number, y: number, z: number): number {
+  let h = (x * 374761393 + y * 668265263 + z * 2147483647) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+function vnoise(x: number, y: number, z: number): number {
+  const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+  let fx = x - xi, fy = y - yi, fz = z - zi;
+  fx = fx * fx * (3 - 2 * fx);
+  fy = fy * fy * (3 - 2 * fy);
+  fz = fz * fz * (3 - 2 * fz);
+  const a = hash3(xi, yi, zi), b = hash3(xi + 1, yi, zi), c = hash3(xi, yi + 1, zi), d = hash3(xi + 1, yi + 1, zi);
+  const e = hash3(xi, yi, zi + 1), f = hash3(xi + 1, yi, zi + 1), g = hash3(xi, yi + 1, zi + 1), h = hash3(xi + 1, yi + 1, zi + 1);
+  const x1 = a + (b - a) * fx, x2 = c + (d - c) * fx, x3 = e + (f - e) * fx, x4 = g + (h - g) * fx;
+  const y1 = x1 + (x2 - x1) * fy, y2 = x3 + (x4 - x3) * fy;
+  return y1 + (y2 - y1) * fz;
+}
+function fbm(x: number, y: number, z: number, oct: number): number {
+  let s = 0, a = 0.5, f = 1, n = 0;
+  for (let i = 0; i < oct; i++) {
+    s += a * (vnoise(x * f, y * f, z * f) * 2 - 1);
+    n += a;
+    a *= 0.5;
+    f *= 2.03;
+  }
+  return s / n;
+}
+
+/** great-circle angle (radians) between two lat/lon points */
+function arc(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const p1 = lat1 * D2R, p2 = lat2 * D2R, dl = (lon2 - lon1) * D2R;
+  const c = Math.sin(p1) * Math.sin(p2) + Math.cos(p1) * Math.cos(p2) * Math.cos(dl);
+  return Math.acos(Math.max(-1, Math.min(1, c)));
+}
+const sstep = (a: number, b: number, x: number) => {
+  const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
+
+// ------------------------------------------------------------------ the features
+interface Volcano { lat: number; lon: number; r: number; h: number; caldera: number; scarp?: number }
+const VOLCANOES: Volcano[] = [
+  { lat: 18.65, lon: -133.8, r: 310, h: 19, caldera: 42, scarp: 5 }, // Olympus Mons
+  { lat: 11.8, lon: -104.5, r: 220, h: 12, caldera: 30 }, // Ascraeus Mons
+  { lat: 1.5, lon: -112.8, r: 210, h: 8, caldera: 24 }, // Pavonis Mons
+  { lat: -8.3, lon: -120.1, r: 230, h: 11, caldera: 55 }, // Arsia Mons
+  { lat: 40.5, lon: -109.6, r: 650, h: 3.5, caldera: 60 }, // Alba Mons
+  { lat: 24.8, lon: 146.9, r: 190, h: 11, caldera: 14 }, // Elysium Mons
+  { lat: 32.2, lon: 150.3, r: 110, h: 5, caldera: 8 }, // Hecates Tholus
+  { lat: 21.4, lon: -95.4, r: 70, h: 3, caldera: 8 }, // Tharsis Tholus
+];
+interface Basin { lat: number; lon: number; r: number; depth: number; rim: number }
+const BASINS: Basin[] = [
+  { lat: -42.4, lon: 70.5, r: 1150, depth: 6.5, rim: 1.6 }, // Hellas
+  { lat: -49.7, lon: -43.0, r: 900, depth: 3.8, rim: 1.2 }, // Argyre
+  { lat: 12.9, lon: 87.0, r: 620, depth: 2.6, rim: 0.6 }, // Isidis
+  { lat: 46.7, lon: 117.5, r: 1600, depth: 1.4, rim: 0 }, // Utopia
+];
+/** Valles Marineris and its western end */
+const VALLES: [number, number][] = [[-7.2, -101], [-8.5, -92], [-7.8, -83], [-9.2, -76], [-11.5, -68], [-13.4, -60], [-12.6, -52], [-9.5, -45], [-5.5, -40]];
+/** the dark albedo regions: lat, lon, half-extents (deg), strength */
+const DARK: [number, number, number, number, number][] = [
+  [9, 69.5, 9, 13, 1.0], // Syrtis Major
+  [47, -28, 10, 22, 0.85], // Acidalia
+  [-25, -42, 13, 22, 0.75], // Mare Erythraeum
+  [-3, 0, 5, 14, 0.95], // Sinus Meridiani
+  [-8, 25, 6, 18, 0.85], // Sinus Sabaeus
+  [-17, 105, 8, 18, 0.75], // Mare Tyrrhenum
+  [-22, 145, 8, 18, 0.75], // Mare Cimmerium
+  [-30, -152, 7, 20, 0.75], // Mare Sirenum
+  [-26, -87, 5, 8, 0.7], // Solis Lacus
+  [-40, 50, 7, 22, 0.55], // Mare Serpentis / Hellespontus
+  [55, 120, 8, 30, 0.45], // Utopia's dark collar
+  [62, -20, 6, 50, 0.6], // the northern dune collar round the cap
+  [-48, 160, 8, 25, 0.5], // Mare Chronium
+];
+/** bright, dusty regions */
+const BRIGHT: [number, number, number, number, number][] = [
+  [0, -110, 25, 35, 0.6], // Tharsis
+  [20, 10, 18, 30, 0.45], // Arabia Terra
+  [20, -160, 15, 25, 0.55], // Amazonis
+  [25, 150, 15, 20, 0.45], // Elysium
+  [-42, 70, 12, 20, 0.6], // Hellas floor
+  [-50, -43, 8, 10, 0.45], // Argyre floor
+];
+
+export interface Region { name: string; lat: number; lon: number; r: number }
+export const REGIONS: Region[] = [
+  { name: 'Olympus Mons', lat: 18.65, lon: -133.8, r: 4 },
+  { name: 'Jezero crater', lat: 18.4, lon: 77.6, r: 0.6 },
+  { name: 'Gale crater', lat: -5.4, lon: 137.8, r: 1.2 },
+  { name: 'Valles Marineris', lat: -10, lon: -72, r: 30 },
+  { name: 'Hellas Planitia', lat: -42, lon: 70, r: 18 },
+  { name: 'Argyre Planitia', lat: -50, lon: -43, r: 13 },
+  { name: 'Arcadia Planitia', lat: 47, lon: -176, r: 18 },
+  { name: 'Amazonis Planitia', lat: 24, lon: -164, r: 15 },
+  { name: 'Utopia Planitia', lat: 47, lon: 118, r: 25 },
+  { name: 'Elysium Planitia', lat: 3, lon: 155, r: 15 },
+  { name: 'Chryse Planitia', lat: 27, lon: -40, r: 14 },
+  { name: 'Acidalia Planitia', lat: 47, lon: -22, r: 16 },
+  { name: 'Isidis Planitia', lat: 13, lon: 88, r: 10 },
+  { name: 'Syrtis Major', lat: 9, lon: 69, r: 10 },
+  { name: 'Meridiani Planum', lat: -2, lon: -6, r: 8 },
+  { name: 'Tharsis', lat: 0, lon: -110, r: 30 },
+  { name: 'Arabia Terra', lat: 20, lon: 5, r: 22 },
+  { name: 'Terra Sabaea', lat: -2, lon: 42, r: 20 },
+  { name: 'Noachis Terra', lat: -45, lon: -5, r: 20 },
+  { name: 'Terra Cimmeria', lat: -35, lon: 145, r: 22 },
+  { name: 'Terra Sirenum', lat: -40, lon: -150, r: 22 },
+  { name: 'Vastitas Borealis', lat: 70, lon: 0, r: 180 },
+];
+export function regionName(lat: number, lon: number): string {
+  let best = '', bestK = Infinity;
+  for (const r of REGIONS) {
+    const d = arc(lat, lon, r.lat, r.lon) / D2R;
+    if (d < r.r && d / r.r < bestK) {
+      bestK = d / r.r;
+      best = r.name;
+    }
+  }
+  return best || (lat < 0 ? 'the southern highlands' : 'the northern plains');
+}
+
+// ------------------------------------------------------------------ the global map
+export interface MarsMaps {
+  /** heights in km, row 0 at latitude +90 */
+  height: Float32Array;
+  /** albedo, linear RGB 0..1, three per pixel */
+  albedo: Float32Array;
+}
+let maps: MarsMaps | null = null;
+
+/** distance (deg of arc) from a point to the Valles polyline, and the fraction along it */
+function vallesDist(lat: number, lon: number): { d: number; t: number } {
+  let best = Infinity, bt = 0;
+  for (let i = 0; i < VALLES.length - 1; i++) {
+    const [a1, o1] = VALLES[i], [a2, o2] = VALLES[i + 1];
+    const cx = Math.cos(lat * D2R);
+    const ax = o1 * cx, ay = a1, bx = o2 * cx, by = a2, px = lon * cx, py = lat;
+    const vx = bx - ax, vy = by - ay;
+    const t = Math.max(0, Math.min(1, ((px - ax) * vx + (py - ay) * vy) / (vx * vx + vy * vy)));
+    const d = Math.hypot(px - ax - vx * t, py - ay - vy * t);
+    if (d < best) {
+      best = d;
+      bt = (i + t) / (VALLES.length - 1);
+    }
+  }
+  return { d: best, t: bt };
+}
+
+function ellipseK(lat: number, lon: number, cl: number, co: number, rl: number, ro: number): number {
+  let dl = lon - co;
+  dl = ((dl + 540) % 360) - 180;
+  return Math.hypot((lat - cl) / rl, (dl * Math.cos(lat * D2R)) / ro);
+}
+
+/** large-scale relief (km) at a point, without craters */
+function reliefKm(lat: number, lon: number, x: number, y: number, z: number): number {
+  // the dichotomy: the north sits ~3 km lower behind a wavy boundary
+  const bLat = 18 + 15 * Math.cos((lon - 20) * D2R) + 6 * fbm(x * 2, y * 2, z * 2, 3);
+  let h = 1.2 - 4.0 * sstep(bLat - 6, bLat + 6, lat);
+  // rolling terrain everywhere, rougher in the south
+  h += fbm(x * 3, y * 3, z * 3, 5) * (lat < bLat ? 1.4 : 0.6);
+  // the Tharsis rise and Elysium's
+  h += 6.5 * Math.exp(-((arc(lat, lon, 2, -108) / (45 * D2R)) ** 2));
+  h += 2.0 * Math.exp(-((arc(lat, lon, 25, 148) / (14 * D2R)) ** 2));
+  // the volcanoes
+  for (const v of VOLCANOES) {
+    const xk = (arc(lat, lon, v.lat, v.lon) * R_KM) / v.r;
+    if (xk < 1.25) {
+      let s = Math.max(0, 1 - Math.pow(Math.min(1, xk), 1.6));
+      s = Math.pow(s, 1.25);
+      h += v.h * s;
+      if (v.scarp) h += v.scarp * sstep(1.05, 0.9, xk) - v.scarp * 0.2;
+      const xc = (xk * v.r) / v.caldera;
+      if (xc < 1.2) h -= 3.0 * sstep(1.15, 0.85, xc) * Math.min(1, v.h / 10);
+    }
+  }
+  // the basins, with raised rims
+  for (const b of BASINS) {
+    const xk = (arc(lat, lon, b.lat, b.lon) * R_KM) / b.r;
+    if (xk < 1.6) h += -b.depth * (1 - sstep(0.55, 1.0, xk)) + b.rim * Math.exp(-(((xk - 1.05) / 0.18) ** 2));
+  }
+  // Valles Marineris: deep, steep-walled troughs; the chaotic maze at its head
+  const vm = vallesDist(lat, lon);
+  const halfW = 2.2 + 2.0 * Math.sin(vm.t * Math.PI);
+  if (vm.d < halfW * 2.5) {
+    const depth = 7 * (0.55 + 0.45 * Math.sin(vm.t * Math.PI));
+    const wob = 0.9 * fbm(x * 30, y * 30, z * 30, 3);
+    // the main trough and the parallel chasmata beside it (Ius, Melas, Coprates, Ophir, Candor)
+    const main = 1 - sstep(halfW * 0.35, halfW * 0.75, vm.d + wob);
+    const side = (1 - sstep(0.25, 0.7, Math.abs(vm.d - halfW * 1.15) + wob * 0.6)) * Math.sin(vm.t * Math.PI) * 0.8;
+    h -= depth * Math.max(main, side);
+  }
+  if (arc(lat, lon, -7, -102) < 6 * D2R) h -= 2.2 * Math.max(0, fbm(x * 70, y * 70, z * 70, 3)) * sstep(6, 3, arc(lat, lon, -7, -102) / D2R);
+  // the polar layered deposits stand up to 3 km
+  if (lat > 78) h += 2.8 * sstep(78, 86, lat);
+  if (lat < -80) h += 3.2 * sstep(-80, -87, lat);
+  return h;
+}
+
+function albedoAt(lat: number, lon: number, x: number, y: number, z: number, hKm: number, out: number[]): void {
+  // dust: a bright butterscotch; basalt and dunes: a dark grey-brown
+  const bright = [0.62, 0.36, 0.2];
+  const dark = [0.26, 0.17, 0.12];
+  let k = 0.33 + 0.22 * fbm(x * 6 + 3, y * 6, z * 6, 5);
+  // ragged edges: the dark regions are wind-swept, with long tails and bays
+  const warp = 0.55 * fbm(x * 7, y * 7 + 7, z * 7, 4) + 0.3 * fbm(x * 22 + 5, y * 22, z * 22, 3);
+  for (const [cl, co, rl, ro, s] of DARK) {
+    const e = ellipseK(lat, lon, cl, co, rl, ro) + warp;
+    k += s * 0.75 * (1 - sstep(0.55, 1.15, e));
+  }
+  for (const [cl, co, rl, ro, s] of BRIGHT) {
+    const e = ellipseK(lat, lon, cl, co, rl, ro) + warp;
+    k -= s * 0.6 * (1 - sstep(0.5, 1.2, e));
+  }
+  // high volcanoes wear bright dust; canyon floors darker
+  if (hKm > 8) k -= 0.15;
+  k = Math.max(0, Math.min(1, k));
+  for (let i = 0; i < 3; i++) out[i] = bright[i] + (dark[i] - bright[i]) * k;
+  // the polar caps: water ice under CO2 frost, with the north cap's spiral troughs
+  let ice = 0;
+  if (lat > 79) {
+    const sp = Math.sin((lon * 3 + (90 - lat) * 18) * D2R);
+    ice = sstep(79, 83, lat) * (0.75 + 0.25 * sp);
+  }
+  const sd = arc(lat, lon, -87, -45) / D2R;
+  if (sd < 6) ice = Math.max(ice, sstep(6, 3.5, sd));
+  if (ice > 0) {
+    const ic = [0.86, 0.82, 0.76];
+    for (let i = 0; i < 3; i++) out[i] = out[i] + (ic[i] - out[i]) * ice;
+  }
+}
+
+interface Build { height: Float32Array; albedo: Float32Array; row: number; craters: boolean }
+let build: Build | null = null;
+
+/**
+ * Build the global maps a slice at a time (so the game never stalls):
+ * returns true once they are ready. `budgetMs` of work per call.
+ */
+export function buildMarsMaps(budgetMs = 8): boolean {
+  if (maps) return true;
+  const W = MAP_W, H = MAP_H;
+  build ??= { height: new Float32Array(W * H), albedo: new Float32Array(W * H * 3), row: 0, craters: false };
+  const b = build;
+  const t0 = performance.now();
+  const col = [0, 0, 0];
+  while (b.row < H) {
+    const j = b.row++;
+    const lat = 90 - ((j + 0.5) / H) * 180;
+    const cl = Math.cos(lat * D2R), sl = Math.sin(lat * D2R);
+    for (let i = 0; i < W; i++) {
+      const lon = ((i + 0.5) / W) * 360 - 180;
+      const x = cl * Math.cos(lon * D2R), y = cl * Math.sin(lon * D2R), z = sl;
+      const hk = reliefKm(lat, lon, x, y, z);
+      b.height[j * W + i] = hk;
+      albedoAt(lat, lon, x, y, z, hk, col);
+      const o = (j * W + i) * 3;
+      b.albedo[o] = col[0];
+      b.albedo[o + 1] = col[1];
+      b.albedo[o + 2] = col[2];
+    }
+    if (performance.now() - t0 > budgetMs) return false;
+  }
+  if (!b.craters) {
+    stampCraters(b.height, b.albedo);
+    b.craters = true;
+  }
+  maps = { height: b.height, albedo: b.albedo };
+  build = null;
+  return true;
+}
+
+/** the global maps, built now if they are not ready yet */
+export function marsMaps(): MarsMaps {
+  while (!buildMarsMaps(1e9)) {
+    /* finish */
+  }
+  return maps!;
+}
+
+function stampCraters(height: Float32Array, albedo: Float32Array): void {
+  const W = MAP_W, H = MAP_H;
+  // craters, stamped onto the map: a power law of sizes, three times as many in the south
+  let seed = 4242;
+  const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  let made = 0;
+  for (let k = 0; k < 40000 && made < 6000; k++) {
+    const lat = Math.asin(rnd() * 2 - 1) / D2R;
+    const lon = rnd() * 360 - 180;
+    const south = lat < 18 + 15 * Math.cos((lon - 20) * D2R);
+    if (!south && rnd() > 0.33) continue;
+    // keep the young volcanoes and the caps unscarred
+    let skip = false;
+    for (const v of VOLCANOES) if ((arc(lat, lon, v.lat, v.lon) * R_KM) / v.r < 1) skip = true;
+    if (Math.abs(lat) > 80) skip = true;
+    if (skip) continue;
+    const rKm = 9 * Math.pow(1 - rnd(), -1 / 1.25);
+    if (rKm > 260) continue;
+    made++;
+    const depth = Math.min(3.5, 0.2 * rKm) * (0.5 + 0.5 * rnd());
+    const rimH = depth * 0.28;
+    const rLatDeg = rKm / R_KM / D2R;
+    const rLonDeg = rLatDeg / Math.max(0.15, Math.cos(lat * D2R));
+    const j0 = Math.floor(((90 - (lat + rLatDeg * 1.6)) / 180) * H), j1 = Math.ceil(((90 - (lat - rLatDeg * 1.6)) / 180) * H);
+    const iSpan = Math.ceil((rLonDeg * 1.6 * W) / 360);
+    const ic = Math.floor(((lon + 180) / 360) * W);
+    const darkFloor = 0.1 * rnd();
+    for (let j = Math.max(0, j0); j <= Math.min(H - 1, j1); j++) {
+      const la = 90 - ((j + 0.5) / H) * 180;
+      for (let di = -iSpan; di <= iSpan; di++) {
+        const i = (((ic + di) % W) + W) % W;
+        const lo = ((i + 0.5) / W) * 360 - 180;
+        const x = (arc(la, lo, lat, lon) * R_KM) / rKm;
+        if (x > 1.6) continue;
+        let dh = 0;
+        if (x < 1) dh = -depth * (1 - x * x) + rimH;
+        else dh = rimH * Math.exp(-(((x - 1) / 0.22) ** 2));
+        if (rKm > 18 && x < 0.18) dh += depth * 0.35 * (1 - x / 0.18);
+        height[j * W + i] += dh;
+        if (x < 0.9) {
+          const o = (j * W + i) * 3;
+          albedo[o] *= 1 - darkFloor;
+          albedo[o + 1] *= 1 - darkFloor;
+          albedo[o + 2] *= 1 - darkFloor;
+        }
+      }
+    }
+  }
+}
+
+/** bilinear sample of the global height map (km) */
+function mapHeightKm(lat: number, lon: number): number {
+  const m = marsMaps();
+  const W = MAP_W, H = MAP_H;
+  const fx = ((lon + 180) / 360) * W - 0.5;
+  const fy = ((90 - lat) / 180) * H - 0.5;
+  const x0 = Math.floor(fx), y0 = Math.max(0, Math.min(H - 2, Math.floor(fy)));
+  const tx = fx - x0, ty = Math.max(0, Math.min(1, fy - y0));
+  const xa = ((x0 % W) + W) % W, xb = (xa + 1) % W;
+  const h = m.height;
+  const a = h[y0 * W + xa], b = h[y0 * W + xb], c = h[(y0 + 1) * W + xa], d = h[(y0 + 1) * W + xb];
+  return (a + (b - a) * tx) * (1 - ty) + (c + (d - c) * tx) * ty;
+}
+/** the map's albedo at a point (linear RGB) */
+export function mapAlbedo(lat: number, lon: number, out: number[]): void {
+  const m = marsMaps();
+  const i = Math.min(MAP_W - 1, Math.max(0, Math.floor(((lon + 180) / 360) * MAP_W)));
+  const j = Math.min(MAP_H - 1, Math.max(0, Math.floor(((90 - lat) / 180) * MAP_H)));
+  const o = (j * MAP_W + i) * 3;
+  out[0] = m.albedo[o];
+  out[1] = m.albedo[o + 1];
+  out[2] = m.albedo[o + 2];
+}
+
+/** small craters from a grid of cells in metres on the sphere: each cell may hold one */
+function smallCraters(px: number, py: number, pz: number, cell: number, maxR: number, salt: number): number {
+  const cx = Math.floor(px / cell), cy = Math.floor(py / cell), cz = Math.floor(pz / cell);
+  let h = 0;
+  for (let a = -1; a <= 1; a++)
+    for (let b = -1; b <= 1; b++)
+      for (let c = -1; c <= 1; c++) {
+        const X = cx + a, Y = cy + b, Z = cz + c;
+        const r0 = hash3(X + salt, Y, Z);
+        if (r0 > 0.45) continue;
+        const r = maxR * Math.pow(hash3(X, Y + salt, Z), 2.2) + maxR * 0.06;
+        const qx = (X + hash3(X, Y, Z + salt)) * cell, qy = (Y + hash3(X + 7, Y, Z)) * cell, qz = (Z + hash3(X, Y + 3, Z)) * cell;
+        const d = Math.hypot(px - qx, py - qy, pz - qz) / r;
+        if (d > 1.5) continue;
+        const depth = r * 0.22;
+        h += d < 1 ? -depth * (1 - d * d) + depth * 0.25 : depth * 0.25 * Math.exp(-(((d - 1) / 0.2) ** 2));
+      }
+  return h;
+}
+
+/** the ground's height above the datum (m) at a point: the global map plus the fine detail */
+export function marsHeight(lat: number, lon: number): number {
+  const base = mapHeightKm(lat, lon) * 1000;
+  const cl = Math.cos(lat * D2R);
+  const R = R_KM * 1000;
+  const px = R * cl * Math.cos(lon * D2R), py = R * cl * Math.sin(lon * D2R), pz = R * Math.sin(lat * D2R);
+  // rolling ground, a few tens of metres, down to a few metres
+  let h = base;
+  h += 55 * fbm(px / 3000, py / 3000, pz / 3000, 4);
+  h += 6 * fbm(px / 240, py / 240, pz / 240, 3);
+  h += smallCraters(px, py, pz, 900, 380, 11);
+  h += smallCraters(px, py, pz, 160, 60, 23);
+  h += smallCraters(px, py, pz, 32, 10, 37);
+  return h;
+}

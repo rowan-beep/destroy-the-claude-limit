@@ -315,13 +315,13 @@ const IHALF = (w: number, top: number, bot: number): P2[] => {
   const h = top - bot;
   return [
     [0, bot],
-    [w * 0.45, bot + h * 0.04],
-    [w * 0.76, bot + h * 0.16],
-    [w * 0.94, bot + h * 0.4],
-    [w, bot + h * 0.72],
-    [w * 0.95, top - h * 0.01],
-    [w * 0.66, top - h * 0.09],
-    [0, top - h * 0.16],
+    [w * 0.45, bot + h * 0.03],
+    [w * 0.76, bot + h * 0.13],
+    [w * 0.95, bot + h * 0.36],
+    [w, bot + h * 0.66],
+    [w * 0.94, top - h * 0.03],
+    [w * 0.64, top - h * 0.05],
+    [0, top - h * 0.07],
   ];
 };
 

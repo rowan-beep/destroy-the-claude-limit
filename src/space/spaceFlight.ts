@@ -641,9 +641,8 @@ export class SpaceFlight {
       // fast forward: as fast as it can go while still stopping in time for the next burn or event
       warp = Math.max(1, Math.min(cap, this.ap.wantWarp(sim)));
     } else {
-      warp = Math.min(WARPS[this.warpI], cap);
-      // a program in the middle of something precise keeps the clock in check
-      if (this.ap.busy) warp = Math.max(1, Math.min(warp, this.ap.wantWarp(sim) * 2));
+      // the speed you pick is the speed you get (the sim sub-steps to stay exact)
+      warp = WARPS[this.warpI];
     }
     if (this.tde >= 0) warp = 1;
     if (!this.paused) {
@@ -710,7 +709,7 @@ export class SpaceFlight {
     else this.renderSpace(w, h);
     this.ui.update(sim, {
       warp,
-      warpMax: cap,
+      warpMax: this.ff ? cap : WARPS[WARPS.length - 1],
       warpI: this.warpI,
       camMode: this.map ? 'MAP' : this.camMode,
       map: this.map,
