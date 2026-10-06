@@ -112,6 +112,8 @@ const VOICES: Record<string, EngineVoice> = {
   F15EX: { n1: 135, n2: 245, fanBlades: 32, compBlades: 36, roar: 0.95, crackle: 1.0, ab: 1.0, whine: 1.0 },
   // GE F414: smaller and faster, the Hornet's howl
   FA18EF: { n1: 190, n2: 290, fanBlades: 28, compBlades: 30, roar: 1.02, crackle: 0.9, ab: 0.95, whine: 1.25 },
+  // GE F110-GE-129 in the Viper: one big engine, a deep roar and a heavy burner
+  F16C: { n1: 135, n2: 245, fanBlades: 32, compBlades: 36, roar: 0.92, crackle: 1.05, ab: 1.05, whine: 0.95 },
   // EJ200: the Typhoon's famous high turbine song
   TYPHOON: { n1: 178, n2: 275, fanBlades: 26, compBlades: 34, roar: 1.06, crackle: 0.85, ab: 0.9, whine: 1.55 },
   // Safran M88-2: small, fast-spooling, bright and snarling

@@ -67,7 +67,7 @@ function filled(count: number, size: number, v: number): THREE.BufferAttribute {
 export interface ControlSurface {
   pivot: THREE.Object3D;
   axis: THREE.Vector3;
-  kind: 'stab' | 'rudder' | 'aileron' | 'flap' | 'canard' | 'lef';
+  kind: 'stab' | 'rudder' | 'aileron' | 'flap' | 'flaperon' | 'canard' | 'lef';
   side: -1 | 0 | 1;
   maxDeg: number;
   current: number;
@@ -217,7 +217,8 @@ export class AirframeVisual {
   readonly body = new THREE.Group();
   surfaces: ControlSurface[] = [];
   gear: GearLeg[] = [];
-  speedbrake: { pivot: THREE.Object3D; axis: THREE.Vector3; maxDeg: number } | null = null;
+  /** `more`: further petals of a split speedbrake, each on its own hinge, opening with the first */
+  speedbrake: { pivot: THREE.Object3D; axis: THREE.Vector3; maxDeg: number; more?: { pivot: THREE.Object3D; axis: THREE.Vector3 }[] } | null = null;
   /** airframes that brake by splaying both rudders outward (Su-35S): how far, 0..1 */
   rudderBrake = 0;
   nozzles: Nozzle[] = [];
@@ -557,7 +558,10 @@ export class AirframeVisual {
     const rigid = new Set<THREE.Object3D>([this.body]);
     for (const s of this.surfaces) rigid.add(s.pivot);
     for (const g of this.gear) rigid.add(g.pivot);
-    if (this.speedbrake) rigid.add(this.speedbrake.pivot);
+    if (this.speedbrake) {
+      rigid.add(this.speedbrake.pivot);
+      for (const p of this.speedbrake.more ?? []) rigid.add(p.pivot);
+    }
     for (const g of this.vectoring) rigid.add(g.pivot);
     for (const d of this.bayDoors) rigid.add(d.pivot);
     for (const n of this.nozzles) if (n.parent) rigid.add(n.parent);
@@ -795,7 +799,7 @@ export class AirframeVisual {
     const M = <T extends THREE.Object3D>(o: T): T => (map.get(o) as T) ?? o;
     v.surfaces = this.surfaces.map((s) => ({ ...s, pivot: M(s.pivot), axis: s.axis.clone(), current: 0 }));
     v.gear = this.gear.map((g) => ({ ...g, pivot: M(g.pivot), axis: g.axis.clone(), hideWhenUp: g.hideWhenUp.map(M) }));
-    v.speedbrake = this.speedbrake ? { ...this.speedbrake, pivot: M(this.speedbrake.pivot) } : null;
+    v.speedbrake = this.speedbrake ? { ...this.speedbrake, pivot: M(this.speedbrake.pivot), more: this.speedbrake.more?.map((p) => ({ pivot: M(p.pivot), axis: p.axis.clone() })) } : null;
     v.rudderBrake = this.rudderBrake;
     v.nozzles = this.nozzles.map((n) => ({ ...n, pos: n.pos.clone(), parent: n.parent ? M(n.parent) : undefined }));
     v.nozzleMorphs = this.nozzleMorphs.map((n) => ({ mesh: M(n.mesh), i: n.i }));
@@ -1026,6 +1030,10 @@ export class AirframeVisual {
         case 'flap':
           target = fm.gearPos > 0.5 ? 0.9 : clamp(aoa / 25, 0, 0.5) + roll * 0.3 * s.side;
           break;
+        case 'flaperon':
+          // roll like an aileron, drooped together as flaps with the gear down
+          target = roll * s.side * 0.85 + (fm.gearPos > 0.5 ? 0.85 : 0);
+          break;
         case 'lef':
           target = clamp(aoa / 20, 0, 1) + (fm.gearPos > 0.5 ? 0.5 : 0);
           break;
@@ -1047,6 +1055,7 @@ export class AirframeVisual {
     }
     if (this.speedbrake) {
       this.speedbrake.pivot.quaternion.setFromAxisAngle(this.speedbrake.axis, fm.speedbrakePos * this.speedbrake.maxDeg * DEG);
+      for (const p of this.speedbrake.more ?? []) p.pivot.quaternion.setFromAxisAngle(p.axis, fm.speedbrakePos * this.speedbrake.maxDeg * DEG);
     }
     // weapons bays: doors swing on their hinges, the interior shows, and the
     // stores come down on their launchers (eased like the hydraulics)

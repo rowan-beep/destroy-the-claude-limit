@@ -128,6 +128,7 @@ export class Rwr {
 export const RWR_SYMBOL: Record<string, string> = {
   F15EX: '15',
   FA18EF: '18',
+  F16C: '16',
   TYPHOON: 'EF',
   SU35: '35',
   RAFALE: 'RF',

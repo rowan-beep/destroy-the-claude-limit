@@ -143,6 +143,8 @@ const AERO: Record<string, AeroData> = {
   SR71: { refMass: 50000, ixx: 160000, iyy: 1500000, izz: 1650000, cyB: -0.9, cm0: 0, cmA: -0.18, cmQ: -7, cmD: 0.5, clP: -0.3, clB: -0.06, clR: 0.06, clD: 0.04, cnB: 0.12, cnR: -0.34, cnP: -0.02, cnD: 0.03, cnDa: -0.004, engineArm: 3.8, rateE: 1.8, rateA: 2.2, rateR: 2 },
   // short wings and big wedge tails: little roll inertia, strong weathercock stability
   X15: { refMass: 12000, ixx: 6000, iyy: 95000, izz: 98000, cyB: -1.1, cm0: 0, cmA: -0.16, cmQ: -6, cmD: 0.42, clP: -0.3, clB: -0.05, clR: 0.05, clD: 0.05, cnB: 0.16, cnR: -0.42, cnP: -0.02, cnD: 0.045, cnDa: -0.004, engineArm: 0, rateE: 2.4, rateA: 3, rateR: 3 },
+  // relaxed static stability (unstable in pitch, the FBW holds it), light and low inertia: the fastest roll here
+  F16C: { refMass: 11500, ixx: 12900, iyy: 75700, izz: 85600, cyB: -0.95, cm0: 0, cmA: 0.06, cmQ: -4.4, cmD: 0.33, clP: -0.29, clB: -0.07, clR: 0.06, clD: 0.056, cnB: 0.12, cnR: -0.3, cnP: -0.03, cnD: 0.034, cnDa: -0.005, engineArm: 0, rateE: 3.1, rateA: 5.2, rateR: 3 },
   TYPHOON: { refMass: 15000, ixx: 18000, iyy: 130000, izz: 145000, cyB: -0.95, cm0: 0, cmA: 0.08, cmQ: -4.5, cmD: 0.33, clP: -0.3, clB: -0.07, clR: 0.06, clD: 0.05, cnB: 0.11, cnR: -0.3, cnP: -0.03, cnD: 0.032, cnDa: -0.005, engineArm: 0.5, rateE: 3.0, rateA: 4.5, rateR: 3 },
 };
 

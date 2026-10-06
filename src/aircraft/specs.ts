@@ -6,8 +6,8 @@
 import { FT, LB, LBF } from '../core/constants';
 import type { MissileType, BombType } from '../weapons/weaponSpecs';
 
-export type AircraftType = 'F15EX' | 'FA18EF' | 'TYPHOON' | 'SU35' | 'RAFALE' | 'F22' | 'MIG31' | 'SR71' | 'X15';
-export const AIRCRAFT_TYPES: AircraftType[] = ['F15EX', 'FA18EF', 'TYPHOON', 'SU35', 'RAFALE', 'F22', 'MIG31', 'SR71', 'X15'];
+export type AircraftType = 'F15EX' | 'FA18EF' | 'F16C' | 'TYPHOON' | 'SU35' | 'RAFALE' | 'F22' | 'MIG31' | 'SR71' | 'X15';
+export const AIRCRAFT_TYPES: AircraftType[] = ['F15EX', 'FA18EF', 'F16C', 'TYPHOON', 'SU35', 'RAFALE', 'F22', 'MIG31', 'SR71', 'X15'];
 /**
  * The armed fighters: everything the AI flies and every combat mode allows.
  * The SR-71 is an unarmed reconnaissance jet still in testing: it only flies
@@ -1273,9 +1273,133 @@ const X15: AircraftSpec = {
   airLaunch: { altFt: 45000, kts: 420, carrier: 'B-52' },
 };
 
+// ---------------------------------------------------------------------------
+// General Dynamics / Lockheed Martin F-16C Fighting Falcon (Block 50, F110-GE-129)
+// ---------------------------------------------------------------------------
+const F16_RZ = 1.25;
+
+const F16: AircraftSpec = {
+  type: 'F16C',
+  name: 'F-16C Fighting Falcon',
+  shortName: 'F-16C',
+  role: 'Single-engine multirole fighter',
+  crew: 1,
+  description:
+    'The Viper: small, light and built to turn. Relaxed stability under digital fly-by-wire, a frameless bubble canopy, a side-stick and a seat reclined 30 degrees for 9 G. Mach 2, 50,000 ft ceiling, F110-GE-129 at 29,500 lb in afterburner, an M61A1 Vulcan in the left wing root with 511 rounds and nine weapon stations.',
+  lengthFt: 49.4,
+  wingspanFt: 32.7,
+  heightFt: 16,
+  length: 49.4 * FT,
+  span: 32.7 * FT,
+  height: 16 * FT,
+  emptyMass: kg(19700),
+  internalFuel: kg(7000),
+  maxTakeoff: kg(37500),
+  maxTakeoffLb: 37500,
+  payloadLb: 17000,
+  wingArea: 27.87,
+  cd0: 0.0175,
+  waveDragPeak: 2.3,
+  waveDragHigh: 1.9,
+  kInduced: 0.118,
+  clAlpha: 3.6,
+  clMax: 1.6,
+  flapCl0: 0.18,
+  alphaMaxDeg: 25.5,
+  maxMach: 2.05,
+  ceilingFt: 50000,
+  maxIasKts: 800,
+  engineName: 'General Electric F110-GE-129',
+  engines: 1,
+  thrustMil: lbf(17155),
+  thrustAb: lbf(29500),
+  thrustMilLbf: 17155,
+  thrustAbLbf: 29500,
+  tsfcMil: 0.74,
+  tsfcAb: 1.95,
+  ramFactor: 0.6,
+  spool: 1.35,
+  gLimit: 9.0,
+  gOverride: 9.0,
+  gStructural: 13.5,
+  gNeg: -3,
+  rollRate: 300,
+  pitchRate: 30,
+  cornerKts: 330,
+  rotateKts: 150,
+  approachKts: 148,
+  speedbrakeCd: 0.05,
+  combatRangeNm: 1740,
+  hardpoints: 11,
+  maxAAM: 6,
+  missiles: { radar: AIM120, ir: AIM9 },
+  tvcDeg: 0,
+  gun: {
+    name: 'M61A1 Vulcan 20mm rotary cannon',
+    caliberMm: 20,
+    rounds: 511,
+    rpm: 6000,
+    muzzleVelocity: 1050,
+    damage: 7,
+    dispersionMil: 4.5,
+    port: [-0.6, 0.3, -3.55],
+  },
+  stations: [
+    { id: 1, label: 'LWT', pos: [-4.9, 0.0, 2.55], allowed: [AIM120, AIM9], mount: 'rail' },
+    { id: 2, label: 'LW OB', pos: [-3.95, -0.3, 1.95], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.04 },
+    { id: 3, label: 'LW MID', pos: [-3.0, -0.35, F16_RZ], allowed: [AIM120, AIM9, GBU31, GBU32], mount: 'pylon', hang: -0.045 },
+    { id: 4, label: 'LW IB', pos: [-2.05, -0.38, 0.9], allowed: [TANK, GBU31, GBU32], mount: 'pylon', hang: -0.05 },
+    { id: 5, label: 'CL', pos: [0, -1.72, 0.35], allowed: [TANK], mount: 'pylon' },
+    { id: 6, label: 'RW IB', pos: [2.05, -0.38, 0.9], allowed: [TANK, GBU31, GBU32], mount: 'pylon', hang: -0.05 },
+    { id: 7, label: 'RW MID', pos: [3.0, -0.35, F16_RZ], allowed: [AIM120, AIM9, GBU31, GBU32], mount: 'pylon', hang: -0.045 },
+    { id: 8, label: 'RW OB', pos: [3.95, -0.3, 1.95], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.04 },
+    { id: 9, label: 'RWT', pos: [4.9, 0.0, 2.55], allowed: [AIM120, AIM9], mount: 'rail' },
+  ],
+  loadouts: [
+    {
+      id: 'viper-cap',
+      name: 'COMBAT AIR PATROL — 4x AIM-120D, 2x AIM-9X, 2x TANKS',
+      stores: { 1: AIM120, 2: AIM9, 3: AIM120, 4: TANK, 6: TANK, 7: AIM120, 8: AIM9, 9: AIM120 },
+    },
+    {
+      id: 'viper-aa',
+      name: 'MAX AAM — 6x AIM-120D',
+      stores: { 1: AIM120, 2: AIM120, 3: AIM120, 7: AIM120, 8: AIM120, 9: AIM120 },
+    },
+    {
+      id: 'viper-strike',
+      name: 'STRIKE — 2x GBU-31 JDAM, 2x AIM-120D, 2x AIM-9X, 2x TANKS',
+      stores: { 1: AIM120, 9: AIM120, 2: AIM9, 8: AIM9, 3: GBU31, 7: GBU31, 4: TANK, 6: TANK },
+    },
+    {
+      id: 'viper-dog',
+      name: 'DOGFIGHT — 2x AIM-120D, 4x AIM-9X',
+      stores: { 1: AIM9, 2: AIM9, 3: AIM120, 7: AIM120, 8: AIM9, 9: AIM9 },
+    },
+    {
+      id: 'viper-long',
+      name: 'FERRY / LONG CAP — 2x AIM-120D, 2x AIM-9X, 3x TANKS',
+      stores: { 1: AIM9, 3: AIM120, 4: TANK, 5: TANK, 6: TANK, 7: AIM120, 9: AIM9 },
+    },
+  ],
+  radar: { name: 'AN/APG-83 SABR AESA', kind: 'AESA', rangeNm: 70, azLimitDeg: 60, elLimitDeg: 60, maxTracks: 15, frameTime: 1.3 },
+  irst: null,
+  ew: { name: 'AN/ALR-69A RWR + AN/ALQ-213', maws: false, jamming: 0.12, autoDispense: false },
+  flightControl: 'Quadruplex digital fly-by-wire, relaxed static stability, side-stick',
+  chaff: 60,
+  flares: 60,
+  rcs: 1.2,
+  irSignature: 0.85,
+  gear: { nose: -2.9, main: 1.0, track: 1.18, height: 2.0 },
+  hitRadius: 4.3,
+  paint: { top: '#80868c', bottom: '#90969b', accent: '#5a6066' },
+  tank: { fuel: 1124, mass: 150, dropWhenEmpty: false },
+};
+
 export const SPECS: Record<AircraftType, AircraftSpec> = {
   F15EX: F15EX,
   FA18EF: FA18,
+  F16C: F16,
   TYPHOON: TYPHOON,
   SU35: SU35,
   RAFALE: RAFALE,

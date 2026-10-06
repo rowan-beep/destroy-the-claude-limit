@@ -8,6 +8,9 @@
 //                    display left, caution panel right.
 //  F/A-18E/F Blk II  two 5x5 in DDIs, the up-front controller display,
 //                    an 8x8 in centre MFD, engine/fuel display, standby.
+//  F-16C Block 50    two 4x4 in colour MFDs either side of the ICP and its
+//                    DED, standby instruments between them, ACES II seat
+//                    tilted back 30 degrees.
 //  Typhoon           three 6.25 in colour MHDDs, dedicated warning panel
 //                    to the right, get-u-home standby display to the left.
 //  Su-35S            two 15 in MFI-35 wide-screen displays side by side
@@ -156,6 +159,48 @@ export const COCKPIT_LAYOUTS: Record<AircraftType, CockpitLayout> = {
       { def: { id: 'efd', kind: 'efd', w: 256, h: 256, hz: 6 }, px: -0.3, py: 0.285, sw: 0.085, sh: 0.085, bezel: 'plain' },
       { def: { id: 'sfd', kind: 'standby', w: 256, h: 256, hz: 15 }, px: 0.3, py: 0.285, sw: 0.075, sh: 0.075, bezel: 'plain' },
       { def: { id: 'cau', kind: 'dwp', w: 256, h: 384, hz: 4 }, px: 0.34, py: 0.1, sw: 0.055, sh: 0.085, bezel: 'plain' },
+    ],
+  },
+  F16C: {
+    panelDist: 0.58,
+    panelDrop: 0.25,
+    panelTilt: 0.3,
+    panelHalfWidth: 0.37,
+    panelHeight: 0.36,
+    glareDrop: 0.19,
+    glareLip: 0.07,
+    hud: { dist: 0.52, halfW: 0.095, top: 0.06, bottom: -0.15, style: 'single' },
+    consoleDrop: 0.48,
+    tub: 0x4f5459,
+    panel: 0x2f3337,
+    console: 0x24272a,
+    frame: 0x2b2f32,
+    seat: 0x3b3f3a,
+    seatKind: 'aces',
+    label: 'F-16C',
+    lockShoot: false,
+    displays: [
+      {
+        def: { id: 'mfd-l', kind: 'mfd', w: CANVAS_MFD, h: CANVAS_MFD, hz: 8, portals: [{ x: 0, y: 0, w: CANVAS_MFD, h: CANVAS_MFD, page: 'RDR' }], slots: [0] },
+        px: -0.2,
+        py: 0.16,
+        sw: 0.12,
+        sh: 0.12,
+        bezel: 'osb',
+        yaw: 0.12,
+      },
+      {
+        def: { id: 'mfd-r', kind: 'mfd', w: CANVAS_MFD, h: CANVAS_MFD, hz: 8, portals: [{ x: 0, y: 0, w: CANVAS_MFD, h: CANVAS_MFD, page: 'TSD' }], slots: [1] },
+        px: 0.2,
+        py: 0.16,
+        sw: 0.12,
+        sh: 0.12,
+        bezel: 'osb',
+        yaw: -0.12,
+      },
+      { def: { id: 'ded', kind: 'ufc', w: 512, h: 160, hz: 4 }, px: 0, py: 0.07, sw: 0.13, sh: 0.04, bezel: 'plain' },
+      { def: { id: 'stby', kind: 'standby', w: 256, h: 256, hz: 15 }, px: 0, py: 0.2, sw: 0.075, sh: 0.075, bezel: 'plain' },
+      { def: { id: 'cwp', kind: 'dwp', w: 256, h: 512, hz: 4 }, px: 0.33, py: 0.17, sw: 0.055, sh: 0.11, bezel: 'plain' },
     ],
   },
   TYPHOON: {

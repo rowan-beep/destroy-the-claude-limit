@@ -4,6 +4,7 @@ import { AirframeVisual, FarLod, setLodScale } from './visual';
 import { buildAoVolume, AoVolume } from './ao';
 import { buildF15EX } from './f15ex';
 import { buildFA18 } from './fa18';
+import { buildF16 } from './f16';
 import { buildTyphoon } from './typhoon';
 import { buildSu35, su35PlainLivery } from './su35';
 import { buildRafale } from './rafale';
@@ -81,6 +82,7 @@ function build(ac: Aircraft, d: number): AirframeVisual {
   try {
     if (ac.type === 'F15EX') buildF15EX(t);
     else if (ac.type === 'FA18EF') buildFA18(t);
+    else if (ac.type === 'F16C') buildF16(t);
     else if (ac.type === 'SU35') buildSu35(t);
     else if (ac.type === 'RAFALE') buildRafale(t);
     else if (ac.type === 'F22') buildF22(t);

@@ -578,7 +578,7 @@ export class CampaignMode extends GameMode {
   // ---- 7 FULL SKY -----------------------------------------------------------
   private setupBattle(p: Aircraft): void {
     this.wingman(p, false);
-    const types = (['FA18EF', 'RAFALE', 'TYPHOON', 'F15EX', 'F22'] as AircraftType[]).filter((t) => COMBAT_TYPES.includes(t));
+    const types = (['FA18EF', 'F16C', 'RAFALE', 'TYPHOON', 'F15EX', 'F22'] as AircraftType[]).filter((t) => COMBAT_TYPES.includes(t));
     const hdgB = this.hdg(this.H, this.RF);
     for (let i = 0; i < 4; i++) {
       const pos = this.alt(this.pt(0.19, -5000 - i * 1200), 6200 + i * 150);

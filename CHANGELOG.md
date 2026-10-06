@@ -3,6 +3,15 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.54.0 — Viper (2026-10-06)
+
+- New jet: the F-16C Fighting Falcon, the Viper. A Block 50 with the General Electric F110-GE-129 (29,500 lb in afterburner), Mach 2, a 50,000 ft ceiling and a hard 9 G limit. It's small and light, flown by computer with relaxed stability, and it rolls faster than anything else here: 300 degrees a second.
+- The model is built to the real dimensions: 15 m long with the pitot, 9.96 m across the wingtip launchers, 4.88 m tall. The fuselage runs as one piece from the radome to the nozzle. The strakes curve forward from the cropped-delta wing into the cockpit sides, and the ventral intake's 'smile' sits under the cockpit with its splitter plate and the nose gear just behind the lip.
+- It has the frameless, gold-tinted bubble canopy over an ACES II seat tilted back 30 degrees, full-span leading-edge flaps and flaperons that droop when the gear comes down, all-moving stabilators with 10 degrees of anhedral, a tall fin, twin ventral fins, the split speedbrake petals beside the nozzle, and the wingtip launch rails.
+- There's also the M61A1 port in the left strake, the nose pitot and angle-of-attack probes, the IFF 'bird slicers' ahead of the windscreen, the refuelling door on the spine, nav lights on the intake sides and a tail hook. It wears USAF two-tone grey with panel lines, the RESCUE arrow, stencils, the national insignia on the intake trunk, a tail code and serial.
+- Inside: two colour MFDs either side of the up-front controls, standby instruments, the HUD on top of the glare shield and the side-stick on the right console. With no canopy bow, it has the best view out of any jet in the game.
+- Armament: the M61A1 Vulcan with 511 rounds, and nine stations carrying AIM-120D, AIM-9X, GBU-31 and GBU-32 JDAMs and 370-gallon tanks. Five loadouts: Combat Air Patrol, Max AAM, Strike, Dogfight and Long CAP. It has its own engine sound, RWR symbol, MFD pages, fuel tanks and an entry in the JET LIBRARY, and it flies in every combat mode, including as a wingman in the campaign.
+
 ## v4.53.0 — Up close (2026-10-06)
 
 - All nine jets look much more like the real thing up close. Bring the hangar camera right up to one and you'll see rows of flush rivets along the frames and stringers, screws round the access panels, a fine texture in the paint that breaks up the reflections, and paint worn back to grey primer along the leading edges and panel lines. From further away the jets stay as clean as before, with no shimmer.
