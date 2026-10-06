@@ -10,6 +10,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.54.1',
+    date: '2026-10-06',
+    title: "Viper, rebuilt",
+    notes: [
+      "The F-16 has been rebuilt from nose to tail. A bug in how its cross-sections were built had left out the lower half of the radome and of the whole rear fuselage, which is why the jet looked hollow and scrambled. The body is now complete all the way round.",
+      "New nose: the radome is a full drooped ogive like the real one, with the underside running nearly straight back to the intake and the top climbing to the windscreen. Behind it, the forebody has the F-16's sharp side chines, which flow straight into the strakes, and it narrows below into a keel over the intake.",
+      "New rear: the speedbrake housings now sit either side of the nozzle, with a petal above and below each that opens like a clamshell. The fin-root \"beaver tail\" fairing runs back over the nozzle, and the stabilators are mounted just outboard of the housings, as on the real jet.",
+      "The cockpit sides are now flat right up to the canopy rails, so nothing from the cockpit pokes through the skin. The nose leg no longer has boxy doors sticking out below the intake.",
+    ],
+  },
+  {
     version: '4.54.0',
     date: '2026-10-06',
     title: "Viper",

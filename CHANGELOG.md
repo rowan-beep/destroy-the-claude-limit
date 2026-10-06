@@ -3,6 +3,13 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.54.1 — Viper, rebuilt (2026-10-06)
+
+- The F-16 has been rebuilt from nose to tail. A bug in how its cross-sections were built had left out the lower half of the radome and of the whole rear fuselage, which is why the jet looked hollow and scrambled. The body is now complete all the way round.
+- New nose: the radome is a full drooped ogive like the real one, with the underside running nearly straight back to the intake and the top climbing to the windscreen. Behind it, the forebody has the F-16's sharp side chines, which flow straight into the strakes, and it narrows below into a keel over the intake.
+- New rear: the speedbrake housings now sit either side of the nozzle, with a petal above and below each that opens like a clamshell. The fin-root "beaver tail" fairing runs back over the nozzle, and the stabilators are mounted just outboard of the housings, as on the real jet.
+- The cockpit sides are now flat right up to the canopy rails, so nothing from the cockpit pokes through the skin. The nose leg no longer has boxy doors sticking out below the intake.
+
 ## v4.54.0 — Viper (2026-10-06)
 
 - New jet: the F-16C Fighting Falcon, the Viper. A Block 50 with the General Electric F110-GE-129 (29,500 lb in afterburner), Mach 2, a 50,000 ft ceiling and a hard 9 G limit. It's small and light, flown by computer with relaxed stability, and it rolls faster than anything else here: 300 degrees a second.

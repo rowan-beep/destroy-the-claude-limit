@@ -176,7 +176,7 @@ export function buildCanopy(v: AirframeVisual, can: Section[], archZ: number, bo
 }
 
 export interface GearSpec {
-  nose: { top: THREE.Vector3; axle: THREE.Vector3; r: number; w: number; twin: boolean; retract: 'forward' | 'aft'; launchBar?: boolean };
+  nose: { top: THREE.Vector3; axle: THREE.Vector3; r: number; w: number; twin: boolean; retract: 'forward' | 'aft'; launchBar?: boolean; /** false: no doors on the leg (they stay on the bay) */ doors?: boolean };
   mains: { top: THREE.Vector3; axle: THREE.Vector3; r: number; w: number; retract: 'forward' | 'aft' | 'inward'; outboard: number; trailing?: boolean };
   doorColor: string;
 }
@@ -221,7 +221,7 @@ export function buildGearSet(v: AirframeVisual, g: GearSpec): void {
     lamp.translate(lampPos.x, lampPos.y, lampPos.z);
     parts.push(mesh(lamp, pm.lens));
     // doors along the bay
-    for (const sx of [-1, 1]) {
+    if (n.doors !== false) for (const sx of [-1, 1]) {
       const d = roundBox(0.014, 0.34, 0.9, 0.006);
       d.translate(sx * 0.19, n.top.y - 0.16, n.top.z - 0.15);
       parts.push(mesh(d, doorMat));

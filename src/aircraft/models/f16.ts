@@ -30,7 +30,7 @@ function sec(w: number, yc: number, hb: number, ht: number, n = 2.3, chine?: { c
     const r = (a * Math.PI) / 180;
     const c = Math.cos(r), s = Math.sin(r);
     const x = w * Math.pow(Math.abs(c), 2 / n);
-    const y = yc + (s < 0 ? -hb : ht) * Math.sign(s) * Math.pow(Math.abs(s), 2 / n);
+    const y = yc + (s < 0 ? -hb : ht) * Math.pow(Math.abs(s), 2 / n);
     if (chine && (i === 5 || i === 6)) return [chine.cw, chine.cy + (i === 5 ? -0.025 : 0.025)] as P2;
     return [x, y] as P2;
   });
@@ -79,15 +79,41 @@ function pit(w: number, bot: number, sill: number): P2[] {
   ];
 }
 
+/**
+ * The forward fuselage between the radome and the intake: widest at the
+ * forebody chine (the line the strakes grow out of), rounded above it up to
+ * the canopy rails, and narrowing below it into a keel over the intake.
+ * cy: chine height.
+ */
+function fwd(w: number, bot: number, top: number, cy: number): P2[] {
+  return [
+    [0, bot],
+    [w * 0.3, bot + 0.02],
+    [w * 0.58, bot + 0.12],
+    [w * 0.8, bot + (cy - bot) * 0.5],
+    [w * 0.95, cy - 0.1],
+    [w, cy - 0.012],
+    [w, cy + 0.012],
+    [w * 0.965, cy + 0.1],
+    [w * 0.91, top - 0.12],
+    [w * 0.84, top - 0.03],
+    [w * 0.42, top + 0.01],
+    [0, top + 0.01],
+  ];
+}
+
 const BODY = keyedProfile([
-  { z: -7.1, pts: round(0.012, -0.03) },
-  { z: -6.8, pts: round(0.19, -0.03) },
-  { z: -6.35, pts: round(0.31, -0.025) },
-  { z: -5.85, pts: round(0.39, -0.02) },
-  { z: -5.35, pts: sec(0.45, -0.02, 0.46, 0.43, 2.1) },
-  { z: -4.8, pts: pit(0.5, -0.5, 0.43) },
-  { z: -4.2, pts: pit(0.53, -0.53, 0.44) },
-  { z: -3.4, pts: pit(0.56, -0.56, 0.45) },
+  // the radome droops: its underside runs nearly straight back to the intake
+  // while the top climbs to the windscreen
+  { z: -7.1, pts: round(0.012, -0.2) },
+  { z: -6.85, pts: sec(0.15, -0.17, 0.15, 0.15, 2) },
+  { z: -6.45, pts: sec(0.26, -0.13, 0.26, 0.26, 2) },
+  { z: -5.95, pts: sec(0.35, -0.09, 0.36, 0.35, 2.05) },
+  { z: -5.4, pts: sec(0.43, -0.06, 0.45, 0.42, 2.15) },
+  { z: -5.0, pts: fwd(0.47, -0.5, 0.4, 0.0) },
+  { z: -4.5, pts: fwd(0.51, -0.54, 0.43, 0.07) },
+  { z: -3.9, pts: fwd(0.55, -0.56, 0.44, 0.11) },
+  { z: -3.3, pts: fwd(0.57, -0.56, 0.45, 0.13) },
   // inside the intake's outer skin: the belly drops to the trunk here
   { z: -2.6, pts: trunk(-0.98, 0.42, 0.6, 0.5, 0.42) },
   { z: -2.0, pts: trunk(-1.2, 0.5, 0.64, 0.6, 0.45) },
@@ -115,9 +141,9 @@ const CANOPY: Section[] = [
 
 // wing: the strake runs forward from the root, curving into the cockpit side
 const WING: WingStation[] = [
-  { x: 0.45, le: -4.55, te: 3.5, y: 0.2, t: 0.012 },
-  { x: 0.62, le: -3.6, te: 3.48, y: 0.17, t: 0.016 },
-  { x: 0.78, le: -2.45, te: 3.47, y: 0.12, t: 0.022 },
+  { x: 0.45, le: -4.6, te: 3.5, y: 0.07, t: 0.01 },
+  { x: 0.62, le: -3.6, te: 3.48, y: 0.12, t: 0.014 },
+  { x: 0.78, le: -2.45, te: 3.47, y: 0.11, t: 0.022 },
   { x: 0.92, le: -1.45, te: 3.46, y: 0.07, t: 0.032 },
   { x: 1.02, le: -0.95, te: 3.45, y: 0.05, t: 0.04 },
   { x: 4.72, le: 2.17, te: 3.25, y: 0.0, t: 0.04 },
@@ -125,7 +151,7 @@ const WING: WingStation[] = [
 const wle = (x: number) => -0.95 + (x - 1.02) * 0.843;
 const wte = (x: number) => 3.45 - (x - 1.02) * 0.054;
 const STAB: WingStation[] = [
-  { x: 0.7, le: 4.5, te: 6.95, y: -0.1, t: 0.04 },
+  { x: 0.8, le: 4.58, te: 6.95, y: -0.11, t: 0.04 },
   { x: 2.79, le: 6.2, te: 6.95, y: -0.47, t: 0.03 },
 ];
 const STAB_PIVOT = 5.75;
@@ -388,7 +414,7 @@ export function buildF16(v: AirframeVisual): void {
   for (const side of [1, -1] as const) {
     const g = stamp(side > 0 ? stab.clone() : mirror(stab));
     const axis = new THREE.Vector3(1, -0.176 * side, 0).normalize();
-    v.addSurface(g, paint, new THREE.Vector3(0.84 * side, -0.11, STAB_PIVOT), axis, 'stab', side, 25);
+    v.addSurface(g, paint, new THREE.Vector3(0.86 * side, -0.12, STAB_PIVOT), axis, 'stab', side, 25);
   }
 
   // --- fin with rudder; ventral fins canted out
@@ -427,21 +453,51 @@ export function buildF16(v: AirframeVisual): void {
   v.nozzles.push({ pos: new THREE.Vector3(0, -0.01, 7.1), radius: 0.44, depth: 0.6, area: nz.area });
   v.buildFlames(6.0);
 
-  // --- split speedbrakes: two petals each side, beside the nozzle
+  // --- the speedbrake housings either side of the nozzle (the aft ends of the
+  // flanges the stabilators sit on), each with a petal above and below that
+  // split open like a clamshell
+  for (const sx of [-1, 1]) {
+    const hz = loftProfile({
+      stations: stations(5.7, 7.2, 14),
+      profile: (z) => {
+        const t = sstep(6.9, 7.2, z);
+        const w = 0.15 - t * 0.04, h = 0.075 - t * 0.03;
+        return [[-w, -0.08 - h], [w, -0.08 - h], [w + 0.02, -0.08], [w, -0.08 + h], [-w, -0.08 + h], [-w - 0.01, -0.08]] as P2[];
+      },
+      sub: 2,
+      full: true,
+      capStart: true,
+      capEnd: true,
+    });
+    hz.translate(sx * 0.65, 0, 0);
+    skin(hz);
+  }
   const up: THREE.BufferGeometry[] = [], dn: THREE.BufferGeometry[] = [];
   for (const sx of [-1, 1]) {
-    const u = roundBox(0.3, 0.03, 1.0, 0.012);
-    u.translate(sx * 0.73, -0.05, 6.72);
+    const u = roundBox(0.32, 0.022, 1.0, 0.009);
+    u.translate(sx * 0.65, 0.008, 6.72);
     up.push(u);
-    const d = roundBox(0.3, 0.03, 1.0, 0.012);
-    d.translate(sx * 0.73, -0.11, 6.72);
+    const d = roundBox(0.32, 0.022, 1.0, 0.009);
+    d.translate(sx * 0.65, -0.168, 6.72);
     dn.push(d);
   }
-  const sbU = v.addSurface(stamp(join(up)), paint, new THREE.Vector3(0, -0.05, 6.22), new THREE.Vector3(-1, 0, 0), 'rudder', 0, 0);
-  const sbD = v.addSurface(stamp(join(dn)), paint, new THREE.Vector3(0, -0.11, 6.22), new THREE.Vector3(1, 0, 0), 'rudder', 0, 0);
+  const sbU = v.addSurface(stamp(join(up)), paint, new THREE.Vector3(0, 0.008, 6.22), new THREE.Vector3(-1, 0, 0), 'rudder', 0, 0);
+  const sbD = v.addSurface(stamp(join(dn)), paint, new THREE.Vector3(0, -0.168, 6.22), new THREE.Vector3(1, 0, 0), 'rudder', 0, 0);
   v.surfaces.splice(v.surfaces.indexOf(sbU), 1);
   v.surfaces.splice(v.surfaces.indexOf(sbD), 1);
   v.speedbrake = { pivot: sbU.pivot, axis: sbU.axis, maxDeg: 60, more: [{ pivot: sbD.pivot, axis: sbD.axis }] };
+  // the "beaver tail": the fin-root fairing carried on aft over the nozzle
+  skin(loftProfile({
+    stations: stations(5.6, 7.25, 16),
+    profile: (z) => {
+      const t = sstep(6.3, 7.25, z);
+      const yb = 0.4 + sstep(6.4, 6.8, z) * 0.12;
+      const w = 0.16 - t * 0.07, h = 0.2 - t * 0.12;
+      return [[0, yb], [w, yb + 0.02], [w * 0.9, yb + h * 0.6], [w * 0.55, yb + h], [0, yb + h + 0.015]] as P2[];
+    },
+    sub: 3,
+    capEnd: true,
+  }));
 
   // --- the M61A1 in the left strake: the gun port and its blast fairing
   skin(lathe([[0.004, -3.75], [0.05, -3.62], [0.06, -3.3], [0.05, -2.9], [0.004, -2.7]], 14, -0.58, 0.3));
@@ -452,9 +508,9 @@ export function buildF16(v: AirframeVisual): void {
 
   // --- probes, antennas, lights, hook
   v.addMesh(join([
-    probe(new THREE.Vector3(0, -0.03, -7.08), 0.68, 0.013),
-    probe(new THREE.Vector3(0.3, -0.06, -6.15), 0.17, 0.009, new THREE.Vector3(0.45, 0, -1).normalize()),
-    probe(new THREE.Vector3(-0.3, -0.06, -6.15), 0.17, 0.009, new THREE.Vector3(-0.45, 0, -1).normalize()),
+    probe(new THREE.Vector3(0, -0.2, -7.08), 0.68, 0.013),
+    probe(new THREE.Vector3(0.3, -0.12, -6.15), 0.17, 0.009, new THREE.Vector3(0.45, 0, -1).normalize()),
+    probe(new THREE.Vector3(-0.3, -0.12, -6.15), 0.17, 0.009, new THREE.Vector3(-0.45, 0, -1).normalize()),
   ]), pm.antenna);
   v.addMesh(join([
     // the IFF interrogator's "bird slicer" blades ahead of the windscreen
@@ -478,7 +534,7 @@ export function buildF16(v: AirframeVisual): void {
   // --- landing gear: the nose leg just behind the intake lip folds aft, the
   // mains fold forward into the fuselage under the wing roots
   buildGearSet(v, {
-    nose: { top: new THREE.Vector3(0, -1.2, -2.75), axle: new THREE.Vector3(0, -2.0 + 0.23, -2.9), r: 0.23, w: 0.15, twin: false, retract: 'aft' },
+    nose: { top: new THREE.Vector3(0, -1.2, -2.75), axle: new THREE.Vector3(0, -2.0 + 0.23, -2.9), r: 0.23, w: 0.15, twin: false, retract: 'aft', doors: false },
     mains: { top: new THREE.Vector3(0.6, -0.95, 0.85), axle: new THREE.Vector3(1.18, -2.0 + 0.36, 1.0), r: 0.36, w: 0.22, retract: 'forward', outboard: 0.08 },
     doorColor: '#8e9499',
   });
