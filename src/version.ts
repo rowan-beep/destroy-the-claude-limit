@@ -10,6 +10,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.54.2',
+    date: '2026-10-06',
+    title: "The Viper's smile",
+    notes: [
+      "The F-16's intake now has the real shape. Head on, the mouth is a wide crescent \"smile\": the lower lip curves down deepest in the middle, the upper lip sags with it, and the corners ride high at the sides. From the side it's steeply raked, with the upper lip jutting forward like a hood and the sides sweeping back to a lower lip half a metre further aft. The nose gear now sits just behind that lip, as on the real jet.",
+    ],
+  },
+  {
     version: '4.54.1',
     date: '2026-10-06',
     title: "Viper, rebuilt",

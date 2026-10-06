@@ -308,16 +308,22 @@ function livery(team: string): Livery {
 
 const liveries = new Map<string, Livery>();
 
-// the ventral intake mouth: a wide, softly rounded "smile", flat across the top
-const IHALF = (w: number, top: number, bot: number): P2[] => [
-  [0, bot],
-  [w * 0.55, bot + 0.015],
-  [w * 0.88, bot + 0.1],
-  [w, (top + bot) * 0.5 - 0.04],
-  [w * 0.97, top - 0.09],
-  [w * 0.72, top],
-  [0, top],
-];
+// the ventral intake mouth, seen head on: a wide crescent "smile" -- the lower
+// lip curves down deepest in the middle and the upper lip sags with it, the
+// two meeting in tight rounded corners that sit highest, at the sides
+const IHALF = (w: number, top: number, bot: number): P2[] => {
+  const h = top - bot;
+  return [
+    [0, bot],
+    [w * 0.45, bot + h * 0.04],
+    [w * 0.76, bot + h * 0.16],
+    [w * 0.94, bot + h * 0.4],
+    [w, bot + h * 0.72],
+    [w * 0.95, top - h * 0.01],
+    [w * 0.66, top - h * 0.09],
+    [0, top - h * 0.16],
+  ];
+};
 
 export function buildF16(v: AirframeVisual): void {
   const pm = partMaterials();
@@ -336,28 +342,23 @@ export function buildF16(v: AirframeVisual): void {
   v.fuselageSections = sectionsFromProfile(BODY, -6.9, 6.5, 40);
 
   // --- the ventral intake: splitter gap ahead, merging into the belly aft
-  const IW = curve([[-3.35, 0.52], [-2.4, 0.57], [-1.5, 0.6]]);
+  const IW = curve([[-3.35, 0.53], [-2.4, 0.58], [-1.5, 0.6]]);
   const IT = curve([[-3.35, -0.62], [-2.5, -0.55], [-1.5, -0.5]]);
   const IB = curve([[-3.35, -1.28], [-2.4, -1.29], [-1.5, -1.26]]);
-  const loop = (z: number) => ring(mirrorHalf(IHALF(IW(z), IT(z), IB(z))), [3, 3, 2, 2, 3, 3, 3, 3, 2, 2, 3, 3]);
+  const loop = (z: number) => ring(mirrorHalf(IHALF(IW(z), IT(z), IB(z))), [3, 3, 3, 2, 2, 3, 3, 3, 3, 2, 2, 3, 3, 3]);
   const ci = intake({
     loop,
     outer: stations(-3.35, -1.5, 24, 0.3, 0),
     lip: 0.045,
     depth: 2.4,
     n: 96,
-    // the upper lip leads, the lower lip sits back
-    rake: (_x, y) => -0.3 * (y + 0.6),
+    // the mouth is steeply raked: the upper lip juts forward like a hood and
+    // the sides sweep back to a lower lip half a metre further aft
+    rake: (_x, y) => -0.78 * (y + 0.6),
     fan: { cx: 0, cy: -0.6, r: 0.45 },
   });
   skin(ci.skin);
   v.addMesh(ci.duct, pm.duct);
-  // splitter plate across the diverter gap, on two pillars
-  const splitter = roundBox(0.7, 0.022, 0.55, 0.01);
-  splitter.translate(0, -0.575, -3.12);
-  skin(splitter);
-  v.addMesh(stamp(join([-0.3, 0.3].map((x) => { const g = roundBox(0.035, 0.08, 0.8, 0.012); g.translate(x, -0.56, -2.9); return g; }))), paint);
-
   // --- canopy (frameless, gold tinted), seat and pilot
   v.cockpitEye.set(0, 0.86, -3.6);
   buildCanopy(v, CANOPY, -2.45, []);
@@ -534,7 +535,7 @@ export function buildF16(v: AirframeVisual): void {
   // --- landing gear: the nose leg just behind the intake lip folds aft, the
   // mains fold forward into the fuselage under the wing roots
   buildGearSet(v, {
-    nose: { top: new THREE.Vector3(0, -1.2, -2.75), axle: new THREE.Vector3(0, -2.0 + 0.23, -2.9), r: 0.23, w: 0.15, twin: false, retract: 'aft', doors: false },
+    nose: { top: new THREE.Vector3(0, -1.2, -2.4), axle: new THREE.Vector3(0, -2.0 + 0.23, -2.55), r: 0.23, w: 0.15, twin: false, retract: 'aft', doors: false },
     mains: { top: new THREE.Vector3(0.6, -0.95, 0.85), axle: new THREE.Vector3(1.18, -2.0 + 0.36, 1.0), r: 0.36, w: 0.22, retract: 'forward', outboard: 0.08 },
     doorColor: '#8e9499',
   });

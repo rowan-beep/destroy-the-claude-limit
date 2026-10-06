@@ -1390,7 +1390,7 @@ const F16: AircraftSpec = {
   flares: 60,
   rcs: 1.2,
   irSignature: 0.85,
-  gear: { nose: -2.9, main: 1.0, track: 1.18, height: 2.0 },
+  gear: { nose: -2.55, main: 1.0, track: 1.18, height: 2.0 },
   hitRadius: 4.3,
   paint: { top: '#80868c', bottom: '#90969b', accent: '#5a6066' },
   tank: { fuel: 1124, mass: 150, dropWhenEmpty: false },

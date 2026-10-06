@@ -3,6 +3,10 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.54.2 — The Viper's smile (2026-10-06)
+
+- The F-16's intake now has the real shape. Head on, the mouth is a wide crescent "smile": the lower lip curves down deepest in the middle, the upper lip sags with it, and the corners ride high at the sides. From the side it's steeply raked, with the upper lip jutting forward like a hood and the sides sweeping back to a lower lip half a metre further aft. The nose gear now sits just behind that lip, as on the real jet.
+
 ## v4.54.1 — Viper, rebuilt (2026-10-06)
 
 - The F-16 has been rebuilt from nose to tail. A bug in how its cross-sections were built had left out the lower half of the radome and of the whole rear fuselage, which is why the jet looked hollow and scrambled. The body is now complete all the way round.
