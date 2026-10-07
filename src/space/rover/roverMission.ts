@@ -281,6 +281,7 @@ export class RoverMission {
   private done = new Set<number>();
   samples = 0;
   private heliOut = false;
+  private heliPlaced = false;
   private heliPos = new THREE.Vector3();
   private heliYaw = 0;
   private endShown = false;
@@ -448,6 +449,7 @@ export class RoverMission {
     }
     this.heli.group.visible = false;
     this.heliOut = false;
+    this.heliPlaced = false;
     const d = (this.drive = new RoverDrive(def.site.lat, def.site.lon));
     d.heading = def.heading;
     this.h0 = marsHeight(def.site.lat, def.site.lon);
@@ -641,9 +643,19 @@ export class RoverMission {
     for (let i = 0; i < def.targets.length; i++) {
       if (this.done.has(i)) continue;
       const tg = def.targets[i];
-      if (Math.hypot(tg.e - d.e, tg.n - d.n) < (tg.kind === 'reach' ? 4 : 5.5)) return i;
+      // (once Ingenuity is down, the rover watches from where it backed off to)
+      const r = tg.kind === 'reach' ? 4 : tg.kind === 'heli' && this.heliOut ? 30 : 5.5;
+      if (Math.hypot(tg.e - d.e, tg.n - d.n) < r) return i;
     }
     return -1;
+  }
+
+  /** arriving at a waypoint is the whole job there */
+  checkReach(): void {
+    const i = this.nearTarget();
+    if (i < 0 || this.act) return;
+    const tg = this.def!.targets[i];
+    if (tg.kind === 'reach') this.finish(i, `${tg.name}: reached. ${tg.text}`);
   }
 
   private nextAction(): { label: string; run: () => void } | null {
@@ -751,6 +763,7 @@ export class RoverMission {
       for (let i = 0; i < n; i++) d.step(step / n);
       this.t += step;
       if (this.act) this.stepActivity(dt);
+      this.checkReach();
     }
     // boulders from the Mars view, for collisions
     if (this.mars.rockGen !== this.rockGen) {
@@ -876,7 +889,8 @@ export class RoverMission {
       const h = this.heli!;
       const d = this.drive!;
       const s = Math.sin(d.heading), c = Math.cos(d.heading);
-      if (a.t < 0.05) {
+      if (!this.heliPlaced) {
+        this.heliPlaced = true;
         this.heliPos.set(d.e - s * 0.2, 0, -(d.n - c * 0.2));
         this.heliYaw = d.heading;
       }
@@ -885,11 +899,13 @@ export class RoverMission {
       const gy = this.ground(this.heliPos.x, -this.heliPos.z);
       h.group.position.set(this.heliPos.x, gy + (1 - k) * 0.45, this.heliPos.z);
       h.group.rotation.y = -this.heliYaw;
-      if (a.t > 4 && a.t < 14) {
+      if (a.t > 4 && a.t < 8) {
         d.controls.drive = -1;
         d.step(dt * 30);
       }
-      if (a.t > 14) {
+      if (a.t > 8) {
+        d.controls.drive = 0;
+        d.speed = 0;
         this.heliOut = true;
         this.act = null;
         this.say('Ingenuity is down on the airfield, charging its batteries from its solar panel. Fly it when ready.', 'good');
@@ -1014,12 +1030,16 @@ export class RoverMission {
         const hp = this.heli!.group.position;
         lookL = hp.clone().add(new THREE.Vector3(0, 0.6, 0));
         const s = Math.sin(this.heliYaw), c = Math.cos(this.heliYaw);
-        camL = hp.clone().add(new THREE.Vector3(c * 9 - s * 4, 2.5, s * 9 + c * 4));
-        camL.y = Math.max(camL.y, this.ground(camL.x, -camL.z) + 1.5);
+        // (Ingenuity is 49 cm tall: the camera stays close)
+        lookL = hp.clone().add(new THREE.Vector3(0, 0.3, 0));
+        camL = hp.clone().add(new THREE.Vector3(c * 3.4 - s * 1.6, 0.9, s * 3.4 + c * 1.6));
+        camL.y = Math.max(camL.y, this.ground(camL.x, -camL.z) + 0.4);
       } else if (this.act.kind === 'drill') {
+        // off the front corner, looking at the turret on the rock
         const s = Math.sin(d.heading), c = Math.cos(d.heading);
-        lookL = new THREE.Vector3(d.e + s * 1.6, this.ground(d.e, d.n) + 0.4, -(d.n + c * 1.6));
-        camL = new THREE.Vector3(d.e + s * 3.4 + c * 2.2, lookL.y + 1.2, -(d.n + c * 3.4 - s * 2.2));
+        const g0 = this.ground(d.e, d.n);
+        lookL = new THREE.Vector3(d.e + s * 1.5, g0 + 0.6, -(d.n + c * 1.5));
+        camL = new THREE.Vector3(d.e + s * 5.2 + c * 3.2, g0 + 2.4, -(d.n + c * 5.2 - s * 3.2));
       }
     }
     const toScene = (p: THREE.Vector3) => p.clone().applyMatrix4(this.site.matrixWorld);
