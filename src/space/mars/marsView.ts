@@ -17,9 +17,10 @@ import { MAP_W, MAP_H, buildMarsMaps, marsMaps, marsHeight, marsHeightParts, map
 import marsPhotoUrl from './assets/mars_viking_mdim21.jpg';
 import type { Vec } from './marsPhysics';
 import { MARS } from './marsPhysics';
-import { boulderGeometry, groundMaterial } from './marsSurface';
+import { boulderGeometry, groundMaterial, rockMaterial } from './marsSurface';
 import { LandingDust } from './marsFx';
 import { MarsWind } from './marsWeather';
+import { upgradeToHires } from './marsHires';
 import { StarSky } from '../solar/sky';
 import { FOG_FRAME, FOG_SCALE, FOG_SUN, FOG_SUN_COLOR, resetFogFrame } from '../../render/fog';
 
@@ -56,6 +57,7 @@ const GLOBE_FRAG = /* glsl */ `
 uniform sampler2D albedoTex;
 uniform sampler2D photoTex;
 uniform float photo;
+uniform float hires;
 uniform sampler2D heightTex;
 uniform vec3 sunF;
 uniform vec3 camW;
@@ -118,8 +120,10 @@ void main() {
   }
   // the map is 20 km a pixel: below that, mottling, dark sand and bright dust at every scale,
   // fading in as the camera comes close enough to see it
-  float near1 = 1.0 - smoothstep(4.0e6, 1.2e7, camDist);
-  float near2 = 1.0 - smoothstep(4.0e5, 2.0e6, camDist);
+  // (with the 8k mosaic the real detail is there down to 2.6 km: the made-up mottling
+  // only fills in below that, much closer in)
+  float near1 = (1.0 - smoothstep(4.0e6, 1.2e7, camDist)) * (1.0 - 0.7 * hires);
+  float near2 = 1.0 - (hires > 0.5 ? smoothstep(6.0e4, 3.5e5, camDist) : smoothstep(4.0e5, 2.0e6, camDist));
   // (fbm clusters round 0.5: stretch it to the full range)
   // (each layer is only computed where it can be seen: this shader covers the whole screen)
   if (near1 > 0.002) {
@@ -129,7 +133,8 @@ void main() {
   if (near2 > 0.002) {
     float m2 = smoothstep(0.3, 0.7, fbm5(d * 1100.0));
     alb *= mix(1.0, 0.72 + 0.56 * m2, near2);
-    alb *= 0.9 + 0.2 * vn(d * 6000.0);
+    // (the finest grain only where it is bigger than a pixel)
+    alb *= mix(1.0, 0.9 + 0.2 * vn(d * 6000.0), 1.0 - smoothstep(4.0e4, 1.6e5, camDist));
   }
   // relief from the height map: east and north slopes
   vec3 E = normalize(vec3(-d.y, d.x, 0.0) + 1e-6);
@@ -335,7 +340,7 @@ export class MarsView {
     const dummyH = new THREE.DataTexture(new Float32Array([0]), 1, 1, THREE.RedFormat, THREE.FloatType);
     dummyH.needsUpdate = true;
     this.globeMat = new THREE.ShaderMaterial({
-      uniforms: { albedoTex: { value: dummy }, heightTex: { value: dummyH }, sunF: { value: new THREE.Vector3(1, 0, 0) }, camW: { value: new THREE.Vector3() }, ready: { value: 0 }, lift: { value: 1 }, photoTex: { value: dummy }, photo: { value: 0 }, sunI: { value: 3.2 }, ctrW: { value: new THREE.Vector3() }, fogC: { value: new THREE.Vector3() }, fogK: { value: 0 }, hazeCol: { value: new THREE.Vector3(0.6, 0.38, 0.23) } },
+      uniforms: { albedoTex: { value: dummy }, heightTex: { value: dummyH }, sunF: { value: new THREE.Vector3(1, 0, 0) }, camW: { value: new THREE.Vector3() }, ready: { value: 0 }, lift: { value: 1 }, photoTex: { value: dummy }, photo: { value: 0 }, hires: { value: 0 }, sunI: { value: 3.2 }, ctrW: { value: new THREE.Vector3() }, fogC: { value: new THREE.Vector3() }, fogK: { value: 0 }, hazeCol: { value: new THREE.Vector3(0.6, 0.38, 0.23) } },
       vertexShader: GLOBE_VERT,
       fragmentShader: GLOBE_FRAG,
     });
@@ -355,6 +360,8 @@ export class MarsView {
         t.needsUpdate = true;
         this.globeMat.uniforms.photoTex.value = t;
         this.globeMat.uniforms.photo.value = marsPhotoScale();
+        // then the 8k mosaic, where it can be had
+        upgradeToHires(t, () => (this.globeMat.uniforms.hires.value = 1));
         // rebuild the ground in its new colours
         this.patchAt = null;
         this.rocksAt = null;
@@ -558,7 +565,7 @@ export class MarsView {
     const camF = new THREE.Vector3(o[0] + v.cam[0], o[1] + v.cam[1], o[2] + v.cam[2]).applyMatrix4(new THREE.Matrix4().makeRotationZ(-v.angle)).normalize();
     const camGround = camAlt < 60_000 ? marsHeight(Math.asin(camF.z) / D2R, Math.atan2(camF.y, camF.x) / D2R) : 0;
     const camAgl = Math.max(0, camAlt - camGround);
-    const dens = (1 / 26_000) * (0.55 + 0.9 * this.dustiness);
+    const dens = (1 / 62_000) * (0.55 + 0.9 * this.dustiness);
     this.fog.density = near ? dens : 0;
     this.fog.color.setRGB(0.6 * hz + 0.01, 0.39 * hz + 0.012, 0.24 * hz + 0.02);
     this.fogSave.sun.set(FOG_SUN);
@@ -578,7 +585,7 @@ export class MarsView {
       const fixedNow = new THREE.Vector3(...o).applyMatrix4(new THREE.Matrix4().makeRotationZ(-v.angle)).normalize();
       const c: Vec = [fixedNow.x, fixedNow.y, fixedNow.z];
       // out past the horizon, so the mesh's edge never shows against the sky
-      const outer = Math.max(30_000, Math.min(900_000, 1.25 * Math.sqrt(2 * R * Math.max(0, shipAlt)) + 25_000));
+      const outer = Math.max(60_000, Math.min(900_000, 1.25 * Math.sqrt(2 * R * Math.max(0, shipAlt)) + 25_000));
       const p = this.patchAt;
       const moved = p ? Math.hypot(c[0] - p.c[0], c[1] - p.c[1], c[2] - p.c[2]) * R : Infinity;
       // rebuild the ground round the new point a little at a time (the old one stays up meanwhile)
@@ -817,11 +824,15 @@ export class MarsView {
   /** boulders strewn round the landing point (Mars-fixed, in the patch's frame): many small, a few big, half sunk */
   private buildRocks(c: Vec): void {
     const PER = 700;
+    // four rock shapes, each in two versions: a detailed one for the rocks near the
+    // middle (where the camera is) and a light one for the rest
+    const SHAPES = 4;
     if (!this.rocks.length) {
-      const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.88, metalness: 0 });
-      for (let k = 0; k < 4; k++) {
-        const rk = new THREE.InstancedMesh(boulderGeometry(11 + k * 7), mat, PER);
-        rk.castShadow = true;
+      const mat = rockMaterial();
+      for (let k = 0; k < SHAPES * 2; k++) {
+        const near = k < SHAPES;
+        const rk = new THREE.InstancedMesh(boulderGeometry(11 + (k % SHAPES) * 7, near ? 5 : 2), mat, PER);
+        rk.castShadow = near;
         rk.receiveShadow = true;
         rk.frustumCulled = false;
         this.rocks.push(rk);
@@ -842,8 +853,9 @@ export class MarsView {
     const tones: [number, number, number][] = [[0.13, 0.11, 0.1], [0.17, 0.13, 0.11], [0.26, 0.16, 0.11], [0.32, 0.21, 0.14], [0.38, 0.3, 0.24]];
     this.rockList = [];
     this.rockGen++;
-    for (const rk of this.rocks)
-      for (let i = 0; i < PER; i++) {
+    const used = this.rocks.map(() => 0);
+    for (let sh = 0; sh < SHAPES; sh++)
+      for (let j = 0; j < PER; j++) {
         // denser close to the ship (where the camera is), thinning out to 700 m
         const rho = 6 + Math.pow(r(), 1.6) * 700, th = r() * Math.PI * 2;
         const a = rho / R;
@@ -858,6 +870,10 @@ export class MarsView {
           .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), r() * 6.28))
           .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), (r() - 0.5) * 0.5));
         m.compose(p, q, new THREE.Vector3(size * (0.8 + r() * 0.5), size, size * (0.8 + r() * 0.5)));
+        // the detailed version within 90 m (and for the big ones a little further)
+        const which = rho < 90 + size * 40 ? sh : sh + SHAPES;
+        const rk = this.rocks[which];
+        const i = used[which]++;
         rk.setMatrixAt(i, m);
         const t = tones[Math.floor(r() * tones.length)];
         mapAlbedo(lat, lon, alb);
@@ -865,6 +881,7 @@ export class MarsView {
         col.setRGB(t[0] * (1 - dust) + alb[0] * 0.75 * dust, t[1] * (1 - dust) + alb[1] * 0.75 * dust, t[2] * (1 - dust) + alb[2] * 0.75 * dust);
         rk.setColorAt(i, col);
       }
+    this.rocks.forEach((rk, k) => (rk.count = used[k]));
     for (const rk of this.rocks) {
       rk.instanceMatrix.needsUpdate = true;
       if (rk.instanceColor) rk.instanceColor.needsUpdate = true;

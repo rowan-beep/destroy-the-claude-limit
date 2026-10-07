@@ -507,24 +507,24 @@ function smallCraters(px: number, py: number, pz: number, cell: number, maxR: nu
 }
 
 /** relief below the map's resolution (m): hills and mesas, dune fields, craters of every size */
-export function marsDetail(px: number, py: number, pz: number, spacing = 0): number {
+export function marsDetail(px: number, py: number, pz: number, spacing = 0, bigK = 1): number {
   // band-limited to the mesh: features smaller than about three vertex spacings fade out
   // (sampled more sparsely they would alias into a jagged horizon)
   const lod = (wave: number) => (spacing <= 0 ? 1 : Math.max(0, Math.min(1, (wave / spacing - 3) / 3)));
   // big rolling hills and ridges, up to the best part of a kilometre
   const big = 1 - Math.abs(fbm(px / 42000 + 3, py / 42000, pz / 42000, 3));
-  let h = 820 * (big * big - 0.42);
+  let h = bigK * 820 * (big * big - 0.42);
   // hills a few kilometres across, sharp-crested
   const kR = lod(11000);
   if (kR > 0) {
     const rid = 1 - Math.abs(fbm(px / 11000, py / 11000, pz / 11000, spacing > 2500 ? 2 : 4));
-    h += kR * 380 * (rid * rid - 0.45);
+    h += bigK * kR * 380 * (rid * rid - 0.45);
   }
   // flat-topped rises and the scarps round them
   const kM = lod(7000);
   if (kM > 0) {
     const mesa = fbm(px / 7000 + 11, py / 7000, pz / 7000, 3);
-    h += kM * 210 * Math.max(-0.4, Math.min(0.35, mesa * 1.6));
+    h += bigK * kM * 210 * Math.max(-0.4, Math.min(0.35, mesa * 1.6));
   }
   // knobs and swells down to a few hundred metres
   const kK = lod(2600);
@@ -552,11 +552,124 @@ export function marsDetail(px: number, py: number, pz: number, spacing = 0): num
   return h;
 }
 
+// ------------------------------------------------------------------ landmarks
+// The global map is 20 km a pixel: it smears the craters the rovers explore into
+// shallow dips. Round the two rover sites the real shapes are built in: Jezero's
+// 45 km crater with its flat lake bed, breached rim and the river delta on its
+// west side; Gale's 154 km crater and Mount Sharp (Aeolis Mons), 5 km of layered
+// rock rising out of its floor.
+interface Landmark {
+  lat: number;
+  lon: number;
+  /** rim radius, km */
+  R: number;
+  /** floor and rim crest, m, relative to the plains round about */
+  floor: number;
+  rim: number;
+  /** the floor's radius as a fraction of the rim's */
+  fl: number;
+  /** gaps in the rim: [azimuth from east (rad), half-width (rad)] */
+  breaches: [number, number][];
+  mound?: { lat: number; lon: number; r: number; h: number };
+  delta?: { lat: number; lon: number; r: number; h: number; az: number };
+  base?: number;
+}
+const LANDMARKS: Landmark[] = [
+  {
+    // Jezero: Neretva Vallis comes in through the west rim; the outlet cuts the east rim
+    lat: 18.38, lon: 77.58, R: 22.5, floor: -420, rim: 330, fl: 0.72,
+    breaches: [[Math.PI * 0.93, 0.09], [-0.12, 0.07]],
+    delta: { lat: 18.5, lon: 77.38, r: 3.6, h: 85, az: Math.PI * 0.93 },
+  },
+  {
+    // Gale: the rim highest to the south; Mount Sharp a little south-east of centre
+    lat: -5.37, lon: 137.81, R: 77, floor: -1900, rim: 900, fl: 0.82,
+    breaches: [],
+    mound: { lat: -5.1, lon: 137.85, r: 30, h: 5200 },
+  },
+];
+const KM_DEG = (R_KM * Math.PI) / 180;
+function smooth(a: number, b: number, x: number): number {
+  const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+}
+/** the change in height (m) a landmark makes at a point, and how much of the made-up relief to keep there */
+function landmark(lat: number, lon: number, molaM: number): { dh: number; keep: number } {
+  for (const L of LANDMARKS) {
+    const cl = Math.cos(L.lat * D2R);
+    let dLon = lon - L.lon;
+    if (dLon > 180) dLon -= 360;
+    if (dLon < -180) dLon += 360;
+    const de = dLon * KM_DEG * cl, dn = (lat - L.lat) * KM_DEG;
+    const r = Math.hypot(de, dn);
+    const rr = r / L.R;
+    if (rr > 2.2) continue;
+    if (L.base === undefined) {
+      // the plains round about: the map's mean on a ring well outside the rim
+      let sum = 0;
+      for (let k = 0; k < 16; k++) {
+        const a = (k / 16) * Math.PI * 2;
+        sum += mapHeightKm(L.lat + (Math.sin(a) * 1.8 * L.R) / KM_DEG, L.lon + (Math.cos(a) * 1.8 * L.R) / (KM_DEG * cl)) * 1000;
+      }
+      L.base = sum / 16;
+    }
+    const az = Math.atan2(dn, de);
+    // a rim that rises and falls round the crater
+    const rimH = L.rim * (1 + 0.22 * Math.sin(3 * az + 1.3) + 0.12 * Math.sin(7 * az + 0.4) + 0.06 * Math.sin(13 * az + 2.1));
+    let p: number;
+    if (rr < L.fl) p = L.floor;
+    else if (rr < 1) {
+      const t = (rr - L.fl) / (1 - L.fl);
+      p = L.floor + (rimH - L.floor) * Math.pow(t * t * (3 - 2 * t), 1.35);
+    } else p = rimH * Math.exp(-(rr - 1) * 3.4);
+    // breaches: the river's gap through the rim, cut down to the floor's level
+    for (const [a0, hw] of L.breaches) {
+      let da = Math.abs(az - a0);
+      if (da > Math.PI) da = 2 * Math.PI - da;
+      const w = (1 - smooth(hw * 0.5, hw, da)) * smooth(L.fl * 0.95, L.fl + 0.06, rr) * (1 - smooth(1.15, 1.5, rr));
+      p = p + (Math.min(p, L.floor + 140) - p) * w;
+    }
+    let keep = 0.18 + 0.82 * smooth(L.fl * 0.9, 1.05, rr);
+    if (L.mound) {
+      const M = L.mound;
+      const me = ((lon - M.lon + 540) % 360 - 180) * KM_DEG * Math.cos(M.lat * D2R), mn = (lat - M.lat) * KM_DEG;
+      const mr = Math.hypot(me, mn);
+      const maz = Math.atan2(mn, me);
+      // lobed, not round; layered benches up its flanks
+      const rad = M.r * (1 + 0.14 * Math.sin(2 * maz + 0.7) + 0.08 * Math.sin(5 * maz + 2.0));
+      if (mr < rad) {
+        const k = Math.pow(1 - smooth(0, 1, mr / rad), 1.25);
+        let mh = M.h * k;
+        mh += 45 * Math.sin(mh / 140) * k;
+        p += mh;
+        keep = Math.max(keep, 0.55 * k);
+      }
+    }
+    if (L.delta) {
+      const D = L.delta;
+      const fe = ((lon - D.lon + 540) % 360 - 180) * KM_DEG * Math.cos(D.lat * D2R), fn = (lat - D.lat) * KM_DEG;
+      const fr = Math.hypot(fe, fn);
+      const faz = Math.atan2(fn, fe);
+      // fingers of sediment pushing out into the old lake, and a steep front
+      const rad = D.r * (1 + 0.16 * Math.sin(5 * faz + 0.9) + 0.07 * Math.sin(11 * faz));
+      const top = 1 - smooth(rad - 0.35, rad + 0.15, fr);
+      // the fan's surface rises gently back toward the inlet
+      const up = Math.max(0, Math.cos(faz - D.az)) * fr * 9;
+      p += (D.h + up) * top;
+    }
+    const w = 1 - smooth(1.6, 2.2, rr);
+    return { dh: (L.base + p - molaM) * w, keep: 1 + (keep - 1) * w };
+  }
+  return { dh: 0, keep: 1 };
+}
+
 /** the ground's height above the datum (m) at a point: the global map plus the fine detail */
 export function marsHeight(lat: number, lon: number): number {
   const cl = Math.cos(lat * D2R);
   const R = R_KM * 1000;
-  return mapHeightKm(lat, lon) * 1000 + marsDetail(R * cl * Math.cos(lon * D2R), R * cl * Math.sin(lon * D2R), R * Math.sin(lat * D2R));
+  const m = mapHeightKm(lat, lon) * 1000;
+  const L = landmark(lat, lon, m);
+  return m + L.dh + marsDetail(R * cl * Math.cos(lon * D2R), R * cl * Math.sin(lon * D2R), R * Math.sin(lat * D2R), 0, L.keep);
 }
 
 /** the height split into the map's part and the local relief (m), and the point on the sphere */
@@ -564,5 +677,7 @@ export function marsHeightParts(lat: number, lon: number, spacing = 0): { base: 
   const cl = Math.cos(lat * D2R);
   const R = R_KM * 1000;
   const px = R * cl * Math.cos(lon * D2R), py = R * cl * Math.sin(lon * D2R), pz = R * Math.sin(lat * D2R);
-  return { base: mapHeightKm(lat, lon) * 1000, detail: marsDetail(px, py, pz, spacing), px, py, pz };
+  const m = mapHeightKm(lat, lon) * 1000;
+  const L = landmark(lat, lon, m);
+  return { base: m + L.dh, detail: marsDetail(px, py, pz, spacing, L.keep), px, py, pz };
 }

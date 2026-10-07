@@ -24,6 +24,7 @@ import callistoUrl from './assets/callisto.jpg';
 import phobosUrl from './assets/phobos.jpg';
 import enceladusUrl from './assets/enceladus.jpg';
 import marsUrl from '../mars/assets/mars_viking_mdim21.jpg';
+import { upgradeToHires } from '../mars/marsHires';
 
 const URLS: Partial<Record<string, string>> = {
   jupiter: jupiterUrl, saturn: saturnUrl, neptune: neptuneUrl, pluto: plutoUrl, charon: charonUrl, titan: titanUrl,
@@ -120,7 +121,8 @@ export function planetTexture(id: BodyId | string): THREE.Texture {
   let t: THREE.Texture;
   const url = URLS[id];
   if (url) {
-    t = loader.load(url);
+    // (Mars: then the 8k mosaic, once the built-in map is in)
+    t = loader.load(url, id === 'mars' ? (lt) => upgradeToHires(lt) : undefined);
     t.colorSpace = THREE.SRGBColorSpace;
     t.anisotropy = 8;
     t.wrapS = THREE.RepeatWrapping;

@@ -13,7 +13,7 @@ import * as THREE from 'three';
 import { MarsView } from '../mars/marsView';
 import { marsHeight, regionName } from '../mars/marsGlobe';
 import { MARS, Vec, marsState, vnorm, vscale, dateText } from '../mars/marsPhysics';
-import { boulderGeometry } from '../mars/marsSurface';
+import { boulderGeometry, rockMaterial } from '../mars/marsSurface';
 import { menuMusic } from '../../audio/menuMusic';
 import { audio } from '../../audio/audio';
 import { updateRecord } from '../record';
@@ -612,7 +612,7 @@ export class RoverMission {
     // a few outcrop slabs at the target (the rock the scientists picked)
     let s = (i + 3) * 7919;
     const r = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
-    const rockMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(0.32, 0.2, 0.13), roughness: 0.95 });
+    const rockMat = rockMaterial(0x523321);
     for (let k = 0; k < 6; k++) {
       const m = new THREE.Mesh(boulderGeometry(i * 11 + k), rockMat);
       const sz = k === 0 ? 0.7 : 0.25 + r() * 0.35;
