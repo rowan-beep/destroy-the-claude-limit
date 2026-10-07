@@ -4,535 +4,662 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu lists the space updates.
 
-## v4.60.0 (2026-10-07)
+## v5.0.0 (2026-10-07)
 
-### Air Combat: Easier to read notes
-
-- **Improved: Notes you can skim**
-  - Each change has a short headline and a few short points, tagged NEW, IMPROVED or FIXED.
-  - The newest update is open, and older ones fold to one line each. Click one to open it.
-- **Improved: Only air combat updates here**
-  - Space updates now have their own notes in the space menu.
-
-### Space Exploration: Notes in the space menu
-
-- **New: Release notes in the space menu**
-  - Press NOTES at the bottom of the menu to see what's new.
-  - They open by themselves when there's an update you haven't seen.
-- **Improved: Only space updates here**
-  - Each change has a short headline and a few short points, tagged NEW, IMPROVED or FIXED.
-  - The newest update is open, and older ones fold to one line each. Click one to open it.
-
-## v4.59.0 (2026-10-07)
-
-### Space Exploration: Solar System Explorer
-
-- **New: Solar System Explorer**
-  - Open it from the space menu and fly round the whole solar system as it is today, on the real orbits.
-  - Pick the Sun, a planet or Pluto from the bar at the top and the camera flies there. Each planet's moons join the bar when you visit it.
-  - Drag to look round. Scroll to zoom from just over the surface out to 60 AU.
-  - Speed up time from a pause to a year a second and watch the planets go round.
-  - A card shows each world's size, year, day, gravity, distance from the Sun and a few facts.
-- **Fixed: The real Earth in the solar-system view**
-  - It kept showing the old painted Earth. NASA's Blue Marble now swaps in as soon as it loads.
-
-## v4.58.0 (2026-10-07)
-
-### Air Combat: Three new jets
+### Air Combat: Three new jets and a new look
 
 - **New: F-35A Lightning II**
-  - One F135 engine, Mach 1.6.
-  - Four AIM-120Ds in two weapons bays side by side under the belly, and the EOTS sensor under the chin.
-  - No head-up display: the symbology is on the helmet visor.
+  - One F135 engine and Mach 1.6.
+  - Four AIM-120Ds in two weapons bays side by side under the belly, and the EOTS targeting sensor under the chin.
+  - No head-up display at all: the symbology is on the helmet visor.
 - **New: Su-57**
-  - Mach 2, with thrust vectoring in three dimensions.
+  - Mach 2 and thrust vectoring in three dimensions.
   - Four R-77Ms in two tandem bays, and an R-74M under each wing root.
 - **New: Gripen E**
-  - A light canard delta carrying Meteor and the new IRIS-T.
+  - A light canard delta with Meteor and the new IRIS-T missile.
   - IRIS-T can lock on to a target 90 degrees off the nose.
-- **The full treatment for all three**
-  - Their own cockpits, sounds and Jet Library entries, and they fly against you as enemies too.
+- **All three, start to finish**
+  - All three have their own cockpits, sounds and Jet Library entries, and fly against you as enemies too.
+- **Improved: The jet game looks better**
+  - Light streams from the sun in visible rays through gaps in the clouds and past the canopy frame, with lens flares across the picture when you look toward it.
+  - The rays and flares stay faint and close to the sun, and they don't shimmer or flicker as the camera moves. The sun doesn't feed the bloom, so the picture never glows so much you can't see.
+  - The picture is sharper, with a touch of lens colour fringing at the corners and light film grain, and at high speed the edges of the screen streak with motion.
+  - Missile smoke, contrails and wingtip vapour now billow and break up with ragged edges instead of being flat white ribbons.
+  - The sun rays, flares, grain and colour fringing are off on Low quality.
+- **Improved: Physics you can feel**
+  - Pull close to the stall, fly through the transonic zone, or open the speedbrake or drop the gear at speed, and the airframe buffets: the camera and your view shake, and you hear it rumble.
+  - Hold a jet past its stall with the G override and a wing lets go: the jet lurches toward it, then the other wing goes.
+  - Thrust-vectoring jets (Su-35S, F-22A) hold on far better.
+- **New: Real landing-gear struts**
+  - They squash on touchdown and rebound, the nose dips when you brake and lifts a little under power, and the jet leans out of a fast turn on the ground.
+  - It jolts over runway joints and bumps on rough ground, and the wheels stay on the runway as the struts move.
 - **Improved: Faster to load**
-  - The first download is about 2.2 MB instead of 3.2 MB: the space program now loads only when you open it.
+  - The first download of the game is about 2.2 MB instead of 3.2 MB: the space program now downloads only when you open it.
+- **Improved: New release notes**
+  - Only air combat updates are listed here now.
+  - Each change has a headline tagged NEW, IMPROVED or FIXED, with the details under it.
+  - The newest update is open, and older ones fold to one line each: click one to open it.
+- **Improved: If the game can't start**
+  - If the browser won't give the game WebGL, it now says so, shows the reason the browser gave, and suggests fixes (restart the browser, update the graphics driver, turn on hardware acceleration) with a TRY AGAIN button.
+- **Fixed: Garbled symbols**
+  - Garbled symbols in the shared version are fixed.
 
-### Space Exploration: Rockets, rovers and the solar system
+### Space Exploration: Starbase, rovers and the solar system
 
-- **New: Falcon Heavy: Europa Clipper**
-  - Launches from the new Pad 3 down the coast: 27 Merlin engines, 22.8 MN at liftoff.
-  - Both side boosters flip round, fly back and land on Landing Zones 1 and 2, with the camera following them in.
-  - The cruise runs on the real dates: Mars on 1 March 2025, Earth on 3 December 2026, into orbit round Jupiter on 11 April 2030.
-  - It ends with a pass 25 km over Europa's ice. Each planet fills the view as Clipper flies by.
-- **New: SLS: Artemis II**
-  - Two solid boosters and four RS-25s, 39.1 MN at liftoff.
-  - The autopilot works out a free return round the Moon. The ICPS burns until it runs dry and Orion's own engine finishes the job, as on the real mission.
-  - Course corrections out and back, the far side of the Moon below you, then entry at 11 km/s.
-  - Three orange-and-white main parachutes and a splashdown off the Cape about eight days after launch.
-- **New: Perseverance and Curiosity**
-  - Among the most detailed objects in the game: about 80,000 and 66,000 triangles.
-  - Rocker-bogie suspension that follows every rock, six wheels with 48 grousers each, the mast cameras, the robotic arm and the nuclear power source.
+- **New: Falcon Heavy launches Europa Clipper**
+  - Two new rockets fly two real missions, from a new Pad 3 down the coast.
+  - Falcon Heavy launches NASA's Europa Clipper on its real route: 27 Merlin engines and 22.8 MN at liftoff.
+  - The two side boosters flip round, fly back and land on Landing Zones 1 and 2 within seconds of each other while the camera follows them in, then the second stage leaves Earth.
+  - The cruise runs on the real dates: past Mars on 1 March 2025, past Earth on 3 December 2026, into orbit round Jupiter on 11 April 2030, then a pass 25 km over Europa's ice.
+  - Each planet fills the view as Clipper flies by.
+- **New: SLS flies Artemis II**
+  - NASA's Space Launch System: two solid boosters and four RS-25s, 39.1 MN at liftoff.
+  - In orbit the autopilot works out a free return round the Moon. The ICPS burns until it runs dry and Orion's own engine finishes the injection, the way the real mission is flown.
+  - Course corrections on the way out and on the way home, with the far side of the Moon thousands of kilometres below.
+  - Entry at 11 km/s, three orange-and-white main parachutes and splashdown off the Cape about eight days after launch.
+  - Working out a trajectory no longer freezes the game: it computes in the background while the clock holds.
+- **New: Rovers on Mars: Perseverance and Curiosity**
+  - Among the most detailed objects in the game: Perseverance is about 80,000 triangles, Curiosity about 66,000.
+  - Rocker-bogie suspension that follows every rock, six wheels with 48 grousers, the mast with its cameras, the robotic arm and its turret, and the nuclear power source.
   - Ingenuity the helicopter comes too.
   - They drive at their real top speed, 4.2 cm/s, with time warp to cover the ground.
 - **New: Three rover missions**
-  - SEVEN MINUTES OF TERROR: Mars 2020's landing at Jezero, down to the sky crane lowering the rover on its bridles. Then you drive it away.
-  - JEZERO SAMPLE HUNT: core rocks, zap them with the laser and fly Ingenuity.
+  - SEVEN MINUTES OF TERROR: Mars 2020's landing at Jezero, from entry through the parachute, heat shield and powered descent to the sky crane lowering the rover on its bridles. Then you drive it away.
+  - JEZERO SAMPLE HUNT: core rocks, zap them with the laser and fly Ingenuity from its airfield.
   - GALE CRATER: Curiosity drills the old lake bed and heads for Mount Sharp.
-- **Improved: Mars looks far better**
-  - From orbit: an 8192 × 4096 Viking mosaic, eight times sharper, with real crater fields.
-  - Jezero has its crater rim on the horizon and the river delta to the west.
-  - At Gale, Mount Sharp rises 5 km above the crater floor.
-  - Rocks are weathered stone with fracture faces, layers and dust on top, and the air is clearer.
 - **New: The whole solar system**
-  - Every planet and the major moons on their real orbits, with NASA's maps.
+  - Every planet and the major moons on their real orbits, with NASA's maps of Jupiter, Saturn, the Galilean moons, Titan, Pluto and more.
   - Saturn's and Uranus's rings, with their real gaps.
-  - The sky is the real one: 40,000 stars from NASA's Tycho star map, and the Milky Way.
+  - The sky in every space view is the real one: 40,000 stars from NASA's Tycho star map at their real positions, brightness and colours, and the Milky Way.
+- **New: Solar System Explorer**
+  - A new SOLAR SYSTEM EXPLORER on the space menu: fly round the whole solar system as it is today, on the real orbits.
+  - Pick the Sun, any planet or Pluto from the bar at the top (each planet's moons join the bar when you visit it), and the camera flies there and frames it on its sunlit side.
+  - Drag to look round, scroll to zoom from close over the surface out to 60 AU, and speed time up from a pause to a year a second to watch the moons and planets go round.
+  - A card shows each world's size, year, day, gravity and distance from the Sun, with a few facts.
 - **Improved: The real Earth from space**
-  - NASA's Blue Marble, the real cloud cover, and the Black Marble city lights on the night side.
-- **Improved: No more freezes while planning**
-  - Trajectories are worked out in the background while the clock holds.
-  - The space program downloads in the background a few seconds after the game starts.
-- **Fixed: Rover mission freeze**
-  - Starting a rover mission could freeze the view when the Mars map finished loading at the wrong moment.
-
-## v4.57.1 (2026-10-07)
-
-### Air Combat: Easier on the eyes
-
-- **Improved: Sun toned way down**
-  - The sun no longer feeds the bloom, which made the whole picture glow.
-  - Rays and lens flares are much fainter, stay close to the sun, and no longer shimmer or flicker.
-- **Improved: Less shake**
-  - Airframe buffet only starts close to the stall, not in any hard turn.
-  - It shakes the view about half as much. Film grain and sharpening are lighter too.
-
-## v4.57.0 (2026-10-07)
-
-### Air Combat: Sun rays, buffet and real struts
-
-- **Improved: The jet game looks better**
-  - Visible sun rays through gaps in the clouds and past the canopy frame, with lens flares.
-  - A sharper picture with fine film grain and slight colour fringing at the corners. The edges streak at high speed.
-  - Missile smoke, contrails and wingtip vapour billow and break up instead of being flat ribbons.
-  - Sun rays, flares, grain and fringing are off on Low quality.
-- **Improved: Physics you can feel**
-  - Pull past your best turn, go transonic, or open the speedbrake or gear at speed, and the airframe buffets: the view shakes and you hear it rumble.
-  - Hold a jet past the stall with the G override and a wing lets go.
-  - Thrust-vectoring jets (Su-35S, F-22A) hold on far better.
-- **New: Real landing-gear struts**
-  - They squash on touchdown and rebound.
-  - The nose dips under braking, the jet leans in fast turns on the ground, and it jolts over runway joints.
-- **Improved: Clearer message if WebGL is blocked**
-  - The game says so, shows the browser's reason and suggests fixes, with a TRY AGAIN button.
-- **Fixed: Garbled symbols**
-  - Fixed in the shared version.
-
-### Space Exploration: Starbase, wind and fire
-
-- **New: Starship's own pad: Pad 2**
-  - A full Starbase-sized launch complex at real scale, beside the Saturn V pad.
-  - A 146 m tower with its chopsticks, the orbital launch mount, and a steel-lined flame trench with a deflector and deluge pipes.
-  - A tank farm with 14 tall and 18 horizontal tanks, 16 floodlight masts, a launch-control bunker and the Mega Bay across the road.
-- **Improved: Enormous liftoffs**
-  - Fire blasts out of the flame trench, and a towering cloud of smoke and steam rolls out toward the sea.
-  - A ring of dust races across the apron, and the cloud glows orange from the engines.
+  - NASA's Blue Marble, with the real cloud cover and the Black Marble city lights on the night side.
+- **Improved: Mars looks far better**
+  - From orbit, the planet uses an 8192 by 4096 Viking mosaic, eight times sharper, with real crater fields down to a few kilometres.
+  - On the ground, Jezero has its crater rim on the horizon and the river delta to the west, and at Gale, Mount Sharp rises 5 km above the crater floor.
+  - The rocks are weathered stone broken along fracture faces, with grain, layering and dust on their tops.
+  - The air is clearer, so the crater rims and the mountain stand out.
 - **New: Wind on Mars**
-  - Layers of dust drift over the ground and race past as the ship comes down.
-  - Dust devils wander across the plains, and grit blows past in the gusts.
-  - How dusty it is changes from landing to landing.
+  - Layers of dust drift over the ground, streaked and billowing, thickest down low and thinning with height, and they race past as the ship comes down.
+  - Dust devils wander across the plains, and close to the ground fine grit blows past in the gusts.
+  - The distance fades into the dusty air, and how dusty it is changes from landing to landing.
 - **Improved: Real hills on Mars**
-  - Rolling hills up to about 800 m, ridges, mesas, knobs and craters.
-  - The ground reaches past the horizon, so the jagged skyline is gone.
-  - Fine detail fades with distance instead of shimmering.
-- **Improved: Smarter landing site**
-  - The autopilot picks the lowest, smoothest ground along your track, where the air is thickest.
-  - The guidance looks ahead at the terrain, so a rise under the ship no longer catches it out.
+  - Rolling hills up to about 800 m high, ridges, flat-topped mesas, knobs and craters.
+  - The ground now reaches past the horizon, so the jagged edge on the skyline is gone, and fine detail fades out with distance instead of shimmering.
+  - Dark sand and bright dust stand out more, so the far landscape no longer looks like flat tan.
+- **Improved: The autopilot picks the landing site**
+  - It picks the lowest, smoothest ground along the ship's track, where the air is thickest to brake in. The log names the site and the region.
+  - The landing guidance looks ahead at the terrain, so the ship no longer gets caught out by a rise under it.
+- **New: Starship's own pad: Pad 2**
+  - A full Starbase-sized launch complex beside the Saturn V pad, built at real scale.
+  - A 146 m launch-and-catch tower with its chopsticks and the arm that swings clear at liftoff.
+  - The orbital launch mount on a raised pad, with a steel-lined flame trench cut through the pad, a curved flame deflector and water deluge pipes.
+  - A tank farm with 14 tall tanks and 18 horizontal ones, subcoolers and pipe racks running to the mount and up the tower.
+  - Deluge water tanks and a pump house, lightning masts, 16 floodlight masts, a launch-control bunker, workshops, a 660 m by 355 m concrete apron stained with soot, and the Mega Bay across the road.
+- **Improved: Enormous liftoffs**
+  - A jet of fire blasts out of the mouth of the flame trench, a towering cloud of smoke and steam boils up round the mount and rolls out toward the sea, and a ring of dust races out across the apron.
+  - The cloud glows orange from the engines while they're close.
 - **Fixed: The trip to Mars**
-  - Map labels no longer stay on screen after you close the map.
-  - The solar system map labels the Sun, Earth, Mars, Starship and where Mars will be when you arrive.
-  - The camera looks back at Earth as you leave, and vacuum engine plumes are faint, as they really are.
-- **Improved: Clearer message if WebGL is blocked**
-  - The game says so, shows the browser's reason and suggests fixes, with a TRY AGAIN button.
+  - The map's labels no longer stay on screen after you close the map.
+  - The solar system map now labels the Sun, Earth, Mars, Starship and where Mars will be when you arrive.
+  - The camera looks back at Earth as you leave it, and the vacuum engines' plumes in space are faint, as they really are.
+- **Improved: Faster to load**
+  - The space program now downloads only when you open it. It's fetched in the background a few seconds after the game starts.
+- **New: Release notes in the space menu**
+  - Press NOTES at the bottom of the menu to see what's new. They open by themselves when there's an update you haven't seen.
+  - Only space updates are listed here.
+  - Each change has a headline tagged NEW, IMPROVED or FIXED, with the details under it. The newest update is open, and older ones fold to one line each: click one to open it.
+- **Improved: If the game can't start**
+  - If the browser won't give the game WebGL, it now says so, shows the reason the browser gave, and suggests fixes (restart the browser, update the graphics driver, turn on hardware acceleration) with a TRY AGAIN button.
 - **Fixed: Garbled symbols**
-  - Fixed in the shared version.
+  - Garbled symbols in the shared version are fixed.
 
 ## v4.56.1 (2026-10-06)
 
 ### Air Combat: Open Ocean fix
 
 - **Fixed: Campaign crash on Open Ocean**
-  - Starting the campaign there with a mission saved from another theater crashed the game.
+  - Fixed a crash when starting the campaign on the Open Ocean map with a campaign mission saved from another theater.
   - Modes that need land (campaign, daily, recon, strike and the tutorial) now fall back to free flight on the ocean.
 
 ### Space Exploration: The real Mars
 
 - **Improved: Mars from the real maps**
-  - Its colours come from the Viking orbiters' global mosaic (NASA/JPL/USGS), so every region, canyon, volcano and polar cap is where it really is.
-- **Fixed: Mars no longer looks flat beige**
-  - A haze bug hid 70% of the planet. The haze now only thickens at the edge of the disc.
+  - The planet's colours now come from the Viking orbiters' global colour mosaic (NASA/JPL/USGS), so every dark region, bright dust plain, canyon, volcano and polar cap is where it really is, in its real colours, warmed to the butterscotch of true colour.
+- **Fixed: Mars no longer looks like flat beige paint**
+  - The dusty-haze effect was measuring the view angle in Mars's rotating frame instead of the world's, so it treated the whole planet as if it were seen edge-on and hid 70% of it behind haze.
+  - Now the haze only thickens at the edge of the disc, as it should.
 - **Improved: More detail from orbit**
-  - Mottled sand and dust, small hills and crater walls fade in as you get closer.
-  - The stars and the Sun now sit behind the planet instead of showing through it.
-- **Improved: Smoother ground**
-  - No more stair-steps: rolling hills, dune fields, and craters from 10 m to 2.6 km.
-  - Dark sand gathers in low ground and bright dust lies on the rises. The stripy pattern is gone.
+  - From orbit, Mars has detail below the map's resolution: mottling of dark sand and bright dust, plus small hills and crater walls shaded by the Sun, fading in as you get closer.
+  - The stars and the Sun now sit behind the planet instead of showing through it, and the Sun is no longer drawn on top of the planet.
+- **Improved: Smooth ground, hills, dunes and craters**
+  - On the ground, the terrain is smooth instead of stair-stepped: the height map is now interpolated with smooth curves, and the planet's height texture is filtered.
+  - The landscape has rolling hills, flat-topped rises, dune fields with long crests, and craters at four sizes from 10 m to 2.6 km.
+  - Dark sand gathers in low ground and bright dust lies on the rises, and the old stripy colour pattern on the ground is gone.
 - **Improved: Better landing dust**
-  - A fine dust storm instead of round blobs, and the ignition flash no longer whites out the screen.
+  - The landing dust is a fine dust storm instead of big round blobs, and the ignition flash no longer whites out the screen.
 
 ## v4.56.0 (2026-10-06)
 
 ### Space Exploration: Red planet, for real
 
-- **Improved: Mars looks like the rover photos**
-  - Fine reddish-brown dust and sand in low ripples, strewn with basalt pebbles, rusty fragments and pale stones.
-  - The detail holds up from next to the ship out to the horizon without repeating.
-  - Steep slopes show darker rock, and boulders sit half-buried round the landing site.
+- **Improved: Mars looks like the rovers' photographs**
+  - The ground is fine reddish-brown dust and sand drifted into low ripples, strewn with pebbles and cobbles of dark basalt, rusty fragments and the odd pale stone, many half sunk in the drift.
+  - The detail holds up from right next to the ship out to the horizon without visibly repeating.
+  - Steep slopes show darker exposed rock, and boulders of several shapes sit half-buried round the landing site.
 - **Improved: New lighting on Mars**
-  - The steel reflects the butterscotch sky, and shadows fill with the warm light of the dusty air.
-  - A bluish glow round the Sun spreads into the famous blue sunset.
-  - Night is truly dark.
+  - The sky is captured as light: the steel reflects the real butterscotch sky, and every shadow is filled with the warm light of the dusty air and the sunlit ground.
+  - The sky is butterscotch at the horizon, a deeper brownish tan overhead, with a bluish glow round the Sun that spreads into the famous blue sunset when the Sun goes down.
+  - The distant haze is the colour of the sky, and night is truly dark.
 - **Improved: Richer colour from orbit**
-  - Butterscotch, as in the orbital photos, instead of washed-out cream.
+  - From orbit, Mars is the rich butterscotch of the orbital photographs instead of a washed-out cream, and the glowing rim of the atmosphere only shows past the edge of the planet.
 - **Improved: A dramatic entry**
-  - Glowing plasma hugs the belly, with a long pink-orange wake and embers torn off the flaps.
-  - The camera shakes with the heating, and the flaps visibly steer the fall.
-- **Improved: A dramatic landing**
-  - An ignition flash, then a low, wide camera as the Raptors blast out a ring of dust and grit.
-  - The legs take the weight, the nozzles glow and cool, and the camera circles the ship.
+  - On entry a sheath of glowing plasma hugs the belly, flickering, with a long pink-orange wake streaming behind the ship and embers torn off the flaps; the camera shakes with the heating.
+  - In the belly-flop the flaps visibly work to steer the fall.
+- **Improved: A dramatic landing burn**
+  - The landing burn opens with an ignition flash, and the camera swings low and wide for the landing.
+  - The Raptors light the ground and the dust orange from below as they blast out a ring of dust that races outward and billows up, flinging grit and pebbles across the ground.
+  - On touchdown the legs take the weight and spring back, the nozzles glow hot and slowly cool, the dust drifts and settles, and the camera circles the ship.
 
 ## v4.55.0 (2026-10-06)
 
 ### Air Combat: F-16 intake
 
 - **Improved: F-16 intake**
-  - The lower lip is flatter across the middle and the corners sit lower, closer to the real jet.
+  - The F-16's intake is less of a smile now: the lower lip is flatter across the middle and the corners don't ride up as high, closer to the real jet.
 
 ### Space Exploration: Starship to Mars
 
 - **New: Starship to Mars**
-  - Fly the whole trip, from the pad to the ground on Mars. Open MISSIONS, or click STARSHIP on the LAUNCH PAD page.
-  - The launch window is the real one: leave in early November 2026, arrive in September 2027.
+  - Open MISSIONS in the space program (or click STARSHIP on the LAUNCH PAD page) and fly the whole trip, from the pad to the ground on Mars.
+  - The window is the real one from today: leave Earth in early November 2026 and arrive in September 2027.
 - **New: Super Heavy and Starship**
-  - A 72.3 m booster with 33 Raptor 3s and 8,240 tf of thrust, grid fins and a hot-staging ring.
-  - A 52.1 m ship with six Raptors, hexagonal heat-shield tiles, four flaps and six landing legs.
+  - Super Heavy and Starship are built to the next-generation figures: a 72.3 m booster with 33 Raptor 3s, 3,650 t of propellant and 8,240 tf of thrust, three grid fins, four chines and the hot-staging ring built into its top; and a 52.1 m ship with 1,550 t of propellant, three sea-level and three vacuum Raptors, black hexagonal heat-shield tiles over the stainless steel on its windward side, two forward and two aft flaps, the raceway and six landing legs.
 - **New: The flight**
-  - 33 engines at liftoff, throttle back through max-Q, then hot staging and the booster's boostback burn.
-  - Tankers refuel the ship in a 200 km orbit over three weeks.
-  - The injection burn sends it on a seven-month coast, with course corrections.
+  - 33 engines light at liftoff, the stack throttles back through max-Q, then hot-stages: the ship lights its engines while still on the booster, and Super Heavy flips for its boostback burn.
+  - The ship flies on to a 200 km orbit, where tankers refuel it over three weeks.
+  - When the window opens, the trans-Mars injection burn sends it on a seven-month coast, with course corrections along the way.
 - **New: Mars**
-  - Real geography: Olympus Mons, Valles Marineris, Hellas, the polar caps and thousands of craters.
-  - Belly-first entry at over 5 km/s, a belly-flop on the flaps, then the flip and the landing burn.
+  - The planet is built from its real geography: Olympus Mons and the Tharsis volcanoes, the Valles Marineris canyons, the Hellas and Argyre basins, the northern lowlands, the polar caps and thousands of craters, with its dark and bright regions.
+  - The thin air glows butterscotch by day with a blue halo round the Sun.
+  - Starship enters belly first at over 5 km/s in a glow of plasma, banks to bleed off speed, falls belly-down with its flaps, then flips upright and fires its engines to land on its legs.
+  - Engine blast kicks up dust off the boulder-strewn ground.
 - **New: Autopilot, warp and map**
-  - SPACE runs the next step. Fast-forward drops back to real time for every event.
-  - Turn the autopilot off (T) to fly the landing yourself.
-  - The map (M) shows your orbit, and in deep space the Sun, the planets' orbits and your path.
+  - The autopilot can fly every step for you: press SPACE for the next step (launch, refuel, the injection burn), and the fast-forward button warps through the quiet parts and drops back to real time for every event.
+  - Turn the autopilot off (T) to steer and throttle the landing yourself.
+  - The map (M) shows your orbit, and in deep space the Sun, the orbits of Earth and Mars, and your path to Mars.
 - **Improved: Exact time warp**
-  - Pick 500× and you get 500×. The Starship mission runs from 1× to 1,000,000×.
+  - Time warp now runs at exactly the speed you pick.
+  - Choose 500x and you get 500x: it no longer drops back on its own.
+  - The Starship mission has speeds from 1x to 1,000,000x.
 
 ## v4.54.2 (2026-10-06)
 
 ### Air Combat: The Viper's smile
 
-- **Improved: F-16 intake shape**
-  - Head on: a wide crescent "smile", deepest in the middle with the corners riding high.
-  - From the side: steeply raked, with the upper lip jutting forward like a hood.
-  - The nose gear sits just behind the lip, as on the real jet.
+- **Improved: The F-16 intake's real shape**
+  - Head on, the mouth is a wide crescent "smile": the lower lip curves down deepest in the middle, the upper lip sags with it, and the corners ride high at the sides.
+  - From the side it's steeply raked, with the upper lip jutting forward like a hood and the sides sweeping back to a lower lip half a metre further aft.
+  - The nose gear now sits just behind that lip, as on the real jet.
 
 ## v4.54.1 (2026-10-06)
 
 ### Air Combat: Viper, rebuilt
 
 - **Fixed: F-16 rebuilt from nose to tail**
-  - A bug had left out the lower half of the radome and the rear fuselage, so the jet looked hollow. The body is now complete.
+  - A bug in how its cross-sections were built had left out the lower half of the radome and of the whole rear fuselage, which is why the jet looked hollow and scrambled.
+  - The body is now complete all the way round.
 - **Improved: New nose**
-  - A full drooped radome, and sharp side chines that flow into the strakes.
+  - The radome is a full drooped ogive like the real one, with the underside running nearly straight back to the intake and the top climbing to the windscreen.
+  - Behind it, the forebody has the F-16's sharp side chines, which flow straight into the strakes, and it narrows below into a keel over the intake.
 - **Improved: New rear**
-  - Speedbrake housings either side of the nozzle with clamshell petals, the "beaver tail" fairing, and the stabilators in the right place.
+  - The speedbrake housings now sit either side of the nozzle, with a petal above and below each that opens like a clamshell.
+  - The fin-root "beaver tail" fairing runs back over the nozzle, and the stabilators are mounted just outboard of the housings, as on the real jet.
 - **Fixed: Cockpit sides and nose gear**
-  - Nothing pokes through the skin by the canopy, and the boxy nose-gear doors are gone.
+  - The cockpit sides are now flat right up to the canopy rails, so nothing from the cockpit pokes through the skin.
+  - The nose leg no longer has boxy doors sticking out below the intake.
 
 ## v4.54.0 (2026-10-06)
 
 ### Air Combat: Viper
 
 - **New: F-16C Fighting Falcon**
-  - A Block 50 with the F110-GE-129: 29,500 lb in afterburner, Mach 2, a 50,000 ft ceiling and a hard 9 G limit.
-  - Small, light and flown by computer. It rolls faster than anything else here: 300 degrees a second.
+  - The F-16C Fighting Falcon, the Viper.
+  - A Block 50 with the General Electric F110-GE-129 (29,500 lb in afterburner), Mach 2, a 50,000 ft ceiling and a hard 9 G limit.
+  - It's small and light, flown by computer with relaxed stability, and it rolls faster than anything else here: 300 degrees a second.
 - **New: Built to the real dimensions**
-  - 15 m long, 9.96 m across the wingtip launchers, 4.88 m tall.
-  - Frameless gold-tinted bubble canopy, an ACES II seat tilted back 30 degrees, the ventral intake, twin ventral fins and split speedbrakes.
-  - USAF two-tone grey with panel lines, stencils, insignia and a tail code.
+  - The model is built to the real dimensions: 15 m long with the pitot, 9.96 m across the wingtip launchers, 4.88 m tall.
+  - The fuselage runs as one piece from the radome to the nozzle.
+  - The strakes curve forward from the cropped-delta wing into the cockpit sides, and the ventral intake's 'smile' sits under the cockpit with its splitter plate and the nose gear just behind the lip.
+- **New: Canopy, wings and tail**
+  - It has the frameless, gold-tinted bubble canopy over an ACES II seat tilted back 30 degrees, full-span leading-edge flaps and flaperons that droop when the gear comes down, all-moving stabilators with 10 degrees of anhedral, a tall fin, twin ventral fins, the split speedbrake petals beside the nozzle, and the wingtip launch rails.
+- **New: Gun, probes and paint**
+  - There's also the M61A1 port in the left strake, the nose pitot and angle-of-attack probes, the IFF 'bird slicers' ahead of the windscreen, the refuelling door on the spine, nav lights on the intake sides and a tail hook.
+  - It wears USAF two-tone grey with panel lines, the RESCUE arrow, stencils, the national insignia on the intake trunk, a tail code and serial.
 - **New: Cockpit**
-  - Two colour MFDs, the HUD, and the side-stick on the right console.
+  - Two colour MFDs either side of the up-front controls, standby instruments, the HUD on top of the glare shield and the side-stick on the right console.
   - With no canopy bow, it has the best view out of any jet in the game.
-- **New: Weapons**
-  - The M61A1 Vulcan with 511 rounds, and nine stations for AIM-120D, AIM-9X, GBU-31 and GBU-32 JDAMs and tanks.
+- **New: Weapons and loadouts**
+  - The M61A1 Vulcan with 511 rounds, and nine stations carrying AIM-120D, AIM-9X, GBU-31 and GBU-32 JDAMs and 370-gallon tanks.
   - Five loadouts: Combat Air Patrol, Max AAM, Strike, Dogfight and Long CAP.
-  - Its own engine sound, RWR symbol, MFD pages and Jet Library entry. It flies in every mode, including as a campaign wingman.
+  - It has its own engine sound, RWR symbol, MFD pages, fuel tanks and an entry in the JET LIBRARY, and it flies in every combat mode, including as a wingman in the campaign.
 
 ## v4.53.0 (2026-10-06)
 
 ### Air Combat: Up close
 
 - **Improved: Detail up close**
-  - Bring the hangar camera close: flush rivets, screws round the panels, textured paint and worn edges showing primer.
-  - From further away the jets stay clean, with no shimmer.
-- **Fixed: Dark left sides**
-  - Mirrored parts were shaded as if they faced inwards, so the left side looked almost black. Both sides now catch the light the same.
+  - All nine jets look much more like the real thing up close.
+  - Bring the hangar camera right up to one and you'll see rows of flush rivets along the frames and stringers, screws round the access panels, a fine texture in the paint that breaks up the reflections, and paint worn back to grey primer along the leading edges and panel lines.
+  - From further away the jets stay as clean as before, with no shimmer.
+- **Fixed: Lighting on the left side of every jet**
+  - Parts built as a mirror image of the right-hand side (the intakes on most jets, tail booms, conformal fuel tanks, tailplanes and control surfaces) were shaded as if they faced inwards, so on the left they looked almost black, in the hangar and in the air.
+  - Both sides now catch the light the same way.
 - **Improved: Deeper panel lines**
-  - The seams catch the light like a real airframe.
+  - Panel lines are cut deeper, so the seams catch the light the way they do on a real airframe.
 - **Improved: Real canopy glass**
-  - Clear straight on, so you can see the pilot, and a mirror towards the edges. The F-22 keeps its gold tint.
+  - Look straight through one and it's almost clear, so you can see the pilot and the cockpit; towards the edges it turns to a mirror.
+  - The F-22 keeps its gold-tinted canopy, now with the same glassy edges.
 - **Improved: Hangar lighting**
-  - Light bounces off the floor onto the belly and under the wings. Jet Library portraits get it too.
+  - In the hangar, light now bounces up off the floor onto the jet, so the belly and the undersides of the wings are no longer lost in shadow.
+  - The portraits in the JET LIBRARY get a little of the same light.
 - **Factory paint for this update**
-  - Every jet went back to factory paint once, to show the new detail.
-  - Your wrap or colour isn't lost: open the PAINT SHOP, pick it again and press APPLY.
+  - Everyone's jet is back in its factory paint for this update, so you can see the new detail as it really is.
+  - Your wrap or colour hasn't been lost: open the PAINT SHOP, pick WRAP or SOLID COLOUR, and the one you had comes straight back.
+  - Press APPLY to keep it.
+  - This happens only once.
 
 ## v4.52.2 (2026-10-05)
 
 ### Air Combat: No kill camera
 
 - **Kill camera removed**
-  - When your missile hits, the view stays with your jet at normal speed. The setting is gone too.
+  - When your missile hits, the view stays with your own jet at normal speed, and the KILL CAMERA option has been taken out of the settings.
 
 ## v4.52.1 (2026-10-05)
 
 ### Air Combat: Twenty fixes
 
-- **Fixed: Campaign**
-  - A mission you've won stays won, even if a last missile hits you during the closing radio calls.
-  - SHEPHERD needs at least two Strike Eagles to reach the target, as the briefing says.
-  - After FLY IT AGAIN or a restart, the objective no longer shows the last attempt's goal.
-  - Coming home, VIPER 1-2 circles high over the field instead of flying formation down to the runway.
-  - NIGHT HUNTER: GHOST no longer runs out of fuel and falls into the sea.
-  - Enemy patrols waiting to be woken now react when you shoot at them.
-  - Clicking CAMPAIGN again keeps the mission you picked.
-- **Fixed: Kill camera**
-  - Skipping it with [F] takes you back to the view you had, and it ends cleanly if you change view.
-- **Fixed: Missions and modes**
-  - Missions run on game time: fast-forward in a free-for-all speeds up the zone too, and timers pause in slow motion.
-  - Flight School: RESTART MISSION restarts the lessons instead of skipping to the checkride.
-  - Airstrike: the patrol over the target turns on you when you shoot at it, and the briefing says to rearm with [H], not [K].
-  - Wave Combat: the controller gives the right direction to the bandits, and RESTART goes back to the wave you chose.
-  - Free Flight: no "welcome to the field" message straight after a respawn, and the flight time starts again from zero.
-  - The pause menu no longer offers RESTART MISSION online.
-- **Fixed: Weapons and messages**
-  - Rearming on the ground keeps your selected weapon, so you stay on bombs after reloading a strike loadout.
-  - LONG SHOT counts kills beyond 30 NM with the R-37M, and LONG SHOT and KNIFE FIGHT cover every jet's missiles.
-  - The [I] message lists every jet with an infrared tracker, the MiG-31 included.
-- **Fixed: Main menu**
-  - Coming back from a mission refreshes everything at once: campaign stars, unlocked missions and the daily mission's DONE tag.
+- **Fixed: Kill camera skip**
+  - Pressing [F] to skip it now takes you back to the view you had.
+  - It used to drop you into the cockpit even if you were flying in the chase view.
+  - It also ends cleanly if you change the view any other way.
+- **Fixed: A won mission stays won**
+  - A mission you've won stays won.
+  - If a last missile caught you during the closing radio calls, the result used to flip to MISSION FAILED.
+- **Fixed: SHEPHERD**
+  - The mission no longer counts as complete when only one Strike Eagle reaches the target.
+  - At least two have to get there, as the briefing says.
+- **Fixed: Campaign objective after a restart**
+  - After FLY IT AGAIN or a restart, the objective at the top of the screen no longer shows the previous attempt's goal, or a broken countdown, while the briefing is up.
+- **Fixed: Rearming keeps your weapon**
+  - Rearming on the ground keeps the weapon you had selected.
+  - After reloading a strike loadout you stay on bombs, instead of being switched to missiles and firing one by mistake.
+- **Fixed: Missions run on game time**
+  - Missions now run on game time, not real time.
+  - In a free-for-all, once you're out and watching, fast-forward [T] now speeds up the shrinking zone as well as the jets, and mission timers pause properly during the kill camera's slow motion.
+- **Fixed: No RESTART MISSION online**
+  - The pause menu no longer offers RESTART MISSION in an online match, where it did nothing.
+- **Fixed: Flight School restart**
+  - RESTART MISSION during the lessons starts the lessons again.
+  - It used to skip straight to the checkride.
+- **Fixed: Your wingman when you land**
+  - When you come home to land, VIPER 1-2 now breaks off and circles high over the field.
+  - He used to try to hold formation next to you all the way down to the runway.
+- **Fixed: NIGHT HUNTER**
+  - GHOST no longer runs out of fuel on its long afterburner dash and falls into the sea on its own.
+- **Fixed: LONG SHOT and KNIFE FIGHT**
+  - The LONG SHOT decoration now counts kills from beyond 30 NM with the MiG-31's R-37M.
+  - Its description and KNIFE FIGHT's now cover every jet's missiles, not just the AIM-120D and AIM-9X.
+- **Fixed: Airstrike briefing**
+  - It said to rearm with [K], which drops your fuel tanks.
+  - It now says [H].
+- **Fixed: Infrared tracker message**
+  - The message you get pressing [I] in a jet without an infrared tracker now lists every jet that has one, the MiG-31 included, and so does the key's description in the controls list.
+- **Fixed: Free Flight respawn**
+  - After a respawn on the runway you no longer get a "welcome to the field" landing message straight away, and the flight time on the results screen starts again from zero.
+- **Fixed: Waking enemy patrols**
+  - An enemy patrol waiting to be woken now reacts when you fire at it or shoot one of its jets down.
+  - Before, you could pick it off from long range while it kept flying in circles.
+- **Fixed: Airstrike patrol**
+  - The same fix for the patrol over the target.
+  - It turns on you when you shoot at it, not only once you get close.
+- **Fixed: Campaign mission picker**
+  - Clicking CAMPAIGN again keeps the mission you picked from the list, instead of jumping back to the first mission you haven't finished.
+- **Fixed: Wave Combat controller**
+  - When the radar picture fades, the controller now gives the right direction to the bandits' last known position.
+  - It used to say "to the east" every time.
+- **Fixed: Main menu refresh**
+  - Coming back from a mission now refreshes everything at once, so new campaign stars, newly unlocked missions and the daily mission's DONE tag show without having to click around first.
+- **Fixed: Wave Combat restart**
+  - RESTART takes you back to the wave you chose to start on, and the button now says which wave that is.
+  - It always used to go back to wave 1.
 
 ## v4.52.0 (2026-10-05)
 
 ### Air Combat: Wolf of the Strait
 
 - **New: CAMPAIGN: Wolf of the Strait**
-  - A story in eight missions, at the top of the game modes. Each one unlocks the next.
-  - RED stops turning back at the line, led by its ace, WOLF 1.
+  - CAMPAIGN, a story in eight missions called Wolf of the Strait.
+  - It's at the top of the game modes.
+  - The RED coalition stops turning back at the line, and its ace, WOLF 1, leads them.
+  - Each mission unlocks the next one.
 - **New: Eight missions**
-  - FIRST CONTACT, WOLF AT THE DOOR, BLIND THEIR EYES and SHEPHERD.
-  - NIGHT HUNTER, ANVIL, FULL SKY and THE WHITE WOLF.
-  - Intercepts, bomber defence, strikes, an escort, a night hunt and a duel with WOLF 1.
+  - FIRST CONTACT, meet two fighters at the line.
+  - WOLF AT THE DOOR, scramble from the runway and stop four bombers before they reach your base.
+  - BLIND THEIR EYES, bomb the radar station that saw you coming.
+  - SHEPHERD, escort four Strike Eagles to the enemy airbase and watch it burn.
+  - NIGHT HUNTER, catch a MiG-31 running in high and fast on a pitch-black night.
+  - ANVIL, hit the well-defended command post.
+  - FULL SKY, lead six jets into an eight-ship battle.
+  - THE WHITE WOLF, meet WOLF 1 himself.
 - **New: A wingman and a story**
-  - VIPER 1-2 holds formation, then fights on his own.
-  - The story plays out over the radio. WOLF 1 learns your name and comes looking for you.
+  - You fly with a wingman, VIPER 1-2, who holds formation until the fight starts and then fights on his own.
+  - The story plays out over the radio: your controller calls the bandits, the bomber leads call for help, and you hear WOLF 1 on the enemy channel, who learns your name and comes looking for you.
 - **New: Three stars per mission**
-  - One for completing it, two for flying it well: bring your wingman home, land at base, take no damage and more.
-  - NEXT MISSION takes you straight to the following one.
-- **Improved: Every mission feels different**
-  - From dawn scrambles to a dusk showdown, and a pitch-black night for your goggles.
-  - Plays on Triad Isles, Frostfall Strait and the Jade Archipelago, with any fighter.
+  - Every mission has three stars: one for completing it and two for flying it well (bring your wingman home, land back at base, take no damage, protect every bomber, and more).
+  - Stars you earn stay earned, the mission list shows them, and the total is on the CAMPAIGN button.
+  - Finish a mission and NEXT MISSION takes you straight to the following one.
+- **Improved: Dawn to dusk, on every map**
+  - The campaign sets the time of day for each mission, from dawn scrambles to a dusk showdown, and the night mission turns the sky pitch black for your night-vision goggles.
+  - The difficulty slider makes the enemy pilots sharper or softer.
+  - It plays on Triad Isles, Frostfall Strait and the Jade Archipelago with the place names of each, using any fighter.
 - **New: Kill camera**
-  - A slow-motion shot as your missile hits. Press [F] to skip. It never plays online.
+  - When one of your missiles is about to hit, the view cuts to a slow-motion shot beside the target, the missile streaks in, the jet blows apart, and the game eases back to full speed.
+  - Press [F] to skip it.
+  - It never plays online or while a missile is chasing you, and you can turn it off under KILL CAMERA in the settings.
 
 ## v4.51.0 (2026-10-05)
 
 ### Space Exploration: Moonwalk
 
 - **New: Walk on the Moon**
-  - After touchdown the astronaut climbs down and you take over: W A S D to move, SHIFT for the Apollo lope, SPACE to jump.
-  - In one-sixth gravity you hang in the air in a long, slow arc and land in a puff of dust.
-  - Every step leaves a bootprint, and dust flies in clean arcs with no air to hold it.
+  - A few seconds after touchdown the astronaut climbs down the ladder, and from then on you're in control.
+  - Move with W A S D, hold SHIFT to lope in the bouncing Apollo stride, and press SPACE to jump: in one-sixth gravity you crouch, spring and hang in the air for a long, slow arc before landing in a puff of dust.
+- **New: Bootprints and moon dust**
+  - Every step leaves a ridged bootprint in the regolith, and every footfall kicks up grains of dust that fly in clean arcs and drop straight back down, because there's no air to hold them.
 - **New: Plant the flag**
-  - Press E: the astronaut drives the pole in, unfurls the flag and salutes.
+  - Walk somewhere you like and press E.
+  - The astronaut lifts the pole, drives it into the ground twice, unfurls the flag along its top bar, steps back and salutes.
 - **New: Mission complete**
-  - Walk back to the ladder and press E. A card shows your time outside, distance walked, jumps and highest jump.
+  - To finish, walk back to the ladder and press E.
+  - The astronaut climbs aboard, and the mission ends with a MISSION COMPLETE card showing your time outside, distance walked, jumps and highest jump.
 - **New: Three spacesuits**
-  - The Apollo A7L with its gold visor, the black Axiom AxEMU with a bubble helmet, and the orange ACES suit.
-  - Pick one under SPACESUIT on the Launch Pad page, or press V during the moonwalk.
-- **Improved: Lighting and camera**
-  - Sunlight bounces off the bright ground into the shadows, as in the Apollo photos.
-  - The camera rises over crater rims so the ground never hides the astronaut.
+  - The Apollo A7L, the white moonwalking suit with its gold sun visor, life-support backpack, chest control box and red and blue hose connectors.
+  - The Axiom AxEMU, black with orange and blue bands, under a clear bubble helmet with its light bar.
+  - The orange ACES pressure suit, with its white harness straps, white helmet with dark visor and black boots.
+  - Every suit has woven, creased fabric, and dust gathers from the knees down.
+- **New: Pick your suit**
+  - Pick your suit under SPACESUIT on the Launch Pad page, or press V during the moonwalk to change suits on the spot.
+- **Improved: Light bounced off the ground**
+  - The shadowed side of the astronaut and the lander is now lit softly by sunlight bouncing back off the bright ground, as in the Apollo photos.
+- **Improved: A camera that clears the ridges**
+  - The moonwalk camera rises over crater rims and ridges by itself, so the ground never hides the astronaut.
 
 ## v4.50.0 (2026-10-05)
 
 ### Air Combat: Menu music fix
 
 - **Fixed: Menu music**
-  - It had gone silent. It plays again.
+  - Fixed the menu music being silent.
+  - It now plays through the game's own sound system.
 
 ### Space Exploration: To the Moon
 
 - **New: The Moon**
-  - Full size, at its real distance, with its own gravity.
-  - Dark maria, pale highlands, rayed craters and faint earthshine on the night side.
+  - The Moon is here, at full size and at its real distance, circling Earth and turning to keep one face toward us.
+  - Its gravity pulls on everything nearby, and from orbit you see dark maria, pale highlands, craters on craters and the bright rays of young ones, with faint blue earthshine on the night side.
 - **New: Fly to the Moon**
+  - Fly to the Moon and land on it.
   - In Earth orbit, press GO TO THE MOON and the autopilot flies the whole trip.
-  - The S-IVB pushes you out of Earth orbit, then three days of coasting and a braking burn into a 110 km lunar orbit.
-- **New: Transposition and docking**
-  - The adapter panels open, the command module turns round and docks with the lunar module, then pulls it free.
-- **New: Land on the Moon**
-  - The lunar module, built in detail, undocks and flies the powered descent to a near-side landing.
-  - Dust blasts out, contact light, engine stop. Then an astronaut plants the flag with Earth in the sky.
+  - It waits for the right moment, then fires the S-IVB to push you out of Earth orbit.
+  - Small correction burns trim the aim, three days of coasting follow, and a braking burn behind the Moon captures you into a 110 km lunar orbit.
+  - Then press LAND ON THE MOON.
   - It's a one-way trip: the lander stays.
+- **New: Transposition and docking**
+  - The adapter's four panels swing open and tumble away, the command module backs off, turns round, comes back nose first and docks with the lunar module, then pulls it free of the S-IVB.
+- **New: The lunar module**
+  - The gold- and black-foil descent stage, the faceted crew cabin with its triangular windows, the docking tunnel, thruster quads, antennas, and four legs with footpads, contact probes and a ladder.
+  - Its legs swing out before it goes down.
+- **New: The landing**
+  - The lander undocks, and the command module stays up in orbit.
+  - The computer picks a spot on the near side with the Sun low behind you.
+  - It lowers the orbit to 15 km, then flies the powered descent: braking along the path, pitching up through the high gate with the ground ahead, then a slow, almost vertical descent with the throttle easing back, dust blasting out across the ground, contact light, engine stop.
+- **New: First steps**
+  - After touchdown the camera swings round to the sunlit side, an astronaut steps off the ladder, bounds out and plants the flag, and Earth hangs in the black sky.
+- **Improved: The lunar surface up close**
+  - The lunar surface up close looks like the Apollo photos: warm grey regolith full of small pits and grain, craters of every size, thousands of rocks and pebbles, and hard black shadows under a low Sun.
 - **New: New start: LUNAR ORBIT**
-  - Docked 110 km above the Moon, ready to land.
+  - LUNAR ORBIT, with the command module docked to the lunar module 110 km above the Moon, ready to land.
+  - The pause and end screens let you jump between all three starts.
 - **Improved: Pick your time warp**
-  - 1× to 500×, or AUTO, which races through coasts and slows down for every burn, the docking and the landing.
+  - Pick your time warp: 1×, 2×, 10×, 100× or 500×, or AUTO, which races through long coasts (up to 10,000×) and slows down by itself for every burn, the docking and the landing.
 - **Improved: New engine fire**
-  - White-hot cores with turbulence, shock diamonds on the F-1s in thick air, and pale blue J-2s.
-- **Improved: The Moon up close**
-  - Warm grey regolith, craters of every size, thousands of rocks and hard black shadows.
-- **Fixed: Fixes**
-  - No more rainbow bands across Earth at the line between day and night.
-  - Menu music plays again, and keeps playing while you fly.
-  - The lamps, orbit panel, attitude ball and map all work round the Moon.
+  - New engine fire on every engine.
+  - Each plume now has a white-hot core and an outer flame, with turbulence streaming down it.
+  - The F-1s get shock diamonds in thick air and the dark curtain of their turbine exhaust near the nozzles, and their flames balloon as the air thins.
+  - The J-2s burn a pale blue.
+  - The service module's and lunar module's engines burn with a faint, translucent glow.
+  - There's a hot glow at every nozzle cluster.
+- **Fixed: Rainbow bands on Earth**
+  - Fixed the rainbow-coloured bands across Earth near the line between day and night: the atmosphere now fades smoothly into Earth's shadow.
+- **Fixed: Menu music**
+  - Fixed the menu music being silent.
+  - It now plays through the game's own sound system.
+  - It also keeps playing, looping seamlessly, while you fly the Saturn V.
+- **Improved: Instruments round the Moon**
+  - The ORBIT, FALLING and SAFE lamps, the orbit panel, the attitude ball and the map all work round the Moon too.
+  - On the way out, the map shows your predicted path to the Moon and the Moon's own orbit.
 
 ## v4.49.0 (2026-10-05)
 
 ### Air Combat: Menu music
 
 - **New: Menu music**
-  - "High Up" plays in the menu. It fades out when a flight starts and back in when you return.
-  - It loops seamlessly, with no gap or jump.
+  - "High Up" now plays in the main menu.
+  - It's only in the menu: it fades out smoothly when a mission or flight starts and fades back in when you return.
+- **Improved: A seamless loop**
+  - It loops seamlessly: the end of the track crossfades into the start, so there's never a gap or a jump.
+- **Music on or off**
   - Turn it on or off with MUSIC ON/OFF at the bottom of the menu.
+  - Your choice is remembered.
 
 ### Space Exploration: Menu music
 
 - **New: Menu music**
-  - "High Up" plays in the menu. It fades out when a flight starts and back in when you return.
-  - It loops seamlessly, with no gap or jump.
-  - Turn it on or off with the MUSIC button in the top bar. Its little bars bounce while it plays.
+  - "High Up" now plays in the main menu.
+  - It's only in the menu: it fades out smoothly when a mission or flight starts and fades back in when you return.
+- **Improved: A seamless loop**
+  - It loops seamlessly: the end of the track crossfades into the start, so there's never a gap or a jump.
+- **Music on or off**
+  - Turn it on or off with the MUSIC button in the top bar (its little bars bounce while it plays).
+  - Your choice is remembered.
 
 ## v4.48.0 (2026-10-05)
 
 ### Space Exploration: Easy rocket controls
 
 - **Improved: Much simpler Saturn V controls**
-  - One line says what's happening and what to do next, with a few big buttons.
+  - Flying the Saturn V is much simpler now.
+  - The wall of switches is gone.
+  - In its place, one line tells you what's happening and what to do next, with a few big buttons for the things you can do right now.
 - **New: One-button launch**
-  - Press LAUNCH (SPACE) and the autopilot flies you all the way to orbit.
+  - On the pad there's just LAUNCH (SPACE).
+  - The autopilot counts down, lifts off, drops each stage as it burns out and flies you all the way to orbit.
+  - All you do is watch.
 - **New: Three goals in orbit**
-  - GO HOME: the braking burn, re-entry, parachutes and splashdown.
-  - GO HIGHER: climb a step at a time from 400 km up to geostationary height.
-  - LEAVE EARTH: burn until you break free. Each button tells you first whether you have the fuel.
+  - Once you're in orbit you get three goals, and the autopilot flies whichever you pick.
+  - GO HOME turns the rocket round, fires the braking burn, separates the capsule, and lets the heat shield and parachutes bring you down to a splashdown.
+  - GO HIGHER climbs to a bigger orbit in two burns, a step at a time from 400 km up to geostationary height.
+  - LEAVE EARTH burns outward until you break free of Earth's pull.
+  - Each button says beforehand whether you have the fuel: GO HIGHER only offers a climb you can come back from, and LEAVE EARTH tells you how far you'd get if you can't break free.
 - **New: FAST FORWARD (F)**
-  - Speeds through the waiting and slows down for every burn, staging and re-entry.
+  - It speeds through the waiting and slows down by itself for every burn, staging and re-entry, so nothing gets skipped.
+  - On the way home the capsule now speeds down under its parachutes too.
 - **New: Take over any time**
-  - STOP AUTOPILOT or W A S D hands you the controls, and ABORT appears during the climb.
-  - PRO (P) brings back the full panel of switches. EASY goes back.
+  - STOP AUTOPILOT or a touch of W A S D hands you the controls at any time.
+  - During the climb an ABORT button appears in case you need to save the crew.
+- **New: PRO mode**
+  - Want every switch of the real rocket?
+  - Press PRO (P) for the full panel with staging, engine restarts, attitude modes and time warp.
+  - Press EASY to go back.
+  - Your choice is remembered.
 - **Fixed: Fixes**
-  - The countdown no longer says "Ignition sequence start" twice, and the rocket holds steady at high warp.
+  - The countdown no longer logs "Ignition sequence start" twice, and the rocket holds its attitude steadily at high time warp.
 
 ## v4.47.0 (2026-10-04)
 
 ### Space Exploration: Fly the Saturn V
 
 - **New: The Saturn V flies**
-  - Press LAUNCH and start on Pad 1 at T-20 s, or already in a 185 km parking orbit.
-  - The five F-1s light in sequence, the hold-down arms let go, and the rocket climbs out of steam and smoke.
+  - Press LAUNCH on the Launch Pad page (or FLY on the Orbital Flight mission) and choose where to start: on Pad 1 with the count holding at T-20 seconds, or already in a 185 km parking orbit with the S-IVB and the Apollo spacecraft.
+- **New: Liftoff**
+  - From the pad, press SPACE to resume the count.
+  - The five F-1s light in sequence at T-8.9 s, the hold-down arms let go at zero, the swing arms pull back, and the rocket climbs out of a cloud of steam and smoke lit orange by the fire, and the roar changes as the air thins.
 - **New: Real stages**
-  - Each stage drops away and tumbles back into the atmosphere.
-  - Auto-staging (T), or stage yourself with SPACE.
+  - The S-IC burns out and drops away, the S-II's interstage and the escape tower are jettisoned, the S-II's centre engine shuts down early to stop pogo, and the S-IVB burns to orbit.
+  - Each spent stage tumbles away on its own path and falls back into the atmosphere.
+  - Auto-staging (T) drops stages as they burn out, or you can turn it off and stage yourself with SPACE.
 - **New: Full-scale physics**
-  - A real-size spinning Earth, real gravity and atmosphere, and steering by gimballed engines.
-  - Turn too hard through max Q and the rocket breaks apart.
-- **New: Autopilot and control**
-  - The Instrument Unit can fly the ascent to orbit (G).
-  - Fly it yourself with W/S, A/D and Q/E, or hold prograde, retrograde and more (keys 1 to 8).
-  - Restart the S-IVB in orbit (Z), and separate the command module (J twice) to come home.
+  - The physics run at full scale: a real-size Earth spinning under you, gravity that weakens with height, a standard atmosphere, F-1 thrust that grows as the air thins, propellant burned engine by engine, drag, and aerodynamic loads.
+  - The rocket steers by gimballing its engines, so it turns slowly and heavily.
+  - Turn too hard through max Q and the aero load breaks it apart.
+- **New: Autopilot and attitude hold**
+  - The Instrument Unit can fly the ascent for you (G): straight up off the pad, a pitch-over, a gravity turn, then a closed-loop climb into a 185 km parking orbit, with S-IVB cutoff when the orbit is reached.
+  - Take over at any time with W/S to pitch, A/D to yaw and Q/E to roll, or hand the attitude to the stability system: hold, prograde, retrograde, normal, anti-normal, radial out or radial in (keys 1 to 8, 0 for free).
+- **New: Engine restarts and coming home**
+  - The S-IVB can restart its J-2 twice in orbit (Z), with ullage motors settling the propellant first.
+  - X cuts the engines.
+  - Burn retrograde to bring your periapsis down into the atmosphere, then separate the command module (J twice) for the ride home.
 - **New: A spaceflight UI**
-  - A mission clock with ORBIT, FALLING and SAFE lamps.
-  - Vehicle, orbit and attitude panels, load bars and a flight log.
-  - Map view (M) with your predicted path, coloured by the kind of orbit.
+  - A new flight UI built for spaceflight.
+  - A mission clock and a status badge sit at the top with three lamps: ORBIT when the orbit clears the atmosphere, FALLING when you're coming down, and SAFE when you're on an escape path, free of Earth's pull.
+  - The vehicle panel shows what's left of the stack, each engine's state, propellant, mass, thrust-to-weight, Δv and burn time.
+  - The orbit panel draws your orbit and lists apoapsis, periapsis, time to each, inclination, period and eccentricity, and what you're flying over.
+  - The attitude ball in the middle shows prograde, retrograde, normal and radial markers, with altitude, vertical speed, g, orbital and surface speed, and Mach on either side.
+  - Below that are dynamic pressure and aero load bars, and there's a flight log of every event.
+- **New: Map view**
+  - Map view (M) pulls back to show the whole Earth and your predicted path.
+  - The line is green for a stable orbit, amber when it dips into the air, orange-red inside the atmosphere and blue on an escape path, with apoapsis and periapsis markers, an IMPACT marker where a falling path meets the ground, and a dashed line where the orbit passes behind the planet.
 - **New: Earth and sky**
-  - A full-size Earth with oceans, city lights and clouds under a real scattering atmosphere.
-  - The stars and the Milky Way come out in orbit.
-- **New: Cameras, warp and abort**
-  - Three cameras (C): chase, long-lens tracking and onboard.
-  - Time warp up to 10,000× when coasting.
-  - Abort (B twice) fires the escape tower. Coming home: re-entry glow, drogues, three main chutes and splashdown.
-  - Each flight ends with a stats card and counts toward your commander record.
+  - The Earth is drawn at full size with continents, deserts, forests, ice caps, oceans that catch the sunlight and city lights on the night side, under a drifting cloud deck.
+  - A real scattering atmosphere paints the blue limb, the sky as you climb, and sunrise along the terminator.
+  - In orbit the stars and the Milky Way come out, and they shine brightest when you pass into Earth's shadow.
+- **New: Three cameras**
+  - Three cameras (C): a chase camera you can drag around and zoom (it closes in as stages fall away), a long-lens tracking camera on the causeway, and an onboard camera looking down past the stages at the plume and the Earth.
+  - The F-1 plume is long and narrow at sea level and balloons into a huge glowing cloud as the air thins.
+  - The J-2s burn an almost invisible pale blue.
+- **New: Time warp**
+  - Time warp up to 10,000× (comma and period) while coasting.
+  - Under power or in the atmosphere it's limited to 4×.
+- **New: Abort, re-entry and splashdown**
+  - Abort (B twice) fires the launch escape tower on the pad or during ascent, pitches the command module out over the sea and jettisons the tower.
+  - Coming home, the command module glows with re-entry plasma, the drogues open, then the three striped main chutes, and it splashes down.
+  - Each flight ends with a card showing your max altitude, speed, g, max Q and time in space.
+  - Launches, missions and days in space count toward your commander record.
+- **Pause and controls**
+  - Press ESC to pause, restart, or switch to the other starting point, and H for the full controls list.
 
 ## v4.46.0 (2026-10-04)
 
 ### Space Exploration: The Saturn V
 
 - **New: The Saturn V on the pad**
-  - Full scale: 110.6 m from the F-1s to the escape tower, built stage by stage.
-  - The Apollo paint scheme, with its black-and-white roll pattern and "USA" down the first stage.
+  - It's built at full scale, 110.6 m from the F-1 engines to the tip of the escape tower, stage by stage: the S-IC first stage with its five F-1s, four fins and engine fairings; the S-II on its interstage with the ullage motors; the S-IVB above its conical adapter; the Instrument Unit ring; then the Apollo spacecraft with the lunar module adapter, the service module with its thruster quads, the command module under its boost cover, and the orange launch escape tower.
+- **New: Apollo paint**
+  - It wears the Apollo paint scheme: white with the black-and-white roll pattern on the first stage, intertank, interstages and third stage, "USA" down the first stage, "UNITED STATES" and the flag, ribbed skirts and intertanks, and a little weathering.
 - **Improved: The pad is ready**
-  - Four hold-down arms, a red-orange tower with a hammerhead crane, swing arms, and the white room at the hatch.
-  - Searchlights light the rocket, and oxygen vapour drifts off its vents.
+  - Four hold-down arms carry the rocket on the launch mount, the tower is now the red-orange of the real umbilical towers with a hammerhead crane on top, every swing arm reaches across to the rocket's skin, and the crew access arm ends in the white room at the command module hatch.
+  - Two searchlights light the vehicle, and liquid oxygen vapour drifts off its vents.
 - **New: Saturn V figures**
-  - The Launch Pad page shows its height, mass, thrust and payload, and a card for each stage.
+  - The Launch Pad page shows the Saturn V's figures: height, diameter, liftoff mass and thrust, payload to low orbit and to the Moon, and a card for each stage (engines, propellants, thrust, length, fuelled mass and burn time) plus the Instrument Unit's guidance computer.
 
 ## v4.45.1 (2026-10-04)
 
-### Space Exploration: Inverted vertical look
+### Space Exploration: Inverted vertical look in the space menu
 
 - **Improved: Inverted vertical look**
-  - Dragging up and down in the space menu is now inverted. Left and right work as before.
+  - Dragging up and down to look around is now inverted.
+  - Left and right work the same as before.
 
 ## v4.45.0 (2026-10-04)
 
 ### Space Exploration: A living launch site and a real shoreline
 
 - **Improved: Real cars and traffic**
-  - Sedans, SUVs, pickups and vans with glossy paint and lights, parked in painted bays.
-  - Traffic drives the coast road with its headlights on.
+  - Every car around the launch site is rebuilt with a real shape: sedans, hatchbacks, SUVs, pickups and vans with curved bodies, glass, glossy clear-coated paint, wheels with silver hubs, and head and tail lights.
+  - They park in painted bays in a car park and along the road, and traffic now drives up and down the coast road with its headlights on.
 - **Improved: Rebuilt cranes**
-  - A detailed crawler crane with a braced lattice boom, and a real truck crane.
+  - The crawler crane is rebuilt: tracks with shoe plates, a machinery house with louvres, an operator's cab with windows, a stacked counterweight and an A-frame gantry.
+  - Its lattice boom now tapers at both ends and is braced on all four sides, with pendant lines and hoist ropes down to a hook block.
+  - The small crane is now a real truck crane, with a telescopic boom, ten wheels and outriggers.
 - **Improved: Detailed buildings**
-  - Rows of windows (a few lit), rooftop air handlers, roll-up doors and outside stairs.
+  - The site buildings have rows of windows (a few still lit), parapets, rooftop air handlers with fans, vent stacks, roll-up bay doors, entrance canopies with lamps, and outside stairs.
 - **New: Lots more round the pad**
-  - Fuel tankers, trucks, a shuttle bus, tracking dishes, containers, a gatehouse, street lights and a windsock.
+  - Lots of new things around the pad: fuel tankers at the tank farm, box trucks, a shuttle bus, three tracking dishes and a radome, stacks of shipping containers, and concrete barriers.
+  - There's also a gatehouse with a boom barrier on a new access road, street lights, two mobile lighting towers on the pad, a windsock, a half-buried concrete blockhouse, a pipe rack from the tank farm to the pad, and sand fences along the dunes.
 - **Improved: The beach meets the sea**
-  - Glass-clear at the edge, turquoise in the shallows, with breakers, foam and wet sand.
+  - The beach meets the sea properly now.
+  - The water is glass-clear over the sand at the edge, turquoise in the shallows and deep blue-green further out.
+  - Lines of breakers roll in with lacy foam behind each crest, a sheet of water washes up the sand and slides back, and the sand is dark and glossy where the waves have been.
 
 ## v4.44.0 (2026-10-04)
 
 ### Space Exploration: A sunrise launch site and a new space menu
 
 - **New: A mission-control menu**
-  - A glass top bar with three tabs, a live UTC clock and your commander badge.
-  - Panels slide in, and the launch button sits in a slowly turning ring.
+  - Space Exploration has a brand-new menu built like mission control.
+  - A glass top bar holds the program switch, three tabs with a sliding highlight, a live UTC clock and your commander badge.
+  - Panels slide in one after another when the menu opens, the big title types itself out letter by letter, the launch button sits in a slowly turning ring with status lights beside it, and switching tabs replays the animations.
+  - The menu is lighter too, so the view behind it shows through.
 - **Improved: Sunrise over the sea**
-  - The sun sits on the horizon behind the pad, with rays through broken cloud.
-  - Warm, low light with long shadows.
+  - The launch site is rebuilt from the ground up as a sunrise over the sea.
+  - The sun sits right on the horizon behind the pad, gold at its heart, with rays fanning up through a deck of broken cloud.
+  - The clouds glow at their edges near the sun and turn rose and lilac further round.
+  - The sky fades from orange at the horizon to blue overhead.
 - **Improved: A new sea**
-  - Waves from several directions, a glittering path to the sun, and surf on the beach.
+  - Waves drift in several directions at once, the sun throws a glittering path across the water toward you, and surf rolls in and breaks on the beach.
+  - The water is clear and sandy in the shallows and deep blue-green further out.
 - **Improved: Land to the horizon**
-  - Scrub flats, hills and far mountains, an island, and ships out on the water.
+  - The land now runs all the way to the horizon instead of stopping after half a mile.
+  - Past the beach and dunes come scrub flats dotted with thousands of bushes and grass clumps, then hills and far mountains inland.
+  - A long, hazy shore closes the far side of the bay, with an island off to the right and ships out on the water.
+  - Distant land fades into golden haze toward the sun and lilac haze away from it.
 - **Improved: The pad**
-  - A raised hardstand with a flame trench, lightning masts, a water tower and propellant spheres. Gulls wheel overhead.
+  - A raised concrete hardstand with a sooted flame trench, an access ramp and scorched sand where the trench vents.
+  - Two lightning masts stand taller than the 145 m tower, which now has catwalks, an elevator and swing arms.
+  - A water tower stands beside the pad, two big propellant spheres join the tank farm, and the sheds are corrugated metal.
+  - Further inland you can see a vehicle assembly hall and a town.
+  - Gulls wheel over the pad.
+- **Improved: Warm sunrise light**
+  - Lighting is warm, low sunrise light with long shadows and soft skylight in the shade.
 
 ## v4.43.0 (2026-10-04)
 
 ### Air Combat: Space Exploration
 
 - **New: Space Exploration**
-  - A second program in the game: click the arrow next to TRIAD at the top left of the menu to switch.
-  - Your jet, paint, logbook and hangar stay exactly as you left them, and the game remembers which program you were in.
+  - Click the arrow next to TRIAD at the top left of the menu to switch between TRIAD (air combat) and Space Exploration, a second program with its own menu.
+- **Your air combat game is kept**
+  - Your air-combat game is kept exactly as you left it.
+  - Switch back to TRIAD and your jet, its paint, your logbook and the hangar are all there.
+  - The game also remembers which program you were last in.
 
 ### Space Exploration: Space Exploration
 
 - **New: Space Exploration**
-  - Switch to it with the arrow next to TRIAD at the top left of the menu.
-  - Its own menu, with Missions, Launch Pad and Destinations, and a commander card with its own record.
+  - Click the arrow next to TRIAD at the top left of the menu to switch to Space Exploration.
+  - The space program has its own blue, black and white menu: Missions, Launch Pad and Destinations, plus a commander card with its own record.
 - **New: A coastal launch site**
-  - A 145 m tower and a launch mount, a tank farm, a crawler crane, and the sea beyond.
-  - Drag to look round, scroll to zoom, double-click to reset.
+  - The space menu opens over a coastal launch site on a clear morning.
+  - A 145 m launch tower and an empty launch mount wait for the first rocket, with a tank farm, a crawler crane, sand flats, tidal channels and the sea beyond.
+  - Drag to look around, scroll to zoom, double-click to reset.
+- **Coming next**
+  - Coming next: the Saturn V on the pad, then missions to orbit, the Moon and Mars, and rovers to drive there.
 
 ## v4.42.1 (2026-10-04)
 

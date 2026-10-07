@@ -307,11 +307,10 @@ body.touch-mode .weapon-bar { bottom: auto; top: calc(96px + env(safe-area-inset
 .wn-tag.new { color: #47d18c; }
 .wn-tag.better { color: #6cb8ff; }
 .wn-tag.fix { color: #f2b84b; }
-.wn-pts { margin: 6px 0 0; padding-left: 20px; font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13.5px; line-height: 1.5; color: #c4d0da; }
+.wn-note-h + .wn-pts { margin-top: 6px; }
+.wn-pts { margin: 0; padding-left: 20px; font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13.5px; line-height: 1.5; color: #c4d0da; }
 .wn-pts li { margin: 3px 0; }
 .wn-pts li::marker { color: var(--wn-dim); }
-.wn-para { margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13.5px; line-height: 1.55; color: #c4d0da; }
-.wn-para b { color: var(--menu-text); font-weight: 600; }
 /* the space menu's notes, in its blue glass */
 .modal.whatsnew.wn-space { --wn-a: #7cc0ff; --wn-bg: rgba(8, 14, 32, 0.9); --wn-row: rgba(124, 192, 255, 0.04); --wn-dim: #93a7c4; border-color: rgba(170, 205, 255, 0.22); border-radius: 12px; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55); }
 .wn-space .modal-head { border-bottom-color: rgba(170, 205, 255, 0.16); }

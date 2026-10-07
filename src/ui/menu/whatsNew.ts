@@ -10,30 +10,49 @@ const SEEN_KEY: Record<Game, string> = { air: 'triad.seenVersion', space: 'triad
 const GAME_NAME: Record<Game, string> = { air: 'AIR COMBAT', space: 'SPACE EXPLORATION' };
 const TAG: Record<NoteKind, string> = { new: 'NEW', better: 'IMPROVED', fix: 'FIXED' };
 
-/** an old paragraph-style note split into a bold lead-in and the rest */
-function leadIn(s: string): [string, string] {
-  const c = s.indexOf(': ');
-  if (c > 0 && c <= 48 && !/^(New|Fixed|Fixes|Also)$/.test(s.slice(0, c))) return [s.slice(0, c + 1), s.slice(c + 2)];
-  const m = /^(.{8,90}?[.!])\s/.exec(s);
-  if (m) return [m[1], s.slice(m[0].length)];
-  return ['', s];
+/** a paragraph split into its sentences */
+function sentences(t: string): string[] {
+  return t
+    .trim()
+    .split(/(?<=[.!?]["')\]]?)\s+(?=[A-Z0-9"'(\[])/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
+/**
+ * An older note, written as one paragraph, laid out like the newer ones: its
+ * lead-in (the words before an early colon, or a short first sentence) as the
+ * headline and the rest as points. A NEW: or FIXED: opening becomes the tag.
+ */
+function fromParagraph(s: string): { k?: NoteKind; h: string; d: string[] } {
+  let t = s.trim();
+  let k: NoteKind | undefined;
+  const m = /^(New|Fixed|Fixes):\s+/.exec(t);
+  if (m) {
+    k = m[1] === 'New' ? 'new' : 'fix';
+    t = t.charAt(m[0].length).toUpperCase() + t.slice(m[0].length + 1);
+  } else if (/^Fixed\b/.test(t)) k = 'fix';
+  const c = t.indexOf(': ');
+  if (c > 0 && c <= 48 && !t.slice(0, c).includes('. ')) {
+    const rest = t.slice(c + 2);
+    return { k, h: t.slice(0, c), d: sentences(rest.charAt(0).toUpperCase() + rest.slice(1)) };
+  }
+  const ss = sentences(t);
+  if (ss[0].length <= 80) return { k, h: ss[0].replace(/[.!]$/, ''), d: ss.slice(1) };
+  return { k, h: '', d: ss };
 }
 
 function renderNote(n: Note, parent: HTMLElement): void {
   const box = el('div', 'wn-note', parent);
-  if (typeof n === 'string') {
-    const [lead, rest] = leadIn(n);
-    const p = el('p', 'wn-para', box);
-    if (lead) el('b', '', p, lead + ' ');
-    p.append(rest);
-    return;
+  const o = typeof n === 'string' ? fromParagraph(n) : n;
+  if (o.h || o.k) {
+    const h = el('div', 'wn-note-h', box);
+    if (o.k) el('span', 'wn-tag ' + o.k, h, TAG[o.k]);
+    if (o.h) el('b', '', h, o.h);
   }
-  const h = el('div', 'wn-note-h', box);
-  if (n.k) el('span', 'wn-tag ' + n.k, h, TAG[n.k]);
-  el('b', '', h, n.h);
-  if (n.d?.length) {
+  if (o.d?.length) {
     const ul = el('ul', 'wn-pts', box);
-    for (const d of n.d) el('li', '', ul, d);
+    for (const d of o.d) el('li', '', ul, d);
   }
 }
 
