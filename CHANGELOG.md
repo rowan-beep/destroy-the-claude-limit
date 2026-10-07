@@ -3,6 +3,11 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.59.0 — Solar System Explorer (2026-10-07)
+
+- A new SOLAR SYSTEM EXPLORER on the space menu: fly round the whole solar system as it is today, on the real orbits. Pick the Sun, any planet or Pluto from the bar at the top (each planet's moons join the bar when you visit it) and the camera flies there and frames it on its sunlit side. Drag to look round, scroll to zoom from close over the surface out to 60 AU, and speed time up from a pause to a year a second to watch the moons and planets go round. A card shows each world's size, year, day, gravity and distance from the Sun, with a few facts.
+- Fixed: the solar-system view kept showing the old painted Earth instead of NASA's Blue Marble. It now swaps in as soon as the map loads.
+
 ## v4.58.0 — Rockets, rovers and the solar system (2026-10-07)
 
 - Two new rockets and two real missions, from a new Pad 3 down the coast. Falcon Heavy launches NASA's Europa Clipper on its real route: 27 Merlin engines and 22.8 MN at liftoff, the two side boosters flip round, fly back and land on Landing Zones 1 and 2 within seconds of each other while the camera follows them in, then the second stage leaves Earth. The cruise runs on the real dates: past Mars on 1 March 2025, past Earth on 3 December 2026, into orbit round Jupiter on 11 April 2030, then a pass 25 km over Europa's ice. Each planet fills the view as Clipper flies by.

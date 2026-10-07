@@ -65,21 +65,27 @@ export function hiresTexture(files: [string, number][], srgb: boolean, then?: (t
   t.minFilter = THREE.LinearMipmapLinearFilter;
   void bestHires(files).then((img) => {
     if (!img) return;
-    t.image = img;
-    t.needsUpdate = true;
+    swapImage(t, img);
     then?.(t);
   });
   return t;
+}
+
+/** put a new (bigger) image in a texture. The GPU copy was allocated at the old size and
+ *  can't grow, so it is released first and made again at the next draw. */
+export function swapImage(t: THREE.Texture, img: HTMLImageElement): void {
+  t.dispose();
+  t.image = img;
+  t.needsUpdate = true;
 }
 
 /** Mars: swap a texture's image for the 8k Viking mosaic when it arrives */
 export function upgradeToHires(t: THREE.Texture, then?: () => void): void {
   void hiresImage('mars_8k.jpg', 8192).then((img) => {
     if (!img) return;
-    t.image = img;
     t.generateMipmaps = true;
     t.minFilter = THREE.LinearMipmapLinearFilter;
-    t.needsUpdate = true;
+    swapImage(t, img);
     then?.();
   });
 }

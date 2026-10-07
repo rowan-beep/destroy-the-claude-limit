@@ -202,6 +202,7 @@ async function boot(): Promise<void> {
         if (def) sp.rover.start(def);
       }),
     onLaunchMission: (id) => startSpace((sp) => sp.launch.start(id)),
+    onExplore: () => startSpace((sp) => sp.explorer.start()),
   });
   /** start something in the space program (loading its code first, the first time) */
   function startSpace(go: (sp: SpaceProgram) => void): void {

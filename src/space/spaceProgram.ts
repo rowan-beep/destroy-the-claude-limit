@@ -9,6 +9,7 @@ import { SpaceFlight } from './spaceFlight';
 import { MarsMission } from './mars/marsMission';
 import { RoverMission, ROVER_MISSIONS } from './rover/roverMission';
 import { LaunchMission } from './launch/launchMission';
+import { SolarExplorer } from './solar/explorer';
 
 export interface SpaceHost {
   renderer: () => THREE.WebGLRenderer;
@@ -24,6 +25,7 @@ export class SpaceProgram {
   readonly mars: MarsMission;
   readonly rover: RoverMission;
   readonly launch: LaunchMission;
+  readonly explorer: SolarExplorer;
   readonly roverMissions = ROVER_MISSIONS;
 
   constructor(private host: SpaceHost) {
@@ -32,11 +34,12 @@ export class SpaceProgram {
     this.mars = new MarsMission(() => this.factory(), host.renderer, document.body);
     this.rover = new RoverMission(host.renderer, document.body);
     this.launch = new LaunchMission(() => this.factory(), host.renderer, document.body);
-    for (const m of [this.flight, this.mars, this.rover, this.launch]) {
+    this.explorer = new SolarExplorer(document.body);
+    for (const m of [this.flight, this.mars, this.rover, this.launch, this.explorer]) {
       m.drawWith = draw;
       m.onExit = host.onExit;
     }
-    if (import.meta.env.DEV) Object.assign(window, { __flight: this.flight, __mars: this.mars, __rover: this.rover, __launch: this.launch });
+    if (import.meta.env.DEV) Object.assign(window, { __flight: this.flight, __mars: this.mars, __rover: this.rover, __launch: this.launch, __explorer: this.explorer });
   }
 
   /** the launch site (the space program's menu backdrop), built on first use */
@@ -57,7 +60,7 @@ export class SpaceProgram {
 
   /** is a flight or mission running? */
   get active(): boolean {
-    return this.flight.active || this.mars.active || this.rover.active || this.launch.active;
+    return this.flight.active || this.mars.active || this.rover.active || this.launch.active || this.explorer.active;
   }
 
   /** a frame of whichever mission is running (false if none is) */
@@ -66,6 +69,7 @@ export class SpaceProgram {
     else if (this.mars.active) this.mars.frame(dt, w, h);
     else if (this.rover.active) this.rover.frame(dt, w, h);
     else if (this.launch.active) this.launch.frame(dt, w, h);
+    else if (this.explorer.active) this.explorer.frame(dt, w, h);
     else return false;
     return true;
   }

@@ -10,6 +10,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.59.0',
+    date: '2026-10-07',
+    title: "Solar System Explorer",
+    notes: [
+      "A new SOLAR SYSTEM EXPLORER on the space menu: fly round the whole solar system as it is today, on the real orbits. Pick the Sun, any planet or Pluto from the bar at the top (each planet's moons join the bar when you visit it) and the camera flies there and frames it on its sunlit side. Drag to look round, scroll to zoom from close over the surface out to 60 AU, and speed time up from a pause to a year a second to watch the moons and planets go round. A card shows each world's size, year, day, gravity and distance from the Sun, with a few facts.",
+      "Fixed: the solar-system view kept showing the old painted Earth instead of NASA's Blue Marble. It now swaps in as soon as the map loads.",
+    ],
+  },
+  {
     version: '4.58.0',
     date: '2026-10-07',
     title: "Rockets, rovers and the solar system",
