@@ -4,6 +4,48 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu lists the space updates.
 
+## v5.1.0 (2026-10-07)
+
+### Air Combat: Tanker
+
+- **New: Aerial refuelling**
+  - In Free Flight a KC-46A Pegasus tanker flies a racetrack 15 NM out from your base at 22,000 ft and 320 knots, turning at 20 degrees of bank like the real thing.
+  - Fly up behind it and take fuel without landing. The bar at the top tells you where to move: FORWARD, UP, LEFT and so on, in metres, with your closing speed.
+  - When your fuel is down to about half, an arrow on the HUD points the way to the tanker.
+- **New: The flying boom**
+  - The F-15EX, F-16, F-22, SR-71 and F-35A take fuel from the boom under the tanker's tail.
+  - Hold steady in the boom's reach, below and behind the tanker, and the boom operator plugs into your receptacle: about 55 kg of fuel a second.
+  - The boom follows you while you are hooked up. Fly out of its reach, or move too fast, and it disconnects.
+- **New: Probe and drogue**
+  - The Super Hornet, Typhoon, Su-35S, Rafale, MiG-31, Su-57 and Gripen fly their probe into the basket trailing on the tanker's centreline hose.
+  - Line up within a metre and a half of its middle, then push in at 1 to 2 m/s: the hose takes up the slack, and about 25 kg a second flows.
+  - Hooked up, move more than 5 m/s against the tanker and it's a breakaway.
+- **New: The KC-46A**
+  - The Boeing 767-based tanker at full size: 48 m long and 48 m across the wings, with its two big engines, the boom with its V-shaped control vanes and telescoping nozzle, the centreline hose and basket, the wing pods, and beacons that blink.
+  - It fills your internal tanks first, then any drop tanks, and tells you how much it passed when you're topped off.
+
+### Space Exploration: Crew Dragon to the ISS
+
+- **New: Falcon 9 · Crew Dragon to the ISS**
+  - A new mission: Falcon 9 lifts Crew Dragon and four astronauts off Pad 3, heading northeast up the coast into the station's 51.6 degree orbit.
+  - Nine Merlins and 7.6 MN at liftoff. At main engine cutoff the second stage lights its Merlin Vacuum and Dragon is let go at about 200 km.
+- **New: The first stage lands on a drone ship**
+  - The first stage flips round, relights three engines for the entry burn, steers with its grid fins and lands on its legs on the drone ship A Shortfall of Gravitas, out in the Atlantic.
+  - The camera follows it all the way down to the deck, where it stands with the SpaceX landing circle under it.
+- **New: Chasing down the station**
+  - Dragon opens its nosecone, coasts for most of an orbit, then fires its Dracos to climb from 200 to 420 km and arrives a few kilometres from the station.
+  - The final approach is automatic, as on the real Dragon: holds at 400 m, 220 m and 20 m, then it closes at 10 cm a second, with little puffs from the Draco thrusters.
+  - Soft capture, then hard capture at Harmony's forward port. The HUD shows the distance to the station and the closing rate all the way in.
+- **New: The International Space Station**
+  - Built to its real layout: Harmony with the forward docking port, Destiny, Unity, Columbus, Kibo with its exposed platform and logistics module, Tranquility, the Cupola, BEAM, Leonardo and Quest.
+  - The Russian segment: Zarya, Zvezda, Nauka, Poisk and Rassvet, with a Soyuz and a Progress docked.
+  - The 109 m truss carries its eight solar array wings, 35 m long (most with the newer roll-out arrays on them), which turn on their rotary joints to face the Sun. Also on the truss: the big white radiators, the arrays' own radiators and Canadarm2.
+- **New: Crew Dragon and Falcon 9**
+  - Dragon with its heat shield, SuperDraco pods, windows and the nosecone that swings open over the docking adapter, on its trunk with the solar cells and fins.
+  - Falcon 9 with its grid fins and landing legs, the black interstage and the second stage.
+- **Fixed: Landed boosters stay put**
+  - Falcon Heavy's side boosters no longer drift off their landing zones after touching down.
+
 ## v5.0.0 (2026-10-07)
 
 ### Air Combat: Three new jets and a new look

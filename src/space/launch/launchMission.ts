@@ -24,20 +24,32 @@ import { audio } from '../../audio/audio';
 import { updateRecord } from '../record';
 import { PLUME_FRAG, PLUME_VERT } from '../plumes';
 import { LaunchFlight, FreeStage } from './launchFlight';
-import { FALCON_HEAVY, SLS, VehicleDef, EngineDef } from './vehicles';
-import { buildFalconHeavy, buildSLS, poseCore, deployClipper, deployOrion, FalconRig, SlsRig, buildClipper, ClipperRig } from './launchModels';
+import { FALCON_HEAVY, SLS, FALCON_9, VehicleDef, EngineDef } from './vehicles';
+import { buildFalconHeavy, buildSLS, buildFalcon9, poseCore, deployClipper, deployOrion, FalconRig, SlsRig, F9Rig, buildClipper, ClipperRig } from './launchModels';
+import { buildISS, IssRig, pointArrays, openNose, buildDroneShip } from './iss';
 import { planClipper, clipperAt, ClipperPlan, CLIPPER_DATES, solveFreeReturnSteps, solveCorrectionSteps, solveReturnSteps, FreeReturn } from './missionPlans';
 import { SolarView } from '../solar/solarView';
 import { neutralEnv } from '../mars/marsMission';
 import { BODIES, bodyPos, BodyId, PLANETS, planetState } from '../solar/bodies';
 import { AU, Vec, dateText, propagate } from '../mars/marsPhysics';
 
-export type LaunchMissionId = 'clipper' | 'artemis';
+export type LaunchMissionId = 'clipper' | 'artemis' | 'iss';
 
 const WARPS = [1, 2, 5, 10, 50, 100, 1000, 10_000, 100_000, 1_000_000];
 const D2R = Math.PI / 180;
 /** the SLS stands on Pad 1's mount: its aft skirts at this height */
 const SLS_Y = 28;
+/** where the drone ship waits in the site view (the stage's last minutes are drawn here, off the coast) */
+const DRONE = new THREE.Vector3(1500, 0, -9000);
+/** the ISS's orbit: 420 km, circular */
+const ISS_R = 6_371_000 + 420_000;
+/** the final approach, along the station's velocity to Harmony's forward port: [metres ahead of the port, seconds to get there, seconds holding] */
+const APPROACH: [number, number, number, string][] = [
+  [400, 240, 25, 'Waypoint 0, 400 m out: Dragon enters the approach ellipsoid and checks in with the station. GO for the approach.'],
+  [220, 120, 20, 'Waypoint 1, 220 m: Dragon lines up on the docking axis, its sensors locked on the targets round Harmony\'s forward port.'],
+  [20, 200, 25, 'Waypoint 2, 20 m: holding. Final GO from the crew and Houston.'],
+  [0, 200, 0, 'Closing at 10 cm a second…'],
+];
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, parent: HTMLElement, text?: string): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -167,6 +179,34 @@ export class LaunchMission {
   private solar: SolarView | null = null;
   private fh: FalconRig | null = null;
   private sls: SlsRig | null = null;
+  private f9: F9Rig | null = null;
+  private iss: IssRig | null = null;
+  private drone: THREE.Group | null = null;
+  /** Crew Dragon's road to the station: the plan and where it has got to */
+  private rv: {
+    phase: 'plan' | 'wait' | 'transfer' | 'approach' | 'docked';
+    t0: number;
+    e1: V3;
+    e2: V3;
+    phi0: number;
+    n: number;
+    tBurn1: number;
+    tArrive: number;
+    speed1: number;
+    /** the approach: its clock, the start offset (ahead, up, starboard of the port) and the segment it is on */
+    tA: number;
+    off0: V3;
+    seg: number;
+    segT: number;
+    told: number;
+    prevX: number;
+    said: number;
+    rate: number;
+  } | null = null;
+  private noseT = -1;
+  /** the Draco thrusters' puffs during the approach */
+  private puffs: { sp: THREE.Sprite; t: number }[] = [];
+  private puffT = 0;
   /** the stack (what the camera follows) */
   private holder = new THREE.Group();
   /** separated stages flying on their own, each in its own holder */
@@ -321,7 +361,12 @@ export class LaunchMission {
   // ------------------------------------------------------------------ lifecycle
   start(id: LaunchMissionId): void {
     this.id = id;
-    this.vehicle = id === 'clipper' ? FALCON_HEAVY : SLS;
+    this.vehicle = id === 'clipper' ? FALCON_HEAVY : id === 'artemis' ? SLS : FALCON_9;
+    this.fh = null;
+    this.sls = null;
+    this.f9 = null;
+    this.rv = null;
+    this.noseT = -1;
     this.site = this.getSite();
     const renderer = this.getRenderer();
     const env = () => neutralEnv(renderer, new THREE.Color(0.62, 0.64, 0.68), new THREE.Color(0.32, 0.33, 0.35), new THREE.Color(0.1, 0.1, 0.11));
@@ -350,6 +395,17 @@ export class LaunchMission {
       this.clipper = this.fh.payload;
       this.plan = planClipper();
       this.jd = CLIPPER_DATES.launch;
+    } else if (id === 'iss') {
+      this.f9 = buildFalcon9();
+      this.holder.add(this.f9.group);
+      for (const e of this.f9.core.engines) this.plumes.push({ set: addPlume(this.f9.core.group, e.clone().setY(-0.95), 0.46, 'kerolox'), which: 'core' });
+      this.plumes.push({ set: addPlume(this.f9.upper, this.f9.mvac, 1.6, 'kerolox-vac'), which: 'upper' });
+      this.plan = null;
+      this.jd = Date.now() / 86_400_000 + 2_440_587.5;
+      if (!this.iss) this.iss = buildISS();
+      this.space.scene.add(this.iss.group);
+      this.iss.group.visible = false;
+      if (!this.drone) this.drone = buildDroneShip();
     } else {
       this.sls = buildSLS();
       this.holder.add(this.sls.group);
@@ -359,18 +415,28 @@ export class LaunchMission {
       this.plan = null;
       this.jd = Date.now() / 86_400_000 + 2_440_587.5;
     }
-    const f = (this.flight = new LaunchFlight(this.vehicle, id === 'clipper' ? [PAD3.x, PAD3.z] : [0, 0]));
+    const onPad3 = id === 'clipper' || id === 'iss';
+    const f = (this.flight = new LaunchFlight(this.vehicle, onPad3 ? [PAD3.x, PAD3.z] : [0, 0]));
     if (id === 'clipper') f.lz = PAD3.lz.map((l) => LaunchFlight.siteToEcef(l.x, l.z, 0.5));
+    if (id === 'iss') {
+      // northeast up the coast, into the station's 51.6 degree orbit; Dragon is let go at about 200 km
+      f.azimuth = 44;
+      f.parkAlt = 200_000;
+      this.drone!.position.copy(DRONE);
+      this.drone!.rotation.y = 0.4;
+      this.site.scene.add(this.drone!);
+    } else if (this.drone) this.drone.removeFromParent();
+    if (this.iss && id !== 'iss') this.iss.group.removeFromParent();
     this.site.setFlying(true);
-    this.site.usePad(id === 'clipper' ? 3 : 1);
+    this.site.usePad(onPad3 ? 3 : 1);
     this.view = 'site';
     this.attach();
     this.warpI = 0;
     this.ff = false;
     this.paused = false;
-    this.camYaw = id === 'clipper' ? -0.9 : -1.15;
+    this.camYaw = onPad3 ? -0.9 : -1.15;
     this.camPitch = 0.1;
-    this.camDist = id === 'clipper' ? 160 : 230;
+    this.camDist = id === 'clipper' ? 160 : id === 'iss' ? 130 : 230;
     this.follow = 'stack';
     this.liftT = this.fairT = this.lasT = this.sepT = -1;
     this.deployK = 0;
@@ -398,15 +464,18 @@ export class LaunchMission {
     this.active = true;
     this.ui.classList.remove('hidden');
     menuMusic.want('flight', true);
-    this.elKick.textContent = id === 'clipper' ? 'FALCON HEAVY · EUROPA CLIPPER' : 'SLS · ARTEMIS II';
-    if (id === 'clipper') {
+    this.elKick.textContent = id === 'clipper' ? 'FALCON HEAVY · EUROPA CLIPPER' : id === 'iss' ? 'FALCON 9 · CREW DRAGON TO THE ISS' : 'SLS · ARTEMIS II';
+    if (id === 'iss') {
+      f.say('Falcon 9 on Pad 3 with Crew Dragon and four astronauts, bound for the International Space Station, 420 km up.');
+      f.say('Press LAUNCH (Space). The first stage lands on the drone ship out in the Atlantic: the camera follows it in (C switches). Then Dragon chases down the station and docks.');
+    } else if (id === 'clipper') {
       f.say(`Falcon Heavy on Pad 3 with NASA's Europa Clipper: the biggest planetary spacecraft NASA has built, bound for Jupiter's ocean moon. The real mission, from its launch on ${dateText(CLIPPER_DATES.launch)}.`);
       f.say('Press LAUNCH (Space). Watch the side boosters come home: the camera follows them in (C switches).');
     } else {
       f.say('SLS on Pad 1 with Orion and a crew of four: Artemis II, the first people round the Moon since 1972.');
       f.say('Press LAUNCH (Space). In orbit the autopilot plans the free return round the Moon\'s far side.');
     }
-    this.flash(id === 'clipper' ? 'FALCON HEAVY · PAD 3' : 'SLS · PAD 1');
+    this.flash(id === 'clipper' ? 'FALCON HEAVY · PAD 3' : id === 'iss' ? 'FALCON 9 · PAD 3' : 'SLS · PAD 1');
   }
 
   stop(): void {
@@ -417,6 +486,8 @@ export class LaunchMission {
     for (const h of this.freeHolders.values()) h.parent?.remove(h);
     this.padLight.parent?.remove(this.padLight);
     if (this.path) this.path.parent?.remove(this.path);
+    this.drone?.removeFromParent();
+    this.iss?.group.removeFromParent();
     this.site?.setFlying(false);
     this.site?.usePad(1);
   }
@@ -498,6 +569,13 @@ export class LaunchMission {
     if (this.job) return null;
     if (!f || f.outcome) return null;
     if (f.phase === 'pad') return { label: 'LAUNCH', run: () => f.launch() };
+    if (this.id === 'iss') {
+      const rv = this.rv;
+      if (!rv) return null;
+      if (rv.phase === 'wait') return { label: 'WARP TO THE ORBIT-RAISING BURN', run: () => this.setFF(true) };
+      if (rv.phase === 'transfer') return { label: 'WARP TO THE STATION', run: () => this.setFF(true) };
+      return null;
+    }
     if (this.id === 'clipper') {
       if (f.phase === 'orbit') return { label: 'ESCAPE BURN', run: () => this.escapeBurn() };
       if (this.cruising && !this.arrived) return { label: 'WARP TO THE NEXT EVENT', run: () => this.setFF(true) };
@@ -594,6 +672,7 @@ export class LaunchMission {
         }
       }
     }
+    if (this.rv && (this.rv.phase === 'approach' || this.rv.phase === 'docked')) warp = Math.min(warp, 20);
     const step = this.paused || this.job ? 0 : dt * warp;
     if (this.cruising) this.stepCruise(step);
     else f.advance(step);
@@ -607,6 +686,13 @@ export class LaunchMission {
 
   private timeToEvent(): number {
     const f = this.flight!;
+    if (this.id === 'iss') {
+      const rv = this.rv;
+      if (!rv) return 0;
+      if (rv.phase === 'wait') return rv.tBurn1 - f.t - 20;
+      if (rv.phase === 'transfer') return rv.tArrive - f.t - 60;
+      return 0;
+    }
     if (this.id === 'clipper') {
       if (this.cruising) {
         const ev = this.cruiseEvents.find((e) => !e.done);
@@ -634,7 +720,8 @@ export class LaunchMission {
       updateRecord((r) => r.launches++);
     }
     if (!f.fairingOn && this.fairT < 0) this.fairT = this.wallT;
-    if (this.id === 'artemis') {
+    if (this.id === 'iss') this.dragonScript(f);
+    else if (this.id === 'artemis') {
       if (!f.fairingOn && this.lasT < 0) this.lasT = this.wallT;
       if (f.phase === 'orbit' && this.fr && f.t >= this.tliAt - this.tliLead && this.tliAt > 0) this.tli();
       // after the injection: Orion lets go of the ICPS and opens its arrays
@@ -695,6 +782,214 @@ export class LaunchMission {
       this.logSeen = f.log.length;
       this.elLog.textContent = '';
       for (const l of f.log.slice(-4)) el('div', l.kind, this.elLog, l.text);
+    }
+  }
+
+  // ------------------------------------------------------------------ Crew Dragon to the ISS
+  /** the station's position and velocity (ECI): a circle in the plane Dragon reached orbit in */
+  private issState(t: number): { r: V3; v: V3; ram: V3; up: V3 } {
+    const rv = this.rv!;
+    const ph = rv.phi0 + rv.n * (t - rv.t0);
+    const c = Math.cos(ph), s = Math.sin(ph);
+    const up = add(scale(rv.e1, c), scale(rv.e2, s));
+    const ram = add(scale(rv.e1, -s), scale(rv.e2, c));
+    return { r: scale(up, ISS_R), v: scale(ram, ISS_R * rv.n), ram, up };
+  }
+
+  /** a two-body coast (for planning) */
+  private coast2(r: V3, v: V3, dt: number): { r: V3; v: V3 } {
+    const mu = EARTH.GM;
+    const acc = (p: V3): V3 => scale(p, -mu / len(p) ** 3);
+    let R = r, U = v;
+    const n = Math.max(1, Math.ceil(dt / 5));
+    const h = dt / n;
+    for (let i = 0; i < n; i++) {
+      const k1v = acc(R), k1r = U;
+      const k2v = acc(add(R, scale(k1r, h / 2))), k2r = add(U, scale(k1v, h / 2));
+      const k3v = acc(add(R, scale(k2r, h / 2))), k3r = add(U, scale(k2v, h / 2));
+      const k4v = acc(add(R, scale(k3r, h))), k4r = add(U, scale(k3v, h));
+      R = add(R, scale(add(add(k1r, scale(k2r, 2)), add(scale(k3r, 2), k4r)), h / 6));
+      U = add(U, scale(add(add(k1v, scale(k2v, 2)), add(scale(k3v, 2), k4v)), h / 6));
+    }
+    return { r: R, v: U };
+  }
+
+  /**
+   * The rendezvous: wait part of an orbit, burn to raise the high point to the
+   * station's height, and arrive there 3 km ahead of it. The station is placed
+   * on its orbit so the meeting works out (the real launch is timed for it).
+   */
+  private planRendezvous(f: LaunchFlight): void {
+    const mu = EARTH.GM;
+    const e1 = norm(f.r);
+    const hv = cross(f.r, f.v);
+    const e2 = norm(cross(hv, e1));
+    const t0 = f.t;
+    const wait = 50 * 60;
+    const b = this.coast2(f.r, f.v, wait);
+    const r1 = len(b.r);
+    const speed1 = Math.sqrt(mu * (2 / r1 - 2 / (r1 + ISS_R)));
+    let r = b.r, v = scale(norm(b.v), speed1);
+    // coast to the high point
+    let tt = 0;
+    let vr = dot(v, norm(r));
+    for (let i = 0; i < 2000; i++) {
+      const s = this.coast2(r, v, 10);
+      const vr2 = dot(s.v, norm(s.r));
+      tt += 10;
+      r = s.r;
+      v = s.v;
+      if (vr > 0 && vr2 <= 0) break;
+      vr = vr2;
+    }
+    const tArrive = t0 + wait + tt;
+    const phi2 = Math.atan2(dot(r, e2), dot(r, e1));
+    const n = Math.sqrt(mu / ISS_R ** 3);
+    // the station 3 km behind where Dragon arrives (its forward port faces Dragon)
+    const phi0 = phi2 - 3000 / ISS_R - n * (tArrive - t0);
+    this.rv = { phase: 'wait', t0, e1, e2, phi0, n, tBurn1: t0 + wait, tArrive, speed1, tA: 0, off0: [0, 0, 0], seg: 0, segT: 0, told: 0, prevX: 0, said: -1, rate: 0 };
+    const d0 = len(sub(this.issState(t0).r, f.r));
+    f.say(`Rendezvous plan: the station is ${Math.round(d0 / 1000).toLocaleString('en-US')} km away. Dragon coasts ${Math.round(wait / 60)} minutes, then fires its Dracos to climb to 420 km, arriving ${Math.round(tt / 60)} minutes later just ahead of it.`, 'info');
+  }
+
+  /** where Dragon's docking face is, relative to the port, in the station's frame (ahead, up, starboard) */
+  private dragonOffset(f: LaunchFlight): V3 {
+    const st = this.issState(f.t);
+    const side = norm(cross(st.ram, st.up));
+    const port = add(st.r, scale(st.ram, this.iss!.port.x));
+    const d = sub(f.r, port);
+    return [dot(d, st.ram) - this.f9!.dragon.dockAt, dot(d, st.up), dot(d, side)];
+  }
+
+  /** little white puffs from the Dracos as Dragon trims its approach */
+  private dracoPuffs(dt: number): void {
+    const d = this.f9!.dragon;
+    if (!this.puffs.length) {
+      const c = document.createElement('canvas');
+      c.width = c.height = 64;
+      const g = c.getContext('2d')!;
+      const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+      gr.addColorStop(0, 'rgba(255,255,255,0.9)');
+      gr.addColorStop(0.4, 'rgba(235,240,255,0.35)');
+      gr.addColorStop(1, 'rgba(235,240,255,0)');
+      g.fillStyle = gr;
+      g.fillRect(0, 0, 64, 64);
+      const tex = new THREE.CanvasTexture(c);
+      for (let i = 0; i < 8; i++) {
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0 }));
+        sp.visible = false;
+        d.group.add(sp);
+        this.puffs.push({ sp, t: 1 });
+      }
+    }
+    this.puffT -= dt;
+    if (this.puffT <= 0) {
+      this.puffT = 0.35 + Math.random() * 1.4;
+      const p = this.puffs.find((q) => q.t >= 1);
+      if (p) {
+        const at = d.dracos[Math.floor(Math.random() * d.dracos.length)];
+        p.sp.position.copy(at).add(at.clone().setY(0).normalize().multiplyScalar(0.4));
+        p.sp.userData.dir = at.clone().setY(0).normalize();
+        p.t = 0;
+      }
+    }
+    for (const p of this.puffs) {
+      if (p.t >= 1) {
+        p.sp.visible = false;
+        continue;
+      }
+      p.t = Math.min(1, p.t + dt / 0.5);
+      p.sp.visible = true;
+      p.sp.position.addScaledVector(p.sp.userData.dir as THREE.Vector3, dt * 6);
+      p.sp.scale.setScalar(0.4 + p.t * 2.2);
+      (p.sp.material as THREE.SpriteMaterial).opacity = (1 - p.t) * 0.85;
+    }
+  }
+
+  private dragonScript(f: LaunchFlight): void {
+    // Dragon is let go in orbit, opens its nosecone and works out the rendezvous
+    if (f.phase === 'orbit' && !f.payloadOnly) {
+      f.separatePayload(12_500);
+      this.sepT = this.wallT;
+      this.noseT = f.t + 60;
+      f.say('Dragon separation! The second stage lets go of Crew Dragon. The crew are in orbit.', 'good');
+      this.flash('CREW DRAGON');
+      this.planRendezvous(f);
+    }
+    const rv = this.rv;
+    if (!rv) return;
+    if (this.noseT > 0 && f.t >= this.noseT) {
+      this.noseT = -1;
+      f.say('The nosecone swings open over the docking adapter.', 'info');
+    }
+    if (rv.phase === 'wait' && f.t >= rv.tBurn1) {
+      // the orbit-raising burn: the Dracos, along the velocity
+      const dv = rv.speed1 - len(f.v);
+      f.v = scale(norm(f.v), rv.speed1);
+      rv.phase = 'transfer';
+      const o = f.orbit();
+      f.say(`Orbit-raising burn: the Dracos fire ${Math.round(dv)} m/s along the velocity. New orbit ${Math.round(o.pe / 1000)} × ${Math.round(o.ap / 1000)} km, up to the station.`, 'info');
+      this.flash('ORBIT RAISING');
+    }
+    if (rv.phase === 'transfer' && f.t > rv.tBurn1 + 120 && dot(f.v, norm(f.r)) <= 0) {
+      // at the high point: match the station's circle
+      const st = this.issState(f.t);
+      const up = norm(f.r);
+      f.v = scale(norm(sub(f.v, scale(up, dot(f.v, up)))), len(st.v) * Math.sqrt(ISS_R / len(f.r)));
+      rv.phase = 'approach';
+      rv.tA = f.t;
+      rv.off0 = this.dragonOffset(f);
+      rv.seg = 0;
+      rv.segT = f.t;
+      rv.told = f.t;
+      rv.prevX = rv.off0[0];
+      rv.said = -1;
+      f.say(`Circularisation burn at 420 km. The ISS is ${(Math.hypot(...rv.off0) / 1000).toFixed(1)} km behind: Dragon turns its nose to the station and flies the final approach on its own.`, 'good');
+      this.flash('THE ISS');
+    }
+    if (rv.phase === 'approach' || rv.phase === 'docked') {
+      // fly the approach: from the start offset through the waypoints, holding at each
+      const st = this.issState(f.t);
+      const side = norm(cross(st.ram, st.up));
+      let off: V3 = [0, 0, 0];
+      if (rv.phase === 'approach') {
+        const [x1, dur, hold] = APPROACH[rv.seg];
+        const from: V3 = rv.seg === 0 ? rv.off0 : [APPROACH[rv.seg - 1][0], 0, 0];
+        const k = Math.min(1, (f.t - rv.segT) / dur);
+        // the last stretch at a steady 10 cm/s; the rest eased in and out
+        const e = rv.seg === APPROACH.length - 1 ? k : k * k * (3 - 2 * k);
+        off = [from[0] + (x1 - from[0]) * e, from[1] * (1 - e), from[2] * (1 - e)];
+        if (k >= 1 && rv.said < rv.seg && rv.seg < APPROACH.length - 1) {
+          rv.said = rv.seg;
+          f.say(APPROACH[rv.seg][3], 'info');
+        }
+        if (rv.seg === APPROACH.length - 1 && rv.said < rv.seg) {
+          rv.said = rv.seg;
+          f.say(APPROACH[rv.seg][3], 'info');
+        }
+        if (k >= 1 && f.t - rv.segT >= dur + hold) {
+          if (rv.seg === APPROACH.length - 1) {
+            rv.phase = 'docked';
+            updateRecord((r) => (r.daysInSpace += f.t / 86400));
+            f.say('Contact and soft capture at Harmony\'s forward port! The hooks drive closed: hard capture. Dragon is docked to the International Space Station.', 'good');
+            f.outcome = { ok: true, title: 'Docked to the ISS', text: 'Crew Dragon is docked to Harmony\'s forward port, 420 km up. Leak checks done, the hatches open, and the crew float through to a welcome aboard the station.' };
+            this.flash('DOCKED');
+          } else {
+            rv.seg++;
+            rv.segT = f.t;
+          }
+        }
+      }
+      // closing rate, for the HUD
+      if (f.t - rv.told > 0.5) {
+        rv.rate = (rv.prevX - off[0]) / (f.t - rv.told);
+        rv.prevX = off[0];
+        rv.told = f.t;
+      }
+      const port = add(st.r, scale(st.ram, this.iss!.port.x));
+      f.r = add(add(add(port, scale(st.ram, off[0] + this.f9!.dragon.dockAt)), scale(st.up, off[1])), scale(side, off[2]));
+      f.v = st.v;
+      f.axis = scale(st.ram, -1);
     }
   }
 
@@ -851,7 +1146,7 @@ export class LaunchMission {
   }
   /** the height the vehicle's base stands at on its pad (site frame) */
   private baseY(): number {
-    return this.id === 'clipper' ? PAD3.table : SLS_Y;
+    return this.id === 'clipper' || this.id === 'iss' ? PAD3.table : SLS_Y;
   }
 
   private pickView(f: LaunchFlight): void {
@@ -960,6 +1255,43 @@ export class LaunchMission {
       }
       if (f.payloadOnly && this.sepT >= 0) deployClipper(r.payload, Math.min(1, (this.wallT - this.sepT) / 20));
     }
+    if (this.f9) {
+      const r = this.f9;
+      if (!f.coreOn && r.upper.parent === r.core.group) {
+        // the second stage carries on alone
+        r.upper.removeFromParent();
+        r.upper.position.set(0, 0, 0);
+        this.holder.clear();
+        this.holder.add(r.upper);
+      }
+      if (f.payloadOnly && r.dragon.group.parent !== this.holder) {
+        r.dragon.group.removeFromParent();
+        r.dragon.group.position.set(0, 0, 0);
+        this.holder.clear();
+        this.holder.add(r.dragon.group);
+      }
+      if (this.rv && this.rv.phase === 'approach' && f.payloadOnly) this.dracoPuffs(dt);
+      else for (const p of this.puffs) p.sp.visible = false;
+      openNose(r.dragon, f.payloadOnly && this.noseT < 0 ? 1 : f.payloadOnly && this.noseT > 0 ? Math.max(0, 1 - (this.noseT - f.t) / 6) : 0);
+      // the station, in the orbital view
+      if (this.iss) {
+        const show = this.view === 'earth' && !!this.rv;
+        this.iss.group.visible = false;
+        if (show) {
+          const st = this.issState(t);
+          const d = sub(st.r, f.r);
+          if (len(d) < 600_000) {
+            this.iss.group.visible = true;
+            this.iss.group.position.set(d[0], d[1], d[2]);
+            const x = new THREE.Vector3(...st.ram), y = new THREE.Vector3(...st.up);
+            const z = new THREE.Vector3().crossVectors(x, y);
+            this.iss.group.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
+            const sun = new THREE.Vector3(...sunDirection()).applyQuaternion(this.iss.group.quaternion.clone().invert());
+            pointArrays(this.iss, sun);
+          }
+        }
+      }
+    }
     if (this.sls) {
       const r = this.sls;
       for (const b of r.srbs) if (!f.boosters && b.parent === r.core) b.removeFromParent();
@@ -1028,6 +1360,12 @@ export class LaunchMission {
           core.group.position.set(0, 0, 0);
           hl.add(core.group);
           if (s.land) for (const e of core.engines) this.plumes.push({ set: addPlume(core.group, e.clone().setY(-0.95), 0.46, 'kerolox'), which: 'free', free: s });
+        } else if (this.f9) {
+          const core = this.f9.core;
+          core.group.removeFromParent();
+          core.group.position.set(0, 0, 0);
+          hl.add(core.group);
+          for (const e of core.engines) this.plumes.push({ set: addPlume(core.group, e.clone().setY(-0.95), 0.46, 'kerolox'), which: 'free', free: s });
         } else if (this.sls) {
           if (s.side === 0) {
             // the empty core stage
@@ -1045,7 +1383,24 @@ export class LaunchMission {
       if (s.phase === 'landed' && !this.landedAtT) this.landedAtT = f.t;
       const show = s.phase !== 'gone' && this.view !== 'solar' && (inSite ? s.land || len(s.r) - EARTH.R < 120_000 : len(sub(s.r, f.r)) < 3e5);
       hl.visible = show || (s.phase === 'landed' && this.view === 'site');
-      if (hl.visible) {
+      if (hl.visible && this.f9 && inSite && s.lz) {
+        // the drone ship's own frame: the stage relative to its landing point, carried to where the ship is drawn
+        const lzI = rotY(s.lz, earthAngle(t));
+        const upPad = norm(rotY(add(this.padOrigin, [0, 0, 0]), earthAngle(t)));
+        const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(...upPad), new THREE.Vector3(...norm(lzI)));
+        const ax = (v: V3): THREE.Vector3 => new THREE.Vector3(...rotY(v, earthAngle(t))).applyQuaternion(q);
+        const X = ax(this.axes.x), Y = ax(this.axes.y), Z = ax(this.axes.z);
+        const rel = new THREE.Vector3(...sub(s.r, lzI));
+        hl.position.set(DRONE.x + rel.dot(X), DRONE.y + 2.6 + 1.7 + rel.dot(Y), DRONE.z + rel.dot(Z));
+        const a = new THREE.Vector3(...s.axis);
+        const yv = new THREE.Vector3(a.dot(X), a.dot(Y), a.dot(Z)).normalize();
+        let xr = new THREE.Vector3(1, 0, 0);
+        if (Math.abs(yv.x) > 0.9) xr = new THREE.Vector3(0, 0, 1);
+        const xv = xr.sub(yv.clone().multiplyScalar(xr.dot(yv))).normalize();
+        const zv = new THREE.Vector3().crossVectors(xv, yv);
+        hl.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(xv, yv, zv));
+        poseCore(this.f9.core, s.legs, s.fins);
+      } else if (hl.visible) {
         hl.position.copy(posOf(s.r));
         if (inSite && s.phase === 'landed') hl.position.y -= this.baseY() - 0.5 - 1.2;
         hl.quaternion.copy(orient(s.axis, norm(cross(s.axis, north))));
@@ -1053,6 +1408,7 @@ export class LaunchMission {
           const core = s.side === 0 ? this.fh.centre : this.fh.sides[s.side < 0 ? 0 : 1];
           poseCore(core, s.legs, s.fins);
         }
+        if (this.f9) poseCore(this.f9.core, s.legs, s.fins);
       }
     }
     // the engines
@@ -1060,11 +1416,12 @@ export class LaunchMission {
     for (const p of this.plumes) {
       let on = 0;
       if (p.which === 'booster') on = f.phase === 'boost' ? 1 : 0;
-      else if (p.which === 'core') on = (f.phase === 'boost' || f.phase === 'core') && f.coreOn ? (this.vehicle.id === 'falcon-heavy' ? Math.max(0.5, f.throttle) : f.throttle) : 0;
+      else if (p.which === 'core') on = (f.phase === 'boost' || f.phase === 'core') && f.coreOn ? (this.vehicle.id !== 'sls' ? Math.max(0.5, f.throttle) : f.throttle) : 0;
       else if (p.which === 'upper') on = (f.phase === 'upper' || f.phase === 'burn') && !f.payloadOnly ? 1 : 0;
       else if (p.free) {
         const s = p.free;
-        const engIdx = this.fh ? (s.side === 0 ? this.fh.centre : this.fh.sides[s.side < 0 ? 0 : 1]).engines.findIndex((e) => p.set.meshes[0].mesh.position.x === e.x && p.set.meshes[0].mesh.position.z === e.z) : 0;
+        const coreRig = this.fh ? (s.side === 0 ? this.fh.centre : this.fh.sides[s.side < 0 ? 0 : 1]) : this.f9 ? this.f9.core : null;
+        const engIdx = coreRig ? coreRig.engines.findIndex((e) => p.set.meshes[0].mesh.position.x === e.x && p.set.meshes[0].mesh.position.z === e.z) : 0;
         // boostback and entry: the centre and two outer engines; landing: the centre one
         const lit = s.engines >= 3 ? engIdx === 0 || engIdx === 1 || engIdx === 5 : s.engines >= 1 ? engIdx === 0 : false;
         on = lit ? (s.phase === 'landing' ? s.throttle : 1) : 0;
@@ -1080,7 +1437,7 @@ export class LaunchMission {
       this.padLight.position.set(base.x, Math.max(4, base.y - 6), base.z);
       const fire = f.phase === 'boost' && f.alt < 1500 ? 1 : 0;
       this.padLight.intensity = fire * 14000 * (0.9 + 0.1 * Math.random());
-      if (this.id === 'clipper') this.site!.setTe(f.phase === 'pad' ? 0 : Math.min(1, f.t / 2));
+      if (this.id === 'clipper' || this.id === 'iss') this.site!.setTe(f.phase === 'pad' ? 0 : Math.min(1, f.t / 2));
     }
     void dt;
   }
@@ -1153,6 +1510,20 @@ export class LaunchMission {
         cam = add(add(scale(toM, -d), scale(sd, d * 0.45)), scale(up, d * 0.2));
         look = scale(toM, d * 0.6);
       }
+      // Crew Dragon near the station (until the player looks round): the station ahead of Dragon
+      if (this.id === 'iss' && this.rv && this.iss && performance.now() - this.lastDrag > 8000) {
+        const st = this.issState(f.t);
+        const port = add(sub(st.r, f.r), scale(st.ram, this.iss.port.x));
+        const dist = len(port);
+        if (dist < 40_000) {
+          const toI = norm(port);
+          const side = norm(cross(st.ram, st.up));
+          // over Dragon's shoulder: the station ahead, the Earth below
+          const near = Math.min(1, dist / 400);
+          cam = add(add(scale(toI, -(16 + 10 * near)), scale(side, 7 + 6 * near)), scale(st.up, 4 + 3 * near));
+          look = add(scale(toI, Math.min(dist * 0.6, 70)), scale(st.up, -Math.min(dist * 0.08, 10)));
+        }
+      }
       const ra = len(add(f.r, cam)) - EARTH.R;
       if (ra < 5) cam = add(cam, scale(up, 5 - ra));
       sp.update({ origin: f.r, cam, camUp: up, look, earthAngle: earthAngle(f.t), time: f.t }, w, h, false);
@@ -1201,13 +1572,17 @@ export class LaunchMission {
       return ev ? `CRUISE · NEXT: ${ev.flash}` : 'CRUISE';
     }
     const V = this.vehicle;
+    if (this.id === 'iss' && this.rv) {
+      const p = this.rv.phase;
+      return p === 'wait' ? 'IN ORBIT · CHASING THE ISS' : p === 'transfer' ? 'CLIMBING TO THE ISS' : p === 'approach' ? `FINAL APPROACH${this.rv.seg > 0 ? ' · WAYPOINT ' + (this.rv.seg - 1) : ''}` : 'DOCKED TO THE ISS';
+    }
     switch (f.phase) {
       case 'pad':
         return 'ON THE PAD';
       case 'boost':
         return V.id === 'sls' ? 'ASCENT · SOLIDS AND CORE' : 'ASCENT · 27 ENGINES';
       case 'core':
-        return V.id === 'sls' ? 'ASCENT · CORE STAGE' : 'ASCENT · CENTRE CORE';
+        return V.id === 'sls' ? 'ASCENT · CORE STAGE' : V.id === 'falcon-9' ? 'ASCENT · FIRST STAGE' : 'ASCENT · CENTRE CORE';
       case 'upper':
         return V.id === 'sls' ? 'ASCENT · ICPS' : 'ASCENT · SECOND STAGE';
       case 'orbit':
@@ -1276,12 +1651,23 @@ export class LaunchMission {
       const V = this.vehicle;
       const pct = (a: number, b: number) => `${Math.max(0, Math.round((a / b) * 100))}%`;
       if (f.boosters) rows.push([V.id === 'sls' ? 'SOLID BOOSTERS' : 'SIDE BOOSTERS', pct(f.boosterProp, V.boosters.stage.prop * V.boosters.count)]);
-      if (f.coreOn) rows.push([V.id === 'sls' ? 'CORE STAGE' : 'CENTRE CORE', pct(f.coreProp, V.core.prop)]);
+      if (f.coreOn) rows.push([V.id === 'sls' ? 'CORE STAGE' : V.id === 'falcon-9' ? 'FIRST STAGE' : 'CENTRE CORE', pct(f.coreProp, V.core.prop)]);
+      if (this.id === 'iss' && this.rv && this.iss) {
+        const st = this.issState(f.t);
+        const port = add(st.r, scale(st.ram, this.iss.port.x));
+        const d = Math.max(0, len(sub(f.r, port)) - this.f9!.dragon.dockAt);
+        rows.push(['TO THE ISS', this.rv.phase === 'docked' ? 'DOCKED' : km(d)]);
+        if (this.rv.phase === 'approach') rows.push(['CLOSING RATE', `${this.rv.rate.toFixed(2)} m/s`]);
+        if (this.rv.phase === 'wait') {
+          const tw = this.rv.tBurn1 - f.t;
+          rows.push(['BURN IN', `${Math.max(0, Math.floor(tw / 60))} min ${Math.max(0, Math.floor(tw % 60))} s`]);
+        }
+      }
       if (!f.payloadOnly) rows.push([V.id === 'sls' ? 'ICPS' : 'SECOND STAGE', pct(f.upperProp, V.upper.prop)]);
       const lands = f.free.filter((s) => s.land);
       for (const s of lands) {
         const lz = s.lz ? rotY(s.lz, earthAngle(f.t)) : null;
-        rows.push([s.side < 0 ? 'BOOSTER → LZ-1' : 'BOOSTER → LZ-2', s.phase === 'landed' ? 'LANDED' : s.phase === 'gone' ? 'LOST' : `${s.phase.toUpperCase()} · ${lz ? km(len(sub(lz, s.r))) : ''}`]);
+        rows.push([this.f9 ? 'FIRST STAGE → DRONE SHIP' : s.side < 0 ? 'BOOSTER → LZ-1' : 'BOOSTER → LZ-2', s.phase === 'landed' ? 'LANDED' : s.phase === 'gone' ? 'LOST' : `${s.phase.toUpperCase()} · ${lz ? km(len(sub(lz, s.r))) : ''}`]);
       }
     }
     const key = rows.map((r) => r.join(':')).join('|');
@@ -1297,7 +1683,7 @@ export class LaunchMission {
     this.elWarp.forEach((b, i) => b.classList.toggle('on', !this.ff && i === this.warpI));
     this.elFF.textContent = this.ff ? `⏩ ${warp >= 1e6 ? '1M' : warp >= 1000 ? Math.round(warp / 1000) + 'k' : Math.round(warp)}×` : '⏩ NEXT EVENT';
     this.elFollow.textContent = this.follow === 'boosters' ? 'CAM: BOOSTERS' : 'CAM: ROCKET';
-    this.elFollow.style.display = this.id === 'clipper' && !this.cruising ? '' : 'none';
+    this.elFollow.style.display = (this.id === 'clipper' || this.id === 'iss') && !this.cruising ? '' : 'none';
     if (this.flashT > 0) {
       this.flashT -= dt;
       if (this.flashT <= 0) this.elFlash.classList.remove('show');

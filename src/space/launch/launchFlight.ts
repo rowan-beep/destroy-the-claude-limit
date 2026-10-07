@@ -44,6 +44,8 @@ export interface FreeStage {
   legs: number;
   fins: number;
   land: boolean;
+  /** where it stands once landed (Earth-fixed), so it rides round with the Earth */
+  at?: V3;
 }
 
 export class LaunchFlight {
@@ -75,6 +77,8 @@ export class LaunchFlight {
   free: FreeStage[] = [];
   /** the parking orbit's target height */
   parkAlt = 185_000;
+  /** the launch azimuth, degrees from north (90: due east) */
+  azimuth = 90;
   /** a commanded burn: along the velocity until the velocity reaches a target speed at the current radius' energy */
   private burnTarget: { energy: number; label: string; done: string } | null = null;
   /** capsule mass after separating (Orion) */
@@ -96,6 +100,7 @@ export class LaunchFlight {
     const pad = add(add(p0, scale(ax.x, padOffset[0])), scale(ax.z, padOffset[1]));
     const R = len(pad);
     this.r = scale(pad, (R + 0) / R);
+    this.padEcef = pad;
     this.v = cross([0, EARTH.spin, 0], this.r);
     this.axis = norm(this.r);
     this.boosterProp = vehicle.boosters.stage.prop * vehicle.boosters.count;
@@ -143,6 +148,13 @@ export class LaunchFlight {
     this.phase = 'boost';
     this.t = 0;
     const V = this.vehicle;
+    if (V.boosters.count === 0) {
+      // (Falcon 9: no strap-ons, the first stage is the core)
+      this.phase = 'core';
+      this.boosters = false;
+      this.say(`Liftoff! All nine Merlins: ${(V.liftoffThrust / 1e6).toFixed(1)} MN. Falcon 9 clears the tower and rolls onto its heading, northeast up the coast.`, 'good');
+      return;
+    }
     this.say(`Liftoff! ${V.id === 'sls' ? 'Four RS-25s and two solid boosters' : 'All 27 Merlins'}: ${(V.liftoffThrust / 1e6).toFixed(1)} MN.`, 'good');
   }
 
@@ -229,9 +241,10 @@ export class LaunchFlight {
       if (alt < 300) want = up;
       else if (vA < 90) {
         // the pitch kick: lean toward the launch azimuth (due east, out over the sea)
-        const { E } = enu(PAD.lat, PAD.lon);
-        const east = norm(rotY(E, earthAngle(this.t)));
-        want = norm(add(up, scale(east, 0.1)));
+        const { E, N } = enu(PAD.lat, PAD.lon);
+        const az = this.azimuth * D2R;
+        const head = norm(rotY(add(scale(N, Math.cos(az)), scale(E, Math.sin(az))), earthAngle(this.t)));
+        want = norm(add(up, scale(head, 0.1)));
       } else if (this.phase !== 'upper' && alt < 60_000) {
         // the gravity turn: fly along the airflow, no lower than a pitch profile
         want = norm(va);
@@ -275,7 +288,8 @@ export class LaunchFlight {
         F = c.thrust;
         this.throttle = th;
         this.coreProp -= c.mdot * h;
-        if (this.coreProp <= V.core.prop * 0.01 || (V.id === 'sls' && this.orbit().pe > -40_000 && this.orbit().ap > this.parkAlt)) this.dropCore();
+        // (Falcon 9 keeps about a tenth of its propellant to fly home to the drone ship)
+        if (this.coreProp <= V.core.prop * (V.id === 'falcon-9' ? 0.1 : 0.01) || (V.id === 'sls' && this.orbit().pe > -40_000 && this.orbit().ap > this.parkAlt)) this.dropCore();
       } else {
         const u = engineOut(V.upper.engine, 1, 1, atm.p);
         F = u.thrust;
@@ -395,9 +409,43 @@ export class LaunchFlight {
     const V = this.vehicle;
     this.coreOn = false;
     this.phase = 'upper';
+    if (V.id === 'falcon-9') {
+      // the first stage flies home to the drone ship, waiting where it will come down
+      const st: FreeStage = { name: V.core.name, r: this.r, v: addScaled(this.v, this.axis, -2), axis: this.axis, dry: V.core.dry, prop: this.coreProp, engines: 0, throttle: 1, phase: 'coast', t: 0, lz: null, side: 0, legs: 0, fins: 0, land: true };
+      st.lz = this.predictLanding(st);
+      this.free.push(st);
+      this.say(`MECO at ${(this.alt / 1000).toFixed(0)} km, ${(len(this.v) / 1000).toFixed(2)} km/s. Stage separation: the second stage lights its Merlin Vacuum, and the first stage flips round, grid fins out, for the drone ship ${Math.round(this.downrange(st.lz) / 1000)} km downrange.`, 'good');
+      return;
+    }
     this.free.push({ name: V.core.name, r: this.r, v: addScaled(this.v, this.axis, -2), axis: this.axis, dry: V.core.dry, prop: 0, engines: 0, throttle: 0, phase: 'fall', t: 0, lz: null, side: 0, legs: 0, fins: 0, land: false });
     this.say(V.id === 'sls' ? `Core stage cutoff, ${(this.alt / 1000).toFixed(0)} km, ${(len(this.v) / 1000).toFixed(2)} km/s. The core stage separates; the ICPS lights its RL10.` : `MECO: the centre core shuts down at ${(this.alt / 1000).toFixed(0)} km and separates. The second stage lights its Merlin Vacuum.`, 'good');
   }
+
+  /** where a stage let go now would come down (Earth-fixed), flying its entry burn but not steering */
+  private predictLanding(st: FreeStage): V3 {
+    const ghost: FreeStage = { ...st, land: false, lz: null, axis: [...st.axis] as V3, r: [...st.r] as V3, v: [...st.v] as V3 };
+    let t = this.t;
+    for (let i = 0; i < 20_000 && ghost.phase !== 'gone'; i++) {
+      const before = ghost.r;
+      this.stepFree(ghost, 0.1);
+      t += 0.1;
+      if ((ghost.phase as string) === 'gone') {
+        // back to the ground crossing, then Earth-fixed
+        const R0 = len(before) - EARTH.R, R1 = len(ghost.r) - EARTH.R;
+        const k = R0 / Math.max(1e-6, R0 - R1);
+        const hit = add(before, scale(sub(ghost.r, before), k));
+        return rotY(scale(norm(hit), EARTH.R + 0.5), -earthAngle(t));
+      }
+    }
+    return rotY(scale(norm(ghost.r), EARTH.R + 0.5), -earthAngle(t));
+  }
+
+  /** ground distance from the pad to an Earth-fixed point */
+  downrange(p: V3): number {
+    const pad = rotY(this.padEcef, 0);
+    return Math.acos(Math.max(-1, Math.min(1, dot(norm(pad), norm(p))))) * EARTH.R;
+  }
+  private padEcef: V3 = [0, 0, 0];
 
   private dropFairing(): void {
     /* the mission's renderer flies the halves off; nothing here carries mass any more */
@@ -412,6 +460,11 @@ export class LaunchFlight {
 
   /** the side boosters' flight home (and anything falling) */
   private stepFree(f: FreeStage, h: number): void {
+    if (f.phase === 'landed' && f.at) {
+      f.r = rotY(f.at, earthAngle(this.t));
+      f.v = cross([0, EARTH.spin, 0], f.r);
+      return;
+    }
     if (f.phase === 'gone' || f.phase === 'landed') return;
     f.t += h;
     const R = len(f.r);
@@ -463,13 +516,15 @@ export class LaunchFlight {
         f.phase = 'entry';
         f.engines = 3;
         if (f.side < 0) this.say('Entry burn: three engines light again to slow the boosters through the thickest heating.', 'info');
+        else if (f.side === 0 && f.land) this.say('Entry burn: the first stage relights three engines to slow down through the thickest heating.', 'info');
       }
       if (alt < 40_000 && dot(f.v, up) < 0) f.phase = 'fall';
     } else if (f.phase === 'entry') {
       f.axis = turnToward(f.axis, norm(scale(va, -1)), h * 8 * D2R);
       F = engineOut(E, f.engines, 1, atm.p).thrust;
       f.prop -= engineOut(E, f.engines, 1, atm.p).mdot * h;
-      if (vA < 520 || f.prop < this.vehicle.boosters.stage.prop * 0.035) {
+      // (Falcon 9's stage, alone, can afford a longer entry burn: it keeps less in reserve for the landing)
+      if (vA < 520 || f.prop < this.vehicle.boosters.stage.prop * (this.vehicle.id === 'falcon-9' ? 0.018 : 0.035)) {
         f.phase = 'fall';
         f.engines = 0;
       }
@@ -495,6 +550,7 @@ export class LaunchFlight {
           f.phase = 'landing';
           f.engines = 1;
           if (f.side < 0) this.say('Landing burn: one engine each. The legs swing down.', 'info');
+          else if (f.side === 0) this.say('Landing burn: the centre engine relights and the four legs swing down over the drone ship.', 'info');
         }
       }
       if (alt < 0) {
@@ -531,7 +587,9 @@ export class LaunchFlight {
         if (miss0 < 40) f.r = lz;
         f.v = lzVel;
         f.axis = up;
+        f.at = rotY(f.r, -earthAngle(this.t));
         const miss = len(horiz);
+        if (f.side === 0) this.say(miss < 40 ? `The first stage has landed on the drone ship A Shortfall of Gravitas, ${miss.toFixed(1)} m from the centre of the deck. It will fly again.` : `The first stage came down ${Math.round(miss)} m off the drone ship.`, miss < 40 ? 'good' : 'bad');
         if (f.side > 0) this.say(miss < 40 ? `Both side boosters have landed on Landing Zones 1 and 2, seconds apart (${miss.toFixed(1)} m from the centre). They will fly again.` : `A side booster came down ${Math.round(miss)} m off its landing zone.`, miss < 40 ? 'good' : 'bad');
         return;
       }
@@ -544,7 +602,7 @@ export class LaunchFlight {
     f.r = addScaled(f.r, f.v, h);
     if (f.phase !== 'landing' && f.lz && len(f.r) < len(rotY(f.lz, earthAngle(this.t))) - 1 && f.land) {
       f.phase = 'gone';
-      this.say('A side booster missed the landing zone.', 'bad');
+      this.say(f.side === 0 ? 'The first stage missed the drone ship.' : 'A side booster missed the landing zone.', 'bad');
     }
     if (f.t > 1200) f.phase = 'gone';
   }

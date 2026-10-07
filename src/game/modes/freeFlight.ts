@@ -4,11 +4,15 @@ import * as THREE from 'three';
 import { GameMode, ModeStatus, ResultButton } from './mode';
 import { AIRFIELD_BY_ID, airfieldsOf, fromRunwayLocal, activeMap } from '../../world/islands';
 import { spawnOnRunway, spawnInAir } from '../spawn';
-import { FT } from '../../core/constants';
+import { FT, NM } from '../../core/constants';
+import { Tanker } from '../tanker';
+import { setMissionObjective } from '../../avionics/nav';
 
 export class FreeFlightMode extends GameMode {
   private deadTimer = 0;
   private landedAnnounced = false;
+  /** the KC-46 on its racetrack off the base */
+  private tanker: Tanker | null = null;
 
   start(): void {
     const h = this.host;
@@ -18,6 +22,10 @@ export class FreeFlightMode extends GameMode {
     h.picture.gciEnabled.blue = true;
     h.picture.gciEnabled.red = false;
     const f = this.base();
+    // a tanker on a racetrack 15 NM out along the runway heading
+    const tc = fromRunwayLocal(f, 15 * NM, 0);
+    this.tanker = new Tanker(new THREE.Vector3(tc.x, 0, tc.z), f.heading);
+    h.scene?.add(this.tanker.model.group);
     if (p.spec.airLaunch) {
       h.order(
         'X-15 RESEARCH FLIGHT',
@@ -28,7 +36,7 @@ export class FreeFlightMode extends GameMode {
     }
     h.order(
       'FREE FLIGHT',
-      `${p.spec.name} at ${f.name}. The whole ${activeMap.sizeNm} x ${activeMap.sizeNm} NM theater of ${activeMap.name} is yours. Watch the afterburner fuel burn. Land on any BLUE runway and press [H] to rearm & refuel.`,
+      `${p.spec.name} at ${f.name}. The whole ${activeMap.sizeNm} x ${activeMap.sizeNm} NM theater of ${activeMap.name} is yours. Watch the afterburner fuel burn. Land on any BLUE runway and press [H] to rearm & refuel, or join the KC-46 tanker orbiting 15 NM out at 22,000 ft and take fuel in the air.`,
       12,
     );
   }
@@ -92,6 +100,20 @@ export class FreeFlightMode extends GameMode {
       h.message(`WELCOME TO ${f.name}${f.team === 'blue' ? ' — STOP AND PRESS [H] TO REARM & REFUEL' : ' (ENEMY FIELD)'}`, f.team === 'blue' ? 'good' : 'warn', 8);
     }
     if (!p.fm.onGround && p.fm.agl > 300) this.landedAnnounced = false;
+    // the tanker, and the arrow to it once the fuel runs low
+    const tk = this.tanker;
+    if (tk) {
+      tk.update(dt, p, (t, k) => h.message(t, k ?? 'info', 6));
+      const nm = p.fm.pos.distanceTo(tk.pos) / NM;
+      const low = p.fm.fuelTotal < (p.spec.internalFuel + p.fm.fuelExternalCap) * 0.55;
+      setMissionObjective(low && nm > 1.5 && tk.kind !== 'none' ? { name: 'TANKER', short: 'TKR', x: tk.pos.x, z: tk.pos.z, y: tk.pos.y, hint: 'KC-46 · TAKE FUEL' } : null);
+    }
+  }
+
+  dispose(): void {
+    this.tanker?.model.group.removeFromParent();
+    this.tanker = null;
+    setMissionObjective(null);
   }
 
   status(): ModeStatus {
@@ -102,7 +124,7 @@ export class FreeFlightMode extends GameMode {
       blue: 1,
       red: 0,
       timer: this.elapsed,
-      objective: p ? `ALT ${Math.round(p.fm.pos.y / FT)} FT · FUEL ${Math.round(fuelMin)} MIN AT THIS POWER` : '',
+      objective: !p ? '' : this.tanker?.cue ? this.tanker.cue : `ALT ${Math.round(p.fm.pos.y / FT)} FT · FUEL ${Math.round(fuelMin)} MIN AT THIS POWER${this.tanker && this.tanker.kind !== 'none' ? ` · TANKER ${Math.round(p.fm.pos.distanceTo(this.tanker.pos) / NM)} NM` : ''}`,
     };
   }
 

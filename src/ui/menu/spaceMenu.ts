@@ -25,7 +25,7 @@ export interface SpaceMenuCallbacks {
   onMars: () => void;
   /** a rover mission on Mars (by id) */
   onRover: (id: string) => void;
-  onLaunchMission: (id: 'clipper' | 'artemis') => void;
+  onLaunchMission: (id: 'clipper' | 'artemis' | 'iss') => void;
   onExplore: () => void;
 }
 
@@ -274,6 +274,7 @@ export class SpaceMenu {
       ['ORBITAL FLIGHT', 'Saturn V: reach orbit, go to the Moon, land', 'LEO', () => this.chooseSpawn()],
       ['STARSHIP TO MARS', 'Fly Starship from the pad to Mars and land', 'MARS', () => this.cb.onMars()],
       ['FALCON HEAVY · EUROPA CLIPPER', 'Twin booster landings, then the long way round to Jupiter', 'JUPITER', () => this.cb.onLaunchMission('clipper'), 'NEW'],
+      ['FALCON 9 · CREW DRAGON TO THE ISS', 'A drone ship landing, then chase down the station and dock', 'ISS', () => this.cb.onLaunchMission('iss'), 'NEW'],
       ['SLS · ARTEMIS II', 'Four astronauts round the far side of the Moon and home', 'MOON', () => this.cb.onLaunchMission('artemis'), 'NEW'],
       ['SOLAR SYSTEM EXPLORER', 'Fly to any planet or moon at real scale, on the real orbits', 'TOUR', () => this.cb.onExplore(), 'NEW'],
       ['SEVEN MINUTES OF TERROR', 'Mars 2020: entry, parachute, sky crane, then drive Perseverance', 'MARS', () => this.cb.onRover('m2020-edl'), 'NEW'],

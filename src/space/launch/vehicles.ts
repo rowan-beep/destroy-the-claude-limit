@@ -12,6 +12,11 @@
 // top and Orion with its European Service Module: 98 m, 2,600 t, 39.1 MN at
 // liftoff, more than the Saturn V. Artemis I flew it round the Moon in 2022;
 // Artemis II takes four astronauts round the far side and home.
+//
+// SpaceX Falcon 9 Block 5 with Crew Dragon: nine Merlins and 7.6 MN at liftoff,
+// one Merlin Vacuum on the second stage. The first stage lands on a drone ship
+// out in the Atlantic, about 540 km downrange; Dragon flies on to the
+// International Space Station. No fairing: Dragon's nosecone covers its hatch.
 
 export const G0 = 9.80665;
 
@@ -41,7 +46,7 @@ export interface StageDef {
 }
 
 export interface VehicleDef {
-  id: 'falcon-heavy' | 'sls';
+  id: 'falcon-heavy' | 'sls' | 'falcon-9';
   name: string;
   maker: string;
   height: number;
@@ -84,6 +89,28 @@ export const FALCON_HEAVY: VehicleDef = {
     'Three Falcon 9 cores side by side: 27 Merlin engines, 22.8 MN at liftoff.',
     'The side boosters fly back and land at the Cape, seconds apart, 8 minutes after liftoff.',
     'First flight 6 February 2018, with a Tesla Roadster as the payload.',
+  ],
+};
+
+export const FALCON_9: VehicleDef = {
+  id: 'falcon-9',
+  name: 'Falcon 9',
+  maker: 'SpaceX',
+  height: 70,
+  liftoffMass: 549_054,
+  liftoffThrust: 7_607_000,
+  // (no strap-ons; the first stage's figures here serve its flight home)
+  boosters: { count: 0, stage: { name: 'First stage', dry: 25_600, prop: 395_700, engine: MERLIN, length: 47.7, diameter: 3.66 }, land: true },
+  core: { name: 'First stage', dry: 25_600, prop: 395_700, engine: MERLIN, length: 47.7, diameter: 3.66 },
+  upper: { name: 'Second stage', dry: 3_900, prop: 92_670, engine: MVAC, length: 13.8, diameter: 3.66 },
+  payload: { name: 'Crew Dragon', mass: 12_500 },
+  fairing: { name: 'none', mass: 0, jettisonAlt: Infinity },
+  area: Math.PI * 1.83 * 1.83,
+  cd: 0.45,
+  facts: [
+    'Nine Merlin 1D engines: 7.6 MN at liftoff.',
+    'The first stage lands on a drone ship 540 km out in the Atlantic and flies again: one booster has flown over 25 times.',
+    'Crew Dragon carries up to four astronauts and docks to the ISS on its own.',
   ],
 };
 

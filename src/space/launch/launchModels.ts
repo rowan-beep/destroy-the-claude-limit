@@ -15,6 +15,7 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { buildDragon, DragonRig } from './iss';
 
 const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 
@@ -336,6 +337,35 @@ export function buildFalconHeavy(): FalconRig {
   centre.group.add(upper);
   for (const c of [...sides, centre]) poseCore(c, 0, 0);
   return { group, sides, centre, upper, mvac: V(0, -3.7, 0), fairing, payload };
+}
+
+// ---------------------------------------------------------------- Falcon 9 and Crew Dragon
+export interface F9Rig {
+  group: THREE.Group;
+  core: FalconCore;
+  upper: THREE.Group;
+  mvac: THREE.Vector3;
+  dragon: DragonRig;
+}
+
+/** Falcon 9 Block 5 with Crew Dragon on top: the first stage, the interstage, the second stage, Dragon and its trunk */
+export function buildFalcon9(): F9Rig {
+  const m = M();
+  const group = new THREE.Group();
+  const core = falconCore('centre', 0);
+  group.add(core.group);
+  const upper = new THREE.Group();
+  upper.position.y = 47.7;
+  upper.add(mesh([cyl(1.83, 1.83, 12.0, 0, 64)], m.white));
+  upper.add(mesh([at(lathe([[0.45, 0], [0.7, -0.6], [1.1, -2.0], [1.6, -3.6], [1.62, -3.7]], 48), 0, 0, 0)], m.copper));
+  // the payload adapter ring between the second stage and the trunk
+  upper.add(mesh([cyl(1.83, 1.86, 0.4, 12.0, 64)], m.black));
+  const dragon = buildDragon();
+  dragon.group.position.y = 12.4;
+  upper.add(dragon.group);
+  core.group.add(upper);
+  poseCore(core, 0, 0);
+  return { group, core, upper, mvac: V(0, -3.7, 0), dragon };
 }
 
 // ---------------------------------------------------------------- SLS

@@ -44,6 +44,8 @@ export interface ModeHost {
   readonly sim: Sim;
   readonly picture: TeamPicture;
   readonly config: MissionConfig;
+  /** the world scene, for things a mode draws itself (the tanker) */
+  readonly scene?: THREE.Scene;
   player: Aircraft | null;
   createPlayer(): Aircraft;
   message(text: string, kind?: MsgKind, seconds?: number): void;

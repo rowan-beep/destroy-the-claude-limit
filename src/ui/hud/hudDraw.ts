@@ -162,7 +162,7 @@ export class HudPainter {
     const c = this.ctx;
     const fm = p.fm;
     const t = performance.now();
-    const gy = Math.max(0, g.sim.grid.height(o.x, o.z)) + 30;
+    const gy = o.y ?? Math.max(0, g.sim.grid.height(o.x, o.z)) + 30;
     const pt = this.project(cam, _v3.set(o.x, gy, o.z));
     const nm = Math.hypot(o.x - fm.pos.x, o.z - fm.pos.z) / NM;
     const rel = ((bearingXZ(fm.pos.x, fm.pos.z, o.x, o.z) - fm.heading + 540) % 360) - 180;
@@ -191,7 +191,7 @@ export class HudPainter {
       c.fill();
       c.stroke();
       this.text(label, pt.x, y - 20, col(1), 14, 'center', true);
-      this.text('GO HERE', pt.x, y - 37, col(0.75), 11, 'center', true);
+      this.text(o.hint ?? 'GO HERE', pt.x, y - 37, col(0.75), 11, 'center', true);
       c.restore();
       return;
     }

@@ -161,6 +161,10 @@ export class Game implements ModeHost {
     audio.levels = { ...settings.audio };
   }
 
+  get scene(): THREE.Scene {
+    return this.renderer.scene;
+  }
+
   setState(s: GameState): void {
     this.state = s;
     if (s !== 'playing') this.autoFlyPanel?.hide();
