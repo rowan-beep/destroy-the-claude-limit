@@ -300,6 +300,10 @@ export class MarsView {
   private patchAt: { c: Vec; outer: number } | null = null;
   private rocks: THREE.InstancedMesh[] = [];
   private rocksAt: Vec | null = null;
+  /** the boulders round the ground point (lat, lon in degrees, size in m), for anything driving among them */
+  rockList: { lat: number; lon: number; size: number }[] = [];
+  /** bumped every time the boulders are laid out again */
+  rockGen = 0;
   private fog = new THREE.FogExp2(0xc08a60, 0);
   private texReady = false;
   /** the renderer, for capturing the sky as the light that fills every shadow */
@@ -317,6 +321,8 @@ export class MarsView {
   readonly wind = new MarsWind();
   /** how dusty the air is today (0 clear .. 1 a dusty, hazy day) */
   dustiness = 0.75;
+  /** scale on the boulders' sizes (a rover's landing site is gentler than a Starship's) */
+  rockScale = 1;
   private fogSave = { sun: new Float32Array(4), col: new Float32Array(3) };
   private patchJob: PatchJob | null = null;
   private patchIndex: THREE.BufferAttribute | null = null;
@@ -834,6 +840,8 @@ export class MarsView {
     const alb = [0, 0, 0];
     // rocks tinted from dark basalt to rusty, all dusted with the local soil's colour
     const tones: [number, number, number][] = [[0.13, 0.11, 0.1], [0.17, 0.13, 0.11], [0.26, 0.16, 0.11], [0.32, 0.21, 0.14], [0.38, 0.3, 0.24]];
+    this.rockList = [];
+    this.rockGen++;
     for (const rk of this.rocks)
       for (let i = 0; i < PER; i++) {
         // denser close to the ship (where the camera is), thinning out to 700 m
@@ -841,8 +849,9 @@ export class MarsView {
         const a = rho / R;
         const d = cx.clone().multiplyScalar(Math.cos(a)).addScaledVector(t1, Math.sin(a) * Math.cos(th)).addScaledVector(t2, Math.sin(a) * Math.sin(th)).normalize();
         const lat = Math.asin(d.z) / D2R, lon = Math.atan2(d.y, d.x) / D2R;
-        const size = 0.12 + Math.pow(r(), 5) * 2.4;
+        const size = (0.12 + Math.pow(r(), 5) * 2.4) * this.rockScale;
         const sink = 0.15 + r() * 0.35;
+        if (size > 0.45) this.rockList.push({ lat, lon, size: size * 0.5 });
         const p = d.clone().multiplyScalar(R + marsHeight(lat, lon) - size * 0.62 * sink).sub(P0);
         // sitting on the ground, turned at random and tipped a little
         q.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d)

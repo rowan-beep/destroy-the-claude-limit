@@ -23,6 +23,8 @@ export interface SpaceMenuCallbacks {
   onLaunch: (mode: 'pad' | 'orbit' | 'lunar') => void;
   /** fly Starship from the pad to the ground on Mars */
   onMars: () => void;
+  /** a rover mission on Mars (by id) */
+  onRover: (id: string) => void;
 }
 
 const SEC_KEY = 'triad.space.section';
@@ -255,24 +257,26 @@ export class SpaceMenu {
 
   private renderMissions(): void {
     this.head('MISSIONS', 'Pick where the program goes next.');
-    const items: [string, string, string][] = [
-      ['ORBITAL FLIGHT', 'Reach orbit and come home', 'LEO'],
-      ['LUNAR LANDING', 'Land on the Moon', 'MOON'],
-      ['LUNAR ROVER', 'Drive across the Moon', 'MOON'],
-      ['STARSHIP TO MARS', 'Fly Starship from the pad to Mars and land', 'MARS'],
+    const items: [string, string, string, (() => void) | null, string?][] = [
+      ['ORBITAL FLIGHT', 'Saturn V: reach orbit, go to the Moon, land', 'LEO', () => this.chooseSpawn()],
+      ['STARSHIP TO MARS', 'Fly Starship from the pad to Mars and land', 'MARS', () => this.cb.onMars()],
+      ['SEVEN MINUTES OF TERROR', 'Mars 2020: entry, parachute, sky crane, then drive Perseverance', 'MARS', () => this.cb.onRover('m2020-edl'), 'NEW'],
+      ['JEZERO SAMPLE HUNT', 'Perseverance: core rocks, zap with the laser, fly Ingenuity', 'ROVER', () => this.cb.onRover('m2020-jezero'), 'NEW'],
+      ['GALE CRATER', 'Curiosity: drill the lake bed, climb toward Mount Sharp', 'ROVER', () => this.cb.onRover('msl-gale'), 'NEW'],
     ];
-    items.forEach(([t, s, tag], i) => {
-      const open = i === 0 || i === 3;
+    items.forEach(([t, s, tag, run, badge], i) => {
+      const open = !!run;
       const r = el('div', 'sx2-card' + (open ? ' open' : ' locked'), this.side);
       el('div', 'sx2-card-n', r, String(i + 1).padStart(2, '0'));
       const tx = el('div', 'sx2-card-t', r);
       const tl = el('div', 'sx2-card-l', tx, t);
       el('span', 'sx2-tag', tl, tag);
+      if (badge) el('span', 'sx2-tag', tl, badge).style.background = '#c4532b';
       el('div', 'sx2-card-s', tx, s);
-      el('div', 'sx2-lock', r, open ? 'FLY' : 'SOON');
-      if (open) r.addEventListener('click', () => (i === 3 ? this.cb.onMars() : this.chooseSpawn()));
+      el('div', 'sx2-lock', r, open ? (tag === 'ROVER' ? 'DRIVE' : 'FLY') : 'SOON');
+      if (run) r.addEventListener('click', run);
     });
-    el('div', 'sx2-note', this.side, 'Orbital flight: launch the Saturn V from Pad 1, or start in a parking orbit, and bring the crew home. Starship to Mars: launch Super Heavy and Starship, refuel in orbit, ride the transfer window to Mars, and land.');
+    el('div', 'sx2-note', this.side, 'Rover missions drive NASA\'s Perseverance and Curiosity on the real ground of their landing sites, at their real top speed (use the time warp).');
   }
 
   /** pick where the flight starts */
