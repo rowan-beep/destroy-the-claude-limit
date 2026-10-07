@@ -476,12 +476,14 @@ export function groundTint(px: number, py: number, pz: number, detail: number, o
   const big = fbm(px / 9000, py / 9000, pz / 9000, 3);
   const mid = fbm(px / 1400 + 7, py / 1400, pz / 1400, 3);
   const fine = fbm(px / 160, py / 160 + 3, pz / 160, 2);
-  // low ground collects dark sand, high ground bright dust
-  const sand = Math.max(0, Math.min(1, 0.45 - detail / 120 + big * 0.6 + mid * 0.3));
-  const k = 0.88 + 0.22 * big + 0.12 * mid + 0.06 * fine;
-  out[0] *= k * (1 - 0.32 * sand);
-  out[1] *= k * (1 - 0.3 * sand);
-  out[2] *= k * (1 - 0.18 * sand);
+  // low ground collects dark basaltic sand in sharp-edged patches; rises carry bright dust
+  const sandRaw = 0.4 - detail / 260 + big * 0.9 + mid * 0.45;
+  const sand = Math.max(0, Math.min(1, (sandRaw - 0.35) * 3.2));
+  const dust = Math.max(0, Math.min(1, (detail / 220 - 0.2 - mid * 0.6) * 2.2));
+  const k = 0.84 + 0.36 * big + 0.2 * mid + 0.1 * fine;
+  out[0] *= k * (1 - 0.5 * sand) * (1 + 0.16 * dust);
+  out[1] *= k * (1 - 0.46 * sand) * (1 + 0.2 * dust);
+  out[2] *= k * (1 - 0.3 * sand) * (1 + 0.24 * dust);
 }
 
 /** small craters from a grid of cells in metres on the sphere: each cell may hold one */
@@ -505,30 +507,48 @@ function smallCraters(px: number, py: number, pz: number, cell: number, maxR: nu
 }
 
 /** relief below the map's resolution (m): hills and mesas, dune fields, craters of every size */
-export function marsDetail(px: number, py: number, pz: number): number {
+export function marsDetail(px: number, py: number, pz: number, spacing = 0): number {
+  // band-limited to the mesh: features smaller than about three vertex spacings fade out
+  // (sampled more sparsely they would alias into a jagged horizon)
+  const lod = (wave: number) => (spacing <= 0 ? 1 : Math.max(0, Math.min(1, (wave / spacing - 3) / 3)));
   // big rolling hills and ridges, up to the best part of a kilometre
   const big = 1 - Math.abs(fbm(px / 42000 + 3, py / 42000, pz / 42000, 3));
   let h = 820 * (big * big - 0.42);
   // hills a few kilometres across, sharp-crested
-  const rid = 1 - Math.abs(fbm(px / 11000, py / 11000, pz / 11000, 4));
-  h += 380 * (rid * rid - 0.45);
-  // flat-topped rises and the scarps round them
-  const mesa = fbm(px / 7000 + 11, py / 7000, pz / 7000, 3);
-  h += 210 * Math.max(-0.4, Math.min(0.35, mesa * 1.6));
-  // knobs and swells down to a few hundred metres
-  h += 70 * fbm(px / 2600, py / 2600, pz / 2600, 4);
-  // dunes in the low ground: long crests a few hundred metres apart
-  const field = fbm(px / 20000 + 5, py / 20000, pz / 20000, 2);
-  if (field > 0.05) {
-    const warp = fbm(px / 2500, py / 2500, pz / 2500, 2) * 900;
-    const w = Math.sin((px * 0.8 + py * 0.6 + warp) / 70);
-    h += Math.min(1, (field - 0.05) * 5) * 9 * w * w;
+  const kR = lod(11000);
+  if (kR > 0) {
+    const rid = 1 - Math.abs(fbm(px / 11000, py / 11000, pz / 11000, spacing > 2500 ? 2 : 4));
+    h += kR * 380 * (rid * rid - 0.45);
   }
-  h += 6 * fbm(px / 240, py / 240, pz / 240, 3);
-  h += smallCraters(px, py, pz, 6000, 2600, 5);
-  h += smallCraters(px, py, pz, 900, 380, 11);
-  h += smallCraters(px, py, pz, 160, 60, 23);
-  h += smallCraters(px, py, pz, 32, 10, 37);
+  // flat-topped rises and the scarps round them
+  const kM = lod(7000);
+  if (kM > 0) {
+    const mesa = fbm(px / 7000 + 11, py / 7000, pz / 7000, 3);
+    h += kM * 210 * Math.max(-0.4, Math.min(0.35, mesa * 1.6));
+  }
+  // knobs and swells down to a few hundred metres
+  const kK = lod(2600);
+  if (kK > 0) h += kK * 70 * fbm(px / 2600, py / 2600, pz / 2600, 4);
+  // dunes in the low ground: long crests a few hundred metres apart
+  const kD = lod(300);
+  if (kD > 0) {
+    const field = fbm(px / 20000 + 5, py / 20000, pz / 20000, 2);
+    if (field > 0.05) {
+      const warp = fbm(px / 2500, py / 2500, pz / 2500, 2) * 900;
+      const w = Math.sin((px * 0.8 + py * 0.6 + warp) / 70);
+      h += kD * Math.min(1, (field - 0.05) * 5) * 9 * w * w;
+    }
+  }
+  const kF = lod(240);
+  if (kF > 0) h += kF * 6 * fbm(px / 240, py / 240, pz / 240, 3);
+  const kC1 = lod(5200);
+  if (kC1 > 0) h += kC1 * smallCraters(px, py, pz, 6000, 2600, 5);
+  const kC2 = lod(760);
+  if (kC2 > 0) h += kC2 * smallCraters(px, py, pz, 900, 380, 11);
+  const kC3 = lod(120);
+  if (kC3 > 0) h += kC3 * smallCraters(px, py, pz, 160, 60, 23);
+  const kC4 = lod(20);
+  if (kC4 > 0) h += kC4 * smallCraters(px, py, pz, 32, 10, 37);
   return h;
 }
 
@@ -540,9 +560,9 @@ export function marsHeight(lat: number, lon: number): number {
 }
 
 /** the height split into the map's part and the local relief (m), and the point on the sphere */
-export function marsHeightParts(lat: number, lon: number): { base: number; detail: number; px: number; py: number; pz: number } {
+export function marsHeightParts(lat: number, lon: number, spacing = 0): { base: number; detail: number; px: number; py: number; pz: number } {
   const cl = Math.cos(lat * D2R);
   const R = R_KM * 1000;
   const px = R * cl * Math.cos(lon * D2R), py = R * cl * Math.sin(lon * D2R), pz = R * Math.sin(lat * D2R);
-  return { base: mapHeightKm(lat, lon) * 1000, detail: marsDetail(px, py, pz), px, py, pz };
+  return { base: mapHeightKm(lat, lon) * 1000, detail: marsDetail(px, py, pz, spacing), px, py, pz };
 }

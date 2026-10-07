@@ -312,7 +312,8 @@ export class MarsWind {
       (u.wind.value as THREE.Vector2).set(we * (1 + L.h / 900), wn * (1 + L.h / 900));
       u.time.value = this.t;
       // dense near the ground, thinning with height (scale height ~ 300 m for the blown dust)
-      u.alpha.value = s.dustiness * low * 0.16 * Math.exp(-L.h / 320) * (0.75 + 0.25 * this.gust);
+      // (each sheet is thin: seen edge-on from the ground they stack up, so keep each faint)
+      u.alpha.value = s.dustiness * low * 0.055 * Math.exp(-L.h / 320) * (0.75 + 0.25 * this.gust);
       (u.lit.value as THREE.Color).copy(s.lit);
       L.mesh.visible = u.alpha.value > 0.002;
     }

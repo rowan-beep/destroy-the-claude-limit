@@ -113,7 +113,8 @@ export class HeadModel {
     // vibration: engine, afterburner, runway, buffet near the AoA limit, transonic, the gun
     const t = this.t;
     const thr = clamp(fm.rpm.reduce((a, b) => a + b, 0) / Math.max(1, fm.rpm.length), 0, 1.1);
-    const buffet = smoothstep(14 * DEG, 24 * DEG, Math.abs(fm.alpha)) + smoothstep(0.9, 0.98, fm.mach) * (1 - smoothstep(1.02, 1.12, fm.mach)) * 0.5;
+    // the airframe's buffet, straight from the flight model
+    const buffet = fm.buffet * 1.4;
     const runway = fm.onGround ? clamp(fm.gs / 70, 0, 1) : 0;
     const vib =
       0.00022 * thr * rumble(t, 95, 1) +

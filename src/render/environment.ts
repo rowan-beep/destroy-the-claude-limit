@@ -7,6 +7,14 @@ import { clamp01, lerp, smoothstep } from '../core/math';
 import { FOG_SUN, FOG_SUN_COLOR } from './fog';
 import { NIGHT } from './night';
 
+/**
+ * The sun as the camera sees it, for the lens effects: xyz = direction to the
+ * sun, w = how much of it reaches the camera (0 below the horizon, at night,
+ * under the cloud deck). rgb in SUN_VIEW_COLOR.
+ */
+export const SUN_VIEW = new Float32Array([0, 1, 0, 0]);
+export const SUN_VIEW_COLOR = new Float32Array([1, 0.9, 0.75]);
+
 const SRGB = THREE.SRGBColorSpace;
 
 export type TimeOfDay = 'dawn' | 'morning' | 'noon' | 'afternoon' | 'dusk';
@@ -321,7 +329,15 @@ export class Environment {
     FOG_SUN[1] = this.sunDir.y;
     FOG_SUN[2] = this.sunDir.z;
     FOG_SUN[3] = this.scattering ? (1 + 0.8 * (1 - smoothstep(4, 30, p.sunElev))) * (1 - under) : 0;
+    SUN_VIEW[0] = this.sunDir.x;
+    SUN_VIEW[1] = this.sunDir.y;
+    SUN_VIEW[2] = this.sunDir.z;
+    SUN_VIEW[3] = NIGHT.dark ? 0 : smoothstep(-1.5, 3, p.sunElev) * (1 - under);
     const sc = this.skyMat.uniforms.sunColor.value as THREE.Color;
+    const scm = Math.max(1e-3, sc.r, sc.g, sc.b);
+    SUN_VIEW_COLOR[0] = sc.r / scm;
+    SUN_VIEW_COLOR[1] = sc.g / scm;
+    SUN_VIEW_COLOR[2] = sc.b / scm;
     FOG_SUN_COLOR[0] = sc.r;
     FOG_SUN_COLOR[1] = sc.g;
     FOG_SUN_COLOR[2] = sc.b;

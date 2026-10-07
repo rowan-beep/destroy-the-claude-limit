@@ -14,6 +14,8 @@ import { VisionShader, VisionState } from './vision';
 import { NightShader, NIGHT, updateLights } from './night';
 import { DropletShader, ScreenDroplets } from './droplets';
 import { HeatHazeShader, HazeSource, writeHaze } from './heatHaze';
+import { FinishShader, SunShaftShader } from './cinematic';
+import { SUN_VIEW, SUN_VIEW_COLOR } from './environment';
 
 export type GraphicsSettings = Pick<
   GraphicsOptions,
@@ -159,6 +161,11 @@ export class GameRenderer {
   private adaptSlow = 0;
   private adaptFast = 0;
   private sanitizePass!: ShaderPass;
+  /** god rays and lens ghosts from the sun (HDR), and the final sharpen / grain / speed pass */
+  private sunPass!: ShaderPass;
+  private finishPass!: ShaderPass;
+  /** the speed of the camera's aircraft (m/s), for the speed blur */
+  private speed = 0;
 
   constructor(container: HTMLElement) {
     installAltitudeFog();
@@ -208,11 +215,16 @@ export class GameRenderer {
     this.composer.addPass(this.dropletPass);
     this.sanitizePass = new ShaderPass(SanitizeShader);
     this.composer.addPass(this.sanitizePass);
+    this.sunPass = new ShaderPass(SunShaftShader);
+    this.sunPass.enabled = false;
+    this.composer.addPass(this.sunPass);
     this.composer.addPass(this.bloomPass);
     this.composer.addPass(this.nightPass);
     this.composer.addPass(this.visionPass);
     this.composer.addPass(this.outputPass);
     this.composer.addPass(this.gradePass);
+    this.finishPass = new ShaderPass(FinishShader);
+    this.composer.addPass(this.finishPass);
 
     window.addEventListener('resize', () => this.resize());
     this.resize();
@@ -263,8 +275,41 @@ export class GameRenderer {
         rt.dispose();
       }
     }
+    // the camera's look: sharpening on every tier; grain, lens fringes and sun shafts from medium up
+    const fu = this.finishPass.uniforms;
+    const q = g.quality;
+    fu.sharpen.value = q === 'low' ? 0.35 : 0.6;
+    fu.grain.value = q === 'low' ? 0 : 0.022;
+    fu.aberration.value = q === 'low' ? 0 : 0.0014;
     this.camera.fov = g.fov;
     this.resize();
+  }
+
+  /** the aircraft the camera rides with, for the speed blur (m/s) */
+  setSpeed(v: number): void {
+    this.speed = Number.isFinite(v) ? v : 0;
+  }
+
+  /** aim the sun's lens effects for this frame's camera (the game's own scene only) */
+  private aimSun(on: boolean): void {
+    const u = this.sunPass.uniforms;
+    let k = on && this.settings.quality !== 'low' ? SUN_VIEW[3] : 0;
+    if (k > 0.01) {
+      const cam = this.camera;
+      const p = new THREE.Vector3(SUN_VIEW[0], SUN_VIEW[1], SUN_VIEW[2]).multiplyScalar(1e5).add(cam.position).project(cam);
+      // behind the camera (or far off screen) there is nothing to see
+      const off = Math.max(Math.abs(p.x), Math.abs(p.y));
+      if (p.z > 1 || off > 2.2) k = 0;
+      else k *= 1 - THREE.MathUtils.smoothstep(off, 1.1, 2.2);
+      u.sunUv.value = [p.x * 0.5 + 0.5, p.y * 0.5 + 0.5];
+      u.sunColor.value = [SUN_VIEW_COLOR[0], SUN_VIEW_COLOR[1], SUN_VIEW_COLOR[2]];
+    }
+    u.strength.value = k * 0.85;
+    this.sunPass.enabled = k > 0.01;
+    // speed: noticeable from ~500 kt, strongest very fast and low
+    const fu = this.finishPass.uniforms;
+    fu.speedBlur.value = on && this.settings.quality !== 'low' ? THREE.MathUtils.smoothstep(this.speed, 240, 560) * 0.7 : 0;
+    fu.time.value = (performance.now() / 1000) % 1000;
   }
 
   /** Materials must rebuild their shaders after a shadow type change. */
@@ -293,6 +338,10 @@ export class GameRenderer {
     this.composer.setPixelRatio(this.pixelRatio);
     this.composer.setSize(this.width, this.height);
     this.gradePass.uniforms.aspect.value = this.width / Math.max(1, this.height);
+    const fu = this.finishPass.uniforms;
+    fu.texel.value = [1 / Math.max(1, this.width * this.pixelRatio), 1 / Math.max(1, this.height * this.pixelRatio)];
+    fu.aspect.value = this.width / Math.max(1, this.height);
+    this.sunPass.uniforms.aspect.value = this.width / Math.max(1, this.height);
     this.camera.aspect = this.width / this.height;
     this.camera.updateProjectionMatrix();
   }
@@ -394,6 +443,7 @@ export class GameRenderer {
     nu.tube.value = NIGHT.tube ? 1 : 0;
     nu.time.value = performance.now() / 1000;
     (nu.res.value as THREE.Vector2).set(this.width * this.pixelRatio, this.height * this.pixelRatio);
+    this.aimSun(true);
     this.composer.render();
   }
 
@@ -431,6 +481,8 @@ export class GameRenderer {
     this.overlayPass.enabled = false;
     this.visionPass.enabled = false;
     if (toneMapping !== undefined && this.settings.toneMapping === 'neutral') this.renderer.toneMapping = toneMapping;
+    // (other scenes keep their own suns: no shafts or speed blur, but the sharpening and grain)
+    this.aimSun(false);
     this.composer.render();
     this.renderer.toneMapping = tm;
     this.renderPass.scene = s;

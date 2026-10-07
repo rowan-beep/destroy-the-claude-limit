@@ -148,6 +148,11 @@ const AERO: Record<string, AeroData> = {
   TYPHOON: { refMass: 15000, ixx: 18000, iyy: 130000, izz: 145000, cyB: -0.95, cm0: 0, cmA: 0.08, cmQ: -4.5, cmD: 0.33, clP: -0.3, clB: -0.07, clR: 0.06, clD: 0.05, cnB: 0.11, cnR: -0.3, cnP: -0.03, cnD: 0.032, cnDa: -0.005, engineArm: 0.5, rateE: 3.0, rateA: 4.5, rateR: 3 },
 };
 
+/** (the reaction-control jets fly above the air, where nothing stalls) */
+function space0(qbar: number): boolean {
+  return qbar > 600;
+}
+
 export class FlightModel {
   readonly pos = new THREE.Vector3();
   readonly vel = new THREE.Vector3();
@@ -198,6 +203,18 @@ export class FlightModel {
   private nCmdF = 1;
   /** true when the jet is out of controlled flight (stalled / spinning) */
   departed = false;
+  /**
+   * Buffet (0..1): the airflow breaking up over the airframe. It builds from
+   * well short of the AoA limit, in the transonic band where shocks dance on
+   * the wing, and with the speedbrake or gear out at speed. It shakes the jet
+   * for real: small random pitch, roll and yaw moments and a jittery load factor.
+   */
+  buffet = 0;
+  /** filtered noise driving the buffet (pitch, roll, yaw, lift) */
+  private bn = [0, 0, 0, 0];
+  /** the wing that drops past the stall (+1 right, -1 left) and how far it has gone (0..1) */
+  private dropSign = 0;
+  private dropK = 0;
   /** wind + turbulence at the aircraft (world m/s) */
   readonly windVel = new THREE.Vector3();
   private t = Math.random() * 100;
@@ -681,7 +698,24 @@ export class FlightModel {
 
     // ground effect: more lift, less induced drag within a span of the ground
     const ge = Math.pow(1 - clamp(this.agl / b, 0, 1), 2);
-    const cl = this.clOf(alpha, M) * (1 + 0.14 * ge);
+    // --- buffet ---
+    const aMaxB = s.alphaMaxDeg * DEG;
+    const supB = smoothstep(0.88, 1.3, M);
+    // separation creeps forward from the trailing edge well before the limit
+    const aoaBuf = smoothstep(aMaxB * (0.5 + 0.08 * supB), aMaxB + 4 * DEG, Math.abs(alpha));
+    // transonic: shocks on the wing, worse the harder it is loaded
+    const shock = smoothstep(0.82, 0.94, M) * (1 - smoothstep(1.02, 1.15, M)) * (0.25 + 0.75 * smoothstep(2 * DEG, 10 * DEG, Math.abs(alpha)));
+    // the speedbrake and the gear doors in a fast airflow
+    const casB = this.cas / 0.5144;
+    const draggy = this.speedbrakePos * smoothstep(200, 450, casB) * 0.45 + this.gearPos * smoothstep(180, 280, casB) * 0.3;
+    // it takes an airload to shake the airframe: little buffet slow, a lot fast
+    const qk = 0.3 + 0.7 * smoothstep(1500, 16000, this.qbar);
+    const buf = clamp(aoaBuf * 0.95 + shock * 0.7 + draggy, 0, 1) * qk;
+    this.buffet += (buf - this.buffet) * Math.min(1, dt * 8);
+    // band-limited noise: a few to fifteen hertz
+    for (let k = 0; k < 4; k++) this.bn[k] += (Math.random() * 2 - 1 - this.bn[k]) * Math.min(1, dt * (k === 3 ? 22 : 16));
+    const bf = this.buffet;
+    const cl = this.clOf(alpha, M) * (1 + 0.14 * ge) + 0.07 * bf * this.bn[3];
     const cdi = this.cdOf(cl, M) - this.cdOf(0, M);
     // flying sideways costs energy: sideslip drag grows with the square of beta
     const cd = this.cdOf(0, M) + cdi * (1 - 0.45 * ge) + 0.35 * Math.abs(Math.sin(alpha)) * smoothstep(0.35, 0.9, Math.abs(alpha)) + 0.55 * beta * beta;
@@ -729,17 +763,28 @@ export class FlightModel {
     // the Flanker's lifting body pitches up far more gently past the stall
     const kPu = s.tvcDeg > 0 ? 0.45 : 1.6;
     const pitchUp = kPu * Math.max(0, alpha - aPu) * Math.max(0, alpha - aPu);
-    const cmNat = A.cm0 + cmA * alpha + A.cmQ * qhat + pitchUp + (this.damage.pitchBias ?? 0);
+    const cmNat = A.cm0 + cmA * alpha + A.cmQ * qhat + pitchUp + (this.damage.pitchBias ?? 0) + 0.012 * bf * this.bn[0];
     // roll: damping, dihedral effect (grows with AoA), yaw-rate roll, wing rock past the stall
     const over = smoothstep(aMax, aMax + 14 * DEG, alpha);
     const rock = over * 0.018 * Math.sin(this.t * 2.6 + this.rockPhase) * (0.6 + 0.4 * Math.sin(this.t * 0.7));
-    const clNat = A.clP * phat + (A.clB - 0.25 * Math.max(0, alpha)) * beta + A.clR * rhat + rock + this.damage.rollBias * 0.02;
+    // past the stall one wing lets go first: the jet rolls off toward it (a thrust-vectoring
+    // jet, flying there on purpose, holds it far better)
+    const stalled = Math.abs(alpha) > aMax + 3 * DEG && space0(s.reaction ? this.qbar : 1e9);
+    if (stalled) {
+      if (this.dropSign === 0) this.dropSign = Math.random() < 0.5 ? -1 : 1;
+      this.dropK = Math.min(1, this.dropK + dt * 0.9);
+    } else {
+      this.dropK = Math.max(0, this.dropK - dt * 1.5);
+      if (this.dropK === 0) this.dropSign = 0;
+    }
+    const drop = this.dropSign * this.dropK * (s.tvcDeg > 0 ? 0.004 : 0.016) * smoothstep(aMax, aMax + 10 * DEG, Math.abs(alpha));
+    const clNat = A.clP * phat + (A.clB - 0.25 * Math.max(0, alpha)) * beta + A.clR * rhat + rock + this.damage.rollBias * 0.02 + drop + 0.006 * bf * this.bn[1];
     // yaw: weathercock stability fades at high AoA and when supersonic (it can go unstable deep in the stall)
     const cnB = A.cnB * (1 - 0.45 * sup) * (1 - 1.45 * over);
     // asymmetric thrust (an engine out, or damage) yaws toward the dead engine
     let asym = 0;
     if (s.engines === 2) asym = (this.engThrust[0] - this.engThrust[1]) * A.engineArm;
-    const cnNat = cnB * beta + A.cnR * rhat + A.cnP * phat + asym / Math.max(qS * b, 1);
+    const cnNat = cnB * beta + A.cnR * rhat + A.cnP * phat + asym / Math.max(qS * b, 1) + 0.0025 * bf * this.bn[2] + drop * 0.3;
 
     // --- control effectiveness (dynamic pressure is applied through qS) ---
     const ctl = this.damage.control;
@@ -994,6 +1039,7 @@ export class FlightModel {
   }
 
   private stepGround(dt: number, c: FlightControls): void {
+    this.buffet = Math.max(0, this.buffet - dt * 4);
     const s = this.spec;
     const m = this.mass;
     const W = m * G0;

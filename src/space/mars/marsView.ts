@@ -564,7 +564,8 @@ export class MarsView {
     if (shipAlt < 60_000) {
       const fixedNow = new THREE.Vector3(...o).applyMatrix4(new THREE.Matrix4().makeRotationZ(-v.angle)).normalize();
       const c: Vec = [fixedNow.x, fixedNow.y, fixedNow.z];
-      const outer = Math.max(30_000, Math.min(400_000, shipAlt * 12 + 25_000));
+      // out past the horizon, so the mesh's edge never shows against the sky
+      const outer = Math.max(30_000, Math.min(900_000, 1.25 * Math.sqrt(2 * R * Math.max(0, shipAlt)) + 25_000));
       const p = this.patchAt;
       const moved = p ? Math.hypot(c[0] - p.c[0], c[1] - p.c[1], c[2] - p.c[2]) * R : Infinity;
       // rebuild the ground round the new point a little at a time (the old one stays up meanwhile)
@@ -705,11 +706,13 @@ export class MarsView {
     const d = new THREE.Vector3();
     while (J.next < nV) {
       const i = J.next++;
-      let rho = 0, th = 0;
+      let rho = 0, th = 0, spacing = 0;
       if (i === 0) d.copy(J.cx);
       else {
         const r = Math.floor((i - 1) / SEG), sg = (i - 1) % SEG;
         rho = 0.8 * Math.pow(J.k, r);
+        // the mesh's local spacing: radial (ring to ring) or round the ring, whichever is coarser
+        spacing = Math.max(rho * (J.k - 1), (rho * 2 * Math.PI) / SEG);
         // (alternate rings are turned half a step: even triangles, no radial streaks)
         th = ((sg + (r % 2) * 0.5) / SEG) * Math.PI * 2;
         const a = rho / R;
@@ -717,7 +720,7 @@ export class MarsView {
       }
       const lat = Math.asin(Math.max(-1, Math.min(1, d.z))) / D2R;
       const lon = Math.atan2(d.y, d.x) / D2R;
-      const hp = marsHeightParts(lat, lon);
+      const hp = marsHeightParts(lat, lon, spacing);
       const hgt = hp.base + hp.detail;
       J.hgt[i] = hgt;
       J.pos[i * 3] = d.x * (R + hgt) - J.P0.x;

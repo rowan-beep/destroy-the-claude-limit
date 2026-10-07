@@ -815,6 +815,7 @@ export class Game implements ModeHost {
       this.combat.update(simOn ? dt : 0, this.renderer.camera);
       this.ground?.update(simOn ? dt : 0, this.renderer.camera);
       this.renderer.setHaze(this.combat.haze);
+      this.renderer.setSpeed(this.cam.mode === 'cockpit' || this.cam.mode === 'chase' ? p.fm.vel.length() : 0);
       // pilot vision (with the G limiter on G-LOC cannot happen: blur instead)
       p.pilot.limiter = !this.gOverride;
       this.renderer.setVision(p.alive || !p.fm.crashed ? p.pilot.vision : emptyVision());
@@ -1642,6 +1643,7 @@ export class Game implements ModeHost {
       camDist,
       g: p.fm.nz,
       aoa: p.fm.alpha,
+      buffet: p.fm.buffet,
       gear: p.fm.gearPos,
       speedbrake: this.speedbrake,
       mach: p.fm.mach,

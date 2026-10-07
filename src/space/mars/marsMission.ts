@@ -63,7 +63,8 @@ const CSS = `
 .mm-ph{font-size:24px;font-weight:700;letter-spacing:.12em;margin-top:2px}
 .mm-date{font-size:14px;color:#cfd9e4;margin-top:4px;font-variant-numeric:tabular-nums}
 .mm-tr{position:absolute;right:16px;top:14px;width:250px;background:#0b1118b8;border:1px solid #ffffff1c;border-radius:10px;padding:10px 12px;backdrop-filter:blur(6px)}
-.mm-row{display:flex;justify-content:space-between;font-size:13px;padding:2px 0;font-variant-numeric:tabular-nums}
+.mm-row{display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:2px 0;font-variant-numeric:tabular-nums}
+.mm-row span:last-child{text-align:right}
 .mm-row span:first-child{color:#8fa3b8;font-size:11px;letter-spacing:.16em;padding-top:2px}
 .mm-bar{height:5px;border-radius:3px;background:#ffffff18;margin:2px 0 6px;overflow:hidden}
 .mm-bar i{display:block;height:100%;background:linear-gradient(90deg,#7fb6ff,#cfe3ff)}

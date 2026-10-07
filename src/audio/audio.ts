@@ -74,6 +74,8 @@ export interface FlightSound {
   /** load factor, angle of attack (rad), gear 0..1, speedbrake */
   g?: number;
   aoa?: number;
+  /** the airframe's buffet (0..1), from the flight model */
+  buffet?: number;
   gear?: number;
   speedbrake?: boolean;
   mach?: number;
@@ -892,7 +894,7 @@ export class AudioEngine {
     P(this.whistle.f[0].frequency, 2400 + mach * 1400, 0.3);
     const aoaDeg = ((s.aoa ?? 0) * 180) / Math.PI;
     const g = s.g ?? 1;
-    const buff = clamp01((aoaDeg - 14) / 12) * 0.8 + clamp01((g - 6) / 4) * 0.5 + (s.speedbrake ? 0.25 : 0);
+    const buff = s.buffet !== undefined ? s.buffet * 1.25 + clamp01((g - 7) / 3) * 0.2 : clamp01((aoaDeg - 14) / 12) * 0.8 + clamp01((g - 6) / 4) * 0.5 + (s.speedbrake ? 0.25 : 0);
     const buffG = on * Math.min(1, buff) * Math.min(1, q * 1.5) * (cockpit ? 0.85 : 0.35);
     P(this.buffet.gain.gain, buffG * 0.6, 0.08);
     P(this.buffetMod.gain, buffG * 0.55, 0.08);
