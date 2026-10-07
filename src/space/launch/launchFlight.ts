@@ -620,7 +620,7 @@ export class LaunchFlight {
       if (alt < 7_600 && vA < 250) {
         this.phase = 'chutes';
         this.chuteK = 0;
-        this.say('Parachutes: two drogues at 7.6 km, then three 35 m mains open at 2.9 km.', 'good');
+        this.say(this.vehicle.id === 'falcon-9' ? 'Parachutes: two drogues steady Dragon, then its four mains open, each 35 m across.' : 'Parachutes: two drogues at 7.6 km, then three 35 m mains open at 2.9 km.', 'good');
       }
     }
     if (this.phase === 'chutes') {
@@ -628,7 +628,9 @@ export class LaunchFlight {
       if (alt <= 0) {
         this.phase = 'splash';
         this.v = cross([0, EARTH.spin, 0], this.r);
-        this.outcome = { ok: true, title: 'Splashdown', text: 'Orion is down in the ocean at 30 km/h under its three mains, the crew safe home from the far side of the Moon.' };
+        this.outcome = this.vehicle.id === 'falcon-9'
+          ? { ok: true, title: 'Splashdown', text: 'Crew Dragon is down in the Atlantic off Florida under its four mains. The recovery ship comes alongside to lift it aboard, and the crew are home from the space station.' }
+          : { ok: true, title: 'Splashdown', text: 'Orion is down in the ocean at 30 km/h under its three mains, the crew safe home from the far side of the Moon.' };
         this.say('Splashdown!', 'good');
       }
     }

@@ -4,7 +4,7 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu lists the space updates.
 
-## v5.1.0 (2026-10-07)
+## v5.2.0 (2026-10-07)
 
 ### Air Combat: Tanker
 
@@ -12,19 +12,20 @@ updates and the space menu lists the space updates.
   - In Free Flight a KC-46A Pegasus tanker flies a racetrack 15 NM out from your base at 22,000 ft and 320 knots, turning at 20 degrees of bank like the real thing.
   - Fly up behind it and take fuel without landing. The bar at the top tells you where to move: FORWARD, UP, LEFT and so on, in metres, with your closing speed.
   - When your fuel is down to about half, an arrow on the HUD points the way to the tanker.
+  - Close in, a station-keeping assist eases you into position and holds you there while you take fuel. You still fly the throttle: the bar tells you THROTTLE BACK or MORE POWER, and big inputs take you out of it.
 - **New: The flying boom**
   - The F-15EX, F-16, F-22, SR-71 and F-35A take fuel from the boom under the tanker's tail.
   - Hold steady in the boom's reach, below and behind the tanker, and the boom operator plugs into your receptacle: about 55 kg of fuel a second.
   - The boom follows you while you are hooked up. Fly out of its reach, or move too fast, and it disconnects.
 - **New: Probe and drogue**
   - The Super Hornet, Typhoon, Su-35S, Rafale, MiG-31, Su-57 and Gripen fly their probe into the basket trailing on the tanker's centreline hose.
-  - Line up within a metre and a half of its middle, then push in at 1 to 2 m/s: the hose takes up the slack, and about 25 kg a second flows.
+  - Line up within a metre and a half of its middle, then push in at 1 to 2 m/s: the hose takes up the slack, and about 25 kg a second flows. The assist holds you just behind the basket while you line up, then eases you in.
   - Hooked up, move more than 5 m/s against the tanker and it's a breakaway.
 - **New: The KC-46A**
   - The Boeing 767-based tanker at full size: 48 m long and 48 m across the wings, with its two big engines, the boom with its V-shaped control vanes and telescoping nozzle, the centreline hose and basket, the wing pods, and beacons that blink.
   - It fills your internal tanks first, then any drop tanks, and tells you how much it passed when you're topped off.
 
-### Space Exploration: Crew Dragon to the ISS
+### Space Exploration: Crew Dragon to the ISS and home
 
 - **New: Falcon 9 · Crew Dragon to the ISS**
   - A new mission: Falcon 9 lifts Crew Dragon and four astronauts off Pad 3, heading northeast up the coast into the station's 51.6 degree orbit.
@@ -36,6 +37,10 @@ updates and the space menu lists the space updates.
   - Dragon opens its nosecone, coasts for most of an orbit, then fires its Dracos to climb from 200 to 420 km and arrives a few kilometres from the station.
   - The final approach is automatic, as on the real Dragon: holds at 400 m, 220 m and 20 m, then it closes at 10 cm a second, with little puffs from the Draco thrusters.
   - Soft capture, then hard capture at Harmony's forward port. The HUD shows the distance to the station and the closing rate all the way in.
+- **New: Undock and come home**
+  - Once you're docked, UNDOCK AND COME HOME: the hooks open, springs push Dragon off, and the Dracos back it out to 250 m.
+  - The deorbit burn drops the low point of the orbit into the atmosphere and the trunk is let go. Dragon falls heat shield first, through entry at 7.9 km/s.
+  - Two drogues steady it, then four orange-and-white main parachutes open, and Dragon splashes down in the Atlantic off Florida.
 - **New: The International Space Station**
   - Built to its real layout: Harmony with the forward docking port, Destiny, Unity, Columbus, Kibo with its exposed platform and logistics module, Tranquility, the Cupola, BEAM, Leonardo and Quest.
   - The Russian segment: Zarya, Zvezda, Nauka, Poisk and Rassvet, with a Soyuz and a Progress docked.

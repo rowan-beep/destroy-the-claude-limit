@@ -184,7 +184,7 @@ export class LaunchMission {
   private drone: THREE.Group | null = null;
   /** Crew Dragon's road to the station: the plan and where it has got to */
   private rv: {
-    phase: 'plan' | 'wait' | 'transfer' | 'approach' | 'docked';
+    phase: 'plan' | 'wait' | 'transfer' | 'approach' | 'docked' | 'undock' | 'home';
     t0: number;
     e1: V3;
     e2: V3;
@@ -574,6 +574,8 @@ export class LaunchMission {
       if (!rv) return null;
       if (rv.phase === 'wait') return { label: 'WARP TO THE ORBIT-RAISING BURN', run: () => this.setFF(true) };
       if (rv.phase === 'transfer') return { label: 'WARP TO THE STATION', run: () => this.setFF(true) };
+      if (rv.phase === 'docked') return { label: 'UNDOCK AND COME HOME', run: () => this.undock() };
+      if (rv.phase === 'home' && f.phase === 'coast') return { label: 'WARP TO ENTRY', run: () => this.setFF(true) };
       return null;
     }
     if (this.id === 'clipper') {
@@ -672,7 +674,7 @@ export class LaunchMission {
         }
       }
     }
-    if (this.rv && (this.rv.phase === 'approach' || this.rv.phase === 'docked')) warp = Math.min(warp, 20);
+    if (this.rv && (this.rv.phase === 'approach' || this.rv.phase === 'docked' || this.rv.phase === 'undock')) warp = Math.min(warp, 20);
     const step = this.paused || this.job ? 0 : dt * warp;
     if (this.cruising) this.stepCruise(step);
     else f.advance(step);
@@ -691,6 +693,10 @@ export class LaunchMission {
       if (!rv) return 0;
       if (rv.phase === 'wait') return rv.tBurn1 - f.t - 20;
       if (rv.phase === 'transfer') return rv.tArrive - f.t - 60;
+      if (rv.phase === 'home' && f.phase === 'coast') {
+        const vr = -dot(f.v, norm(f.r));
+        return Math.max(0, (f.alt - 140_000) / Math.max(150, vr)) - 60;
+      }
       return 0;
     }
     if (this.id === 'clipper') {
@@ -906,6 +912,32 @@ export class LaunchMission {
     }
   }
 
+  private undock(): void {
+    const f = this.flight!;
+    const rv = this.rv;
+    if (!rv || rv.phase !== 'docked') return;
+    rv.phase = 'undock';
+    rv.segT = f.t;
+    this.elCard.classList.remove('show');
+    f.say('Undocking: the hooks open and springs push Dragon off Harmony. The Dracos back it out to 250 m, clear of the station.', 'info');
+    this.flash('UNDOCKING');
+  }
+
+  /** the deorbit burn: a perigee 25 km up, into the atmosphere off Florida; the trunk is let go */
+  private deorbit(f: LaunchFlight): void {
+    const rv = this.rv!;
+    const st = this.issState(f.t);
+    const ra = len(f.r), rp = EARTH.R + 25_000;
+    const va = Math.sqrt((EARTH.GM * 2 * rp) / (ra * (ra + rp)));
+    f.v = scale(norm(st.v), va);
+    f.capsuleMass = 12_500;
+    f.phase = 'coast';
+    rv.phase = 'home';
+    this.f9!.dragon.trunk.visible = false;
+    f.say(`Deorbit burn: ${Math.round(len(st.v) - va)} m/s against the direction of flight. The trunk is let go; Dragon falls toward the Atlantic, heat shield first.`, 'good');
+    this.flash('DEORBIT BURN');
+  }
+
   private dragonScript(f: LaunchFlight): void {
     // Dragon is let go in orbit, opens its nosecone and works out the rendezvous
     if (f.phase === 'orbit' && !f.payloadOnly) {
@@ -947,11 +979,17 @@ export class LaunchMission {
       f.say(`Circularisation burn at 420 km. The ISS is ${(Math.hypot(...rv.off0) / 1000).toFixed(1)} km behind: Dragon turns its nose to the station and flies the final approach on its own.`, 'good');
       this.flash('THE ISS');
     }
-    if (rv.phase === 'approach' || rv.phase === 'docked') {
+    if (rv.phase === 'undock' && f.t - rv.segT > 100) this.deorbit(f);
+    if (rv.phase === 'approach' || rv.phase === 'docked' || rv.phase === 'undock') {
       // fly the approach: from the start offset through the waypoints, holding at each
       const st = this.issState(f.t);
       const side = norm(cross(st.ram, st.up));
       let off: V3 = [0, 0, 0];
+      if (rv.phase === 'undock') {
+        // the springs push Dragon off, then its Dracos back it out along the docking axis
+        const k = Math.min(1, (f.t - rv.segT) / 90);
+        off = [250 * k * k * (3 - 2 * k), 0, 0];
+      }
       if (rv.phase === 'approach') {
         const [x1, dur, hold] = APPROACH[rv.seg];
         const from: V3 = rv.seg === 0 ? rv.off0 : [APPROACH[rv.seg - 1][0], 0, 0];
@@ -970,10 +1008,23 @@ export class LaunchMission {
         if (k >= 1 && f.t - rv.segT >= dur + hold) {
           if (rv.seg === APPROACH.length - 1) {
             rv.phase = 'docked';
-            updateRecord((r) => (r.daysInSpace += f.t / 86400));
+            updateRecord((r) => {
+              r.daysInSpace += f.t / 86400;
+              r.missions++;
+            });
             f.say('Contact and soft capture at Harmony\'s forward port! The hooks drive closed: hard capture. Dragon is docked to the International Space Station.', 'good');
-            f.outcome = { ok: true, title: 'Docked to the ISS', text: 'Crew Dragon is docked to Harmony\'s forward port, 420 km up. Leak checks done, the hatches open, and the crew float through to a welcome aboard the station.' };
             this.flash('DOCKED');
+            window.setTimeout(() => {
+              if (!this.active || this.rv?.phase !== 'docked') return;
+              this.card('DOCKED TO THE ISS', 'Crew Dragon is docked to Harmony\'s forward port, 420 km up. Leak checks done, the hatches open, and the crew float through to a welcome aboard the station.', [
+                ['LOOK AROUND', () => this.elCard.classList.remove('show')],
+                ['UNDOCK AND COME HOME', () => {
+                  this.elCard.classList.remove('show');
+                  this.undock();
+                }],
+                ['EXIT TO MENU', () => this.exit()],
+              ]);
+            }, 4000);
           } else {
             rv.seg++;
             rv.segT = f.t;
@@ -1167,7 +1218,7 @@ export class LaunchMission {
 
   /** Orion's last minutes, under its parachutes: drawn over the sea off the Cape */
   private finalDescent(f: LaunchFlight): boolean {
-    return this.id === 'artemis' && f.payloadOnly && (f.phase === 'chutes' || f.phase === 'splash' || (f.phase === 'entry' && f.alt < 15_000));
+    return (this.id === 'artemis' || (this.id === 'iss' && this.rv?.phase === 'home')) && f.payloadOnly && (f.phase === 'chutes' || f.phase === 'splash' || (f.phase === 'entry' && f.alt < 15_000));
   }
 
   private followingBoosters(): boolean {
@@ -1273,6 +1324,9 @@ export class LaunchMission {
       if (this.rv && this.rv.phase === 'approach' && f.payloadOnly) this.dracoPuffs(dt);
       else for (const p of this.puffs) p.sp.visible = false;
       openNose(r.dragon, f.payloadOnly && this.noseT < 0 ? 1 : f.payloadOnly && this.noseT > 0 ? Math.max(0, 1 - (this.noseT - f.t) / 6) : 0);
+      this.driveChutes(f, 4);
+      // (the drone ship and its stage are far away by the time Dragon comes home)
+      if (this.drone) this.drone.visible = this.rv?.phase !== 'home';
       // the station, in the orbital view
       if (this.iss) {
         const show = this.view === 'earth' && !!this.rv;
@@ -1321,23 +1375,7 @@ export class LaunchMission {
       }
       if (this.sepT >= 0) deployOrion(r, Math.min(1, (this.wallT - this.sepT) / 15));
       // under the three 35 m main parachutes
-      const chutesOut = f.phase === 'chutes' || f.phase === 'splash';
-      if (chutesOut && !this.chutes) {
-        this.chutes = buildMains();
-        this.holder.add(this.chutes);
-      }
-      if (this.chutes) {
-        this.chutes.visible = chutesOut;
-        const k = f.phase === 'splash' ? Math.max(0, 1 - (this.wallT - this.splashT) / 6) : Math.min(1, f.chuteK * 1.3);
-        if (f.phase === 'splash' && this.splashT < 0) this.splashT = this.wallT;
-        this.chutes.children.forEach((c, i) => {
-          const a = (i / 3) * Math.PI * 2 + 0.4;
-          const sway = Math.sin(this.wallT * 0.7 + i * 2.1) * 0.05;
-          c.position.set(Math.cos(a) * 14 * k, 7.4 + 8 + 48 * k, Math.sin(a) * 14 * k);
-          c.rotation.set(Math.sin(a) * 0.28 * k + sway, 0, -Math.cos(a) * 0.28 * k + sway);
-          c.scale.set(0.15 + 0.85 * k, 0.3 + 0.7 * k, 0.15 + 0.85 * k);
-        });
-      }
+      this.driveChutes(f, 3);
       // on the way home the service module is cast off before entry; only the capsule comes in
       const sm = r.orion.children;
       if ((f.phase === 'entry' || f.phase === 'chutes' || f.phase === 'splash') && sm.length) {
@@ -1382,7 +1420,7 @@ export class LaunchMission {
       }
       if (s.phase === 'landed' && !this.landedAtT) this.landedAtT = f.t;
       const show = s.phase !== 'gone' && this.view !== 'solar' && (inSite ? s.land || len(s.r) - EARTH.R < 120_000 : len(sub(s.r, f.r)) < 3e5);
-      hl.visible = show || (s.phase === 'landed' && this.view === 'site');
+      hl.visible = (show || (s.phase === 'landed' && this.view === 'site')) && !(this.f9 && this.rv?.phase === 'home');
       if (hl.visible && this.f9 && inSite && s.lz) {
         // the drone ship's own frame: the stage relative to its landing point, carried to where the ship is drawn
         const lzI = rotY(s.lz, earthAngle(t));
@@ -1440,6 +1478,28 @@ export class LaunchMission {
       if (this.id === 'clipper' || this.id === 'iss') this.site!.setTe(f.phase === 'pad' ? 0 : Math.min(1, f.t / 2));
     }
     void dt;
+  }
+
+  /** the main parachutes over the capsule, from opening to splashdown */
+  private driveChutes(f: LaunchFlight, n: number): void {
+    const chutesOut = f.phase === 'chutes' || f.phase === 'splash';
+    if (chutesOut && !this.chutes) {
+      this.chutes = buildMains(n);
+      this.holder.add(this.chutes);
+    }
+    if (!this.chutes) return;
+    this.chutes.visible = chutesOut;
+    const k = f.phase === 'splash' ? Math.max(0, 1 - (this.wallT - this.splashT) / 6) : Math.min(1, f.chuteK * 1.3);
+    if (f.phase === 'splash' && this.splashT < 0) this.splashT = this.wallT;
+    const m = this.chutes.children.length;
+    this.chutes.children.forEach((c, i) => {
+      const a = (i / m) * Math.PI * 2 + 0.4;
+      const sway = Math.sin(this.wallT * 0.7 + i * 2.1) * 0.05;
+      const spread = m > 3 ? 21 : 14;
+      c.position.set(Math.cos(a) * spread * k, 7.4 + 8 + 48 * k, Math.sin(a) * spread * k);
+      c.rotation.set(Math.sin(a) * 0.28 * k + sway, 0, -Math.cos(a) * 0.28 * k + sway);
+      c.scale.set(0.15 + 0.85 * k, 0.3 + 0.7 * k, 0.15 + 0.85 * k);
+    });
   }
 
   /** the camera's offset round its target (in the frame the target is drawn in) */
@@ -1511,7 +1571,7 @@ export class LaunchMission {
         look = scale(toM, d * 0.6);
       }
       // Crew Dragon near the station (until the player looks round): the station ahead of Dragon
-      if (this.id === 'iss' && this.rv && this.iss && performance.now() - this.lastDrag > 8000) {
+      if (this.id === 'iss' && this.rv && this.iss && this.rv.phase !== 'home' && performance.now() - this.lastDrag > 8000) {
         const st = this.issState(f.t);
         const port = add(sub(st.r, f.r), scale(st.ram, this.iss.port.x));
         const dist = len(port);
@@ -1574,7 +1634,8 @@ export class LaunchMission {
     const V = this.vehicle;
     if (this.id === 'iss' && this.rv) {
       const p = this.rv.phase;
-      return p === 'wait' ? 'IN ORBIT · CHASING THE ISS' : p === 'transfer' ? 'CLIMBING TO THE ISS' : p === 'approach' ? `FINAL APPROACH${this.rv.seg > 0 ? ' · WAYPOINT ' + (this.rv.seg - 1) : ''}` : 'DOCKED TO THE ISS';
+      if (p === 'home') return f.phase === 'coast' ? 'DEORBIT · FALLING HOME' : f.phase === 'entry' ? 'ENTRY' : f.phase === 'chutes' ? 'UNDER PARACHUTES' : f.phase === 'splash' ? 'SPLASHDOWN' : 'COMING HOME';
+      return p === 'wait' ? 'IN ORBIT · CHASING THE ISS' : p === 'transfer' ? 'CLIMBING TO THE ISS' : p === 'approach' ? `FINAL APPROACH${this.rv.seg > 0 ? ' · WAYPOINT ' + (this.rv.seg - 1) : ''}` : p === 'undock' ? 'UNDOCKING' : 'DOCKED TO THE ISS';
     }
     switch (f.phase) {
       case 'pad':
@@ -1652,7 +1713,7 @@ export class LaunchMission {
       const pct = (a: number, b: number) => `${Math.max(0, Math.round((a / b) * 100))}%`;
       if (f.boosters) rows.push([V.id === 'sls' ? 'SOLID BOOSTERS' : 'SIDE BOOSTERS', pct(f.boosterProp, V.boosters.stage.prop * V.boosters.count)]);
       if (f.coreOn) rows.push([V.id === 'sls' ? 'CORE STAGE' : V.id === 'falcon-9' ? 'FIRST STAGE' : 'CENTRE CORE', pct(f.coreProp, V.core.prop)]);
-      if (this.id === 'iss' && this.rv && this.iss) {
+      if (this.id === 'iss' && this.rv && this.iss && this.rv.phase !== 'home') {
         const st = this.issState(f.t);
         const port = add(st.r, scale(st.ram, this.iss.port.x));
         const d = Math.max(0, len(sub(f.r, port)) - this.f9!.dragon.dockAt);
@@ -1664,7 +1725,7 @@ export class LaunchMission {
         }
       }
       if (!f.payloadOnly) rows.push([V.id === 'sls' ? 'ICPS' : 'SECOND STAGE', pct(f.upperProp, V.upper.prop)]);
-      const lands = f.free.filter((s) => s.land);
+      const lands = f.free.filter((s) => s.land && !(this.f9 && this.rv?.phase === 'home'));
       for (const s of lands) {
         const lz = s.lz ? rotY(s.lz, earthAngle(f.t)) : null;
         rows.push([this.f9 ? 'FIRST STAGE → DRONE SHIP' : s.side < 0 ? 'BOOSTER → LZ-1' : 'BOOSTER → LZ-2', s.phase === 'landed' ? 'LANDED' : s.phase === 'gone' ? 'LOST' : `${s.phase.toUpperCase()} · ${lz ? km(len(sub(lz, s.r))) : ''}`]);
@@ -1717,7 +1778,7 @@ export class LaunchMission {
 }
 
 /** Orion's three main parachutes: orange and white gores, with their risers down to the capsule */
-function buildMains(): THREE.Group {
+function buildMains(n = 3): THREE.Group {
   const c = document.createElement('canvas');
   c.width = 256;
   c.height = 16;
@@ -1731,7 +1792,7 @@ function buildMains(): THREE.Group {
   const canopyMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9, side: THREE.DoubleSide });
   const lineMat = new THREE.LineBasicMaterial({ color: 0xd8d4c8, transparent: true, opacity: 0.6 });
   const grp = new THREE.Group();
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < n; i++) {
     const one = new THREE.Group();
     // a 35 m canopy: a shallow dome with a vent at the top
     const dome = new THREE.Mesh(new THREE.SphereGeometry(17.5, 48, 12, 0, Math.PI * 2, 0.08, 1.15), canopyMat);

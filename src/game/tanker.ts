@@ -405,8 +405,24 @@ export class Tanker {
         } else {
           this.steady = 0;
           const parts = [fmt(d.z, 'BACK', 'FORWARD'), fmt(d.y, 'UP', 'DOWN'), fmt(d.x, 'RIGHT', 'LEFT')].filter(Boolean);
-          this.cue = `${boomOut ? 'BOOM' : 'DROGUE'} · ${parts.length ? parts.join(' · ') : 'HOLD'} · CLOSURE ${(-relLocal.z).toFixed(1)} M/S`;
+          const speedCue = d.length() < 60 && closing > 3 ? ' · THROTTLE BACK' : d.length() < 60 && closing < -2 ? ' · MORE POWER' : '';
+          this.cue = `${boomOut ? 'BOOM' : 'DROGUE'} · ${parts.length ? parts.join(' · ') : 'HOLD'} · CLOSURE ${(-relLocal.z).toFixed(1)} M/S${speedCue}`;
         }
+      }
+    }
+    // station-keeping assist: close to the contact point and nearly matched, the jet is eased into place
+    // (and held there while hooked up); big stick or throttle inputs still fly it out
+    if (this.state === 'precontact' || this.state === 'contact') {
+      // (probe jets: held just behind the basket while lining up, then eased forward into it)
+      const aligned = Math.hypot(d.x, d.y) < 1.2;
+      const goal = this.state === 'contact' ? (boomOut ? contactTarget('boom') : BASKET_REST.clone().add(new THREE.Vector3(0, 0, -3))) : boomOut ? target : target.clone().add(new THREE.Vector3(0, 0, aligned ? -4 : 2.5));
+      const dl = goal.sub(local);
+      if (this.state === 'contact' || (dl.length() < 25 && rel.length() < 6 && !full)) {
+        const acc = dl.applyQuaternion(this.quat).multiplyScalar(0.22).addScaledVector(rel, -0.85);
+        const lim = this.state === 'contact' ? 2.5 : 1.4;
+        if (acc.length() > lim) acc.setLength(lim);
+        p.fm.vel.addScaledVector(acc, dt);
+        if (this.state === 'precontact' && !this.cue.startsWith('STAB')) this.cue = `${this.cue} · ASSIST`;
       }
     }
     // draw the boom and the hose
