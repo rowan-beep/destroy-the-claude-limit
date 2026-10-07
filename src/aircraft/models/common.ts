@@ -255,7 +255,7 @@ export function buildGearSet(v: AirframeVisual, g: GearSpec): void {
     bay.translate(0, 0, 0);
     const bm = mesh(bay, doorMat);
     bm.position.set(top.x - sx * 0.4, top.y - 0.21, top.z + 0.1);
-    v.addGearLeg([bm], new THREE.Vector3(top.x - sx * 0.35, top.y, top.z + 0.1), new THREE.Vector3(0, 0, 1), 88 * sx);
+    v.addGearLeg([bm], new THREE.Vector3(top.x - sx * 0.35, top.y, top.z + 0.1), new THREE.Vector3(0, 0, 1), 88 * sx, [], false);
   }
 }
 

@@ -215,6 +215,7 @@ export class FlightModel {
   /** the wing that drops past the stall (+1 right, -1 left) and how far it has gone (0..1) */
   private dropSign = 0;
   private dropK = 0;
+  private dropT = 0;
   /** wind + turbulence at the aircraft (world m/s) */
   readonly windVel = new THREE.Vector3();
   private t = Math.random() * 100;
@@ -280,6 +281,15 @@ export class FlightModel {
   /** 1 while the takeoff / landing law flies the jet, fading to 0 after it hands over */
   private gearLawFade = 0;
   groundPitch = 0;
+  /**
+   * Landing-gear suspension: the oleo struts as springs and dampers. Heave is how far
+   * the jet sits down on them (m), pitch and roll how it rocks on them (deg). They
+   * squash on touchdown, the nose dips under the brakes and squats back under power,
+   * the jet leans out of a fast turn, and runway joints and rough ground jolt it.
+   */
+  readonly sus = { h: 0, hv: 0, p: 0, pv: 0, r: 0, rv: 0 };
+  private susDist = 0;
+  private susV = 0;
   surfaceKind: Surface['kind'] = 'terrain';
   surfaceField: Surface['field'] = null;
   groundHeight = 0;
@@ -342,6 +352,7 @@ export class FlightModel {
     this.updateAxes();
     this.vel.copy(this.fwd).multiplyScalar(speed);
     this.onGround = false;
+    this.resetSus();
     this.releaseCat();
     this.trap = null;
     this.hookDown = false;
@@ -360,6 +371,8 @@ export class FlightModel {
     this.pos.set(pos.x, _surf.h + this.spec.gear.height, pos.z);
     this.heading = headingDeg;
     this.groundPitch = 0;
+    this.resetSus();
+    this.susV = 0;
     this.releaseCat();
     this.trap = null;
     this.hookDown = false;
@@ -375,6 +388,12 @@ export class FlightModel {
     this.throttleLever = 0;
   }
 
+  private resetSus(): void {
+    const u = this.sus;
+    u.h = u.hv = u.p = u.pv = u.r = u.rv = 0;
+    this.susDist = 0;
+  }
+
   private resetRates(n: number): void {
     this.pRate = 0;
     this.qRate = 0;
@@ -386,7 +405,7 @@ export class FlightModel {
   }
 
   private buildGroundQuat(): void {
-    _euler.set(this.groundPitch * DEG, -this.heading * DEG, 0, 'YXZ');
+    _euler.set((this.groundPitch + this.sus.p) * DEG, -this.heading * DEG, -this.sus.r * DEG, 'YXZ');
     this.quat.setFromEuler(_euler);
     // on a carrier the jet sits on the pitching, rolling deck
     if (this.deckN) {
@@ -770,14 +789,18 @@ export class FlightModel {
     // past the stall one wing lets go first: the jet rolls off toward it (a thrust-vectoring
     // jet, flying there on purpose, holds it far better)
     const stalled = Math.abs(alpha) > aMax + 3 * DEG && space0(s.reaction ? this.qbar : 1e9);
+    // It comes as a lurch: the wing lets go, the jet snaps toward it, the flow settles,
+    // and held deep in the stall a wing (either one) lets go again every few seconds.
     if (stalled) {
-      if (this.dropSign === 0) this.dropSign = Math.random() < 0.5 ? -1 : 1;
-      this.dropK = Math.min(1, this.dropK + dt * 0.9);
+      if (this.dropSign === 0) { this.dropSign = Math.random() < 0.5 ? -1 : 1; this.dropT = 0; }
+      this.dropT += dt;
+      this.dropK = Math.min(1, this.dropT / 0.6) * Math.exp(-Math.max(0, this.dropT - 0.6) / 0.9);
+      if (this.dropT > 3 + Math.random() * 0.02) { this.dropT = 0; this.dropSign = Math.random() < 0.5 ? -1 : 1; }
     } else {
-      this.dropK = Math.max(0, this.dropK - dt * 1.5);
+      this.dropK = Math.max(0, this.dropK - dt * 2);
       if (this.dropK === 0) this.dropSign = 0;
     }
-    const drop = this.dropSign * this.dropK * (s.tvcDeg > 0 ? 0.004 : 0.016) * smoothstep(aMax, aMax + 10 * DEG, Math.abs(alpha));
+    const drop = this.dropSign * this.dropK * (s.tvcDeg > 0 ? 0.0012 : 0.011) * smoothstep(aMax, aMax + 10 * DEG, Math.abs(alpha));
     const clNat = A.clP * phat + (A.clB - 0.25 * Math.max(0, alpha)) * beta + A.clR * rhat + rock + this.damage.rollBias * 0.02 + drop + 0.006 * bf * this.bn[1];
     // yaw: weathercock stability fades at high AoA and when supersonic (it can go unstable deep in the stall)
     const cnB = A.cnB * (1 - 0.45 * sup) * (1 - 1.45 * over);
@@ -1011,6 +1034,12 @@ export class FlightModel {
       td.heading = this.headingFromFwd();
       this.heading = this.headingFromFwd();
       this.groundPitch = Math.max(0, pitchDeg);
+      // the struts take the sink rate: the jet squashes down onto them and rebounds; a
+      // flat arrival puts the nose wheel down at the same time and pitches it forward
+      this.resetSus();
+      this.sus.hv = sink * 0.9;
+      this.sus.pv = -sink * 3 * (1 - smoothstep(1, 4, pitchDeg));
+      this.sus.rv = (this.bank > 0 ? 1 : -1) * Math.min(bankDeg, 10) * 1.2;
       const hRad = this.heading * DEG;
       const fx = Math.sin(hRad), fz = -Math.cos(hRad);
       // keep the speed along the heading, relative to whatever we landed on
@@ -1044,6 +1073,7 @@ export class FlightModel {
     const m = this.mass;
     const W = m * G0;
     if (this.cat) {
+      this.resetSus();
       this.stepCatapult(dt, c);
       return;
     }
@@ -1178,7 +1208,9 @@ export class FlightModel {
     this.vel.set(nfx * V + svx, svy, nfz * V + svz);
     this.pos.x += this.vel.x * dt;
     this.pos.z += this.vel.z * dt;
-    this.pos.y = _surf.h + s.gear.height;
+    this.stepSus(dt, V, (V - this.susV) / Math.max(dt, 1e-4), yawRate + rudderYaw, L / Math.max(W, 1), _surf.kind, gp0);
+    this.susV = V;
+    this.pos.y = _surf.h + s.gear.height - this.sus.h;
     this.buildGroundQuat();
     this.agl = s.gear.height;
     this.nz = 1;
@@ -1210,6 +1242,51 @@ export class FlightModel {
       this.crashed = true;
       this.crashCause = 'RAN OFF THE RUNWAY AT SPEED';
     }
+  }
+
+  /**
+   * The oleo struts: three spring-damper modes (heave, pitch, roll) driven by what the
+   * jet is doing on its wheels. `along` is the acceleration along the runway (m/s^2),
+   * `yawRate` the turn rate (rad/s), `lift` the fraction of the weight the wing carries.
+   */
+  private stepSus(dt: number, V: number, along: number, yawRate: number, lift: number, kind: Surface['kind'], gp0: number): void {
+    const u = this.sus;
+    const sp = Math.abs(V);
+    // the nose wheel is down unless the jet is rotated
+    const noseOn = 1 - smoothstep(0.4, 1.6, this.groundPitch);
+    // the nose wheel slamming down at the end of the derotation
+    if (gp0 > 0.3 && this.groundPitch <= 0.3) u.pv -= Math.min(6, (gp0 - this.groundPitch) / Math.max(dt, 1e-4)) * 0.8;
+    // where each mode wants to sit
+    const hEq = -0.14 * clamp(lift, 0, 1); // the wing takes the weight: the struts extend
+    const pEq = (along < 0 ? Math.max(along, -9) * 0.28 : Math.min(along, 8) * 0.1) * noseOn; // brakes dip the nose, power lifts it a little
+    const rEq = clamp(-V * yawRate, -6, 6) * 0.3; // lean out of the turn
+    // jolts: concrete slab joints on a runway, ruts and stones off it, the deck's plating
+    const rough = kind === 'terrain' ? 1 : kind === 'deck' ? 0.12 : 0.22;
+    const pitch = kind === 'terrain' ? 2.2 : 5;
+    this.susDist += sp * dt;
+    if (this.susDist > pitch) {
+      this.susDist -= pitch;
+      const k = rough * Math.min(sp, 90) / 90;
+      u.hv += (Math.random() - 0.4) * k * 0.55;
+      u.pv += (Math.random() - 0.5) * k * 6 * noseOn;
+      u.rv += (Math.random() - 0.5) * k * 7;
+    }
+    // integrate (semi-implicit; a few sub-steps keep the stiff springs stable)
+    // heave ~1.5 Hz, pitch ~1.1 Hz, roll ~1.3 Hz, all well damped like a real oleo
+    const wH = 2 * Math.PI * 1.5, wP = 2 * Math.PI * 1.1, wR = 2 * Math.PI * 1.3;
+    const n = 3, h = dt / n;
+    for (let i = 0; i < n; i++) {
+      u.hv += (-wH * wH * (u.h - hEq) - 2 * 0.45 * wH * u.hv) * h;
+      u.pv += (-wP * wP * (u.p - pEq) - 2 * 0.5 * wP * u.pv) * h;
+      u.rv += (-wR * wR * (u.r - rEq) - 2 * 0.45 * wR * u.rv) * h;
+      u.h += u.hv * h;
+      u.p += u.pv * h;
+      u.r += u.rv * h;
+    }
+    // the struts bottom out and top out
+    u.h = clamp(u.h, -0.22, 0.32);
+    u.p = clamp(u.p, -3.5, 2.5);
+    u.r = clamp(u.r, -3, 3);
   }
 
   /** On the catapult: hold at full power for the salute, then the shot down the stroke. */

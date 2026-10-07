@@ -78,6 +78,8 @@ export interface GearLeg {
   axis: THREE.Vector3;
   retractDeg: number;
   hideWhenUp: THREE.Object3D[];
+  /** where the leg hangs from (body frame), for legs that stroke on their oleos */
+  base?: THREE.Vector3;
 }
 
 export interface Nozzle {
@@ -348,7 +350,7 @@ export class AirframeVisual {
     this.bayCavities.push({ mesh: m, bay });
   }
 
-  addGearLeg(parts: THREE.Object3D[], hinge: THREE.Vector3, axis: THREE.Vector3, retractDeg: number, hideWhenUp: THREE.Object3D[] = []): GearLeg {
+  addGearLeg(parts: THREE.Object3D[], hinge: THREE.Vector3, axis: THREE.Vector3, retractDeg: number, hideWhenUp: THREE.Object3D[] = [], stroke = true): GearLeg {
     const pivot = new THREE.Group();
     pivot.position.copy(hinge);
     this.body.add(pivot);
@@ -356,7 +358,7 @@ export class AirframeVisual {
       p.position.sub(hinge);
       pivot.add(p);
     }
-    const leg: GearLeg = { pivot, axis: axis.clone().normalize(), retractDeg, hideWhenUp };
+    const leg: GearLeg = { pivot, axis: axis.clone().normalize(), retractDeg, hideWhenUp, base: stroke ? hinge.clone() : undefined };
     this.gear.push(leg);
     return leg;
   }
@@ -1048,10 +1050,15 @@ export class AirframeVisual {
 
     // landing gear
     const gp = fm.gearPos;
+    // on the ground the oleos stroke: the wheels stay on the runway while the jet
+    // squats, dips and leans on its struts
+    const su = fm.onGround && gp > 0.98 ? fm.sus : null;
+    const sp = su ? Math.sin(su.p * DEG) : 0, sr = su ? Math.sin(su.r * DEG) : 0;
     for (const g of this.gear) {
       g.pivot.quaternion.setFromAxisAngle(g.axis, (1 - gp) * g.retractDeg * DEG);
       const vis = gp > 0.02;
       g.pivot.visible = vis;
+      if (g.base) g.pivot.position.set(g.base.x, g.base.y + (su ? su.h + g.base.z * sp + g.base.x * sr : 0), g.base.z);
     }
     if (this.speedbrake) {
       this.speedbrake.pivot.quaternion.setFromAxisAngle(this.speedbrake.axis, fm.speedbrakePos * this.speedbrake.maxDeg * DEG);
