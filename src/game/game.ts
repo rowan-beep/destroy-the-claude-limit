@@ -61,6 +61,8 @@ import { enemyTypesFor, AIRCRAFT_TYPES, getSpec } from '../aircraft/specs';
 import { CARRIERS, carrierOf, clearCatapults, nearestCarrier, updateCarriers } from '../world/carriers';
 import { armCarriers } from './navy';
 import { NIGHT } from '../render/night';
+import { SpotterMode } from './modes/spotter';
+import { SpotterUi } from '../ui/spotterUi';
 
 export type GameState = 'menu' | 'loading' | 'playing' | 'paused' | 'map' | 'results' | 'replay' | 'briefing';
 
@@ -268,10 +270,11 @@ export class Game implements ModeHost {
     // build the airframes this mission can spawn before the first frame
     const pre = [new Aircraft(cfg.aircraft, 'blue', 'PRE')];
     if (cfg.mode === 'online') for (const t of AIRCRAFT_TYPES) pre.push(new Aircraft(t, 'red', 'PRE'));
-    else if (cfg.mode !== 'free') for (const t of enemyTypesFor(cfg.aircraft)) pre.push(new Aircraft(t, 'red', 'PRE'));
+    else if (cfg.mode !== 'free' && cfg.mode !== 'spotter') for (const t of enemyTypesFor(cfg.aircraft)) pre.push(new Aircraft(t, 'red', 'PRE'));
     if (cfg.mode === 'team' || cfg.mode === 'recon' || cfg.mode === 'campaign') for (const t of enemyTypesFor(cfg.aircraft)) pre.push(new Aircraft(t, 'blue', 'PRE'));
     if (cfg.mode === 'ffa') pre.push(new Aircraft(cfg.aircraft, 'red', 'PRE'));
     if (cfg.mode === 'daily') pre.push(new Aircraft(todaysMission().enemy.type, 'red', 'PRE'));
+    if (cfg.mode === 'spotter') for (const t of AIRCRAFT_TYPES) if (t !== 'X15' && t !== cfg.aircraft) pre.push(new Aircraft(t, 'blue', 'PRE'));
     prewarmAirframes(pre);
     this.stopSpectating();
     resetRules();
@@ -298,12 +301,20 @@ export class Game implements ModeHost {
                       ? new ReconMode(this)
                       : cfg.mode === 'campaign'
                         ? new CampaignMode(this)
-                        : new DuelMode(this);
+                        : cfg.mode === 'spotter'
+                          ? new SpotterMode(this)
+                          : new DuelMode(this);
     randomizeWind();
     // every sortie starts with the goggles stowed (left on from a night flight they would
     // wash a daylight one out in green)
     NIGHT.nvg = false;
     this.mode.start();
+    this.spotterUi?.dispose();
+    this.spotterUi = null;
+    if (this.mode instanceof SpotterMode) {
+      this.mode.attach(this.renderer.renderer.domElement);
+      this.spotterUi = new SpotterUi(document.body, this.mode, () => this.endMission());
+    }
     armCarriers(this.sim, cfg.difficulty);
     this.message(`WIND ${String(Math.round(wind.fromDeg)).padStart(3, '0')}° / ${Math.round(wind.surfaceKts)} KT${wind.turbulence > 1.1 ? ' — MODERATE TURBULENCE LOW LEVEL' : ''}`, 'info', 8);
     this.recorder = new ReplayRecorder(this.sim, cfg.mode.toUpperCase());
@@ -343,8 +354,13 @@ export class Game implements ModeHost {
     return this.mode instanceof OnlineMode;
   }
 
+  /** the airshow's screen (while the spotter mode runs) */
+  spotterUi: SpotterUi | null = null;
+
   endMission(): void {
-    if (this.player) this.finishSortie(this.player.alive ? (this.player.fm.onGround ? 'LANDED' : 'RTB') : 'LOST');
+    if (this.player && !(this.mode instanceof SpotterMode)) this.finishSortie(this.player.alive ? (this.player.fm.onGround ? 'LANDED' : 'RTB') : 'LOST');
+    this.spotterUi?.dispose();
+    this.spotterUi = null;
     this.mode?.dispose();
     this.mode = null;
     if (this.sim) {
@@ -761,8 +777,9 @@ export class Game implements ModeHost {
       const simDt = dt * this.timeScale;
       this.accumulator += simDt;
       let steps = 0;
+      const spotting = this.mode instanceof SpotterMode;
       while (this.accumulator >= PHYSICS_DT && steps < 30) {
-        this.controlPlayer(PHYSICS_DT);
+        if (!spotting) this.controlPlayer(PHYSICS_DT);
         this.picture.update(PHYSICS_DT, this.sim);
         this.interp.beforeStep(this.sim);
         this.sim.step(PHYSICS_DT);
@@ -775,9 +792,11 @@ export class Game implements ModeHost {
       // the mission runs on simulated time: it speeds up with fast-forward
       // (the free-for-all zone used to ignore it)
       this.mode?.update(steps * PHYSICS_DT);
-      this.updateRearm(dt);
-      this.updateCarrierCalls();
-      this.updateWarnings(dt);
+      if (!spotting) {
+        this.updateRearm(dt);
+        this.updateCarrierCalls();
+        this.updateWarnings(dt);
+      }
     }
 
     // night-vision goggles: the round tube view only from the cockpit
@@ -785,6 +804,16 @@ export class Game implements ModeHost {
     // high-refresh displays: draw everything part-way to the next physics step
     if (this.player) this.interp.apply(this.sim, this.accumulator / PHYSICS_DT);
     const p = this.player;
+    // the airshow: the spotter's camera on the crowd line
+    if (p && this.mode instanceof SpotterMode) {
+      this.spotterFrame(dt, simOn, this.mode);
+      this.renderer.render();
+      this.mode.afterRender(this.renderer.renderer.domElement, this.renderer.camera);
+      this.interp.restore();
+      this.onAfterFrame?.(dt);
+      this.input.endFrame();
+      return;
+    }
     // team battle: once shot down, spectate after a few seconds
     if (p && simOn && !p.alive && this.mode && !this.mode.over && this.mode.roster().length > 0) {
       this.deadTime += dt;
@@ -837,6 +866,28 @@ export class Game implements ModeHost {
     this.interp.restore();
     this.onAfterFrame?.(dt);
     this.input.endFrame();
+  }
+
+  /** Camera, world and the spotter's screen at the airshow. */
+  private spotterFrame(dt: number, playing: boolean, m: SpotterMode): void {
+    const cam = this.renderer.camera;
+    this.renderer.setOverlay(null, null);
+    const pv = this.player ? this.combat.aircraftVis.get(this.player) : undefined;
+    pv?.setCockpitView(false);
+    m.frameCamera(cam, dt, playing);
+    this.world.update(dt, cam, m.eye);
+    this.renderer.updateDroplets(dt, this.world.precip.rainOnCamera, this.world.precip.camSpeed);
+    this.combat.update(playing ? dt : 0, cam);
+    this.ground?.update(playing ? dt : 0, cam);
+    this.renderer.setHaze(this.combat.haze);
+    this.renderer.setSpeed(0);
+    this.renderer.setVision(emptyVision());
+    const sz = this.renderer.size;
+    // (the viewfinder hides under the pause menu)
+    this.spotterUi?.show(this.state === 'playing');
+    this.spotterUi?.update(dt, cam, sz.w, sz.h);
+    if (playing) m.sound(cam);
+    else audio.silenceContinuous();
   }
 
   /** Camera, world and HUD while spectating (the player's jet is down). */
@@ -981,15 +1032,24 @@ export class Game implements ModeHost {
   private handleInput(dt: number): void {
     const inp = this.input;
     const p = this.player;
+    // (the album open at the airshow: Escape closes it)
+    if (this.mode instanceof SpotterMode && this.mode.albumOpen) {
+      this.mode.handleInput(inp, dt);
+      return;
+    }
     if (inp.pressed('pause')) {
       this.setState('paused');
       return;
     }
-    if (inp.pressed('map')) {
+    if (inp.pressed('map') && !(this.mode instanceof SpotterMode)) {
       this.setState('map');
       return;
     }
     if (!p) return;
+    if (this.mode instanceof SpotterMode) {
+      this.mode.handleInput(inp, dt);
+      return;
+    }
     if (this.spectator.active) {
       this.spectatorInput();
       return;

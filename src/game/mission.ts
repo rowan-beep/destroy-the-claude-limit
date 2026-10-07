@@ -4,7 +4,7 @@ import type { AircraftType } from '../aircraft/specs';
 import type { Difficulty } from '../ai/skill';
 import type { TimeOfDay } from '../render/environment';
 
-export type ModeId = 'free' | 'waves' | 'duel' | 'team' | 'ffa' | 'online' | 'tutorial' | 'daily' | 'strike' | 'recon' | 'campaign';
+export type ModeId = 'free' | 'waves' | 'duel' | 'team' | 'ffa' | 'online' | 'tutorial' | 'daily' | 'strike' | 'recon' | 'campaign' | 'spotter';
 
 export interface MissionConfig {
   mode: ModeId;
@@ -57,6 +57,12 @@ export function defaultMission(): MissionConfig {
 }
 
 export const MODE_INFO: Record<ModeId, { title: string; subtitle: string; description: string }> = {
+  spotter: {
+    title: 'AIRSHOW',
+    subtitle: 'Plane spotting · every jet on display',
+    description:
+      'No flying: you are on the crowd line with a camera and a long zoom lens, and every jet in the game flies its display in front of you. The takeoff into a vertical climb, the high-speed pass with its vapour cone, the rolling pass, the max-g turn with vapour pouring off the wings, the slow high-alpha pass (a cobra from the thrust-vectoring jets) and the landing. Photograph them: every picture is scored on how the jet fills and sits in the frame, how sharp it is (pan with it) and the moment you caught. The best go in your album, every kind of shot of every jet in the spotter\'s logbook, and the points climb you through the ranks to longer lenses. The jet you pick opens the show.',
+  },
   campaign: {
     title: 'CAMPAIGN',
     subtitle: 'Wolf of the Strait · 8 missions',

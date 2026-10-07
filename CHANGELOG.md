@@ -4,6 +4,36 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu lists the space updates.
 
+## v5.4.0 (2026-10-07)
+
+### Air Combat: AIRSHOW: a game for people who love jets
+
+- **New: AIRSHOW, a new mode at the top of the list**
+  - No flying: you stand on the crowd line with a camera and a long zoom lens, and every jet in the game (all but the X-15) flies its display in front of you. The jet you pick opens the show; the rest follow in a new order every time.
+  - The fighters line up, take off into a vertical climb and an Immelmann, then fly a high-speed pass at 40 m, a pull into the vertical, a half loop, a rolling pass, a 7.2 g turn through a full circle, a slow pass at 24° angle of attack, and a landing.
+  - The thrust-vectoring jets (Su-35S, F-22A, Su-57) pull a cobra in the slow pass, the nose going past vertical. The SR-71 and the MiG-31 fly their own display: a long climb out, a high-speed pass, a pull up, a gear-down flypast and the landing.
+  - The programme board shows each manoeuvre as it comes. N skips to the next jet, F runs the show 2× or 4× faster, and the long legs between passes go by four times faster on their own.
+- **New: A real camera**
+  - A 24-300 mm zoom to begin with, at 1/500 s. Drag (or WASD) to look round, the wheel or + and − to zoom, click or Space to take a picture.
+  - Auto-track (T) keeps the jet in the middle, even through the fastest pass. Pan it yourself for the best pictures: the focus brackets turn green on the jet, and a streak shows how fast it is crossing the frame.
+  - The thirds grid (G) helps the framing.
+- **New: Every picture is scored**
+  - On how big the jet is in the frame, where it sits (the middle, or on a third with room ahead of the nose), how sharp it is (motion blur in pixels) and the moment you caught.
+  - Up to 15 kinds of shot to collect for each jet: the takeoff, the afterburners, straight up, the vapour cone, high-g vapour, the top side in a turn, the underside, inverted, knife edge, head-on, high alpha, the cobra, gear down, the touchdown and the jet on the static display.
+  - A sharp, well-framed picture makes up to three stars; four and five need a moment too. Auto-track tops out at four stars.
+- **New: The album and the spotter's logbook**
+  - TAB opens the album: every picture scoring 15 or more is kept in your browser (the best and newest 120). See each one big, save it as a JPEG, or delete it.
+  - Turn a three-star or better picture into a magazine cover, with the masthead, the cover lines and your shot, and save it.
+  - The logbook shows every kind of shot of every jet, with your best stars for each.
+- **New: Five ranks, each bringing something**
+  - Points come from every picture and every new kind of shot. FENCE REGULAR (600 points) brings a 400 mm lens and the landing fence; CROWD-LINE PRO (1,800) 600 mm and burst shooting (hold the shutter); AVIATION PHOTOGRAPHER (4,000) 800 mm and the runway end; MAGAZINE COVER (8,000) a 1.4× teleconverter, 1,120 mm.
+- **New: Four places to shoot from (V)**
+  - The crowd line at show centre; the static park behind the crowd; the landing fence under the approach, where the jets land right over your head; and the runway end, behind the takeoff roll with the afterburners lit.
+  - The grounds have a crowd barrier, about 1,150 spectators, marquees and a commentary stand. Four jets stand on the static display behind the crowd: yours and three others, with empty cockpits.
+- **Improved: New vapour cone and wing vapour, in every mode**
+  - Near Mach 1, low in damp air, a jet now wears a real vapour cone: a bell-shaped shroud of cloud from about the canopy back past the wings, sharp at the front and ragged at the back.
+  - In a hard pull, sheets of vapour now form over the wings and stream back off them. Both used to be a few round puffs.
+
 ## v5.3.2 (2026-10-07)
 
 ### Space Exploration: Real time warp, a map for the rockets

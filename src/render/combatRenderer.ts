@@ -4,6 +4,7 @@
 
 import type { HazeSource } from './heatHaze';
 import * as THREE from 'three';
+import { VaporFx } from './vapor';
 import { ROUND_LIFE } from '../weapons/gun';
 import type { Sim } from '../game/sim';
 import type { Aircraft } from '../aircraft/aircraft';
@@ -102,6 +103,8 @@ export class CombatRenderer {
   private burns: Burn[] = [];
   private contrails = new Map<Aircraft, Trail[]>();
   private vortices = new Map<Aircraft, Trail[]>();
+  /** the vapour cone and wing vapour, made the first time a jet needs them */
+  private vapors = new Map<Aircraft, VaporFx>();
   private flash: THREE.PointLight;
   private flashT = 0;
   private flashDecay = 14;
@@ -202,6 +205,7 @@ export class CombatRenderer {
     this.fire.mesh.visible = v;
     this.trails.mesh.visible = v;
     this.tracerMesh.visible = v;
+    if (!v) for (const vf of this.vapors.values()) vf.group.visible = false;
     this.eject.setVisible(v);
   }
 
@@ -212,6 +216,8 @@ export class CombatRenderer {
     this.burns.length = 0;
     this.contrails.clear();
     this.vortices.clear();
+    for (const vf of this.vapors.values()) vf.dispose();
+    this.vapors.clear();
     for (const m of [...this.missileVis.keys()]) this.removeMissile(m);
     this.decoyVis.clear();
     this.eject.clear();
@@ -234,6 +240,8 @@ export class CombatRenderer {
     this.aircraftVis.delete(a);
     this.contrails.delete(a);
     this.vortices.delete(a);
+    this.vapors.get(a)?.dispose();
+    this.vapors.delete(a);
   }
 
   /** Rebuild stores after a rearm. */
@@ -428,8 +436,13 @@ export class CombatRenderer {
       v.update(dt);
       if (!v.wreck && v.root.visible) v.hazeSources(this.haze);
       v.updateLod(v.root.position.distanceTo(cam), tanHalf);
-      if (a.fm.crashed) continue;
+      if (a.fm.crashed) {
+        const vf = this.vapors.get(a);
+        if (vf) vf.group.visible = false;
+        continue;
+      }
       this.aircraftEffects(a, v, dt);
+      this.vapor(a, v, dt, camera);
     }
 
     // missiles
@@ -501,6 +514,22 @@ export class CombatRenderer {
     }
   }
 
+  /** the vapour cone near Mach 1 and the wing vapour in a hard pull (low, damp air) */
+  private vapor(a: Aircraft, v: AirframeVisual, dt: number, camera: THREE.Camera): void {
+    const fm = a.fm;
+    let vf = this.vapors.get(a);
+    if (!vf) {
+      // (only made once a jet gets anywhere near: most never do)
+      const near = fm.mach > 0.9 || fm.nz > 4.8 || fm.alpha > 0.28;
+      if (!near || fm.onGround || fm.pos.y > 8000) return;
+      vf = new VaporFx(a);
+      this.vapors.set(a, vf);
+      this.scene.add(vf.group);
+    }
+    vf.update(dt, camera, this.sim.sunDir);
+    if (!v.root.visible || v.wreck) vf.group.visible = false;
+  }
+
   private aircraftEffects(a: Aircraft, v: AirframeVisual, dt: number): void {
     const fm = a.fm;
     const alt = fm.pos.y;
@@ -537,25 +566,9 @@ export class CombatRenderer {
         tmp.set(sx * hs, 0, 2.5).applyQuaternion(q).add(fm.pos);
         vts![i].add(tmp, this.time);
       });
-      // wing vapour at very high G
-      if (fm.nz > 6.5 && Math.random() < 0.8) {
-        for (const sx of [-1, 1]) {
-          tmp.set(sx * rand(1.5, a.spec.span * 0.35), 0.6, rand(-1, 2.5)).applyQuaternion(q).add(fm.pos);
-          this.smoke.spawn({ x: tmp.x, y: tmp.y, z: tmp.z, vx: fm.vel.x * 0.9, vy: fm.vel.y * 0.9, vz: fm.vel.z * 0.9, life: 0.25, size0: 2, size1: 4, c0: WHITE_SMOKE, a0: 0.35, a1: 0, drag: 3 });
-        }
-      }
     } else if (vts) {
       for (const t of vts) t.emitting = false;
       this.vortices.delete(a);
-    }
-
-    // transonic vapour cone
-    if (fm.mach > 0.96 && fm.mach < 1.05 && alt < 6000 && Math.random() < 0.9) {
-      for (let k = 0; k < 5; k++) {
-        const ang = Math.random() * Math.PI * 2;
-        tmp.set(Math.cos(ang) * 2.4, Math.sin(ang) * 2.0, rand(-1.5, 0.5)).applyQuaternion(q).add(fm.pos);
-        this.smoke.spawn({ x: tmp.x, y: tmp.y, z: tmp.z, vx: fm.vel.x * 0.95, vy: fm.vel.y * 0.95, vz: fm.vel.z * 0.95, life: 0.12, size0: 2.5, size1: 3.5, c0: WHITE_SMOKE, a0: 0.45, a1: 0 });
-      }
     }
 
     // damage smoke / fire

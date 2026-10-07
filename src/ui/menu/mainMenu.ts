@@ -31,9 +31,9 @@ const DIFF_TEXT: Record<Difficulty, string> = {
   EXTREME: 'Operates at the absolute limits of the airframe: max-G snapshots, instant switching between gun and AIM-9X, perfect intercept geometry, and it punishes fuel or G-LOC mistakes.',
 };
 
-const MODES: ModeId[] = ['campaign', 'daily', 'recon', 'strike', 'tutorial', 'free', 'waves', 'duel', 'team', 'ffa'];
+const MODES: ModeId[] = ['spotter', 'campaign', 'daily', 'recon', 'strike', 'tutorial', 'free', 'waves', 'duel', 'team', 'ffa'];
 /** modes that need land (targets, sites, the lesson course) */
-const OCEAN_OFF: ModeId[] = ['campaign', 'daily', 'recon', 'strike', 'tutorial'];
+const OCEAN_OFF: ModeId[] = ['spotter', 'campaign', 'daily', 'recon', 'strike', 'tutorial'];
 
 const TIMES: [TimeOfDay, string, string][] = [
   ['dawn', 'DAWN', 'linear-gradient(180deg,#2b3a67 0%,#c46b8a 60%,#f4b27a 100%)'],
@@ -356,10 +356,18 @@ export class MainMenu {
     el('div', 'mm-setup-t', c, info.title);
     const blue = airfieldsOf('blue');
     if (!blue.some((f) => f.id === cfg.freeBase)) cfg.freeBase = blue[0].id;
+    if (cfg.mode === 'spotter') {
+      const land = blue.filter((f) => !f.carrier);
+      if (!land.some((f) => f.id === cfg.freeBase) && land.length) cfg.freeBase = land[0].id;
+      this.pills(c, 'AIRSHOW AT', land.map((f) => [f.id, f.name.replace(' AB', '')] as [string, string]), cfg.freeBase, (v) => (cfg.freeBase = v));
+      el('div', 'mm-note', c, `The ${SPECS[cfg.aircraft].shortName} opens the show; every other jet follows. No flying, no enemies: just the jets and your camera. A low sun (dawn, dusk) makes the most dramatic pictures.`);
+    }
     if (cfg.mode === 'free' || cfg.mode === 'waves') {
       this.pills(c, 'HOME BASE', blue.map((f) => [f.id, f.name.replace(' AB', '')] as [string, string]), cfg.freeBase, (v) => (cfg.freeBase = v));
     }
-    if (cfg.mode === 'free') {
+    if (cfg.mode === 'spotter') {
+      // (set up above: the venue and the note)
+    } else if (cfg.mode === 'free') {
       this.pills(c, 'START', [['runway', activeMap.id === 'ocean' ? 'ON THE CATAPULT' : 'ON RUNWAY'], ['air', 'IN THE AIR']], cfg.freeStart, (v) => (cfg.freeStart = v));
       el('div', 'mm-note', c, activeMap.id === 'ocean' ? 'No enemy jets, but the RED carriers in the north-east shoot at anything that comes close. Launch off the catapult (full throttle), then practise traps: gear down, hook down (H), fly the ball on the lens to the wires.' : 'No enemies. Practise take-offs, landings and high-G handling anywhere in the theater.');
     } else if (cfg.mode === 'waves') {

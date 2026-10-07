@@ -16,6 +16,8 @@ export const AIRCRAFT_TYPES: AircraftType[] = ['F15EX', 'FA18EF', 'F16C', 'TYPHO
 export const COMBAT_TYPES: AircraftType[] = AIRCRAFT_TYPES.filter((t) => t !== 'SR71' && t !== 'X15');
 /** jets only some modes may use */
 export function jetAllowedIn(t: AircraftType, mode: string): boolean {
+  // (at the airshow the SR-71 flies a display like everyone else; the X-15 never does)
+  if (mode === 'spotter') return t !== 'X15';
   if (t === 'SR71') return mode === 'free' || mode === 'recon';
   // the X-15 is a rocket research ship: dropped from its mothership in free flight only
   if (t === 'X15') return mode === 'free';

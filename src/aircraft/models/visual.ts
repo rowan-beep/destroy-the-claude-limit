@@ -518,6 +518,21 @@ export class AirframeVisual {
     if (on === this.detailOn) return;
     this.detailOn = on;
     for (const o of this.detail) o.visible = on;
+    if (this.crewOff) this.hideCrew();
+  }
+
+  /** an empty cockpit (a jet on the static display) */
+  private crewOff = false;
+  private crewMeshes: THREE.Object3D[] | null = null;
+  private hideCrew(): void {
+    if (!this.crewMeshes) {
+      const list: THREE.Object3D[] = [];
+      this.root.traverse((o) => {
+        if (o.userData.pilot) list.push(o);
+      });
+      this.crewMeshes = list;
+    }
+    for (const o of this.crewMeshes) o.visible = false;
   }
 
   /**
@@ -989,6 +1004,7 @@ export class AirframeVisual {
     if (inside === this.insideView) return;
     this.insideView = inside;
     for (const o of this.hideInCockpit) o.visible = !inside;
+    if (this.crewOff) this.hideCrew();
   }
 
   /** The 3D cockpit, built on first use. */
@@ -1000,6 +1016,10 @@ export class AirframeVisual {
   update(dt: number): void {
     const ac = this.ac;
     const fm = ac.fm;
+    if (ac.crewless && !this.crewOff) {
+      this.crewOff = true;
+      this.hideCrew();
+    }
     this.t += dt;
     this.root.position.copy(fm.pos);
     this.root.quaternion.copy(fm.quat);

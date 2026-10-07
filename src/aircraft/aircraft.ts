@@ -307,8 +307,20 @@ export class Aircraft {
   // Simulation step
   // -------------------------------------------------------------------------
 
+  /** flown on a scripted path (the airshow), not by the flight model */
+  scripted = false;
+  /** parked on a static display: nobody in the cockpit */
+  crewless = false;
+  /** moves a scripted jet along its path, once per physics step (so it is drawn as smoothly as the rest) */
+  script: ((dt: number) => void) | null = null;
+
   step(dt: number, sim: Sim): void {
     this.simTime = sim.time;
+    // a display jet at the airshow: flown on its scripted path (airshow.ts), not by the physics
+    if (this.scripted) {
+      this.script?.(dt);
+      return;
+    }
     const fm = this.fm;
     if (this.remote) {
       this.stepRemote(dt, sim);
