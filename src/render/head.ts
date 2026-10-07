@@ -114,7 +114,7 @@ export class HeadModel {
     const t = this.t;
     const thr = clamp(fm.rpm.reduce((a, b) => a + b, 0) / Math.max(1, fm.rpm.length), 0, 1.1);
     // the airframe's buffet, straight from the flight model
-    const buffet = fm.buffet * 1.4;
+    const buffet = fm.buffet * 0.8;
     const runway = fm.onGround ? clamp(fm.gs / 70, 0, 1) : 0;
     const vib =
       0.00022 * thr * rumble(t, 95, 1) +

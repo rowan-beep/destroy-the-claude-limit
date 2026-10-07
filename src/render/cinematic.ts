@@ -32,7 +32,8 @@ export const SunShaftShader = {
     vec3 bright(vec2 uv) {
       vec3 c = texture2D(tDiffuse, clamp(uv, 0.001, 0.999)).rgb;
       float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
-      return c * smoothstep(0.85, 3.0, l);
+      // capped: the sun's disc alone must not flood the rays
+      return min(c * smoothstep(1.2, 4.0, l), vec3(2.5));
     }
     float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
     void main() {
@@ -43,7 +44,7 @@ export const SunShaftShader = {
       float dist = length(d * vec2(aspect, 1.0));
       const int N = 28;
       vec2 st = d / float(N) * 0.92;
-      vec2 uv = vUv + st * hash(vUv * 731.0);
+      vec2 uv = vUv + st * 0.5;
       float w = 1.0;
       vec3 acc = vec3(0.0);
       for (int i = 0; i < N; i++) {
@@ -53,8 +54,8 @@ export const SunShaftShader = {
       }
       acc /= float(N);
       // rays fade with distance from the sun across the screen
-      float fall = exp(-dist * 2.2);
-      vec3 rays = acc * sunColor * fall * 1.25;
+      float fall = exp(-dist * 3.2);
+      vec3 rays = acc * sunColor * fall * 0.5;
       // lens ghosts: the sun mirrored through the centre, a few sizes and tints
       vec2 g = vec2(0.5) - sunUv;
       vec3 ghosts = vec3(0.0);
@@ -67,9 +68,9 @@ export const SunShaftShader = {
           float q = length((vUv - p) * vec2(aspect, 1.0));
           float ring = smoothstep(r, r * 0.55, q) * (0.35 + 0.65 * smoothstep(r * 0.4, r, q));
           vec3 tint = k == 1 ? vec3(0.6, 0.9, 1.0) : k == 2 ? vec3(1.0, 0.7, 0.45) : k == 3 ? vec3(0.55, 1.0, 0.7) : vec3(0.85, 0.6, 1.0);
-          ghosts += tint * ring * 0.038;
+          ghosts += tint * ring * 0.018;
         }
-        ghosts *= min(sunGlow, 6.0);
+        ghosts *= min(sunGlow, 2.0);
       }
       gl_FragColor = vec4(base.rgb + (rays + ghosts) * strength, base.a);
     }`,

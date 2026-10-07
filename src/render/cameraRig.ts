@@ -267,7 +267,7 @@ export class CameraRig {
   private applyShake(cam: THREE.PerspectiveCamera, ac: Aircraft, impactsOnly = false): void {
     const fm = ac.fm;
     // the airframe's own buffet (the flight model shakes the jet; the camera rides with it)
-    const buffet = impactsOnly ? 0 : fm.buffet * 0.9 + (fm.onGround ? clamp(fm.gs / 80, 0, 1) * 0.15 : 0);
+    const buffet = impactsOnly ? 0 : fm.buffet * 0.45 + (fm.onGround ? clamp(fm.gs / 80, 0, 1) * 0.15 : 0);
     const gunShake = !impactsOnly && ac.gunFiring ? 0.25 : 0;
     const ab = impactsOnly ? 0 : fm.afterburner * 0.06;
     const s = this.shake + buffet + gunShake + ab;

@@ -721,7 +721,7 @@ export class FlightModel {
     const aMaxB = s.alphaMaxDeg * DEG;
     const supB = smoothstep(0.88, 1.3, M);
     // separation creeps forward from the trailing edge well before the limit
-    const aoaBuf = smoothstep(aMaxB * (0.5 + 0.08 * supB), aMaxB + 4 * DEG, Math.abs(alpha));
+    const aoaBuf = smoothstep(aMaxB * (0.65 + 0.08 * supB), aMaxB + 4 * DEG, Math.abs(alpha));
     // transonic: shocks on the wing, worse the harder it is loaded
     const shock = smoothstep(0.82, 0.94, M) * (1 - smoothstep(1.02, 1.15, M)) * (0.25 + 0.75 * smoothstep(2 * DEG, 10 * DEG, Math.abs(alpha)));
     // the speedbrake and the gear doors in a fast airflow

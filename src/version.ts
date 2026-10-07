@@ -10,6 +10,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '4.57.1',
+    date: '2026-10-07',
+    title: "Easier on the eyes",
+    notes: [
+      "Toned the sun way down. The sun's rays no longer feed the bloom, which was making the whole picture glow so much you couldn't see. The rays and lens flares are much fainter and stay close to the sun, and they no longer shimmer or flicker as the camera moves.",
+      "Less shake: the airframe buffet only starts much closer to the stall instead of in any hard turn, and it shakes the camera and the view about half as much. The film grain and sharpening are lighter too.",
+    ],
+  },
+  {
     version: '4.57.0',
     date: '2026-10-07',
     title: "Starbase, wind and fire",

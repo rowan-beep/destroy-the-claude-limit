@@ -3,6 +3,11 @@
 Every update gets a version number and notes here. The same notes are shown
 in the game under **WHAT'S NEW** on the main menu.
 
+## v4.57.1 — Easier on the eyes (2026-10-07)
+
+- Toned the sun way down. The sun's rays no longer feed the bloom, which was making the whole picture glow so much you couldn't see. The rays and lens flares are much fainter and stay close to the sun, and they no longer shimmer or flicker as the camera moves.
+- Less shake: the airframe buffet only starts much closer to the stall instead of in any hard turn, and it shakes the camera and the view about half as much. The film grain and sharpening are lighter too.
+
 ## v4.57.0 — Starbase, wind and fire (2026-10-07)
 
 - Starship now launches from its own pad, Pad 2: a full Starbase-sized launch complex beside the Saturn V pad, built at real scale. A 146 m launch-and-catch tower with its chopsticks and the arm that swings clear at liftoff; the orbital launch mount on a raised pad, with a steel-lined flame trench cut through the pad, a curved flame deflector and water deluge pipes; a tank farm with 14 tall tanks and 18 horizontal ones, subcoolers and pipe racks running to the mount and up the tower; deluge water tanks and a pump house, lightning masts, 16 floodlight masts, a launch-control bunker, workshops, a 660 m by 355 m concrete apron stained with soot, and the Mega Bay across the road.

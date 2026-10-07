@@ -163,6 +163,7 @@ export class GameRenderer {
   private sanitizePass!: ShaderPass;
   /** god rays and lens ghosts from the sun (HDR), and the final sharpen / grain / speed pass */
   private sunPass!: ShaderPass;
+  private sunK = 0;
   private finishPass!: ShaderPass;
   /** the speed of the camera's aircraft (m/s), for the speed blur */
   private speed = 0;
@@ -215,10 +216,11 @@ export class GameRenderer {
     this.composer.addPass(this.dropletPass);
     this.sanitizePass = new ShaderPass(SanitizeShader);
     this.composer.addPass(this.sanitizePass);
+    this.composer.addPass(this.bloomPass);
+    // the sun's rays go on after the bloom, so the bloom never blooms them again
     this.sunPass = new ShaderPass(SunShaftShader);
     this.sunPass.enabled = false;
     this.composer.addPass(this.sunPass);
-    this.composer.addPass(this.bloomPass);
     this.composer.addPass(this.nightPass);
     this.composer.addPass(this.visionPass);
     this.composer.addPass(this.outputPass);
@@ -278,8 +280,8 @@ export class GameRenderer {
     // the camera's look: sharpening on every tier; grain, lens fringes and sun shafts from medium up
     const fu = this.finishPass.uniforms;
     const q = g.quality;
-    fu.sharpen.value = q === 'low' ? 0.35 : 0.6;
-    fu.grain.value = q === 'low' ? 0 : 0.022;
+    fu.sharpen.value = q === 'low' ? 0.3 : 0.45;
+    fu.grain.value = q === 'low' ? 0 : 0.01;
     fu.aberration.value = q === 'low' ? 0 : 0.0014;
     this.camera.fov = g.fov;
     this.resize();
@@ -304,8 +306,11 @@ export class GameRenderer {
       u.sunUv.value = [p.x * 0.5 + 0.5, p.y * 0.5 + 0.5];
       u.sunColor.value = [SUN_VIEW_COLOR[0], SUN_VIEW_COLOR[1], SUN_VIEW_COLOR[2]];
     }
-    u.strength.value = k * 0.85;
-    this.sunPass.enabled = k > 0.01;
+    // eased, so a jolt of the camera or a cloud edge doesn't make the rays flicker
+    this.sunK += (k - this.sunK) * 0.12;
+    if (this.sunK < 0.005) this.sunK = 0;
+    u.strength.value = this.sunK * 0.45;
+    this.sunPass.enabled = this.sunK > 0.01;
     // speed: noticeable from ~500 kt, strongest very fast and low
     const fu = this.finishPass.uniforms;
     fu.speedBlur.value = on && this.settings.quality !== 'low' ? THREE.MathUtils.smoothstep(this.speed, 240, 560) * 0.7 : 0;
