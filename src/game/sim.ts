@@ -218,7 +218,7 @@ export class Sim {
     if (t.remote) {
       // another player's jet: our view decides the hit, their client takes the damage
       if (t.alive && shooter && !shooter.remote) {
-        const weapon = shooter.type === 'SU35' ? 'GSh-30' : shooter.type === 'MIG31' ? 'GSh-6-23' : shooter.type === 'RAFALE' ? '30M791' : shooter.spec.gun.caliberMm > 25 ? 'BK-27' : 'M61';
+        const weapon = shooter.type === 'SU35' || shooter.type === 'SU57' ? 'GSh-30' : shooter.type === 'MIG31' ? 'GSh-6-23' : shooter.type === 'RAFALE' ? '30M791' : shooter.type === 'F35A' ? 'GAU-22' : shooter.spec.gun.caliberMm > 25 ? 'BK-27' : 'M61';
         this.net?.hit(t, { k: 'g', c: comp, d: dmg, w: weapon });
         this.events.emit('hit', { victim: t, shooter, weapon, damage: dmg, pos: pos.clone(), component: comp });
       }
@@ -228,7 +228,7 @@ export class Sim {
       t.damage.apply(comp, dmg);
       return;
     }
-    const weapon = shooter ? (shooter.type === 'SU35' ? 'GSh-30' : shooter.type === 'MIG31' ? 'GSh-6-23' : shooter.type === 'RAFALE' ? '30M791' : shooter.spec.gun.caliberMm > 25 ? 'BK-27' : 'M61') : 'GUN';
+    const weapon = shooter ? (shooter.type === 'SU35' || shooter.type === 'SU57' ? 'GSh-30' : shooter.type === 'MIG31' ? 'GSh-6-23' : shooter.type === 'RAFALE' ? '30M791' : shooter.type === 'F35A' ? 'GAU-22' : shooter.spec.gun.caliberMm > 25 ? 'BK-27' : 'M61') : 'GUN';
     t.lastHitBy = { shooter, weapon, time: this.time };
     t.damage.apply(comp, dmg);
     this.events.emit('hit', { victim: t, shooter, weapon, damage: dmg, pos: pos.clone(), component: comp });

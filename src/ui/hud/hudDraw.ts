@@ -630,7 +630,7 @@ export class HudPainter {
     this.text(`${fm.nz.toFixed(1)}G`, cx - 120, cy + 20, fm.nz > p.spec.gLimit - 0.3 ? AMBER : GREEN_DIM, 12, 'right');
     const w = p.selectedWeapon;
     this.text(w === 'GUN' ? `GUN ${p.gunAmmo}` : `${weaponCode(w)} ${p.countOf(w)}`, cx + 120, cy + 20, GREEN_DIM, 12, 'left');
-    const name = p.type === 'TYPHOON' ? 'STRIKER II' : p.type === 'F15EX' ? 'JHMCS II' : p.type === 'SU35' || p.type === 'MIG31' ? 'NSTs-T' : p.type === 'RAFALE' ? 'SCORPION' : 'JHMCS';
+    const name = p.type === 'TYPHOON' ? 'STRIKER II' : p.type === 'F15EX' ? 'JHMCS II' : p.type === 'SU35' || p.type === 'MIG31' || p.type === 'SU57' ? 'NSTs-T' : p.type === 'RAFALE' ? 'SCORPION' : p.type === 'F35A' ? 'HMDS GEN III' : p.type === 'GRIPEN' ? 'TARGO II' : 'JHMCS';
     this.text(name, cx, cy - 118, GREEN_DIM, 11, 'center');
     // nose cue: where the jet is pointing
     const nose = this.projectDir(cam, fm.fwd);

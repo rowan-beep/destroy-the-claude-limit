@@ -330,6 +330,7 @@ const SIDE_BAY: P2 = [-1.65, 0.75];
 const SIDE_T: P2 = [0.1, 0.6];
 
 let _bayMat: THREE.MeshStandardMaterial | null = null;
+export { bayInteriorMaterial, skinPanel, swingSign };
 /** the bay interior: dark primer, launch rails and ribs in shadow */
 function bayInteriorMaterial(): THREE.MeshStandardMaterial {
   if (!_bayMat) _bayMat = new THREE.MeshStandardMaterial({ color: '#34393e', roughness: 0.85, metalness: 0.1, vertexColors: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });

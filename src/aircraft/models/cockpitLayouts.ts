@@ -16,6 +16,12 @@
 //  Su-35S            two 15 in MFI-35 wide-screen displays side by side
 //                    with the PUI-35 control display between and below them,
 //                    wide-angle IKSh-1M HUD, K-36D-3.5 seat.
+//  F-35A             one 20x8 in panoramic touch-screen (two portals), no
+//                    HUD at all: the helmet visor carries the symbology.
+//  Su-57             two 15 in MFI displays and two small ones below,
+//                    wide-angle HUD, K-36D-5 seat.
+//  Gripen E          a 19x8 in wide-area touch display (two portals),
+//                    wide-angle HUD, Martin-Baker Mk 16 seat.
 
 import type { AircraftType } from '../specs';
 import type { DisplayDef } from '../../avionics/avionics';
@@ -48,7 +54,7 @@ export interface CockpitLayout {
   glareDrop: number;
   /** how far the glare shield lip overhangs toward the pilot */
   glareLip: number;
-  hud: { dist: number; halfW: number; top: number; bottom: number; style: 'single' | 'wide' | 'dual' | 'none' };
+  hud: { dist: number; halfW: number; top: number; bottom: number; style: 'single' | 'wide' | 'dual' | 'none' | 'hmd' };
   consoleDrop: number;
   displays: DisplayMount[];
   /** colours */
@@ -67,6 +73,139 @@ export interface CockpitLayout {
 const CANVAS_MFD = 512;
 
 export const COCKPIT_LAYOUTS: Record<AircraftType, CockpitLayout> = {
+  F35A: {
+    panelDist: 0.6,
+    panelDrop: 0.26,
+    panelTilt: 0.3,
+    panelHalfWidth: 0.4,
+    panelHeight: 0.38,
+    glareDrop: 0.2,
+    glareLip: 0.07,
+    // no head-up display: the Gen III helmet projects the symbology on the visor
+    hud: { dist: 0.58, halfW: 0.14, top: 0.1, bottom: -0.19, style: 'hmd' },
+    consoleDrop: 0.5,
+    tub: 0x4c5156,
+    panel: 0x2c3034,
+    console: 0x222528,
+    frame: 0x2a2e32,
+    seat: 0x3a3e40,
+    seatKind: 'mk16',
+    label: 'F-35A',
+    lockShoot: false,
+    displays: [
+      {
+        def: {
+          id: 'pcd',
+          kind: 'lad',
+          w: 1024,
+          h: 410,
+          hz: 8,
+          portals: [
+            { x: 0, y: 0, w: 512, h: 410, page: 'TSD' },
+            { x: 512, y: 0, w: 512, h: 410, page: 'RDR' },
+          ],
+          slots: [0, 2],
+        },
+        px: 0,
+        py: 0.17,
+        sw: 0.508,
+        sh: 0.203,
+        bezel: 'touch',
+      },
+      { def: { id: 'sfd', kind: 'standby', w: 256, h: 256, hz: 15 }, px: 0, py: 0.33, sw: 0.06, sh: 0.06, bezel: 'plain' },
+    ],
+  },
+  SU57: {
+    panelDist: 0.64,
+    panelDrop: 0.27,
+    panelTilt: 0.3,
+    panelHalfWidth: 0.42,
+    panelHeight: 0.4,
+    glareDrop: 0.215,
+    glareLip: 0.08,
+    hud: { dist: 0.6, halfW: 0.15, top: 0.1, bottom: -0.2, style: 'wide' },
+    consoleDrop: 0.5,
+    tub: 0x3a5f6a,
+    panel: 0x283034,
+    console: 0x24323a,
+    frame: 0x2c383e,
+    seat: 0x3a3834,
+    seatKind: 'mk16',
+    label: 'SU-57',
+    lockShoot: false,
+    displays: [
+      {
+        def: { id: 'mfi-l', kind: 'mfd', w: CANVAS_MFD, h: CANVAS_MFD, hz: 8, portals: [{ x: 0, y: 0, w: CANVAS_MFD, h: CANVAS_MFD, page: 'TSD' }], slots: [0] },
+        px: -0.16,
+        py: 0.15,
+        sw: 0.25,
+        sh: 0.25,
+        bezel: 'osb',
+        yaw: 0.08,
+      },
+      {
+        def: { id: 'mfi-r', kind: 'mfd', w: CANVAS_MFD, h: CANVAS_MFD, hz: 8, portals: [{ x: 0, y: 0, w: CANVAS_MFD, h: CANVAS_MFD, page: 'RDR' }], slots: [1] },
+        px: 0.16,
+        py: 0.15,
+        sw: 0.25,
+        sh: 0.25,
+        bezel: 'osb',
+        yaw: -0.08,
+      },
+      {
+        def: { id: 'mfi-c', kind: 'mfd', w: CANVAS_MFD, h: CANVAS_MFD, hz: 8, portals: [{ x: 0, y: 0, w: CANVAS_MFD, h: CANVAS_MFD, page: 'ENG' }], slots: [2] },
+        px: 0,
+        py: 0.33,
+        sw: 0.11,
+        sh: 0.11,
+        bezel: 'osb',
+      },
+      { def: { id: 'sfd', kind: 'standby', w: 256, h: 256, hz: 15 }, px: -0.36, py: 0.1, sw: 0.065, sh: 0.065, bezel: 'plain' },
+      { def: { id: 'cau', kind: 'dwp', w: 256, h: 384, hz: 4 }, px: 0.37, py: 0.1, sw: 0.055, sh: 0.085, bezel: 'plain' },
+    ],
+  },
+  GRIPEN: {
+    panelDist: 0.6,
+    panelDrop: 0.26,
+    panelTilt: 0.3,
+    panelHalfWidth: 0.38,
+    panelHeight: 0.37,
+    glareDrop: 0.205,
+    glareLip: 0.08,
+    hud: { dist: 0.57, halfW: 0.14, top: 0.1, bottom: -0.19, style: 'wide' },
+    consoleDrop: 0.48,
+    tub: 0x585d62,
+    panel: 0x303438,
+    console: 0x26292c,
+    frame: 0x2e3236,
+    seat: 0x3d4238,
+    seatKind: 'mk16',
+    label: 'GRIPEN E',
+    lockShoot: false,
+    displays: [
+      {
+        def: {
+          id: 'wad',
+          kind: 'lad',
+          w: 1024,
+          h: 430,
+          hz: 8,
+          portals: [
+            { x: 0, y: 0, w: 512, h: 430, page: 'TSD' },
+            { x: 512, y: 0, w: 512, h: 430, page: 'RDR' },
+          ],
+          slots: [0, 2],
+        },
+        px: 0,
+        py: 0.19,
+        sw: 0.48,
+        sh: 0.2,
+        bezel: 'touch',
+      },
+      { def: { id: 'ufc', kind: 'ufc', w: 512, h: 160, hz: 4 }, px: 0, py: 0.045, sw: 0.14, sh: 0.044, bezel: 'plain' },
+      { def: { id: 'sfd', kind: 'standby', w: 256, h: 256, hz: 15 }, px: 0.31, py: 0.33, sw: 0.06, sh: 0.06, bezel: 'plain' },
+    ],
+  },
   F15EX: {
     panelDist: 0.64,
     panelDrop: 0.27,

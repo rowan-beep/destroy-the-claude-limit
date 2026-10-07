@@ -6,8 +6,8 @@
 import { FT, LB, LBF } from '../core/constants';
 import type { MissileType, BombType } from '../weapons/weaponSpecs';
 
-export type AircraftType = 'F15EX' | 'FA18EF' | 'F16C' | 'TYPHOON' | 'SU35' | 'RAFALE' | 'F22' | 'MIG31' | 'SR71' | 'X15';
-export const AIRCRAFT_TYPES: AircraftType[] = ['F15EX', 'FA18EF', 'F16C', 'TYPHOON', 'SU35', 'RAFALE', 'F22', 'MIG31', 'SR71', 'X15'];
+export type AircraftType = 'F15EX' | 'FA18EF' | 'F16C' | 'TYPHOON' | 'SU35' | 'RAFALE' | 'F22' | 'MIG31' | 'SR71' | 'X15' | 'F35A' | 'SU57' | 'GRIPEN';
+export const AIRCRAFT_TYPES: AircraftType[] = ['F15EX', 'FA18EF', 'F16C', 'TYPHOON', 'SU35', 'RAFALE', 'F22', 'MIG31', 'SR71', 'X15', 'F35A', 'SU57', 'GRIPEN'];
 /**
  * The armed fighters: everything the AI flies and every combat mode allows.
  * The SR-71 is an unarmed reconnaissance jet still in testing: it only flies
@@ -218,6 +218,7 @@ const PW4 = 'PAVEWAY4' as const;
 const AASM = 'AASM' as const;
 const KAB = 'KAB500' as const;
 const R37 = 'R37M' as const;
+const IRIS = 'IRIST' as const;
 /** fore-aft centre of the wing missile racks: every rack's missiles sit nose-level */
 const F15_RZ = 1.3;
 const FA18_RZ = 1.8;
@@ -1396,6 +1397,376 @@ const F16: AircraftSpec = {
   tank: { fuel: 1124, mass: 150, dropWhenEmpty: false },
 };
 
+// ---------------------------------------------------------------------------
+// Lockheed Martin F-35A Lightning II
+// ---------------------------------------------------------------------------
+// The most numerous fighter of its generation. One F135, the biggest fighter
+// engine there is; everything for air combat rides in two bays side by side
+// under the belly; and the best sensors in the theater (APG-81 radar, EOTS
+// targeting IRST, DAS cameras that see a launch anywhere round the jet). As
+// with the F-22 its stealth is not modelled: it fights on its kinematics.
+const F35A: AircraftSpec = {
+  type: 'F35A',
+  name: 'Lockheed Martin F-35A Lightning II',
+  shortName: 'F-35A',
+  role: 'Fifth-generation multirole stealth fighter',
+  crew: 1,
+  description:
+    'The most widely flown fifth-generation fighter. A single Pratt & Whitney F135, 43,000 lbf in afterburner, takes it to Mach 1.6 and 50,000 ft; it carries four AIM-120Ds inside its two weapons bays (two 2,000 lb JDAMs for strike) and more on the wings when stealth doesn\'t matter. AN/APG-81 AESA radar, the EOTS infrared search and track, and DAS cameras that warn of missile launches from any direction. Comfortable at 50 degrees angle of attack. GAU-22/A 25 mm four-barrel gun inside the left shoulder, 182 rounds.',
+  lengthFt: 51.4,
+  wingspanFt: 35.0,
+  heightFt: 14.4,
+  length: 51.4 * FT,
+  span: 35.0 * FT,
+  height: 14.4 * FT,
+  emptyMass: kg(29300),
+  internalFuel: kg(18250),
+  maxTakeoff: kg(70000),
+  maxTakeoffLb: 70000,
+  payloadLb: 18000,
+  wingArea: 42.7,
+  cd0: 0.0215,
+  // a deep, area-ruled-but-bulky fuselage: a hard transonic drag rise, Mach 1.6 at the top
+  waveDragPeak: 2.2,
+  waveDragHigh: 1.85,
+  kInduced: 0.13,
+  clAlpha: 3.7,
+  clMax: 1.75,
+  flapCl0: 0.2,
+  alphaMaxDeg: 50,
+  maxMach: 1.6,
+  ceilingFt: 50000,
+  maxIasKts: 700,
+  engineName: '1 x Pratt & Whitney F135-PW-100',
+  engines: 1,
+  thrustMil: lbf(28000),
+  thrustAb: lbf(43000),
+  thrustMilLbf: 28000,
+  thrustAbLbf: 43000,
+  tsfcMil: 0.74,
+  tsfcAb: 1.95,
+  ramFactor: 0.5,
+  spool: 1.3,
+  gLimit: 9.0,
+  gOverride: 9.5,
+  gStructural: 13.5,
+  gNeg: -3,
+  rollRate: 210,
+  pitchRate: 28,
+  cornerKts: 340,
+  rotateKts: 150,
+  approachKts: 145,
+  speedbrakeCd: 0.055,
+  combatRangeNm: 1200,
+  hardpoints: 10,
+  maxAAM: 10,
+  missiles: { radar: AIM120, ir: AIM9 },
+  tvcDeg: 0,
+  gun: {
+    name: 'GAU-22/A Equalizer 25mm four-barrel cannon',
+    caliberMm: 25,
+    rounds: 182,
+    rpm: 3300,
+    muzzleVelocity: 1050,
+    damage: 12,
+    dispersionMil: 4,
+    port: [-0.78, 0.36, -1.7],
+  },
+  stations: [
+    { id: 1, label: 'LW OB', pos: [-4.15, -0.42, 2.6], allowed: [AIM9], mount: 'pylon', hang: -0.36 },
+    { id: 2, label: 'LW MID', pos: [-3.2, -0.48, 2.25], allowed: [AIM120, GBU32], mount: 'pylon', hang: -0.4 },
+    { id: 3, label: 'LW IB', pos: [-2.25, -0.52, 1.9], allowed: [AIM120, GBU32], mount: 'pylon', hang: -0.42 },
+    { id: 4, label: 'L BAY OB', pos: [-0.84, -0.4, 0.8], allowed: [AIM120, GBU31], mount: 'internal', bay: 'left', bayOut: [-0.86, -0.98, 0.8] },
+    { id: 5, label: 'L BAY IB', pos: [-0.38, -0.48, 0.8], allowed: [AIM120], mount: 'internal', bay: 'left', bayOut: [-0.38, -0.9, 0.8] },
+    { id: 6, label: 'R BAY IB', pos: [0.38, -0.48, 0.8], allowed: [AIM120], mount: 'internal', bay: 'right', bayOut: [0.38, -0.9, 0.8] },
+    { id: 7, label: 'R BAY OB', pos: [0.84, -0.4, 0.8], allowed: [AIM120, GBU31], mount: 'internal', bay: 'right', bayOut: [0.86, -0.98, 0.8] },
+    { id: 8, label: 'RW IB', pos: [2.25, -0.52, 1.9], allowed: [AIM120, GBU32], mount: 'pylon', hang: -0.42 },
+    { id: 9, label: 'RW MID', pos: [3.2, -0.48, 2.25], allowed: [AIM120, GBU32], mount: 'pylon', hang: -0.4 },
+    { id: 10, label: 'RW OB', pos: [4.15, -0.42, 2.6], allowed: [AIM9], mount: 'pylon', hang: -0.36 },
+  ],
+  loadouts: [
+    {
+      id: 'f35-stealth',
+      name: 'STEALTH — 4x AIM-120D (internal)',
+      stores: { 4: AIM120, 5: AIM120, 6: AIM120, 7: AIM120 },
+    },
+    {
+      id: 'f35-aa',
+      name: 'AIR SUPERIORITY — 4x AIM-120D (internal), 2x AIM-9X',
+      stores: { 1: AIM9, 4: AIM120, 5: AIM120, 6: AIM120, 7: AIM120, 10: AIM9 },
+    },
+    {
+      id: 'f35-strike',
+      name: 'STRIKE — 2x GBU-31 JDAM, 2x AIM-120D (internal)',
+      stores: { 4: GBU31, 5: AIM120, 6: AIM120, 7: GBU31 },
+    },
+    {
+      id: 'f35-beast',
+      name: 'BEAST MODE — 8x AIM-120D, 2x AIM-9X',
+      stores: { 1: AIM9, 2: AIM120, 3: AIM120, 4: AIM120, 5: AIM120, 6: AIM120, 7: AIM120, 8: AIM120, 9: AIM120, 10: AIM9 },
+    },
+    {
+      id: 'f35-bomb',
+      name: 'HEAVY STRIKE — 4x GBU-32, 2x GBU-31, 2x AIM-120D',
+      stores: { 2: GBU32, 3: GBU32, 8: GBU32, 9: GBU32, 4: GBU31, 7: GBU31, 5: AIM120, 6: AIM120 },
+    },
+  ],
+  radar: { name: 'AN/APG-81 AESA', kind: 'AESA', rangeNm: 100, azLimitDeg: 60, elLimitDeg: 60, maxTracks: 23, frameTime: 1.0 },
+  irst: { name: 'AN/AAQ-40 EOTS', rangeNm: 45, fovDeg: 60 },
+  ew: { name: 'AN/ASQ-239 with AN/AAQ-37 DAS', maws: true, jamming: 0.35, autoDispense: true },
+  flightControl: 'Triplex digital fly-by-wire, carefree to 50 degrees angle of attack',
+  chaff: 0,
+  flares: 48,
+  // a conventional signature (no stealth advantage in the game, as for the F-22)
+  rcs: 7,
+  irSignature: 0.95,
+  gear: { nose: -5.1, main: 0.9, track: 1.55, height: 1.95 },
+  hitRadius: 4.9,
+  paint: { top: '#6b7075', bottom: '#73787d', accent: '#55595d' },
+};
+
+// ---------------------------------------------------------------------------
+// Sukhoi Su-57 Felon
+// ---------------------------------------------------------------------------
+// Russia's fifth-generation fighter: big, fast and agile, with Su-35 heritage
+// and three-dimensional thrust vectoring. Two tandem bays down the centre
+// carry the R-77Ms; a small bay under each wing root holds one R-74M.
+const SU57: AircraftSpec = {
+  type: 'SU57',
+  name: 'Sukhoi Su-57 Felon',
+  shortName: 'Su-57',
+  role: 'Fifth-generation air superiority fighter',
+  crew: 1,
+  description:
+    'Russia\'s fifth-generation fighter: a big, fast airframe with blended lifting fuselage, all-moving tails and leading-edge root extensions that move. Two Saturn AL-41F1 engines (142 kN each in afterburner) supercruise it near Mach 1.3, push it to Mach 2 and 65,000 ft, and their nozzles vector in three dimensions for post-stall turns. Four R-77Ms in two tandem bays down the belly and one R-74M in each wing-root bay; six more stations on the wings. N036 Byelka AESA radar and the 101KS-V infrared search and track. GSh-30-1 30 mm cannon, 150 rounds.',
+  lengthFt: 65.9,
+  wingspanFt: 46.3,
+  heightFt: 15.1,
+  length: 20.1,
+  span: 14.1,
+  height: 4.6,
+  emptyMass: 18000,
+  internalFuel: 10300,
+  maxTakeoff: 35000,
+  maxTakeoffLb: 77160,
+  payloadLb: 22000,
+  wingArea: 78.8,
+  cd0: 0.0185,
+  waveDragPeak: 1.9,
+  waveDragHigh: 1.45,
+  kInduced: 0.11,
+  clAlpha: 3.8,
+  clMax: 2.15,
+  alphaMaxDeg: 35,
+  maxMach: 2.0,
+  ceilingFt: 65600,
+  maxIasKts: 760,
+  engineName: '2 x Saturn AL-41F1 (izdeliye 117), 3D thrust vectoring',
+  engines: 2,
+  thrustMil: lbf(19840),
+  thrustAb: lbf(32000),
+  thrustMilLbf: 19840,
+  thrustAbLbf: 32000,
+  tsfcMil: 0.75,
+  tsfcAb: 1.9,
+  ramFactor: 0.66,
+  spool: 1.35,
+  gLimit: 9.0,
+  gOverride: 10.5,
+  gStructural: 13.5,
+  gNeg: -3,
+  rollRate: 270,
+  pitchRate: 36,
+  cornerKts: 310,
+  rotateKts: 150,
+  approachKts: 155,
+  speedbrakeCd: 0.06,
+  combatRangeNm: 1890,
+  hardpoints: 12,
+  maxAAM: 12,
+  missiles: { radar: R77, ir: R74 },
+  tvcDeg: 15,
+  gun: {
+    name: 'GSh-30-1 30mm cannon',
+    caliberMm: 30,
+    rounds: 150,
+    rpm: 1800,
+    muzzleVelocity: 860,
+    damage: 19,
+    dispersionMil: 4,
+    port: [0.98, 0.12, -3.3],
+  },
+  stations: [
+    { id: 1, label: 'LW OB', pos: [-5.1, -0.36, 3.1], allowed: [R74, R77], mount: 'pylon', hang: -0.32 },
+    { id: 2, label: 'LW MID', pos: [-3.9, -0.4, 2.55], allowed: [R77, R74, KAB], mount: 'pylon', hang: -0.36 },
+    { id: 3, label: 'LW IB', pos: [-2.7, -0.44, 2.0], allowed: [R77, KAB], mount: 'pylon', hang: -0.4 },
+    { id: 4, label: 'L LEX BAY', pos: [-1.82, -0.06, -1.25], allowed: [R74], mount: 'internal', bay: 'left', bayOut: [-1.95, -0.5, -1.25] },
+    { id: 5, label: 'BAY F-L', pos: [-0.33, -0.16, 0.65], allowed: [R77, KAB], mount: 'internal', bay: 'main', bayOut: [-0.33, -0.66, 0.65] },
+    { id: 6, label: 'BAY F-R', pos: [0.33, -0.16, 0.65], allowed: [R77, KAB], mount: 'internal', bay: 'main', bayOut: [0.33, -0.66, 0.65] },
+    { id: 7, label: 'BAY A-L', pos: [-0.33, -0.14, 4.75], allowed: [R77], mount: 'internal', bay: 'main', bayOut: [-0.33, -0.62, 4.75] },
+    { id: 8, label: 'BAY A-R', pos: [0.33, -0.14, 4.75], allowed: [R77], mount: 'internal', bay: 'main', bayOut: [0.33, -0.62, 4.75] },
+    { id: 9, label: 'R LEX BAY', pos: [1.82, -0.06, -1.25], allowed: [R74], mount: 'internal', bay: 'right', bayOut: [1.95, -0.5, -1.25] },
+    { id: 10, label: 'RW IB', pos: [2.7, -0.44, 2.0], allowed: [R77, KAB], mount: 'pylon', hang: -0.4 },
+    { id: 11, label: 'RW MID', pos: [3.9, -0.4, 2.55], allowed: [R77, R74, KAB], mount: 'pylon', hang: -0.36 },
+    { id: 12, label: 'RW OB', pos: [5.1, -0.36, 3.1], allowed: [R74, R77], mount: 'pylon', hang: -0.32 },
+  ],
+  loadouts: [
+    {
+      id: 'su57-stealth',
+      name: 'STEALTH — 4x R-77M, 2x R-74M (internal)',
+      stores: { 4: R74, 5: R77, 6: R77, 7: R77, 8: R77, 9: R74 },
+    },
+    {
+      id: 'su57-max',
+      name: 'MAX AAM — 8x R-77M, 4x R-74M',
+      stores: { 1: R74, 2: R77, 3: R77, 4: R74, 5: R77, 6: R77, 7: R77, 8: R77, 9: R74, 10: R77, 11: R77, 12: R74 },
+    },
+    {
+      id: 'su57-strike',
+      name: 'STRIKE — 4x KAB-500S, 2x R-77M, 2x R-74M',
+      stores: { 2: KAB, 3: KAB, 10: KAB, 11: KAB, 4: R74, 9: R74, 7: R77, 8: R77 },
+    },
+    {
+      id: 'su57-dog',
+      name: 'DOGFIGHT — 2x R-77M, 6x R-74M',
+      stores: { 1: R74, 2: R74, 4: R74, 9: R74, 11: R74, 12: R74, 5: R77, 6: R77 },
+    },
+  ],
+  radar: { name: 'N036 Byelka AESA', kind: 'AESA', rangeNm: 100, azLimitDeg: 70, elLimitDeg: 60, maxTracks: 30, frameTime: 1.1 },
+  irst: { name: '101KS-V IRST', rangeNm: 48, fovDeg: 90 },
+  ew: { name: 'L402 Himalayas EW suite', maws: true, jamming: 0.35, autoDispense: true },
+  flightControl: 'Digital fly-by-wire with integrated 3D thrust vectoring',
+  chaff: 96,
+  flares: 96,
+  // a conventional signature (no stealth advantage in the game)
+  rcs: 7,
+  irSignature: 1.05,
+  gear: { nose: -6.6, main: 1.0, track: 2.0, height: 2.15 },
+  hitRadius: 5.8,
+  paint: { top: '#7d8894', bottom: '#9aa6b0', accent: '#56616c' },
+};
+
+// ---------------------------------------------------------------------------
+// Saab JAS 39E Gripen E
+// ---------------------------------------------------------------------------
+// The small one: a canard delta built to fly from roads, turn round in ten
+// minutes and carry Meteor. The E has a bigger body for 40% more fuel, the
+// F414 engine and an AESA radar on a swashplate that looks 100 degrees off
+// the nose.
+const GRIPEN: AircraftSpec = {
+  type: 'GRIPEN',
+  name: 'Saab JAS 39E Gripen E',
+  shortName: 'Gripen E',
+  role: 'Light multirole fighter',
+  crew: 1,
+  description:
+    'The lightest fighter in the theater: a canard delta that turns hard, rolls fast and lands on a road. One General Electric F414G (98 kN in afterburner) gives Mach 2, and it supercruises at about Mach 1.15 with four missiles. The Raven ES-05 AESA radar sits on a tilting swashplate and sees 100 degrees either side of the nose, the widest field of regard in the game; Skyward-G IRST and the Arexis EW suite. Ten stations carry Meteor ramjet missiles and IRIS-T dogfight missiles, which can turn on a target behind the wing line. Mauser BK-27 27 mm cannon, 120 rounds.',
+  lengthFt: 49.9,
+  wingspanFt: 28.2,
+  heightFt: 14.8,
+  length: 15.2,
+  span: 8.6,
+  height: 4.5,
+  emptyMass: 8000,
+  internalFuel: 3400,
+  maxTakeoff: 16500,
+  maxTakeoffLb: 36400,
+  payloadLb: 15900,
+  wingArea: 30,
+  cd0: 0.0195,
+  waveDragPeak: 1.95,
+  waveDragHigh: 1.5,
+  kInduced: 0.125,
+  clAlpha: 3.6,
+  clMax: 1.9,
+  alphaMaxDeg: 28,
+  maxMach: 2.0,
+  ceilingFt: 52000,
+  maxIasKts: 750,
+  engineName: '1 x General Electric F414G',
+  engines: 1,
+  // tuned so it supercruises (about Mach 1.15 with four missiles) in the game's
+  // engine model, as Saab demonstrated (the display figure below is the real F414's)
+  thrustMil: lbf(16500),
+  thrustAb: lbf(22000),
+  thrustMilLbf: 13000,
+  thrustAbLbf: 22000,
+  tsfcMil: 0.81,
+  tsfcAb: 1.95,
+  ramFactor: 0.6,
+  spool: 1.6,
+  gLimit: 9.0,
+  gOverride: 9.0,
+  gStructural: 13.5,
+  gNeg: -3,
+  rollRate: 280,
+  pitchRate: 32,
+  cornerKts: 330,
+  rotateKts: 135,
+  approachKts: 130,
+  speedbrakeCd: 0.06,
+  combatRangeNm: 1700,
+  hardpoints: 10,
+  maxAAM: 8,
+  missiles: { radar: MTR, ir: IRIS },
+  tvcDeg: 0,
+  gun: {
+    name: 'Mauser BK-27 27mm revolver cannon',
+    caliberMm: 27,
+    rounds: 120,
+    rpm: 1700,
+    muzzleVelocity: 1025,
+    damage: 17,
+    dispersionMil: 3.5,
+    port: [-0.55, -0.42, -1.6],
+  },
+  stations: [
+    { id: 1, label: 'LWT', pos: [-4.3, -0.34, 2.9], allowed: [IRIS], mount: 'rail' },
+    { id: 2, label: 'LW OB', pos: [-3.4, -0.48, 2.45], allowed: [IRIS, MTR, AIM120], mount: 'pylon', hang: -0.32 },
+    { id: 3, label: 'LW MID', pos: [-2.55, -0.52, 2.1], allowed: [MTR, AIM120, TANK, GBU39, PW4], mount: 'pylon', hang: -0.34 },
+    { id: 4, label: 'LW IB', pos: [-1.65, -0.56, 1.6], allowed: [MTR, TANK, PW4], mount: 'pylon', hang: -0.36 },
+    { id: 5, label: 'CL', pos: [0, -0.92, 0.4], allowed: [TANK, MTR], mount: 'pylon' },
+    { id: 6, label: 'R FUS', pos: [0.62, -0.8, -1.2], allowed: [MTR, AIM120], mount: 'pylon' },
+    { id: 7, label: 'RW IB', pos: [1.65, -0.56, 1.6], allowed: [MTR, TANK, PW4], mount: 'pylon', hang: -0.36 },
+    { id: 8, label: 'RW MID', pos: [2.55, -0.52, 2.1], allowed: [MTR, AIM120, TANK, GBU39, PW4], mount: 'pylon', hang: -0.34 },
+    { id: 9, label: 'RW OB', pos: [3.4, -0.48, 2.45], allowed: [IRIS, MTR, AIM120], mount: 'pylon', hang: -0.32 },
+    { id: 10, label: 'RWT', pos: [4.3, -0.34, 2.9], allowed: [IRIS], mount: 'rail' },
+  ],
+  loadouts: [
+    {
+      id: 'gripen-aa',
+      name: 'AIR SUPERIORITY — 4x METEOR, 2x IRIS-T',
+      stores: { 1: IRIS, 3: MTR, 4: MTR, 7: MTR, 8: MTR, 10: IRIS },
+    },
+    {
+      id: 'gripen-max',
+      name: 'MAX AAM — 4x METEOR, 4x IRIS-T',
+      stores: { 1: IRIS, 2: IRIS, 3: MTR, 4: MTR, 7: MTR, 8: MTR, 9: IRIS, 10: IRIS },
+    },
+    {
+      id: 'gripen-cap',
+      name: 'COMBAT AIR PATROL — 2x METEOR, 2x IRIS-T, CL TANK',
+      stores: { 1: IRIS, 3: MTR, 5: TANK, 8: MTR, 10: IRIS },
+    },
+    {
+      id: 'gripen-strike',
+      name: 'STRIKE — 4x GBU-39 SDB, 2x METEOR, 2x IRIS-T, CL TANK',
+      stores: { 1: IRIS, 10: IRIS, 3: GBU39, 8: GBU39, 4: PW4, 7: PW4, 2: MTR, 9: MTR, 5: TANK },
+    },
+  ],
+  radar: { name: 'Leonardo Raven ES-05 AESA (swashplate)', kind: 'AESA', rangeNm: 80, azLimitDeg: 100, elLimitDeg: 60, maxTracks: 30, frameTime: 1.1 },
+  irst: { name: 'Skyward-G IRST', rangeNm: 40, fovDeg: 90 },
+  ew: { name: 'Saab Arexis', maws: true, jamming: 0.35, autoDispense: true },
+  flightControl: 'Triplex digital fly-by-wire, relaxed stability canard delta',
+  chaff: 80,
+  flares: 40,
+  rcs: 1.2,
+  irSignature: 0.75,
+  gear: { nose: -4.55, main: 0.9, track: 1.2, height: 1.6 },
+  hitRadius: 4.1,
+  paint: { top: '#848c92', bottom: '#9aa1a6', accent: '#5d656b' },
+};
+
 export const SPECS: Record<AircraftType, AircraftSpec> = {
   F15EX: F15EX,
   FA18EF: FA18,
@@ -1404,6 +1775,9 @@ export const SPECS: Record<AircraftType, AircraftSpec> = {
   SU35: SU35,
   RAFALE: RAFALE,
   F22: F22,
+  F35A: F35A,
+  SU57: SU57,
+  GRIPEN: GRIPEN,
   MIG31: MIG31,
   SR71: SR71,
   X15: X15,
@@ -1441,6 +1815,7 @@ export const STORES: Record<StoreType, StoreSpec> = {
   AASM: { type: 'AASM', name: 'AASM Hammer', mass: 340, dragCd: 0.0024, length: 3.1, diameter: 0.3 },
   KAB500: { type: 'KAB500', name: 'KAB-500S', mass: 560, dragCd: 0.0032, length: 3.0, diameter: 0.4 },
   R37M: { type: 'R37M', name: 'R-37M', mass: 510, dragCd: 0.0026, length: 4.2, diameter: 0.38 },
+  IRIST: { type: 'IRIST', name: 'Diehl IRIS-T', mass: 87.4, dragCd: 0.0007, length: 2.94, diameter: 0.127 },
 };
 
 /** A strike loadout for this jet (the airstrike mode flies it). */

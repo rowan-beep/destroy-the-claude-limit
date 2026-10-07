@@ -43,7 +43,7 @@ const CV_GATE = 5500;
 const CV_GS = 3.5 * DEG;
 /** Carrier on-speed: knots over each jet's book approach speed (what it needs to hold the
  * 3.5 degree path at a comfortable angle of attack in this flight model). */
-const CV_SPEED_ADD: Partial<Record<string, number>> = { RAFALE: 40, MIG31: 55, SR71: 45, X15: 40 };
+const CV_SPEED_ADD: Partial<Record<string, number>> = { RAFALE: 40, MIG31: 55, SR71: 45, X15: 40, GRIPEN: 30 };
 /** how far behind the main wheels the hook point trails (m, beyond the gear) */
 const HOOK_AFT = 4.6;
 

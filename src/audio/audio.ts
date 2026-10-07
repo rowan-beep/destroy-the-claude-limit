@@ -128,6 +128,12 @@ const VOICES: Record<string, EngineVoice> = {
   SR71: { n1: 118, n2: 118, fanBlades: 22, compBlades: 30, roar: 0.72, crackle: 1.45, ab: 1.5, whine: 0.6 },
   // XLR99 rocket: no turbine at all, just a 57,000 lb ripping, crackling roar
   X15: { n1: 60, n2: 60, fanBlades: 8, compBlades: 8, roar: 0.55, crackle: 1.9, ab: 1.9, whine: 0.05 },
+  // P&W F135: the biggest fighter engine there is, one of it: a deep, heavy rumble and a hard crackle
+  F35A: { n1: 140, n2: 228, fanBlades: 28, compBlades: 34, roar: 0.86, crackle: 1.2, ab: 1.15, whine: 0.9 },
+  // Saturn AL-41F1 (izdeliye 117): the Flanker family's thunder, a little brighter
+  SU57: { n1: 155, n2: 230, fanBlades: 30, compBlades: 38, roar: 0.86, crackle: 1.22, ab: 1.22, whine: 0.9 },
+  // GE F414G: the Hornet's engine, alone in a light jet: a bright howl
+  GRIPEN: { n1: 195, n2: 295, fanBlades: 28, compBlades: 30, roar: 1.04, crackle: 0.88, ab: 0.92, whine: 1.3 },
   // Saturn AL-41F1S: the Flanker's thunder
   SU35: { n1: 150, n2: 222, fanBlades: 30, compBlades: 38, roar: 0.85, crackle: 1.25, ab: 1.25, whine: 0.85 },
 };

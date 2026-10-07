@@ -145,6 +145,12 @@ const AERO: Record<string, AeroData> = {
   X15: { refMass: 12000, ixx: 6000, iyy: 95000, izz: 98000, cyB: -1.1, cm0: 0, cmA: -0.16, cmQ: -6, cmD: 0.42, clP: -0.3, clB: -0.05, clR: 0.05, clD: 0.05, cnB: 0.16, cnR: -0.42, cnP: -0.02, cnD: 0.045, cnDa: -0.004, engineArm: 0, rateE: 2.4, rateA: 3, rateR: 3 },
   // relaxed static stability (unstable in pitch, the FBW holds it), light and low inertia: the fastest roll here
   F16C: { refMass: 11500, ixx: 12900, iyy: 75700, izz: 85600, cyB: -0.95, cm0: 0, cmA: 0.06, cmQ: -4.4, cmD: 0.33, clP: -0.29, clB: -0.07, clR: 0.06, clD: 0.056, cnB: 0.12, cnR: -0.3, cnP: -0.03, cnD: 0.034, cnDa: -0.005, engineArm: 0, rateE: 3.1, rateA: 5.2, rateR: 3 },
+  // one big engine on the centre line; a deep body with lots of pitch inertia, a little slower to roll
+  F35A: { refMass: 20000, ixx: 28000, iyy: 190000, izz: 210000, cyB: -1.0, cm0: 0, cmA: 0.02, cmQ: -5, cmD: 0.35, clP: -0.33, clB: -0.08, clR: 0.07, clD: 0.05, cnB: 0.12, cnR: -0.32, cnP: -0.03, cnD: 0.036, cnDa: -0.006, engineArm: 0, rateE: 2.8, rateA: 4, rateR: 3 },
+  // Su-35 heritage, a little lighter; all-moving fins
+  SU57: { refMass: 25000, ixx: 40000, iyy: 230000, izz: 260000, cyB: -1.0, cm0: 0, cmA: 0.05, cmQ: -5, cmD: 0.35, clP: -0.33, clB: -0.08, clR: 0.07, clD: 0.056, cnB: 0.12, cnR: -0.32, cnP: -0.03, cnD: 0.042, cnDa: -0.006, engineArm: 0.95, rateE: 2.9, rateA: 4.2, rateR: 3.2 },
+  // light and small: lowest inertia of the deltas, close-coupled canards
+  GRIPEN: { refMass: 11000, ixx: 9000, iyy: 70000, izz: 78000, cyB: -0.95, cm0: 0, cmA: 0.08, cmQ: -4.4, cmD: 0.34, clP: -0.29, clB: -0.07, clR: 0.06, clD: 0.054, cnB: 0.11, cnR: -0.3, cnP: -0.03, cnD: 0.032, cnDa: -0.005, engineArm: 0, rateE: 3.1, rateA: 5, rateR: 3 },
   TYPHOON: { refMass: 15000, ixx: 18000, iyy: 130000, izz: 145000, cyB: -0.95, cm0: 0, cmA: 0.08, cmQ: -4.5, cmD: 0.33, clP: -0.3, clB: -0.07, clR: 0.06, clD: 0.05, cnB: 0.11, cnR: -0.3, cnP: -0.03, cnD: 0.032, cnDa: -0.005, engineArm: 0.5, rateE: 3.0, rateA: 4.5, rateR: 3 },
 };
 

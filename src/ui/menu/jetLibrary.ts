@@ -493,7 +493,7 @@ export class JetLibrary {
     for (const m of METRICS) if (m.id !== 'radar' && m.id !== 'aam') this.bar(b, m, s);
     this.facts(b, [
       ['THRUST (EACH, AB)', `${s.thrustAbLbf.toLocaleString('en-US')} lbf`],
-      ['THRUST VECTORING', s.tvcDeg > 0 ? `${s.tvcDeg}° ${t === 'SU35' ? '3D (pitch and yaw)' : '2D (pitch)'}` : 'None'],
+      ['THRUST VECTORING', s.tvcDeg > 0 ? `${s.tvcDeg}° ${t === 'SU35' || t === 'SU57' ? '3D (pitch and yaw)' : '2D (pitch)'}` : 'None'],
       ['G OVERRIDE / STRUCTURE', `${s.gOverride} G / ${s.gStructural} G`],
       ['MAX TAKEOFF WEIGHT', `${s.maxTakeoffLb.toLocaleString('en-US')} lb`],
       ['FLIGHT CONTROL', s.flightControl],

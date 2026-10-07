@@ -465,7 +465,8 @@ export class Cockpit {
     const L = this.layout;
     const eye = this.eye;
     const h = L.hud;
-    if (h.style === 'none') return;
+    // (no glass for a helmet-display jet: the symbology is on the visor)
+    if (h.style === 'none' || h.style === 'hmd') return;
     const gy = eye.y - L.glareDrop;
     const z = eye.z - h.dist;
     // projector housing on the glare shield

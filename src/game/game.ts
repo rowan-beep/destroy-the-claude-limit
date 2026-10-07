@@ -1178,7 +1178,7 @@ export class Game implements ModeHost {
             best = c.target;
           }
         }
-        const irst = p.type === 'SU35' ? 'OLS-35' : p.type === 'MIG31' ? '8TK' : p.type === 'RAFALE' ? 'OSF' : 'PIRATE';
+        const irst = p.type === 'SU35' ? 'OLS-35' : p.type === 'MIG31' ? '8TK' : p.type === 'RAFALE' ? 'OSF' : p.type === 'SU57' ? '101KS-V' : p.type === 'F35A' ? 'EOTS' : p.type === 'GRIPEN' ? 'SKYWARD-G' : 'PIRATE';
         if (best && p.irst.setLock(best, this.sim)) this.message(`${irst} IRST LOCK (PASSIVE)`, 'good', 2);
         else this.message(`${irst}: NO IR TRACK`, 'warn', 2);
       }
@@ -1329,7 +1329,7 @@ export class Game implements ModeHost {
     p.releaseBomb(this.sim, t, aim, (b) => {
       b.tof = pred.tof;
       this.message(`${weaponShort(type)} AWAY → ${t.label} · IMPACT ${Math.round(pred.tof)} S${pred.hit ? '' : ' (OUTSIDE THE ZONE: IT WILL FALL SHORT)'}`, pred.hit ? 'good' : 'warn', 3);
-      const ru = p.type === 'SU35' || p.type === 'MIG31';
+      const ru = p.type === 'SU35' || p.type === 'MIG31' || p.type === 'SU57';
       audio.voice(ru ? 'Sbros' : 'Pickle', 'launch', 1.2, ru ? 'Сброс!' : undefined);
       // the computer moves on to the next target nobody has a bomb on
       if (t.claimed > 0 && p.groundTarget === t) {
