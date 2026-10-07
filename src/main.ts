@@ -15,13 +15,9 @@ import { WeatherWidget } from './ui/weatherWidget';
 import { MainMenu } from './ui/menu/mainMenu';
 import { PerfWatch } from './ui/perfWarning';
 import { Hangar } from './ui/menu/hangar';
-import { LaunchSite } from './ui/menu/launchSite';
 import { SpaceMenu } from './ui/menu/spaceMenu';
 import { menuMusic } from './audio/menuMusic';
-import { SpaceFlight } from './space/spaceFlight';
-import { MarsMission } from './space/mars/marsMission';
-import { RoverMission, ROVER_MISSIONS } from './space/rover/roverMission';
-import { LaunchMission } from './space/launch/launchMission';
+import type { SpaceProgram } from './space/spaceProgram';
 import { loadProgram, saveProgram, Program } from './ui/menu/program';
 import { LoadingScreen, PauseMenu, ResultsScreen, ControlsModal, BriefingModal } from './ui/menu/screens';
 import { SettingsModal } from './ui/menu/settingsModal';
@@ -153,22 +149,26 @@ async function boot(): Promise<void> {
   // --- the two programs: TRIAD air combat and SPACE EXPLORATION ------------------
   // each keeps its own data; switching only swaps the menu and its 3D showcase
   let program: Program = loadProgram();
-  let factory: LaunchSite | null = null;
-  const getFactory = (): LaunchSite => {
-    if (!factory) {
-      factory = new LaunchSite(game.renderer.renderer);
-      if (import.meta.env.DEV) Object.assign(window, { __site: factory });
-      factory.drawWith = (sc, cam) => {
-        // outdoor daylight under a physical sky: a lower exposure than the hangar's
-        const r = game.renderer.renderer;
-        const e = r.toneMappingExposure;
-        r.toneMappingExposure = e * 1.05;
-        game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping);
-        r.toneMappingExposure = e;
-      };
-    }
-    return factory;
-  };
+  // the space program's code is loaded the first time it is needed
+  let spaceProg: SpaceProgram | null = null;
+  let spaceLoading: Promise<SpaceProgram> | null = null;
+  const loadSpace = (): Promise<SpaceProgram> =>
+    (spaceLoading ??= import('./space/spaceProgram').then((m) => {
+      spaceProg = new m.SpaceProgram({
+        renderer: () => game.renderer.renderer,
+        draw: (sc, cam, exposure = 1) => {
+          const r = game.renderer.renderer;
+          const e = r.toneMappingExposure;
+          r.toneMappingExposure = e * exposure;
+          game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping);
+          r.toneMappingExposure = e;
+        },
+        onExit: () => showMenus(game.state === 'menu'),
+      });
+      showMenus(game.state === 'menu');
+      return spaceProg;
+    }));
+  const spaceActive = () => !!spaceProg?.active;
   const setProgram = (p: Program) => {
     program = p;
     saveProgram(p);
@@ -177,31 +177,15 @@ async function boot(): Promise<void> {
     showMenus(game.state === 'menu');
     if (p === 'air') hangar.setJet(menu.cfg.aircraft, menu.cfg.loadoutId);
   };
-  // flying the Saturn V: the space program's own flight, drawn in place of the menu
-  const flight = new SpaceFlight(() => getFactory(), document.body);
-  flight.drawWith = (sc, cam) => game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping);
-  flight.onExit = () => showMenus(game.state === 'menu');
-  // Starship to Mars, drawn the same way
-  const marsMission = new MarsMission(() => getFactory(), () => game.renderer.renderer, document.body);
-  marsMission.drawWith = (sc, cam) => game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping);
-  marsMission.onExit = () => showMenus(game.state === 'menu');
-  // rover missions on Mars
-  const roverMission = new RoverMission(() => game.renderer.renderer, document.body);
-  roverMission.drawWith = (sc, cam) => game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping);
-  roverMission.onExit = () => showMenus(game.state === 'menu');
-  // Falcon Heavy and SLS from the Cape
-  const launchMission = new LaunchMission(() => getFactory(), () => game.renderer.renderer, document.body);
-  launchMission.drawWith = (sc, cam) => game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping);
-  launchMission.onExit = () => showMenus(game.state === 'menu');
-  if (import.meta.env.DEV) Object.assign(window, { __flight: flight, __mars: marsMission, __rover: roverMission, __launch: launchMission });
   Object.assign(window, { __music: menuMusic });
   const showMenus = (v: boolean) => {
     const space = program === 'space';
-    if (flight.active || marsMission.active || roverMission.active || launchMission.active) v = false;
+    if (spaceActive()) v = false;
     menu.show(v && !space);
     spaceMenu.show(v && space);
-    if (factory) factory.active = v && space;
-    else if (v && space) getFactory().active = true;
+    if (spaceProg) {
+      if (spaceProg.builtSite || (v && space)) spaceProg.factory().active = v && space;
+    } else if (v && space) void loadSpace();
   };
   const spaceMenu = new SpaceMenu(document.body, {
     onProgram: (p) => setProgram(p),
@@ -210,37 +194,26 @@ async function boot(): Promise<void> {
       settingsModal.show(true);
     },
     onControls: () => controls.show(true, settings.input),
-    onLaunch: (mode) => {
-      audio.init();
-      audio.click();
-      flight.start(mode);
-      showMenus(false);
-      if (factory) factory.active = false;
-    },
-    onMars: () => {
-      audio.init();
-      audio.click();
-      marsMission.start();
-      showMenus(false);
-      if (factory) factory.active = false;
-    },
-    onRover: (id) => {
-      const def = ROVER_MISSIONS.find((m) => m.id === id);
-      if (!def) return;
-      audio.init();
-      audio.click();
-      roverMission.start(def);
-      showMenus(false);
-      if (factory) factory.active = false;
-    },
-    onLaunchMission: (id) => {
-      audio.init();
-      audio.click();
-      launchMission.start(id);
-      showMenus(false);
-      if (factory) factory.active = false;
-    },
+    onLaunch: (mode) => startSpace((sp) => sp.flight.start(mode)),
+    onMars: () => startSpace((sp) => sp.mars.start()),
+    onRover: (id) =>
+      startSpace((sp) => {
+        const def = sp.roverMissions.find((m) => m.id === id);
+        if (def) sp.rover.start(def);
+      }),
+    onLaunchMission: (id) => startSpace((sp) => sp.launch.start(id)),
   });
+  /** start something in the space program (loading its code first, the first time) */
+  function startSpace(go: (sp: SpaceProgram) => void): void {
+    audio.init();
+    audio.click();
+    void loadSpace().then((sp) => {
+      go(sp);
+      showMenus(false);
+      const site = sp.builtSite;
+      if (site) site.active = false;
+    });
+  }
 
   menu = new MainMenu(document.body, cfg, {
     onProgram: (p) => setProgram(p),
@@ -384,12 +357,12 @@ async function boot(): Promise<void> {
     const step = Math.min(dt, 0.1);
     game.renderer.adaptFrame(step);
     const sz = game.renderer.size;
-    if (flight.active) flight.frame(step, sz.w, sz.h);
-    else if (marsMission.active) marsMission.frame(step, sz.w, sz.h);
-    else if (roverMission.active) roverMission.frame(step, sz.w, sz.h);
-    else if (launchMission.active) launchMission.frame(step, sz.w, sz.h);
-    else if (program === 'space') getFactory().render(step, sz.w, sz.h);
-    else hangar.render(step, sz.w, sz.h);
+    if (spaceProg?.frame(step, sz.w, sz.h)) return;
+    if (program === 'space') {
+      // (until its code has loaded, the space program's backdrop waits)
+      if (spaceProg) spaceProg.factory().render(step, sz.w, sz.h);
+      else void loadSpace();
+    } else hangar.render(step, sz.w, sz.h);
   };
   game.onAfterFrame = (dt) => {
     perfWatch.update(dt, game.state === 'playing', game.fps);
@@ -420,9 +393,12 @@ async function boot(): Promise<void> {
   loading.show(false);
   game.setState('menu');
   game.startLoop();
+  // fetch the space program's code in the background once the jets are up, so
+  // switching to it later is instant (it is not built until it is opened)
+  setTimeout(() => void import('./space/spaceProgram').catch(() => undefined), 15000);
   // new versions install themselves: straight away in the menu, or once you are back from a flight
   watchForUpdates(
-    () => game.state === 'menu' && !customize.open && !library.open && !flight.active && !marsMission.active && !roverMission.active && !launchMission.active,
+    () => game.state === 'menu' && !customize.open && !library.open && !spaceActive(),
     () => {
       if (game.state !== 'menu') game.message('A NEW VERSION IS READY: IT INSTALLS WHEN YOU RETURN TO THE MENU', 'info', 10);
     },

@@ -303,6 +303,8 @@ export class MarsView {
   private patch: THREE.Mesh | null = null;
   private patchMat: THREE.MeshStandardMaterial;
   private patchAt: { c: Vec; outer: number } | null = null;
+  /** the ground mesh needs rebuilding (new colours arrived) */
+  private patchDirty = false;
   private rocks: THREE.InstancedMesh[] = [];
   private rocksAt: Vec | null = null;
   /** the boulders round the ground point (lat, lon in degrees, size in m), for anything driving among them */
@@ -362,9 +364,8 @@ export class MarsView {
         this.globeMat.uniforms.photo.value = marsPhotoScale();
         // then the 8k mosaic, where it can be had
         upgradeToHires(t, () => (this.globeMat.uniforms.hires.value = 1));
-        // rebuild the ground in its new colours
-        this.patchAt = null;
-        this.rocksAt = null;
+        // rebuild the ground in its new colours (the old one stays up until the new one is in)
+        this.patchDirty = true;
       } catch {
         /* the generated map stays */
       }
@@ -589,12 +590,16 @@ export class MarsView {
       const p = this.patchAt;
       const moved = p ? Math.hypot(c[0] - p.c[0], c[1] - p.c[1], c[2] - p.c[2]) * R : Infinity;
       // rebuild the ground round the new point a little at a time (the old one stays up meanwhile)
-      if (!this.patchJob && (!p || moved > Math.max(120, Math.min(shipAlt * 0.8, outer * 0.08)) || outer > p.outer * 1.9 || outer < p.outer * 0.45)) this.startPatch(c, outer);
+      if (!this.patchJob && (!p || this.patchDirty || moved > Math.max(120, Math.min(shipAlt * 0.8, outer * 0.08)) || outer > p.outer * 1.9 || outer < p.outer * 0.45)) this.startPatch(c, outer);
       if (this.patchJob) this.stepPatch(this.patch ? 5 : Infinity);
-      const P0 = new THREE.Vector3(...this.patchAt!.c).multiplyScalar(R).applyMatrix4(rotM);
-      this.patch!.position.set(P0.x - o[0], P0.y - o[1], P0.z - o[2]);
-      this.patch!.quaternion.setFromRotationMatrix(rotM);
-      this.patch!.visible = true;
+    }
+    if (shipAlt < 60_000 && this.patch && this.patchAt) {
+      const fixedNow = new THREE.Vector3(...o).applyMatrix4(new THREE.Matrix4().makeRotationZ(-v.angle)).normalize();
+      const c: Vec = [fixedNow.x, fixedNow.y, fixedNow.z];
+      const P0 = new THREE.Vector3(...this.patchAt.c).multiplyScalar(R).applyMatrix4(rotM);
+      this.patch.position.set(P0.x - o[0], P0.y - o[1], P0.z - o[2]);
+      this.patch.quaternion.setFromRotationMatrix(rotM);
+      this.patch.visible = true;
       // the globe drops a little below the detailed ground
       this.globeMat.uniforms.lift.value = 1;
       this.globe.scale.setScalar((R - 1500) / R);
@@ -706,6 +711,7 @@ export class MarsView {
 
   /** start building the ground mesh: rings from under the ship out to `outer` metres (Mars-fixed, about c) */
   private startPatch(c: Vec, outer: number): void {
+    this.patchDirty = false;
     const cx = new THREE.Vector3(...c);
     const t1 = new THREE.Vector3().crossVectors(Math.abs(c[2]) < 0.9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(1, 0, 0), cx).normalize();
     const t2 = new THREE.Vector3().crossVectors(cx, t1);
