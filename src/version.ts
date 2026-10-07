@@ -5,8 +5,7 @@
 // lists its own updates. CHANGELOG.md is made from this list: npm run changelog.
 //
 // Write each note as a short headline with the full details as points under it,
-// using
-// added() for something new, improved() for a change and fixed() for a fix.
+// using added() for something new, improved() for a change and fixed() for a fix.
 // (Releases before 4.43.0 have their notes as paragraphs; the notes panel lays
 // them out the same way, from their lead-in and sentences.)
 
