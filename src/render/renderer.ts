@@ -95,7 +95,20 @@ function createWebGL(): THREE.WebGLRenderer {
       console.warn('WebGL context failed with', t, e);
     }
   }
-  const err = new Error('WEBGL_UNAVAILABLE: ' + String((last as Error)?.message ?? last));
+  // ask the browser why: it says so in the context-creation error event
+  const why: string[] = [];
+  try {
+    const c = document.createElement('canvas');
+    c.addEventListener('webglcontextcreationerror', (e) => why.push((e as WebGLContextEvent).statusMessage || 'no reason given'), false);
+    const g2 = c.getContext('webgl2');
+    const c1 = document.createElement('canvas');
+    c1.addEventListener('webglcontextcreationerror', (e) => why.push('webgl1: ' + ((e as WebGLContextEvent).statusMessage || 'no reason given')), false);
+    const g1 = c1.getContext('webgl');
+    why.push(`webgl2 ${g2 ? 'available' : 'refused'}, webgl1 ${g1 ? 'available' : 'refused'}`);
+  } catch (e) {
+    why.push(String(e));
+  }
+  const err = new Error('WEBGL_UNAVAILABLE: ' + String((last as Error)?.message ?? last) + '\nBrowser says: ' + why.join(' | '));
   err.name = 'WebGLUnavailable';
   throw err;
 }
