@@ -125,6 +125,8 @@ export class MarsFlight {
   bank = 0;
   /** surface height under the ship (Mars), set by the view's terrain */
   groundH: (lat: number, lon: number) => number = () => 0;
+  /** the name of the region at a point, for the log (set by the mission) */
+  regionAt: (lat: number, lon: number) => string = () => '';
   log: LogLine[] = [];
   outcome: { ok: boolean; title: string; text: string } | null = null;
   /** cruise: the conic and when it reaches Mars's sphere of influence */
@@ -487,7 +489,8 @@ export class MarsFlight {
     this.marsRot0 += (ll.lon - best) * D2R;
     void inertial;
     this.site = { lat: ll.lat, lon: best };
-    this.say(`Landing site chosen: ${best >= 0 ? best.toFixed(0) + '°E' : (-best).toFixed(0) + '°W'}, ${Math.abs(ll.lat).toFixed(0)}°${ll.lat >= 0 ? 'N' : 'S'}, low open plains with thick air to brake in.`, 'good');
+    const where = this.regionAt(ll.lat, best);
+    this.say(`Landing site chosen: ${best >= 0 ? best.toFixed(0) + '°E' : (-best).toFixed(0) + '°W'}, ${Math.abs(ll.lat).toFixed(0)}°${ll.lat >= 0 ? 'N' : 'S'}${where ? ' in ' + where : ''}, the lowest, smoothest ground on the ship's track, where the air is thickest to brake in.`, 'good');
   }
 
   private stepApproach(dt: number): void {

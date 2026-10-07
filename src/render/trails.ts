@@ -5,14 +5,17 @@ import * as THREE from 'three';
 const VERT = /* glsl */ `
 attribute vec4 color4;
 attribute float side;
+attribute float along;
 varying vec4 vColor;
 varying float vSide;
+varying float vAlong;
 #include <common>
 #include <fog_pars_vertex>
 #include <logdepthbuf_pars_vertex>
 void main() {
   vColor = color4;
   vSide = side;
+  vAlong = along;
   vec4 mvPosition = curveView( modelViewMatrix * vec4( position, 1.0 ) );
   gl_Position = projectionMatrix * mvPosition;
   #include <logdepthbuf_vertex>
@@ -23,15 +26,27 @@ void main() {
 const FRAG = /* glsl */ `
 varying vec4 vColor;
 varying float vSide;
+varying float vAlong;
 #include <common>
 #include <fog_pars_fragment>
 #include <logdepthbuf_pars_fragment>
+float trailHash( vec2 p ) { p = fract( p * vec2( 0.1031, 0.1030 ) ); p += dot( p, p.yx + 33.33 ); return fract( ( p.x + p.y ) * p.x ); }
+float trailNoise( vec2 p ) {
+  vec2 i = floor( p ), f = fract( p );
+  f = f * f * ( 3.0 - 2.0 * f );
+  return mix( mix( trailHash( i ), trailHash( i + vec2( 1.0, 0.0 ) ), f.x ), mix( trailHash( i + vec2( 0.0, 1.0 ) ), trailHash( i + vec2( 1.0, 1.0 ) ), f.x ), f.y );
+}
 void main() {
   #include <logdepthbuf_fragment>
+  // smoke is lumpy: billows along the trail and a ragged edge, not a clean ribbon
+  vec2 q = vec2( vAlong, vSide * 1.6 + vAlong * 0.21 );
+  float n = trailNoise( q ) * 0.65 + trailNoise( q * 2.3 + 7.1 ) * 0.35;
   float edge = 1.0 - abs( vSide );
-  float a = vColor.a * smoothstep( 0.0, 0.7, edge );
+  float a = vColor.a * smoothstep( 0.0, 0.75, edge - ( n - 0.5 ) * 0.55 ) * ( 0.62 + 0.62 * n );
   if ( a < 0.003 ) discard;
-  gl_FragColor = vec4( vColor.rgb, a );
+  // a little self-shading: the thin, ragged parts are brighter, the dense core greyer
+  vec3 col = vColor.rgb * ( 0.84 + 0.22 * n - 0.1 * edge );
+  gl_FragColor = vec4( col, min( a, 1.0 ) );
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
   #include <fog_fragment>
@@ -54,8 +69,12 @@ export class Trail {
   ys: number[] = [];
   zs: number[] = [];
   ts: number[] = [];
+  /** distance along the trail from its start (m) */
+  ls: number[] = [];
   emitting = true;
   dead = false;
+  /** where this trail's smoke pattern starts (each trail billows differently) */
+  readonly seed = Math.random() * 97;
   constructor(readonly style: TrailStyle) {}
 
   add(p: THREE.Vector3, t: number): void {
@@ -65,13 +84,16 @@ export class Trail {
       if (dx * dx + dy * dy + dz * dz < this.style.spacing * this.style.spacing) {
         // move the head point so the ribbon stays attached to the emitter
         if (n > 1) {
+          const ax = p.x - this.xs[n - 2], ay = p.y - this.ys[n - 2], az = p.z - this.zs[n - 2];
+          this.ls[n - 1] = this.ls[n - 2] + Math.sqrt(ax * ax + ay * ay + az * az);
           this.xs[n - 1] = p.x;
           this.ys[n - 1] = p.y;
           this.zs[n - 1] = p.z;
         }
         return;
       }
-    }
+      this.ls.push(this.ls[n - 1] + Math.sqrt(dx * dx + dy * dy + dz * dz));
+    } else this.ls.push(0);
     this.xs.push(p.x);
     this.ys.push(p.y);
     this.zs.push(p.z);
@@ -86,6 +108,7 @@ export class Trail {
       this.ys.splice(0, k);
       this.zs.splice(0, k);
       this.ts.splice(0, k);
+      this.ls.splice(0, k);
     }
     if (!this.emitting && this.xs.length < 2) this.dead = true;
   }
@@ -97,6 +120,7 @@ export class TrailRenderer {
   private posArr: Float32Array;
   private colArr: Float32Array;
   private sideArr: Float32Array;
+  private alongArr: Float32Array;
   private idx: Uint32Array;
   trails: Trail[] = [];
   private origin = new THREE.Vector3();
@@ -108,15 +132,18 @@ export class TrailRenderer {
     this.posArr = new Float32Array(this.maxVerts * 3);
     this.colArr = new Float32Array(this.maxVerts * 4);
     this.sideArr = new Float32Array(this.maxVerts);
+    this.alongArr = new Float32Array(this.maxVerts);
     this.idx = new Uint32Array(maxPoints * 6);
     const pa = new THREE.BufferAttribute(this.posArr, 3);
     const ca = new THREE.BufferAttribute(this.colArr, 4);
     const sa = new THREE.BufferAttribute(this.sideArr, 1);
+    const la = new THREE.BufferAttribute(this.alongArr, 1);
     const ia = new THREE.BufferAttribute(this.idx, 1);
-    for (const a of [pa, ca, sa, ia]) a.setUsage(THREE.DynamicDrawUsage);
+    for (const a of [pa, ca, sa, la, ia]) a.setUsage(THREE.DynamicDrawUsage);
     this.geo.setAttribute('position', pa);
     this.geo.setAttribute('color4', ca);
     this.geo.setAttribute('side', sa);
+    this.geo.setAttribute('along', la);
     this.geo.setIndex(ia);
     this.geo.setDrawRange(0, 0);
     const mat = new THREE.ShaderMaterial({
@@ -142,7 +169,7 @@ export class TrailRenderer {
   update(now: number, cam: THREE.Vector3): void {
     this.origin.set(Math.round(cam.x / 500) * 500, Math.round(cam.y / 500) * 500, Math.round(cam.z / 500) * 500);
     let v = 0, ii = 0;
-    const P = this.posArr, C = this.colArr, S = this.sideArr, I = this.idx;
+    const P = this.posArr, C = this.colArr, S = this.sideArr, Al = this.alongArr, I = this.idx;
     const tmp = new THREE.Vector3();
     const view = new THREE.Vector3();
     const tan = new THREE.Vector3();
@@ -158,6 +185,7 @@ export class TrailRenderer {
       if (v + n * 2 > this.maxVerts) break;
       const st = tr.style;
       const base = v;
+      const bill = 1.2 / Math.max(0.5, st.width0 + st.width1);
       for (let i = 0; i < n; i++) {
         const age = now - tr.ts[i];
         const f = Math.min(1, age / st.life);
@@ -190,6 +218,8 @@ export class TrailRenderer {
           C[v * 4 + 2] = st.color.b;
           C[v * 4 + 3] = a;
           S[v] = sgn;
+          // a billow about every width of the full-grown smoke
+          Al[v] = tr.ls[i] * bill + tr.seed;
           v++;
         }
         if (i < n - 1) {
@@ -209,6 +239,7 @@ export class TrailRenderer {
     (at.position as THREE.BufferAttribute).needsUpdate = true;
     (at.color4 as THREE.BufferAttribute).needsUpdate = true;
     (at.side as THREE.BufferAttribute).needsUpdate = true;
+    (at.along as THREE.BufferAttribute).needsUpdate = true;
     this.geo.index!.needsUpdate = true;
   }
 

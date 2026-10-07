@@ -373,6 +373,7 @@ export class MarsMission {
     const now = Date.now() / 86_400_000 + 2_440_587.5;
     const f = (this.flight = new MarsFlight(now));
     f.groundH = marsHeight;
+    f.regionAt = regionName;
     // some days are clearer than others; most are hazy with dust
     this.mars!.dustiness = 0.55 + Math.random() * 0.4;
     // the stack: Super Heavy with the ship on top

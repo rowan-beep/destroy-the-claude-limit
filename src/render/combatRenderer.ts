@@ -17,7 +17,7 @@ import { ParticleSystem } from './particles';
 import { TrailRenderer, Trail, TrailStyle } from './trails';
 import { getSmokeTexture, getSoftDotTexture } from './textures';
 import { rand, randGauss } from '../core/rng';
-import { srgb } from '../core/math';
+import { srgb, smoothstep } from '../core/math';
 import { terrainHeight } from '../world/terrain';
 import { EjectionEffects } from './ejection';
 import { JetDeathFx } from './jetDeath';
@@ -529,7 +529,7 @@ export class CombatRenderer {
     let vts = this.vortices.get(a);
     if (wantVortex) {
       if (!vts) {
-        vts = [-1, 1].map(() => this.trails.create({ width0: 0.25, width1: 1.4, life: 1.6, color: WHITE_SMOKE, alpha: 0.55, spacing: 6 }));
+        vts = [-1, 1].map(() => this.trails.create({ width0: 0.25, width1: 1.6, life: 1.2, color: WHITE_SMOKE, alpha: 0.3 * smoothstep(4.2, 6.5, fm.nz) + 0.12, spacing: 6 }));
         this.vortices.set(a, vts);
       }
       const hs = a.spec.span / 2 - 0.2;

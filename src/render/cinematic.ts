@@ -63,11 +63,11 @@ export const SunShaftShader = {
         for (int k = 1; k <= 4; k++) {
           float t = float(k) * 0.42 - 0.15;
           vec2 p = sunUv + g * 2.0 * t;
-          float r = 0.018 + 0.03 * float(k);
+          float r = 0.012 + 0.021 * float(k);
           float q = length((vUv - p) * vec2(aspect, 1.0));
           float ring = smoothstep(r, r * 0.55, q) * (0.35 + 0.65 * smoothstep(r * 0.4, r, q));
           vec3 tint = k == 1 ? vec3(0.6, 0.9, 1.0) : k == 2 ? vec3(1.0, 0.7, 0.45) : k == 3 ? vec3(0.55, 1.0, 0.7) : vec3(0.85, 0.6, 1.0);
-          ghosts += tint * ring * 0.045;
+          ghosts += tint * ring * 0.038;
         }
         ghosts *= min(sunGlow, 6.0);
       }

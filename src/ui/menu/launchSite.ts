@@ -410,7 +410,7 @@ export class LaunchSite {
   /** the Saturn V standing on the pad (hidden while one is flying) */
   rocket: THREE.Object3D | null = null;
   private flying = false;
-  private smoke: { sp: THREE.Sprite; v: THREE.Vector3; age: number; life: number; s0: number; grow: number }[] = [];
+  private smoke: { sp: THREE.Sprite; v: THREE.Vector3; age: number; life: number; s0: number; grow: number; fire?: boolean; c?: [number, number, number] }[] = [];
   private smokeTex: THREE.Texture | null = null;
   private smokeAcc = 0;
   private birds!: THREE.InstancedMesh;
@@ -2110,45 +2110,100 @@ export class LaunchSite {
         }),
       );
     }
-    // the exhaust pours out of the flame trench to the east and boils up round the mount
-    const near = fire * clampN(1 - (vehicleY - ROCKET_Y) / 260, 0, 1);
-    this.smokeAcc += dt * near * 45;
-    while (this.smokeAcc > 1 && this.smoke.length < 320) {
+    // the exhaust pours out of the flame trench and boils up round the mount. Pad 2's
+    // Super Heavy (33 engines, twice a Saturn V's thrust) throws a far bigger cloud: a jet of
+    // fire out of the trench mouth, steam and dust towering over the tower, and a ring of
+    // dust that rolls out across the apron.
+    const ex = this.exhaust;
+    const big = ex.width > 12;
+    const near = fire * clampN(1 - (vehicleY - ROCKET_Y) / (big ? 420 : 260), 0, 1);
+    const cap = big ? 760 : 320;
+    this.smokeAcc += dt * near * (big ? 120 : 45);
+    while (this.smokeAcc > 1 && this.smoke.length < cap) {
       this.smokeAcc -= 1;
       const r = Math.random();
       const mat = new THREE.SpriteMaterial({ map: this.smokeTex, transparent: true, depthWrite: false, opacity: 0, fog: true, rotation: Math.random() * 6.28 });
       const sp = new THREE.Sprite(mat);
       let pos: THREE.Vector3, v: THREE.Vector3;
-      const ex = this.exhaust;
-      if (r < 0.55) {
+      let s0 = 10 + Math.random() * 10, grow = 6 + Math.random() * 6, life = 14 + Math.random() * 16, isFire = false;
+      // what it is made of: grey smoke out of the trench, white steam off the deluge, brown dust off the ground
+      let c: [number, number, number] = [0.78, 0.72, 0.68];
+      const tone = 0.88 + Math.random() * 0.24;
+      const side = new THREE.Vector3(-ex.dir.z, 0, ex.dir.x);
+      if (big && r < 0.16) {
+        // the fire itself, blasting out of the trench mouth
+        isFire = true;
+        mat.blending = THREE.AdditiveBlending;
+        pos = ex.trench.clone().addScaledVector(side, (Math.random() - 0.5) * ex.width * 0.8).add(new THREE.Vector3(0, 2 + Math.random() * 6, 0));
+        v = ex.dir.clone().multiplyScalar(140 + Math.random() * 90).addScaledVector(side, (Math.random() - 0.5) * 40).add(new THREE.Vector3(0, 8 + Math.random() * 14, 0));
+        s0 = 14 + Math.random() * 10;
+        grow = 26 + Math.random() * 14;
+        life = 0.7 + Math.random() * 0.8;
+      } else if (r < (big ? 0.6 : 0.55)) {
         // out of the trench mouth, rolling away toward the sea
-        const side = new THREE.Vector3(-ex.dir.z, 0, ex.dir.x).multiplyScalar((Math.random() - 0.5) * ex.width);
-        pos = ex.trench.clone().add(side);
-        v = ex.dir.clone().multiplyScalar(45 + Math.random() * 40).add(new THREE.Vector3((Math.random() - 0.5) * 18, 6 + Math.random() * 10, 0));
+        pos = ex.trench.clone().addScaledVector(side, (Math.random() - 0.5) * ex.width);
+        const sp0 = big ? 90 + Math.random() * 80 : 45 + Math.random() * 40;
+        v = ex.dir.clone().multiplyScalar(sp0).addScaledVector(side, (Math.random() - 0.5) * (big ? 60 : 18)).add(new THREE.Vector3(0, (big ? 10 : 6) + Math.random() * (big ? 22 : 10), 0));
+        if (big) {
+          s0 = 26 + Math.random() * 18;
+          grow = 13 + Math.random() * 12;
+          life = 22 + Math.random() * 22;
+          c = [0.7 * tone, 0.66 * tone, 0.62 * tone];
+        }
+      } else if (big && r < 0.8) {
+        // the shock of ignition throws dust off the apron in a ring that rolls outward
+        const a = Math.random() * Math.PI * 2;
+        const rr = 40 + Math.random() * 60;
+        pos = new THREE.Vector3(ex.mount.x + Math.cos(a) * rr, 4, ex.mount.z + Math.sin(a) * rr);
+        const out = 30 + Math.random() * 40;
+        v = new THREE.Vector3(Math.cos(a) * out, 2 + Math.random() * 5, Math.sin(a) * out);
+        s0 = 18 + Math.random() * 12;
+        grow = 8 + Math.random() * 8;
+        life = 16 + Math.random() * 16;
+        c = [0.62 * tone, 0.52 * tone, 0.4 * tone];
       } else {
         // boiling up round the mount (and, on Pad 2, the deluge water flashing to steam)
         const a = Math.random() * Math.PI * 2;
         pos = new THREE.Vector3(ex.mount.x + Math.cos(a) * ex.ring, ex.mount.y, ex.mount.z + Math.sin(a) * ex.ring);
-        v = new THREE.Vector3(Math.cos(a) * (14 + Math.random() * 22), 4 + Math.random() * 12, Math.sin(a) * (14 + Math.random() * 22));
+        const out = big ? 24 + Math.random() * 40 : 14 + Math.random() * 22;
+        v = new THREE.Vector3(Math.cos(a) * out, (big ? 8 : 4) + Math.random() * (big ? 26 : 12), Math.sin(a) * out);
+        if (big) {
+          s0 = 24 + Math.random() * 16;
+          grow = 12 + Math.random() * 10;
+          life = 20 + Math.random() * 20;
+          c = [0.86 * tone, 0.86 * tone, 0.85 * tone];
+        }
       }
       sp.position.copy(pos);
       this.scene.add(sp);
-      this.smoke.push({ sp, v, age: 0, life: 14 + Math.random() * 16, s0: 10 + Math.random() * 10, grow: 6 + Math.random() * 6 });
+      this.smoke.push({ sp, v, age: 0, life, s0, grow, fire: isFire, c });
     }
+    const mount = new THREE.Vector3(ex.mount.x, vehicleY - 10, ex.mount.z);
     for (const p of this.smoke) {
       p.age += dt;
+      const k = p.age / p.life;
+      const m = p.sp.material as THREE.SpriteMaterial;
+      if (p.fire) {
+        p.v.multiplyScalar(Math.exp(-dt * 1.6));
+        p.sp.position.addScaledVector(p.v, dt);
+        const s = p.s0 + p.age * p.grow;
+        p.sp.scale.set(s, s, 1);
+        // white-hot at the mouth, cooling through orange to a dull red as it spreads
+        m.opacity = Math.min(1, p.age * 12) * (1 - k) * (1 - k) * 0.9 * Math.min(1, fire * 1.5);
+        m.color.setRGB(3.2 - k * 1.2, 1.9 - k * 1.3, 0.8 - k * 0.7);
+        continue;
+      }
       p.v.multiplyScalar(Math.exp(-dt * 0.45));
       p.v.y += dt * 2.2;
       p.sp.position.addScaledVector(p.v, dt);
       if (p.sp.position.y < 2) p.sp.position.y = 2;
       const s = p.s0 + p.age * p.grow;
       p.sp.scale.set(s, s, 1);
-      const k = p.age / p.life;
-      const m = p.sp.material as THREE.SpriteMaterial;
       m.opacity = Math.min(1, p.age * 2) * (1 - k) * 0.85;
       // lit orange by the fire while it burns close by, then plain sunlit white-grey
-      const glow = fire * Math.exp(-p.sp.position.distanceTo(new THREE.Vector3(this.exhaust.mount.x, vehicleY - 10, this.exhaust.mount.z)) / 90);
-      m.color.setRGB(0.78 + glow * 3.2, 0.72 + glow * 1.8, 0.68 + glow * 0.6);
+      const glow = fire * Math.exp(-p.sp.position.distanceTo(mount) / (big ? 160 : 90));
+      const c = p.c ?? [0.78, 0.72, 0.68];
+      m.color.setRGB(c[0] + glow * 3.2, c[1] + glow * 1.8, c[2] + glow * 0.6);
     }
     const dead = this.smoke.filter((p) => p.age > p.life);
     for (const p of dead) {
