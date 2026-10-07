@@ -16,6 +16,8 @@
 
 import { V3, add, sub, scale, dot, cross, len, norm, addScaled, EARTH, earthAngle, ecefDir, enu, padScene, PAD, rotY, gravityAt, airVelocity, air, moonState, MOON } from '../universe';
 import { VehicleDef, engineOut, G0 } from './vehicles';
+import { propagate, Vec } from '../mars/marsPhysics';
+import { orbitOf } from '../universe';
 
 const D2R = Math.PI / 180;
 
@@ -206,6 +208,23 @@ export class LaunchFlight {
     // out on the way to the Moon: steps that shrink near either body, like the planner's
     const far = (this.phase === 'coast' || this.phase === 'escaped') && !free && this.alt > 140_000;
     let left = dt;
+    // in the parking orbit with nothing else flying, the orbit is a plain ellipse: worked out
+    // exactly in one go for any step, so a million times faster costs no more than real time
+    // (the Moon's pull over a few orbits is a matter of metres)
+    if (this.phase === 'orbit' && !free && this.alt > 140_000 && dt > 2) {
+      // (whole turns round the orbit change nothing: only the part-turn left needs working out)
+      const o0 = orbitOf(this.r, this.v);
+      const left0 = o0.e < 1 && Number.isFinite(o0.period) && o0.period > 0 ? dt % o0.period : dt;
+      const pr = propagate(this.r as Vec, this.v as Vec, left0, EARTH.GM);
+      const per = orbitOf(pr.r as V3, pr.v as V3);
+      if (per.rp - EARTH.R > 130_000 && Number.isFinite(pr.r[0]) && Math.abs(Math.hypot(...pr.r) - Math.hypot(...this.r)) < 2 * (o0.ra - o0.rp) + 1000) {
+        this.r = pr.r as V3;
+        this.v = pr.v as V3;
+        this.t += dt;
+        this.axis = norm(this.v);
+        return;
+      }
+    }
     while (left > 1e-9) {
       let h = Math.min(hmax, left);
       if (far && (this.phase === 'coast' || this.phase === 'escaped')) {

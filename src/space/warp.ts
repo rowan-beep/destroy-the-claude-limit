@@ -50,7 +50,7 @@ const CSS = `
 .wz-read{min-width:74px;display:flex;flex-direction:column;align-items:flex-start;line-height:1}
 .wz-read b{font:700 17px 'Rajdhani',system-ui,sans-serif;letter-spacing:.04em;font-variant-numeric:tabular-nums;color:#fff;text-shadow:0 0 calc(10px * var(--wz-k)) rgba(var(--wz-a),.9);transition:transform .25s cubic-bezier(.2,1.6,.4,1)}
 .wz.pop .wz-read b{transform:scale(1.22)}
-.wz-read span{font:700 9px 'Rajdhani',system-ui,sans-serif;letter-spacing:.22em;color:rgba(var(--wz-a),.9);margin-top:3px;min-height:9px}
+.wz-read span{font:700 9px 'Rajdhani',system-ui,sans-serif;letter-spacing:.16em;white-space:nowrap;color:rgba(var(--wz-a),.9);margin-top:3px;min-height:9px}
 .wz-track{position:relative;width:250px;height:34px;cursor:pointer;touch-action:none}
 .wz.compact .wz-track{width:170px}
 .wz.compact .wz-dial{display:none}
@@ -263,21 +263,22 @@ export class WarpBar {
    * auto: fast forward is picking the speed; held: something (a burn, a job) holds it below the setting.
    */
   update(dt: number, running: number, state: { auto?: boolean; paused?: boolean; note?: string } = {}): void {
+    // the fill glides to the speed really running; the thumb stays exactly where it was set
+    // (under fast forward the thumb is the automatic speed itself)
     const want = this.uOf(Math.max(this.min, running));
-    // glide (a quick, smooth catch-up; straight there while dragging)
-    this.su = this.dragId >= 0 ? this.uOf(this.value) : this.su + (want - this.su) * (1 - Math.exp(-dt * 12));
+    this.su = this.su + (want - this.su) * (1 - Math.exp(-dt * 12));
     if (!Number.isFinite(this.su)) this.su = want;
     const k = Math.max(0, Math.min(1, this.su));
+    const uv = this.uOf(this.value);
+    const thumbU = state.auto ? k : uv;
     this.el.style.setProperty('--wz-k', state.paused ? '0' : k.toFixed(3));
     this.el.classList.toggle('auto', !!state.auto);
-    const pct = `${(k * 100).toFixed(2)}%`;
-    this.thumb.style.left = pct;
-    this.fill.style.width = pct;
-    // where the player set it, when the clock runs slower (a burn, or real time for a job)
-    const uv = this.uOf(this.value);
-    const ghost = !state.auto && !state.paused && uv - want > 0.03;
-    this.ghost.classList.toggle('on', ghost);
-    if (ghost) this.ghost.style.left = `${(uv * 100).toFixed(2)}%`;
+    this.thumb.style.left = `${(thumbU * 100).toFixed(2)}%`;
+    this.fill.style.width = `${(k * 100).toFixed(2)}%`;
+    // held back below the setting (a burn, low in the air, real time for a job): the fill stops short
+    const held = !state.auto && !state.paused && uv - want > 0.02;
+    this.ghost.classList.toggle('on', held);
+    if (held) this.ghost.style.left = `${(k * 100).toFixed(2)}%`;
     // the stripes stream along the bar, faster with the warp
     this.stripe += dt * (8 + 160 * k * k);
     this.fill.style.setProperty('--wz-x', `${(this.stripe % 1000).toFixed(1)}px`);
@@ -285,15 +286,21 @@ export class WarpBar {
     this.dialA = (this.dialA + dt * (0.25 + 9 * k * k) * 360) % 360;
     this.hand.style.transform = `rotate(${this.dialA.toFixed(1)}deg)`;
     this.ring.style.transform = `rotate(${(this.dialA * 0.5).toFixed(1)}deg)`;
-    // the readout rolls through the numbers on its way
-    const shown = state.paused ? 0 : this.dragId >= 0 ? this.value : this.wOf(this.su);
+    // the readout: the speed running now, rolling through the numbers on its way
+    const shown = state.paused ? 0 : this.wOf(this.su);
     const level = shown >= 1 ? Math.floor(Math.log10(shown) + 1e-6) : 0;
     if (level > this.lastLevel && !state.paused) this.popT = 0.25;
     this.lastLevel = level;
     this.popT = Math.max(0, this.popT - dt);
     this.el.classList.toggle('pop', this.popT > 0);
     const txt = state.paused ? 'PAUSED' : this.fmt(Math.abs(shown - running) / Math.max(1, running) < 0.004 ? running : nice(shown));
-    const sub = state.paused ? '' : state.auto ? 'AUTO · NEXT EVENT' : state.note ?? (ghost ? `SET ${this.fmt(this.value)}` : running > 1.01 ? 'TIME WARP' : 'REAL TIME');
+    const sub = state.paused
+      ? ''
+      : state.auto
+        ? 'AUTO · NEXT EVENT'
+        : held
+          ? `SET ${this.fmt(this.value)} · ${state.note ?? 'HELD BACK'}`
+          : state.note ?? (running > 1.01 ? 'TIME WARP' : 'REAL TIME');
     const key = txt + '|' + sub;
     if (key !== this.readKey) {
       this.readKey = key;
@@ -302,7 +309,7 @@ export class WarpBar {
       this.track.setAttribute('aria-valuetext', sub ? `${txt}, ${sub.toLowerCase()}` : txt);
     }
     // the mark the thumb is on lights up
-    this.markEls.forEach((m, i) => m.classList.toggle('on', Math.abs(this.uOf(this.marks[i]) - k) < 0.02));
+    this.markEls.forEach((m, i) => m.classList.toggle('on', Math.abs(this.uOf(this.marks[i]) - thumbU) < 0.02));
   }
 }
 
@@ -357,7 +364,7 @@ export class WarpFx {
       /* (no media queries: full effects) */
     }
     this.calm = calm;
-    for (let i = 0; i < (calm ? 0 : 150); i++) this.streaks.push(this.spawn(0.15 + Math.random() * 1.1));
+    // (no light streaks: players found them too distracting; the glowing edges and the rings stay)
   }
 
   private spawn(r: number): Streak {

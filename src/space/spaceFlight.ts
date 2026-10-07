@@ -641,7 +641,8 @@ export class SpaceFlight {
   frame(dtReal: number, w: number, h: number): void {
     const sim = this.sim;
     if (!sim || !this.space || !this.site) return;
-    const dt = Number.isFinite(dtReal) ? Math.max(0, Math.min(0.1, dtReal)) : 0;
+    // (up to a quarter of a second a frame: on a slow frame the clock still runs at the warp set)
+    const dt = Number.isFinite(dtReal) ? Math.max(0, Math.min(0.25, dtReal)) : 0;
     const turn = this.look.step(dt);
     this.camYaw += turn[0];
     this.camPitch = Math.max(-1.4, Math.min(1.45, this.camPitch + turn[1]));
@@ -733,6 +734,7 @@ export class SpaceFlight {
     this.ui.update(sim, {
       warp,
       warpSet: this.warp,
+      warpNote: this.tde >= 0 ? 'LANDING: REAL TIME' : warp < this.warp ? (cap <= 100 ? 'A BURN OR THE AIR: 500× AT MOST' : 'FASTER THAN THIS ONLY ON A COAST') : undefined,
       auto: this.ff,
       paused: this.paused,
       camMode: this.map ? 'MAP' : this.camMode,

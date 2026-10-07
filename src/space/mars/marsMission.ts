@@ -631,7 +631,8 @@ export class MarsMission {
   frame(dtReal: number, w: number, h: number): void {
     const f = this.flight;
     if (!f || !this.site) return;
-    const dt = Number.isFinite(dtReal) ? Math.max(0, Math.min(0.1, dtReal)) : 0;
+    // (up to a quarter of a second a frame: on a slow frame the clock still runs at the warp set)
+    const dt = Number.isFinite(dtReal) ? Math.max(0, Math.min(0.25, dtReal)) : 0;
     const [ly, lp] = this.look.step(dt);
     if (ly || lp) {
       this.camYaw += ly;

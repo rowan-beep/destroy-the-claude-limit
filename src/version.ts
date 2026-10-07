@@ -36,6 +36,28 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '5.3.2',
+    date: '2026-10-07',
+    space: {
+      title: "Real time warp, a map for the rockets",
+      notes: [
+        fixed("1,000,000× now means 1,000,000×",
+          "On a slow frame the clock used to fall behind the warp you set; now it keeps up.",
+          "In the parking orbit the orbit is worked out exactly, in one go, so even a million times faster costs no more than real time.",
+          "A speed you set by hand still stops in time for the next burn or the station: Crew Dragon at 1,000,000× used to fly straight past its own burns."),
+        fixed("The slider stays where you put it",
+          "Let go of the slider and it no longer jumps back to 10×. The thumb stays where you set it, and the fill shows the speed actually running.",
+          "When something holds the clock back, it says what: A BURN: 50× AT MOST, IN THE AIR: 10× AT MOST, AT THE STATION: 20× AT MOST, SLOWING FOR THE NEXT EVENT."),
+        added("A map for the rocket launches",
+          "Press M (or MAP) in Artemis II, Crew Dragon and Europa Clipper for the globe from far out, with the track you've flown and the orbit ahead: green round a stable orbit, orange into the air, blue on an escape.",
+          "Artemis II shows the Moon and its path; Crew Dragon shows the station and its orbit. Drag to turn the globe and roll the wheel to zoom.",
+          "On Europa Clipper's cruise the map shows the inner solar system from far out."),
+        improved("Calmer warp effects",
+          "The streaks of light across the screen are gone: they were too distracting. The glowing blue edges and the rings stay."),
+      ],
+    },
+  },
+  {
     version: '5.3.1',
     date: '2026-10-07',
     air: {

@@ -56,6 +56,8 @@ export interface FlightInfo {
   /** fast forward is picking the warp */
   auto: boolean;
   paused: boolean;
+  /** why the clock runs slower than the slider is set, if it does */
+  warpNote?: string;
   camMode: string;
   map: boolean;
   easy: EasyView | null;
@@ -594,7 +596,7 @@ export class FlightUI {
     this.lastT = now;
     for (const wb of [this.warpPro, this.warpEz]) {
       wb.set(info.warpSet);
-      wb.update(dt, info.paused ? 0 : info.warp, { auto: info.auto, paused: info.paused });
+      wb.update(dt, info.paused ? 0 : info.warp, { auto: info.auto, paused: info.paused, note: info.warpNote });
     }
     this.warpFx.update(dt, info.paused ? 0 : info.warp, window.innerWidth, window.innerHeight);
     this.btn.map.classList.toggle('on', info.map);

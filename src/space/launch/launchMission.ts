@@ -16,9 +16,9 @@
 import * as THREE from 'three';
 import type { LaunchSite } from '../../ui/menu/launchSite';
 import { PAD3 } from '../../ui/menu/falconPad';
-import { SpaceScene } from '../spaceScene';
+import { SpaceScene, orbitTrack } from '../spaceScene';
 import { sunDirection } from '../flightSim';
-import { EARTH, MOON, PAD, V3, earthAngle, ecefDir, padScene, rotY, len, sub, scale, norm, add, cross, dot, air, moonState } from '../universe';
+import { orbitOf, EARTH, MOON, PAD, V3, earthAngle, ecefDir, padScene, rotY, len, sub, scale, norm, add, cross, dot, air, moonState } from '../universe';
 import { menuMusic } from '../../audio/menuMusic';
 import { audio } from '../../audio/audio';
 import { updateRecord } from '../record';
@@ -315,8 +315,16 @@ export class LaunchMission {
     this.elFollow.addEventListener('click', () => {
       this.follow = this.follow === 'stack' ? 'boosters' : 'stack';
     });
+    this.elMap = el('button', 'mm-btn', bot, 'MAP');
+    this.elMap.title = 'The map: the Earth, your track and where it goes next (M)';
+    this.elMap.addEventListener('click', () => this.toggleMap());
     const help = el('button', 'mm-btn', bot, '?');
     help.addEventListener('click', () => this.elHelp.classList.toggle('show'));
+    // the map's lines and labels, drawn over the globe
+    this.mapCv = document.createElement('canvas');
+    this.mapCv.className = 'mm-cv';
+    this.mapCv.style.pointerEvents = 'none';
+    this.ui.insertBefore(this.mapCv, this.ui.firstChild);
     const ex = el('button', 'mm-btn', bot, 'EXIT');
     ex.addEventListener('click', () => this.setPaused(true));
     this.elFlash = el('div', 'mm-flash', this.ui);
@@ -326,6 +334,7 @@ export class LaunchMission {
       ['F', 'fast forward to the next event'],
       ['1 … 0 · , .', 'time warp (or drag the slider)'],
       ['C', 'camera: follow the rocket or the boosters'],
+      ['M', 'the map: the Earth, your track and the orbit ahead (drag to turn it, wheel to zoom)'],
       ['DRAG · WHEEL', 'look around · zoom'],
       ['ESC', 'pause'],
     ].map(([k, v]) => `<div><b>${k}</b>${v}</div>`).join('');
@@ -348,6 +357,14 @@ export class LaunchMission {
       if (!this.drag || this.drag.id !== e.pointerId) return;
       // look round: drag right to turn the view right, down to look down
       const dx = e.clientX - this.drag.x, dy = e.clientY - this.drag.y;
+      if (this.mapOn) {
+        // the map: grab the globe and turn it
+        this.mapYaw -= dx * 0.005;
+        this.mapPitch = Math.max(-1.5, Math.min(1.5, this.mapPitch + dy * 0.005));
+        this.drag.x = e.clientX;
+        this.drag.y = e.clientY;
+        return;
+      }
       this.camYaw += dx * 0.005;
       this.camPitch = Math.max(-1.4, Math.min(1.4, this.camPitch + dy * 0.004));
       this.look.move(dx * 0.005, dy * 0.004);
@@ -367,7 +384,10 @@ export class LaunchMission {
       'wheel',
       (e) => {
         if (!this.active) return;
-        this.camDist = Math.max(12, Math.min(5e7, this.camDist * Math.exp(Math.max(-120, Math.min(120, e.deltaY)) * 0.0018)));
+        const k = Math.exp(Math.max(-120, Math.min(120, e.deltaY)) * 0.0018);
+        if (this.mapOn && this.cruising) this.mapDist = Math.max(0.5 * AU, Math.min(40 * AU, (this.mapDist > 1e10 ? this.mapDist : 7 * AU) * k));
+        else if (this.mapOn) this.mapDist = Math.max(EARTH.R * 1.3, Math.min(3e9, (this.mapDist || this.autoMapDist()) * k));
+        else this.camDist = Math.max(12, Math.min(5e7, this.camDist * k));
       },
       { passive: true },
     );
@@ -446,6 +466,10 @@ export class LaunchMission {
     this.site.usePad(onPad3 ? 3 : 1);
     this.view = 'site';
     this.attach();
+    this.mapOn = false;
+    this.elMap.classList.remove('on');
+    this.trail = [];
+    this.trailT = -1e9;
     this.setWarpTo(1);
     this.warpBar.jump(1);
     this.warpFx.reset();
@@ -535,6 +559,7 @@ export class LaunchMission {
     let used = true;
     if (c === 'Space') this.action();
     else if (c === 'KeyF') this.setFF(!this.ff);
+    else if (c === 'KeyM') this.toggleMap();
     else if (c === 'KeyC') this.follow = this.follow === 'stack' ? 'boosters' : 'stack';
     else if (/^Digit[0-9]$/.test(c)) {
       const n = Number(c.slice(5));
@@ -549,6 +574,159 @@ export class LaunchMission {
       e.preventDefault();
       e.stopPropagation();
     }
+  }
+
+  // ------------------------------------------------------------------ the map
+  private mapOn = false;
+  private mapYaw = 0.5;
+  private mapPitch = 0.6;
+  /** 0: worked out from the orbit */
+  private mapDist = 0;
+  private mapCv!: HTMLCanvasElement;
+  private elMap!: HTMLButtonElement;
+  /** where the craft has been (Earth-centred, inertial), for the map */
+  private trail: V3[] = [];
+  private trailT = -1e9;
+  private mapClear = true;
+  /** why the clock is running slower than the slider is set, if it is */
+  private capNote: string | undefined;
+
+  private toggleMap(): void {
+    this.mapOn = !this.mapOn;
+    this.mapDist = 0;
+    this.elMap.classList.toggle('on', this.mapOn);
+    if (this.mapOn) this.flash('MAP');
+  }
+
+  /** far enough out to see the whole orbit (or the Earth and Moon on the way out) */
+  private autoMapDist(): number {
+    const f = this.flight;
+    if (!f) return EARTH.R * 4;
+    const o = orbitOf(f.r, f.v);
+    const far = Number.isFinite(o.ra) && o.ra < 1e9 ? o.ra : len(f.r);
+    if (this.id === 'artemis' && (f.phase === 'coast' || f.phase === 'escaped') && len(f.r) > 2e7) return 1.15e9;
+    return Math.max(EARTH.R * 3.4, Math.min(2.5e9, far * 2.8));
+  }
+
+  /** remember the track for the map (every few seconds of flight, more often low down) */
+  private recordTrail(f: LaunchFlight): void {
+    if (f.phase === 'pad') {
+      this.trail = [];
+      this.trailT = -1e9;
+      return;
+    }
+    const every = f.alt < 150_000 ? 4 : len(f.r) > 5e7 ? 1800 : 30;
+    if (f.t - this.trailT < every) return;
+    this.trailT = f.t;
+    this.trail.push([f.r[0], f.r[1], f.r[2]]);
+    if (this.trail.length > 3000) this.trail.splice(0, 500);
+  }
+
+  /** draw the map's lines over the globe: the track so far, the orbit ahead, the Moon, the station */
+  private drawMap(f: LaunchFlight, cam: THREE.Camera, w: number, h: number): void {
+    const cv = this.mapCv;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+      cv.width = Math.round(w * dpr);
+      cv.height = Math.round(h * dpr);
+    }
+    const g = cv.getContext('2d')!;
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, w, h);
+    this.mapClear = false;
+    const v = new THREE.Vector3();
+    const camPos = cam.position;
+    // (points relative to the craft: the scene's origin)
+    const proj = (p: V3): { x: number; y: number; hid: boolean } | null => {
+      v.set(p[0] - f.r[0], p[1] - f.r[1], p[2] - f.r[2]);
+      // hidden behind the Earth?
+      const e = new THREE.Vector3(-f.r[0], -f.r[1], -f.r[2]);
+      const toP = v.clone().sub(camPos), toE = e.clone().sub(camPos);
+      const along = toE.dot(toP.clone().normalize());
+      const hid = along > 0 && along < toP.length() && toE.lengthSq() - along * along < EARTH.R * EARTH.R;
+      v.project(cam);
+      if (v.z > 1) return null;
+      return { x: (v.x * 0.5 + 0.5) * w, y: (-v.y * 0.5 + 0.5) * h, hid };
+    };
+    const line = (pts: V3[], col: string, width = 2) => {
+      const sp = pts.map(proj);
+      for (let i = 1; i < sp.length; i++) {
+        const a = sp[i - 1], b = sp[i];
+        if (!a || !b) continue;
+        g.setLineDash(a.hid || b.hid ? [3, 5] : []);
+        g.strokeStyle = `rgba(${col},${a.hid || b.hid ? 0.3 : 0.9})`;
+        g.lineWidth = a.hid || b.hid ? 1 : width;
+        g.beginPath();
+        g.moveTo(a.x, a.y);
+        g.lineTo(b.x, b.y);
+        g.stroke();
+      }
+      g.setLineDash([]);
+    };
+    const label = (p: V3, text: string, col: string) => {
+      const q = proj(p);
+      if (!q) return;
+      g.fillStyle = col;
+      g.beginPath();
+      g.arc(q.x, q.y, 3.5, 0, Math.PI * 2);
+      g.fill();
+      g.font = '600 11px Rajdhani, system-ui';
+      g.fillText(text, q.x + 8, q.y - 6);
+    };
+    // the Moon and its path, out on the way to it
+    if (this.id === 'artemis') {
+      const ring: V3[] = [];
+      for (let i = 0; i <= 120; i++) ring.push(moonState(f.t + (i / 120) * 27.32 * 86400).r);
+      line(ring, '170,170,190', 1);
+      label(moonState(f.t).r, 'MOON', 'rgba(220,220,235,0.95)');
+    }
+    // the space station and its orbit
+    if (this.id === 'iss' && this.rv) {
+      const st = this.issState(f.t);
+      const so = orbitOf(st.r, st.v);
+      line(orbitTrack(so, 180).pts.map((p) => p.p), '255,210,120', 1.2);
+      label(st.r, 'ISS', 'rgba(255,215,130,0.95)');
+    }
+    // where it has been
+    line([...this.trail, f.r], '140,170,210', 1.5);
+    // where it goes next: round the orbit, or down to the ground, or out on an escape
+    if (f.phase !== 'pad' && !this.cruising) {
+      const o = orbitOf(f.r, f.v);
+      const COL: Record<string, string> = { air: '255,120,60', escape: '110,190,255', stable: '90,240,140', decay: '255,190,70' };
+      const tr = orbitTrack(o, 240);
+      const sp = tr.pts.map((t) => proj(t.p));
+      for (let i = 1; i < sp.length; i++) {
+        const a = sp[i - 1], b = sp[i];
+        if (!a || !b) continue;
+        const hid = a.hid || b.hid;
+        g.setLineDash(hid ? [3, 5] : []);
+        g.strokeStyle = `rgba(${COL[tr.pts[i].kind]},${hid ? 0.35 : 0.95})`;
+        g.lineWidth = hid ? 1 : 2.2;
+        g.beginPath();
+        g.moveTo(a.x, a.y);
+        g.lineTo(b.x, b.y);
+        g.stroke();
+      }
+      g.setLineDash([]);
+    }
+    // the craft
+    const me = proj(f.r);
+    if (me) {
+      g.fillStyle = 'rgba(150,215,255,0.25)';
+      g.beginPath();
+      g.arc(me.x, me.y, 11, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = '#bfe4ff';
+      g.beginPath();
+      g.arc(me.x, me.y, 4.5, 0, Math.PI * 2);
+      g.fill();
+      g.font = '700 11px Rajdhani, system-ui';
+      g.fillText(this.vehicle.name.toUpperCase(), me.x + 12, me.y + 4);
+    }
+    g.fillStyle = 'rgba(200,215,235,0.75)';
+    g.font = '600 11px Rajdhani, system-ui';
+    const hint = 'DRAG TO TURN THE GLOBE · WHEEL TO ZOOM · M TO CLOSE';
+    g.fillText(hint, (w - g.measureText(hint).width) / 2, Math.min(h * 0.22 + 40, 210));
   }
 
   private setFF(on: boolean): void {
@@ -676,7 +854,8 @@ export class LaunchMission {
   frame(dtReal: number, w: number, h: number): void {
     const f = this.flight;
     if (!f || !this.site) return;
-    const dt = Number.isFinite(dtReal) ? Math.max(0, Math.min(0.1, dtReal)) : 0;
+    // (up to a quarter of a second a frame: on a slow frame the clock still runs at the warp set)
+    const dt = Number.isFinite(dtReal) ? Math.max(0, Math.min(0.25, dtReal)) : 0;
     this.wallT += dt;
     const [ly, lp] = this.look.step(dt);
     if (ly || lp) {
@@ -692,8 +871,28 @@ export class LaunchMission {
         warp = 1;
       } else warp = Math.max(1, Math.min(1_000_000, this.cruising ? Math.max(100, te) : te / 3));
     }
+    // a speed set by hand still stops in time for the next event (a burn, the station): it
+    // doesn't leap straight past it
+    this.capNote = undefined;
+    if (!this.ff && warp > 1 && dt > 0) {
+      const ev = this.eventIn();
+      if (ev <= 0.5) {
+        // due now: run gently through it so the mission's own step catches it
+        if (warp > 10) {
+          warp = 10;
+          this.capNote = 'AT AN EVENT';
+        }
+      } else if (dt * warp > ev) {
+        warp = Math.max(1, ev / dt);
+        this.capNote = 'SLOWING FOR THE NEXT EVENT';
+      }
+    }
     // the burns that must fly at real speed
-    if (f.phase === 'burn' || (f.phase !== 'pad' && f.alt < 200_000 && f.phase !== 'orbit' && f.phase !== 'coast' && f.phase !== 'escaped' && f.phase !== 'splash')) warp = Math.min(warp, f.phase === 'burn' ? 50 : 10);
+    const air = f.phase !== 'pad' && f.alt < 200_000 && f.phase !== 'orbit' && f.phase !== 'coast' && f.phase !== 'escaped' && f.phase !== 'splash';
+    if ((f.phase === 'burn' || air) && warp > (f.phase === 'burn' ? 50 : 10)) {
+      warp = f.phase === 'burn' ? 50 : 10;
+      this.capNote = f.phase === 'burn' ? 'A BURN: 50× AT MOST' : 'IN THE AIR: 10× AT MOST';
+    }
     if (this.job) {
       const t0 = performance.now();
       while (performance.now() - t0 < 10) {
@@ -706,16 +905,51 @@ export class LaunchMission {
         }
       }
     }
-    if (this.rv && (this.rv.phase === 'approach' || this.rv.phase === 'docked' || this.rv.phase === 'undock')) warp = Math.min(warp, 20);
+    if (this.rv && (this.rv.phase === 'approach' || this.rv.phase === 'docked' || this.rv.phase === 'undock') && warp > 20) {
+      warp = 20;
+      this.capNote = 'AT THE STATION: 20× AT MOST';
+    }
     const step = this.paused || this.job ? 0 : dt * warp;
     if (this.cruising) this.stepCruise(step);
     else f.advance(step);
     this.jd += this.cruising ? 0 : step / 86400;
     this.script(f);
+    this.recordTrail(f);
+    if (!this.mapOn && !this.mapClear) {
+      this.mapCv.getContext('2d')?.clearRect(0, 0, this.mapCv.width, this.mapCv.height);
+      this.mapClear = true;
+    }
     this.pickView(f);
     this.place(f, dt);
     this.render(f, dt, w, h);
     this.hud(f, warp, dt, w, h);
+  }
+
+  /** seconds of mission time to the next thing that must happen on time (a burn, a flyby), exactly */
+  private eventIn(): number {
+    const f = this.flight!;
+    const toEntry = () => {
+      const vr = -dot(f.v, norm(f.r));
+      return vr > 1 && f.alt > 140_000 ? (f.alt - 140_000) / vr : Infinity;
+    };
+    if (this.id === 'iss') {
+      const rv = this.rv;
+      if (!rv) return Infinity;
+      if (rv.phase === 'wait') return rv.tBurn1 - f.t;
+      if (rv.phase === 'transfer') return rv.tArrive - f.t;
+      if (rv.phase === 'home' && f.phase === 'coast') return toEntry();
+      return Infinity;
+    }
+    if (this.id === 'artemis') {
+      if (f.phase === 'orbit' && this.tliAt > 0) return this.tliAt - this.tliLead - f.t;
+      if (f.phase === 'coast' && f.payloadOnly) {
+        if (!this.corrected) return this.tliAt + 4 * 3600 - f.t;
+        if (this.fr && !this.periluneSeen) return this.fr.trial.tPerilune - f.t;
+        if (this.fr && !this.returnFixed) return this.fr.trial.tPerilune + 86400 - f.t;
+        return toEntry();
+      }
+    }
+    return Infinity;
   }
 
   private timeToEvent(): number {
@@ -1244,7 +1478,7 @@ export class LaunchMission {
       const lp = this.localPos(f.r, f.t);
       const near = Math.hypot(lp[0], lp[2]) < 90_000 && f.alt < 25_000;
       const boosting = this.followingBoosters();
-      v = near || boosting || this.finalDescent(f) ? 'site' : 'earth';
+      v = !this.mapOn && (near || boosting || this.finalDescent(f)) ? 'site' : 'earth';
     }
     if (v !== this.view) {
       this.view = v;
@@ -1588,6 +1822,18 @@ export class LaunchMission {
       this.site!.renderFlight(dt, cam, fire, this.holder.position.y, f.alt);
       return;
     }
+    if (this.view === 'earth' && this.mapOn) {
+      const sp = this.space!;
+      const c = scale(f.r, -1);
+      const d = this.mapDist || this.autoMapDist();
+      const cp = Math.cos(this.mapPitch);
+      const dir: V3 = [cp * Math.sin(this.mapYaw), Math.sin(this.mapPitch), cp * Math.cos(this.mapYaw)];
+      sp.update({ origin: f.r, cam: add(c, scale(dir, d)), camUp: [0, 1, 0], look: c, earthAngle: earthAngle(f.t), time: f.t }, w, h, true);
+      sp.camera.updateMatrixWorld();
+      this.drawMap(f, sp.camera, w, h);
+      this.drawWith?.(sp.scene, sp.camera);
+      return;
+    }
     if (this.view === 'earth') {
       const sp = this.space!;
       const up = norm(f.r);
@@ -1649,6 +1895,13 @@ export class LaunchMission {
       cam = [r[0] + c[0], r[1] + c[1], r[2] + c[2]];
       // aim between the craft and the planet, so both are in the picture
       look = [r[0] + toB[0] * d * 0.6, r[1] + toB[1] * d * 0.6, r[2] + toB[2] * d * 0.6];
+    }
+    if (this.mapOn) {
+      // the map on the cruise: the inner solar system from well out, round the Sun
+      const d = this.mapDist > 1e10 ? this.mapDist : 7 * AU;
+      const cp = Math.cos(this.mapPitch);
+      look = [0, 0, 0];
+      cam = [cp * Math.cos(this.mapYaw) * d, cp * Math.sin(this.mapYaw) * d, Math.sin(this.mapPitch) * d];
     }
     sv.update({ jd: this.jd, cam, look, up: [0, 0, 1], fov: 50 }, w, h);
     // the route, relative to the craft
@@ -1778,7 +2031,7 @@ export class LaunchMission {
     if (this.job) this.elAct.textContent = 'WORKING OUT THE TRAJECTORY…';
     else if (a) this.elAct.textContent = a.label;
     this.elFF.classList.toggle('on', this.ff);
-    this.warpBar.update(dt, this.paused || this.job ? 0 : warp, { auto: this.ff, paused: this.paused, note: this.job ? 'PLANNING…' : undefined });
+    this.warpBar.update(dt, this.paused || this.job ? 0 : warp, { auto: this.ff, paused: this.paused, note: this.job ? 'PLANNING…' : this.capNote });
     this.warpFx.update(dt, this.paused || this.job ? 0 : warp, w, h);
     this.elFF.textContent = this.ff ? `⏩ ${warp >= 1e6 ? '1M' : warp >= 1000 ? Math.round(warp / 1000) + 'k' : Math.round(warp)}×` : '⏩ NEXT EVENT';
     this.elFollow.textContent = this.follow === 'boosters' ? 'CAM: BOOSTERS' : 'CAM: ROCKET';
