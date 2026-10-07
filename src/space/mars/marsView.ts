@@ -20,7 +20,7 @@ import { MARS } from './marsPhysics';
 import { boulderGeometry, groundMaterial, rockMaterial } from './marsSurface';
 import { LandingDust } from './marsFx';
 import { MarsWind } from './marsWeather';
-import { upgradeToHires } from './marsHires';
+import { upgradeToHires } from '../../render/hires';
 import { StarSky } from '../solar/sky';
 import { FOG_FRAME, FOG_SCALE, FOG_SUN, FOG_SUN_COLOR, resetFogFrame } from '../../render/fog';
 

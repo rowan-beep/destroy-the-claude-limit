@@ -24,7 +24,7 @@ import callistoUrl from './assets/callisto.jpg';
 import phobosUrl from './assets/phobos.jpg';
 import enceladusUrl from './assets/enceladus.jpg';
 import marsUrl from '../mars/assets/mars_viking_mdim21.jpg';
-import { upgradeToHires } from '../mars/marsHires';
+import { upgradeToHires, hiresImage } from '../../render/hires';
 
 const URLS: Partial<Record<string, string>> = {
   jupiter: jupiterUrl, saturn: saturnUrl, neptune: neptuneUrl, pluto: plutoUrl, charon: charonUrl, titan: titanUrl,
@@ -126,7 +126,18 @@ export function planetTexture(id: BodyId | string): THREE.Texture {
     t.colorSpace = THREE.SRGBColorSpace;
     t.anisotropy = 8;
     t.wrapS = THREE.RepeatWrapping;
-  } else t = build(id);
+  } else {
+    t = build(id);
+    // Earth: the Blue Marble where it can be had (the painted map until then)
+    if (id === 'earth')
+      void hiresImage('earth_4k.jpg', 4096).then((img) => {
+        if (!img) return;
+        t.image = img;
+        t.colorSpace = THREE.SRGBColorSpace;
+        t.wrapS = THREE.RepeatWrapping;
+        t.needsUpdate = true;
+      });
+  }
   cache.set(id, t);
   return t;
 }

@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { MoonView } from './moonView';
 import { StarSky } from './solar/sky';
+import { hiresTexture } from '../render/hires';
 import { MOON, moonPos, EARTH, Body, V3, CONTINENT_GLSL, ecefDir, enu, PAD, orbitPoint, Orbit, descendingAnomaly, len, sub } from './universe';
 
 const RP_KM = EARTH.R / 1000;
@@ -96,6 +97,10 @@ uniform vec3 camKm;
 uniform vec3 padDir;
 uniform vec3 padE;
 uniform float camAlt;
+uniform sampler2D dayTex;
+uniform sampler2D nightTex;
+uniform float dayK;
+uniform float nightK;
 varying vec3 vP;
 varying vec3 vWN;
 varying vec3 vWorld;
@@ -103,6 +108,19 @@ varying vec3 vWorld;
 #include <logdepthbuf_pars_fragment>
 ${CONTINENT_GLSL}
 ${SCATTER_GLSL}
+// the real maps: equirectangular from 180 W (Earth-fixed d: lat = asin(y), lon = atan2(-z, x))
+vec2 uvEarth(vec3 d) {
+  float lat = asin(clamp(d.y, -1.0, 1.0));
+  float lon = atan(-d.z, d.x);
+  return vec2(lon / (2.0 * PI) + 0.5, 0.5 + lat / PI);
+}
+// (sampled with the wrap at 180 degrees taken out of the derivatives: no seam)
+vec4 texEarth(sampler2D t, vec2 uv) {
+  vec2 dx = dFdx(uv), dy = dFdy(uv);
+  dx.x -= floor(dx.x + 0.5);
+  dy.x -= floor(dy.x + 0.5);
+  return textureGrad(t, uv, dx, dy);
+}
 float continentH(vec3 d) {
   float s = 0.0, a = 0.5, f = 1.6;
   for (int k = 0; k < 9; k++) { s += a * vnoise3(d * f + vec3(11.3, 4.1, -7.7)); f *= 2.07; a *= 0.5; }
@@ -142,6 +160,19 @@ void main() {
     albedo = mix(vec3(0.006, 0.022, 0.055), vec3(0.02, 0.1, 0.12), smoothstep(-0.09, 0.0, h));
     albedo = mix(albedo, vec3(0.8, 0.85, 0.9), smoothstep(73.0, 78.0, alat + hum * 5.0));
   }
+  // NASA's Blue Marble, once loaded: the real Earth (the painted one stays as the fallback)
+  vec2 uvE = uvEarth(d);
+  if (dayK > 0.5) {
+    vec3 tc = texEarth(dayTex, uvE).rgb;
+    float lum = dot(tc, vec3(0.3, 0.55, 0.15));
+    // the sea: blue well above red and green (and not ice)
+    float wq = tc.b / (max(tc.r, tc.g) + 0.003);
+    water = smoothstep(1.2, 1.7, wq) * (1.0 - smoothstep(0.3, 0.45, lum));
+    h = water > 0.5 ? -0.1 : 0.1;
+    // a little deeper, as from orbit through the haze (the map is graded for the page)
+    albedo = tc * mix(vec3(0.92, 0.95, 1.0), vec3(0.55, 0.75, 1.0), water);
+    albedo *= mix(1.0, 0.8 + 0.4 * det, fade * (1.0 - water));
+  }
   vec3 pKm = d * RP;
   vec3 sunC = sunTrans(pKm + N * 0.05, sd);
   float ndl = dot(N, sd);
@@ -157,8 +188,12 @@ void main() {
     col += sunC * (pow(nh, 900.0) * 6.0 + pow(nh, 90.0) * 0.6) * (0.3 + fres) * smoothstep(0.0, 0.1, ndl);
     col += vec3(0.05, 0.12, 0.2) * fres * sunC * 0.6;
   }
-  // city lights on the night side
-  if (h > 0.0) {
+  // city lights on the night side: NASA's Black Marble where loaded
+  if (nightK > 0.5) {
+    float night = 1.0 - smoothstep(-0.12, 0.04, ndl);
+    float L = texEarth(nightTex, uvE).r;
+    col += vec3(1.0, 0.7, 0.36) * pow(L, 1.8) * 1.6 * night;
+  } else if (h > 0.0) {
     float night = 1.0 - smoothstep(-0.12, 0.04, ndl);
     float towns = smoothstep(0.78, 0.92, vnoise3(d * 620.0)) * smoothstep(0.5, 0.78, vnoise3(d * 37.0 + 9.0)) * (1.0 - smoothstep(55.0, 62.0, alat));
     float coast = 1.0 - smoothstep(0.0, 0.12, h);
@@ -202,6 +237,8 @@ const CLOUD_FRAG = /* glsl */ `
 uniform vec3 sunDir;
 uniform float time;
 uniform float camAlt;
+uniform sampler2D cloudTex;
+uniform float cloudK;
 varying vec3 vP;
 varying vec3 vWN;
 varying vec3 vWorld;
@@ -209,6 +246,19 @@ varying vec3 vWorld;
 #include <logdepthbuf_pars_fragment>
 ${CONTINENT_GLSL}
 ${SCATTER_GLSL}
+// the real maps: equirectangular from 180 W (Earth-fixed d: lat = asin(y), lon = atan2(-z, x))
+vec2 uvEarth(vec3 d) {
+  float lat = asin(clamp(d.y, -1.0, 1.0));
+  float lon = atan(-d.z, d.x);
+  return vec2(lon / (2.0 * PI) + 0.5, 0.5 + lat / PI);
+}
+// (sampled with the wrap at 180 degrees taken out of the derivatives: no seam)
+vec4 texEarth(sampler2D t, vec2 uv) {
+  vec2 dx = dFdx(uv), dy = dFdy(uv);
+  dx.x -= floor(dx.x + 0.5);
+  dy.x -= floor(dy.x + 0.5);
+  return textureGrad(t, uv, dx, dy);
+}
 void main() {
   #include <logdepthbuf_fragment>
   vec3 d = normalize(vP);
@@ -219,6 +269,12 @@ void main() {
   // the trade-wind belts are clearer, the storm tracks cloudier
   float belt = 0.08 * cos(lat * 6.0) - 0.04;
   float cov = smoothstep(0.55 + belt, 0.76 + belt, n);
+  // the real cloud cover, once loaded, with the painted noise for texture close up
+  if (cloudK > 0.5) {
+    float c = texEarth(cloudTex, uvEarth(d)).r;
+    float near = 1.0 - smoothstep(4.0e5, 3.0e6, camAlt);
+    cov = smoothstep(0.12, 0.7, c) * mix(1.0, 0.65 + 0.7 * n, near * 0.8);
+  }
   if (cov < 0.01) discard;
   vec3 N = normalize(vWN);
   vec3 sd = normalize(sunDir);
@@ -307,7 +363,13 @@ export class SpaceScene {
     const padE = new THREE.Vector3(...enu(PAD.lat, PAD.lon).E);
     // ---- Earth
     this.earthMat = new THREE.ShaderMaterial({
-      uniforms: { sunDir: { value: sunV }, camKm: { value: new THREE.Vector3() }, padDir: { value: pad }, padE: { value: padE }, camAlt: { value: 0 } },
+      uniforms: {
+        sunDir: { value: sunV }, camKm: { value: new THREE.Vector3() }, padDir: { value: pad }, padE: { value: padE }, camAlt: { value: 0 },
+        dayTex: { value: hiresTexture([['earth_8k.jpg', 8192], ['earth_4k.jpg', 4096]], true, () => (this.earthMat.uniforms.dayK.value = 1)) },
+        nightTex: { value: hiresTexture([['earth_night_4k.jpg', 4096]], false, () => (this.earthMat.uniforms.nightK.value = 1)) },
+        dayK: { value: 0 },
+        nightK: { value: 0 },
+      },
       vertexShader: EARTH_VERT,
       fragmentShader: EARTH_FRAG,
     });
@@ -315,7 +377,11 @@ export class SpaceScene {
     this.earth.frustumCulled = false;
     this.scene.add(this.earth);
     this.cloudMat = new THREE.ShaderMaterial({
-      uniforms: { sunDir: { value: sunV }, time: { value: 0 }, camAlt: { value: 0 } },
+      uniforms: {
+        sunDir: { value: sunV }, time: { value: 0 }, camAlt: { value: 0 },
+        cloudTex: { value: hiresTexture([['earth_clouds_4k.jpg', 4096]], false, () => (this.cloudMat.uniforms.cloudK.value = 1)) },
+        cloudK: { value: 0 },
+      },
       vertexShader: EARTH_VERT,
       fragmentShader: CLOUD_FRAG,
       transparent: true,
