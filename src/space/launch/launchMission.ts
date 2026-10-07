@@ -29,6 +29,7 @@ import { buildFalconHeavy, buildSLS, buildFalcon9, poseCore, deployClipper, depl
 import { buildISS, IssRig, pointArrays, openNose, buildDroneShip } from './iss';
 import { planClipper, clipperAt, ClipperPlan, CLIPPER_DATES, solveFreeReturnSteps, solveCorrectionSteps, solveReturnSteps, FreeReturn } from './missionPlans';
 import { SolarView } from '../solar/solarView';
+import { WarpBar, WarpFx } from '../warp';
 import { neutralEnv } from '../mars/marsMission';
 import { BODIES, bodyPos, BodyId, PLANETS, planetState } from '../solar/bodies';
 import { AU, Vec, dateText, propagate } from '../mars/marsPhysics';
@@ -217,7 +218,8 @@ export class LaunchMission {
   private view: View = 'site';
   private siteCam = new THREE.PerspectiveCamera(50, 1, 0.5, 400_000);
   private padLight = new THREE.PointLight(0xffa050, 0, 0, 2);
-  private warpI = 0;
+  /** the warp the player set (fast forward picks its own) */
+  private warp = 1;
   private ff = false;
   private paused = false;
   private camYaw = -1.0;
@@ -266,7 +268,8 @@ export class LaunchMission {
   private elLog: HTMLElement;
   private elAct: HTMLButtonElement;
   private elFF: HTMLButtonElement;
-  private elWarp: HTMLButtonElement[] = [];
+  private warpBar: WarpBar;
+  private warpFx: WarpFx;
   private elFollow: HTMLButtonElement;
   private elFlash: HTMLElement;
   private elCard: HTMLElement;
@@ -296,15 +299,15 @@ export class LaunchMission {
     this.elAct.addEventListener('click', () => this.action());
     this.elFF = el('button', 'mm-btn', bot, '⏩ NEXT EVENT');
     this.elFF.addEventListener('click', () => this.setFF(!this.ff));
-    const warp = el('div', 'mm-warp', bot);
-    WARPS.forEach((w, i) => {
-      const b = el('button', '', warp, w >= 1e6 ? '1M×' : w >= 1000 ? `${w / 1000}k×` : `${w}×`);
-      b.addEventListener('click', () => {
-        this.warpI = i;
+    this.warpBar = new WarpBar(bot, {
+      max: WARPS[WARPS.length - 1],
+      marks: [1, 10, 100, 1000, 10_000, 100_000, 1_000_000],
+      onPick: (w) => {
+        this.warp = w;
         this.ff = false;
-      });
-      this.elWarp.push(b);
+      },
     });
+    this.warpFx = new WarpFx(this.ui, WARPS[WARPS.length - 1]);
     this.elFollow = el('button', 'mm-btn', bot, 'CAMERA');
     this.elFollow.addEventListener('click', () => {
       this.follow = this.follow === 'stack' ? 'boosters' : 'stack';
@@ -318,7 +321,7 @@ export class LaunchMission {
     this.elHelp.innerHTML = [
       ['SPACE', 'the next step (launch, burns…)'],
       ['F', 'fast forward to the next event'],
-      ['1 … 0', 'time warp'],
+      ['1 … 0 · , .', 'time warp (or drag the slider)'],
       ['C', 'camera: follow the rocket or the boosters'],
       ['DRAG · WHEEL', 'look around · zoom'],
       ['ESC', 'pause'],
@@ -433,7 +436,9 @@ export class LaunchMission {
     this.site.usePad(onPad3 ? 3 : 1);
     this.view = 'site';
     this.attach();
-    this.warpI = 0;
+    this.setWarpTo(1);
+    this.warpBar.jump(1);
+    this.warpFx.reset();
     this.ff = false;
     this.paused = false;
     this.camYaw = onPad3 ? -0.9 : -1.15;
@@ -523,9 +528,9 @@ export class LaunchMission {
     else if (c === 'KeyC') this.follow = this.follow === 'stack' ? 'boosters' : 'stack';
     else if (/^Digit[0-9]$/.test(c)) {
       const n = Number(c.slice(5));
-      this.warpI = n === 0 ? 9 : n - 1;
-      this.ff = false;
-    } else if (c === 'Escape') {
+      this.setWarpTo(WARPS[n === 0 ? 9 : n - 1]);
+    } else if (c === 'Comma' || c === 'Period') this.warpBar.step(c === 'Period' ? 1 : -1);
+    else if (c === 'Escape') {
       if (this.elHelp.classList.contains('show')) this.elHelp.classList.remove('show');
       else this.setPaused(!this.paused);
     } else if (c === 'KeyH' || c === 'Slash') this.elHelp.classList.toggle('show');
@@ -538,7 +543,12 @@ export class LaunchMission {
 
   private setFF(on: boolean): void {
     this.ff = on;
-    if (!on) this.warpI = 0;
+    if (!on) this.setWarpTo(1);
+  }
+  private setWarpTo(w: number): void {
+    this.warp = w;
+    this.warpBar.set(w);
+    this.ff = false;
   }
   private setPaused(p: boolean): void {
     this.paused = p;
@@ -658,12 +668,11 @@ export class LaunchMission {
     if (!f || !this.site) return;
     const dt = Number.isFinite(dtReal) ? Math.max(0, Math.min(0.1, dtReal)) : 0;
     this.wallT += dt;
-    let warp = WARPS[this.warpI];
+    let warp = this.warp;
     if (this.ff) {
       const te = this.timeToEvent();
       if (te <= 1) {
-        this.ff = false;
-        this.warpI = 0;
+        this.setWarpTo(1);
         warp = 1;
       } else warp = Math.max(1, Math.min(1_000_000, this.cruising ? Math.max(100, te) : te / 3));
     }
@@ -1101,8 +1110,7 @@ export class LaunchMission {
         ev.done = true;
         this.flash(ev.flash);
         f.say(ev.text, 'good');
-        this.ff = false;
-        this.warpI = 0;
+        this.setWarpTo(1);
       }
     }
     if (this.europaT >= 0) {
@@ -1754,7 +1762,8 @@ export class LaunchMission {
     if (this.job) this.elAct.textContent = 'WORKING OUT THE TRAJECTORY…';
     else if (a) this.elAct.textContent = a.label;
     this.elFF.classList.toggle('on', this.ff);
-    this.elWarp.forEach((b, i) => b.classList.toggle('on', !this.ff && i === this.warpI));
+    this.warpBar.update(dt, this.paused || this.job ? 0 : warp, { auto: this.ff, paused: this.paused, note: this.job ? 'PLANNING…' : undefined });
+    this.warpFx.update(dt, this.paused || this.job ? 0 : warp, w, h);
     this.elFF.textContent = this.ff ? `⏩ ${warp >= 1e6 ? '1M' : warp >= 1000 ? Math.round(warp / 1000) + 'k' : Math.round(warp)}×` : '⏩ NEXT EVENT';
     this.elFollow.textContent = this.follow === 'boosters' ? 'CAM: BOOSTERS' : 'CAM: ROCKET';
     this.elFollow.style.display = (this.id === 'clipper' || this.id === 'iss') && !this.cruising ? '' : 'none';

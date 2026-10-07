@@ -24,6 +24,8 @@ import { upgradeToHires } from '../../render/hires';
 import { StarSky } from '../solar/sky';
 import { FOG_FRAME, FOG_SCALE, FOG_SUN, FOG_SUN_COLOR, resetFogFrame } from '../../render/fog';
 
+/** the rock tiles' size (m) when the rocks are fixed to the ground */
+const ROCK_TILE = 40;
 const R = MARS.R;
 /** the Sun's light at Mars (renderer units, as the other scenes' suns) */
 const SUN_I = 3.4;
@@ -306,9 +308,21 @@ export class MarsView {
   /** the ground mesh needs rebuilding (new colours arrived) */
   private patchDirty = false;
   private rocks: THREE.InstancedMesh[] = [];
+  /** the rocks laid out in ground tiles (rockTiles): a detailed, a medium and a light version of each shape */
+  private tileRocks: THREE.InstancedMesh[] = [];
   private rocksAt: Vec | null = null;
-  /** the boulders round the ground point (lat, lon in degrees, size in m), for anything driving among them */
-  rockList: { lat: number; lon: number; size: number }[] = [];
+  /**
+   * The rocks near the ground point, for anything driving among them: lat, lon in degrees,
+   * r the radius of the rock's footprint and top its height above the ground (m).
+   */
+  rockList: { lat: number; lon: number; r: number; top: number }[] = [];
+  /**
+   * Rocks fixed to the ground in tiles, the same rocks whenever the rover comes back
+   * (for driving among them), instead of strewn afresh round wherever the camera is.
+   */
+  rockTiles = false;
+  /** patches kept clear of rocks (a rover's start and its targets): lat, lon in degrees, r in m */
+  rockClear: { lat: number; lon: number; r: number }[] = [];
   /** bumped every time the boulders are laid out again */
   rockGen = 0;
   private fog = new THREE.FogExp2(0xc08a60, 0);
@@ -605,16 +619,18 @@ export class MarsView {
       this.globe.scale.setScalar((R - 1500) / R);
       // boulders round the landing point
       if (shipAlt < 4000) {
-        if (!this.rocksAt || Math.hypot(c[0] - this.rocksAt[0], c[1] - this.rocksAt[1], c[2] - this.rocksAt[2]) * R > 300) this.buildRocks(c);
-        for (const rk of this.rocks) {
+        // (tiled rocks follow the ground point closely: the near tiles get their full set of rocks)
+        if (this.rockTiles ? !this.rocksAt || this.tileKey(c) !== this.rocksKey : !this.rocksAt || Math.hypot(c[0] - this.rocksAt[0], c[1] - this.rocksAt[1], c[2] - this.rocksAt[2]) * R > 300) this.buildRocks(c);
+        for (const rk of this.rockTiles ? this.tileRocks : this.rocks) {
           rk.position.copy(this.patch!.position);
           rk.quaternion.copy(this.patch!.quaternion);
           rk.visible = true;
         }
-      } else for (const rk of this.rocks) rk.visible = false;
+        for (const rk of this.rockTiles ? this.rocks : this.tileRocks) rk.visible = false;
+      } else for (const rk of [...this.rocks, ...this.tileRocks]) rk.visible = false;
     } else {
       if (this.patch) this.patch.visible = false;
-      for (const rk of this.rocks) rk.visible = false;
+      for (const rk of [...this.rocks, ...this.tileRocks]) rk.visible = false;
       this.globe.scale.setScalar(1);
     }
     this.stepDust(v, dt, h, sunI, sun, thick);
@@ -827,8 +843,27 @@ export class MarsView {
     this.rocksAt = null;
   }
 
+  /** which rock tile a ground point is in */
+  private tileKey(c: Vec): string {
+    const dLat = ROCK_TILE / (R * D2R);
+    const lat = Math.asin(c[2]) / D2R, lon = Math.atan2(c[1], c[0]) / D2R;
+    const row = Math.floor(lat / dLat);
+    const dLon = dLat / Math.max(0.05, Math.cos((row + 0.5) * dLat * D2R));
+    return `${row}:${Math.floor(lon / dLon)}`;
+  }
+  private rocksKey = '';
+
+  /** lay the rocks out again (after the clear patches change) */
+  resetRocks(): void {
+    this.rocksAt = null;
+  }
+
   /** boulders strewn round the landing point (Mars-fixed, in the patch's frame): many small, a few big, half sunk */
   private buildRocks(c: Vec): void {
+    if (this.rockTiles) {
+      this.buildRockTiles(c);
+      return;
+    }
     const PER = 700;
     // four rock shapes, each in two versions: a detailed one for the rocks near the
     // middle (where the camera is) and a light one for the rest
@@ -869,7 +904,7 @@ export class MarsView {
         const lat = Math.asin(d.z) / D2R, lon = Math.atan2(d.y, d.x) / D2R;
         const size = (0.12 + Math.pow(r(), 5) * 2.4) * this.rockScale;
         const sink = 0.15 + r() * 0.35;
-        if (size > 0.45) this.rockList.push({ lat, lon, size: size * 0.5 });
+        if (size > 0.45) this.rockList.push({ lat, lon, r: size * 0.5, top: size * 0.5 });
         const p = d.clone().multiplyScalar(R + marsHeight(lat, lon) - size * 0.62 * sink).sub(P0);
         // sitting on the ground, turned at random and tipped a little
         q.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d)
@@ -893,6 +928,98 @@ export class MarsView {
       if (rk.instanceColor) rk.instanceColor.needsUpdate = true;
     }
     this.rocksAt = c;
+  }
+
+  /**
+   * Rocks fixed to the ground: Mars cut into 40 m tiles on a latitude/longitude grid, each
+   * tile with its own rocks from its own seed, so a rock is always in the same place and the
+   * same shape however the camera comes and goes. The tiles round the ground point get all
+   * of theirs; further out only the first few of each tile's list (so going nearer only ever
+   * adds rocks, never moves one). Each one's footprint and height go in rockList.
+   */
+  private buildRockTiles(c: Vec): void {
+    const SHAPES = 4, CAP = 1400;
+    if (!this.tileRocks.length) {
+      const mat = rockMaterial();
+      // detailed (the bigger rocks close by), medium (the small ones close by), light (further out)
+      for (const detail of [5, 3, 2])
+        for (let k = 0; k < SHAPES; k++) {
+          const rk = new THREE.InstancedMesh(boulderGeometry(11 + k * 7, detail), mat, CAP);
+          rk.castShadow = detail > 2;
+          rk.receiveShadow = true;
+          rk.frustumCulled = false;
+          rk.count = 0;
+          this.tileRocks.push(rk);
+          this.scene.add(rk);
+        }
+    }
+    const K = 5, FULL = 110;
+    const dLat = ROCK_TILE / (R * D2R);
+    const latC = Math.asin(c[2]) / D2R, lonC = Math.atan2(c[1], c[0]) / D2R;
+    const row0 = Math.floor(latC / dLat);
+    const P0 = new THREE.Vector3(...this.patchAt!.c).multiplyScalar(R);
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const up = new THREE.Vector3();
+    const col = new THREE.Color();
+    const alb = [0, 0, 0];
+    const tones: [number, number, number][] = [[0.13, 0.11, 0.1], [0.17, 0.13, 0.11], [0.26, 0.16, 0.11], [0.32, 0.21, 0.14], [0.38, 0.3, 0.24]];
+    const used = this.tileRocks.map(() => 0);
+    const clear = this.rockClear.map((z) => ({ ...z, k: Math.cos(z.lat * D2R) }));
+    this.rockList = [];
+    this.rockGen++;
+    for (let dr = -K; dr <= K; dr++) {
+      const row = row0 + dr;
+      const rowLat = (row + 0.5) * dLat;
+      const dLon = dLat / Math.max(0.05, Math.cos(rowLat * D2R));
+      const col0 = Math.floor(lonC / dLon);
+      for (let dc = -K; dc <= K; dc++) {
+        const cl = col0 + dc;
+        const tier = Math.max(Math.abs(dr), Math.abs(dc));
+        // all of them in the 3 x 3 tiles round the ground point, fewer further out
+        const n = tier <= 1 ? FULL : tier <= 3 ? Math.round(FULL * 0.3) : Math.round(FULL * 0.1);
+        let s = (Math.imul(row, 73856093) ^ Math.imul(cl, 19349663) ^ 0x5bd1e995) >>> 0;
+        const r = () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296);
+        for (let j = 0; j < n; j++) {
+          const lat = (row + r()) * dLat, lon = (cl + r()) * dLon;
+          const size = (0.12 + Math.pow(r(), 5) * 2.4) * this.rockScale;
+          const sink = 0.15 + r() * 0.35;
+          const turn = r() * 6.28, tip = (r() - 0.5) * 0.5;
+          const sx = 0.8 + r() * 0.5, sz = 0.8 + r() * 0.5;
+          const tone = tones[Math.floor(r() * tones.length)];
+          const dust = 0.25 + r() * 0.35;
+          const shape = Math.floor(r() * SHAPES) % SHAPES;
+          if (clear.some((z) => Math.hypot((lat - z.lat) * D2R * R, (lon - z.lon) * D2R * R * z.k) < z.r)) continue;
+          // the version: detailed for the bigger rocks close by, medium for the small ones, light further out
+          const ver = tier <= 1 ? (size > 0.3 ? 0 : 1) : tier <= 2 && size > 0.5 ? 0 : 2;
+          const which = ver * SHAPES + shape;
+          if (used[which] >= CAP) continue;
+          const la = lat * D2R, lo = lon * D2R;
+          up.set(Math.cos(la) * Math.cos(lo), Math.cos(la) * Math.sin(lo), Math.sin(la));
+          const p = up.clone().multiplyScalar(R + marsHeight(lat, lon) - size * 0.62 * sink).sub(P0);
+          q.setFromUnitVectors(new THREE.Vector3(0, 1, 0), up)
+            .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), turn))
+            .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), tip));
+          m.compose(p, q, new THREE.Vector3(size * sx, size, size * sz));
+          const rk = this.tileRocks[which];
+          const i = used[which]++;
+          rk.setMatrixAt(i, m);
+          mapAlbedo(lat, lon, alb);
+          col.setRGB(tone[0] * (1 - dust) + alb[0] * 0.75 * dust, tone[1] * (1 - dust) + alb[1] * 0.75 * dust, tone[2] * (1 - dust) + alb[2] * 0.75 * dust);
+          rk.setColorAt(i, col);
+          // its footprint and how far it stands up out of the sand (the shape's fractured
+          // faces sit at about 0.7 of its size from the middle)
+          if (tier <= 2) this.rockList.push({ lat, lon, r: size * 0.7 * (sx + sz) / 2, top: Math.max(0, size * (0.7 - 0.62 * sink)) });
+        }
+      }
+    }
+    this.tileRocks.forEach((rk, k) => {
+      rk.count = used[k];
+      rk.instanceMatrix.needsUpdate = true;
+      if (rk.instanceColor) rk.instanceColor.needsUpdate = true;
+    });
+    this.rocksAt = c;
+    this.rocksKey = this.tileKey(c);
   }
 
   /** the dust storm under the engines: placed on the ground below, carried round with Mars */

@@ -11,6 +11,7 @@ import { BODIES, BodyId, PLANETS, bodyPos, orbitPeriodDays } from './bodies';
 import { AU, Vec, dateText } from '../mars/marsPhysics';
 import { menuMusic } from '../../audio/menuMusic';
 import { audio } from '../../audio/audio';
+import { WarpBar, WarpFx } from '../warp';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, parent: HTMLElement, text?: string): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -20,16 +21,22 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, parent: 
   return e;
 }
 
-/** clock speeds: simulated seconds per real second */
-const WARPS: [string, number][] = [
-  ['PAUSE', 0],
-  ['1 MIN/S', 60],
-  ['1 HR/S', 3600],
-  ['1 DAY/S', 86400],
-  ['1 WK/S', 7 * 86400],
-  ['1 MO/S', 30.44 * 86400],
-  ['1 YR/S', 365.25 * 86400],
-];
+/** clock speeds: simulated seconds per real second (the marks on the slider) */
+const MARKS = [1, 60, 3600, 86400, 7 * 86400, 30.44 * 86400, 365.25 * 86400];
+const MARK_NAMES = ['REAL', '1 MIN', '1 HR', '1 DAY', '', '1 MO', '1 YR'];
+
+/** a clock speed as time per second: "3.5 DAYS/S" */
+function rateText(w: number): string {
+  const u: [number, string, string][] = [[365.25 * 86400, 'YR', 'YRS'], [30.44 * 86400, 'MO', 'MO'], [7 * 86400, 'WK', 'WKS'], [86400, 'DAY', 'DAYS'], [3600, 'HR', 'HRS'], [60, 'MIN', 'MIN']];
+  for (const [s, one, many] of u) {
+    if (w >= s * 0.995) {
+      const v = w / s;
+      const t = v < 10 ? (Math.round(v * 10) / 10).toString() : Math.round(v).toString();
+      return `${t} ${t === '1' ? one : many}/S`;
+    }
+  }
+  return w <= 1.01 ? 'REAL TIME' : `${Math.round(w)} S/S`;
+}
 
 const STYLE = `
 .sx-chips{position:absolute;left:16px;right:340px;top:92px;display:flex;flex-wrap:wrap;gap:6px;pointer-events:auto}
@@ -51,7 +58,12 @@ export class SolarExplorer {
   onExit: (() => void) | null = null;
   private view: SolarView | null = null;
   private jd = 0;
-  private warpI = 2;
+  /** the clock's speed, simulated seconds per real second */
+  private warp = 3600;
+  private paused = false;
+  private warpBar: WarpBar;
+  private warpFx: WarpFx;
+  private elPause: HTMLButtonElement;
   private focus: BodyId = 'earth';
   /** the flight from one body to the next */
   private move: { from: BodyId; to: BodyId; t: number; d0: number; d1: number } | null = null;
@@ -62,7 +74,6 @@ export class SolarExplorer {
   private drag: { id: number; x: number; y: number } | null = null;
   private ui: HTMLDivElement;
   private elDate: HTMLElement;
-  private elWarp: HTMLButtonElement[] = [];
   private elChips: HTMLDivElement;
   private elInfo: HTMLDivElement;
   private elLabels: HTMLDivElement;
@@ -85,12 +96,21 @@ export class SolarExplorer {
     this.elInfo = el('div', 'sx-info', this.ui);
     this.elChips = el('div', 'sx-chips', this.ui);
     const bot = el('div', 'mm-bot', this.ui);
-    const warp = el('div', 'mm-warp', bot);
-    WARPS.forEach(([label], i) => {
-      const b = el('button', '', warp, label);
-      b.addEventListener('click', () => (this.warpI = i));
-      this.elWarp.push(b);
+    this.elPause = el('button', 'mm-btn', bot, '❚❚');
+    this.elPause.title = 'Stop the clock (SPACE)';
+    this.elPause.addEventListener('click', () => (this.paused = !this.paused));
+    this.warpBar = new WarpBar(bot, {
+      max: MARKS[MARKS.length - 1],
+      marks: MARKS,
+      fmt: rateText,
+      markFmt: (w) => MARK_NAMES[MARKS.indexOf(w)] ?? '',
+      onPick: (w) => {
+        this.warp = w;
+        this.paused = false;
+      },
     });
+    // (calm at an hour a second, the explorer's everyday pace; full at a year a second)
+    this.warpFx = new WarpFx(this.ui, MARKS[MARKS.length - 1], 'space', 3600);
     const now = el('button', 'mm-btn', bot, 'TODAY');
     now.addEventListener('click', () => (this.jd = Date.now() / 86_400_000 + 2_440_587.5));
     const ex = el('button', 'mm-btn', bot, 'EXIT');
@@ -106,7 +126,12 @@ export class SolarExplorer {
         const list = this.tourList();
         const i = list.indexOf(this.focus);
         this.goTo(list[(i + (e.code === 'BracketRight' ? 1 : list.length - 1)) % list.length]);
-      } else if (/^Digit[1-7]$/.test(e.code)) this.warpI = Number(e.code.slice(5)) - 1;
+      } else if (e.code === 'Digit1' || e.code === 'Space') this.paused = !this.paused;
+      else if (/^Digit[2-7]$/.test(e.code)) {
+        this.warp = MARKS[Number(e.code.slice(5)) - 1];
+        this.warpBar.set(this.warp);
+        this.paused = false;
+      } else if (e.code === 'Comma' || e.code === 'Period') this.warpBar.step(e.code === 'Period' ? 1 : -1);
       else used = false;
       if (used) {
         e.preventDefault();
@@ -147,7 +172,10 @@ export class SolarExplorer {
     this.zoom = 4;
     this.yaw = 0.6;
     this.pitch = 0.25;
-    this.warpI = 2;
+    this.warp = 3600;
+    this.warpBar.jump(this.warp);
+    this.paused = false;
+    this.warpFx.reset(this.warp);
     this.chipFor = '';
     this.faceSun();
     this.active = true;
@@ -230,7 +258,7 @@ export class SolarExplorer {
     const sv = this.view;
     if (!sv) return;
     const dt = Number.isFinite(dtReal) ? Math.max(0, Math.min(0.1, dtReal)) : 0;
-    this.jd += (dt * WARPS[this.warpI][1]) / 86400;
+    this.jd += (dt * (this.paused ? 0 : this.warp)) / 86400;
     // where the camera looks: the body in focus (flying between two on a change)
     let target = bodyPos(this.focus, this.jd);
     let dist = this.zoom * BODIES[this.focus].R;
@@ -253,16 +281,19 @@ export class SolarExplorer {
     sv.origin = target;
     sv.update({ jd: this.jd, cam, look: target, up: [0, 0, 1], fov: 45 }, w, h);
     this.drawWith?.(sv.scene, sv.camera);
-    this.hud(w, h, target);
+    this.hud(w, h, target, dt);
   }
 
-  private hud(w: number, h: number, target: Vec): void {
+  private hud(w: number, h: number, target: Vec, dt: number): void {
     // where the panels are (the world buttons and the info card), read before anything
     // on the page changes this frame so it costs no extra layout; no names go under them
     const o = this.ui.getBoundingClientRect();
     const panels = [this.elChips, this.elInfo].map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0);
-    this.elDate.textContent = `${dateText(this.jd)} · ${WARPS[this.warpI][0]}`;
-    this.elWarp.forEach((b, i) => b.classList.toggle('on', i === this.warpI));
+    this.elDate.textContent = dateText(this.jd);
+    this.elPause.classList.toggle('on', this.paused);
+    this.elPause.textContent = this.paused ? '▶' : '❚❚';
+    this.warpBar.update(dt, this.paused ? 0 : this.warp, { paused: this.paused });
+    this.warpFx.update(dt, this.paused ? 0 : this.warp, w, h);
     this.chips();
     const sun = this.elInfo.querySelector('[data-k="sun"]');
     if (sun) sun.textContent = this.focus === 'sun' ? '—' : `${(Math.hypot(...target) / AU).toFixed(3)} AU`;

@@ -20,6 +20,7 @@ import { updateRecord } from '../record';
 import { RoverDrive } from './roverDrive';
 import { RoverRig, HeliRig, buildRover, buildIngenuity, deployArm, stowArm, aimMast, ROVER } from './roverModel';
 import { EdlSequence } from './edl';
+import { WarpBar, WarpFx } from '../warp';
 
 const D2R = Math.PI / 180;
 export const ROVER_WARPS = [1, 5, 10, 30, 100, 300];
@@ -119,13 +120,15 @@ const CSS = `
 .rv-tr{position:absolute;right:16px;top:14px;width:240px;background:#1a110cb8;border:1px solid #ffffff1c;border-radius:10px;padding:10px 12px;backdrop-filter:blur(6px)}
 .rv-row{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:2px 0;font-variant-numeric:tabular-nums}
 .rv-row span:first-child{color:#c9a98c;font-size:11px;letter-spacing:.16em;padding-top:2px}
-.rv-log{position:absolute;left:18px;bottom:100px;width:min(440px,60vw);font-size:13px;line-height:1.35}
+.rv-log{position:absolute;left:18px;bottom:128px;width:min(440px,60vw);font-size:13px;line-height:1.35}
 .rv-log div{background:#1a110ca8;border-left:2px solid #e8a36a;padding:4px 8px;margin-top:4px;border-radius:0 6px 6px 0;text-shadow:0 1px 2px #000}
 .rv-log div.good{border-color:#6fe0a0}.rv-log div.bad{border-color:#ff6b5b}
-.rv-bot{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 32px)}
+.rv-bot{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);width:max-content;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 32px)}
 .rv-btn{background:#20150fd8;border:1px solid #ffffff2a;color:#eef2f6;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;letter-spacing:.1em}
 .rv-btn.on{background:#8a4b26;border-color:#e8a36a}
-.rv-act{background:linear-gradient(180deg,#fff3e6,#e8c4a4);color:#20150f;border:0;padding:10px 20px;font-size:15px;font-weight:800}
+.rv-act{position:absolute;left:50%;bottom:calc(100% + 10px);transform:translateX(-50%);white-space:nowrap;background:linear-gradient(180deg,#fff3e6,#e8c4a4);color:#20150f;border:0;padding:10px 20px;font-size:15px;font-weight:800;box-shadow:0 4px 18px #0008}
+.rv-warn{position:absolute;left:50%;top:30%;transform:translateX(-50%);padding:6px 14px;border-radius:8px;background:#5a1a10d8;border:1px solid #ff8a6a;font-size:14px;font-weight:700;letter-spacing:.14em;opacity:0;transition:opacity .4s;white-space:nowrap}
+.rv-warn.show{opacity:1}
 .rv-act.off{display:none}
 .rv-warp{display:flex;gap:2px;background:#20150fd8;border:1px solid #ffffff2a;border-radius:8px;padding:3px}
 .rv-warp button{background:none;border:0;color:#c9a98c;font-size:12px;padding:5px 7px;border-radius:5px;font-weight:600}
@@ -144,7 +147,7 @@ const CSS = `
 .rv-help{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#1a110cee;border:1px solid #ffffff2a;border-radius:12px;padding:18px 22px;font-size:14px;line-height:1.7;pointer-events:auto;display:none}
 .rv-help.show{display:block}
 .rv-help b{display:inline-block;min-width:120px;color:#fff}
-@media (max-width:700px){.rv-tr{width:180px}.rv-map{width:140px;height:140px;bottom:120px}.rv-t{font-size:17px}.rv-log{bottom:140px}}
+@media (max-width:700px){.rv-tr{width:180px}.rv-map{width:140px;height:140px;bottom:120px}.rv-t{font-size:17px}.rv-log{bottom:150px}}
 `;
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, parent: HTMLElement, text?: string): HTMLElementTagNameMap[K] {
@@ -163,57 +166,112 @@ interface Activity {
   target: RoverTarget;
 }
 
-/** wheel tracks: a ribbon in the dust behind each side's wheels */
+/**
+ * Wheel tracks: a ribbon in the dust behind each side's wheels. The buffers are
+ * made once at full size and each new stretch is written in place (at 300× the
+ * rover lays down dozens of points a second; rebuilding the whole ribbon for
+ * each one stalled the frame).
+ */
 class Tracks {
+  static readonly CAP = 6000;
   readonly mesh: THREE.Mesh;
-  private pts: { x: number; y: number; z: number; rx: number; rz: number }[] = [];
+  /** the points down so far (x, z of the ribbon's centre line, for the map and for gaps) */
+  readonly xs = new Float32Array(Tracks.CAP);
+  readonly zs = new Float32Array(Tracks.CAP);
+  n = 0;
+  private dist = 0;
+  private quads = 0;
+  private pos: THREE.BufferAttribute;
+  private uv: THREE.BufferAttribute;
+  private idx: THREE.BufferAttribute;
   private geo = new THREE.BufferGeometry();
-  private dirty = false;
+  private from = -1;
+  private qFrom = -1;
   constructor(mat: THREE.Material) {
+    const C = Tracks.CAP;
+    this.pos = new THREE.BufferAttribute(new Float32Array(C * 6), 3).setUsage(THREE.DynamicDrawUsage);
+    this.uv = new THREE.BufferAttribute(new Float32Array(C * 4), 2).setUsage(THREE.DynamicDrawUsage);
+    this.idx = new THREE.BufferAttribute(new Uint32Array((C - 1) * 6), 1).setUsage(THREE.DynamicDrawUsage);
+    // the ribbon lies flat on the sand: one normal, straight up
+    const nrm = new Float32Array(C * 6);
+    for (let i = 0; i < C * 2; i++) nrm[i * 3 + 1] = 1;
+    this.geo.setAttribute('position', this.pos);
+    this.geo.setAttribute('uv', this.uv);
+    this.geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+    this.geo.setIndex(this.idx);
+    this.geo.setDrawRange(0, 0);
     this.mesh = new THREE.Mesh(this.geo, mat);
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = 1;
   }
   add(x: number, y: number, z: number, rx: number, rz: number): void {
-    const l = this.pts[this.pts.length - 1];
-    if (l && Math.hypot(l.x - x, l.z - z) < 0.2) return;
-    this.pts.push({ x, y, z, rx, rz });
-    if (this.pts.length > 6000) this.pts.splice(0, 1000);
-    this.dirty = true;
+    const i = this.n;
+    const gap = i > 0 ? Math.hypot(this.xs[i - 1] - x, this.zs[i - 1] - z) : 0;
+    if (i > 0 && gap < 0.2) return;
+    if (i >= Tracks.CAP) {
+      this.compact();
+      this.add(x, y, z, rx, rz);
+      return;
+    }
+    this.dist += gap;
+    this.put(i, x, y, z, rx, rz);
+    // (a break in the ribbon where it jumps: the rover was moved)
+    if (i > 0 && gap < 1.5) this.quad(i);
+    this.n++;
+    this.mark(i);
+  }
+  private put(i: number, x: number, y: number, z: number, rx: number, rz: number): void {
+    const w = 0.2;
+    (this.pos.array as Float32Array).set([x - rx * w, y + 0.015, z - rz * w, x + rx * w, y + 0.015, z + rz * w], i * 6);
+    (this.uv.array as Float32Array).set([0, this.dist / 0.4, 1, this.dist / 0.4], i * 4);
+    this.xs[i] = x;
+    this.zs[i] = z;
+  }
+  private quad(i: number): void {
+    const a = (i - 1) * 2;
+    (this.idx.array as Uint32Array).set([a, a + 1, a + 2, a + 1, a + 3, a + 2], this.quads * 6);
+    if (this.qFrom < 0) this.qFrom = this.quads;
+    this.quads++;
+  }
+  private mark(i: number): void {
+    if (this.from < 0) this.from = i;
+  }
+  /** full: keep the newest 5,000 points */
+  private compact(): void {
+    const keep = 5000, drop = this.n - keep;
+    const P = this.pos.array as Float32Array, U = this.uv.array as Float32Array;
+    P.copyWithin(0, drop * 6, this.n * 6);
+    U.copyWithin(0, drop * 4, this.n * 4);
+    this.xs.copyWithin(0, drop, this.n);
+    this.zs.copyWithin(0, drop, this.n);
+    this.n = keep;
+    this.quads = 0;
+    this.qFrom = 0;
+    for (let i = 1; i < keep; i++) if (Math.hypot(this.xs[i] - this.xs[i - 1], this.zs[i] - this.zs[i - 1]) < 1.5) this.quad(i);
+    this.from = 0;
   }
   update(): void {
-    if (!this.dirty || this.pts.length < 2) return;
-    this.dirty = false;
-    const n = this.pts.length;
-    const pos = new Float32Array(n * 2 * 3), uv = new Float32Array(n * 2 * 2);
-    const idx: number[] = [];
-    let dist = 0;
-    for (let i = 0; i < n; i++) {
-      const p = this.pts[i];
-      if (i > 0) dist += Math.hypot(p.x - this.pts[i - 1].x, p.z - this.pts[i - 1].z);
-      const w = 0.2;
-      pos.set([p.x - p.rx * w, p.y + 0.015, p.z - p.rz * w, p.x + p.rx * w, p.y + 0.015, p.z + p.rz * w], i * 6);
-      uv.set([0, dist / 0.4, 1, dist / 0.4], i * 4);
-      if (i > 0) {
-        const a = (i - 1) * 2;
-        // break the ribbon where it jumps (the rover was moved)
-        if (Math.hypot(p.x - this.pts[i - 1].x, p.z - this.pts[i - 1].z) < 1.5) idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
-      }
+    if (this.from < 0) return;
+    this.pos.clearUpdateRanges();
+    this.uv.clearUpdateRanges();
+    this.idx.clearUpdateRanges();
+    this.pos.addUpdateRange(this.from * 6, (this.n - this.from) * 6);
+    this.uv.addUpdateRange(this.from * 4, (this.n - this.from) * 4);
+    this.pos.needsUpdate = this.uv.needsUpdate = true;
+    if (this.qFrom >= 0) {
+      this.idx.addUpdateRange(this.qFrom * 6, (this.quads - this.qFrom) * 6);
+      this.idx.needsUpdate = true;
     }
-    this.geo.dispose();
-    this.geo = new THREE.BufferGeometry();
-    this.geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    this.geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-    this.geo.setIndex(idx);
-    this.geo.computeVertexNormals();
-    this.mesh.geometry = this.geo;
+    this.geo.setDrawRange(0, this.quads * 6);
+    this.from = -1;
+    this.qFrom = -1;
   }
   clear(): void {
-    this.pts = [];
-    this.dirty = true;
-    this.geo.dispose();
-    this.geo = new THREE.BufferGeometry();
-    this.mesh.geometry = this.geo;
+    this.n = 0;
+    this.quads = 0;
+    this.dist = 0;
+    this.from = this.qFrom = -1;
+    this.geo.setDrawRange(0, 0);
   }
 }
 
@@ -266,7 +324,8 @@ export class RoverMission {
   t = 0;
   private angle0 = 0;
   private jd0 = 0;
-  private warpI = 3;
+  /** the warp the player set (jobs and the landing run slower, then it comes back) */
+  private warp = 30;
   private paused = false;
   private camMode: CamMode = 'chase';
   private camYaw = 0.5;
@@ -296,7 +355,10 @@ export class RoverMission {
   private elTel: HTMLElement;
   private elLog: HTMLElement;
   private elAct: HTMLButtonElement;
-  private elWarp: HTMLButtonElement[] = [];
+  private warpBar: WarpBar;
+  private warpFx: WarpFx;
+  private elWarn: HTMLElement;
+  private blockedWas = '';
   private elCam: HTMLButtonElement;
   private elMap: HTMLCanvasElement;
   private elLabels: HTMLDivElement;
@@ -308,6 +370,8 @@ export class RoverMission {
   private elHelp: HTMLElement;
   private flashT = 0;
   private telKey = '';
+  /** the map's hillshade, kept between frames */
+  private shade: { cv: HTMLCanvasElement | null; w: number; h: number; k: number; e: number; n: number } = { cv: null, w: 0, h: 0, k: 0, e: 0, n: 0 };
   private log: { text: string; kind: string }[] = [];
   private logKey = '';
 
@@ -327,12 +391,14 @@ export class RoverMission {
     const bot = el('div', 'rv-bot', this.ui);
     this.elAct = el('button', 'rv-btn rv-act off', bot, '');
     this.elAct.addEventListener('click', () => this.action());
-    const warp = el('div', 'rv-warp', bot);
-    ROVER_WARPS.forEach((w, i) => {
-      const b = el('button', '', warp, `${w}×`);
-      b.addEventListener('click', () => (this.warpI = i));
-      this.elWarp.push(b);
+    this.warpBar = new WarpBar(bot, {
+      max: ROVER_WARPS[ROVER_WARPS.length - 1],
+      marks: ROVER_WARPS,
+      tone: 'mars',
+      onPick: (w) => (this.warp = w),
     });
+    // (gentle at the everyday 30×, full at the top speed)
+    this.warpFx = new WarpFx(this.ui, ROVER_WARPS[ROVER_WARPS.length - 1], 'mars', 10);
     this.elCam = el('button', 'rv-btn', bot, 'CAMERA');
     this.elCam.addEventListener('click', () => this.cycleCam());
     const help = el('button', 'rv-btn', bot, '?');
@@ -340,12 +406,13 @@ export class RoverMission {
     const ex = el('button', 'rv-btn', bot, 'EXIT');
     ex.addEventListener('click', () => this.setPaused(true));
     this.elFlash = el('div', 'rv-flash', this.ui);
+    this.elWarn = el('div', 'rv-warn', this.ui);
     this.elHelp = el('div', 'rv-help', this.ui);
     this.elHelp.innerHTML = [
       ['W / S', 'drive forward / back'],
       ['A / D', 'steer (alone: turn on the spot)'],
       ['SPACE', 'the job at a target (drill, laser, helicopter)'],
-      ['1 … 6', 'time warp'],
+      ['1 … 6 · , .', 'time warp (or drag the slider)'],
       ['C', 'camera: chase, orbit, Mastcam'],
       ['DRAG · WHEEL', 'look around · zoom'],
       ['ESC', 'pause'],
@@ -418,6 +485,8 @@ export class RoverMission {
       'wheel',
       (e) => {
         if (!this.active) return;
+        const t = e.target as HTMLElement | null;
+        if (t && t.closest && t.closest('.rv-tr, .rv-map, .rv-help, .rv-card, .rv-log')) return;
         const k = Math.exp(Math.max(-120, Math.min(120, e.deltaY)) * 0.0018);
         this.camDist = Math.max(3, Math.min(400, this.camDist * k));
       },
@@ -455,6 +524,13 @@ export class RoverMission {
     const d = (this.drive = new RoverDrive(def.site.lat, def.site.lon));
     d.heading = def.heading;
     this.h0 = marsHeight(def.site.lat, def.site.lon);
+    // the rocks: fixed to the ground, every one solid, none where the rover starts or at the targets
+    const zone = (e: number, n: number, r: number) => ({ ...d.latLon(e, n), r });
+    this.mars.rockTiles = true;
+    // (the sky crane sets the rover down within 20 m or so of the site's centre)
+    this.mars.rockClear = [zone(0, 0, def.edl ? 22 : 8), ...def.targets.map((t) => zone(t.e, t.n, 5))];
+    this.mars.resetRocks();
+    d.setRocks([]);
     d.pose();
     this.tracksL.clear();
     this.tracksR.clear();
@@ -465,7 +541,12 @@ export class RoverMission {
     // the site's meridian is (hour - 12) * 15 deg past the Sun's
     this.angle0 = sunAz + ((def.hour - 12) / 24) * Math.PI * 2 - def.site.lon * D2R;
     this.t = 0;
-    this.warpI = 3;
+    this.setWarp(30);
+    this.warpBar.jump(30);
+    this.warpFx.reset(30);
+    this.blockedWas = '';
+    // (a new site: the map's shading is drawn afresh)
+    this.shade.w = 0;
     this.paused = false;
     this.camMode = 'chase';
     this.camYaw = 0.6;
@@ -496,7 +577,7 @@ export class RoverMission {
     if (def.edl) {
       this.edl = new EdlSequence(this.site, this.rig, (lat, lon) => marsHeight(lat, lon) - this.h0, def.site.lat, def.site.lon);
       this.rig.group.visible = false;
-      this.warpI = 0;
+      this.setWarp(1);
     } else {
       this.edl = null;
       this.rig.group.visible = true;
@@ -553,6 +634,11 @@ export class RoverMission {
     else this.elCard.classList.remove('show');
   }
 
+  private setWarp(w: number): void {
+    this.warp = w;
+    this.warpBar.set(w);
+  }
+
   private cycleCam(): void {
     this.camMode = this.camMode === 'chase' ? 'orbit' : this.camMode === 'orbit' ? 'mast' : 'chase';
     this.flash(this.camMode === 'mast' ? 'MASTCAM-Z' : this.camMode === 'orbit' ? 'ORBIT CAMERA' : 'CHASE CAMERA');
@@ -576,7 +662,8 @@ export class RoverMission {
     let used = true;
     if (c === 'Space') this.action();
     else if (c === 'KeyC') this.cycleCam();
-    else if (/^Digit[1-6]$/.test(c)) this.warpI = Number(c.slice(5)) - 1;
+    else if (/^Digit[1-6]$/.test(c)) this.setWarp(ROVER_WARPS[Number(c.slice(5)) - 1]);
+    else if (c === 'Comma' || c === 'Period') this.warpBar.step(c === 'Period' ? 1 : -1);
     else if (c === 'Escape') {
       if (this.elHelp.classList.contains('show')) this.elHelp.classList.remove('show');
       else this.setPaused(!this.paused);
@@ -668,11 +755,12 @@ export class RoverMission {
     const i = this.nearTarget();
     if (i < 0) return null;
     const tg = this.def!.targets[i];
-    if (Math.abs(this.drive!.speed) > 0.002) return { label: 'STOP TO WORK', run: () => {} };
-    if (tg.kind === 'drill') return { label: 'DRILL A CORE', run: () => this.begin('drill', i) };
-    if (tg.kind === 'zap') return { label: this.def!.rover === 'curiosity' ? 'FIRE CHEMCAM' : 'FIRE SUPERCAM', run: () => this.begin('zap', i) };
-    if (tg.kind === 'heli') return this.heliOut ? { label: 'FLY INGENUITY', run: () => this.begin('heliFly', i) } : { label: 'DROP INGENUITY', run: () => this.begin('heli', i) };
-    return null;
+    const job: [string, Activity['kind']] | null =
+      tg.kind === 'drill' ? ['DRILL A CORE', 'drill'] : tg.kind === 'zap' ? [this.def!.rover === 'curiosity' ? 'FIRE CHEMCAM' : 'FIRE SUPERCAM', 'zap'] : tg.kind === 'heli' ? (this.heliOut ? ['FLY INGENUITY', 'heliFly'] : ['DROP INGENUITY', 'heli']) : null;
+    if (!job) return null;
+    // still rolling: the button brakes to a stop and starts the job
+    const moving = Math.abs(this.drive!.speed) > 0.002;
+    return { label: moving ? `STOP · ${job[0]}` : job[0], run: () => this.begin(job[1], i) };
   }
 
   private action(): void {
@@ -684,10 +772,13 @@ export class RoverMission {
   }
 
   private begin(kind: Activity['kind'], i: number): void {
+    // (the rover stops where it is: the job needs it still)
+    const d = this.drive!;
+    d.speed = 0;
+    d.controls.drive = d.controls.steer = 0;
     this.act = { kind, t: 0, target: this.def!.targets[i] };
-    this.warpI = 0;
     if (kind === 'drill') this.say(`Drilling at ${this.act.target.name}: the arm unfolds, the turret swings the coring drill down onto the rock.`);
-    if (kind === 'zap') this.say(`${this.def!.rover === 'curiosity' ? 'ChemCam' : 'SuperCam'} fires its laser at ${this.act.target.name} from 7 m away: each pulse turns a pinhead of rock to glowing plasma, and the spectrometer reads its light.`);
+    if (kind === 'zap') this.say(`${this.def!.rover === 'curiosity' ? 'ChemCam' : 'SuperCam'} fires its laser at ${this.act.target.name} from ${Math.max(2, Math.hypot(this.act.target.e - d.e, this.act.target.n - d.n)).toFixed(1)} m away: each pulse turns a pinhead of rock to glowing plasma, and the spectrometer reads its light.`);
     if (kind === 'heli') this.say('Ingenuity drops from the rover\'s belly onto the airfield. The rover backs away to watch.');
     if (kind === 'heliFly') this.say('Ingenuity spins its rotors up to 2,537 rpm: in air 1% as thick as Earth\'s, it has to spin that fast to fly at all.');
   }
@@ -730,11 +821,15 @@ export class RoverMission {
       this.drive.n = at.n;
       this.drive.heading = at.heading;
       this.drive.pose();
+      // (no rock under the wheels where it touched down)
+      const ll = this.drive.latLon(at.e, at.n);
+      this.mars?.rockClear.push({ lat: ll.lat, lon: ll.lon, r: 5 });
+      this.mars?.resetRocks();
     }
     this.edl.dispose();
     this.edl = null;
     this.rig!.group.visible = true;
-    this.warpI = 3;
+    this.setWarp(30);
     this.flash('DRIVE');
     this.say('Touchdown confirmed. Perseverance is safe on the floor of Jezero Crater. Time to drive.', 'good');
   }
@@ -746,9 +841,10 @@ export class RoverMission {
     const dt = Number.isFinite(dtReal) ? Math.max(0, Math.min(0.1, dtReal)) : 0;
     this.wallT += dt;
     this.mars.prepare(1e9);
-    const warp = this.paused ? 0 : ROVER_WARPS[this.warpI];
+    // the clock: the speed set, but real time while a job is under way and at most 10× for the landing
+    const warp = this.paused ? 0 : this.edl ? Math.min(10, this.warp) : this.act ? 1 : this.warp;
     if (this.edl) {
-      const ed = this.paused ? 0 : dt * Math.min(10, warp);
+      const ed = this.paused ? 0 : dt * warp;
       this.edl.step(ed);
       this.t += ed;
       for (const m of this.edl.takeLog()) this.say(m.text, m.kind);
@@ -769,15 +865,15 @@ export class RoverMission {
       if (this.act) this.stepActivity(dt);
       this.checkReach();
     }
-    // boulders from the Mars view, for collisions
+    // the rocks from the Mars view: every one solid under the wheels
     if (this.mars.rockGen !== this.rockGen) {
       this.rockGen = this.mars.rockGen;
       const { lat, lon } = this.def.site;
-      d.rocks = this.mars.rockList.map((r) => ({ e: (r.lon - lon) * D2R * MARS.R * Math.cos(lat * D2R), n: (r.lat - lat) * D2R * MARS.R, r: r.size })).filter((r) => {
-        // (keep the targets and the start clear)
-        if (Math.hypot(r.e, r.n) < 8) return false;
-        return !this.def!.targets.some((t) => Math.hypot(t.e - r.e, t.n - r.n) < 7);
-      });
+      const rocks = this.mars.rockList.map((r) => ({ e: (r.lon - lon) * D2R * MARS.R * Math.cos(lat * D2R), n: (r.lat - lat) * D2R * MARS.R, r: r.r, top: r.top }));
+      // the outcrop the scientists picked at each target is solid too: the rover stops beside it, not in it
+      for (const t of this.def.targets) rocks.push({ e: t.e, n: t.n, r: 0.6, top: 0.5 });
+      d.setRocks(rocks);
+      d.pose();
     }
     if (!this.edl) this.pose(dt);
     this.render(dt, w, h, warp);
@@ -793,7 +889,7 @@ export class RoverMission {
     r.group.rotation.set(d.pitch, -d.heading, -d.bank, 'YXZ');
     for (let i = 0; i < 2; i++) {
       r.rockers[i].rotation.x = d.rocker[i];
-      r.bogies[i].rotation.x = d.bogie[i] - d.rocker[i] * 0;
+      r.bogies[i].rotation.x = d.bogie[i];
     }
     // the differential bar turns as the rockers counter-rotate
     r.diff.rotation.y = (d.rocker[1] - d.rocker[0]) * 0.6;
@@ -1130,7 +1226,15 @@ export class RoverMission {
     const a = this.nextAction();
     this.elAct.classList.toggle('off', !a);
     if (a) this.elAct.textContent = a.label;
-    this.elWarp.forEach((b, i) => b.classList.toggle('on', i === this.warpI));
+    this.warpBar.update(dt, warp, { paused: this.paused, note: this.act ? 'REAL TIME FOR THE JOB' : this.edl && this.warp > 10 ? 'LANDING: 10× AT MOST' : undefined });
+    this.warpFx.update(dt, warp, w, h);
+    // the rover won't go on: say why, once, where it can't be missed
+    const bl = this.edl || this.nearTarget() >= 0 ? '' : d.blocked;
+    if (bl !== this.blockedWas) {
+      this.blockedWas = bl;
+      if (bl) this.elWarn.textContent = bl === 'ROCK AHEAD' ? 'ROCK AHEAD · BACK UP OR TURN' : bl === 'TOO STEEP' ? 'TOO STEEP · FIND AN EASIER WAY' : 'TILT LIMIT · TURN ON THE SPOT';
+      this.elWarn.classList.toggle('show', !!bl);
+    }
     this.elCam.textContent = this.camMode === 'mast' ? 'MASTCAM' : this.camMode === 'orbit' ? 'ORBIT' : 'CHASE';
     if (this.flashT > 0) {
       this.flashT -= dt;
@@ -1177,21 +1281,58 @@ export class RoverMission {
     for (const t of def.targets) ext = Math.max(ext, Math.abs(t.e - d.e) + 15, Math.abs(t.n - d.n) + 15);
     const k = (Math.min(W, H) / 2 - 10) / ext;
     const X = (e: number) => W / 2 + (e - d.e) * k, Y = (n: number) => H / 2 - (n - d.n) * k;
-    // the terrain's shading: a quick hillshade of the area
+    // the terrain's shading: a quick hillshade of the area (worked out again only when the
+    // rover has moved a few pixels' worth or the scale changes, not every frame)
+    const hs = this.shade;
+    if (!hs.cv || hs.w !== W || hs.h !== H || Math.abs(hs.k - k) / k > 0.03 || Math.hypot(hs.e - d.e, hs.n - d.n) * k > 4) {
+      hs.cv = hs.cv ?? document.createElement('canvas');
+      hs.cv.width = W;
+      hs.cv.height = H;
+      Object.assign(hs, { w: W, h: H, k, e: d.e, n: d.n });
+      const sg = hs.cv.getContext('2d')!;
+      const step = 8;
+      for (let py = 0; py < H; py += step)
+        for (let px = 0; px < W; px += step) {
+          const e = d.e + (px + step / 2 - W / 2) / k, n = d.n - (py + step / 2 - H / 2) / k;
+          const h1 = d.ground(e, n), h2 = d.ground(e + 6 / k, n + 6 / k);
+          const sh = Math.max(0, Math.min(1, 0.5 + (h2 - h1) * 0.08));
+          sg.fillStyle = `rgb(${Math.round(90 + sh * 80)},${Math.round(55 + sh * 50)},${Math.round(35 + sh * 30)})`;
+          sg.fillRect(px, py, step, step);
+        }
+    }
     g.globalAlpha = 0.5;
-    const step = 10;
-    for (let py = 0; py < H; py += step)
-      for (let px = 0; px < W; px += step) {
-        const e = d.e + (px - W / 2) / k, n = d.n - (py - H / 2) / k;
-        const h1 = d.ground(e, n), h2 = d.ground(e + 6 / k, n + 6 / k);
-        const sh = Math.max(0, Math.min(1, 0.5 + (h2 - h1) * 0.08));
-        g.fillStyle = `rgb(${Math.round(90 + sh * 80)},${Math.round(55 + sh * 50)},${Math.round(35 + sh * 30)})`;
-        g.fillRect(px, py, step, step);
-      }
+    // (drawn where it was made, so it slides smoothly under the rover in between)
+    g.drawImage(hs.cv, (hs.e - d.e) * k, -(hs.n - d.n) * k, W, H);
     g.globalAlpha = 1;
-    // grid
-    g.strokeStyle = 'rgba(255,255,255,0.08)';
-    g.lineWidth = 1;
+    // the way the rover has come: its wheel tracks
+    const tr = this.tracksL;
+    if (tr.n > 1) {
+      g.strokeStyle = 'rgba(255,240,220,0.55)';
+      g.lineWidth = 1.5;
+      g.beginPath();
+      const every = Math.max(1, Math.floor(tr.n / 500));
+      let pen = false;
+      for (let i = 0; i < tr.n; i += every) {
+        const x = X(tr.xs[i]), y = Y(-tr.zs[i]);
+        const jump = i > 0 && Math.hypot(tr.xs[i] - tr.xs[i - every], tr.zs[i] - tr.zs[i - every]) > 1.5 * every;
+        if (!pen || jump) g.moveTo(x, y);
+        else g.lineTo(x, y);
+        pen = true;
+      }
+      g.stroke();
+    }
+    // the way to the next target
+    const next = def.targets.findIndex((_, i) => !this.done.has(i));
+    if (next >= 0) {
+      g.setLineDash([3, 4]);
+      g.strokeStyle = 'rgba(255,190,130,0.7)';
+      g.lineWidth = 1;
+      g.beginPath();
+      g.moveTo(X(d.e), Y(d.n));
+      g.lineTo(X(def.targets[next].e), Y(def.targets[next].n));
+      g.stroke();
+      g.setLineDash([]);
+    }
     // targets
     def.targets.forEach((t, i) => {
       g.fillStyle = this.done.has(i) ? '#6fe0a0' : '#ffb27a';

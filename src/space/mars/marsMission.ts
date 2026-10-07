@@ -22,6 +22,7 @@ import { BoosterRig, ShipRig, buildBooster, buildShip, poseShip } from './starsh
 import { StarshipFire } from './starshipFire';
 import { EntryFx } from './marsFx';
 import { SolarView } from '../solar/solarView';
+import { WarpBar, WarpFx } from '../warp';
 
 /** the time-warp speeds; the one picked is the one used */
 export const MARS_WARPS = [1, 2, 5, 10, 50, 100, 1000, 10_000, 100_000, 1_000_000];
@@ -70,10 +71,10 @@ const CSS = `
 .mm-bar{height:5px;border-radius:3px;background:#ffffff18;margin:2px 0 6px;overflow:hidden}
 .mm-bar i{display:block;height:100%;background:linear-gradient(90deg,#7fb6ff,#cfe3ff)}
 .mm-bar.b i{background:linear-gradient(90deg,#c9cdd3,#ffffff)}
-.mm-log{position:absolute;left:18px;bottom:96px;width:min(460px,60vw);font-size:13px;line-height:1.35}
+.mm-log{position:absolute;left:18px;bottom:128px;width:min(460px,60vw);font-size:13px;line-height:1.35}
 .mm-log div{background:#0b1118a0;border-left:2px solid #7fb6ff;padding:4px 8px;margin-top:4px;border-radius:0 6px 6px 0;text-shadow:0 1px 2px #000}
 .mm-log div.good{border-color:#6fe0a0}.mm-log div.bad{border-color:#ff6b5b}
-.mm-bot{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 32px)}
+.mm-bot{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);width:max-content;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 32px)}
 .mm-btn{background:#101820d8;border:1px solid #ffffff2a;color:#e9eef5;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;letter-spacing:.1em}
 .mm-btn:hover{border-color:#ffffff66}
 .mm-btn.on{background:#2a5d9a;border-color:#7fb6ff}
@@ -171,7 +172,8 @@ export class MarsMission {
   private trackAt = -1;
   private belly: Vec = [1, 0, 0];
   private bBelly: Vec = [1, 0, 0];
-  private warpI = 0;
+  /** the warp the player set (fast forward picks its own) */
+  private warp = 1;
   private ff = false;
   private paused = false;
   private map = false;
@@ -202,7 +204,8 @@ export class MarsMission {
   private elFF: HTMLButtonElement;
   private elAuto: HTMLButtonElement;
   private elMap: HTMLButtonElement;
-  private elWarp: HTMLButtonElement[] = [];
+  private warpBar: WarpBar;
+  private warpFx: WarpFx;
   private elFlash: HTMLElement;
   private elHelp: HTMLElement;
   private elCard: HTMLElement;
@@ -238,12 +241,15 @@ export class MarsMission {
     this.elFF = el('button', 'mm-btn', bot, '⏩ NEXT EVENT');
     this.elFF.title = 'Fast forward: the warp picks itself and stops for the next event (F)';
     this.elFF.addEventListener('click', () => this.setFF(!this.ff));
-    const warp = el('div', 'mm-warp', bot);
-    MARS_WARPS.forEach((w, i) => {
-      const b = el('button', '', warp, w >= 1e6 ? '1M×' : w >= 1000 ? `${w / 1000}k×` : `${w}×`);
-      b.addEventListener('click', () => this.setWarp(i));
-      this.elWarp.push(b);
+    this.warpBar = new WarpBar(bot, {
+      max: MAX_FF,
+      marks: [1, 10, 100, 1000, 10_000, 100_000, 1_000_000],
+      onPick: (w) => {
+        this.warp = w;
+        this.ff = false;
+      },
     });
+    this.warpFx = new WarpFx(this.ui, MAX_FF);
     this.elAuto = el('button', 'mm-btn', bot, 'AUTOPILOT');
     this.elAuto.title = 'Autopilot on/off (T). Off: W/S pitch, A/D yaw, Shift/Ctrl throttle';
     this.elAuto.addEventListener('click', () => this.toggleAuto());
@@ -258,7 +264,7 @@ export class MarsMission {
     this.elHelp.innerHTML = [
       ['SPACE', 'the next step (launch, refuel, injection burn…)'],
       ['F', 'fast forward to the next event'],
-      ['1 … 0  ,  .', 'pick a time-warp speed (exactly that speed)'],
+      ['1 … 0  ,  .', 'time warp: a speed, or the next mark (or drag the slider)'],
       ['T', 'autopilot on / off'],
       ['W S / A D', 'pitch / yaw (autopilot off)'],
       ['SHIFT / CTRL', 'throttle up / down (autopilot off)'],
@@ -393,8 +399,10 @@ export class MarsMission {
     this.ship!.group.position.set(0, BOOSTER_H, 0);
     this.booster!.group.visible = true;
     this.belly = [...f.belly] as Vec;
-    this.warpI = 0;
+    this.setWarpTo(1);
+    this.warpBar.jump(1);
     this.ff = false;
+    this.warpFx.reset();
     this.paused = false;
     this.map = false;
     this.camYaw = -1.1;
@@ -488,11 +496,11 @@ export class MarsMission {
     else if (c === 'KeyF') this.setFF(!this.ff);
     else if (c === 'KeyT') this.toggleAuto();
     else if (c === 'KeyM') this.toggleMap();
-    else if (c === 'Comma') this.setWarp(this.warpI - 1);
-    else if (c === 'Period') this.setWarp(this.warpI + 1);
+    else if (c === 'Comma') this.warpBar.step(-1);
+    else if (c === 'Period') this.warpBar.step(1);
     else if (/^Digit[0-9]$/.test(c)) {
       const n = Number(c.slice(5));
-      this.setWarp(n === 0 ? 9 : n - 1);
+      this.setWarpTo(MARS_WARPS[n === 0 ? 9 : n - 1]);
     } else if (c === 'Escape') {
       if (this.elHelp.classList.contains('show')) this.elHelp.classList.remove('show');
       else this.setPaused(!this.paused);
@@ -504,15 +512,16 @@ export class MarsMission {
     }
   }
 
-  private setWarp(i: number): void {
-    this.warpI = Math.max(0, Math.min(MARS_WARPS.length - 1, i));
+  private setWarpTo(w: number): void {
+    this.warp = w;
+    this.warpBar.set(w);
     this.ff = false;
   }
 
   private setFF(on: boolean): void {
     this.ff = on;
     if (on) this.flash('FAST FORWARD');
-    else this.warpI = 0;
+    else this.setWarpTo(1);
   }
 
   private toggleAuto(): void {
@@ -622,12 +631,11 @@ export class MarsMission {
     f.controls.yaw = k('KeyD') - k('KeyA');
     f.controls.throttle = Math.max(k('ShiftLeft'), k('ShiftRight')) - Math.max(k('ControlLeft'), k('ControlRight'));
     // the clock: the speed picked, exactly; fast forward picks its own and stops for events
-    let warp = MARS_WARPS[this.warpI];
+    let warp = this.warp;
     if (this.ff) {
       const t = this.timeToEvent();
       if (t <= 0.5) {
-        this.ff = false;
-        this.warpI = 0;
+        this.setWarpTo(1);
         warp = 1;
       } else warp = Math.max(1, Math.min(MAX_FF, t / 3));
     }
@@ -654,6 +662,7 @@ export class MarsMission {
     this.updateFx(f, dt, h);
     this.render(f, dt, w, h, warp);
     this.updateHud(f, warp, dt);
+    this.warpFx.update(dt, this.paused ? 0 : warp, w, h);
   }
 
   /** things that happen once when the phase changes */
@@ -667,8 +676,7 @@ export class MarsMission {
     }
     // automatic stops: everything that wants the pilot's eyes drops back to real time
     if (f.phase === 'entry' || f.phase === 'landing') {
-      this.warpI = 0;
-      this.ff = false;
+      this.setWarpTo(1);
       this.camDist = Math.min(this.camDist, f.phase === 'landing' ? 160 : 220);
     }
     if (f.phase === 'orbit' && was === 'ship') this.flash('ORBIT');
@@ -1231,7 +1239,7 @@ export class MarsMission {
     this.elFF.classList.toggle('on', this.ff);
     this.elAuto.classList.toggle('on', f.auto);
     this.elMap.classList.toggle('on', this.map);
-    this.elWarp.forEach((b, i) => b.classList.toggle('on', !this.ff && i === this.warpI));
+    this.warpBar.update(dt, this.paused ? 0 : warp, { auto: this.ff, paused: this.paused });
     this.elFF.textContent = this.ff ? `⏩ ${warp >= 1e6 ? '1M' : warp >= 1000 ? Math.round(warp / 1000) + 'k' : Math.round(warp)}×` : '⏩ NEXT EVENT';
     if (this.flashT > 0) {
       this.flashT -= dt;

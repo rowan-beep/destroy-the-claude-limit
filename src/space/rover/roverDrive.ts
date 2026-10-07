@@ -11,6 +11,10 @@
 // to sit its two wheels on the ground, each rocker tips to sit its front wheel
 // and its bogie, and the differential bar averages the two rockers' angles into
 // the body's pitch, so the body rides level-ish over a rock under one wheel.
+//
+// Every rock is solid: each one has a footprint and a height, and a wheel that
+// rolls onto it climbs up over its rounded top and down the other side (the
+// suspension takes it). Rocks taller than the wheels can climb stop the rover.
 
 import { marsHeight } from '../mars/marsGlobe';
 import { MARS } from '../mars/marsPhysics';
@@ -21,8 +25,19 @@ const D2R = Math.PI / 180;
 export interface Rock {
   e: number;
   n: number;
+  /** the footprint's radius, m */
   r: number;
+  /** how far it stands up out of the ground, m */
+  top: number;
 }
+
+/** the tallest rock the wheels can climb (Perseverance's wheels are 52.5 cm across) */
+export const CLIMB = 0.42;
+/** a wheel meets a rock this far out from its edge (the wheel's own curve) */
+const WHEEL_REACH = 0.15;
+/** the grid the rocks are sorted into, for finding the ones under a wheel quickly */
+const CELL = 1;
+const key = (ix: number, iz: number) => (ix + 32768) * 65536 + (iz + 32768);
 
 export interface RoverControls {
   /** -1 .. 1 drive */
@@ -56,12 +71,53 @@ export class RoverDrive {
   /** the slope under the rover, deg, and the reason it stopped (if any) */
   slope = 0;
   blocked = '';
+  /** how high the highest wheel is riding up on a rock, m */
+  onRock = 0;
   rocks: Rock[] = [];
+  /** the ones too tall to climb (the only ones that can stop it) */
+  private boulders: Rock[] = [];
+  private grid = new Map<number, number[]>();
   readonly controls: RoverControls = { drive: 0, steer: 0 };
   /** top speed, m/s (4.2 cm/s) */
   vmax = 0.042;
 
   constructor(readonly lat0: number, readonly lon0: number) {}
+
+  /** the rocks round the rover (sorted into the grid, so a wheel finds the ones under it at once) */
+  setRocks(rocks: Rock[]): void {
+    this.rocks = rocks;
+    this.boulders = rocks.filter((rk) => rk.top >= CLIMB);
+    this.grid.clear();
+    rocks.forEach((rk, i) => {
+      const re = rk.r + WHEEL_REACH;
+      for (let ix = Math.floor((rk.e - re) / CELL); ix <= Math.floor((rk.e + re) / CELL); ix++)
+        for (let iz = Math.floor((rk.n - re) / CELL); iz <= Math.floor((rk.n + re) / CELL); iz++) {
+          const k = key(ix, iz);
+          const l = this.grid.get(k);
+          if (l) l.push(i);
+          else this.grid.set(k, [i]);
+        }
+    });
+  }
+
+  /** how far a wheel at this point rides up on a rock: over the rounded top of whichever is tallest there */
+  rockLift(e: number, n: number): number {
+    const l = this.grid.get(key(Math.floor(e / CELL), Math.floor(n / CELL)));
+    if (!l) return 0;
+    let h = 0;
+    for (const i of l) {
+      const rk = this.rocks[i];
+      const re = rk.r + WHEEL_REACH;
+      const d2 = (e - rk.e) * (e - rk.e) + (n - rk.n) * (n - rk.n);
+      if (d2 < re * re) h = Math.max(h, rk.top * (1 - d2 / (re * re)));
+    }
+    return h;
+  }
+
+  /** what a wheel sits on: the ground, and any rock there */
+  surface(e: number, n: number): number {
+    return this.ground(e, n) + this.rockLift(e, n);
+  }
 
   /** ground height (m above the datum) at a local point */
   ground(e: number, n: number): number {
@@ -98,19 +154,24 @@ export class RoverDrive {
     let want = c.drive * this.vmax * (1 - this.spot);
     const climbing = want * grade > 0 ? Math.abs(grade) : 0;
     want *= Math.max(0.35, 1 - climbing / 45);
+    // a wheel climbing over a rock: slower, the motors working
+    want *= 1 - Math.min(0.45, this.onRock * 1.4);
     this.blocked = '';
     if (climbing > 30) {
       want = 0;
       this.blocked = 'TOO STEEP';
     }
-    if (Math.abs(cross) > 30) this.blocked = 'TILT LIMIT';
+    // tipped too far sideways: stop (turning on the spot to face down the slope gets it out)
+    if (Math.abs(cross) > 30) {
+      want = 0;
+      this.blocked = 'TILT LIMIT';
+    }
     // boulders: a rock bigger than the wheels can climb (about 0.65 m) stops the rover
     const dir = Math.sign(want);
     if (dir !== 0) {
       const probe = this.plan(0, dir > 0 ? -1.45 : 1.3);
-      for (const r of this.rocks) {
-        // (the wheels climb anything up to about their own diameter)
-        if (r.r < 0.45) continue;
+      // (the wheels climb anything up to about their own diameter)
+      for (const r of this.boulders) {
         const d = Math.hypot(r.e - probe[0], r.n - probe[1]);
         if (d < r.r + 0.55) {
           want = 0;
@@ -137,9 +198,13 @@ export class RoverDrive {
   /** the suspension: sit each wheel on the ground */
   pose(): void {
     const R = ROVER;
+    // (each wheel on the ground or riding up over a rock)
+    let lift = 0;
     const h = (x: number, z: number) => {
       const p = this.plan(x, z);
-      return this.ground(p[0], p[1]);
+      const l = this.rockLift(p[0], p[1]);
+      lift = Math.max(lift, l);
+      return this.ground(p[0], p[1]) + l;
     };
     const wh: number[][] = [];
     for (const s of [-1, 1]) wh.push([h(s * R.front.x, R.front.z), h(s * R.middle.x, R.middle.z), h(s * R.rear.x, R.rear.z)]);
@@ -164,5 +229,6 @@ export class RoverDrive {
     const left = (wh[0][0] + wh[0][1] + wh[0][2]) / 3, right = (wh[1][0] + wh[1][1] + wh[1][2]) / 3;
     this.bank = Math.atan2(left - right, R.middle.x * 2);
     this.y = (left + right) / 2;
+    this.onRock = lift;
   }
 }

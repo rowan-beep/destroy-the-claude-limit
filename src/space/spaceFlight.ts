@@ -13,7 +13,7 @@ import { coast } from './lunarPlan';
 import { Moonwalk } from './moonwalk';
 import { SpaceScene, orbitTrack } from './spaceScene';
 import { Plumes } from './plumes';
-import { FlightUI } from './flightUI';
+import { FlightUI, WARP_MARKS } from './flightUI';
 import { buildSaturnV, saturnParts, setLmLegs } from './saturnVModel';
 import { updateRecord } from './record';
 import { Autopilot } from './autopilot';
@@ -21,8 +21,8 @@ import { menuMusic } from '../audio/menuMusic';
 import { audio } from '../audio/audio';
 import type { LaunchSite } from '../ui/menu/launchSite';
 
-/** the time-warp speeds you can pick; fast forward (AUTO) goes as high as 10,000× on long coasts */
-export const WARPS = [1, 2, 10, 100, 500];
+/** the warp honoured whatever is going on (above it, burns and the air hold the clock back); fast forward (AUTO) goes as high as 10,000× on long coasts */
+const WARP_FREE = 500;
 type CamMode = 'CHASE' | 'TRACKING' | 'ONBOARD';
 const ROCKET_BASE = 24.5;
 const PRO_KEY = 'triad.space.pro';
@@ -134,7 +134,8 @@ export class SpaceFlight {
   private plumes = new Plumes();
   private debrisObjs = new Map<Debris, THREE.Group>();
   private ui: FlightUI;
-  private warpI = 0;
+  /** the time warp set on the slider */
+  private warp = 1;
   private camMode: CamMode = 'CHASE';
   private map = false;
   private camYaw = -1.25;
@@ -187,8 +188,8 @@ export class SpaceFlight {
         this.sim.log(this.sim.autoStage ? 'Auto-staging on: each stage drops as soon as it burns out.' : 'Auto-staging off: press SPACE to stage.', 'info');
       },
       sas: (m) => this.sim?.setSas(m),
-      warp: (d) => this.setWarp(this.warpI + d),
-      pickWarp: (i) => this.setWarp(i),
+      warp: (d) => this.stepWarp(d),
+      setWarp: (w) => this.setWarp(w),
       map: () => this.toggleMap(),
       camera: () => this.cycleCamera(),
       abort: () => this.guarded('abort'),
@@ -285,7 +286,7 @@ export class SpaceFlight {
     this.ap.lunar.viewer = true;
     this.legsK = sim.legsOut ? 1 : 0;
     this.ff = false;
-    this.warpI = 0;
+    this.warp = 1;
     this.map = false;
     this.camMode = 'CHASE';
     this.camYaw = mode === 'pad' ? -1.25 : 2.6;
@@ -475,12 +476,12 @@ export class SpaceFlight {
       case 'Comma':
         handled();
         this.ff = false;
-        this.setWarp(this.warpI - 1);
+        this.stepWarp(-1);
         break;
       case 'Period':
         handled();
         this.ff = false;
-        this.setWarp(this.warpI + 1);
+        this.stepWarp(1);
         break;
       case 'Slash':
         handled();
@@ -537,15 +538,21 @@ export class SpaceFlight {
     if (!sim.nearMoon && sim.alt < EARTH.atmosphereTop) return powered ? 10 : sim.isCm ? 50 : 10;
     return powered ? 100 : 10_000;
   }
-  /** pick one of the warp speeds (and leave fast forward) */
-  private setWarp(i: number): void {
+  /** set the warp (and leave fast forward) */
+  private setWarp(w: number): void {
     this.ff = false;
-    this.warpI = Math.max(0, Math.min(WARPS.length - 1, i));
+    this.warp = Math.max(1, Math.min(WARP_MARKS[WARP_MARKS.length - 1], w));
+  }
+  /** the next mark up or down */
+  private stepWarp(d: number): void {
+    const cur = this.ff ? 1 : this.warp;
+    const up = WARP_MARKS.find((m) => m > cur * 1.001), down = [...WARP_MARKS].reverse().find((m) => m < cur * 0.999);
+    this.setWarp(d > 0 ? up ?? cur : down ?? 1);
   }
 
   private toggleFF(): void {
     this.ff = !this.ff;
-    if (!this.ff) this.warpI = 0;
+    if (!this.ff) this.warp = 1;
   }
 
   private slaPanels(): THREE.Group[] {
@@ -643,8 +650,9 @@ export class SpaceFlight {
       // fast forward: as fast as it can go while still stopping in time for the next burn or event
       warp = Math.max(1, Math.min(cap, this.ap.wantWarp(sim)));
     } else {
-      // the speed you pick is the speed you get (the sim sub-steps to stay exact)
-      warp = WARPS[this.warpI];
+      // the speed you set is the speed you get (the sim sub-steps to stay exact), up to 500×;
+      // past that only where fast forward would go as fast (on a coast, not in a burn or the air)
+      warp = this.warp <= WARP_FREE ? this.warp : Math.max(WARP_FREE, Math.min(this.warp, cap));
     }
     if (this.tde >= 0) warp = 1;
     if (!this.paused) {
@@ -676,7 +684,7 @@ export class SpaceFlight {
           this.camYaw = Math.atan2(dot(sd, east), dot(sd, north)) + 0.75;
           this.ui.flash('THE EAGLE HAS LANDED', 'good');
         }
-        this.setWarp(0);
+        this.setWarp(1);
         if (sim.outcome.status === 'lost') this.burst();
         else updateRecord((r) => r.missions++);
       }
@@ -711,8 +719,9 @@ export class SpaceFlight {
     else this.renderSpace(w, h);
     this.ui.update(sim, {
       warp,
-      warpMax: this.ff ? cap : WARPS[WARPS.length - 1],
-      warpI: this.warpI,
+      warpSet: this.warp,
+      auto: this.ff,
+      paused: this.paused,
       camMode: this.map ? 'MAP' : this.camMode,
       map: this.map,
       easy: this.easy ? { guide: this.ap.guide(sim), actions: this.ap.actions(sim), ff: this.ff, abort: sim.canAbort && (!sim.held || sim.engines.some((e) => e.on)) } : null,

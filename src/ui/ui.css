@@ -1159,7 +1159,8 @@ body:has(#hud.cockpit-clean) .wx-widget { opacity: 0; pointer-events: none; }
 .fx-wbtn { flex: 1; min-width: 0; padding: 7px 0; border-radius: 6px; border: 1px solid var(--line); background: rgba(20, 34, 60, 0.6); color: #eaf3ff; cursor: pointer; font-family: 'Consolas', monospace; font-size: 11px; font-weight: 700; transition: all 0.15s; }
 .fx-wbtn:hover { border-color: var(--a); background: rgba(40, 70, 120, 0.7); }
 .fx-wbtn.on { border-color: var(--a); background: rgba(70, 130, 220, 0.5); box-shadow: 0 0 12px rgba(124, 192, 255, 0.4); }
-.fx-ez-warps .fx-ez-warp { position: static; min-width: 54px; text-align: right; font-size: 11px; }
+.fx-ez-warps .fx-wbtn { flex: 0 0 auto; padding: 7px 10px; }
+.fx-ctl .wz, .fx-easy .wz { padding-top: 3px; padding-bottom: 3px; }
 .fx-ez-row .fx-btn.ff .l { font-size: 12px; letter-spacing: 0.2em; }
 .fx-ez-warp { position: absolute; right: 7px; top: 4px; font-family: 'Consolas', monospace; font-size: 10px; color: #bfe4ff; }
 .fx-hint { position: absolute; top: 108px; left: 50%; transform: translateX(-50%); padding: 7px 16px; border-radius: 999px; background: rgba(255, 179, 71, 0.15); border: 1px solid rgba(255, 179, 71, 0.6); color: #ffd9a0; font-size: 12px; letter-spacing: 0.08em; opacity: 0; transition: opacity 0.3s; }

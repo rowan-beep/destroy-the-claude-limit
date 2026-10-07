@@ -1322,6 +1322,29 @@ export class AudioEngine {
     this.burst(this.whiteB, { type: 'bandpass', f0: 3000, f1: 2200, q: 3, dur: 0.02, vol: 0.12, delay: 0.9, bus: this.uiBus });
   }
 
+  /** Time warp: a rising whoosh and shimmer going in; a falling one and a soft thump coming out. */
+  warp(up: boolean, k: number): void {
+    if (!this.ctx) return;
+    const v = 0.5 + 0.5 * Math.max(0, Math.min(1, k));
+    if (up) {
+      this.burst(this.pinkB, { type: 'bandpass', f0: 320, f1: 3400, q: 1.3, dur: 0.6, vol: 0.14 * v, attack: 0.2, bus: this.uiBus, reverb: 0.35 });
+      this.tone(220, 880, 0.55, 0.028 * v, 'triangle', 0.05, this.uiBus, 2600);
+      this.tone(330, 1320, 0.5, 0.016 * v, 'sine', 0.12, this.uiBus);
+    } else {
+      this.burst(this.pinkB, { type: 'bandpass', f0: 3000, f1: 240, q: 1.3, dur: 0.5, vol: 0.13 * v, attack: 0.02, bus: this.uiBus, reverb: 0.35 });
+      this.tone(760, 170, 0.45, 0.026 * v, 'triangle', 0, this.uiBus, 2200);
+      this.tone(92, 48, 0.32, 0.1 * v, 'sine', 0.04, this.uiBus);
+    }
+  }
+
+  /** Time warp passing a power of ten: a small glassy tick, higher each time. */
+  warpTick(level: number): void {
+    if (!this.ctx) return;
+    const f = 700 * Math.pow(1.18, Math.max(0, Math.min(8, level)));
+    this.tone(f, f * 1.5, 0.16, 0.016, 'sine', 0, this.uiBus);
+    this.tone(f * 2, f * 3, 0.1, 0.006, 'sine', 0.02, this.uiBus);
+  }
+
   /** Soft switch tick. */
   click(): void {
     if (!this.ctx) return;

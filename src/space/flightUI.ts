@@ -12,6 +12,10 @@ import { EARTH, MOON, V3, cross, dot, enu, len, moonPos, norm, orbitPoint, rotY,
 import { ENGINES, FlightSim, PART_ORDER, PartId, PARTS, SasMode, Status, qrot } from './flightSim';
 import type { Action } from './autopilot';
 import type { MoonwalkStats } from './moonwalk';
+import { WarpBar, WarpFx } from './warp';
+
+/** the marks on the Saturn V's time-warp slider (it runs smoothly in between) */
+export const WARP_MARKS = [1, 2, 10, 100, 500, 1000, 10_000];
 
 export interface FlightHandlers {
   stage(): void;
@@ -20,9 +24,10 @@ export interface FlightHandlers {
   guidance(): void;
   autoStage(): void;
   sas(m: SasMode): void;
+  /** step the time warp to the next mark up or down */
   warp(d: number): void;
-  /** pick a time-warp speed by its place in the list */
-  pickWarp(i: number): void;
+  /** set the time warp (the slider) */
+  setWarp(w: number): void;
   map(): void;
   camera(): void;
   abort(): void;
@@ -44,10 +49,13 @@ export interface EasyView {
 }
 
 export interface FlightInfo {
+  /** the warp running now */
   warp: number;
-  warpMax: number;
-  /** which of the pickable speeds is chosen */
-  warpI: number;
+  /** the warp set on the slider */
+  warpSet: number;
+  /** fast forward is picking the warp */
+  auto: boolean;
+  paused: boolean;
   camMode: string;
   map: boolean;
   easy: EasyView | null;
@@ -109,7 +117,10 @@ export class FlightUI {
   private flashTimer = 0;
   private btn: Record<string, HTMLButtonElement> = {};
   private sasBtns = new Map<SasMode, HTMLButtonElement>();
-  private warpText: HTMLElement;
+  private warpPro!: WarpBar;
+  private warpEz!: WarpBar;
+  private warpFx!: WarpFx;
+  private lastT = 0;
   private hint: HTMLElement;
   private overlay: HTMLElement;
   private helpEl: HTMLElement;
@@ -122,7 +133,6 @@ export class FlightUI {
   private ezActs: HTMLElement;
   private ezSig = '';
   private ezBtn: Record<string, HTMLButtonElement> = {};
-  private ezWarp: HTMLElement;
   private eva: HTMLElement;
   private evaPrompt: HTMLElement;
   private evaRows: Record<string, HTMLElement> = {};
@@ -130,6 +140,8 @@ export class FlightUI {
 
   constructor(parent: HTMLElement, private h: FlightHandlers) {
     this.root = el('div', 'fx hidden', parent);
+    // (under everything else on the display)
+    this.warpFx = new WarpFx(this.root, WARP_MARKS[WARP_MARKS.length - 1]);
     el('div', 'fx-vignette', this.root);
     // ---- top: clock and state
     const top = el('div', 'fx-top', this.root);
@@ -245,10 +257,11 @@ export class FlightUI {
     const r3 = row('sas');
     const sas: [SasMode, string, string][] = [['stab', 'STAB', '1'], ['hold', 'HOLD', '2'], ['pro', 'PRO', '3'], ['retro', 'RETRO', '4'], ['normal', 'NRM', '5'], ['anti', 'A-NRM', '6'], ['radOut', 'RAD+', '7'], ['radIn', 'RAD-', '8'], ['off', 'FREE', '0']];
     for (const [m, t, k] of sas) this.sasBtns.set(m, b(r3, 'sas-' + m, t, k, () => h.sas(m), 'sm'));
+    const rw = row();
+    // (2× and 500× are detents without labels: the marks would crowd)
+    const warpBar = (parent: HTMLElement) => new WarpBar(parent, { max: WARP_MARKS[WARP_MARKS.length - 1], marks: WARP_MARKS, compact: true, fluid: true, markFmt: (w) => (w === 2 || w === 500 ? '' : w >= 1000 ? `${w / 1000}k` : `${w}`), onPick: (w) => h.setWarp(w) });
+    this.warpPro = warpBar(rw);
     const r4 = row();
-    b(r4, 'warpd', '◀◀', ',', () => h.warp(-1), 'sm');
-    this.warpText = el('div', 'fx-warp', r4, '1×');
-    b(r4, 'warpu', '▶▶', '.', () => h.warp(1), 'sm');
     b(r4, 'map', 'MAP', 'M', () => h.map());
     b(r4, 'cam', 'CAMERA', 'C', () => h.camera());
     const r5 = row();
@@ -291,8 +304,7 @@ export class FlightUI {
       this.ezBtn[k] = x;
     };
     wb('ff', 'AUTO', () => h.ff());
-    ['1×', '2×', '10×', '100×', '500×'].forEach((t, i) => wb('w' + i, t, () => h.pickWarp(i)));
-    this.ezWarp = el('span', 'fx-ez-warp', wr, '');
+    this.warpEz = warpBar(wr);
     eb('map', 'MAP', 'M', () => h.map());
     eb('cam', 'CAMERA', 'C', () => h.camera());
     eb('help', '?', 'H', () => h.help(), 'sm');
@@ -360,7 +372,7 @@ export class FlightUI {
       ['SPACE', 'Do the highlighted goal: LAUNCH, GO TO THE MOON, LAND ON THE MOON…'],
       ['2 · 3 · 4', 'The other goal buttons'],
       ['AUTO · F', 'Fast forward: skips the waiting and slows down by itself for every burn'],
-      ['1× … 500×', 'Pick a time-warp speed: the clock runs at exactly the speed you pick'],
+      ['WARP SLIDER', 'Drag it to any speed from 1× to 10,000×: the clock runs at exactly the speed you set (burns and the air hold it back)'],
       ['W A S D', 'Steer yourself (this switches the autopilot off)'],
       ['Mouse', 'Drag to look around, scroll to zoom'],
       ['M · C', 'Map of your orbit · change camera'],
@@ -381,7 +393,7 @@ export class FlightUI {
       ['G', 'IU guidance on/off: the Instrument Unit flies the real ascent to a 185 km orbit'],
       ['Z / X', 'Ignite the S-IVB (restartable J-2) / engine cutoff'],
       ['1 – 8, 0', 'Attitude: stabilise, hold, prograde, retrograde, normal, anti-normal, radial out, radial in, free'],
-      [', / .', 'Time warp down / up: 1×, 2×, 10×, 100×, 500×'],
+      [', / .', 'Time warp down / up to the next mark: 1×, 2×, 10×, 100×, 500×, 1,000×, 10,000× (or drag the slider)'],
       ['M', 'Map view: your orbit, apoapsis and periapsis'],
       ['C', 'Camera: chase, tracking, onboard'],
       ['B B', 'ABORT: the escape tower pulls the command module clear (while the tower is on)'],
@@ -576,7 +588,15 @@ export class FlightUI {
     this.btn.ignite.disabled = !(sim.stage === 'sivb' && !sim.engines[0]?.on && sim.sivbStarts > 0) && !sim.held;
     this.btn.cutoff.disabled = !sim.engines.some((e) => e.on);
     this.btn.stage.querySelector('.l')!.textContent = sim.held ? (sim.counting ? 'COUNTING' : 'START COUNT') : 'STAGE';
-    this.warpText.textContent = `${info.warp}×${info.warp >= info.warpMax ? ' MAX' : ''}`;
+    // the time warp: both sliders (pro and easy) follow the clock; the screen lights up with it
+    const now = performance.now();
+    const dt = this.lastT ? Math.min(0.1, (now - this.lastT) / 1000) : 0;
+    this.lastT = now;
+    for (const wb of [this.warpPro, this.warpEz]) {
+      wb.set(info.warpSet);
+      wb.update(dt, info.paused ? 0 : info.warp, { auto: info.auto, paused: info.paused });
+    }
+    this.warpFx.update(dt, info.paused ? 0 : info.warp, window.innerWidth, window.innerHeight);
     this.btn.map.classList.toggle('on', info.map);
     this.btn.cam.querySelector('.l')!.textContent = info.camMode;
 
@@ -622,9 +642,6 @@ export class FlightUI {
     }
     this.ezActs.style.display = ez.actions.length ? '' : 'none';
     this.ezBtn.ff.classList.toggle('on', ez.ff);
-    for (let i = 0; i < 5; i++) this.ezBtn['w' + i].classList.toggle('on', !ez.ff && info.warpI === i);
-    const wv = info.warp >= 100 ? Math.round(info.warp).toLocaleString('en-US') : info.warp >= 10 ? info.warp.toFixed(0) : info.warp.toFixed(1).replace(/\.0$/, '');
-    this.ezWarp.textContent = `${wv}×`;
     this.ezBtn.map.classList.toggle('on', info.map);
     this.ezBtn.cam.querySelector('.l')!.textContent = info.camMode === 'MAP' ? 'CAMERA' : info.camMode;
     this.ezBtn.abort.style.display = ez.abort ? '' : 'none';
