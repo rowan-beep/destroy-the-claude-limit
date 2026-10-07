@@ -23,6 +23,7 @@ import { StarshipFire } from './starshipFire';
 import { EntryFx } from './marsFx';
 import { SolarView } from '../solar/solarView';
 import { WarpBar, WarpFx } from '../warp';
+import { LookMomentum } from '../lookMomentum';
 
 /** the time-warp speeds; the one picked is the one used */
 export const MARS_WARPS = [1, 2, 5, 10, 50, 100, 1000, 10_000, 100_000, 1_000_000];
@@ -178,6 +179,8 @@ export class MarsMission {
   private paused = false;
   private map = false;
   private camYaw = -1.1;
+  /** the look-around keeps turning a moment after a flick */
+  private look = new LookMomentum();
   private camPitch = 0.08;
   private camDist = 260;
   private mapYaw = 0.4;
@@ -305,6 +308,7 @@ export class MarsMission {
       if (t && t.closest && t.closest('button, .mm-tr, .mm-help, .mm-card')) return;
       this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
       this.lastDragAt = performance.now();
+      this.look.grab();
     });
     window.addEventListener('pointermove', (e) => {
       if (!this.drag || this.drag.id !== e.pointerId) return;
@@ -315,13 +319,18 @@ export class MarsMission {
         this.mapYaw -= dx * 0.005;
         this.mapPitch = Math.max(-1.5, Math.min(1.5, this.mapPitch + dy * 0.005));
       } else {
-        this.camYaw -= dx * 0.005;
+        // look round: drag right to turn the view right, down to look down
+        this.camYaw += dx * 0.005;
         this.lastDragAt = performance.now();
         this.camPitch = Math.max(-1.45, Math.min(1.45, this.camPitch + dy * 0.004));
+        this.look.move(dx * 0.005, dy * 0.004);
       }
     });
     const up = (e: PointerEvent) => {
-      if (this.drag?.id === e.pointerId) this.drag = null;
+      if (this.drag?.id === e.pointerId) {
+        this.drag = null;
+        this.look.release();
+      }
     };
     window.addEventListener('pointerup', up);
     window.addEventListener('pointercancel', up);
@@ -623,6 +632,12 @@ export class MarsMission {
     const f = this.flight;
     if (!f || !this.site) return;
     const dt = Number.isFinite(dtReal) ? Math.max(0, Math.min(0.1, dtReal)) : 0;
+    const [ly, lp] = this.look.step(dt);
+    if (ly || lp) {
+      this.camYaw += ly;
+      this.camPitch = Math.max(-1.45, Math.min(1.45, this.camPitch + lp));
+      this.lastDragAt = performance.now();
+    }
     // Mars's maps are built a little at a time while the mission flies (all at once if needed now)
     this.mars!.prepare(f.frame === 'mars' || f.phase === 'cruise' ? 1e9 : 3);
     // the pilot's hands

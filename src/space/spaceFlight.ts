@@ -14,6 +14,7 @@ import { Moonwalk } from './moonwalk';
 import { SpaceScene, orbitTrack } from './spaceScene';
 import { Plumes } from './plumes';
 import { FlightUI, WARP_MARKS } from './flightUI';
+import { LookMomentum } from './lookMomentum';
 import { buildSaturnV, saturnParts, setLmLegs } from './saturnVModel';
 import { updateRecord } from './record';
 import { Autopilot } from './autopilot';
@@ -139,6 +140,8 @@ export class SpaceFlight {
   private camMode: CamMode = 'CHASE';
   private map = false;
   private camYaw = -1.25;
+  /** the look-around keeps turning a moment after a flick */
+  private look = new LookMomentum();
   private camPitch = 0.12;
   private camDist = 300;
   private mapYaw = 0;
@@ -213,6 +216,7 @@ export class SpaceFlight {
       const t = e.target as HTMLElement | null;
       if (t && t.closest && t.closest('.fx-panel, .fx-btn, .fx-help, .fx-card, button')) return;
       this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+      this.look.grab();
     });
     window.addEventListener('pointermove', (e) => {
       if (!this.drag || this.drag.id !== e.pointerId) return;
@@ -220,15 +224,21 @@ export class SpaceFlight {
       this.drag.x = e.clientX;
       this.drag.y = e.clientY;
       if (this.map) {
+        // (the map: grab the globe and turn it)
         this.mapYaw -= dx * 0.005;
         this.mapPitch = Math.max(-1.5, Math.min(1.5, this.mapPitch + dy * 0.005));
       } else {
-        this.camYaw -= dx * 0.005;
+        // look round: drag right to turn the view right, down to look down (both the same way)
+        this.camYaw += dx * 0.005;
         this.camPitch = Math.max(-1.4, Math.min(1.45, this.camPitch + dy * 0.004));
+        this.look.move(dx * 0.005, dy * 0.004);
       }
     });
     const up = (e: PointerEvent) => {
-      if (this.drag?.id === e.pointerId) this.drag = null;
+      if (this.drag?.id === e.pointerId) {
+        this.drag = null;
+        this.look.release();
+      }
     };
     window.addEventListener('pointerup', up);
     window.addEventListener('pointercancel', up);
@@ -632,6 +642,9 @@ export class SpaceFlight {
     const sim = this.sim;
     if (!sim || !this.space || !this.site) return;
     const dt = Number.isFinite(dtReal) ? Math.max(0, Math.min(0.1, dtReal)) : 0;
+    const turn = this.look.step(dt);
+    this.camYaw += turn[0];
+    this.camPitch = Math.max(-1.4, Math.min(1.45, this.camPitch + turn[1]));
     // inputs
     const k = (c: string) => (this.keys.has(c) ? 1 : 0);
     sim.input.pitch = k('KeyS') - k('KeyW');

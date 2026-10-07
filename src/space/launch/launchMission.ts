@@ -30,6 +30,7 @@ import { buildISS, IssRig, pointArrays, openNose, buildDroneShip } from './iss';
 import { planClipper, clipperAt, ClipperPlan, CLIPPER_DATES, solveFreeReturnSteps, solveCorrectionSteps, solveReturnSteps, FreeReturn } from './missionPlans';
 import { SolarView } from '../solar/solarView';
 import { WarpBar, WarpFx } from '../warp';
+import { LookMomentum } from '../lookMomentum';
 import { neutralEnv } from '../mars/marsMission';
 import { BODIES, bodyPos, BodyId, PLANETS, planetState } from '../solar/bodies';
 import { AU, Vec, dateText, propagate } from '../mars/marsPhysics';
@@ -223,6 +224,8 @@ export class LaunchMission {
   private ff = false;
   private paused = false;
   private camYaw = -1.0;
+  /** the look-around keeps turning a moment after a flick */
+  private look = new LookMomentum();
   private camPitch = 0.12;
   private camDist = 180;
   private lastDrag = -1e9;
@@ -339,17 +342,24 @@ export class LaunchMission {
       const t = e.target as HTMLElement | null;
       if (t && t.closest && t.closest('button, .mm-tr, .mm-help, .mm-card')) return;
       this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+      this.look.grab();
     });
     window.addEventListener('pointermove', (e) => {
       if (!this.drag || this.drag.id !== e.pointerId) return;
-      this.camYaw -= (e.clientX - this.drag.x) * 0.005;
-      this.camPitch = Math.max(-1.4, Math.min(1.4, this.camPitch + (e.clientY - this.drag.y) * 0.004));
+      // look round: drag right to turn the view right, down to look down
+      const dx = e.clientX - this.drag.x, dy = e.clientY - this.drag.y;
+      this.camYaw += dx * 0.005;
+      this.camPitch = Math.max(-1.4, Math.min(1.4, this.camPitch + dy * 0.004));
+      this.look.move(dx * 0.005, dy * 0.004);
       this.drag.x = e.clientX;
       this.drag.y = e.clientY;
       this.lastDrag = performance.now();
     });
     const up = (e: PointerEvent) => {
-      if (this.drag?.id === e.pointerId) this.drag = null;
+      if (this.drag?.id === e.pointerId) {
+        this.drag = null;
+        this.look.release();
+      }
     };
     window.addEventListener('pointerup', up);
     window.addEventListener('pointercancel', up);
@@ -668,6 +678,12 @@ export class LaunchMission {
     if (!f || !this.site) return;
     const dt = Number.isFinite(dtReal) ? Math.max(0, Math.min(0.1, dtReal)) : 0;
     this.wallT += dt;
+    const [ly, lp] = this.look.step(dt);
+    if (ly || lp) {
+      this.camYaw += ly;
+      this.camPitch = Math.max(-1.4, Math.min(1.4, this.camPitch + lp));
+      this.lastDrag = performance.now();
+    }
     let warp = this.warp;
     if (this.ff) {
       const te = this.timeToEvent();

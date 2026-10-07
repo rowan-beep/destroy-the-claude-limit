@@ -36,6 +36,25 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '5.3.1',
+    date: '2026-10-07',
+    air: {
+      title: "Su-57 intakes",
+      notes: [
+        fixed("The Su-57's intakes",
+          "The intake mouths looked like thin-walled boxes. They now have thick, rounded lips and rounded corners, a gentler rake, and dark ducts inside, the way the real intakes look."),
+      ],
+    },
+    space: {
+      title: "Looking around in space",
+      notes: [
+        fixed("Dragging to look around",
+          "In the Saturn V, Starship to Mars and the rocket launches, dragging left and right turned the view the opposite way to dragging up and down, so it felt like sliding a picture about. Now both work the same way: drag right to look right, drag down to look down.",
+          "A flick keeps the view turning for a moment after you let go, slowing to a stop. Grab again to stop it."),
+      ],
+    },
+  },
+  {
     version: '5.3.0',
     date: '2026-10-07',
     space: {

@@ -4,6 +4,19 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu lists the space updates.
 
+## v5.3.1 (2026-10-07)
+
+### Air Combat: Su-57 intakes
+
+- **Fixed: The Su-57's intakes**
+  - The intake mouths looked like thin-walled boxes. They now have thick, rounded lips and rounded corners, a gentler rake, and dark ducts inside, the way the real intakes look.
+
+### Space Exploration: Looking around in space
+
+- **Fixed: Dragging to look around**
+  - In the Saturn V, Starship to Mars and the rocket launches, dragging left and right turned the view the opposite way to dragging up and down, so it felt like sliding a picture about. Now both work the same way: drag right to look right, drag down to look down.
+  - A flick keeps the view turning for a moment after you let go, slowing to a stop. Grab again to stop it.
+
 ## v5.3.0 (2026-10-07)
 
 ### Space Exploration: Time warp, solid rocks and a big round of fixes

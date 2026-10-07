@@ -273,9 +273,10 @@ export function buildSu57(v: AirframeVisual): void {
 
   // --- nacelles: trapezoidal raked intakes under the root extensions, round at the nozzles
   const NW = curve([[-3.6, 0.42], [-1.0, 0.45], [4.0, 0.48], [7.4, 0.52], [8.55, 0.53]]);
-  const NH = curve([[-3.6, 0.42], [-1.0, 0.46], [4.0, 0.5], [7.4, 0.53], [8.55, 0.53]]);
-  const NY = curve([[-3.6, -0.72], [-1.0, -0.74], [3.0, -0.64], [6.0, -0.4], [8.55, -0.2]]);
-  const NR = curve([[-3.6, 0.06], [0.0, 0.12], [4.0, 0.3], [7.4, 0.48], [8.55, 0.53]]);
+  const NH = curve([[-3.6, 0.37], [-1.0, 0.44], [4.0, 0.5], [7.4, 0.53], [8.55, 0.53]]);
+  const NY = curve([[-3.6, -0.69], [-1.0, -0.73], [3.0, -0.64], [6.0, -0.4], [8.55, -0.2]]);
+  // (the mouth's corners well rounded, as on the real intakes: no sharp box edges)
+  const NR = curve([[-3.6, 0.13], [0.0, 0.17], [4.0, 0.3], [7.4, 0.48], [8.55, 0.53]]);
   const nacLoop = (z: number): P2[] => {
     // the mouth is a trapezium: the outer wall leans in toward the top
     const w = NW(z), h = NH(z), r = Math.min(NR(z), w - 0.001, h - 0.001);
@@ -285,16 +286,18 @@ export function buildSu57(v: AirframeVisual): void {
   const nac = intake({
     loop: nacLoop,
     outer: stations(-3.6, NOZZLE_Z, 90, 0.3, 0),
-    lip: 0.04,
+    // a thick, rounded lip (a thin sheet edge made the mouths look like hollow boxes)
+    lip: 0.075,
     depth: 2.6,
     n: 80,
-    // raked in two planes: the lower lip leads, the outer corner sweeps back
-    rake: (x, y) => 0.45 * (y + 0.72) + 0.25 * (x - NAC_X),
+    // raked in two planes: the lower lip leads a little, the outer corner sweeps back
+    rake: (x, y) => 0.28 * (y + 0.69) + 0.2 * (x - NAC_X),
     fan: { cx: NAC_X, cy: -0.74, r: 0.38 },
   });
   skin(both(nac.skin));
   const duct = (pm.duct as THREE.MeshStandardMaterial).clone();
-  duct.color.set('#3c4044');
+  // dark inside, the way an intake looks in daylight: a pale duct read as an empty box
+  duct.color.set('#25282b');
   v.addMesh(both(nac.duct), duct);
 
   // --- tail booms outboard of the nacelles (fins and stabilators) ----------------
