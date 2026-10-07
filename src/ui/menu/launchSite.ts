@@ -13,6 +13,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { buildSaturnV, saturnRadiusAt } from '../../space/saturnVModel';
+import { PAD2, buildPad2, pad2Height, type Pad2 } from './starbasePad';
 import { Fleet, containerTexture, crawlerCrane, facadeTexture, semiTruck, trackingDish, truckCrane, type PropMats } from './siteProps';
 
 const ZOOM_MIN = 0.35;
@@ -507,6 +508,8 @@ export class LaunchSite {
       return dd >= f ? 1 : smooth(0, f, dd);
     };
     h *= Math.min(flat(-20, 20, 270, 170, 80), flat(450, 80, 230, 150, 70), flat(0, 205, 99999, 16, 40), flat(-1400, 720, 160, 140, 90), flat(110, 262, 70, 45, 50));
+    // Pad 2, the Starship complex, and its Mega Bay across the road
+    h *= Math.min(flat(PAD2.x, PAD2.z, 345, 190, 90), flat(PAD2.x - 180, PAD2.z + 330, 90, 55, 60));
     return h;
   }
 
@@ -834,6 +837,9 @@ export class LaunchSite {
     this.buildSea();
     this.buildVegetation();
     this.buildPad();
+    this.pad2 = buildPad2({ steel: this.steel, darkSteel: this.darkSteel, paint: this.paint, concrete: this.concrete, concreteTop: this.concreteTex(false) });
+    s.add(this.pad2.group);
+    this.blinkers.push(...this.pad2.lamps);
     this.buildTower();
     this.buildTankFarm();
     this.buildCrane();
@@ -859,6 +865,9 @@ export class LaunchSite {
   }
 
   private paved(x: number, z: number, margin = 0): boolean {
+    const A = PAD2.apron;
+    if (x > PAD2.x + A.x0 - margin && x < PAD2.x + A.x1 + margin && z > PAD2.z + A.z0 - margin && z < PAD2.z + A.z1 + margin) return true; // Pad 2
+    if (Math.abs(x - (PAD2.x - 180)) < 80 + margin && Math.abs(z - (PAD2.z + 330)) < 50 + margin) return true; // the Mega Bay
     if (x > -60 - margin && x < 84 + margin && z > -75 - margin && z < 95 + margin) return true; // hardstand and ramp
     if (x > -200 - margin && x < -60 + margin && z > -60 - margin && z < 115 + margin) return true; // tank farm slab
     if (x > 230 - margin && x < 670 + margin && z > -60 - margin && z < 220 + margin) return true; // yard
@@ -2036,7 +2045,22 @@ export class LaunchSite {
 
   /** ground height of the scene at a point (for cameras) */
   groundAt(x: number, z: number): number {
-    return this.height(x, z);
+    return Math.max(this.height(x, z), pad2Height(x, z));
+  }
+
+  /** Pad 2 (the Starship complex) */
+  pad2: Pad2 | null = null;
+  /** where the launch exhaust goes: Pad 1's trench by default */
+  private exhaust = { trench: new THREE.Vector3(0, 2, -78), dir: new THREE.Vector3(0, 0, -1), mount: new THREE.Vector3(0, PAD_Y + 4, 0), ring: 14, width: 10 };
+  /** fly from Pad 2 (Starship) or Pad 1 (Saturn V): moves the exhaust to that pad's trench */
+  useStarshipPad(on: boolean): void {
+    if (on && this.pad2) this.exhaust = { ...this.pad2.exhaust, trench: this.pad2.exhaust.trench.clone(), mount: this.pad2.exhaust.mount.clone(), width: 18 };
+    else this.exhaust = { trench: new THREE.Vector3(0, 2, -78), dir: new THREE.Vector3(0, 0, -1), mount: new THREE.Vector3(0, PAD_Y + 4, 0), ring: 14, width: 10 };
+    this.setQd(0);
+  }
+  /** Pad 2's ship quick-disconnect arm: 0 = at the ship, 1 = swung clear */
+  setQd(k: number): void {
+    if (this.pad2) this.pad2.qdArm.rotation.y = -1.25 * clampN(k, 0, 1);
   }
 
   /** hand the scene over to a flight: hide the standing rocket, reset the arms and the smoke */
@@ -2095,12 +2119,16 @@ export class LaunchSite {
       const mat = new THREE.SpriteMaterial({ map: this.smokeTex, transparent: true, depthWrite: false, opacity: 0, fog: true, rotation: Math.random() * 6.28 });
       const sp = new THREE.Sprite(mat);
       let pos: THREE.Vector3, v: THREE.Vector3;
+      const ex = this.exhaust;
       if (r < 0.55) {
-        pos = new THREE.Vector3((Math.random() - 0.5) * 10, 2, -78);
-        v = new THREE.Vector3((Math.random() - 0.5) * 18, 6 + Math.random() * 10, -45 - Math.random() * 40);
+        // out of the trench mouth, rolling away toward the sea
+        const side = new THREE.Vector3(-ex.dir.z, 0, ex.dir.x).multiplyScalar((Math.random() - 0.5) * ex.width);
+        pos = ex.trench.clone().add(side);
+        v = ex.dir.clone().multiplyScalar(45 + Math.random() * 40).add(new THREE.Vector3((Math.random() - 0.5) * 18, 6 + Math.random() * 10, 0));
       } else {
+        // boiling up round the mount (and, on Pad 2, the deluge water flashing to steam)
         const a = Math.random() * Math.PI * 2;
-        pos = new THREE.Vector3(Math.cos(a) * 14, PAD_Y + 4, Math.sin(a) * 14);
+        pos = new THREE.Vector3(ex.mount.x + Math.cos(a) * ex.ring, ex.mount.y, ex.mount.z + Math.sin(a) * ex.ring);
         v = new THREE.Vector3(Math.cos(a) * (14 + Math.random() * 22), 4 + Math.random() * 12, Math.sin(a) * (14 + Math.random() * 22));
       }
       sp.position.copy(pos);
@@ -2119,7 +2147,7 @@ export class LaunchSite {
       const m = p.sp.material as THREE.SpriteMaterial;
       m.opacity = Math.min(1, p.age * 2) * (1 - k) * 0.85;
       // lit orange by the fire while it burns close by, then plain sunlit white-grey
-      const glow = fire * Math.exp(-p.sp.position.distanceTo(new THREE.Vector3(0, vehicleY - 10, 0)) / 90);
+      const glow = fire * Math.exp(-p.sp.position.distanceTo(new THREE.Vector3(this.exhaust.mount.x, vehicleY - 10, this.exhaust.mount.z)) / 90);
       m.color.setRGB(0.78 + glow * 3.2, 0.72 + glow * 1.8, 0.68 + glow * 0.6);
     }
     const dead = this.smoke.filter((p) => p.age > p.life);

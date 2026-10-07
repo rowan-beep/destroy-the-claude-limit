@@ -6,6 +6,7 @@
 
 import * as THREE from 'three';
 import type { LaunchSite } from '../../ui/menu/launchSite';
+import { PAD2 } from '../../ui/menu/starbasePad';
 import { SpaceScene } from '../spaceScene';
 import { sunDirection } from '../flightSim';
 import { EARTH, PAD, V3, earthAngle, ecefDir, padScene, rotY } from '../universe';
@@ -30,8 +31,8 @@ const SHIP_H = STARSHIP.ship.height;
 const STACK_COM = 45;
 /** the booster's (nearly empty) centre of mass above its engines */
 const BOOSTER_COM = 26;
-/** the launch site's mount: the booster's engines stand this high over the ground */
-const MOUNT_Y = 24.5;
+/** Pad 2's launch table: the booster's engines stand this high over the ground */
+const MOUNT_Y = PAD2.table;
 
 type View = 'site' | 'earth' | 'cruise' | 'mars';
 
@@ -401,7 +402,7 @@ export class MarsMission {
     this.elCard.classList.remove('show');
     this.elHelp.classList.remove('show');
     this.site.setFlying(true);
-    this.site.setArms(0);
+    this.site.useStarshipPad(true);
     this.view = 'site';
     this.attach();
     this.active = true;
@@ -409,7 +410,7 @@ export class MarsMission {
     menuMusic.want('flight', true);
     f.say(`Super Heavy and Starship on the pad. The Mars window opens ${dateText(f.window.dep)}; arrival ${dateText(f.window.arr)}.`);
     f.say('Press LAUNCH (Space). After orbit: refuel, wait for the window, then the injection burn.');
-    this.flash('STARSHIP · PAD 1');
+    this.flash('STARSHIP · PAD 2');
   }
 
   stop(): void {
@@ -423,6 +424,7 @@ export class MarsMission {
     this.entry.wake.parent?.remove(this.entry.wake);
     this.entry.embers.points.parent?.remove(this.entry.embers.points);
     this.site?.setFlying(false);
+    this.site?.useStarshipPad(false);
     if (this.spaceT > 0) {
       const d = this.spaceT / DAY;
       updateRecord((r) => (r.daysInSpace += d));
@@ -723,7 +725,8 @@ export class MarsMission {
   private localPos(r: Vec): Vec {
     const t = this.flight!.t;
     const e = vsub(rotY(r as V3, -earthAngle(t)) as Vec, this.padOrigin);
-    return [vdot(e, this.axes.x as Vec), vdot(e, this.axes.y as Vec) + MOUNT_Y, vdot(e, this.axes.z as Vec)];
+    // (Starship flies from Pad 2, along the coast from the Saturn V's pad)
+    return [vdot(e, this.axes.x as Vec) + PAD2.x, vdot(e, this.axes.y as Vec) + MOUNT_Y, vdot(e, this.axes.z as Vec) + PAD2.z];
   }
   private localDir(v: Vec): Vec {
     const e = rotY(v as V3, -earthAngle(this.flight!.t)) as Vec;
@@ -780,7 +783,8 @@ export class MarsMission {
       const base = this.scenePos(this.base(f));
       this.padLight.position.set(base.x, Math.max(4, base.y - 10), base.z);
       this.padLight.intensity = this.fire!.fireLevel * 18000 * (0.9 + 0.1 * Math.random());
-      this.site!.setArms(f.phase === 'pad' ? 0 : Math.min(1, 0.3 + (f.t - this.liftT) / 3));
+      // the quick-disconnect arm swings clear just before liftoff
+      this.site!.setQd(f.phase === 'pad' ? 0 : Math.min(1, 0.4 + (f.t - this.liftT) / 4));
     }
     // touchdown: the legs take the weight, sink and spring back
     if (this.landedAt >= 0 && f.phase === 'landed') {
