@@ -8,7 +8,6 @@
 import { activeMap, MAPS, ROLES } from '../../world/islands';
 import { switchMap } from '../../world/maps';
 import { WhatsNewModal } from './whatsNew';
-import { VERSION } from '../../version';
 import { el, clearEl, button } from '../dom';
 import { AIRCRAFT_TYPES, AircraftType, AircraftSpec, SPECS, enemyTypesFor, getSpec, strikeLoadout, jetAllowedIn } from '../../aircraft/specs';
 import { MissionConfig, MODE_INFO, ModeId } from '../../game/mission';
@@ -126,12 +125,12 @@ export class MainMenu {
     act('PAINT SHOP', 'Colours, wraps, flight suit', () => cb.onCustomize(this.cfg.aircraft));
     act('MULTIPLAYER', 'Real pilots online', () => cb.onMultiplayer(), 'mm-nav-mp');
     const foot = el('div', 'mm-rail-foot', rail);
-    const wn = new WhatsNewModal(document.body);
+    const wn = new WhatsNewModal(document.body, 'air');
     const small = (label: string, fn: () => void) => button(label, 'mm-foot-btn', foot, fn);
     small('LOGBOOK', () => cb.onLogbook());
     small('SETTINGS', () => cb.onSettings());
     small('CONTROLS', () => cb.onControls());
-    small(`v${VERSION} NOTES`, () => wn.show(true));
+    small(`v${wn.latest} NOTES`, () => wn.show(true));
     const mus = (this.musBtn = small(menuMusic.enabled ? 'MUSIC ON' : 'MUSIC OFF', () => {
       mus.textContent = menuMusic.toggle() ? 'MUSIC ON' : 'MUSIC OFF';
     }));

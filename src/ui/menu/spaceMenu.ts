@@ -8,9 +8,9 @@ import { SUITS, loadSuit, saveSuit } from '../../space/suits';
 import { SATURN_V } from '../../space/saturnV';
 import { loadRecord } from '../../space/record';
 import { el, clearEl, button } from '../dom';
-import { VERSION } from '../../version';
 import { loadNetPrefs } from '../../net/servers';
 import { programLogo, Program } from './program';
+import { WhatsNewModal } from './whatsNew';
 import { menuMusic } from '../../audio/menuMusic';
 
 type Section = 'missions' | 'factory' | 'destinations';
@@ -55,6 +55,8 @@ export class SpaceMenu {
   private heroT: HTMLElement;
   private timer = 0;
   private musBtn!: HTMLButtonElement;
+  private notes: WhatsNewModal;
+  private notesTimer = 0;
 
   constructor(parent: HTMLElement, private cb: SpaceMenuCallbacks) {
     this.root = el('div', 'screen menu-root sx2 hidden', parent);
@@ -152,7 +154,8 @@ export class SpaceMenu {
     foot.style.setProperty('--d', '0.6s');
     button('SETTINGS', 'sx2-fbtn', foot, () => cb.onSettings());
     button('CONTROLS', 'sx2-fbtn', foot, () => cb.onControls());
-    el('span', 'sx2-ver', foot, `v${VERSION}`);
+    this.notes = new WhatsNewModal(document.body, 'space');
+    button(`v${this.notes.latest} NOTES`, 'sx2-fbtn sx2-notes', foot, () => this.notes.show(true));
     el('div', 'sx2-hint', this.root, 'DRAG TO LOOK AROUND · SCROLL TO ZOOM · DOUBLE-CLICK TO RESET');
 
     this.go(this.section, false);
@@ -174,7 +177,15 @@ export class SpaceMenu {
         void this.root.offsetWidth;
         this.root.classList.add('play');
         requestAnimationFrame(() => this.placeIndicator());
+        // new space notes pop up once the panels have come in (not if a flight starts first)
+        window.clearTimeout(this.notesTimer);
+        this.notesTimer = window.setTimeout(() => {
+          if (!this.root.classList.contains('hidden')) this.notes.showIfNew();
+        }, 1200);
       }
+    } else {
+      window.clearTimeout(this.notesTimer);
+      this.notes.show(false);
     }
   }
 

@@ -1,257 +1,578 @@
 # Changelog
 
-Every update gets a version number and notes here. The same notes are shown
-in the game under **WHAT'S NEW** on the main menu.
+Every update gets a version number and notes here. The game shows the same
+notes under **NOTES** in each menu: the air combat menu lists the air combat
+updates and the space menu lists the space updates.
 
-## v4.59.0 — Solar System Explorer (2026-10-07)
+## v4.60.0 (2026-10-07)
 
-- A new SOLAR SYSTEM EXPLORER on the space menu: fly round the whole solar system as it is today, on the real orbits. Pick the Sun, any planet or Pluto from the bar at the top (each planet's moons join the bar when you visit it) and the camera flies there and frames it on its sunlit side. Drag to look round, scroll to zoom from close over the surface out to 60 AU, and speed time up from a pause to a year a second to watch the moons and planets go round. A card shows each world's size, year, day, gravity and distance from the Sun, with a few facts.
-- Fixed: the solar-system view kept showing the old painted Earth instead of NASA's Blue Marble. It now swaps in as soon as the map loads.
+### Air Combat: Easier to read notes
 
-## v4.58.0 — Rockets, rovers and the solar system (2026-10-07)
+- **Improved: Notes you can skim**
+  - Each change has a short headline and a few short points, tagged NEW, IMPROVED or FIXED.
+  - The newest update is open, and older ones fold to one line each. Click one to open it.
+- **Improved: Only air combat updates here**
+  - Space updates now have their own notes in the space menu.
 
-- Two new rockets and two real missions, from a new Pad 3 down the coast. Falcon Heavy launches NASA's Europa Clipper on its real route: 27 Merlin engines and 22.8 MN at liftoff, the two side boosters flip round, fly back and land on Landing Zones 1 and 2 within seconds of each other while the camera follows them in, then the second stage leaves Earth. The cruise runs on the real dates: past Mars on 1 March 2025, past Earth on 3 December 2026, into orbit round Jupiter on 11 April 2030, then a pass 25 km over Europa's ice. Each planet fills the view as Clipper flies by.
-- NASA's Space Launch System flies Artemis II: two solid boosters and four RS-25s, 39.1 MN at liftoff. In orbit the autopilot works out a free return round the Moon; the ICPS burns until it runs dry and Orion's own engine finishes the injection, the way the real mission is flown. Course corrections on the way out and on the way home, the far side of the Moon thousands of kilometres below, then entry at 11 km/s, three orange-and-white main parachutes and splashdown off the Cape about eight days after launch. Working out a trajectory no longer freezes the game: it computes in the background while the clock holds.
-- Rovers on Mars. Perseverance and Curiosity are among the most detailed objects in the game (Perseverance is about 80,000 triangles, Curiosity about 66,000): rocker-bogie suspension that follows every rock, six wheels with 48 grousers, the mast with its cameras, the robotic arm and its turret, the nuclear power source, and Ingenuity the helicopter. They drive at their real top speed, 4.2 cm/s, with time warp to cover the ground.
-- Three rover missions. SEVEN MINUTES OF TERROR: Mars 2020's landing at Jezero, from entry through the parachute, heat shield and powered descent to the sky crane lowering the rover on its bridles, then you drive it away. JEZERO SAMPLE HUNT: core rocks, zap them with the laser and fly Ingenuity from its airfield. GALE CRATER: Curiosity drills the old lake bed and heads for Mount Sharp.
-- Mars looks far better. From orbit, the planet uses an 8192 by 4096 Viking mosaic, eight times sharper, with real crater fields down to a few kilometres. On the ground, Jezero has its crater rim on the horizon and the river delta to the west, and at Gale, Mount Sharp rises 5 km above the crater floor. The rocks are weathered stone broken along fracture faces, with grain, layering and dust on their tops, and the air is clearer, so the rims and the mountain stand out.
-- The rest of the solar system is here: every planet and the major moons on their real orbits, with NASA's maps of Jupiter, Saturn, the Galilean moons, Titan, Pluto and more, and Saturn's and Uranus's rings with their real gaps. The sky in every space view is the real one: 40,000 stars from NASA's Tycho star map at their real positions, brightness and colours, and the Milky Way.
-- Earth from space is the real Earth: NASA's Blue Marble, with the real cloud cover and the Black Marble city lights on the night side.
-- Three new jets. The F-35A Lightning II: one F135 engine, Mach 1.6, four AIM-120Ds in two weapons bays side by side under the belly, the EOTS targeting sensor under the chin and no head-up display at all: the symbology is on the helmet visor. The Su-57: Mach 2, thrust vectoring in three dimensions, four R-77Ms in two tandem bays and an R-74M under each wing root. The Gripen E: a light canard delta with Meteor and the new IRIS-T missile, which can lock on a target 90 degrees off the nose. All three have their own cockpits, sounds and library entries, and fly against you as enemies too.
-- Faster to load: the space program now downloads only when you open it (it is fetched in the background a few seconds after the game starts). The first download of the game is about 2.2 MB instead of 3.2 MB.
-- Fixed: starting a rover mission could freeze the view with an error when the Mars map finished loading at the wrong moment.
+### Space Exploration: Notes in the space menu
 
-## v4.57.1 — Easier on the eyes (2026-10-07)
+- **New: Release notes in the space menu**
+  - Press NOTES at the bottom of the menu to see what's new.
+  - They open by themselves when there's an update you haven't seen.
+- **Improved: Only space updates here**
+  - Each change has a short headline and a few short points, tagged NEW, IMPROVED or FIXED.
+  - The newest update is open, and older ones fold to one line each. Click one to open it.
 
-- Toned the sun way down. The sun's rays no longer feed the bloom, which was making the whole picture glow so much you couldn't see. The rays and lens flares are much fainter and stay close to the sun, and they no longer shimmer or flicker as the camera moves.
-- Less shake: the airframe buffet only starts much closer to the stall instead of in any hard turn, and it shakes the camera and the view about half as much. The film grain and sharpening are lighter too.
+## v4.59.0 (2026-10-07)
 
-## v4.57.0 — Starbase, wind and fire (2026-10-07)
+### Space Exploration: Solar System Explorer
 
-- Starship now launches from its own pad, Pad 2: a full Starbase-sized launch complex beside the Saturn V pad, built at real scale. A 146 m launch-and-catch tower with its chopsticks and the arm that swings clear at liftoff; the orbital launch mount on a raised pad, with a steel-lined flame trench cut through the pad, a curved flame deflector and water deluge pipes; a tank farm with 14 tall tanks and 18 horizontal ones, subcoolers and pipe racks running to the mount and up the tower; deluge water tanks and a pump house, lightning masts, 16 floodlight masts, a launch-control bunker, workshops, a 660 m by 355 m concrete apron stained with soot, and the Mega Bay across the road.
-- Liftoff is enormous now. A jet of fire blasts out of the mouth of the flame trench, a towering cloud of smoke and steam boils up round the mount and rolls out toward the sea, and a ring of dust races out across the apron. The cloud glows orange from the engines while they're close.
-- Wind on Mars. Layers of dust drift over the ground, streaked and billowing, thickest down low and thinning with height, and they race past as the ship comes down. Dust devils wander across the plains, and close to the ground fine grit blows past in the gusts. The air is hazier and the distance fades into it properly. How dusty it is changes from landing to landing.
-- Mars has real hills: rolling hills up to about 800 m high, ridges, flat-topped mesas, knobs and craters. The ground now reaches past the horizon, so the jagged edge on the skyline is gone, and fine detail fades out with distance instead of shimmering. Dark sand and bright dust stand out more, so the far landscape no longer looks like flat tan.
-- The autopilot now picks the landing site: the lowest, smoothest ground along the ship's track, where the air is thickest to brake in. The log names the site and the region. The landing guidance looks ahead at the terrain, so the ship no longer gets caught out by a rise under it.
-- The jet game looks better. Light streams from the sun in visible rays through gaps in the clouds and past the canopy frame, with lens flares across the picture when you look toward it. The picture is sharper, with a touch of lens colour fringing at the corners and fine film grain, and at high speed the edges of the screen streak with motion. Missile smoke, contrails and wingtip vapour now billow and break up with ragged edges instead of being flat white ribbons. (The sun rays, flares, grain and colour fringing are off on Low quality.)
-- Physics update you can feel. Pull hard past your best turn, fly through the transonic zone, or open the speedbrake or drop the gear at speed, and the airframe buffets: the camera and your view shake, and you hear it rumble. Hold a jet past its stall with the G override and a wing lets go: the jet lurches toward it, then the other wing goes. Thrust-vectoring jets (Su-35S, F-22A) hold far better.
-- The landing gear has real struts. They squash on touchdown and rebound, the nose dips when you brake and lifts a little under power, the jet leans out of a fast turn on the ground, and it jolts over runway joints and bumps on rough ground. The wheels stay on the runway as the struts move.
-- Fixes on the trip to Mars: the map's labels no longer stay on screen after you close the map. The solar system map now labels the Sun, Earth, Mars, Starship and where Mars will be when you arrive. The camera looks back at Earth as you leave it, and the vacuum engines' plumes in space are faint, as they really are.
-- If the game can't start because the browser won't give it WebGL, it now says so, shows the reason the browser gave, and suggests fixes (restart the browser, update the graphics driver, turn on hardware acceleration) with a TRY AGAIN button. Garbled symbols in the shared version are fixed.
+- **New: Solar System Explorer**
+  - Open it from the space menu and fly round the whole solar system as it is today, on the real orbits.
+  - Pick the Sun, a planet or Pluto from the bar at the top and the camera flies there. Each planet's moons join the bar when you visit it.
+  - Drag to look round. Scroll to zoom from just over the surface out to 60 AU.
+  - Speed up time from a pause to a year a second and watch the planets go round.
+  - A card shows each world's size, year, day, gravity, distance from the Sun and a few facts.
+- **Fixed: The real Earth in the solar-system view**
+  - It kept showing the old painted Earth. NASA's Blue Marble now swaps in as soon as it loads.
 
-## v4.56.1 — The real Mars (2026-10-06)
+## v4.58.0 (2026-10-07)
 
-- Mars rebuilt from the real thing. The planet's colours now come from the Viking orbiters' global colour mosaic (NASA/JPL/USGS), so every dark region, bright dust plain, canyon, volcano and polar cap is where it really is, in its real colours, warmed to the butterscotch of true colour.
-- Fixed the bug that made Mars look like flat beige paint from space. The dusty-haze effect was measuring the view angle in Mars's rotating frame instead of the world's, so it treated the whole planet as if it were seen edge-on and hid 70% of it behind haze. Now the haze only thickens at the edge of the disc, as it should.
-- From orbit, Mars has detail below the map's resolution: mottling of dark sand and bright dust, plus small hills and crater walls shaded by the Sun, fading in as you get closer. The stars and the Sun now sit behind the planet instead of showing through it, and the Sun is no longer drawn on top of the planet.
-- On the ground, the terrain is smooth instead of stair-stepped: the height map is now interpolated with smooth curves, and the planet's height texture is filtered. The landscape has rolling hills, flat-topped rises, dune fields with long crests, and craters at four sizes from 10 m to 2.6 km. Dark sand gathers in low ground and bright dust lies on the rises, and the old stripy colour pattern on the ground is gone.
-- The landing dust is a fine dust storm instead of big round blobs, and the ignition flash no longer whites out the screen.
-- Fixed a crash when starting the campaign on the Open Ocean map with a campaign mission saved from another theater. Modes that need land (campaign, daily, recon, strike and the tutorial) now fall back to free flight on the ocean.
+### Air Combat: Three new jets
 
-## v4.56.0 — Red planet, for real (2026-10-06)
+- **New: F-35A Lightning II**
+  - One F135 engine, Mach 1.6.
+  - Four AIM-120Ds in two weapons bays side by side under the belly, and the EOTS sensor under the chin.
+  - No head-up display: the symbology is on the helmet visor.
+- **New: Su-57**
+  - Mach 2, with thrust vectoring in three dimensions.
+  - Four R-77Ms in two tandem bays, and an R-74M under each wing root.
+- **New: Gripen E**
+  - A light canard delta carrying Meteor and the new IRIS-T.
+  - IRIS-T can lock on to a target 90 degrees off the nose.
+- **The full treatment for all three**
+  - Their own cockpits, sounds and Jet Library entries, and they fly against you as enemies too.
+- **Improved: Faster to load**
+  - The first download is about 2.2 MB instead of 3.2 MB: the space program now loads only when you open it.
 
-- Mars now looks like the rovers' photographs. The ground is fine reddish-brown dust and sand drifted into low ripples, strewn with pebbles and cobbles of dark basalt, rusty fragments and the odd pale stone, many half sunk in the drift. The detail holds up from right next to the ship out to the horizon without visibly repeating. Steep slopes show darker exposed rock, and boulders of several shapes sit half-buried round the landing site.
-- New lighting on Mars. The sky is captured as light: the steel reflects the real butterscotch sky, and every shadow is filled with the warm light of the dusty air and the sunlit ground. The sky is butterscotch at the horizon, a deeper brownish tan overhead, with a bluish glow round the Sun that spreads into the famous blue sunset when the Sun goes down. The distant haze is the colour of the sky, and night is truly dark.
-- From orbit, Mars is the rich butterscotch of the orbital photographs instead of a washed-out cream, and the glowing rim of the atmosphere only shows past the edge of the planet.
-- A much more dramatic landing. On entry a sheath of glowing plasma hugs the belly, flickering, with a long pink-orange wake streaming behind the ship and embers torn off the flaps; the camera shakes with the heating. In the belly-flop the flaps visibly work to steer the fall.
-- The landing burn opens with an ignition flash, and the camera swings low and wide for the landing. The Raptors light the ground and the dust orange from below as they blast out a ring of dust that races outward and billows up, flinging grit and pebbles across the ground. On touchdown the legs take the weight and spring back, the nozzles glow hot and slowly cool, the dust drifts and settles, and the camera circles the ship.
+### Space Exploration: Rockets, rovers and the solar system
 
-## v4.55.0 — Starship to Mars (2026-10-06)
+- **New: Falcon Heavy: Europa Clipper**
+  - Launches from the new Pad 3 down the coast: 27 Merlin engines, 22.8 MN at liftoff.
+  - Both side boosters flip round, fly back and land on Landing Zones 1 and 2, with the camera following them in.
+  - The cruise runs on the real dates: Mars on 1 March 2025, Earth on 3 December 2026, into orbit round Jupiter on 11 April 2030.
+  - It ends with a pass 25 km over Europa's ice. Each planet fills the view as Clipper flies by.
+- **New: SLS: Artemis II**
+  - Two solid boosters and four RS-25s, 39.1 MN at liftoff.
+  - The autopilot works out a free return round the Moon. The ICPS burns until it runs dry and Orion's own engine finishes the job, as on the real mission.
+  - Course corrections out and back, the far side of the Moon below you, then entry at 11 km/s.
+  - Three orange-and-white main parachutes and a splashdown off the Cape about eight days after launch.
+- **New: Perseverance and Curiosity**
+  - Among the most detailed objects in the game: about 80,000 and 66,000 triangles.
+  - Rocker-bogie suspension that follows every rock, six wheels with 48 grousers each, the mast cameras, the robotic arm and the nuclear power source.
+  - Ingenuity the helicopter comes too.
+  - They drive at their real top speed, 4.2 cm/s, with time warp to cover the ground.
+- **New: Three rover missions**
+  - SEVEN MINUTES OF TERROR: Mars 2020's landing at Jezero, down to the sky crane lowering the rover on its bridles. Then you drive it away.
+  - JEZERO SAMPLE HUNT: core rocks, zap them with the laser and fly Ingenuity.
+  - GALE CRATER: Curiosity drills the old lake bed and heads for Mount Sharp.
+- **Improved: Mars looks far better**
+  - From orbit: an 8192 × 4096 Viking mosaic, eight times sharper, with real crater fields.
+  - Jezero has its crater rim on the horizon and the river delta to the west.
+  - At Gale, Mount Sharp rises 5 km above the crater floor.
+  - Rocks are weathered stone with fracture faces, layers and dust on top, and the air is clearer.
+- **New: The whole solar system**
+  - Every planet and the major moons on their real orbits, with NASA's maps.
+  - Saturn's and Uranus's rings, with their real gaps.
+  - The sky is the real one: 40,000 stars from NASA's Tycho star map, and the Milky Way.
+- **Improved: The real Earth from space**
+  - NASA's Blue Marble, the real cloud cover, and the Black Marble city lights on the night side.
+- **Improved: No more freezes while planning**
+  - Trajectories are worked out in the background while the clock holds.
+  - The space program downloads in the background a few seconds after the game starts.
+- **Fixed: Rover mission freeze**
+  - Starting a rover mission could freeze the view when the Mars map finished loading at the wrong moment.
 
-- New mission: Starship to Mars. Open MISSIONS in the space program (or click STARSHIP on the LAUNCH PAD page) and fly the whole trip, from the pad to the ground on Mars. The window is the real one from today: leave Earth in early November 2026 and arrive in September 2027.
-- Super Heavy and Starship are built to the next-generation figures: a 72.3 m booster with 33 Raptor 3s, 3,650 t of propellant and 8,240 tf of thrust, three grid fins, four chines and the hot-staging ring built into its top; and a 52.1 m ship with 1,550 t of propellant, three sea-level and three vacuum Raptors, black hexagonal heat-shield tiles over the stainless steel on its windward side, two forward and two aft flaps, the raceway and six landing legs.
-- The flight: 33 engines light at liftoff, the stack throttles back through max-Q, then hot-stages: the ship lights its engines while still on the booster, and Super Heavy flips for its boostback burn. The ship flies on to a 200 km orbit, where tankers refuel it over three weeks. When the window opens, the trans-Mars injection burn sends it on a seven-month coast, with course corrections along the way.
-- Mars: the planet is built from its real geography: Olympus Mons and the Tharsis volcanoes, the Valles Marineris canyons, the Hellas and Argyre basins, the northern lowlands, the polar caps and thousands of craters, with its dark and bright regions. The thin air glows butterscotch by day with a blue halo round the Sun. Starship enters belly first at over 5 km/s in a glow of plasma, banks to bleed off speed, falls belly-down with its flaps, then flips upright and fires its engines to land on its legs. Engine blast kicks up dust off the boulder-strewn ground.
-- The autopilot can fly every step for you: press SPACE for the next step (launch, refuel, the injection burn), and the fast-forward button warps through the quiet parts and drops back to real time for every event. Turn the autopilot off (T) to steer and throttle the landing yourself. The map (M) shows your orbit, and in deep space the Sun, the orbits of Earth and Mars, and your path to Mars.
-- Time warp now runs at exactly the speed you pick. Choose 500x and you get 500x: it no longer drops back on its own. The Starship mission has speeds from 1x to 1,000,000x.
-- The F-16's intake is less of a smile now: the lower lip is flatter across the middle and the corners don't ride up as high, closer to the real jet.
+## v4.57.1 (2026-10-07)
 
-## v4.54.2 — The Viper's smile (2026-10-06)
+### Air Combat: Easier on the eyes
 
-- The F-16's intake now has the real shape. Head on, the mouth is a wide crescent "smile": the lower lip curves down deepest in the middle, the upper lip sags with it, and the corners ride high at the sides. From the side it's steeply raked, with the upper lip jutting forward like a hood and the sides sweeping back to a lower lip half a metre further aft. The nose gear now sits just behind that lip, as on the real jet.
+- **Improved: Sun toned way down**
+  - The sun no longer feeds the bloom, which made the whole picture glow.
+  - Rays and lens flares are much fainter, stay close to the sun, and no longer shimmer or flicker.
+- **Improved: Less shake**
+  - Airframe buffet only starts close to the stall, not in any hard turn.
+  - It shakes the view about half as much. Film grain and sharpening are lighter too.
 
-## v4.54.1 — Viper, rebuilt (2026-10-06)
+## v4.57.0 (2026-10-07)
 
-- The F-16 has been rebuilt from nose to tail. A bug in how its cross-sections were built had left out the lower half of the radome and of the whole rear fuselage, which is why the jet looked hollow and scrambled. The body is now complete all the way round.
-- New nose: the radome is a full drooped ogive like the real one, with the underside running nearly straight back to the intake and the top climbing to the windscreen. Behind it, the forebody has the F-16's sharp side chines, which flow straight into the strakes, and it narrows below into a keel over the intake.
-- New rear: the speedbrake housings now sit either side of the nozzle, with a petal above and below each that opens like a clamshell. The fin-root "beaver tail" fairing runs back over the nozzle, and the stabilators are mounted just outboard of the housings, as on the real jet.
-- The cockpit sides are now flat right up to the canopy rails, so nothing from the cockpit pokes through the skin. The nose leg no longer has boxy doors sticking out below the intake.
+### Air Combat: Sun rays, buffet and real struts
 
-## v4.54.0 — Viper (2026-10-06)
+- **Improved: The jet game looks better**
+  - Visible sun rays through gaps in the clouds and past the canopy frame, with lens flares.
+  - A sharper picture with fine film grain and slight colour fringing at the corners. The edges streak at high speed.
+  - Missile smoke, contrails and wingtip vapour billow and break up instead of being flat ribbons.
+  - Sun rays, flares, grain and fringing are off on Low quality.
+- **Improved: Physics you can feel**
+  - Pull past your best turn, go transonic, or open the speedbrake or gear at speed, and the airframe buffets: the view shakes and you hear it rumble.
+  - Hold a jet past the stall with the G override and a wing lets go.
+  - Thrust-vectoring jets (Su-35S, F-22A) hold on far better.
+- **New: Real landing-gear struts**
+  - They squash on touchdown and rebound.
+  - The nose dips under braking, the jet leans in fast turns on the ground, and it jolts over runway joints.
+- **Improved: Clearer message if WebGL is blocked**
+  - The game says so, shows the browser's reason and suggests fixes, with a TRY AGAIN button.
+- **Fixed: Garbled symbols**
+  - Fixed in the shared version.
 
-- New jet: the F-16C Fighting Falcon, the Viper. A Block 50 with the General Electric F110-GE-129 (29,500 lb in afterburner), Mach 2, a 50,000 ft ceiling and a hard 9 G limit. It's small and light, flown by computer with relaxed stability, and it rolls faster than anything else here: 300 degrees a second.
-- The model is built to the real dimensions: 15 m long with the pitot, 9.96 m across the wingtip launchers, 4.88 m tall. The fuselage runs as one piece from the radome to the nozzle. The strakes curve forward from the cropped-delta wing into the cockpit sides, and the ventral intake's 'smile' sits under the cockpit with its splitter plate and the nose gear just behind the lip.
-- It has the frameless, gold-tinted bubble canopy over an ACES II seat tilted back 30 degrees, full-span leading-edge flaps and flaperons that droop when the gear comes down, all-moving stabilators with 10 degrees of anhedral, a tall fin, twin ventral fins, the split speedbrake petals beside the nozzle, and the wingtip launch rails.
-- There's also the M61A1 port in the left strake, the nose pitot and angle-of-attack probes, the IFF 'bird slicers' ahead of the windscreen, the refuelling door on the spine, nav lights on the intake sides and a tail hook. It wears USAF two-tone grey with panel lines, the RESCUE arrow, stencils, the national insignia on the intake trunk, a tail code and serial.
-- Inside: two colour MFDs either side of the up-front controls, standby instruments, the HUD on top of the glare shield and the side-stick on the right console. With no canopy bow, it has the best view out of any jet in the game.
-- Armament: the M61A1 Vulcan with 511 rounds, and nine stations carrying AIM-120D, AIM-9X, GBU-31 and GBU-32 JDAMs and 370-gallon tanks. Five loadouts: Combat Air Patrol, Max AAM, Strike, Dogfight and Long CAP. It has its own engine sound, RWR symbol, MFD pages, fuel tanks and an entry in the JET LIBRARY, and it flies in every combat mode, including as a wingman in the campaign.
+### Space Exploration: Starbase, wind and fire
 
-## v4.53.0 — Up close (2026-10-06)
+- **New: Starship's own pad: Pad 2**
+  - A full Starbase-sized launch complex at real scale, beside the Saturn V pad.
+  - A 146 m tower with its chopsticks, the orbital launch mount, and a steel-lined flame trench with a deflector and deluge pipes.
+  - A tank farm with 14 tall and 18 horizontal tanks, 16 floodlight masts, a launch-control bunker and the Mega Bay across the road.
+- **Improved: Enormous liftoffs**
+  - Fire blasts out of the flame trench, and a towering cloud of smoke and steam rolls out toward the sea.
+  - A ring of dust races across the apron, and the cloud glows orange from the engines.
+- **New: Wind on Mars**
+  - Layers of dust drift over the ground and race past as the ship comes down.
+  - Dust devils wander across the plains, and grit blows past in the gusts.
+  - How dusty it is changes from landing to landing.
+- **Improved: Real hills on Mars**
+  - Rolling hills up to about 800 m, ridges, mesas, knobs and craters.
+  - The ground reaches past the horizon, so the jagged skyline is gone.
+  - Fine detail fades with distance instead of shimmering.
+- **Improved: Smarter landing site**
+  - The autopilot picks the lowest, smoothest ground along your track, where the air is thickest.
+  - The guidance looks ahead at the terrain, so a rise under the ship no longer catches it out.
+- **Fixed: The trip to Mars**
+  - Map labels no longer stay on screen after you close the map.
+  - The solar system map labels the Sun, Earth, Mars, Starship and where Mars will be when you arrive.
+  - The camera looks back at Earth as you leave, and vacuum engine plumes are faint, as they really are.
+- **Improved: Clearer message if WebGL is blocked**
+  - The game says so, shows the browser's reason and suggests fixes, with a TRY AGAIN button.
+- **Fixed: Garbled symbols**
+  - Fixed in the shared version.
 
-- All nine jets look much more like the real thing up close. Bring the hangar camera right up to one and you'll see rows of flush rivets along the frames and stringers, screws round the access panels, a fine texture in the paint that breaks up the reflections, and paint worn back to grey primer along the leading edges and panel lines. From further away the jets stay as clean as before, with no shimmer.
-- Fixed the lighting on the left-hand side of every jet. Parts built as a mirror image of the right-hand side (the intakes on most jets, tail booms, conformal fuel tanks, tailplanes and control surfaces) were shaded as if they faced inwards, so on the left they looked almost black, in the hangar and in the air. Both sides now catch the light the same way.
-- Panel lines are cut deeper, so the seams catch the light the way they do on a real airframe.
-- Canopies are proper glass now. Look straight through one and it's almost clear, so you can see the pilot and the cockpit; towards the edges it turns to a mirror. The F-22 keeps its gold-tinted canopy, now with the same glassy edges.
-- In the hangar, light now bounces up off the floor onto the jet, so the belly and the undersides of the wings are no longer lost in shadow. The portraits in the JET LIBRARY get a little of the same light.
-- Everyone's jet is back in its factory paint for this update, so you can see the new detail as it really is. Your wrap or colour hasn't been lost: open the PAINT SHOP, pick WRAP or SOLID COLOUR, and the one you had comes straight back. Press APPLY to keep it. This happens only once.
+## v4.56.1 (2026-10-06)
 
-## v4.52.2 — No kill camera (2026-10-05)
+### Air Combat: Open Ocean fix
 
-- The kill camera is gone. When your missile hits, the view stays with your own jet at normal speed, and the KILL CAMERA option has been taken out of the settings.
+- **Fixed: Campaign crash on Open Ocean**
+  - Starting the campaign there with a mission saved from another theater crashed the game.
+  - Modes that need land (campaign, daily, recon, strike and the tutorial) now fall back to free flight on the ocean.
 
-## v4.52.1 — Twenty fixes (2026-10-05)
+### Space Exploration: The real Mars
 
-- Kill camera: pressing [F] to skip it now takes you back to the view you had. It used to drop you into the cockpit even if you were flying in the chase view. It also ends cleanly if you change the view any other way.
-- Campaign: a mission you've won stays won. If a last missile caught you during the closing radio calls, the result used to flip to MISSION FAILED.
-- Shepherd: the mission no longer counts as complete when only one Strike Eagle reaches the target. At least two have to get there, as the briefing says.
-- Campaign: after FLY IT AGAIN or a restart, the objective at the top of the screen no longer shows the previous attempt's goal, or a broken countdown, while the briefing is up.
-- Rearming on the ground keeps the weapon you had selected. After reloading a strike loadout you stay on bombs, instead of being switched to missiles and firing one by mistake.
-- Missions now run on game time, not real time. In a free-for-all, once you're out and watching, fast-forward [T] now speeds up the shrinking zone as well as the jets, and mission timers pause properly during the kill camera's slow motion.
-- The pause menu no longer offers RESTART MISSION in an online match, where it did nothing.
-- Flight School: RESTART MISSION during the lessons starts the lessons again. It used to skip straight to the checkride.
-- Campaign: when you come home to land, VIPER 1-2 now breaks off and circles high over the field. He used to try to hold formation next to you all the way down to the runway.
-- Night Hunter: GHOST no longer runs out of fuel on its long afterburner dash and falls into the sea on its own.
-- The LONG SHOT decoration now counts kills from beyond 30 NM with the MiG-31's R-37M. Its description and KNIFE FIGHT's now cover every jet's missiles, not just the AIM-120D and AIM-9X.
-- Airstrike briefing: it said to rearm with [K], which drops your fuel tanks. It now says [H].
-- The message you get pressing [I] in a jet without an infrared tracker now lists every jet that has one, the MiG-31 included, and so does the key's description in the controls list.
-- Free Flight: after a respawn on the runway you no longer get a "welcome to the field" landing message straight away, and the flight time on the results screen starts again from zero.
-- Campaign: an enemy patrol waiting to be woken now reacts when you fire at it or shoot one of its jets down. Before, you could pick it off from long range while it kept flying in circles.
-- Airstrike: the same fix for the patrol over the target. It turns on you when you shoot at it, not only once you get close.
-- Main menu: clicking CAMPAIGN again keeps the mission you picked from the list, instead of jumping back to the first mission you haven't finished.
-- Wave Combat: when the radar picture fades, the controller now gives the right direction to the bandits' last known position. It used to say "to the east" every time.
-- Main menu: coming back from a mission now refreshes everything at once, so new campaign stars, newly unlocked missions and the daily mission's DONE tag show without having to click around first.
-- Wave Combat: RESTART takes you back to the wave you chose to start on, and the button now says which wave that is. It always used to go back to wave 1.
+- **Improved: Mars from the real maps**
+  - Its colours come from the Viking orbiters' global mosaic (NASA/JPL/USGS), so every region, canyon, volcano and polar cap is where it really is.
+- **Fixed: Mars no longer looks flat beige**
+  - A haze bug hid 70% of the planet. The haze now only thickens at the edge of the disc.
+- **Improved: More detail from orbit**
+  - Mottled sand and dust, small hills and crater walls fade in as you get closer.
+  - The stars and the Sun now sit behind the planet instead of showing through it.
+- **Improved: Smoother ground**
+  - No more stair-steps: rolling hills, dune fields, and craters from 10 m to 2.6 km.
+  - Dark sand gathers in low ground and bright dust lies on the rises. The stripy pattern is gone.
+- **Improved: Better landing dust**
+  - A fine dust storm instead of round blobs, and the ignition flash no longer whites out the screen.
 
-## v4.52.0 — Wolf of the Strait (2026-10-05)
+## v4.56.0 (2026-10-06)
 
-- New: CAMPAIGN, a story in eight missions called Wolf of the Strait. It's at the top of the game modes. The RED coalition stops turning back at the line, and its ace, WOLF 1, leads them. Each mission unlocks the next one.
-- The eight missions: FIRST CONTACT, meet two fighters at the line. WOLF AT THE DOOR, scramble from the runway and stop four bombers before they reach your base. BLIND THEIR EYES, bomb the radar station that saw you coming. SHEPHERD, escort four Strike Eagles to the enemy airbase and watch it burn. NIGHT HUNTER, catch a MiG-31 running in high and fast on a pitch-black night. ANVIL, hit the well-defended command post. FULL SKY, lead six jets into an eight-ship battle. THE WHITE WOLF, meet WOLF 1 himself.
-- You fly with a wingman, VIPER 1-2, who holds formation until the fight starts and then fights on his own. The story plays out over the radio: your controller calls the bandits, the bomber leads call for help, and you hear WOLF 1 on the enemy channel, who learns your name and comes looking for you.
-- Every mission has three stars: one for completing it and two for flying it well (bring your wingman home, land back at base, take no damage, protect every bomber, and more). Stars you earn stay earned, the mission list shows them, and the total is on the CAMPAIGN button. Finish a mission and NEXT MISSION takes you straight to the following one.
-- The campaign sets the time of day for each mission, from dawn scrambles to a dusk showdown, and the night mission turns the sky pitch black for your night-vision goggles. The difficulty slider makes the enemy pilots sharper or softer. It plays on Triad Isles, Frostfall Strait and the Jade Archipelago with the place names of each, using any fighter.
-- New kill camera: when one of your missiles is about to hit, the view cuts to a slow-motion shot beside the target, the missile streaks in, the jet blows apart, and the game eases back to full speed. Press [F] to skip it. It never plays online or while a missile is chasing you, and you can turn it off under KILL CAMERA in the settings.
+### Space Exploration: Red planet, for real
 
-## v4.51.0 — Moonwalk (2026-10-05)
+- **Improved: Mars looks like the rover photos**
+  - Fine reddish-brown dust and sand in low ripples, strewn with basalt pebbles, rusty fragments and pale stones.
+  - The detail holds up from next to the ship out to the horizon without repeating.
+  - Steep slopes show darker rock, and boulders sit half-buried round the landing site.
+- **Improved: New lighting on Mars**
+  - The steel reflects the butterscotch sky, and shadows fill with the warm light of the dusty air.
+  - A bluish glow round the Sun spreads into the famous blue sunset.
+  - Night is truly dark.
+- **Improved: Richer colour from orbit**
+  - Butterscotch, as in the orbital photos, instead of washed-out cream.
+- **Improved: A dramatic entry**
+  - Glowing plasma hugs the belly, with a long pink-orange wake and embers torn off the flaps.
+  - The camera shakes with the heating, and the flaps visibly steer the fall.
+- **Improved: A dramatic landing**
+  - An ignition flash, then a low, wide camera as the Raptors blast out a ring of dust and grit.
+  - The legs take the weight, the nozzles glow and cool, and the camera circles the ship.
 
-- Walk on the Moon. A few seconds after touchdown the astronaut climbs down the ladder, and from then on you're in control. Move with W A S D, hold SHIFT to lope in the bouncing Apollo stride, and press SPACE to jump: in one-sixth gravity you crouch, spring and hang in the air for a long, slow arc before landing in a puff of dust.
-- Every step leaves a ridged bootprint in the regolith, and every footfall kicks up grains of dust that fly in clean arcs and drop straight back down, because there's no air to hold them.
-- Plant the flag: walk somewhere you like and press E. The astronaut lifts the pole, drives it into the ground twice, unfurls the flag along its top bar, steps back and salutes.
-- To finish, walk back to the ladder and press E. The astronaut climbs aboard, and the mission ends with a MISSION COMPLETE card showing your time outside, distance walked, jumps and highest jump.
-- Three spacesuits, each built in detail. The Apollo A7L, the white moonwalking suit with its gold sun visor, life-support backpack, chest control box and red and blue hose connectors. The Axiom AxEMU, black with orange and blue bands, under a clear bubble helmet with its light bar. The orange ACES pressure suit, with its white harness straps, white helmet with dark visor and black boots. Every suit has woven, creased fabric, and dust gathers from the knees down.
-- Pick your suit under SPACESUIT on the Launch Pad page, or press V during the moonwalk to change suits on the spot.
-- The shadowed side of the astronaut and the lander is now lit softly by sunlight bouncing back off the bright ground, as in the Apollo photos.
-- The moonwalk camera rises over crater rims and ridges by itself, so the ground never hides the astronaut.
+## v4.55.0 (2026-10-06)
 
-## v4.50.0 — To the Moon (2026-10-05)
+### Air Combat: F-16 intake
 
-- The Moon is here, at full size and at its real distance, circling Earth and turning to keep one face toward us. Its gravity pulls on everything nearby, and from orbit you see dark maria, pale highlands, craters on craters and the bright rays of young ones, with faint blue earthshine on the night side.
-- Fly to the Moon and land on it. In Earth orbit, press GO TO THE MOON and the autopilot flies the whole trip. It waits for the right moment, then fires the S-IVB to push you out of Earth orbit. Small correction burns trim the aim, three days of coasting follow, and a braking burn behind the Moon captures you into a 110 km lunar orbit. Then press LAND ON THE MOON. It's a one-way trip: the lander stays.
-- Transposition and docking, animated: the adapter's four panels swing open and tumble away, the command module backs off, turns round, comes back nose first and docks with the lunar module, then pulls it free of the S-IVB.
-- The lunar module, built in detail: the gold- and black-foil descent stage, the faceted crew cabin with its triangular windows, the docking tunnel, thruster quads, antennas, and four legs with footpads, contact probes and a ladder. Its legs swing out before it goes down.
-- The landing: the lander undocks, and the command module stays up in orbit. The computer picks a spot on the near side with the Sun low behind you. It lowers the orbit to 15 km, then flies the powered descent: braking along the path, pitching up through the high gate with the ground ahead, then a slow, almost vertical descent with the throttle easing back, dust blasting out across the ground, contact light, engine stop.
-- After touchdown the camera swings round to the sunlit side, an astronaut steps off the ladder, bounds out and plants the flag, and Earth hangs in the black sky.
-- The lunar surface up close looks like the Apollo photos: warm grey regolith full of small pits and grain, craters of every size, thousands of rocks and pebbles, and hard black shadows under a low Sun.
-- A new way to start: LUNAR ORBIT, with the command module docked to the lunar module 110 km above the Moon, ready to land. The pause and end screens let you jump between all three starts.
-- Pick your time warp: 1×, 2×, 10×, 100× or 500×, or AUTO, which races through long coasts (up to 10,000×) and slows down by itself for every burn, the docking and the landing.
-- New engine fire on every engine. Each plume now has a white-hot core and an outer flame, with turbulence streaming down it. The F-1s get shock diamonds in thick air and the dark curtain of their turbine exhaust near the nozzles, and their flames balloon as the air thins. The J-2s burn a pale blue. The service module's and lunar module's engines burn with a faint, translucent glow. There's a hot glow at every nozzle cluster.
-- Fixed the rainbow-coloured bands across Earth near the line between day and night: the atmosphere now fades smoothly into Earth's shadow.
-- Music: fixed the menu music being silent. It now plays through the game's own sound system. It also keeps playing, looping seamlessly, while you fly the Saturn V.
-- The ORBIT, FALLING and SAFE lamps, the orbit panel, the attitude ball and the map all work round the Moon too. On the way out, the map shows your predicted path to the Moon and the Moon's own orbit.
+- **Improved: F-16 intake**
+  - The lower lip is flatter across the middle and the corners sit lower, closer to the real jet.
 
-## v4.49.0 — Menu music (2026-10-05)
+### Space Exploration: Starship to Mars
 
-- Menu music: "High Up" now plays in the main menus of both games, Air Combat and Space Exploration. It's only in the menus: it fades out smoothly when a mission or flight starts and fades back in when you return.
-- It loops seamlessly: the end of the track crossfades into the start, so there's never a gap or a jump.
-- Turn it on or off with MUSIC ON/OFF at the bottom of the Air Combat menu, or the MUSIC button in the Space Exploration top bar (its little bars bounce while it plays). The choice is shared by both menus and remembered.
+- **New: Starship to Mars**
+  - Fly the whole trip, from the pad to the ground on Mars. Open MISSIONS, or click STARSHIP on the LAUNCH PAD page.
+  - The launch window is the real one: leave in early November 2026, arrive in September 2027.
+- **New: Super Heavy and Starship**
+  - A 72.3 m booster with 33 Raptor 3s and 8,240 tf of thrust, grid fins and a hot-staging ring.
+  - A 52.1 m ship with six Raptors, hexagonal heat-shield tiles, four flaps and six landing legs.
+- **New: The flight**
+  - 33 engines at liftoff, throttle back through max-Q, then hot staging and the booster's boostback burn.
+  - Tankers refuel the ship in a 200 km orbit over three weeks.
+  - The injection burn sends it on a seven-month coast, with course corrections.
+- **New: Mars**
+  - Real geography: Olympus Mons, Valles Marineris, Hellas, the polar caps and thousands of craters.
+  - Belly-first entry at over 5 km/s, a belly-flop on the flaps, then the flip and the landing burn.
+- **New: Autopilot, warp and map**
+  - SPACE runs the next step. Fast-forward drops back to real time for every event.
+  - Turn the autopilot off (T) to fly the landing yourself.
+  - The map (M) shows your orbit, and in deep space the Sun, the planets' orbits and your path.
+- **Improved: Exact time warp**
+  - Pick 500× and you get 500×. The Starship mission runs from 1× to 1,000,000×.
 
-## v4.48.0 — Easy rocket controls (2026-10-05)
+## v4.54.2 (2026-10-06)
 
-- Flying the Saturn V is much simpler now. The wall of switches is gone. In its place, one line tells you what's happening and what to do next, with a few big buttons for the things you can do right now.
-- On the pad there's just LAUNCH (SPACE). The autopilot counts down, lifts off, drops each stage as it burns out and flies you all the way to orbit. All you do is watch.
-- Once you're in orbit you get three goals, and the autopilot flies whichever you pick. GO HOME turns the rocket round, fires the braking burn, separates the capsule, and lets the heat shield and parachutes bring you down to a splashdown. GO HIGHER climbs to a bigger orbit in two burns, a step at a time from 400 km up to geostationary height. LEAVE EARTH burns outward until you break free of Earth's pull. Each button says beforehand whether you have the fuel: GO HIGHER only offers a climb you can come back from, and LEAVE EARTH tells you how far you'd get if you can't break free.
-- New FAST FORWARD button (F): it speeds through the waiting and slows down by itself for every burn, staging and re-entry, so nothing gets skipped. On the way home the capsule now speeds down under its parachutes too.
-- STOP AUTOPILOT or a touch of W A S D hands you the controls at any time. During the climb an ABORT button appears in case you need to save the crew.
-- Want every switch of the real rocket? Press PRO (P) for the full panel with staging, engine restarts, attitude modes and time warp. Press EASY to go back. Your choice is remembered.
-- Fixes: the countdown no longer logs "Ignition sequence start" twice, and the rocket holds its attitude steadily at high time warp.
+### Air Combat: The Viper's smile
 
-## v4.47.0 — Fly the Saturn V (2026-10-04)
+- **Improved: F-16 intake shape**
+  - Head on: a wide crescent "smile", deepest in the middle with the corners riding high.
+  - From the side: steeply raked, with the upper lip jutting forward like a hood.
+  - The nose gear sits just behind the lip, as on the real jet.
 
-- The Saturn V flies. Press LAUNCH on the Launch Pad page (or FLY on the Orbital Flight mission) and choose where to start: on Pad 1 with the count holding at T-20 seconds, or already in a 185 km parking orbit with the S-IVB and the Apollo spacecraft.
-- From the pad, press SPACE to resume the count. The five F-1s light in sequence at T-8.9 s, the hold-down arms let go at zero, the swing arms pull back, and the rocket climbs out of a cloud of steam and smoke lit orange by the fire, and the roar changes as the air thins.
-- Every stage is a real stage. The S-IC burns out and drops away, the S-II's interstage and the escape tower are jettisoned, the S-II's centre engine shuts down early to stop pogo, and the S-IVB burns to orbit. Each spent stage tumbles away on its own path and falls back into the atmosphere. Auto-staging (T) drops stages as they burn out, or you can turn it off and stage yourself with SPACE.
-- The physics run at full scale: a real-size Earth spinning under you, gravity that weakens with height, a standard atmosphere, F-1 thrust that grows as the air thins, propellant burned engine by engine, drag, and aerodynamic loads. The rocket steers by gimballing its engines, so it turns slowly and heavily. Turn too hard through max Q and the aero load breaks it apart.
-- The Instrument Unit can fly the ascent for you (G): straight up off the pad, a pitch-over, a gravity turn, then a closed-loop climb into a 185 km parking orbit, with S-IVB cutoff when the orbit is reached. Take over at any time with W/S to pitch, A/D to yaw and Q/E to roll, or hand the attitude to the stability system: hold, prograde, retrograde, normal, anti-normal, radial out or radial in (keys 1 to 8, 0 for free).
-- The S-IVB can restart its J-2 twice in orbit (Z), with ullage motors settling the propellant first. X cuts the engines. Burn retrograde to bring your periapsis down into the atmosphere, then separate the command module (J twice) for the ride home.
-- A new flight UI built for spaceflight. A mission clock and a status badge sit at the top with three lamps: ORBIT when the orbit clears the atmosphere, FALLING when you're coming down, and SAFE when you're on an escape path, free of Earth's pull. The vehicle panel shows what's left of the stack, each engine's state, propellant, mass, thrust-to-weight, Δv and burn time. The orbit panel draws your orbit and lists apoapsis, periapsis, time to each, inclination, period and eccentricity, and what you're flying over. The attitude ball in the middle shows prograde, retrograde, normal and radial markers, with altitude, vertical speed, g, orbital and surface speed, and Mach on either side. Below that are dynamic pressure and aero load bars, and there's a flight log of every event.
-- Map view (M) pulls back to show the whole Earth and your predicted path. The line is green for a stable orbit, amber when it dips into the air, orange-red inside the atmosphere and blue on an escape path, with apoapsis and periapsis markers, an IMPACT marker where a falling path meets the ground, and a dashed line where the orbit passes behind the planet.
-- The universe: the Earth is drawn at full size with continents, deserts, forests, ice caps, oceans that catch the sunlight and city lights on the night side, under a drifting cloud deck. A real scattering atmosphere paints the blue limb, the sky as you climb, and sunrise along the terminator. In orbit the stars and the Milky Way come out, and they shine brightest when you pass into Earth's shadow.
-- Three cameras (C): a chase camera you can drag around and zoom (it closes in as stages fall away), a long-lens tracking camera on the causeway, and an onboard camera looking down past the stages at the plume and the Earth. The F-1 plume is long and narrow at sea level and balloons into a huge glowing cloud as the air thins. The J-2s burn an almost invisible pale blue.
-- Time warp up to 10,000× (comma and period) while coasting. Under power or in the atmosphere it's limited to 4×.
-- Abort (B twice) fires the launch escape tower on the pad or during ascent, pitches the command module out over the sea and jettisons the tower. Coming home, the command module glows with re-entry plasma, the drogues open, then the three striped main chutes, and it splashes down. Each flight ends with a card showing your max altitude, speed, g, max Q and time in space. Launches, missions and days in space count toward your commander record.
-- Press ESC to pause, restart, or switch to the other starting point, and H for the full controls list.
+## v4.54.1 (2026-10-06)
 
-## v4.46.0 — The Saturn V (2026-10-04)
+### Air Combat: Viper, rebuilt
 
-- The Saturn V is on the pad. It's built at full scale, 110.6 m from the F-1 engines to the tip of the escape tower, stage by stage: the S-IC first stage with its five F-1s, four fins and engine fairings; the S-II on its interstage with the ullage motors; the S-IVB above its conical adapter; the Instrument Unit ring; then the Apollo spacecraft with the lunar module adapter, the service module with its thruster quads, the command module under its boost cover, and the orange launch escape tower.
-- It wears the Apollo paint scheme: white with the black-and-white roll pattern on the first stage, intertank, interstages and third stage, "USA" down the first stage, "UNITED STATES" and the flag, ribbed skirts and intertanks, and a little weathering.
-- The pad is ready for it. Four hold-down arms carry the rocket on the launch mount, the tower is now the red-orange of the real umbilical towers with a hammerhead crane on top, every swing arm reaches across to the rocket's skin, and the crew access arm ends in the white room at the command module hatch. Two searchlights light the vehicle, and liquid oxygen vapour drifts off its vents.
-- The Launch Pad page shows the Saturn V's figures: height, diameter, liftoff mass and thrust, payload to low orbit and to the Moon, and a card for each stage (engines, propellants, thrust, length, fuelled mass and burn time) plus the Instrument Unit's guidance computer.
+- **Fixed: F-16 rebuilt from nose to tail**
+  - A bug had left out the lower half of the radome and the rear fuselage, so the jet looked hollow. The body is now complete.
+- **Improved: New nose**
+  - A full drooped radome, and sharp side chines that flow into the strakes.
+- **Improved: New rear**
+  - Speedbrake housings either side of the nozzle with clamshell petals, the "beaver tail" fairing, and the stabilators in the right place.
+- **Fixed: Cockpit sides and nose gear**
+  - Nothing pokes through the skin by the canopy, and the boxy nose-gear doors are gone.
 
-## v4.45.1 — Inverted vertical look in the space menu (2026-10-04)
+## v4.54.0 (2026-10-06)
 
-- Space menu: dragging up and down to look around is now inverted. Left and right work the same as before.
+### Air Combat: Viper
 
-## v4.45.0 — A living launch site and a real shoreline (2026-10-04)
+- **New: F-16C Fighting Falcon**
+  - A Block 50 with the F110-GE-129: 29,500 lb in afterburner, Mach 2, a 50,000 ft ceiling and a hard 9 G limit.
+  - Small, light and flown by computer. It rolls faster than anything else here: 300 degrees a second.
+- **New: Built to the real dimensions**
+  - 15 m long, 9.96 m across the wingtip launchers, 4.88 m tall.
+  - Frameless gold-tinted bubble canopy, an ACES II seat tilted back 30 degrees, the ventral intake, twin ventral fins and split speedbrakes.
+  - USAF two-tone grey with panel lines, stencils, insignia and a tail code.
+- **New: Cockpit**
+  - Two colour MFDs, the HUD, and the side-stick on the right console.
+  - With no canopy bow, it has the best view out of any jet in the game.
+- **New: Weapons**
+  - The M61A1 Vulcan with 511 rounds, and nine stations for AIM-120D, AIM-9X, GBU-31 and GBU-32 JDAMs and tanks.
+  - Five loadouts: Combat Air Patrol, Max AAM, Strike, Dogfight and Long CAP.
+  - Its own engine sound, RWR symbol, MFD pages and Jet Library entry. It flies in every mode, including as a campaign wingman.
 
-- Every car around the launch site is rebuilt with a real shape: sedans, hatchbacks, SUVs, pickups and vans with curved bodies, glass, glossy clear-coated paint, wheels with silver hubs, and head and tail lights. They park in painted bays in a car park and along the road, and traffic now drives up and down the coast road with its headlights on.
-- The crawler crane is rebuilt: tracks with shoe plates, a machinery house with louvres, an operator's cab with windows, a stacked counterweight and an A-frame gantry. Its lattice boom now tapers at both ends and is braced on all four sides, with pendant lines and hoist ropes down to a hook block. The small crane is now a real truck crane, with a telescopic boom, ten wheels and outriggers.
-- The site buildings have rows of windows (a few still lit), parapets, rooftop air handlers with fans, vent stacks, roll-up bay doors, entrance canopies with lamps, and outside stairs.
-- Lots of new things around the pad: fuel tankers at the tank farm, box trucks, a shuttle bus, three tracking dishes and a radome, stacks of shipping containers, and concrete barriers. There's also a gatehouse with a boom barrier on a new access road, street lights, two mobile lighting towers on the pad, a windsock, a half-buried concrete blockhouse, a pipe rack from the tank farm to the pad, and sand fences along the dunes.
-- The beach meets the sea properly now. The water is glass-clear over the sand at the edge, turquoise in the shallows and deep blue-green further out. Lines of breakers roll in with lacy foam behind each crest, a sheet of water washes up the sand and slides back, and the sand is dark and glossy where the waves have been.
+## v4.53.0 (2026-10-06)
 
-## v4.44.0 — A sunrise launch site and a new space menu (2026-10-04)
+### Air Combat: Up close
 
-- Space Exploration has a brand-new menu built like mission control. A glass top bar holds the program switch, three tabs with a sliding highlight, a live UTC clock and your commander badge. Panels slide in one after another when the menu opens, the big title types itself out letter by letter, the launch button sits in a slowly turning ring with status lights beside it, and switching tabs replays the animations. The menu is lighter too, so the view behind it shows through.
-- The launch site is rebuilt from the ground up as a sunrise over the sea. The sun sits right on the horizon behind the pad, gold at its heart, with rays fanning up through a deck of broken cloud. The clouds glow at their edges near the sun and turn rose and lilac further round. The sky fades from orange at the horizon to blue overhead.
-- New sea: waves drift in several directions at once, the sun throws a glittering path across the water toward you, and surf rolls in and breaks on the beach. The water is clear and sandy in the shallows and deep blue-green further out.
-- The land now runs all the way to the horizon instead of stopping after half a mile. Past the beach and dunes come scrub flats dotted with thousands of bushes and grass clumps, then hills and far mountains inland. A long, hazy shore closes the far side of the bay, with an island off to the right and ships out on the water. Distant land fades into golden haze toward the sun and lilac haze away from it.
-- The pad itself: a raised concrete hardstand with a sooted flame trench, an access ramp and scorched sand where the trench vents. Two lightning masts stand taller than the 145 m tower, which now has catwalks, an elevator and swing arms. A water tower stands beside the pad, two big propellant spheres join the tank farm, and the sheds are corrugated metal. Further inland you can see a vehicle assembly hall and a town. Gulls wheel over the pad.
-- Lighting is warm, low sunrise light with long shadows and soft skylight in the shade.
+- **Improved: Detail up close**
+  - Bring the hangar camera close: flush rivets, screws round the panels, textured paint and worn edges showing primer.
+  - From further away the jets stay clean, with no shimmer.
+- **Fixed: Dark left sides**
+  - Mirrored parts were shaded as if they faced inwards, so the left side looked almost black. Both sides now catch the light the same.
+- **Improved: Deeper panel lines**
+  - The seams catch the light like a real airframe.
+- **Improved: Real canopy glass**
+  - Clear straight on, so you can see the pilot, and a mirror towards the edges. The F-22 keeps its gold tint.
+- **Improved: Hangar lighting**
+  - Light bounces off the floor onto the belly and under the wings. Jet Library portraits get it too.
+- **Factory paint for this update**
+  - Every jet went back to factory paint once, to show the new detail.
+  - Your wrap or colour isn't lost: open the PAINT SHOP, pick it again and press APPLY.
 
-## v4.43.0 — Space Exploration (2026-10-04)
+## v4.52.2 (2026-10-05)
 
-- New: SPACE EXPLORATION. Click the arrow next to TRIAD at the top left of the menu to switch between TRIAD (air combat) and Space Exploration. The space program has its own blue, black and white menu: Missions, Launch Pad and Destinations, plus a commander card with its own record.
-- Your air-combat game is kept exactly as you left it. Switch back to TRIAD and your jet, its paint, your logbook and the hangar are all there. The game also remembers which program you were last in.
-- The space menu opens over a coastal launch site on a clear morning. A 145 m launch tower and an empty launch mount wait for the first rocket, with a tank farm, a crawler crane, sand flats, tidal channels and the sea beyond. Drag to look around, scroll to zoom, double-click to reset.
-- Coming next: the Saturn V on the pad, then missions to orbit, the Moon and Mars, and rovers to drive there.
+### Air Combat: No kill camera
 
-## v4.42.1 — SR-71 slimmed down (2026-10-04)
+- **Kill camera removed**
+  - When your missile hits, the view stays with your jet at normal speed. The setting is gone too.
+
+## v4.52.1 (2026-10-05)
+
+### Air Combat: Twenty fixes
+
+- **Fixed: Campaign**
+  - A mission you've won stays won, even if a last missile hits you during the closing radio calls.
+  - SHEPHERD needs at least two Strike Eagles to reach the target, as the briefing says.
+  - After FLY IT AGAIN or a restart, the objective no longer shows the last attempt's goal.
+  - Coming home, VIPER 1-2 circles high over the field instead of flying formation down to the runway.
+  - NIGHT HUNTER: GHOST no longer runs out of fuel and falls into the sea.
+  - Enemy patrols waiting to be woken now react when you shoot at them.
+  - Clicking CAMPAIGN again keeps the mission you picked.
+- **Fixed: Kill camera**
+  - Skipping it with [F] takes you back to the view you had, and it ends cleanly if you change view.
+- **Fixed: Missions and modes**
+  - Missions run on game time: fast-forward in a free-for-all speeds up the zone too, and timers pause in slow motion.
+  - Flight School: RESTART MISSION restarts the lessons instead of skipping to the checkride.
+  - Airstrike: the patrol over the target turns on you when you shoot at it, and the briefing says to rearm with [H], not [K].
+  - Wave Combat: the controller gives the right direction to the bandits, and RESTART goes back to the wave you chose.
+  - Free Flight: no "welcome to the field" message straight after a respawn, and the flight time starts again from zero.
+  - The pause menu no longer offers RESTART MISSION online.
+- **Fixed: Weapons and messages**
+  - Rearming on the ground keeps your selected weapon, so you stay on bombs after reloading a strike loadout.
+  - LONG SHOT counts kills beyond 30 NM with the R-37M, and LONG SHOT and KNIFE FIGHT cover every jet's missiles.
+  - The [I] message lists every jet with an infrared tracker, the MiG-31 included.
+- **Fixed: Main menu**
+  - Coming back from a mission refreshes everything at once: campaign stars, unlocked missions and the daily mission's DONE tag.
+
+## v4.52.0 (2026-10-05)
+
+### Air Combat: Wolf of the Strait
+
+- **New: CAMPAIGN: Wolf of the Strait**
+  - A story in eight missions, at the top of the game modes. Each one unlocks the next.
+  - RED stops turning back at the line, led by its ace, WOLF 1.
+- **New: Eight missions**
+  - FIRST CONTACT, WOLF AT THE DOOR, BLIND THEIR EYES and SHEPHERD.
+  - NIGHT HUNTER, ANVIL, FULL SKY and THE WHITE WOLF.
+  - Intercepts, bomber defence, strikes, an escort, a night hunt and a duel with WOLF 1.
+- **New: A wingman and a story**
+  - VIPER 1-2 holds formation, then fights on his own.
+  - The story plays out over the radio. WOLF 1 learns your name and comes looking for you.
+- **New: Three stars per mission**
+  - One for completing it, two for flying it well: bring your wingman home, land at base, take no damage and more.
+  - NEXT MISSION takes you straight to the following one.
+- **Improved: Every mission feels different**
+  - From dawn scrambles to a dusk showdown, and a pitch-black night for your goggles.
+  - Plays on Triad Isles, Frostfall Strait and the Jade Archipelago, with any fighter.
+- **New: Kill camera**
+  - A slow-motion shot as your missile hits. Press [F] to skip. It never plays online.
+
+## v4.51.0 (2026-10-05)
+
+### Space Exploration: Moonwalk
+
+- **New: Walk on the Moon**
+  - After touchdown the astronaut climbs down and you take over: W A S D to move, SHIFT for the Apollo lope, SPACE to jump.
+  - In one-sixth gravity you hang in the air in a long, slow arc and land in a puff of dust.
+  - Every step leaves a bootprint, and dust flies in clean arcs with no air to hold it.
+- **New: Plant the flag**
+  - Press E: the astronaut drives the pole in, unfurls the flag and salutes.
+- **New: Mission complete**
+  - Walk back to the ladder and press E. A card shows your time outside, distance walked, jumps and highest jump.
+- **New: Three spacesuits**
+  - The Apollo A7L with its gold visor, the black Axiom AxEMU with a bubble helmet, and the orange ACES suit.
+  - Pick one under SPACESUIT on the Launch Pad page, or press V during the moonwalk.
+- **Improved: Lighting and camera**
+  - Sunlight bounces off the bright ground into the shadows, as in the Apollo photos.
+  - The camera rises over crater rims so the ground never hides the astronaut.
+
+## v4.50.0 (2026-10-05)
+
+### Air Combat: Menu music fix
+
+- **Fixed: Menu music**
+  - It had gone silent. It plays again.
+
+### Space Exploration: To the Moon
+
+- **New: The Moon**
+  - Full size, at its real distance, with its own gravity.
+  - Dark maria, pale highlands, rayed craters and faint earthshine on the night side.
+- **New: Fly to the Moon**
+  - In Earth orbit, press GO TO THE MOON and the autopilot flies the whole trip.
+  - The S-IVB pushes you out of Earth orbit, then three days of coasting and a braking burn into a 110 km lunar orbit.
+- **New: Transposition and docking**
+  - The adapter panels open, the command module turns round and docks with the lunar module, then pulls it free.
+- **New: Land on the Moon**
+  - The lunar module, built in detail, undocks and flies the powered descent to a near-side landing.
+  - Dust blasts out, contact light, engine stop. Then an astronaut plants the flag with Earth in the sky.
+  - It's a one-way trip: the lander stays.
+- **New: New start: LUNAR ORBIT**
+  - Docked 110 km above the Moon, ready to land.
+- **Improved: Pick your time warp**
+  - 1× to 500×, or AUTO, which races through coasts and slows down for every burn, the docking and the landing.
+- **Improved: New engine fire**
+  - White-hot cores with turbulence, shock diamonds on the F-1s in thick air, and pale blue J-2s.
+- **Improved: The Moon up close**
+  - Warm grey regolith, craters of every size, thousands of rocks and hard black shadows.
+- **Fixed: Fixes**
+  - No more rainbow bands across Earth at the line between day and night.
+  - Menu music plays again, and keeps playing while you fly.
+  - The lamps, orbit panel, attitude ball and map all work round the Moon.
+
+## v4.49.0 (2026-10-05)
+
+### Air Combat: Menu music
+
+- **New: Menu music**
+  - "High Up" plays in the menu. It fades out when a flight starts and back in when you return.
+  - It loops seamlessly, with no gap or jump.
+  - Turn it on or off with MUSIC ON/OFF at the bottom of the menu.
+
+### Space Exploration: Menu music
+
+- **New: Menu music**
+  - "High Up" plays in the menu. It fades out when a flight starts and back in when you return.
+  - It loops seamlessly, with no gap or jump.
+  - Turn it on or off with the MUSIC button in the top bar. Its little bars bounce while it plays.
+
+## v4.48.0 (2026-10-05)
+
+### Space Exploration: Easy rocket controls
+
+- **Improved: Much simpler Saturn V controls**
+  - One line says what's happening and what to do next, with a few big buttons.
+- **New: One-button launch**
+  - Press LAUNCH (SPACE) and the autopilot flies you all the way to orbit.
+- **New: Three goals in orbit**
+  - GO HOME: the braking burn, re-entry, parachutes and splashdown.
+  - GO HIGHER: climb a step at a time from 400 km up to geostationary height.
+  - LEAVE EARTH: burn until you break free. Each button tells you first whether you have the fuel.
+- **New: FAST FORWARD (F)**
+  - Speeds through the waiting and slows down for every burn, staging and re-entry.
+- **New: Take over any time**
+  - STOP AUTOPILOT or W A S D hands you the controls, and ABORT appears during the climb.
+  - PRO (P) brings back the full panel of switches. EASY goes back.
+- **Fixed: Fixes**
+  - The countdown no longer says "Ignition sequence start" twice, and the rocket holds steady at high warp.
+
+## v4.47.0 (2026-10-04)
+
+### Space Exploration: Fly the Saturn V
+
+- **New: The Saturn V flies**
+  - Press LAUNCH and start on Pad 1 at T-20 s, or already in a 185 km parking orbit.
+  - The five F-1s light in sequence, the hold-down arms let go, and the rocket climbs out of steam and smoke.
+- **New: Real stages**
+  - Each stage drops away and tumbles back into the atmosphere.
+  - Auto-staging (T), or stage yourself with SPACE.
+- **New: Full-scale physics**
+  - A real-size spinning Earth, real gravity and atmosphere, and steering by gimballed engines.
+  - Turn too hard through max Q and the rocket breaks apart.
+- **New: Autopilot and control**
+  - The Instrument Unit can fly the ascent to orbit (G).
+  - Fly it yourself with W/S, A/D and Q/E, or hold prograde, retrograde and more (keys 1 to 8).
+  - Restart the S-IVB in orbit (Z), and separate the command module (J twice) to come home.
+- **New: A spaceflight UI**
+  - A mission clock with ORBIT, FALLING and SAFE lamps.
+  - Vehicle, orbit and attitude panels, load bars and a flight log.
+  - Map view (M) with your predicted path, coloured by the kind of orbit.
+- **New: Earth and sky**
+  - A full-size Earth with oceans, city lights and clouds under a real scattering atmosphere.
+  - The stars and the Milky Way come out in orbit.
+- **New: Cameras, warp and abort**
+  - Three cameras (C): chase, long-lens tracking and onboard.
+  - Time warp up to 10,000× when coasting.
+  - Abort (B twice) fires the escape tower. Coming home: re-entry glow, drogues, three main chutes and splashdown.
+  - Each flight ends with a stats card and counts toward your commander record.
+
+## v4.46.0 (2026-10-04)
+
+### Space Exploration: The Saturn V
+
+- **New: The Saturn V on the pad**
+  - Full scale: 110.6 m from the F-1s to the escape tower, built stage by stage.
+  - The Apollo paint scheme, with its black-and-white roll pattern and "USA" down the first stage.
+- **Improved: The pad is ready**
+  - Four hold-down arms, a red-orange tower with a hammerhead crane, swing arms, and the white room at the hatch.
+  - Searchlights light the rocket, and oxygen vapour drifts off its vents.
+- **New: Saturn V figures**
+  - The Launch Pad page shows its height, mass, thrust and payload, and a card for each stage.
+
+## v4.45.1 (2026-10-04)
+
+### Space Exploration: Inverted vertical look
+
+- **Improved: Inverted vertical look**
+  - Dragging up and down in the space menu is now inverted. Left and right work as before.
+
+## v4.45.0 (2026-10-04)
+
+### Space Exploration: A living launch site and a real shoreline
+
+- **Improved: Real cars and traffic**
+  - Sedans, SUVs, pickups and vans with glossy paint and lights, parked in painted bays.
+  - Traffic drives the coast road with its headlights on.
+- **Improved: Rebuilt cranes**
+  - A detailed crawler crane with a braced lattice boom, and a real truck crane.
+- **Improved: Detailed buildings**
+  - Rows of windows (a few lit), rooftop air handlers, roll-up doors and outside stairs.
+- **New: Lots more round the pad**
+  - Fuel tankers, trucks, a shuttle bus, tracking dishes, containers, a gatehouse, street lights and a windsock.
+- **Improved: The beach meets the sea**
+  - Glass-clear at the edge, turquoise in the shallows, with breakers, foam and wet sand.
+
+## v4.44.0 (2026-10-04)
+
+### Space Exploration: A sunrise launch site and a new space menu
+
+- **New: A mission-control menu**
+  - A glass top bar with three tabs, a live UTC clock and your commander badge.
+  - Panels slide in, and the launch button sits in a slowly turning ring.
+- **Improved: Sunrise over the sea**
+  - The sun sits on the horizon behind the pad, with rays through broken cloud.
+  - Warm, low light with long shadows.
+- **Improved: A new sea**
+  - Waves from several directions, a glittering path to the sun, and surf on the beach.
+- **Improved: Land to the horizon**
+  - Scrub flats, hills and far mountains, an island, and ships out on the water.
+- **Improved: The pad**
+  - A raised hardstand with a flame trench, lightning masts, a water tower and propellant spheres. Gulls wheel overhead.
+
+## v4.43.0 (2026-10-04)
+
+### Air Combat: Space Exploration
+
+- **New: Space Exploration**
+  - A second program in the game: click the arrow next to TRIAD at the top left of the menu to switch.
+  - Your jet, paint, logbook and hangar stay exactly as you left them, and the game remembers which program you were in.
+
+### Space Exploration: Space Exploration
+
+- **New: Space Exploration**
+  - Switch to it with the arrow next to TRIAD at the top left of the menu.
+  - Its own menu, with Missions, Launch Pad and Destinations, and a commander card with its own record.
+- **New: A coastal launch site**
+  - A 145 m tower and a launch mount, a tank farm, a crawler crane, and the sea beyond.
+  - Drag to look round, scroll to zoom, double-click to reset.
+
+## v4.42.1 (2026-10-04)
+
+### Air Combat: SR-71 slimmed down
 
 - SR-71 reshaped to match the real three-view: no more wedge. The forebody is now long and slim, with the nose tapering over its first six metres before the body and chines run parallel back to the wing. The inner wing starts much further aft, and the outer wing panels are smaller and set back behind the nacelles, so the Blackbird has its long, thin, elongated look.
 
-## v4.42.0 — F-22 underside and SR-71 front end (2026-10-04)
+## v4.42.0 (2026-10-04)
+
+### Air Combat: F-22 underside and SR-71 front end
 
 - F-22 underside redone after photos of the real jet, keeping the working weapons-bay doors. The belly is now a neutral metallic grey with a patchwork of radar-absorbent panels in slightly different shades. You can see the big boxy intake-duct panels down each side, sawtooth edges on the bay doors, the small black diamond vents by the engines, lighter heat-resistant panels over the engine bays, flaperon breaks on the wings, and fluid streaks running aft.
 - SR-71 front half reshaped: the nose and forward fuselage are fuller and deeper like the real Blackbird, and the canopy sits on top as dark smoked glass instead of a see-through bubble. There is now a radome band near the nose.
 - SR-71 paint: a deeper iron-ball black, with bolder red trim outlining the walkways on the wings and fuselage. A new red border runs along the chines up to the cockpit.
 
-## v4.41.3 — F-22 matched to the real jet (2026-10-04)
+## v4.41.3 (2026-10-04)
+
+### Air Combat: F-22 matched to the real jet
 
 - F-22 rebuilt from a top-down photo of the real jet. The wing is now the true clipped diamond: a steep leading edge from the intake shoulders, a cut-off tip, and a near-straight trailing edge. The tailplanes have the real kinked trailing edge (swept forward outboard, notched back beside the nozzles) and a squared-off tip.
 - F-22 upper body: the canopy sits further forward and is a little shorter, like the real jet's.
 - F-22 colours: a warmer two-tone grey with darker patches, and the pale edge strips that frame the real Raptor's wings and tailplanes.
 
-## v4.41.2 — F-22 reshaped (2026-10-04)
+## v4.41.2 (2026-10-04)
+
+### Air Combat: F-22 reshaped
 
 - F-22 reshaped to match the real Raptor. The tailplanes are now the big clipped diamonds that reach well past the nozzles, with the trailing edge swept forward like the wing. The fins are shorter and broader, with the real 23-degree leading edge and forward-swept trailing edge. The wing sits a metre further forward so it grows out of the intakes.
 - F-22 colours: the paint is now the real two-tone medium grey with a faint sheen instead of near-white, and the canopy is a dark smoky gold instead of bright yellow.
 
-## v4.41.1 — Contrail fix (2026-10-04)
+## v4.41.1 (2026-10-04)
+
+### Air Combat: Contrail fix
 
 - Contrails no longer show as a hard, glitchy straight line behind the jet. Every jet's trail now builds up softly a little way behind the engines. It fades out when you look straight down its length instead of collapsing into a thin stripe, and it follows the curve of the Earth up high.
 - Contrails only form in the altitude band where they really do (about 27,000 to 56,000 ft). There are none in the thin air near space.
 
-## v4.41.0 — X-15 rebuilt, and a high-speed dive fix (2026-10-03)
+## v4.41.0 (2026-10-03)
+
+### Air Combat: X-15 rebuilt, and a high-speed dive fix
 
 - Fixed jets breaking apart in a fast dive into thicker, lower air. The overspeed drag that holds every jet to its top speed could brake so violently that it counted as a fatal over-G. It now slows you hard but safely, and only real G on the wings can overstress the airframe.
 - X-15: the drop tanks are back, now in the jet's own black with a bare-metal nose and a thin yellow band. Full power lasts about 10 minutes with the tanks (about 5 without), and the tanks fall away when they run dry.
@@ -260,11 +581,15 @@ in the game under **WHAT'S NEW** on the main menu.
 - X-15 rocket plume: no more long thin laser beam. The exhaust is short and bright, and spreads out wide as the air thins with height.
 - X-15 cockpit: 1960s round dials in place of modern screens. An attitude ball sits in the middle, with Mach, altitude, angle of attack, climb rate, heading, G, chamber pressure and propellant around it. The head-up display is gone (the X-15 never had one), and the canopy frames are no longer in your line of sight. The weapons bar is hidden too, since it carries no weapons.
 
-## v4.40.1 — X-15 flies clean (2026-10-03)
+## v4.40.1 (2026-10-03)
+
+### Air Combat: X-15 flies clean
 
 - The X-15 now flies clean, like the real one in its NASA colours: the two big red and white drop tanks are gone. It still reaches about 354,000 ft, and climbing to 100,000 ft and levelling off with the rocket burning takes it past Mach 6.
 
-## v4.40.0 — X-15: to the edge of space (2026-10-03)
+## v4.40.0 (2026-10-03)
+
+### Air Combat: X-15: to the edge of space
 
 - New jet: the North American X-15, the rocket plane that flew to the edge of space. It is dropped from under a B-52 at 45,000 ft with the engine off. Throttle up to light the XLR99 rocket (57,000 lb of thrust, about 80 seconds of propellant), pull up to about 42 degrees and hold it: it burns out near 175,000 ft at Mach 5.5 and coasts up to about 354,000 ft, the real record. Climb steeper and it goes higher still.
 - X-15A-2 speed run: take the two drop tanks for about another minute of burn, level off near 100,000 ft and it reaches Mach 6.7, the fastest a winged aircraft has ever been flown. The tanks drop away on their own when they run dry.
@@ -272,32 +597,42 @@ in the game under **WHAT'S NEW** on the main menu.
 - The edge of space: climb high and the Earth curves away below you, the sky turns black and fills with stars, and a thin bright band of blue air hugs the horizon. The haze thins out as you climb, and high cirrus fades away below you.
 - Detailed X-15 model in black Inconel with the NASA tail band, its own cockpit, engine and propellant pages, and an entry in the aircraft library. It flies in free flight only.
 
-## v4.39.3 — MiG-31 landings and auto-land fixes (2026-10-03)
+## v4.39.3 (2026-10-03)
+
+### Air Combat: MiG-31 landings and auto-land fixes
 
 - MiG-31 landings fixed: the Foxhound could not fly slowly enough to land, so it came in at about 250 knots, far faster than the real jet. It now has its landing flaps: with the gear down at low speed they add the lift it needs, and it lands at about 175 to 185 knots. It flies exactly as before with the gear up. On auto-land it now catches a carrier wire on the first pass and lands softly on a runway.
 - Auto-land: a fast-sinking heavy jet now starts its flare higher above the runway, so it has room to round out.
 - Auto-land: when it circles back to set up an approach again, it no longer flies into rising ground. If high ground comes up close ahead of where the jet is really heading, it rolls the wings level and climbs on full power first.
 - Multiplayer screen: after a disconnect it could show the SR-71 as your jet. Online you always fly a fighter, and the screen now says so.
 
-## v4.39.2 — Bug fixes (2026-10-03)
+## v4.39.2 (2026-10-03)
+
+### Air Combat: Bug fixes
 
 - Fixed: long fights slowly used up more and more graphics memory. The burning wreckage from every jet shot down in the air, and every ejected pilot's seat and parachute, was taken out of the world after it landed but never freed, so a long free-for-all or online session kept piling it up. It is now all cleaned up properly.
 - Fixed: night-vision goggles stayed switched on after a mission, so your next flight (even in broad daylight) started in a washed-out green picture. Every sortie now starts with the goggles off.
 
-## v4.39.1 — Carrier auto-land fixes (2026-10-03)
+## v4.39.1 (2026-10-03)
+
+### Air Combat: Carrier auto-land fixes
 
 - Fixed: carrier auto-land could keep circling the ship (swing out, turn in, miss the final approach, swing out again). Heavy jets like the MiG-31 and the SR-71 sagged in the hard turn onto final, were then only allowed gentle turns, and sailed kilometres past the centreline. They now keep turning hard, ease into the final course early enough for their own turn radius, and the final course no longer jumps around while the ship sails its circle.
 - Fixed: the Su-35 and the Rafale often landed long on auto-land, floating past every wire for a bolter. The last stretch of the approach is now flown straight at the touchdown point, so they arrive on the glide path and catch a wire.
 - Fixed: auto-land could call a wave-off for being low when the jet was already over the deck and about to land.
 - In testing every jet launched off the catapult, came back round and caught a wire, almost always on the first pass.
 
-## v4.39.0 — Multiplayer room fixes (2026-10-03)
+## v4.39.0 (2026-10-03)
+
+### Air Combat: Multiplayer room fixes
 
 - Multiplayer rooms: fixed a match that could get stuck at "MATCH STARTS IN 0 S" forever. If a pilot left without the room noticing (kicked, closed the tab, lost their connection), the others could keep a ghost of them, and when the host then left, the ghost could be picked as the new host and nobody ran the match. Every pilot now sends a small heartbeat, anyone silent for 15 seconds is dropped, and only pilots who have been heard from lately can take over as host.
 - Multiplayer rooms: the pilot count in the countdown no longer includes players who have already left.
 - A background tab no longer looks like a pilot who has left: the heartbeat keeps going even when your tab isn't in front.
 
-## v4.38.0 — Lights in the dark (2026-10-03)
+## v4.38.0 (2026-10-03)
+
+### Air Combat: Lights in the dark
 
 - Pitch-black nights are easier to fly: runway, approach and carrier deck lights now stay visible as bright points however far away they are, so you can find a runway or a ship from miles out with the naked eye.
 - Every jet now shows its navigation lights at night: red on the left wingtip, green on the right, and a flashing white strobe. Other jets (friend or enemy) show up as moving lights in the dark, and your own wingtips glow in the outside view.
@@ -305,7 +640,9 @@ in the game under **WHAT'S NEW** on the main menu.
 - Night vision: the high, thin cirrus clouds no longer glow bright green overhead. They were not being darkened at night at all.
 - Pitch black: the cockpit screens and other dim lights are no longer crushed to black, so your displays stay readable without night vision.
 
-## v4.37.0 — Carrier polish (2026-10-03)
+## v4.37.0 (2026-10-03)
+
+### Air Combat: Carrier polish
 
 - New carrier landing aid: with the gear down behind a friendly carrier, a copy of the deck's lens (the meatball) shows up next to your HUD. Keep the amber ball level with the green bars; it turns red when you are dangerously low. Under it a line-up marker shows where the centreline is, with a call (HIGH, LOW, COME LEFT, COME RIGHT or ON) and the range. If you forgot the hook it flashes HOOK UP. It works in the cockpit and from outside the jet.
 - The catapults look the part now: the shuttle runs down the track with your jet, and on the Nimitz-class ships steam pours out of the catapult after every launch.
@@ -316,13 +653,17 @@ in the game under **WHAT'S NEW** on the main menu.
 - Fixed: in replays the carriers stood still. They now sail their loops just like they did in the flight.
 - Open Ocean is out of beta: the BETA TESTING tag on the menu and the warning at the start of a flight are gone.
 
-## v4.36.1 — Carrier auto-land fixes (2026-10-03)
+## v4.36.1 (2026-10-03)
+
+### Air Combat: Carrier auto-land fixes
 
 - Carrier auto-land fixed: started from cruise height and speed it used to arrive far too high over the ship, then circle round and round without ever getting onto final. It now starts down early enough, keeps its cruise speed until it is close, and then sets up and comes straight down onto the deck.
 - Auto-fly turns like a fighter now: up to 70 degrees of bank and about 4.5 G in cruise and around the carrier, instead of gentle 35 degree turns. Only the final approach to a deck or runway stays smooth.
 - Auto-fly now tells you what it is doing around the carrier: swinging out behind the ship, turning in, final, the trap.
 
-## v4.36.0 — Carrier auto-land (2026-10-03)
+## v4.36.0 (2026-10-03)
+
+### Air Combat: Carrier auto-land
 
 - Auto-land on carriers. Open AUTO-FLY (U), pick a carrier as the destination with AUTO-LAND ticked and it does the whole thing: flies to the ship, sets up behind it, drops the gear and the hook, flies the ball down the glide path and catches a wire. It even works from the catapult: it launches, comes back round and traps on the same ship.
 - It aims for where the deck will be when it gets there, not where it is now, because the ship keeps sailing its circle and the deck keeps pitching. In testing with every jet it caught a wire on the first pass almost every time. If something goes wrong close in (too low, too high or off the centreline) it waves off and comes round again, and a bolter makes it power up and go around.
@@ -330,7 +671,9 @@ in the game under **WHAT'S NEW** on the main menu.
 - Fixed: the wire now holds the jet straight down the landing area while it stops it.
 - Fixed: after catching a wire with the engines still spooled up, the jet could roll on toward the end of the deck.
 
-## v4.35.0 — Pitch black nights, night vision and a rolling sea (2026-10-03)
+## v4.35.0 (2026-10-03)
+
+### Air Combat: Pitch black nights, night vision and a rolling sea
 
 - New weather option: PITCH BLACK. Turn it on in the weather panel (top left) with any weather, on every map and in every mode. It is a moonless night: the sky, the sea and the land go completely dark, and all you can see are lights: runway and deck lights, afterburners, explosions and the glow of your own engine.
 - Night-vision goggles: press 9, or the NIGHT VISION button in the weather panel. The picture turns dark green and grainy, and everything the starlight touches shows up again. In the cockpit you look through the round goggle tube; from outside the jet it fills the screen. They work in any weather and any mode.
@@ -342,7 +685,9 @@ in the game under **WHAT'S NEW** on the main menu.
 - Fixed: the white wake behind the ships looked jagged and stepped from low angles.
 - While you are on the catapult, the screen now tells you what to do (full throttle, the salute, the shot) instead of showing the runway take-off tip. The controls list (F9) shows H for the hook and 9 for night vision.
 
-## v4.34.0 — Open Ocean and aircraft carriers (BETA TESTING) (2026-10-03)
+## v4.34.0 (2026-10-03)
+
+### Air Combat: Open Ocean and aircraft carriers (BETA TESTING)
 
 - BETA TESTING: the Open Ocean map and the aircraft carriers are brand new and still being tested, so you will find bugs. The next update fixes them, and also brings the rolling sea, PITCH BLACK nights and night-vision goggles.
 - New theater: OPEN OCEAN, 80 × 80 NM of nothing but water. Pick it under THEATER on the main menu.
@@ -353,7 +698,9 @@ in the game under **WHAT'S NEW** on the main menu.
 - The RED carriers have four 30 mm close-in guns each. Guns only, no missiles. They shoot at you in every mode, Free Flight included, and you can shoot the guns out.
 - On the ocean you can fly Free Flight, Wave Combat, 1v1 Duel, 5v5 Team Battle and Free-for-all. Daily Mission, Blackbird, Airstrike and Flight School need land, so switch theater for those.
 
-## v4.33.0 — Multiplayer in the Claude page (2026-10-02)
+## v4.33.0 (2026-10-02)
+
+### Air Combat: Multiplayer in the Claude page
 
 - Multiplayer now works right here in the Claude page you play in. Artifact pages cannot reach outside servers, which is why the official servers always showed OFFLINE in it. Now the page has its own rooms: ROOM 1 and 2 on the Jade Archipelago, ROOM 3 on Triad Isles, ROOM 4 and 5 on Frostfall Strait.
 - The rooms list shows how many pilots are in each room and whether a match is waiting, starting or on. Join one and it plays exactly like before: LAST PILOT STANDING, the shrinking zone, kills rearm you, last jet flying wins.
@@ -361,17 +708,23 @@ in the game under **WHAT'S NEW** on the main menu.
 - To play together, everyone opens the same link and is signed in to Claude. Friends must be invited to the page (the owner shares it with them from the Share menu); someone who opens it from a public link cannot join a room.
 - The official servers still work for anyone playing on the website.
 
-## v4.32.3 — Official servers wake up faster (2026-10-02)
+## v4.32.3 (2026-10-02)
+
+### Air Combat: Official servers wake up faster
 
 - Multiplayer: the official servers go to sleep when nobody has played for a while and take up to a minute to start again. The game now wakes them as soon as it loads, and while they start, the server list says "WAKING UP…" instead of "OFFLINE" and keeps trying until they answer.
 
-## v4.32.2 — Arrows that show the way (2026-10-02)
+## v4.32.2 (2026-10-02)
+
+### Air Combat: Arrows that show the way
 
 - New: a big cyan arrow on screen always points to where you need to go next, with the place's name, how far it is, and which way to turn ("TURN RIGHT 95°"). When the place comes into view, the arrow turns into a marker sitting right on it. It works in BLACKBIRD and in any mission with a steerpoint.
 - BLACKBIRD: the step line at the top and the arrow now always point at the same radio station (the nearest one).
 - Fixed: online, a MiG-31 showed up as an F-15EX to the other pilots.
 
-## v4.32.1 — Simpler BLACKBIRD missions (2026-10-02)
+## v4.32.1 (2026-10-02)
+
+### Air Combat: Simpler BLACKBIRD missions
 
 - BLACKBIRD missions are much easier to follow. Every mission is now the same four simple steps: record the enemy radio, fly over each site, pick the one that matches, fly home. The green steerpoint always points to the next thing to do.
 - The top of the screen now says exactly what to do next in plain words (for example "STEP 2: FLY OVER SITE B (34 NM) TO SCAN IT"), and a new order pops up each time you finish a step.
@@ -381,7 +734,9 @@ in the game under **WHAT'S NEW** on the main menu.
 - The decision list shows a ✓ or ✗ for each clue at each site and marks the one that has everything.
 - The friendly strike arrives in a couple of minutes instead of flying across the whole map, and the overheating tape recorder problem was removed. The stories, sites, answers and other in-flight trouble are still different every mission.
 
-## v4.32.0 — SR-71 Blackbird + BLACKBIRD spy missions (2026-10-02)
+## v4.32.0 (2026-10-02)
+
+### Air Combat: SR-71 Blackbird + BLACKBIRD spy missions
 
 - New jet: the Lockheed SR-71A Blackbird. 32.7 m long, two Pratt & Whitney J58s that work more and more like ramjets the faster you go, Mach 3.5 at 75,000-80,000 ft, and it holds 85,000 ft. It is slow to get going: a long take-off roll, and minutes to get through Mach 1 and climb to cruise. Chined black fuselage, inlet spikes, canted fins, red walkway lines and U.S. AIR FORCE on top, tail 17972.
 - The SR-71 is still in testing, so it flies only in the new BLACKBIRD mode and in Free Flight. It carries no weapons, no flares and no pods: the weapon bar is gone when you fly it, and the stores panel lists its sensors instead.
@@ -393,11 +748,15 @@ in the game under **WHAT'S NEW** on the main menu.
 - Briefings can now offer choices, used by the BLACKBIRD assessment.
 - Missions that start in the air keep the throttle where the mode set it (the Blackbird starts in full burner at cruise).
 
-## v4.31.1 — Louder heartbeat (2026-10-01)
+## v4.31.1 (2026-10-01)
+
+### Air Combat: Louder heartbeat
 
 - The blackout heartbeat is a little louder (about 30 %).
 
-## v4.31.0 — 10 bug fixes (2026-10-01)
+## v4.31.0 (2026-10-01)
+
+### Air Combat: 10 bug fixes
 
 - Fixed: blacked out (G-LOC), you could still fire missiles, drop flares, move the throttle, lock targets, work the gear and eject. Now all controls are frozen until you come round, as intended. The camera, pause and map still work, and the aim point follows the jet so waking up does not yank it round.
 - Fixed: crashing while blacked out left the screen black with "G-LOC" on it for the rest of the 10 seconds, hiding the crash and the death camera. It now clears as soon as the jet hits the ground.
@@ -410,71 +769,99 @@ in the game under **WHAT'S NEW** on the main menu.
 - Fixed: the theater map (M) used a 50 NM grid running from -200 to +200 on every map. On the Jade Archipelago that gave one line through the middle and stray labels off the map. The grid now matches the map (10 NM on Jade, 25 NM on Triad, 50 NM on Frostfall) and stays inside it.
 - Fixed: the HUD minimap always covered 60 NM, wider than the whole Jade Archipelago, so everything was squeezed into the middle. On Jade it now covers 32 NM; the bigger maps are unchanged.
 
-## v4.30.5 — Raptor tidy-up (2026-10-01)
+## v4.30.5 (2026-10-01)
+
+### Air Combat: Raptor tidy-up
 
 - F-22: removed the small circle that showed on top of the right intake when viewed from the front. It was the gun muzzle marker, which no longer sat flush after the intake was reshaped. The real jet's gun hides behind a flush door, so nothing shows now. The gun still fires from the same place.
 
-## v4.30.4 — Raptor intake blend (2026-10-01)
+## v4.30.4 (2026-10-01)
+
+### Air Combat: Raptor intake blend
 
 - F-22: the back of each intake now joins the fuselage smoothly. The intake's top, outer wall and belly blend into the body's own shape where they meet, so there is no step or box-shaped end at the join any more. The intake mouths are unchanged.
 
-## v4.30.3 — Camera fix (2026-10-01)
+## v4.30.3 (2026-10-01)
+
+### Air Combat: Camera fix
 
 - Camera fixed: the free-look directions are back to normal (the last update had both up/down and left/right reversed). It moves exactly as it always did, and now also reaches the underside on every heading: hold the right (or middle) mouse button and drag up to swing the camera down under the jet.
 
-## v4.30.2 — Raptor underside, look underneath (2026-10-01)
+## v4.30.2 (2026-10-01)
+
+### Air Combat: Raptor underside, look underneath
 
 - F-22 underside reshaped to match its intakes: behind the intakes the body now carries on the same shape, a flat belly out to a sharp edge and then a straight wall leaning out to the chine, so the intakes run straight into the fuselage with no step. The intakes themselves are unchanged. The side weapons bays now sit in that lower wall, just behind the intakes.
 - Free-look now reaches under the jet: in the default mouse-aim camera, holding the right (or middle) mouse button and dragging down swings the camera below the jet to look at its underside, on any heading. Before, it could not get below the horizon when flying east or west.
 
-## v4.30.1 — Bug fixes (2026-10-01)
+## v4.30.1 (2026-10-01)
+
+### Air Combat: Bug fixes
 
 - Fixed: in 10 Waves on the Jade Archipelago, enemy flights could spawn beyond the edge of the map (their start distances were set for the much bigger theaters). They now start at distances scaled to the map, and always inside it.
 - Fixed: Airstrike on the Jade Archipelago used start and target distances meant for the big theaters, so an airborne start was pushed against the map edge. Those distances now scale with the map size too. The bigger maps are unchanged.
 
-## v4.30.0 — Going down in flames (2026-10-01)
+## v4.30.0 (2026-10-01)
+
+### Air Combat: Going down in flames
 
 - Jets now die spectacularly. Blown apart in the air: a white-hot flash, a huge fireball carried on along the jet's flight path, the fuel cells and stores going up one after another a split second apart, a shock shell racing out, a shower of sparks, and a spray of burning fragments arcing away on smoke trails, leaving a drifting black pall behind.
 - Into the ground: a blinding flash and a shock ring racing across the ground, a fireball thrown forward along the impact path that boils up into a rising column of fire and a mushroom of black smoke, dirt and rock blasted out and falling back, a dust skirt rolling outward, burning wreckage tumbling on ahead, and fuel left burning in a long smear along the impact path.
 - Into the sea: a towering white plume and curtain of spray, a ring of churned water, a fireball flashing off the surface, burning fuel on the water and steam hanging over the spot.
 - All built on the existing smoke and fire effects, so big furballs stay smooth.
 
-## v4.29.3 — Louder heartbeat (2026-10-01)
+## v4.29.3 (2026-10-01)
+
+### Air Combat: Louder heartbeat
 
 - The blackout heartbeat is 70 % louder.
 
-## v4.29.2 — Blackout sound fixes (2026-10-01)
+## v4.29.2 (2026-10-01)
+
+### Air Combat: Blackout sound fixes
 
 - The heartbeat during a blackout is now a soft, low thump at a reasonable volume instead of a loud bang.
 - Coming round from a blackout, the jet now eases back up to exactly the volume it had before, instead of slamming back in at full volume.
 - At 9.0 G and above your whole view is now fully blurred.
 
-## v4.29.1 — Hear the heartbeat (2026-10-01)
+## v4.29.1 (2026-10-01)
+
+### Air Combat: Hear the heartbeat
 
 - While you are blacked out the jet's sound drops by 90 % so you can hear your heartbeat. When you come round the jet goes straight back to your own volume setting.
 
-## v4.29.0 — Lights out (2026-10-01)
+## v4.29.0 (2026-10-01)
+
+### Air Combat: Lights out
 
 - New full blackout (G-LOC): the colour drains, your view swims and closes down to a shrinking pinhole, then goes black. In the dark you hear and see only your heart, beating at 55 bpm, with a deep red throb at the edges of the screen. When you come round the black lifts first, then the view opens out of a blur and the colour comes back last.
 - The heartbeat only happens when you fully black out.
 - With the G limiter on you cannot black out: the grey-out stays as before, and on a hard, sustained pull your vision now goes blurry every few seconds.
 
-## v4.28.0 — Faster menu, F-22 intakes (2026-10-01)
+## v4.28.0 (2026-10-01)
+
+### Air Combat: Faster menu, F-22 intakes
 
 - Faster start: the game now opens straight to the menu. The map (terrain, digital map, ocean, trees) is no longer generated at start-up or kept in the background while you are in the menu; it is built when you press launch, and only the first time.
 - F-22 intakes fixed: the fuselage side no longer shows through the inside of the intake mouths. The ducts are now dark inside and bend away out of sight like the real ones.
 - MiG-31 exhaust nozzles are shorter and a little wider. Its flight performance is unchanged.
 
-## v4.27.0 — Foxhound nose and Raptor gold (2026-10-01)
+## v4.27.0 (2026-10-01)
+
+### Air Combat: Foxhound nose and Raptor gold
 
 - MiG-31 front end rebuilt so it no longer looks like an F-15: a longer, pointed radome, slab-sided nose with a sharp chine along the belly, low squared-off canopies with a framed windscreen, a mostly metal rear hood with small side windows that runs into a raised spine, and steeply raked intake mouths with the top lip well forward.
 - F-22 canopy is now the real thing's reflective gold: from outside it reads as a gold mirror and you barely see the pilot. The view from the cockpit is unchanged.
 
-## v4.26.1 — Clean drop tanks (2026-10-01)
+## v4.26.1 (2026-10-01)
+
+### Air Combat: Clean drop tanks
 
 - External fuel tanks no longer have tail fins: every jet now carries a plain, smooth drop tank.
 
-## v4.26.0 — Jade Archipelago (2026-10-01)
+## v4.26.0 (2026-10-01)
+
+### Air Combat: Jade Archipelago
 
 - New map: Jade Archipelago, 80 x 80 nautical miles of wild tropical islands. It is now the default map.
 - 20 islands and no two alike: the 3,150 m Mauna Jade stratovolcano in the middle, a broad shield volcano, a highland plateau, limestone karst towers, two coral atolls with lagoons, a flooded caldera, a crescent bay, a long ridge, a red-rock mesa, a cinder cone, sea needles, rolling hills, a twin-peaked island and small sandy cays.
@@ -484,37 +871,49 @@ in the game under **WHAT'S NEW** on the main menu.
 - The water is still: it gets its depth and colour from the sea floor, with no wave animation, so frame rates stay high.
 - The older maps are still in the map list.
 
-## v4.25.0 — MiG-31 Foxhound (2026-09-30)
+## v4.25.0 (2026-09-30)
+
+### Air Combat: MiG-31 Foxhound
 
 - New jet: the Mikoyan MiG-31BM Foxhound, the fastest jet in the game. A two-seat interceptor that reaches Mach 2.83 up high (Mach 1.23 on the deck), 67,600 ft, with two D-30F6 afterburning turbofans. It is heavy and limited to 5 G: it cannot turn with the fighters, so it wins by speed and range.
 - New missile: the R-37M, the longest-range missile in the game. Four ride half-sunk under the MiG-31's belly; they climb high and dive in at up to Mach 6, reaching 100 NM and more when fired high and fast, but a fighter that turns hard at the end can still beat one. The MiG-31 also carries R-74M heat-seekers on its wing pylons and a GSh-6-23M six-barrel 23 mm cannon under the right intake.
 - The MiG-31's model follows the real jet: long dark radome, tandem two-seat cockpit, huge box intakes with splitter plates, twin fins canted outward with dark tips, ventral fins, all-moving tailplanes, heat-tinted titanium nozzles, the retractable IRST under the nose, and Russian Aerospace Forces markings. Four loadouts: interceptor, long reach, far patrol with tanks, and strike.
 - Zaslon-M passive phased-array radar (tracks 24 targets), 8TK infrared search-and-track, its own cockpit with three colour displays, its own engine sound, and it appears as an enemy and wingman in every mode.
 
-## v4.24.1 — Amber menu (2026-09-30)
+## v4.24.1 (2026-09-30)
+
+### Air Combat: Amber menu
 
 - The main menu is back to its full layout: the navigation rail, game modes and mission setup, the hangar with aircraft and loadouts, the theater page, the pilot card, the jet library, the paint shop and multiplayer. It has a new colour scheme: warm amber on dark charcoal instead of cyan on blue.
 
-## v4.24.0 — New menu, guns fixed (2026-09-30)
+## v4.24.0 (2026-09-30)
+
+### Air Combat: New menu, guns fixed
 
 - New main menu: the jet fills the screen and everything you choose sits in one floating bar at the bottom: mode, aircraft, map, weather, time and start (runway or in the air, for the modes that have one). Click a choice, or its arrows, and it glides to the next option. Launch sits at the end of the bar; settings, controls, the logbook and what's new are top right. Online play is now a mode in the bar.
 - The menu's weather choice sets the weather for your next flight, and the in-flight weather panel follows it.
 - Guns fire from the right place on every jet: the tracers used to trail about 45 m behind each round from the moment it left the gun, so the fire looked like it came from behind the jet. Each tracer's tail now starts at the muzzle.
 - Gun ports moved to where they are on the real jets: F-15EX, M61A2 in the right wing root beside the intake; F/A-18E/F, M61A2 on top of the nose ahead of the windscreen; Typhoon, BK-27 in the right wing root; Su-35S, GSh-30-1 in the right wing-root extension beside the cockpit; Rafale, 30M791 in the right side of the fuselage at the wing root; F-22A, M61A2 on top of the right wing root above the intake. The Typhoon, Rafale and F-22 models now show their gun muzzle too.
 
-## v4.23.0 — F-22 weapons bays (2026-09-30)
+## v4.23.0 (2026-09-30)
+
+### Air Combat: F-22 weapons bays
 
 - F-22 weapons bays: every weapon except the gun now leaves only once its bay doors are fully open. Press fire and the doors open first; the missile or bomb goes the moment they are fully open, about half a second later for the main bay and a little longer for the side bays. The doors close again a couple of seconds after the last shot. AI Raptors follow the same rule.
 - The F-22 now has real, moving bay doors. The two big main-bay doors hinge at their outer edges and swing down to hang straight below the jet, opening onto the dark bay interior with its launch rails. The side-bay doors in the walls beside the intakes swing outward.
 - You can see what is in the bays: as the doors open, the AIM-120s or GBU-39s are lowered on their launchers under the belly, and each AIM-9X swings out on its rail beside the intake. Weapons now launch from those lowered positions instead of from inside the fuselage.
 
-## v4.22.1 — Low frame rate help (2026-09-30)
+## v4.22.1 (2026-09-30)
+
+### Air Combat: Low frame rate help
 
 - New: if your browser is drawing the game on the processor instead of your graphics card (hardware acceleration switched off, or the graphics driver blocked), the game now says so as soon as it starts and tells you how to fix it. In that state it runs at only a few frames per second however fast the PC is.
 - New: if flying stays below 20 fps for several seconds, the game shows once which graphics chip it is actually running on and at what resolution, so you can tell straight away if the browser picked the processor's built-in graphics instead of the graphics card, and what to change.
 - Faster in and near clouds: cloud puffs around the camera that have faded to nothing are no longer drawn at all. Before, dozens of invisible full-screen layers were still shaded on every frame when flying through cloud, and puffs close to the camera now fade out slightly sooner.
 
-## v4.22.0 — Realistic jets, faster menu (2026-09-30)
+## v4.22.0 (2026-09-30)
+
+### Air Combat: Realistic jets, faster menu
 
 - Jets look far more real: every airframe now picks up the light bouncing off the ground and sea below it, so bellies, intakes and the undersides of the wings are softly lit instead of near-black, the way real aircraft look in daylight.
 - New paint finish on all six jets: the paint is now a flat, non-metallic military coating instead of a semi-metallic plastic sheen, with panel-to-panel colour and gloss variation, streaks swept back by the airflow, exhaust soot toward the tail and worn, polished leading edges.
@@ -526,7 +925,9 @@ in the game under **WHAT'S NEW** on the main menu.
 - The G-effects screen pass (grey-out, tunnel vision, red-out) is skipped entirely when none of them is active, saving a full-screen pass every frame.
 - Shader compile logs are no longer read back in the released game, which forced the graphics driver to finish every shader immediately and caused long stalls the first time something new appeared.
 
-## v4.21.2 — Auto-land fixed (2026-09-30)
+## v4.21.2 (2026-09-30)
+
+### Air Combat: Auto-land fixed
 
 - Auto-land fixed: it now lands first time instead of going around. The cause: with the gear down and slow, the jets' flight controls switch to their landing law (the stick commands pitch rate, and angle of attack is capped at 16 degrees), but the autopilot was steering as if the stick still commanded G. Its corrections were far too weak, so it drifted off the glideslope, dived to catch it and floated in the flare. It now flies the approach and flare through the landing law directly.
 - Auto-land approach speed now comes from the jet's real weight: it adds speed until the jet flies the approach at 10.5 degrees angle of attack, so a jet heavy with bombs comes in faster with plenty of margin. Speed alone no longer triggers a go-around; it throttles back and opens the speedbrake instead.
@@ -537,13 +938,17 @@ in the game under **WHAT'S NEW** on the main menu.
 - Fixed: bombs still falling when you started a new airstrike stayed hanging in the sky.
 - Fixed: an ammunition bunker's secondary explosions carried on while the game was paused, and could go off after the mission had ended.
 
-## v4.21.1 — Smooth autopilot power (2026-09-30)
+## v4.21.1 (2026-09-30)
+
+### Air Combat: Smooth autopilot power
 
 - Auto-Fly no longer pumps the throttle. It used to chop the power whenever it reached the chosen height and slam it back on for a couple of seconds when it drifted high or low. Now a smooth speed controller finds the steady power setting for the speed and height and only nudges the throttle around it, so the engines stay spooled up the whole way (never near idle in cruise). Height changes are flown as gentle, steady climbs and descents with a small dead band, instead of chasing every metre.
 - New AFTERBURNER option in the Auto-Fly panel: OFF (military power only, saves fuel), AUTO (lights the burner only when the chosen speed needs it, then keeps it lit steadily instead of flicking it on and off) or MAX (burner lit the whole way: fastest takeoff, climb and cruise). The HUD shows AB MAX / NO AB in the Auto-Fly status.
 - Auto-land: a proper flare (the jet raises its nose to cut the sink rate before the wheels touch), the power comes back smoothly through the flare, a touch of wing-low against crosswind drift, and a real go-around: if it floats, balloons or would land too far down the runway it climbs out straight ahead wings level, flies round at circuit height and lands on the next try. Tested on all six jets in all three afterburner modes.
 
-## v4.21.0 — Airstrike (2026-09-29)
+## v4.21.0 (2026-09-29)
+
+### Air Combat: Airstrike
 
 - New game mode: AIRSTRIKE. Fly a strike loadout against a defended ground target and bring the jet home. Every sortie is different: a new target in a new place each time (an ammunition depot, a command post, a SAM site, an army camp, an early-warning radar station on a hilltop, or an enemy airbase with jets parked on the apron), a new layout and mix of targets, new defences, new enemy fighters and a new start: on a random friendly runway, or already airborne 60 to 110 NM out.
 - Guided bombs for every jet, each its real weapon: GBU-31 2,000 lb JDAM (F-15EX), GBU-32 JDAM (F/A-18E/F), GBU-39 Small Diameter Bombs in the F-22's weapons bay, Paveway IV (Eurofighter), AASM Hammer with its rocket booster (Rafale) and KAB-500S (Su-35S). They fall and glide with real physics: released high and fast they reach 10 to 40 NM, released low and slow only a few. New strike loadouts in every jet's list; key [4] selects bombs.
@@ -554,14 +959,18 @@ in the game under **WHAT'S NEW** on the main menu.
 - Auto-Fly speed is now a slider from 200 kt up to the jet's own top speed (Mach 2.5, about 1,430 kt, for the F-15EX), no longer capped at 650 kt, and altitude is a slider up to the jet's ceiling. Tick AUTO-LAND to land at a destination airfield.
 - More realistic airbases, in true proportion to the jets: hardened shelters rebuilt to real third-generation dimensions with earth berms, sliding blast doors and exhaust deflectors; hangar doors; an operations building at the tower; a bunded fuel farm; 25 m apron floodlight masts; fuel bowsers and tugs; a perimeter fence and a windsock.
 
-## v4.20.0 — Live engine nozzles (2026-09-29)
+## v4.20.0 (2026-09-29)
+
+### Air Combat: Live engine nozzles
 
 - Live engine nozzles on every jet. The nozzle petals now move with the engine just like a real one. At idle, and on a jet with its engines stopped, the nozzle hangs wide open. Push the throttle up and it closes down tight as the engine spools to military power. Light the afterburner and it swings open with the burner stage, opening slightly before the flame lights and reaching fully open at max burner. Pull the throttle back and it closes again. Hydraulic actuators drive the petals, so the nozzle follows the engine with a real lag (about a second end to end), and in afterburner it hunts very slightly around its setting.
 - Every jet has it: the round convergent-divergent nozzles on the F-15EX, F/A-18E/F, Eurofighter, Rafale and Su-35S (on the Su-35S, while they vector), and the F-22's flat nozzle, whose upper and lower flaps swing apart and together.
 - The exhaust flame is now as wide as the nozzle: narrower at military power, wider at full afterburner.
 - Fixed: the glowing burner inside each nozzle was lit to the wrong depth on every jet. The glow now reaches back to the flame holders as intended, most visibly on the Su-35S and F-22.
 
-## v4.19.0 — New cockpit view (2026-09-29)
+## v4.19.0 (2026-09-29)
+
+### Air Combat: New cockpit view
 
 - A completely new cockpit view. The camera is no longer bolted to the airframe: your head now sits on a sprung neck that reacts to what your body feels. G pushes you down into the seat and the view settles with a small overshoot. Lateral G sways you, the afterburner presses you back, and a snap roll leaves your head behind for a moment. Hands off the look controls, your head keeps the horizon a little more level than the jet, glances up into a hard turn and leads a roll with the eyes, the way real pilots do.
 - The cockpit shakes like a real one: a faint engine hum, afterburner rumble, runway bumps on the takeoff roll, a deep buffet near the stall and around the speed of sound, and a hard judder when the gun fires. Each has its own feel, and a new HEAD MOVEMENT slider in Settings turns it down or off.
@@ -575,28 +984,38 @@ in the game under **WHAT'S NEW** on the main menu.
 - Fixed: the spotting markers' line-of-sight memory grew for the whole session; it is now cleared as it fills.
 - Fixed: finishing the drone mission said "bandits" instead of "drones".
 
-## v4.18.1 — Windows app (2026-09-28)
+## v4.18.1 (2026-09-28)
+
+### Air Combat: Windows app
 
 - TRIAD for Windows: a desktop app (TRIAD-Air-Combat.exe) you can download and share, published on the project's GitHub Releases page. It is a single portable .exe: no installer, just double-click. It plays the latest version of the game and keeps itself up to date, and without internet it plays the copy built into the app. F11 toggles full screen.
 - Automatic updates while you play, on the website and in the desktop app: the game checks for a new version every minute. In the menu it reloads to the new version straight away; in the middle of a flight it tells you an update is ready and installs it when you are back in the menu.
 
-## v4.18.0 — New menu (2026-09-28)
+## v4.18.0 (2026-09-28)
+
+### Air Combat: New menu
 
 - A completely new main menu, the "command deck". A navigation rail on the left has three sections, PLAY (game modes and mission setup), HANGAR (aircraft with studio portraits, loadouts and performance bars) and THEATER (map and time of day), plus the Jet Library, the Paint Shop, Multiplayer, the Logbook, Settings, Controls and the release notes. Floating glass panels sit around the 3D jet, a pilot card top right shows your rank, sorties, kills, hours and medals from the logbook, and the launch bar bottom right is always there with your mode, jet, loadout, theater and time of day. New look throughout: dark navy glass with an electric-cyan accent, big numbered sections and time-of-day swatches.
 - Hangar: the long tan bar across the floor is really gone this time. It was the runway and taxiway lines from the new outdoor airfield: a bug turned those kilometre-long painted lines on their edge, and they ran straight through the hangar under the jet. They now lie flat on the runway where they belong.
 - Jet portraits are rendered once and shared between the menu and the Jet Library.
 
-## v4.17.2 — Hangar floor fix (2026-09-28)
+## v4.17.2 (2026-09-28)
+
+### Air Combat: Hangar floor fix
 
 - Hangar: fixed the long tan band across the floor, and the whitish haze when looking toward the doors. Both came from the sunbeam effect for the big door opening, a flat sheet of glow that sloped down through the whole bay and read as a stripe on the floor from low angles. That sheet is gone, and the window sunbeams now fade out well above the floor.
 
-## v4.17.1 — Smooth takeoffs (2026-09-28)
+## v4.17.1 (2026-09-28)
+
+### Air Combat: Smooth takeoffs
 
 - Smooth, realistic takeoffs. While the gear is down, the flight controls now use a takeoff and landing mode, like the real jets: the stick commands a gentle pitch rate, the jet holds its attitude when you let go, a soft AoA limit protects it, and the climb-out attitude tops out around 20 degrees. Lifting off with the stick still held back no longer snaps the nose 80 degrees up with an AoA warning. The nose also comes up smoothly on the runway and the rotation carries into the air without a jump. Raise the gear (or pass about 300 knots) and the normal fighter controls come back, with G building gently for the first few seconds.
 - Hangar: fixed the long bar-shaped streak across the floor seen from one side of the jet. The sun was so low that shadows stretched into long bands; it now sits a little higher (still golden orange) with cleaner shadow edges.
 - Performance: the hangar's shadows are drawn once instead of every frame (they are redrawn only when you change jet or loadout), the menu runs at 60 fps at most instead of flat out on high-refresh screens, one light was removed, the automatic resolution now also works in the menu, and on MEDIUM graphics the jets parked outside use the light model.
 
-## v4.17.0 — Golden-hour hangar (2026-09-28)
+## v4.17.0 (2026-09-28)
+
+### Air Combat: Golden-hour hangar
 
 - The hangar is now at golden hour. A low orange sun shines straight in through the open doors and the side windows: long warm light across the floor, the jet lit from the front with long shadows behind it, visible light shafts with dust drifting in them, and the cool white hangar lights contrasting with the warm sun. Reflections on the jet now show the sunset sky.
 - A completely new view outside, built in full 3D. There is a physically based sunset sky with drifting clouds, deep blue overhead and orange glare toward the sun, and real mountain ranges on every side, snow-capped in the distance, that fade into a warm haze toward the sun and a cool blue-grey haze everywhere else. The airfield has a concrete apron with slab joints, stains, tyre marks and painted parking stands with two jets parked on them, a taxiway and a runway with their markings, blue and white edge lights and signs, floodlight masts, a neighbouring hangar with its doors part open, hardened aircraft shelters, the control tower and operations block with lit windows, a turning radar, a fire station, fuel tanks, a windsock, a fuel truck, a tug, a follow-me truck and tree lines all around.
@@ -604,44 +1023,60 @@ in the game under **WHAT'S NEW** on the main menu.
 - Fixed: the gun lead marker could show through a mountain. It now only appears when you can actually see the target.
 - Fixed: on laptops, choosing HIGH graphics could reset to the automatically chosen preset every time the game was reloaded. Your choice now sticks.
 
-## v4.16.0 — Jet Library (2026-09-28)
+## v4.16.0 (2026-09-28)
+
+### Air Combat: Jet Library
 
 - New section of the menu: the JET LIBRARY (orange JET LIBRARY button at the top of the menu, or BROWSE THE JET LIBRARY above the aircraft list). It has its own full-screen look: a shelf of studio portraits of every jet along the bottom (rendered from the real 3D models in your own paint), the focused jet big in the hangar behind, and a dossier on the right.
 - Filter the shelf by region (USA, Europe, Russia), generation, thrust vectoring, IRST, carrier-capable or two-seat, and sort it by name, top speed, thrust-to-weight, range, roll rate, missile count or newest. Arrow keys step through the jets; Esc goes back.
 - The dossier has five tabs. OVERVIEW: the real aircraft's history, maker, first flight, service entry, number built and operators, its strengths and weaknesses in the game, how to fly it, and your own record in it from the logbook. PERFORMANCE: bars ranking it against the whole library (top speed, thrust-to-weight, wing loading, roll and pitch rate, G, ceiling, range). WEAPONS: its missiles, gun and countermeasures, and every loadout (click one to see it on the jet). SENSORS: radar, IRST and EW. COMPARE: head-to-head against any other jet, line by line with the difference in percent.
 - SELECT puts the jet and the loadout you picked into the main menu, ready to fly; CUSTOMIZE goes straight to its paint shop.
 
-## v4.15.0 — Daily Mission (2026-09-28)
+## v4.15.0 (2026-09-28)
+
+### Air Combat: Daily Mission
 
 - New game mode: DAILY MISSION (top of the mode list). Every day there is a new mission built from real aviation news. Pick it, press FLY, and a briefing box in the middle of the screen tells you the real story and exactly what to do; the mission starts when you press OKAY (or Enter). You scramble from your home base, fly to where the story put the bandits (steerpoint 1 on your nav, marked on the map), and they wait there circling, radar silent, until you come within 20 NM or shoot at them. Then it is a fight. Shoot them all down and fly back within 10 NM of a friendly field to complete it. The menu shows a tick once you have finished today's mission.
 - Today's mission, NORDIC SCRAMBLE: on 24 September Finnish F/A-18 Hornets and Swedish JAS 39 Gripens scrambled together for the first time to intercept a Russian formation (a transport with MiG-31 and Su-30 escorts) over the Gulf of Finland. You fly that scramble against three Flankers circling over the strait; in this version the escort does not back off. It is set best on Frostfall Strait (the menu offers to switch), but works on either map with any jet.
 
-## v4.14.0 — Laptop performance (2026-09-28)
+## v4.14.0 (2026-09-28)
+
+### Air Combat: Laptop performance
 
 - Runs much better on laptops and other lower-end computers. On first start the game now checks the graphics chip and picks a preset it can run: older Intel HD / UHD graphics start on LOW, Iris Xe, Radeon 680M/780M, entry GeForce and base Apple M-chips on MEDIUM, and gaming graphics cards stay on HIGH. Players still on the untouched HIGH default get the same one-time check. You can change it any time in Settings.
 - New AUTO RESOLUTION setting (on by default, under Display). When the frame rate dips below about 48 fps in a fight, the render resolution steps down a little (to 60% at most) and climbs back once there is headroom again, so the game stays smooth instead of stuttering.
 - Lighter graphics on LOW and MEDIUM: high-DPI laptop screens render at 1x (LOW) or 1.25x (MEDIUM) instead of 2x; the terrain uses one texture sample where HIGH uses three; your own jet is built with fewer polygons; jets around you swap to their light distance model sooner; the afterburner heat haze is off on LOW; and the hangar's shadow maps are smaller (the spotlight shadow is off on LOW).
 - A full-screen image pass that only protected the bloom now switches off along with bloom.
 
-## v4.13.1 — Sharper terrain (2026-09-28)
+## v4.13.1 (2026-09-28)
+
+### Air Combat: Sharper terrain
 
 - Sharper, clearer terrain on both maps. The ground texture is now projected onto slopes from the side as well as from above, so mountainsides no longer smear into blurry streaks; it is four times the resolution, stays sharp at shallow viewing angles, and rock faces show real fractured blocks and strata instead of a smooth smudge. On High and Ultra graphics the terrain keeps more detail in the middle distance. The thin rock spires along Hvitøy's central wall are softened into proper crests.
 
-## v4.13.0 — Real snow, natural mountains (2026-09-28)
+## v4.13.0 (2026-09-28)
+
+### Air Combat: Real snow, natural mountains
 
 - Frostfall Strait's snow looks like real snow now. It is an even, bright white whose texture comes from the light on its surface: wind-built drifts and sastrugi ridges catch the sun, the forward-scattered sheen glares on sunlit slopes, and ice crystals glint up close. Snow in shadow is lit blue by the sky instead of going dark and grey. The grey blotches on the slopes are gone; bare, dark rock shows only where it is too steep for snow to hold, with snow lodged in its cracks.
 - More natural mountains on both maps. The snow map's big mountains were cones with evenly spaced pleats running down from the summit (the coffee-filter look); they are now real massifs with irregular outlines, several summits, arêtes, cirques and V-shaped valleys that wander, fork and meet. The Frostfall massifs and Hvitøy's central wall, and the Triad Isles' Skye crests and the Samos dividing range, are rebuilt the same way: a chain of peaks and saddles with branching spurs instead of an even wall or rows of ridges.
 - Terrain lighting: mountain shadows and sky light no longer make slopes shade themselves in speckled patches. Only real blockers (other ridges) cast terrain shadows.
 
-## v4.12.2 — Keyboard and mouse only (2026-09-28)
+## v4.12.2 (2026-09-28)
+
+### Air Combat: Keyboard and mouse only
 
 - Touch-screen controls removed. Every device now plays exactly like a PC with keyboard and mouse (WASD, mouse aim and so on); touching the screen no longer brings up on-screen sticks or buttons, and the TOUCH CONTROLS setting is gone.
 
-## v4.12.1 — Less crackle (2026-09-28)
+## v4.12.1 (2026-09-28)
+
+### Air Combat: Less crackle
 
 - Jet crackle turned down by 90 %: the ripping sound at high power and in afterburner is now a subtle edge under the roar, on your jet and on the jets around you.
 
-## v4.12.0 — Real jet sound (2026-09-28)
+## v4.12.0 (2026-09-28)
+
+### Air Combat: Real jet sound
 
 - ALL-NEW JET SOUND: every engine, afterburner and weapon sound rebuilt around how real fighters sound. The exhaust is proper jet mixing noise with its deep hump, breathing with the turbulence, and at high power it CRACKLES: the ripping, tearing shock waves you hear from a real fighter at full power, beamed out behind the jet.
 - Afterburner: a lower, heavier, fluttering roar with the combustion throb and sub-bass pressure you feel, irregular reheat pops, a deep thump when it lights with the stages catching one after another, and a pop when you come out of burner.
@@ -654,36 +1089,48 @@ in the game under **WHAT'S NEW** on the main menu.
 - The warning tones and voices are unchanged.
 - Touch screens (phones, tablets and touch-screen laptops): the camera now always swings back behind the jet 1.8 seconds after you stop dragging the view. A lost touch or a long press no longer leaves it stuck where you left it.
 
-## v4.11.2 — Pilot neck fix, hangar camera (2026-09-28)
+## v4.11.2 (2026-09-28)
+
+### Air Combat: Pilot neck fix, hangar camera
 
 - Pilots: the head no longer floats. There is now a whole head inside the helmet with the neck running from the suit collar up into it, the helmet comes down lower at the back, and the inside of the shell has a dark padded liner, so no angle shows a gap or a hollow helmet.
 - Hangar camera: dragging up and down now moves the view the other way (drag up to look down over the top of the jet). Left and right are unchanged.
 
-## v4.11.1 — Pilot suit colours, better masks (2026-09-28)
+## v4.11.1 (2026-09-28)
+
+### Air Combat: Pilot suit colours, better masks
 
 - Pilot flight suit colour in CUSTOMIZE: under PILOT FLIGHT SUIT pick sage green, olive drab, desert tan, navy blue, air force blue, charcoal, black, test-pilot orange or white, any custom colour, or STD for the standard issue of that jet. It is saved per jet with your paint job and shows on your jet in flight and in the hangar (scroll in on the cockpit to see it).
 - More realistic oxygen mask, modelled on the MBU-20/P: a hard shell over the nose and mouth (narrow at the bridge, wide at the chin) with its rubber face seal, the exhalation valve and hose connector underneath, a bayonet strap up each side clipping into the helmet, and a corrugated hose down to the regulator on the chest. The helmet is now open at the face, so the mask sits on the pilot's face rather than on the helmet.
 - Shorter necks: the shoulders, flotation collar and suit collar now come up to the helmet as they do on a real pilot in his kit.
 
-## v4.11.0 — Realistic pilots (2026-09-28)
+## v4.11.0 (2026-09-28)
+
+### Air Combat: Realistic pilots
 
 - Realistic pilots in every cockpit, replacing the blocky stick figures. Each one is a seated aircrew figure built to real proportions: flight suit, survival vest with its pockets and flotation collar, harness with leg straps, anti-G suit chaps on the legs, boots and gloves.
 - Real helmets: a shell that comes down over the ears, a dark visor housing across the brow, a tinted mirrored visor over the eyes, the helmet-sight mount on top, and the oxygen mask with its hose running down to the connector on the chest.
 - Kit matches the jet. F-15EX, F/A-18 and F-22A crews wear US sage green with grey helmets and tan gloves; Typhoon and Rafale pilots wear European kit with black gloves; the Su-35S pilot has a white helmet and a green mask. Seats have their ejection handles (ACES II side handles on the F-15EX and F-22A).
 - Hands on the controls: the right hand holds the stick (a centre stick between the knees, or the side stick on the right console in the F-22A and Rafale) and the left hand holds the throttle on the left console. The only animation is the stick: it moves with the pilot's pitch and roll inputs, and the arm follows the hand on it.
 
-## v4.10.1 — Gun lead circle out to 10 NM (2026-09-28)
+## v4.10.1 (2026-09-28)
+
+### Air Combat: Gun lead circle out to 10 NM
 
 - Gun lead circle now shows out to 10 NM (it was about 1 NM), so you can line up on a bandit long before you're in range. The range to the target is shown under the circle once it's beyond a mile.
 - Rounds now fly for 8 seconds instead of 3.2, so the gun reaches about 2 to 2.5 NM (a bit further up high, where the air is thinner). Inside that the circle is bright and turns red when you're on target; further out it is dimmed and marked OUT OF GUN RANGE, because the rounds slow down and drop before they could get there.
 
-## v4.10.0 — Flight School (2026-09-28)
+## v4.10.0 (2026-09-28)
+
+### Air Combat: Flight School
 
 - New game mode: FLIGHT SCHOOL, first on the mode list. An instructor panel walks you through flying and fighting in 12 short lessons, in the air over the contested island: switching views, climbing and diving, turning, throttle and afterburner (in and out of burner), pulling 6 G, radar lock, a radar missile shot, a heat-seeker shot, the gun with the lead circle, and flares and chaff. The target drones fly steady and never shoot back.
 - Each lesson finishes by itself as soon as you have done it (a progress bar fills as you go); press ENTER to skip one. The instructions show your own key bindings and change with your mouse mode (mouse aim, mouse stick or keyboard). Crash, and you are put straight back in the air to carry on. Missed shots are reloaded.
 - Then the CHECKRIDE, the demo test: 3 drones and a manoeuvring bandit that turns, dodges and drops flares but never fires. Destroy all four within 5 minutes. You get a grade (A, B or C) from your time and missiles used; RETAKE CHECKRIDE or RESTART LESSONS from the results screen.
 
-## v4.9.0 — A real hangar (2026-09-28)
+## v4.9.0 (2026-09-28)
+
+### Air Combat: A real hangar
 
 - New hangar behind the menus: a realistic modern maintenance hangar replaces the round futuristic turntable. It is a steel-framed shed with ribbed metal cladding, blockwork walls, roof trusses, an overhead yellow bridge crane with its hoist and pendant, air ducts, sprinklers and LED high-bay lights.
 - Real sunlight: the big sliding doors stand half open onto a sunlit apron (another hangar, a fuel truck, light masts and hills in the haze beyond). The sun falls in through the doors and a row of clerestory windows, with real shadows, window-shaped light patches on the floor, soft light shafts and dust drifting in the beams. The jet's paint now reflects the hangar around it.
@@ -691,40 +1138,54 @@ in the game under **WHAT'S NEW** on the main menu.
 - Around your jet: a boarding ladder hooked on the cockpit, wheel chocks, a ground power cart with its cable plugged in, a flight-line fire extinguisher, work stands, step ladders, a munitions trolley, a tow tractor and cones at the wingtips. The jet stays parked facing the doors and the camera slowly walks around it (drag, scroll and double-click work as before).
 - The NEW tag is gone from the Free-for-all mode.
 
-## v4.8.1 — Su-35S nozzle clipping fix (2026-09-28)
+## v4.8.1 (2026-09-28)
+
+### Air Combat: Su-35S nozzle clipping fix
 
 - Su-35S: the thrust-vectoring nozzles no longer clip through the airframe. The burner can inside each nozzle was one long part reaching well forward into the engine nacelle, and it swung with the nozzle, so in hard manoeuvres it poked out through the side of the nacelle. It now ends just behind the gimbal.
 - Thrust-vectoring nozzles (Su-35S and F-22A) now stay inside their real travel: pitch, roll and yaw vectoring share the jet's limit (15 degrees on the Su-35S, 20 on the F-22A) instead of adding up to double that when you pull and roll at the same time. The handling itself is unchanged.
 
-## v4.8.0 — Real afterburners (2026-09-28)
+## v4.8.0 (2026-09-28)
+
+### Air Combat: Real afterburners
 
 - New afterburners on every jet, modelled on real photos. The burner can inside each nozzle now lights up from the flame: white-hot on the axis, deep yellow-orange out at the liner and a glowing orange lip, with the flame-holder rings and spokes standing out as dark silhouettes when you look straight in.
 - New plume: a white-yellow flame at the nozzle that turns orange within a couple of nozzle diameters, streaky and licking with turbulence flowing downstream, then a translucent column with a train of pale shock diamonds. It gets longer and the diamonds clearer at altitude. The Su-35S keeps its blue-violet plume, and the F-22A's flat nozzles now throw a wide, flat jet.
 - Heat haze: the air behind every hot engine near you now shimmers and bends whatever is seen through it (strong in reheat, softer at military power). It never distorts your own cockpit.
 - F-22A fixes: the glowing face deep inside its flat nozzles was facing the wrong way and could not be seen from behind, and the nozzle throats had no colour data, so they rendered as bright lit metal.
 
-## v4.7.1 — Smooth at 165 / 240 Hz, FPS counter (2026-09-28)
+## v4.7.1 (2026-09-28)
+
+### Air Combat: Smooth at 165 / 240 Hz, FPS counter
 
 - High refresh rate displays: the game was never capped at 60 fps, but physics runs at a fixed 120 Hz, so above 120 fps some frames showed the same position twice and motion stuttered. Jets and missiles are now drawn part-way between physics steps, so motion is smooth on every frame at 144, 165 and 240 Hz.
 - FPS counter is now always shown at the very bottom of the screen in flight.
 
-## v4.7.0 — Faster combat, more realistic jets (2026-09-28)
+## v4.7.0 (2026-09-28)
+
+### Air Combat: Faster combat, more realistic jets
 
 - Much faster in combat. Every jet now has a distance model: past a couple of hundred metres the full airframe is swapped for a merged copy that takes a handful of draw calls instead of about sixty, and looks the same at that range. In a 5v5 this cut draw calls by about a third and the triangles drawn per frame from 4 million to 2.5 million.
 - Shadows are much cheaper. Your own jet used to draw its full-detail model (1.5 million triangles) a second time just for its shadow. Every jet now casts its shadow from a single-draw silhouette, and the full-detail model is only drawn once.
 - More realistic jets: every airframe now has ambient occlusion baked from its own shape. Wing roots, intakes, the tunnel between the engines, tail roots and the underside now get soft contact shading instead of flat, evenly lit paint.
 - In-flight detail: your own jet keeps its full hero-detail model in flight, and Ultra graphics now builds it about 40% denser than before.
 
-## v4.6.2 — Old menu back, auto-update (2026-09-28)
+## v4.6.2 (2026-09-28)
+
+### Air Combat: Old menu back, auto-update
 
 - Back to the previous main menu layout. The text fixes from 4.6.0 stay (mode descriptions, loadout notes, F-22A internal bays).
 - The game now checks for a newer version when it loads and reloads itself once if one is live, so updates show up without a hard refresh.
 
-## v4.6.1 — Rafale intro removed (2026-09-28)
+## v4.6.1 (2026-09-28)
+
+### Air Combat: Rafale intro removed
 
 - Removed the Rafale intro that played the first time the update notes opened: its music, the animation and all of its code are gone. The update notes now just open. The Rafale itself is unchanged.
 
-## v4.6.0 — New menu, F-22A handling, fixes (2026-09-28)
+## v4.6.0 (2026-09-28)
+
+### Air Combat: New menu, F-22A handling, fixes
 
 - New main menu. A slim top bar replaces the crowded header: Multiplayer, Logbook, Controls and Settings on one line. On the left is a compact aircraft list. The jet in the hangar gets the middle of the screen, with its name and key numbers underneath. On the right, one panel with three tabs: Mission (game mode and its options), Aircraft (loadout and full specifications) and Theater (map choice). FLY is always at the bottom of that panel with a summary of what you're about to fly, so nothing is pushed off the screen any more.
 - F-22A handling: the 2D nozzles now also deflect in opposite directions to roll the jet, as on the real Raptor, so it stays controllable rolling at high angle of attack. They still can't yaw. The post-stall limit with the G override is now 60 degrees (the Su-35S keeps 70), and it recovers from a high-alpha pull faster (1.3 s instead of 1.8 s).
@@ -732,13 +1193,17 @@ in the game under **WHAT'S NEW** on the main menu.
 - Fixed: outdated text from when there were fewer jets. The Free Flight description said 'any of the three jets' and '400 x 400 NM', the duel and wave descriptions said 'the two jets you did not pick', the free-for-all option said 'ALL FOUR TYPES', the loadout note only mentioned two missile families, and the TRIAD medal said 'all four aircraft'.
 - Flatter, cleaner buttons across the menus (no more gradients).
 
-## v4.5.1 — F-22A model rebuilt (2026-09-28)
+## v4.5.1 (2026-09-28)
+
+### Air Combat: F-22A model rebuilt
 
 - F-22A model rebuilt from the ground up. The flat, faceted fuselage now has a sharp chine running from the nose to the tail and the wide flat deck over the intakes and wing roots. The caret intakes are built into the sides of the fuselage, with dark ducts. It also has the frameless gold canopy on a raised sill, broad trapezoidal fins canted out 28 degrees, the tail booms that carry the all-moving tailplanes, and square 2D nozzles with serrated upper and lower flaps that swing as you vector.
 - Correct stance: the F-22 now stands 16.7 ft tall on its gear, with the nose leg behind the radome.
 - Your own F-22 and the hangar jet are built at about 3.8 million triangles, the most detailed jet in the game.
 
-## v4.5.0 — F-22A Raptor (2026-09-28)
+## v4.5.0 (2026-09-28)
+
+### Air Combat: F-22A Raptor
 
 - NEW JET: the LOCKHEED MARTIN F-22A RAPTOR, the first fifth-generation fighter in the game, and the fastest.
 - Speed: supercruise at Mach 1.8 with no afterburner, Mach 2.25 flat out, a 65,000 ft ceiling, and a climb that goes straight up at around 60,000 ft a minute. It's the quickest jet in the game from Mach 0.9 to 1.6 and to 36,000 ft.
@@ -748,28 +1213,38 @@ in the game under **WHAT'S NEW** on the main menu.
 - New 3D model, the most detailed in the game (your own jet and the hangar get an even denser build than the others). It has the chined diamond nose, a frameless gold-tinted bubble canopy, caret intakes, a diamond wing with a forward-swept trailing edge, big all-moving tailplanes, twin fins canted out 28 degrees, flat two-dimensional nozzles that move as you vector, and the two-tone Raptor grey with its darker patches.
 - The F-22A is in every mode, including multiplayer on the official servers.
 
-## v4.4.1 — Fixes: clouds, reflections, weather panel (2026-09-28)
+## v4.4.1 (2026-09-28)
+
+### Air Combat: Fixes: clouds, reflections, weather panel
 
 - Fixed: a regular micro-stutter in cloudy weather. Up to 20,000 cloud puffs were re-sorted five times a second with a slow sort; they now use a fast native sort.
 - Fixed: jets reflected a bright blue sky in rain, storms and overcast. Paint and canopy reflections now match the weather, so they're grey under the clouds.
 - Fixed: on smaller screens the weather panel covered the FLIGHT panel. On short screens it now starts tucked away as just the arrow tab, and it's a little smaller. It remembers whether you left it open.
 - Performance: when it isn't raining, the screen-droplet layer no longer redraws and re-uploads its texture every frame.
 
-## v4.4.0 — Gun lead marker (2026-09-27)
+## v4.4.0 (2026-09-27)
+
+### Air Combat: Gun lead marker
 
 - NEW: gun lead marker, like War Thunder. When an enemy is inside gun range (about 1 NM), a small circle appears ahead of them, with a dotted line from the jet, showing exactly where to shoot. Put your gun cross on the circle and your rounds meet the target: it allows for the target's motion, your own speed, the rounds slowing down and bullet drop. It turns red when you're on target. It works for the locked target, or else for the enemy nearest your gun line, with any weapon selected, in cockpit and outside views.
 
-## v4.3.2 — Smaller rain drops (2026-09-27)
+## v4.3.2 (2026-09-27)
+
+### Air Combat: Smaller rain drops
 
 - Rain drops on the screen are a third of the size and land only along the very left and right edges, so the middle of the screen stays clear.
 
-## v4.3.1 — Rain on the canopy (2026-09-27)
+## v4.3.1 (2026-09-27)
+
+### Air Combat: Rain on the canopy
 
 - Rain now beads on the screen like water on a window: drops land, grow and refract a blurred, flipped view of what's behind them. At speed the airflow sweeps them sideways off the edges of the screen; when you're slow they run down and slide off.
 - The falling rain no longer streaks past like you're jumping to lightspeed: the streaks are short, and they thin out the faster you fly, so the drops on the canopy take over.
 - Fixed: clouds popping in and out at the horizon. The far edge of the cloud field now fades out smoothly instead of cutting off, and the cloud deck reaches well past the horizon.
 
-## v4.3.0 — Weather (2026-09-27)
+## v4.3.0 (2026-09-27)
+
+### Air Combat: Weather
 
 - NEW: WEATHER. A weather panel sits at the top left while you fly: pick CLEAR, CLOUDY, OVERCAST, RAIN, STORM or SNOW, then fine-tune CLOUD COVER, RAIN / SNOW and VISIBILITY (shown in NM). The arrow tab slides the panel off the screen and back. Your choice is saved.
 - New clouds: big, full cumulus built from overlapping puffs and spread across the whole theater, from a few fair-weather clouds on a clear day to a sky full of towering cumulus. They no longer look like small clumps of dots.
@@ -777,7 +1252,9 @@ in the game under **WHAT'S NEW** on the main menu.
 - RAIN: a dark deck, rain streaks that stretch into lines at speed and lower visibility. STORM: heavier rain, darker cloud, thunderheads, and lightning that lights up the sky, followed by thunder. SNOW: drifting flakes in grey murk. Rain and snow fall only below the cloud base.
 - Weather only changes your own screen: in multiplayer, other pilots see their own weather. The old CLOUDS option in Settings is replaced by the weather panel. CLOUD QUALITY still sets how full each cloud is.
 
-## v4.2.0 — Hero-detail jets (2026-09-27)
+## v4.2.0 (2026-09-27)
+
+### Air Combat: Hero-detail jets
 
 - Every jet now has a HERO model with about 10 times the polygons: 2.5 to 4 million triangles per airframe (F-15EX 3.3M, F/A-18E/F 2.9M, Typhoon 2.5M, Su-35S 4.0M, Rafale 2.6M), up from 250,000 to 390,000.
 - The whole airframe is rebuilt at the higher density: fuselage lofts, intakes and ducts, canopies and frames, wings, canards, fins and control surfaces, nozzles and petals, landing gear and every turned part. Curves are smooth all the way round and silhouettes stay clean however close the camera gets.
@@ -785,7 +1262,9 @@ in the game under **WHAT'S NEW** on the main menu.
 - Hero density follows GRAPHICS QUALITY in the settings: about 10x on HIGH and ULTRA, about 4x on MEDIUM and about 1.5x on LOW.
 - Memory: the hangar now keeps only the jet on the turntable built and frees the others. A hero model is freed when nothing uses it any more.
 
-## v4.1.0 — The Rafale is coming (2026-09-27)
+## v4.1.0 (2026-09-27)
+
+### Air Combat: The Rafale is coming
 
 - It's here. NEW JET: the DASSAULT RAFALE C. You don't hear it coming. Your radar warning receiver is the first thing that knows, and by then it's already too late.
 - It sees you first: RBE2 AESA radar out to 90 NM, OSF passive infrared search and track out to 42 NM, and SPECTRA self-protection that jams your missiles and dumps chaff and flares on its own.
@@ -798,11 +1277,15 @@ in the game under **WHAT'S NEW** on the main menu.
 - Loadouts: AIR SUPERIORITY (4 Meteor, 4 MICA), COMBAT AIR PATROL (2 Meteor, 4 MICA, 3 tanks), MAX AAM (6 Meteor, 4 MICA) and DOGFIGHT (2 Meteor, 6 MICA).
 - The Rafale is in every mode, including multiplayer on the official servers. Pick it in the hangar... if you'd rather be the one hunting.
 
-## v4.0.1 — Intakes the right way up (2026-09-27)
+## v4.0.1 (2026-09-27)
+
+### Air Combat: Intakes the right way up
 
 - Fixed: the Su-35S and Typhoon engine intakes were raked upside down, with the bottom lip sticking out in front. Now the top edge leads and the mouth leans back underneath, as on the real jets: the Flanker's intakes are cut back underneath, and the Typhoon's upper lip (by the splitter) sits ahead of its lower lip.
 
-## v4.0.0 — Multiplayer (2026-09-27)
+## v4.0.0 (2026-09-27)
+
+### Air Combat: Multiplayer
 
 - NEW: MULTIPLAYER. Press MULTIPLAYER ▸ on the main menu to fly LAST PILOT STANDING against real people. It's free-for-all only, and there is no AI on any server.
 - Official servers OFFICIAL 1 to 5 (1-3 on Triad Isles, 4-5 on Frostfall Strait) are listed with live pilot counts. You can also join any server by typing its address.
@@ -814,7 +1297,9 @@ in the game under **WHAT'S NEW** on the main menu.
 - Joining a server on a different theater loads that theater, then joins automatically. Pausing doesn't stop an online match. The HUD shows your ping.
 - Play online from the website version: browsers only allow secure (wss://) connections from a web page.
 
-## v3.1.0 — Physics update and bug fixes (2026-09-27)
+## v3.1.0 (2026-09-27)
+
+### Air Combat: Physics update and bug fixes
 
 - PHYSICS: the wings now feel the wind on the runway too. Into a headwind you lift off sooner and roll shorter (about 20% less runway with a 20 kt headwind); with a tailwind it takes longer.
 - Jet wash and wake turbulence: flying close behind another jet puts you in its trailing vortices, so you get bumps, sink and a roll kick near a vortex core. It's strongest right behind a heavy, slow, hard-pulling jet and fades out about a kilometre back.
@@ -834,7 +1319,9 @@ in the game under **WHAT'S NEW** on the main menu.
 - Fixed: Su-35S messages named the AIM-9X and PIRATE; they now say R-74M and OLS-35.
 - Fixed: the Duel record counted mutual kills as losses (now shown as draws); restarting a Duel or Waves mission left decoys in the air; restarting Waves from wave 1 didn't reset the mission clock.
 
-## v3.0.0 — New sound engine and realistic jet models (2026-09-27)
+## v3.0.0 (2026-09-27)
+
+### Air Combat: New sound engine and realistic jet models
 
 - ALL-NEW SOUND ENGINE: every sound in the game has been rebuilt from scratch. It is all generated live (no recordings), so it follows exactly what your jet is doing.
 - Fixed: the constant 'fan' drone is gone. It came from the old gun sound, which kept humming quietly in the background even when you were not firing.
@@ -854,7 +1341,9 @@ in the game under **WHAT'S NEW** on the main menu.
 - F/A-18E/F: the refuelling probe hump on the right side of the nose.
 - F-15EX: gets the new paint, nozzles and canopy; its shape is unchanged.
 
-## v2.2.3 — Accurate missile racks (2026-09-26)
+## v2.2.3 (2026-09-26)
+
+### Air Combat: Accurate missile racks
 
 - Missile racks researched from the real jets (the F-15EX is unchanged):
 - F/A-18E/F Super Hornet: AIM-9X on the wingtip LAU-127 rails, a single missile hung under each outboard pylon, and an LAU-115 twin rack on each middle wing pylon with two AMRAAMs side by side on LAU-127 shoulder rails (as in the Navy's 'Murder Hornet' air-to-air loadout), plus the fuselage cheek AMRAAMs. A fuel tank on the middle station hangs from the pylon centre.
@@ -862,28 +1351,38 @@ in the game under **WHAT'S NEW** on the main menu.
 - Su-35S: one missile per hardpoint as on the real Flanker, on chunkier Russian APU-170 / P-72 style launchers: R-74M on the wingtips and outer pylons, R-77M on the inner pylons, under the engine nacelles and in the tunnel between the engines.
 - Loadouts, missile counts and handling are unchanged.
 
-## v2.2.2 — No more freeze on kills (2026-09-26)
+## v2.2.2 (2026-09-26)
+
+### Air Combat: No more freeze on kills
 
 - Fixed: the game froze for a couple of seconds every time a jet was shot down. When a jet was destroyed, its paint job was copied to scorch the wreck, and each copy needlessly converted the whole livery (large texture data) to text, once for every part of the airframe. The wreck is now scorched with a lightweight copy, shared across parts: the kill that took seconds now takes about 3 thousandths of a second, so explosions play smoothly.
 
-## v2.2.1 — Aligned missile racks (2026-09-26)
+## v2.2.1 (2026-09-26)
+
+### Air Combat: Aligned missile racks
 
 - Missile racks rebuilt on all four jets to match the real thing: missiles now ride in matched pairs on twin-rail racks, side by side on the shoulders of a shared pylon (like LAU-128s on an F-15 pylon), level with each other, parallel to the fuselage and with their noses lined up.
 - F-15EX: both wing pylons are twin racks, four missiles per wing in two neat pairs, plus the tandem pairs along the conformal tanks.
 - F/A-18E/F: the outboard wing pylon is a twin rack, level with the inboard pylon. Typhoon: the wing missiles pair up on one twin rack. Su-35S: the inner wing pair shares a twin rack and the outboard missile rides a shoulder rail at the same height.
 - Fuel tanks on a rack station hang from the middle of the pylon, below the shoulder missiles. Loadouts, weapon counts and handling are unchanged, and missiles launch from their new rail positions.
 
-## v2.2.0 — XP and levels removed (2026-09-26)
+## v2.2.0 (2026-09-26)
+
+### Air Combat: XP and levels removed
 
 - Removed the pilot XP, level and money system completely: no pilot card on the main menu, no XP pop-ups or XP bar in flight, no level-up celebration, no XP section in the debrief, and its saved data is cleared. Everything else plays exactly the same.
 - Free-for-all: the bounty and your placing work as before, just without XP or money attached.
 
-## v2.1.1 — Black screen fix (2026-09-26)
+## v2.1.1 (2026-09-26)
+
+### Air Combat: Black screen fix
 
 - Fixed: the screen could go completely black as soon as you started flying on some graphics cards. A very bright sun glint off glossy paint or a canopy could overflow the HDR picture buffer, and the new bloom smeared that broken pixel across the whole screen. The picture is now cleaned before bloom, so this can't happen any more, and bloom still glows as before.
 - Hardened the haze, cloud and free-for-all storm-wall shaders against the same kind of invalid values.
 
-## v2.1.0 — Free-for-all: Last Pilot Standing (2026-09-26)
+## v2.1.0 (2026-09-26)
+
+### Air Combat: Free-for-all: Last Pilot Standing
 
 - NEW GAME MODE: FREE-FOR-ALL — LAST PILOT STANDING. 12 jets in the sky: you and 11 AI pilots, every jet hostile to every other jet. No teams, no wingmen, no respawns. Last jet flying wins.
 - Drop-in: all twelve jets start spread around a ring over the contested island, facing inward at staggered altitudes, with a short countdown before weapons are free.
@@ -899,7 +1398,9 @@ in the game under **WHAT'S NEW** on the main menu.
 - Fixed: Su-35S kills with the GSh-30 cannon, R-77M and R-74M never counted toward the gun-kill, long-shot and knife-fight decorations.
 - Fixed: the theater map [M] always said 400 × 400 NM; it now names the map you are flying and its real size.
 
-## v2.0.0 — Graphics overhaul (2026-09-26)
+## v2.0.0 (2026-09-26)
+
+### Air Combat: Graphics overhaul
 
 - GRAPHICS OVERHAUL: every part of the picture is now adjustable, from one overall preset down to individual effects, and changes apply instantly while you watch.
 - Overall quality presets: LOW, MEDIUM, HIGH, ULTRA and 4K ULTRA. Pick one to set everything at once; change any single option and the preset shows CUSTOM.
@@ -915,20 +1416,26 @@ in the game under **WHAT'S NEW** on the main menu.
 - Redesigned SETTINGS: a new panel slides in from the right with a see-through backdrop so you can judge graphics changes on the jet or the world behind it. It has side tabs (Graphics, Controls, Audio, Gameplay), preset cards, clear sections and a short explanation under every option, plus sliders that show their values and on/off switches. It works from the main menu and the pause menu, and it fits phone screens too.
 - Fixed: the loading screen always said 'GENERATING THE 400 × 400 NM THEATER'; it now names the map you're loading and its size.
 
-## v1.9.2 — Chase camera auto-recenter (2026-09-26)
+## v1.9.2 (2026-09-26)
+
+### Air Combat: Chase camera auto-recenter
 
 - Chase camera auto-recenter: when you look around your jet in the chase view, the camera now glides smoothly back to its normal position behind the jet after 1.8 seconds without moving it. It eases in gently, sweeps home the short way round (even after a full orbit) and settles softly, with no snapping.
 - It never pulls the view away while you're still looking: as long as you hold the right mouse button (or the middle button, or keep your finger on the touch look area), the camera stays exactly where you put it. The 1.8-second timer only starts once you let go.
 - The recenter only applies to your own jet in flight. The cockpit view, the spectator camera and replays keep the view where you leave it.
 
-## v1.9.1 — Giant mountains (2026-09-26)
+## v1.9.1 (2026-09-26)
+
+### Air Combat: Giant mountains
 
 - Frostfall Strait mountains rebuilt: no more spiky knife-edge peaks. The mountains are now broad and massive, like Mount Fuji: huge snow-capped cones 20 to 40 miles across, with long sweeping concave flanks rising to a small summit crater, and gullies and ribs running down their sides.
 - Lots more big mountains: every landmass is covered in these giant cones, many of them rising over 20,000 ft and the biggest above 26,000 ft, standing on wide rounded ranges instead of jagged ridges. Hvitøy's dividing wall is a broad mountain wall now too, and the rocky islets are small snow cones.
 - Real snow line: the lower slopes of the mountains show bare russet volcanic rock and scree streaking up the gullies, with the snow cap above, like the reference photo, so you can see how tall they really are from the air.
 - All six Frostfall airfields keep clear approach valleys through the new mountains.
 
-## v1.9.0 — Frostfall Strait, new water, 3 new wraps (2026-09-26)
+## v1.9.0 (2026-09-26)
+
+### Air Combat: Frostfall Strait, new water, 3 new wraps
 
 - NEW MAP: FROSTFALL STRAIT, a frozen arctic archipelago of 200 × 200 NM (half the size of the first map), and the new default theater. Five big snow-covered landmasses (NORDLAND and SØRVIK for BLUE, ØSTMARK and KRAGFJELL for RED) with the contested island of HVITØY in the middle of the strait, plus scattered rocky islets (SKJÆR).
 - Really tall mountains: jagged, ridged ranges climb straight out of the sea to around 26,900 ft, with sharp knife-edge ridges, bare rock on the steep faces, snowfields and glaciers everywhere else, and ice cliffs at the shoreline. Deep glacial valleys lead into every runway so approaches stay clear, and a wall of peaks splits Hvitøy between its BLUE and RED airfields.
@@ -943,7 +1450,9 @@ in the game under **WHAT'S NEW** on the main menu.
 - Fixed: on the theater map (M), every island name after the first was drawn in tiny text instead of the large label.
 - Fixed: mode descriptions, mission briefings and the free-flight base list no longer name the old islands when you're flying the other map.
 
-## v1.8.0 — Pilot XP & levels, realistic afterburners (2026-09-26)
+## v1.8.0 (2026-09-26)
+
+### Air Combat: Pilot XP & levels, realistic afterburners
 
 - NEW: Pilot XP, levels and money. Everything you do in the air earns XP; XP raises your level (1 to 100) and your rank, from CADET to GENERAL OF THE AIR FORCE. Your pilot card with level badge, rank, XP bar and money is at the top of the main menu, and it counts up your gains when you come back from a sortie.
 - Kills pay XP and money, scaled by the enemy difficulty (Easy 60% up to Extreme 140%): 100 XP and $400 per kill at Hard, plus GUN KILL (+50 XP, $200), LONG SHOT past 20 NM (+40, $150), DOUBLE KILL within 12 s (+50, $250) and FIRST BLOOD (+25).
@@ -954,35 +1463,47 @@ in the game under **WHAT'S NEW** on the main menu.
 - Photorealistic afterburners on all four jets: each engine now has a white-hot core, a main plume with real shock diamonds and flowing turbulence, and a faint outer heat haze that fades softly at the edges instead of a solid cone. The nozzles glow white-hot in the middle and orange at the rim, and the plume stretches in thin air at altitude. Western jets burn yellow-orange fading to violet; the Su-35S keeps its blue flame with bright diamonds.
 - Fixed: Su-35S gun kills were credited to the 'BK-27' (the Typhoon's cannon); they now show the GSh-30.
 
-## v1.7.6 — Smoother hangar camera (2026-09-26)
+## v1.7.6 (2026-09-26)
+
+### Air Combat: Smoother hangar camera
 
 - Hangar camera: the drag direction is reversed (both left/right and up/down).
 - Smoother camera: moves glide with gentler easing, and a quick flick keeps the view turning for a moment before it slows to a stop. Holding still before you let go stops it dead.
 - Zoom in much closer: scroll (or pinch) right up to the jet to see the cockpit, missiles and nozzles up close. The camera centres on the jet as you zoom in and never goes inside the airframe.
 
-## v1.7.5 — Hangar camera (2026-09-26)
+## v1.7.5 (2026-09-26)
+
+### Air Combat: Hangar camera
 
 - Look around the jet in the hangar: on the main menu (and the customize screen) drag anywhere on the empty space around the jet to orbit the camera, from low beside the jet to straight overhead. Scroll the mouse wheel (or pinch on a touch screen) to zoom in close or back out. Double-click to reset the view.
 - The turntable stops its slow spin as soon as you take the camera, so the jet stays where you put it.
 - The loadout note on the main menu now names both missile families (the Su-35S carries R-77M and R-74M, not AIM-120D and AIM-9X).
 
-## v1.7.4 — Pusk! and model fixes (2026-09-26)
+## v1.7.4 (2026-09-26)
+
+### Air Combat: Pusk! and model fixes
 
 - Su-35S launch call is now just 'Pusk!' (Пуск, 'launch!'), for both the R-77M and the R-74M. It's spoken in Russian if your device has a Russian voice. The F-15EX, F/A-18E/F and Typhoon keep 'Fox three' (AIM-120D) and 'Fox two' (AIM-9X).
 - Model fixes for the F-15EX, F/A-18E/F and Typhoon: every wing pylon and missile rail now sits under the wing at mid-chord. Before, many hung well ahead of the leading edge; the Typhoon's outer rails started almost 3 m in front of the wingtip, and some Super Hornet pylons floated 1 m ahead of the wing.
 - Stores now hang the right distance below the wing for their size: a fuel tank sits lower than a missile on the same pylon, so tanks no longer cut into the wing and missiles no longer float below it. Missiles launch from where they visibly hang.
 - Landing indexer fixed for all four jets: its on-speed angle of attack now matches how each jet actually flies at approach speed (F-15EX 12, F/A-18E/F 10, Typhoon 13, Su-35S 12 degrees). Before, the F-15EX, Super Hornet and Typhoon always showed 'slow' on a correct approach.
 
-## v1.7.3 — Correct launch calls (2026-09-26)
+## v1.7.3 (2026-09-26)
+
+### Air Combat: Correct launch calls
 
 - Launch calls fixed. F-15EX, F/A-18E/F and Typhoon use the NATO brevity codes again: 'FOX 3' / 'Fox three' for the AIM-120D and 'FOX 2' / 'Fox two' for the AIM-9X.
 - Su-35S launch calls are now what Russian pilots actually say. They don't use 'Fox' codes: they name the missile and call 'Пуск!' ('launch!'). The feed shows 'Р-77М — ПУСК!' or 'Р-74М — ПУСК!', and the voice says it in Russian if your device has a Russian voice (otherwise 'R 77 M, pusk!').
 
-## v1.7.2 — Missile calls (2026-09-26)
+## v1.7.2 (2026-09-26)
+
+### Air Combat: Missile calls
 
 - Launch calls now say what you actually fired. Firing an R-77M shows 'R-77M AWAY (FOX 3)' in the feed and the voice says 'R 77 M away'; an R-74M says 'R-74M AWAY (FOX 2)'. The same goes for every jet: 'AMRAAM away' for the AIM-120D and 'Sidewinder away' for the AIM-9X.
 
-## v1.7.1 — Su-35S complete (2026-09-26)
+## v1.7.1 (2026-09-26)
+
+### Air Combat: Su-35S complete
 
 - The Sukhoi Su-35S is now COMPLETE: physics, handling, looks, cockpit and weapons have all been checked against the real jet's numbers and against the other three jets.
 - Performance now matches the published figures: top speed Mach 2.25 (measured 2.27), service ceiling 59,060 ft (measured 59,000), about 1,950 NM of range on internal fuel. Mach 0.9 to 1.6 at 30,000 ft in 36 s; climb to 36,000 ft in about a minute.
@@ -995,7 +1516,9 @@ in the game under **WHAT'S NEW** on the main menu.
 - Cockpit: the OLS-35 sensor ball no longer blocks the bottom of the HUD view (the glareshield hides it, as in the real jet). Checked both 15 in displays, the HUD, and the weapon and stores readouts for the R-77M, R-74M and GSh-30-1.
 - Checked: no wobble after rolling out of turns, steady aim tracking, clean recovery from 70 deg AoA in about 1.4 s, and fair duels against every jet (roughly even with the Typhoon, a little behind the F-15EX, ahead of the Super Hornet).
 
-## v1.7.0 — Sukhoi Su-35S (2026-09-26)
+## v1.7.0 (2026-09-26)
+
+### Air Combat: Sukhoi Su-35S
 
 - New jet: SUKHOI SU-35S. Single-seat, twin-engine, super-manoeuvrable air-superiority fighter: 71.9 ft long, 49 ft span, 19.4 ft tall, 76,059 lb max takeoff weight, two Saturn AL-41F1S afterburning turbofans (32,000 lbf each), Mach 2.25, 59,060 ft ceiling, 1,944 NM range, same G limits and G effects as the other jets.
 - 3D thrust vectoring: the Su-35S's nozzles swivel with the controls, so it keeps full pitch, roll and yaw control at speeds where the other jets run out of air over their control surfaces. Squeeze the G-limiter override (paddle) and it can hold the nose up to 70 degrees angle of attack without departing, for Cobra-style nose pointing and very tight slow-speed turns. Release it and the jet recovers in about a second. AI Su-35 pilots use it too.
@@ -1009,13 +1532,17 @@ in the game under **WHAT'S NEW** on the main menu.
 - AI jets now wear random paint jobs: your wingmen and the bandits in Waves and 5v5 get random wraps, solid colours and finishes (in 5v5 each pilot keeps the same paint all match).
 - 5v5 Team Battle: the clock at the top now counts DOWN from 5:00 when the fight starts, instead of counting up. The HUD also calls out the last 60 seconds.
 
-## v1.6.0 — Black Ice (2026-09-26)
+## v1.6.0 (2026-09-26)
+
+### Air Combat: Black Ice
 
 - New wrap: BLACK ICE. A black nose fades into deep glacial teal toward the tail, with faceted ice crystals, smoky teal wisps and glowing cracks that shine faintly even in shadow. It's the first tile in the WRAP list; you can still change its colours, finish and brightness.
 - 5v5 Team Battle: the teams now start closer together (14 NM instead of 24), so more rounds are won by shooting the other team down rather than running out the 5-minute clock.
 - Faster wrap previews: making a pattern no longer freezes the customize screen for a moment.
 
-## v1.5.0 — Jet customization (2026-09-26)
+## v1.5.0 (2026-09-26)
+
+### Air Combat: Jet customization
 
 - Jet customization for all three jets: press CUSTOMIZE JET on the main menu to open the new customization screen, just your jet on the turntable and the paint controls.
 - Paint types: the FACTORY scheme, a SOLID COLOUR (18 colours plus a custom colour picker), or a WRAP.
@@ -1025,7 +1552,9 @@ in the game under **WHAT'S NEW** on the main menu.
 - Your paint job is on your jet in every mode, and panel lines, roundels, tail codes and weathering stay on top of it.
 - 5v5 Team Battle: a round still going after 5 minutes of fighting now ends and BOTH teams get a point (the time left shows in the HUD). If that puts both teams on the winning score together, the match is a draw.
 
-## v1.4.0 — 5v5 Team Battle (2026-09-26)
+## v1.4.0 (2026-09-26)
+
+### Air Combat: 5v5 Team Battle
 
 - New game mode: 5v5 TEAM BATTLE. You and four AI wingmen (BLUE) against five AI bandits (RED) over Samos.
 - Rounds: wipe out the other team to win the round; everyone respawns fully rearmed for the next. First team to 3 round wins takes the match (choose first to 2, 3 or 4).
@@ -1033,10 +1562,12 @@ in the game under **WHAT'S NEW** on the main menu.
 - Bandits only fly the two jets you did not pick. Pick the AI difficulty (Easy to Extreme) and weapons (all, Sidewinders + gun, or guns only).
 - Spectator: when you're shot down you can watch any jet on either team until the round ends. Click a jet in the list, or use the arrow keys / Tab; right-drag to orbit, wheel to zoom. It moves on to the next jet automatically when the one you're watching goes down.
 - Free camera: press F while spectating to fly a camera anywhere (WASD, Q/E down/up, Shift faster, right-drag to look).
-- Scoreboard: round number and score in the top bar, jets left on each side, round banners and voice calls. A round nobody finishes in 10 minutes goes to the team with more jets left (a tie replays the round).
+- Scoreboard: round number and score in the top bar, jets left on each side, round banners and voice calls. A round that runs past the time limit is decided by the rules at that time (see later versions).
 - Logbook: 5v5 match and round record, plus two new decorations: SQUADRON LEADER (win a match) and CLEAN SWEEP (win without losing a round).
 
-## v1.3.0 — Auto-Fly (2026-09-26)
+## v1.3.0 (2026-09-26)
+
+### Air Combat: Auto-Fly
 
 - Auto-Fly replaces the old level-off autopilot. Press U to open a small panel, pick a destination (any airfield or the bullseye, or hold your current heading), a speed (300-650 kt) and an altitude (2,000-40,000 ft), then ENGAGE.
 - The jet flies itself there: it turns onto course, holds your speed with the throttle (afterburner if needed), climbs over any mountains in its path, and circles overhead when it arrives.
@@ -1044,7 +1575,9 @@ in the game under **WHAT'S NEW** on the main menu.
 - Move the stick (or the mouse in mouse-aim) to take control back instantly; press U again to change the destination, speed or altitude, or to disengage.
 - Steering fix: turns with a bank limit no longer over-pull and slowly climb (AI patrols benefit too).
 
-## v1.2.1 — Smooth roll-outs (2026-09-26)
+## v1.2.1 (2026-09-26)
+
+### Air Combat: Smooth roll-outs
 
 - Fixed the wobble after turning: when you stopped a turn the jet rocked wing over wing (roll one way, back, and back again). The mouse-aim autopilot now asks for a roll rate matched to what the flight controls can deliver, so the wings settle smoothly.
 - Fine aim: for the last few degrees near the aim point the jet no longer swings its bank from side to side; it holds the wings steady and uses the rudder for small heading corrections.
@@ -1054,7 +1587,9 @@ in the game under **WHAT'S NEW** on the main menu.
 - Fixed reversed rudder from v1.2.0: right rudder yaws the nose right again.
 - The AI pilots use the same autopilot, so they fly smoother too.
 
-## v1.2.0 — Realistic flight physics (2026-09-26)
+## v1.2.0 (2026-09-26)
+
+### Air Combat: Realistic flight physics
 
 - Flight physics rebuilt: the jets now rotate as real rigid bodies. Pitch, roll and yaw come from aerodynamic moments and the jet's inertia instead of being set directly, so every aircraft has weight, momentum and overshoot.
 - Per-jet moments of inertia that change with fuel and stores: a jet loaded with wing tanks and missiles is slower to start and stop a roll.
@@ -1068,45 +1603,30 @@ in the game under **WHAT'S NEW** on the main menu.
 - Fixed the F/A-18's vertical stabilizers: both now cant outward 20 degrees symmetrically (the left fin used to lean the wrong way).
 - F-15EX vertical stabilizers are now perfectly straight (vertical).
 
-## v1.1.0 — High-detail aircraft (2026-09-26)
+## v1.1.0 (2026-09-26)
 
-- All three jets rebuilt from scratch: F-15EX Eagle II, F/A-18F Super Hornet
-  and Eurofighter Typhoon (about 150,000 triangles each, up from about 15,000).
-- Smooth blended fuselages built from real cross-sections: F-15 chines and
-  dorsal hump, Super Hornet LEX blades, Typhoon drooped radome and spine.
-- Hollow intakes with rounded lips, ducts that darken with depth and engine
-  fans inside: raked F-15 boxes, Super Hornet carets under the LEX, Typhoon
-  "smiling" chin intake with splitter.
-- Real airfoil wings and tails with rounded tips, cranked and raked planforms,
-  dog-teeth, and separate moving flaps, ailerons, leading-edge flaps, slats,
-  rudders, stabilators and canards.
-- Engine nozzles with petals, sawtooth exits, burner cans, flame holders and
-  turbine faces.
-- Detailed landing gear: oleo struts, torque links, drag braces, tyres and
-  hubs, doors, taxi lights; twin nose wheels and launch bar on the Super Hornet.
-- Pilots in ejection seats visible through the canopy, cockpit wells, glare
-  shields, framed bubble canopies with reflective glass.
-- Painted liveries: panel lines, rivets, walkways, NO STEP stencils,
-  weathering and exhaust soot, radomes, anti-glare panels, coalition roundels,
-  tail codes, serials and warning markings.
-- Speedbrakes modelled per jet: F-15 dorsal panel, Super Hornet LEX spoilers,
-  Typhoon dorsal airbrake.
+### Air Combat: High-detail aircraft
+
+- All three jets rebuilt from scratch: F-15EX Eagle II, F/A-18F Super Hornet and Eurofighter Typhoon (about 150,000 triangles each, up from about 15,000).
+- Smooth blended fuselages built from real cross-sections: F-15 chines and dorsal hump, Super Hornet LEX blades, Typhoon drooped radome and spine.
+- Hollow intakes with rounded lips, ducts that darken with depth and engine fans inside: raked F-15 boxes, Super Hornet carets under the LEX, Typhoon "smiling" chin intake with splitter.
+- Real airfoil wings and tails with rounded tips, cranked and raked planforms, dog-teeth, and separate moving flaps, ailerons, leading-edge flaps, slats, rudders, stabilators and canards.
+- Engine nozzles with petals, sawtooth exits, burner cans, flame holders and turbine faces.
+- Detailed landing gear: oleo struts, torque links, drag braces, tyres and hubs, doors, taxi lights; twin nose wheels and launch bar on the Super Hornet.
+- Pilots in ejection seats visible through the canopy, cockpit wells, glare shields, framed bubble canopies with reflective glass.
+- Painted liveries: panel lines, rivets, walkways, NO STEP stencils, weathering and exhaust soot, radomes, anti-glare panels, coalition roundels, tail codes, serials and warning markings (F-15EX two-tone grey, Super Hornet tactical greys, Typhoon air-superiority grey).
+- Speedbrakes modelled per jet: F-15 dorsal panel, Super Hornet LEX spoilers, Typhoon dorsal airbrake.
 - New AIM-120D, AIM-9X, fuel tank, streamlined pylons and rail launchers.
-- Detail parts are culled on distant jets, and each jet type is built once and
-  shared, so waves spawn without stutter.
+- Detail parts are culled on distant jets, and each jet type is built once and shared, so waves spawn without stutter.
 
-## v1.0.0 — First release (2026-09-26)
+## v1.0.0 (2026-09-26)
 
-- Three aircraft (F-15EX, F/A-18E/F, Typhoon) over a 400 × 400 NM theater:
-  Skye, Capri and Samos, with six airfields, forests and mountains everywhere.
-- Free Flight, 10-wave combat and 1v1 Duel (Easy / Medium / Hard / Extreme);
-  enemies never fly your type.
-- Fly-by-wire flight model, fuel system with afterburner burn, G effects
-  (grey-out, tunnel vision, 10-second G-LOC, red-out).
-- AIM-120D, AIM-9X, guns, flares and chaff; radar, IRST and missiles all
-  blocked by terrain and the curvature of the earth.
+### Air Combat: First release
+
+- Three aircraft (F-15EX, F/A-18E/F, Typhoon) over a 400 x 400 NM theater: Skye, Capri and Samos, with six airfields, forests and mountains everywhere.
+- Free Flight, 10-wave combat and 1v1 Duel (Easy / Medium / Hard / Extreme); enemies never fly your type.
+- Fly-by-wire flight model, fuel system with afterburner burn, G effects (grey-out, tunnel vision, 10-second G-LOC, red-out).
+- AIM-120D, AIM-9X, guns, flares and chaff; radar, IRST and missiles all blocked by terrain and the curvature of the earth.
 - AI with patrol, intercept, engage, defensive and terrain-masking behaviour.
-- 3D cockpits with working displays, helmet-mounted cueing, navigation, ILS
-  and graded landings.
-- Pilot logbook with decorations, mission debrief, track replays, touch
-  controls.
+- 3D cockpits with working displays, helmet-mounted cueing, navigation, ILS and graded landings.
+- Pilot logbook with decorations, mission debrief, track replays, touch controls.
