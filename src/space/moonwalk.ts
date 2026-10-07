@@ -93,6 +93,10 @@ export class Moonwalk {
   private airT = 0;
   private landT = 1;
   private jumpWind = -1;
+  /** a jump pressed mid-stride (in the air of a lope) waits for the next footfall */
+  private jumpReq = 0;
+  /** E pressed while in the air waits for the feet to touch down */
+  private useReq = 0;
   private modeT = 0;
   private pose: Pose = { ...REST };
   // ---- the figure
@@ -282,7 +286,10 @@ export class Moonwalk {
       else if (nearLadder) this.prompt = 'E · CLIMB ABOARD (plant the flag first, or leave it)';
       else if (!this.stats.flag) this.prompt = Math.hypot(this.x, this.z) > 5 ? 'E · PLANT THE FLAG HERE' : 'Walk out a few metres to plant the flag';
       else this.prompt = 'Explore. Return to the ladder and press E to climb aboard';
-      if (inp.use && this.onGround) {
+      if (inp.use) this.useReq = 1.6;
+      this.useReq = Math.max(0, this.useReq - dt);
+      if (this.useReq > 0 && this.onGround) {
+        this.useReq = 0;
         if (nearLadder) {
           // turn to the ladder and climb
           this.mode = 'climb';
@@ -335,7 +342,13 @@ export class Moonwalk {
     }
     const hs = Math.hypot(this.vx, this.vz);
     // jumping: a crouch to wind up, then off
-    if (inp.jump && this.onGround && this.jumpWind < 0 && this.landT > 0.25) this.jumpWind = 0;
+    // (a lope's hop lasts about 1.4 s in the Moon's gravity: a press during it waits for the landing)
+    if (inp.jump) this.jumpReq = 1.6;
+    this.jumpReq = Math.max(0, this.jumpReq - dt);
+    if (this.jumpReq > 0 && this.onGround && this.jumpWind < 0 && this.landT > 0.08) {
+      this.jumpWind = 0;
+      this.jumpReq = 0;
+    }
     if (this.jumpWind >= 0) {
       this.jumpWind += dt;
       if (this.jumpWind > 0.28) {
@@ -348,7 +361,7 @@ export class Moonwalk {
       }
     }
     // the bounding lope: every landing springs into the next low hop
-    if (this.onGround && inp.run && moving && hs > 1.4 && this.jumpWind < 0 && this.landT > 0.12) {
+    if (this.onGround && inp.run && moving && hs > 1.4 && this.jumpWind < 0 && this.jumpReq <= 0 && this.landT > 0.12) {
       this.vy = 1.15;
       this.onGround = false;
       this.airT = 0;

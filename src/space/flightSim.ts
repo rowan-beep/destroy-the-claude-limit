@@ -222,6 +222,8 @@ export class FlightSim {
   autoStage = true;
   /** easy flying: the S-IVB's J-2 can be restarted as often as you like */
   unlimitedRestarts = false;
+  /** the closest pass to the Moon the trajectory planner predicts (the Moon-only conic is wrong while Earth still pulls) */
+  passPlan: { alt: number; t: number } | null = null;
   private ignitionLogged = false;
   /** called after every physics substep, so an autopilot can cut an engine at the exact moment */
   stepHook: ((h: number) => void) | null = null;

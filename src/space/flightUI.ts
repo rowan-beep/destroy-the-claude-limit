@@ -91,6 +91,7 @@ export class FlightUI {
   private propBar: HTMLElement;
   private propText: HTMLElement;
   private vehRows: Record<string, HTMLElement> = {};
+  private restartLbl!: HTMLElement;
   private orbRows: Record<string, HTMLElement> = {};
   private orbCanvas: HTMLCanvasElement;
   private ball: HTMLCanvasElement;
@@ -166,7 +167,8 @@ export class FlightUI {
     this.propText = el('div', 'fx-prop-t', pb, '');
     for (const [k, t] of [['mass', 'MASS'], ['twr', 'THRUST / WEIGHT'], ['dv', 'Δv STAGE · TOTAL'], ['burn', 'BURN LEFT'], ['ctl', 'CONTROL'], ['restart', 'J-2 STARTS LEFT']]) {
       const r = el('div', 'fx-kv', vr);
-      el('span', 'k', r, t);
+      const kl = el('span', 'k', r, t);
+      if (k === 'restart') this.restartLbl = kl;
       this.vehRows[k] = el('span', 'v', r, '—');
     }
 
@@ -513,18 +515,23 @@ export class FlightUI {
     this.vehRows.dv.textContent = `${dv.stage.toFixed(0)} · ${dv.total.toFixed(0)} m/s`;
     this.vehRows.burn.textContent = st ? mmss(dv.burn) : '—';
     this.vehRows.ctl.textContent = sim.guidance ? 'IU GUIDANCE' : sim.sas === 'off' ? 'FREE' : sim.sas === 'aim' ? 'COMPUTER' : `SAS ${sim.sas.toUpperCase()}`;
-    this.vehRows.restart.textContent = sim.attached.has('sivb') ? (sim.unlimitedRestarts ? '∞' : String(sim.sivbStarts)) : sim.isLm ? `THROTTLE ${Math.round(sim.throttle * 100)}%` : sim.stage === 'sm' ? '∞' : '—';
+    // (the last row follows the engine: the S-IVB's restarts, the lander's throttle, the service module's engine)
+    const rl = sim.attached.has('sivb') ? 'J-2 STARTS LEFT' : sim.isLm ? 'THROTTLE' : sim.stage === 'sm' ? 'SPS STARTS LEFT' : 'RESTARTS';
+    if (this.restartLbl.textContent !== rl) this.restartLbl.textContent = rl;
+    this.vehRows.restart.textContent = sim.attached.has('sivb') ? (sim.unlimitedRestarts ? '∞' : String(sim.sivbStarts)) : sim.isLm ? `${Math.round(sim.throttle * 100)}%` : sim.stage === 'sm' ? '∞' : '—';
 
-    // the orbit
+    // the orbit (none once down on the ground; on the way to the Moon, the planner's closest pass)
     const closed = o.e < 1;
-    this.orbRows.ap.textContent = closed ? km(o.ra - R) : '∞ (escape)';
-    this.orbRows.pe.textContent = km(o.rp - R);
-    this.orbRows.pe.className = 'v ' + (o.rp < R ? 'bad' : o.rp < R + body.atmosphereTop + (moon ? 4000 : 0) ? 'warn' : 'good');
-    this.orbRows.tap.textContent = closed ? mmss(o.tAp) : '—';
-    this.orbRows.tpe.textContent = mmss(o.tPe);
-    this.orbRows.inc.textContent = `${((o.i * 180) / Math.PI).toFixed(2)}°`;
-    this.orbRows.per.textContent = Number.isFinite(o.period) ? mmss(o.period) : '—';
-    this.orbRows.ecc.textContent = o.e.toFixed(4);
+    const down = status === 'landed';
+    const pass = moon && status === 'transit' && sim.passPlan && sim.time < sim.passPlan.t ? sim.passPlan : null;
+    this.orbRows.ap.textContent = down ? '—' : closed ? km(o.ra - R) : '∞ (escape)';
+    this.orbRows.pe.textContent = down ? '—' : pass ? km(pass.alt) : km(o.rp - R);
+    this.orbRows.pe.className = 'v ' + (down ? '' : pass ? 'good' : o.rp < R ? 'bad' : o.rp < R + body.atmosphereTop + (moon ? 4000 : 0) ? 'warn' : 'good');
+    this.orbRows.tap.textContent = down || !closed ? '—' : mmss(o.tAp);
+    this.orbRows.tpe.textContent = down ? '—' : pass ? mmss(pass.t - sim.time) : mmss(o.tPe);
+    this.orbRows.inc.textContent = down ? '—' : `${((o.i * 180) / Math.PI).toFixed(2)}°`;
+    this.orbRows.per.textContent = !down && Number.isFinite(o.period) ? mmss(o.period) : '—';
+    this.orbRows.ecc.textContent = down ? '—' : o.e.toFixed(4);
     if (moon) {
       const f = toMoonFixed(norm(sim.rel), sim.time);
       const lat = (Math.asin(Math.max(-1, Math.min(1, f[2]))) * 180) / Math.PI, lon = (Math.atan2(f[1], f[0]) * 180) / Math.PI;
@@ -631,7 +638,7 @@ export class FlightUI {
         case 'orbit':
           return `Round the Moon · ${km(o.rp - R)} × ${km(o.ra - R)} · ${mmss(o.period)} per orbit`;
         case 'transit':
-          return `In the Moon's pull · closest pass ${km(o.rp - R)} in ${mmss(o.tPe)}`;
+          return sim.passPlan && sim.time < sim.passPlan.t ? `In the Moon's pull · closest pass ${km(sim.passPlan.alt)} in ${mmss(sim.passPlan.t - sim.time)}` : `In the Moon's pull · closest pass ${km(o.rp - R)} in ${mmss(o.tPe)}`;
         case 'ascent':
           return sim.isLm ? `Descent engine ${Math.round(sim.throttle * 100)}% · ${Math.round(sim.lowAlt)} m above the surface` : 'Service module engine burning';
         case 'falling':
@@ -686,7 +693,11 @@ export class FlightUI {
     const P = o.P, Q = cross(o.W, o.P);
     const pts: [number, number][] = [];
     let maxR = R * 1.25;
-    if (o.e < 1) {
+    // (on the ground there is no orbit to draw: just the body and where you are)
+    const down = sim.status() === 'landed';
+    if (down) {
+      /* nothing */
+    } else if (o.e < 1) {
       for (let i = 0; i <= 180; i++) {
         const p = orbitPoint(o, (i / 180) * Math.PI * 2);
         pts.push([dot(p, P), dot(p, Q)]);
@@ -701,7 +712,7 @@ export class FlightUI {
       maxR = R * 6;
     }
     const s = Math.min(W / 2, H / 2) / maxR * 0.95;
-    const cx = W / 2 + (o.e < 1 ? (o.a * o.e) * s * 0.5 : 0), cy = H / 2;
+    const cx = W / 2 + (o.e < 1 && !down ? (o.a * o.e) * s * 0.5 : 0), cy = H / 2;
     // atmosphere and Earth
     g.fillStyle = 'rgba(80,150,255,0.12)';
     g.beginPath();
@@ -730,7 +741,7 @@ export class FlightUI {
       g.font = '11px Consolas, monospace';
       g.fillText(label, x + 6, y - 6);
     };
-    if (o.e < 1) {
+    if (o.e < 1 && !down) {
       mark(orbitPoint(o, Math.PI), '#9fd0ff', 'AP');
       mark(orbitPoint(o, 0), '#9fd0ff', 'PE');
     }
@@ -870,6 +881,8 @@ export class FlightUI {
     const pitch = (Math.asin(Math.max(-1, Math.min(1, fe))) * 180) / Math.PI;
     let hdg = (Math.atan2(fE, fn) * 180) / Math.PI;
     if (hdg < 0) hdg += 360;
-    this.ballRead.textContent = `PITCH ${pitch.toFixed(1)}°  ·  HDG ${hdg.toFixed(0).padStart(3, '0')}°  ·  AoA ${((sim.alpha * 180) / Math.PI).toFixed(1)}°`;
+    // (angle of attack only means something in the air)
+    const inAir = !sim.nearMoon && sim.alt < 100_000;
+    this.ballRead.textContent = `PITCH ${pitch.toFixed(1)}°  ·  HDG ${hdg.toFixed(0).padStart(3, '0')}°${inAir ? `  ·  AoA ${((sim.alpha * 180) / Math.PI).toFixed(1)}°` : ''}`;
   }
 }

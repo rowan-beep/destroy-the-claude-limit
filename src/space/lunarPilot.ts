@@ -245,6 +245,7 @@ export class LunarPilot {
     const mag = len(m.dv);
     if (mag < 0.5 || sim.prop.sm <= 0) {
       if (phase === 'mcc1') p.tMcc2 = sim.time + (m.encounter.t - sim.time) * 0.6;
+      sim.passPlan = { alt: m.encounter.dmin - MOON.R, t: m.encounter.t };
       sim.log(`Mid-course correction not needed: arriving ${km(m.encounter.dmin - MOON.R)} above the Moon.`, 'info');
       this.set('coast');
       return;
@@ -261,6 +262,7 @@ export class LunarPilot {
     p.burning = false;
     const e = encounter(sim.r, sim.v, sim.time);
     p.tArrive = e.t;
+    sim.passPlan = { alt: e.dmin - MOON.R, t: e.t };
     sim.log(`Correction done: arriving ${km(e.dmin - MOON.R)} above the Moon in ${days(e.t - sim.time)}.`, 'good');
     sim.setSas('stab');
     this.set('coast');

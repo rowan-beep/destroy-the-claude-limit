@@ -335,6 +335,8 @@ export class MarsMission {
 
   // ------------------------------------------------------------------ lifecycle
   start(): void {
+    // (keys still held from the last flight were released while nothing was listening)
+    this.keys.clear();
     const renderer = this.getRenderer();
     this.site = this.getSite();
     if (!this.ship) {
@@ -479,6 +481,8 @@ export class MarsMission {
       return;
     }
     if (!down) return;
+    // (paused: only Escape, to resume, and the help)
+    if (this.paused && c !== 'Escape' && c !== 'KeyH' && c !== 'Slash') return;
     let used = true;
     if (c === 'Space') this.action();
     else if (c === 'KeyF') this.setFF(!this.ff);

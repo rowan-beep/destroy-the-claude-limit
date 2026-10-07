@@ -41,6 +41,8 @@ const D2R = Math.PI / 180;
 const SLS_Y = 28;
 /** where the drone ship waits in the site view (the stage's last minutes are drawn here, off the coast) */
 const DRONE = new THREE.Vector3(1500, 0, -9000);
+/** Europa Clipper's cruise round the Sun starts this far out (out of Earth's sphere of influence) */
+const CRUISE_FROM = 9.2e8;
 /** the ISS's orbit: 420 km, circular */
 const ISS_R = 6_371_000 + 420_000;
 /** the final approach, along the station's velocity to Harmony's forward port: [metres ahead of the port, seconds to get there, seconds holding] */
@@ -513,6 +515,8 @@ export class LaunchMission {
     const tag = (e.target as HTMLElement | null)?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA') return;
     const c = e.code;
+    // (paused: only Escape, to resume, and the help)
+    if (this.paused && c !== 'Escape' && c !== 'KeyH' && c !== 'Slash') return;
     let used = true;
     if (c === 'Space') this.action();
     else if (c === 'KeyF') this.setFF(!this.ff);
@@ -521,8 +525,10 @@ export class LaunchMission {
       const n = Number(c.slice(5));
       this.warpI = n === 0 ? 9 : n - 1;
       this.ff = false;
-    } else if (c === 'Escape') this.setPaused(!this.paused);
-    else if (c === 'KeyH' || c === 'Slash') this.elHelp.classList.toggle('show');
+    } else if (c === 'Escape') {
+      if (this.elHelp.classList.contains('show')) this.elHelp.classList.remove('show');
+      else this.setPaused(!this.paused);
+    } else if (c === 'KeyH' || c === 'Slash') this.elHelp.classList.toggle('show');
     else used = false;
     if (used) {
       e.preventDefault();
@@ -580,6 +586,7 @@ export class LaunchMission {
     }
     if (this.id === 'clipper') {
       if (f.phase === 'orbit') return { label: 'ESCAPE BURN', run: () => this.escapeBurn() };
+      if (f.phase === 'escaped' && !this.cruising) return { label: 'WARP TO THE CRUISE', run: () => this.setFF(true) };
       if (this.cruising && !this.arrived) return { label: 'WARP TO THE NEXT EVENT', run: () => this.setFF(true) };
       if (this.arrived && this.europaT < 0) return { label: 'FLY PAST EUROPA', run: () => this.europaFlyby() };
     } else {
@@ -658,7 +665,7 @@ export class LaunchMission {
         this.ff = false;
         this.warpI = 0;
         warp = 1;
-      } else warp = Math.max(1, Math.min(1_000_000, te / 3));
+      } else warp = Math.max(1, Math.min(1_000_000, this.cruising ? Math.max(100, te) : te / 3));
     }
     // the burns that must fly at real speed
     if (f.phase === 'burn' || (f.phase !== 'pad' && f.alt < 200_000 && f.phase !== 'orbit' && f.phase !== 'coast' && f.phase !== 'escaped' && f.phase !== 'splash')) warp = Math.min(warp, f.phase === 'burn' ? 50 : 10);
@@ -701,10 +708,14 @@ export class LaunchMission {
     }
     if (this.id === 'clipper') {
       if (this.cruising) {
+        // (right up to it: the event itself stops the warp. No physics runs on the
+        // cruise, so there is nothing to slow down for, and a lead time left the
+        // warp button dead with an hour to go at 1×)
         const ev = this.cruiseEvents.find((e) => !e.done);
-        return ev ? (ev.jd - this.jd) * 86400 - 3600 : 0;
+        return ev ? (ev.jd - this.jd) * 86400 : 0;
       }
-      if (f.phase === 'escaped') return Math.max(0, (4e8 - len(f.r)) / Math.max(1000, len(f.v)));
+      // (out to where the cruise round the Sun takes over)
+      if (f.phase === 'escaped') return Math.max(0, (CRUISE_FROM - len(f.r)) / Math.max(1000, len(f.v)));
       return 0;
     }
     if (f.phase === 'orbit' && this.tliAt > 0) return this.tliAt - f.t - 60;
@@ -771,12 +782,13 @@ export class LaunchMission {
         this.flash('EUROPA CLIPPER');
       }
       // out of Earth's sphere of influence: on to the route round the Sun
-      if (f.phase === 'escaped' && f.payloadOnly && len(f.r) > 9.2e8 && !this.cruising) this.beginCruise(f);
+      if (f.phase === 'escaped' && f.payloadOnly && len(f.r) > CRUISE_FROM && !this.cruising) this.beginCruise(f);
     }
     if (f.outcome && !this.endAt) this.endAt = performance.now() + (f.outcome.ok ? 4000 : 3000);
     if (f.outcome && this.endAt && !this.endShown && performance.now() > this.endAt) {
       this.endShown = true;
-      if (f.outcome.ok) updateRecord((r) => r.missions++);
+      // (Crew Dragon's mission was counted when it docked)
+      if (f.outcome.ok && !(this.id === 'iss' && this.rv)) updateRecord((r) => r.missions++);
       this.card(f.outcome.title.toUpperCase(), f.outcome.text, [
         ['LOOK AROUND', () => this.elCard.classList.remove('show')],
         ['FLY AGAIN', () => this.restart()],
@@ -1489,7 +1501,8 @@ export class LaunchMission {
     }
     if (!this.chutes) return;
     this.chutes.visible = chutesOut;
-    const k = f.phase === 'splash' ? Math.max(0, 1 - (this.wallT - this.splashT) / 6) : Math.min(1, f.chuteK * 1.3);
+    // (before the mains open, the small drogues: the same canopies, drawn small and close in)
+    const k = f.phase === 'splash' ? Math.max(0, 1 - (this.wallT - this.splashT) / 6) : f.chuteK < 0.02 ? 0.2 : Math.max(0.2, Math.min(1, f.chuteK * 1.3));
     if (f.phase === 'splash' && this.splashT < 0) this.splashT = this.wallT;
     const m = this.chutes.children.length;
     this.chutes.children.forEach((c, i) => {

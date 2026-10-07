@@ -88,7 +88,18 @@ export class LaunchFlight {
    * (Orion's service module: the ICPS raises the orbit, Orion does the rest)
    */
   kick: { thrust: number; isp: number; prop: number; say: string } | null = null;
+  /** how far the main parachutes have opened (0 = only the drogues) */
   chuteK = 0;
+  /** the capsule's main parachutes, and the heights the drogues and then the mains come out */
+  get mains(): number {
+    return this.vehicle.id === 'falcon-9' ? 4 : 3;
+  }
+  private get drogueAlt(): number {
+    return this.vehicle.id === 'falcon-9' ? 5_500 : 7_600;
+  }
+  private get mainsAlt(): number {
+    return this.vehicle.id === 'falcon-9' ? 1_800 : 2_900;
+  }
   /** landing zones (ECEF) for the side boosters */
   lz: V3[] = [];
   outcome: { ok: boolean; title: string; text: string } | null = null;
@@ -349,7 +360,8 @@ export class LaunchFlight {
       let cdA = V.cd * V.area;
       if (this.phase === 'upper' || this.phase === 'orbit') cdA = 0.6 * Math.PI * 2.6 * 2.6;
       if (this.phase === 'entry') cdA = 1.25 * Math.PI * 2.5 * 2.5;
-      if (this.phase === 'chutes') cdA = 1.25 * Math.PI * 2.5 * 2.5 + this.chuteK * 3 * 0.8 * Math.PI * 58 * 58 * 0.25;
+      // under the two drogues (7 m each), then the mains (35 m each) as they open
+      if (this.phase === 'chutes') cdA = 1.25 * Math.PI * 2.5 * 2.5 + (1 - this.chuteK) * 2 * 0.6 * Math.PI * 3.5 * 3.5 + this.chuteK * this.mains * 0.8 * Math.PI * 17.5 * 17.5;
       drag = scale(va, (-0.5 * atm.rho * vA * cdA) / m);
     }
     const thrustAcc = scale(this.axis, F / Math.max(1, m));
@@ -617,14 +629,17 @@ export class LaunchFlight {
     }
     if (this.phase === 'entry') {
       this.axis = norm(scale(this.airVel(), -1));
-      if (alt < 7_600 && vA < 250) {
+      if (alt < this.drogueAlt && vA < 250) {
         this.phase = 'chutes';
         this.chuteK = 0;
-        this.say(this.vehicle.id === 'falcon-9' ? 'Parachutes: two drogues steady Dragon, then its four mains open, each 35 m across.' : 'Parachutes: two drogues at 7.6 km, then three 35 m mains open at 2.9 km.', 'good');
+        this.say(`Drogue parachutes out at ${(alt / 1000).toFixed(1)} km: two small chutes steady ${this.vehicle.id === 'falcon-9' ? 'Dragon' : 'Orion'} and slow it down.`, 'good');
       }
     }
     if (this.phase === 'chutes') {
-      this.chuteK = Math.min(1, this.chuteK + 0.004);
+      if (alt < this.mainsAlt || this.chuteK > 0) {
+        if (this.chuteK === 0) this.say(`Main parachutes at ${(alt / 1000).toFixed(1)} km: the drogues are cut away and ${this.mains === 4 ? 'four' : 'three'} 35 m mains open, reefed at first, then full.`, 'good');
+        this.chuteK = Math.min(1, this.chuteK + 0.004);
+      }
       if (alt <= 0) {
         this.phase = 'splash';
         this.v = cross([0, EARTH.spin, 0], this.r);

@@ -1019,6 +1019,10 @@ body:has(#hud.cockpit-clean) .wx-widget { opacity: 0; pointer-events: none; }
 .sx2-ver { margin-left: auto; font-size: 10px; font-family: 'Consolas', 'Menlo', monospace; color: rgba(255, 255, 255, 0.4); }
 .sx2-hint { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); font-size: 9.5px; letter-spacing: 0.2em; color: rgba(255, 255, 255, 0.35); pointer-events: none !important; }
 
+/* short windows: the site telemetry (decoration) makes way for the launch ring rather than sitting under it */
+@media (max-height: 800px) { .sx2-tele { display: none; } }
+/* narrower windows: the clock leaves the top bar so the commander's badge fits */
+@media (max-width: 1180px) { .sx2-clock { display: none; } }
 @media (max-width: 900px) {
   .sx2-tabs { display: none; }
   .sx2-tele, .sx2-hero, .sx2-hint { display: none; }
@@ -1054,7 +1058,7 @@ body:has(#hud.cockpit-clean) .wx-widget { opacity: 0; pointer-events: none; }
 .fx-kv .v.good { color: var(--good); } .fx-kv .v.warn { color: var(--warn); } .fx-kv .v.bad { color: var(--bad); }
 /* top */
 .fx-top { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 18px; pointer-events: none; }
-.fx-clock { font-family: 'Consolas', 'Menlo', monospace; font-size: 26px; letter-spacing: 0.08em; text-shadow: 0 0 18px rgba(124, 192, 255, 0.45); }
+.fx-clock { font-family: 'Consolas', 'Menlo', monospace; font-size: 26px; letter-spacing: 0.08em; text-shadow: 0 0 18px rgba(124, 192, 255, 0.45); white-space: nowrap; }
 .fx-state { display: flex; flex-direction: column; align-items: center; min-width: 300px; }
 .fx-badge { font-size: 19px; font-weight: 800; letter-spacing: 0.32em; padding: 6px 18px; border-radius: 999px; border: 1px solid currentColor; background: rgba(4, 10, 24, 0.55); }
 .fx-badge.pad { color: #c9d6e6; } .fx-badge.warn { color: var(--warn); } .fx-badge.good { color: var(--good); } .fx-badge.safe { color: var(--safe); }
@@ -1193,6 +1197,15 @@ body:has(#hud.cockpit-clean) .wx-widget { opacity: 0; pointer-events: none; }
 @keyframes fx-pulse { 50% { box-shadow: 0 0 24px rgba(255, 90, 74, 0.6); } }
 @keyframes fx-blink { 50% { opacity: 0.25; } }
 @media (max-width: 1100px) { .fx-orb { display: none; } .fx-log { display: none; } .fx-veh { width: 250px; } }
+/* short windows: the gauges in the middle shrink, the side panels tighten, so they stop running into each other */
+@media (max-height: 720px) {
+  .fx-ball { width: 170px; height: 170px; }
+  .fx-mid { bottom: 52px; }
+  .fx-tape { gap: 6px; }
+  .fx-veh { transform: scale(0.86); transform-origin: top left; }
+  .fx-orb { transform: scale(0.86); transform-origin: top right; }
+  .fx-clock { font-size: 22px; }
+}
 @media (max-width: 760px) { .fx-veh { display: none; } .fx-tape { min-width: 100px; } .fx-tv .v { font-size: 16px; } .fx-ball { width: 160px; height: 160px; } .fx-loads { width: 92vw; } .fx-lamps { display: none; } .fx-state { min-width: 0; } .fx-ctl { width: auto; left: 14px; } .fx-easy { width: auto; left: 14px; } .fx-mid { bottom: 230px; } }
 .sx2-card.open { cursor: pointer; border-color: rgba(124, 192, 255, 0.55); background: linear-gradient(90deg, rgba(124, 192, 255, 0.16), rgba(124, 192, 255, 0.02)); }
 .sx2-card.open .sx2-lock { color: #0a1424; background: var(--a); border-color: var(--a); }

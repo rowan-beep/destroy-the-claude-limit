@@ -427,6 +427,8 @@ export class RoverMission {
 
   // ------------------------------------------------------------------ lifecycle
   start(def: RoverMissionDef): void {
+    // (keys still held from the last flight were released while nothing was listening)
+    this.keys.clear();
     this.def = def;
     const renderer = this.getRenderer();
     if (!this.mars) {
@@ -569,6 +571,8 @@ export class RoverMission {
       return;
     }
     if (!down) return;
+    // (paused: only Escape, to resume, and the help)
+    if (this.paused && c !== 'Escape' && c !== 'KeyH' && c !== 'Slash') return;
     let used = true;
     if (c === 'Space') this.action();
     else if (c === 'KeyC') this.cycleCam();

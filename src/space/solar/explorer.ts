@@ -257,6 +257,10 @@ export class SolarExplorer {
   }
 
   private hud(w: number, h: number, target: Vec): void {
+    // where the panels are (the world buttons and the info card), read before anything
+    // on the page changes this frame so it costs no extra layout; no names go under them
+    const o = this.ui.getBoundingClientRect();
+    const panels = [this.elChips, this.elInfo].map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0);
     this.elDate.textContent = `${dateText(this.jd)} · ${WARPS[this.warpI][0]}`;
     this.elWarp.forEach((b, i) => b.classList.toggle('on', i === this.warpI));
     this.chips();
@@ -274,6 +278,7 @@ export class SolarExplorer {
       const y = p.y - Math.max(8, p.r) - 6;
       const hw = name.length * 4.6 + 6;
       if (placed.some(([x0, y0, w0]) => Math.abs(x0 - p.x) < hw + w0 && Math.abs(y0 - y) < 15)) continue;
+      if (panels.some((r) => p.x + hw > r.left - o.left && p.x - hw < r.right - o.left && y > r.top - o.top && y - 14 < r.bottom - o.top)) continue;
       placed.push([p.x, y, hw]);
       html += `<div style="position:absolute;left:${p.x.toFixed(0)}px;top:${y.toFixed(0)}px;transform:translate(-50%,-100%);font:600 11px Rajdhani,system-ui;letter-spacing:.14em;color:${id === this.focus ? '#ffffff' : '#cfe3ff'};text-shadow:0 1px 3px #000">${name}</div>`;
     }

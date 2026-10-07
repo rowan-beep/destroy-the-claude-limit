@@ -247,6 +247,8 @@ export class SpaceFlight {
 
   // ------------------------------------------------------------------ lifecycle
   start(mode: SpawnMode): void {
+    // (keys still held from the last flight were released while nothing was listening)
+    this.keys.clear();
     this.spawnMode = mode;
     this.site = this.getSite();
     if (!this.rocket) {

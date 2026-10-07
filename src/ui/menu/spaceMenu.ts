@@ -38,9 +38,9 @@ const SECTIONS: [Section, string][] = [
 ];
 
 const DESTINATIONS: [string, string, string, string][] = [
-  ['EARTH ORBIT', '400 KM · 90 MIN / ORBIT', 'radial-gradient(circle at 32% 28%, #bfe6ff, #2b7fd6 45%, #0b2350 75%)', 'First stop for every mission.'],
-  ['THE MOON', '384,400 KM · 3 DAYS', 'radial-gradient(circle at 32% 28%, #ffffff, #a9a9a4 45%, #3b3b3a 80%)', 'Land, drive the lunar rover, bring rocks home.'],
-  ['MARS', '225 M KM · 7 MONTHS', 'radial-gradient(circle at 32% 28%, #ffd0a8, #c9542b 45%, #4a1a0e 80%)', 'Starship lands on the red planet.'],
+  ['EARTH ORBIT', '185 KM · 88 MIN / ORBIT', 'radial-gradient(circle at 32% 28%, #bfe6ff, #2b7fd6 45%, #0b2350 75%)', 'Start in the Saturn V\'s parking orbit: go home, go higher or head for the Moon.'],
+  ['THE MOON', '384,400 KM · 3 DAYS', 'radial-gradient(circle at 32% 28%, #ffffff, #a9a9a4 45%, #3b3b3a 80%)', 'Start in lunar orbit: land the lunar module, walk out and plant the flag.'],
+  ['MARS', '225 M KM · 10 MONTHS', 'radial-gradient(circle at 32% 28%, #ffd0a8, #c9542b 45%, #4a1a0e 80%)', 'Fly Starship from the pad to the ground on Mars.'],
 ];
 
 export class SpaceMenu {
@@ -394,14 +394,17 @@ export class SpaceMenu {
 
   private renderDestinations(): void {
     this.head('DESTINATIONS', 'From low orbit to the red planet.');
-    for (const [name, sub, orb, desc] of DESTINATIONS) {
-      const r = el('div', 'sx2-card locked sx2-dest', this.side);
+    // each destination flies straight there: the Saturn V in Earth orbit or round the Moon, Starship to Mars
+    const go: (() => void)[] = [() => this.cb.onLaunch('orbit'), () => this.cb.onLaunch('lunar'), () => this.cb.onMars()];
+    DESTINATIONS.forEach(([name, sub, orb, desc], i) => {
+      const r = el('div', 'sx2-card open sx2-dest', this.side);
       el('div', 'sx2-orb', r).style.background = orb;
       const t = el('div', 'sx2-card-t', r);
       el('div', 'sx2-card-l', t, name);
       el('div', 'sx2-card-s mono', t, sub);
       el('div', 'sx2-card-d', t, desc);
-      el('div', 'sx2-lock', r, 'LOCKED');
-    }
+      el('div', 'sx2-lock', r, 'FLY');
+      r.addEventListener('click', go[i]);
+    });
   }
 }
