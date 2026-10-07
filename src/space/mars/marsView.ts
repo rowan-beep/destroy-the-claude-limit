@@ -20,6 +20,7 @@ import { MARS } from './marsPhysics';
 import { boulderGeometry, groundMaterial } from './marsSurface';
 import { LandingDust } from './marsFx';
 import { MarsWind } from './marsWeather';
+import { StarSky } from '../solar/sky';
 import { FOG_FRAME, FOG_SCALE, FOG_SUN, FOG_SUN_COLOR, resetFogFrame } from '../../render/fog';
 
 const R = MARS.R;
@@ -290,6 +291,7 @@ export class MarsView {
   private skyMat: THREE.ShaderMaterial;
   private stars: THREE.Points;
   private starMat: THREE.PointsMaterial;
+  readonly realSky = new StarSky();
   private sunSprite: THREE.Sprite;
   readonly sunLight: THREE.DirectionalLight;
   private hemi: THREE.HemisphereLight;
@@ -405,6 +407,9 @@ export class MarsView {
     this.stars.scale.setScalar(1.6e6);
     this.stars.frustumCulled = false;
     this.scene.add(this.stars);
+    // the real sky replaces the generated stars
+    this.stars.visible = false;
+    this.scene.add(this.realSky.group);
     // the Sun (a smaller disc than from Earth: Mars is half again as far)
     const c = document.createElement('canvas');
     c.width = c.height = 128;
@@ -513,6 +518,8 @@ export class MarsView {
     this.skyMat.uniforms.thick.value = Math.min(1, thick * 3);
     this.sky.visible = camAlt < 90_000;
     this.starMat.color.setScalar(Math.max(0, 1 - dayAir * 1.6));
+    this.realSky.brightness = Math.max(0, 1 - dayAir * 1.6);
+    this.realSky.update(cam);
     // (far out, so the planet hides the Sun when it is behind it)
     this.sunSprite.position.copy(cam.position).addScaledVector(sun, 1.4e9);
     this.sunSprite.scale.setScalar(1.4e9 * 0.04);

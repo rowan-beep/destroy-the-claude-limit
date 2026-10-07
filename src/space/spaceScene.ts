@@ -8,6 +8,7 @@
 
 import * as THREE from 'three';
 import { MoonView } from './moonView';
+import { StarSky } from './solar/sky';
 import { MOON, moonPos, EARTH, Body, V3, CONTINENT_GLSL, ecefDir, enu, PAD, orbitPoint, Orbit, descendingAnomaly, len, sub } from './universe';
 
 const RP_KM = EARTH.R / 1000;
@@ -293,6 +294,9 @@ export class SpaceScene {
   private cloudMat: THREE.ShaderMaterial;
   private skyMat: THREE.ShaderMaterial;
   private starMat: THREE.ShaderMaterial;
+  /** the real stars, turned from the ecliptic into this scene's axes (Y = Earth's north pole) */
+  readonly realSky = new StarSky();
+  private skyQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), (23.43928 * Math.PI) / 180 - Math.PI / 2);
   private milkyMat: THREE.ShaderMaterial;
   /** a group positioned at the origin, for the vehicle and nearby things */
   readonly local = new THREE.Group();
@@ -383,6 +387,10 @@ export class SpaceScene {
     stars.frustumCulled = false;
     this.skyGroup.add(stars);
     this.scene.add(this.skyGroup);
+    // the real sky (the Tycho catalogue's stars and the Milky Way) replaces the generated one
+    milky.visible = false;
+    stars.visible = false;
+    this.scene.add(this.realSky.group);
 
     // ---- the Sun
     const glowTex = (() => {
@@ -480,6 +488,8 @@ export class SpaceScene {
     const starB = (shadowed ? 1 : 0.45) * (1 - daySky);
     this.starMat.uniforms.bright.value = starB;
     this.milkyMat.uniforms.bright.value = starB;
+    this.realSky.brightness = Math.min(1, starB * 1.6);
+    this.realSky.update(this.camera, this.skyQ);
     this.ambient.intensity = 0.06 + 0.9 * inAir * Math.max(0.1, dayside);
     if (nearMoon) {
       // no air: hard sunlight, inky shadows, and a little blue earthshine

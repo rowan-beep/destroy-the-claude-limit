@@ -21,6 +21,7 @@ import { CruiseView, CRUISE_MAP_SCALE } from './cruiseView';
 import { BoosterRig, ShipRig, buildBooster, buildShip, poseShip } from './starshipModel';
 import { StarshipFire } from './starshipFire';
 import { EntryFx } from './marsFx';
+import { SolarView } from '../solar/solarView';
 
 /** the time-warp speeds; the one picked is the one used */
 export const MARS_WARPS = [1, 2, 5, 10, 50, 100, 1000, 10_000, 100_000, 1_000_000];
@@ -145,6 +146,8 @@ export class MarsMission {
   private space: SpaceScene | null = null;
   private mars: MarsView | null = null;
   private cruise: CruiseView | null = null;
+  /** the whole solar system round the ship on the coast */
+  private solar: SolarView | null = null;
   private ship: ShipRig | null = null;
   private booster: BoosterRig | null = null;
   private fire: StarshipFire | null = null;
@@ -363,6 +366,11 @@ export class MarsMission {
       this.cruise.scene.environment = this.envSpace;
       this.cruise.scene.environmentIntensity = 0.12;
     }
+    if (!this.solar) {
+      this.solar = new SolarView();
+      this.solar.scene.environment = this.envSpace;
+      this.solar.scene.environmentIntensity = 0.3;
+    }
     if (!this.mars) {
       this.mars = new MarsView();
       this.mars.renderer = renderer;
@@ -442,7 +450,7 @@ export class MarsMission {
   private sceneOf(v: View): THREE.Scene {
     if (v === 'site') return this.site!.scene;
     if (v === 'earth') return this.space!.scene;
-    if (v === 'cruise') return this.cruise!.scene;
+    if (v === 'cruise') return this.solar!.scene;
     return this.mars!.scene;
   }
 
@@ -964,12 +972,17 @@ export class MarsMission {
         const cp = Math.cos(this.mapPitch);
         const cam: Vec = [cp * Math.sin(this.mapYaw) * this.mapDist, -cp * Math.cos(this.mapYaw) * this.mapDist, Math.sin(this.mapPitch) * this.mapDist];
         cv.update({ r: f.r, v: f.v, jd: f.jd, cam, camUp: [0, 0, 1], look: [0, 0, 0], map: true, arriveJd: f.window.arr }, w, h);
-      } else {
-        const lk = vsub(look, f.r);
-        cv.update({ r: f.r, v: f.v, jd: f.jd, cam: vadd(lk, off), camUp: up, look: lk, map: false, arriveJd: f.window.arr }, w, h);
+        this.drawWith?.(cv.scene, cv.camera);
+        this.drawOverlay(f, cv.camera, 1, '');
+        return;
       }
-      this.drawWith?.(cv.scene, cv.camera);
-      this.drawOverlay(f, cv.camera, 1, '');
+      // the chase view: the ship among the real planets and stars (Earth and Mars where this flight puts them)
+      const sv = this.solar!;
+      const lk = vsub(look, f.r);
+      sv.origin = f.r;
+      sv.update({ jd: f.jd, cam: vadd(f.r, vadd(lk, off)), look: vadd(f.r, lk), up, fov: 50, at: { earth: earthState(f.jd).r, mars: marsState(f.jd).r } }, w, h);
+      this.drawWith?.(sv.scene, sv.camera);
+      this.drawOverlay(f, sv.camera, 1, '');
       return;
     }
     // Mars

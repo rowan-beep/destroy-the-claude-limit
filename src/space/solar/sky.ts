@@ -31,9 +31,11 @@ function buildStars(): THREE.BufferGeometry {
     // the colour, pushed a little apart from white (the map desaturates it)
     const r = u8(o + 5) / 255, g = u8(o + 6) / 255, b = u8(o + 7) / 255;
     const m = (r + g + b) / 3;
-    const k = Math.min(3, 0.25 + Math.pow(flux / 3, 0.75));
-    col.set([(m + (r - m) * 1.8) * k, (m + (g - m) * 1.8) * k, (m + (b - m) * 1.8) * k], i * 3);
-    size[i] = Math.min(4.5, 1.1 + Math.sqrt(flux) * 0.55);
+    // brightness falls steeply toward the faint end, as magnitudes do: a few bright stars, a dust of faint ones
+    const q = flux / 24;
+    const k = Math.max(0.02, 1.6 * Math.pow(q, 0.85));
+    col.set([(m + (r - m) * 1.3) * k, (m + (g - m) * 1.3) * k, (m + (b - m) * 1.3) * k], i * 3);
+    size[i] = 1.0 + 3.2 * Math.sqrt(q);
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -114,7 +116,7 @@ export class StarSky {
           // the map: RA 0 at the middle, increasing to the left
           vec2 uv = vec2(fract(0.5 - ra / 6.2831853), 0.5 + dec / 3.1415927);
           vec3 c = texture2D(map, uv).rgb;
-          gl_FragColor = vec4(c * 0.085 * k, 1.0);
+          gl_FragColor = vec4(c * 0.05 * k, 1.0);
         }`,
       side: THREE.BackSide,
       transparent: false,

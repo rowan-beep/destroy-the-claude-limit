@@ -135,8 +135,9 @@ void main() {
   // lit face or seen from the unlit side (light diffusing through the ring)
   vec3 v = normalize(cameraPosition - vP);
   float same = sign(dot(v, ringN)) * sign(dot(sunDir, ringN));
-  float k = same > 0.0 ? 1.0 : 0.25 * (1.0 - t.a) + 0.08;
-  float inc = 0.35 + 0.65 * abs(dot(sunDir, ringN));
+  // (ring particles scatter brightly at any angle; seen from the unlit side, light leaks through the thinner parts)
+  float k = same > 0.0 ? 1.0 : 0.55 * (1.0 - t.a) + 0.18;
+  float inc = 0.7 + 0.3 * abs(dot(sunDir, ringN));
   gl_FragColor = vec4(t.rgb * sunI * sh * k * inc, t.a);
 }`;
 
@@ -217,7 +218,7 @@ export class SolarView {
   private vis = new Map<BodyId, BodyVis>();
   private sunGlow: THREE.Sprite;
   private sunHalo: THREE.Sprite;
-  private hemi = new THREE.HemisphereLight(0x8090a0, 0x101010, 0.04);
+  private hemi = new THREE.HemisphereLight(0x8090a0, 0x101010, 0.12);
   /** the origin of the scene, heliocentric (the spacecraft, or the camera) */
   origin: Vec = [0, 0, 0];
   /** which bodies to draw (all by default) */
@@ -247,7 +248,7 @@ export class SolarView {
           atmoK: { value: b.atmoK ?? 0 },
           limb: { value: gas ? 0.75 : id === 'venus' || id === 'titan' ? 0.4 : 0.0 },
           emissive: { value: id === 'sun' ? 30 : 0 },
-          tint: { value: new THREE.Color(1, 1, 1) },
+          tint: { value: id === 'jupiter' ? new THREE.Color(1.15, 1.08, 1.0) : new THREE.Color(1, 1, 1) },
           ringN: { value: new THREE.Vector3(0, 0, 1) },
           center: { value: new THREE.Vector3() },
           ringR: { value: new THREE.Vector2(1, 2) },
@@ -327,7 +328,8 @@ export class SolarView {
       const d = vlen(vsub(p, f.cam)) - BODIES[v.id].R;
       nearest = Math.min(nearest, d);
     }
-    cam.near = Math.max(0.05, Math.min(1000, nearest * 0.1));
+    // (and never past whatever the camera is looking at: the spacecraft, a few hundred metres off)
+    cam.near = Math.max(0.05, Math.min(1000, nearest * 0.1, vlen(vsub(f.look, f.cam)) * 0.05));
     cam.far = 1e14;
     cam.updateProjectionMatrix();
     cam.updateMatrixWorld();
@@ -421,7 +423,7 @@ export class SolarView {
       // as an ambient term rather than a true point light (the distances overflow a physical light)
       this.hemi.color.copy(col).multiplyScalar(0.6);
       this.hemi.intensity = 0.25 * Math.max(0, 1 - near.d / (b.R * 4));
-    } else this.hemi.intensity = 0.04;
+    } else this.hemi.intensity = 0.12;
     // stars: washed out when a bright planet fills the view or the Sun is close
     this.sky.brightness = 1;
     this.sky.update(cam);
