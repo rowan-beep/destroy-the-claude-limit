@@ -506,12 +506,17 @@ function smallCraters(px: number, py: number, pz: number, cell: number, maxR: nu
 
 /** relief below the map's resolution (m): hills and mesas, dune fields, craters of every size */
 export function marsDetail(px: number, py: number, pz: number): number {
-  // rolling hills and flat-topped rises, a few hundred metres
-  const rid = 1 - Math.abs(fbm(px / 14000, py / 14000, pz / 14000, 3));
-  let h = 260 * (rid * rid - 0.45);
+  // big rolling hills and ridges, up to the best part of a kilometre
+  const big = 1 - Math.abs(fbm(px / 42000 + 3, py / 42000, pz / 42000, 3));
+  let h = 820 * (big * big - 0.42);
+  // hills a few kilometres across, sharp-crested
+  const rid = 1 - Math.abs(fbm(px / 11000, py / 11000, pz / 11000, 4));
+  h += 380 * (rid * rid - 0.45);
+  // flat-topped rises and the scarps round them
   const mesa = fbm(px / 7000 + 11, py / 7000, pz / 7000, 3);
-  h += 140 * Math.max(-0.4, Math.min(0.35, mesa * 1.6));
-  h += 55 * fbm(px / 3000, py / 3000, pz / 3000, 4);
+  h += 210 * Math.max(-0.4, Math.min(0.35, mesa * 1.6));
+  // knobs and swells down to a few hundred metres
+  h += 70 * fbm(px / 2600, py / 2600, pz / 2600, 4);
   // dunes in the low ground: long crests a few hundred metres apart
   const field = fbm(px / 20000 + 5, py / 20000, pz / 20000, 2);
   if (field > 0.05) {

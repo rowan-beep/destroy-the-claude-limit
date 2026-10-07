@@ -136,11 +136,17 @@ export class MarsFlight {
   /** LEO conic while coasting (exact and cheap at any warp) */
   private leo: { r0: Vec; v0: Vec; t0: number } | null = null;
   /** Mars's rotation angle at t = 0 */
-  readonly marsRot0 = 0.7;
+  /** Mars's rotation angle when the clock read zero (fixed once the landing site is chosen) */
+  marsRot0 = 0.7;
+  /** the chosen landing site */
+  site: { lat: number; lon: number } | null = null;
+  private predicting = false;
   private tmiTarget = 0;
   private tmiVinf = 0;
   private flipT = -1;
   maxQ = 0;
+  /** the entry glide's smoothed ground level (m), set at the entry interface */
+  private gSmooth: number | null = null;
   /** mission time of liftoff */
   launchT = 0;
   touchdown: { vz: number; vh: number; tilt: number } | null = null;
@@ -435,7 +441,53 @@ export class MarsFlight {
     const dv = (vinf * trim) / Math.max(1, vlen(before));
     this.burnDv(dv);
     this.say(`Entered Mars's sphere of influence at ${(vinf / 1000).toFixed(2)} km/s. TCM-3 (${dv.toFixed(0)} m/s) trims the aim point by ${Math.round(trim / 1000)} km for entry.`, 'good');
+    if (!this.predicting) this.chooseSite();
     if (rest > 0) this.advance(rest);
+  }
+
+  /**
+   * Mission planning: the arrival is timed so the ship comes down on low, open
+   * plains (thick air to brake in, room to land) rather than on Tharsis or a
+   * canyon wall. Fly the approach once ahead of time to see where it lands,
+   * then shift the arrival (Mars's rotation under the track) to put that spot
+   * on the best ground along the same latitude.
+   */
+  private chooseSite(): void {
+    const sim = Object.assign(Object.create(Object.getPrototypeOf(this)), this) as MarsFlight;
+    sim.predicting = true;
+    sim.log = [];
+    sim.auto = true;
+    for (let i = 0; i < 4000 && sim.phase === 'approach'; i++) sim.advance(120);
+    for (let i = 0; i < 40000 && (sim.phase === 'entry' || sim.phase === 'descent' || sim.phase === 'landing'); i++) sim.advance(0.2);
+    if (!sim.touchdownFixed) return;
+    // where it came down, as a direction fixed in space at the touchdown time
+    const ll = sim.marsLatLon(sim.r);
+    const inertial = ll.lon * D2R + sim.marsAngle();
+    // score every longitude on that latitude: low and smooth is good
+    const score = (lon: number) => {
+      let sum = 0, sq = 0;
+      for (const [dl, dn] of [[0, 0], [0.6, 0], [-0.6, 0], [0, 0.6], [0, -0.6], [1.2, 0], [-1.2, 0]]) {
+        const hh = this.groundH(ll.lat + dn, lon + dl);
+        sum += hh;
+        sq += hh * hh;
+      }
+      const mean = sum / 7;
+      const rough = Math.sqrt(Math.max(0, sq / 7 - mean * mean));
+      return mean + rough * 4;
+    };
+    let best = ll.lon, bestS = Infinity;
+    for (let lon = -180; lon < 180; lon += 2) {
+      const sc = score(lon);
+      if (sc < bestS) {
+        bestS = sc;
+        best = lon;
+      }
+    }
+    // the same touchdown time puts longitude `best` under the point if Mars is turned by the difference
+    this.marsRot0 += (ll.lon - best) * D2R;
+    void inertial;
+    this.site = { lat: ll.lat, lon: best };
+    this.say(`Landing site chosen: ${best >= 0 ? best.toFixed(0) + '°E' : (-best).toFixed(0) + '°W'}, ${Math.abs(ll.lat).toFixed(0)}°${ll.lat >= 0 ? 'N' : 'S'}, low open plains with thick air to brake in.`, 'good');
   }
 
   private stepApproach(dt: number): void {
@@ -715,6 +767,18 @@ export class MarsFlight {
     const ground = this.groundH(ll.lat, ll.lon);
     // height of the lowest point of the ship (the legs upright, the hull lying flat)
     const agl = alt - ground - this.bottom();
+    // what the guidance flies by: the highest ground under the ship and where it will be in
+    // two and five seconds (so hills and canyon walls ahead are no surprise)
+    const vg = this.airVel();
+    const upg = this.up();
+    const vhg = vsub(vg, vscale(upg, vdot(vg, upg)));
+    const gAhead = (s: number) => {
+      const q = this.marsLatLon(vaxpy(this.r, vhg, s));
+      return this.groundH(q.lat, q.lon);
+    };
+    const aglG = this.phase === 'entry' ? agl : alt - this.bottom() - Math.max(ground, gAhead(2), gAhead(5));
+    // a smoothed ground level for the entry glide (it should not chase every canyon)
+    this.gSmooth = this.gSmooth === null ? ground : this.gSmooth + (ground - this.gSmooth) * (1 - Math.exp(-h / 25));
     const rho = marsDensity(alt);
     const p = marsPressure(alt);
     const va = this.airVel();
@@ -739,7 +803,8 @@ export class MarsFlight {
         const vhor = Math.sqrt(Math.max(0, V * V - vz * vz));
         // equilibrium glide: aim for an altitude that falls as the speed does
         const hT = 9_000 + 24_000 * Math.max(0, Math.min(1, (V - 500) / 4500));
-        const vzCmd = Math.max(-250, Math.min(120, (hT - alt) / 25));
+        // (the target is a height over the ground below: Tharsis stands 9 km above the datum)
+        const vzCmd = Math.max(-250, Math.min(120, (hT - (alt - this.gSmooth)) / 25));
         const need = (vzCmd - vz) / 6 + MARS.mu / (R * R) - (vhor * vhor) / R;
         const cb = this.auto ? Math.max(-1, Math.min(1, (need * this.mass) / Math.max(1, L))) : Math.max(-1, Math.min(1, 1 - Math.abs(this.controls.yaw) * 2)) * (this.controls.pitch < -0.5 ? -1 : 1);
         this.bank = (Math.acos(cb) * 180) / Math.PI;
@@ -752,7 +817,8 @@ export class MarsFlight {
     if (this.phase === 'entry') {
       this.axis = turnToward(this.axis, this.horizontalAxis(), h * 2 * D2R);
       this.flaps = Math.max(0, this.flaps - h * 0.2);
-      if (V < 900) {
+      // slow enough for the belly-flop, or (over high ground) running out of height
+      if (V < 900 || alt - this.gSmooth < 5_500) {
         this.phase = 'descent';
         this.say(`Entry complete at ${(alt / 1000).toFixed(1)} km, ${Math.round(V)} m/s. Belly-flop: the flaps steer the fall.`, 'good');
       }
@@ -766,9 +832,9 @@ export class MarsFlight {
       // the burn takes V / aNet seconds; the ship keeps falling while it slows
       const stop = (Math.max(0, vz) * V) / (2 * Math.max(1, aNet));
       // or when the fall leaves too little time to cancel the whole speed (most of it is sideways)
-      const tFall = agl / Math.max(1, vz);
+      const tFall = aglG / Math.max(1, vz);
       const tNeed = V / Math.max(1, aNet);
-      if ((this.auto && (agl < stop * 1.3 + vz * 4.5 + 300 || tFall < tNeed * 1.4 + 14)) || (!this.auto && this.controls.throttle > 0.5)) {
+      if ((this.auto && (aglG < stop * 1.3 + vz * 4.5 + 300 || tFall < tNeed * 1.4 + 14)) || (!this.auto && this.controls.throttle > 0.5)) {
         this.phase = 'landing';
         this.flipT = this.t;
         this.sEng = 3;
@@ -790,12 +856,12 @@ export class MarsFlight {
         // spend what thrust is left on killing the drift, stay upright near the end
         // while there is drift left, sink only as fast as leaves time to cancel it
         const tH = vlen(vhv) / Math.max(1, 0.75 * aMax) + 4;
-        const vzCmd = -Math.max(1.5, Math.min(600, Math.sqrt(2 * Math.max(1, 0.55 * (aMax - MARS.g)) * Math.max(0, agl - 4)), Math.max(0, agl - 4) / tH));
-        const azReq = Math.max(0, (vzCmd - vz) / (agl < 40 ? 0.7 : 1.5) + MARS.g);
-        const tGo = Math.max(2, agl / Math.max(2, -vzCmd));
+        const vzCmd = -Math.max(1.5, Math.min(600, Math.sqrt(2 * Math.max(1, 0.55 * (aMax - MARS.g)) * Math.max(0, aglG - 4)), Math.max(0, aglG - 4) / tH));
+        const azReq = Math.max(0, (vzCmd - vz) / (aglG < 40 ? 0.7 : 1.5) + MARS.g);
+        const tGo = Math.max(2, aglG / Math.max(2, -vzCmd));
         let ah = vscale(vhv, -1 / Math.max(1.2, tGo * 0.6));
-        const tiltMax = agl < 40 ? 0.12 : agl < 300 ? 0.45 : 1.0;
-        const ahMax = Math.min(Math.sqrt(Math.max(0, aMax * aMax - azReq * azReq)), azReq * Math.tan(tiltMax) + (agl > 300 ? aMax * 0.5 : 0));
+        const tiltMax = aglG < 40 ? 0.12 : aglG < 300 ? 0.45 : 1.0;
+        const ahMax = Math.min(Math.sqrt(Math.max(0, aMax * aMax - azReq * azReq)), azReq * Math.tan(tiltMax) + (aglG > 300 ? aMax * 0.5 : 0));
         const ahL = vlen(ah);
         if (ahL > ahMax) ah = vscale(ah, ahMax / Math.max(1e-6, ahL));
         const aw = vadd(vscale(up, azReq), ah);

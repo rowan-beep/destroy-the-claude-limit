@@ -179,7 +179,7 @@ export class CruiseView {
       const d = cam.position.distanceTo(this.mapShip.position);
       this.mapShip.scale.setScalar(d * 0.02);
       // keep the planets visible however far out the camera is
-      const k = Math.max(1, cam.position.length() / 420);
+      const k = Math.max(1.5, cam.position.length() / 160);
       this.mapEarth.scale.setScalar(k);
       this.mapMars.scale.setScalar(k);
       this.stars.position.copy(cam.position);

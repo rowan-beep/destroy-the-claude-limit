@@ -19,6 +19,8 @@ import type { Vec } from './marsPhysics';
 import { MARS } from './marsPhysics';
 import { boulderGeometry, groundMaterial } from './marsSurface';
 import { LandingDust } from './marsFx';
+import { MarsWind } from './marsWeather';
+import { FOG_FRAME, FOG_SCALE, FOG_SUN, FOG_SUN_COLOR, resetFogFrame } from '../../render/fog';
 
 const R = MARS.R;
 /** the Sun's light at Mars (renderer units, as the other scenes' suns) */
@@ -60,6 +62,8 @@ uniform float ready;
 uniform float sunI;
 uniform vec3 hazeCol;
 uniform vec3 ctrW;
+uniform vec3 fogC;
+uniform float fogK;
 varying vec3 vP;
 varying vec3 vW;
 #include <common>
@@ -154,6 +158,8 @@ void main() {
   float muV = max(0.02, dot(nW, normalize(camW - vW)));
   float haze = (1.0 - exp(-0.07 / muV)) * smoothstep(-0.25, 0.2, muG);
   col = mix(col, hazeCol * max(0.0, muG + 0.15), clamp(haze, 0.0, 0.7));
+  // down in the air, the far ground melts into the dust haze (the same haze as the ground close by)
+  col = mix(col, fogC, 1.0 - exp(-camDist * fogK));
   // a little skylight on the night side near the terminator
   col += alb * vec3(0.06, 0.07, 0.1) * smoothstep(-0.25, 0.0, muG) * (1.0 - smoothstep(0.0, 0.1, muG));
   gl_FragColor = vec4(col, 1.0);
@@ -215,10 +221,12 @@ void main() {
   float day = smoothstep(-0.2, 0.1, se);
   // the dust lights the whole sky: butterscotch at the horizon, a deeper brownish
   // tan overhead (as the rovers photograph it), brighter on the Sun's side
-  vec3 hor = vec3(0.62, 0.40, 0.25);
-  vec3 zen = vec3(0.30, 0.18, 0.11);
+  vec3 hor = vec3(0.64, 0.42, 0.27);
+  vec3 zen = vec3(0.34, 0.21, 0.13);
   float ee = clamp(e, 0.0, 1.0);
-  vec3 c = mix(hor, zen, pow(ee, 0.6));
+  // a deep band of haze along the horizon: the dust hangs thickest low down
+  vec3 c = mix(hor, zen, pow(ee, 0.42));
+  c = mix(c, hor * 1.08, exp(-ee * 14.0) * 0.6);
   c *= 0.85 + 0.35 * pow(max(cs, 0.0), 3.0);
   // below the horizon line: the hazy far ground
   c = mix(c, hor * 0.82, smoothstep(0.01, -0.12, e));
@@ -254,6 +262,22 @@ export interface MarsViewState {
   engineAgl?: number;
 }
 
+const RINGS = 150, SEG = 224;
+interface PatchJob {
+  c: Vec;
+  outer: number;
+  next: number;
+  pos: Float32Array;
+  col: Float32Array;
+  uv: Float32Array;
+  hgt: Float32Array;
+  cx: THREE.Vector3;
+  t1: THREE.Vector3;
+  t2: THREE.Vector3;
+  P0: THREE.Vector3;
+  k: number;
+}
+
 export class MarsView {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(55, 1, 0.5, 2e9);
@@ -287,6 +311,13 @@ export class MarsView {
   private envRT: THREE.WebGLRenderTarget | null = null;
   private envAt = 0;
   private dust = new LandingDust();
+  /** the wind: dust sheets, dust devils and blowing grit */
+  readonly wind = new MarsWind();
+  /** how dusty the air is today (0 clear .. 1 a dusty, hazy day) */
+  dustiness = 0.75;
+  private fogSave = { sun: new Float32Array(4), col: new Float32Array(3) };
+  private patchJob: PatchJob | null = null;
+  private patchIndex: THREE.BufferAttribute | null = null;
   private prevO: Vec | null = null;
   private prevAngle = 0;
 
@@ -296,7 +327,7 @@ export class MarsView {
     const dummyH = new THREE.DataTexture(new Float32Array([0]), 1, 1, THREE.RedFormat, THREE.FloatType);
     dummyH.needsUpdate = true;
     this.globeMat = new THREE.ShaderMaterial({
-      uniforms: { albedoTex: { value: dummy }, heightTex: { value: dummyH }, sunF: { value: new THREE.Vector3(1, 0, 0) }, camW: { value: new THREE.Vector3() }, ready: { value: 0 }, lift: { value: 1 }, photoTex: { value: dummy }, photo: { value: 0 }, sunI: { value: 3.2 }, ctrW: { value: new THREE.Vector3() }, hazeCol: { value: new THREE.Vector3(0.6, 0.38, 0.23) } },
+      uniforms: { albedoTex: { value: dummy }, heightTex: { value: dummyH }, sunF: { value: new THREE.Vector3(1, 0, 0) }, camW: { value: new THREE.Vector3() }, ready: { value: 0 }, lift: { value: 1 }, photoTex: { value: dummy }, photo: { value: 0 }, sunI: { value: 3.2 }, ctrW: { value: new THREE.Vector3() }, fogC: { value: new THREE.Vector3() }, fogK: { value: 0 }, hazeCol: { value: new THREE.Vector3(0.6, 0.38, 0.23) } },
       vertexShader: GLOBE_VERT,
       fragmentShader: GLOBE_FRAG,
     });
@@ -405,6 +436,7 @@ export class MarsView {
     this.patchMat = groundMaterial();
     this.scene.fog = this.fog;
     this.scene.add(this.dust.group);
+    this.scene.add(this.wind.group, this.wind.motes);
   }
 
   /** feed the textures once the global maps are built (call each frame: cheap when done) */
@@ -509,9 +541,23 @@ export class MarsView {
     // the dust haze over the ground, the colour of the sky at the horizon
     const near = camAlt < 40_000;
     const hz = THREE.MathUtils.smoothstep(sunUp, -0.2, 0.1) * (0.45 + 0.55 * THREE.MathUtils.smoothstep(sunUp, 0, 0.35));
-    this.fog.density = near ? (1 / 38_000) * Math.min(1, thick * 2.5) : 0;
-    this.fog.color.setRGB(0.5 * hz + 0.01, 0.3 * hz + 0.012, 0.18 * hz + 0.02);
+    // the haze: dense dusty air near the ground, thinning with an 11 km scale height
+    const camF = new THREE.Vector3(o[0] + v.cam[0], o[1] + v.cam[1], o[2] + v.cam[2]).applyMatrix4(new THREE.Matrix4().makeRotationZ(-v.angle)).normalize();
+    const camGround = camAlt < 60_000 ? marsHeight(Math.asin(camF.z) / D2R, Math.atan2(camF.y, camF.x) / D2R) : 0;
+    const camAgl = Math.max(0, camAlt - camGround);
+    const dens = (1 / 26_000) * (0.55 + 0.9 * this.dustiness);
+    this.fog.density = near ? dens : 0;
+    this.fog.color.setRGB(0.6 * hz + 0.01, 0.39 * hz + 0.012, 0.24 * hz + 0.02);
+    this.fogSave.sun.set(FOG_SUN);
+    this.fogSave.col.set(FOG_SUN_COLOR);
+    FOG_FRAME.set([upW.x, upW.y, upW.z, camAgl]);
+    FOG_SCALE.set([1 / 11_100, 1 / 11_100]);
+    // looking toward the Sun the dust glows bluish-white (fine dust scatters blue forward)
+    FOG_SUN.set([sun.x, sun.y, sun.z, 1.3 * hz]);
+    FOG_SUN_COLOR.set([0.5, 0.56, 0.72]);
     (this.globeMat.uniforms.hazeCol.value as THREE.Vector3).set(0.62, 0.4, 0.25);
+    (this.globeMat.uniforms.fogC.value as THREE.Vector3).set(this.fog.color.r, this.fog.color.g, this.fog.color.b);
+    this.globeMat.uniforms.fogK.value = near ? dens * Math.exp(-camAgl / 11_100) * 0.8 : 0;
     this.updateEnv(sun, upW, Math.min(1, thick * 3), Math.max(0, elev), shadowed ? 0 : sunI);
     // the ground mesh while low
     const shipAlt = Math.hypot(...o) - R;
@@ -521,7 +567,9 @@ export class MarsView {
       const outer = Math.max(30_000, Math.min(400_000, shipAlt * 12 + 25_000));
       const p = this.patchAt;
       const moved = p ? Math.hypot(c[0] - p.c[0], c[1] - p.c[1], c[2] - p.c[2]) * R : Infinity;
-      if (!p || moved > Math.max(120, Math.min(shipAlt * 0.8, outer * 0.08)) || outer > p.outer * 1.9 || outer < p.outer * 0.45) this.buildPatch(c, outer);
+      // rebuild the ground round the new point a little at a time (the old one stays up meanwhile)
+      if (!this.patchJob && (!p || moved > Math.max(120, Math.min(shipAlt * 0.8, outer * 0.08)) || outer > p.outer * 1.9 || outer < p.outer * 0.45)) this.startPatch(c, outer);
+      if (this.patchJob) this.stepPatch(this.patch ? 5 : Infinity);
       const P0 = new THREE.Vector3(...this.patchAt!.c).multiplyScalar(R).applyMatrix4(rotM);
       this.patch!.position.set(P0.x - o[0], P0.y - o[1], P0.z - o[2]);
       this.patch!.quaternion.setFromRotationMatrix(rotM);
@@ -544,6 +592,44 @@ export class MarsView {
       this.globe.scale.setScalar(1);
     }
     this.stepDust(v, dt, h, sunI, sun, thick);
+    // the wind
+    if (this.patchAt && camAlt < 12_000) {
+      const dl = Math.max(0, elev);
+      const sky = 0.35 * Math.min(1, thick * 3) * hz;
+      const li = (sunI * dl) / Math.PI;
+      const lit = new THREE.Color(0.5 * (li * 1.0 + sky * 0.55), 0.33 * (li * 0.93 + sky * 0.42), 0.21 * (li * 0.85 + sky * 0.32));
+      const eastW = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 0, 1), upW).normalize();
+      const northW = new THREE.Vector3().crossVectors(upW, eastW);
+      this.wind.group.position.copy(this.patch!.position);
+      this.wind.group.quaternion.copy(this.patch!.quaternion);
+      this.wind.group.visible = true;
+      this.wind.update(
+        {
+          c: this.patchAt.c,
+          camDir: [camF.x, camF.y, camF.z],
+          camAgl,
+          ground: (d) => marsHeight((Math.asin(Math.max(-1, Math.min(1, d.z))) / D2R), Math.atan2(d.y, d.x) / D2R),
+          R,
+          lit,
+          dt,
+          dustiness: this.dustiness,
+        },
+        cam.position,
+        upW,
+        eastW,
+        northW,
+      );
+    } else {
+      this.wind.group.visible = false;
+      this.wind.motes.visible = false;
+    }
+  }
+
+  /** put the shared haze settings back for the other scenes (call after drawing Mars) */
+  restoreFog(): void {
+    resetFogFrame();
+    FOG_SUN.set(this.fogSave.sun);
+    FOG_SUN_COLOR.set(this.fogSave.col);
   }
 
   /**
@@ -597,77 +683,106 @@ export class MarsView {
     }
   }
 
-  /** the ground mesh: rings from under the ship out to `outer` metres (Mars-fixed, about c) */
-  private buildPatch(c: Vec, outer: number): void {
-    const RINGS = 120, SEG = 150;
+  /** start building the ground mesh: rings from under the ship out to `outer` metres (Mars-fixed, about c) */
+  private startPatch(c: Vec, outer: number): void {
     const cx = new THREE.Vector3(...c);
     const t1 = new THREE.Vector3().crossVectors(Math.abs(c[2]) < 0.9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(1, 0, 0), cx).normalize();
     const t2 = new THREE.Vector3().crossVectors(cx, t1);
-    const rho0 = 0.8;
-    const k = Math.pow(outer / rho0, 1 / (RINGS - 1));
     const nV = 1 + RINGS * SEG;
-    const pos = new Float32Array(nV * 3);
-    const col = new Float32Array(nV * 3);
-    const uv = new Float32Array(nV * 2);
-    const P0 = cx.clone().multiplyScalar(R);
+    this.patchJob = {
+      c, outer, next: 0,
+      pos: new Float32Array(nV * 3), col: new Float32Array(nV * 3), uv: new Float32Array(nV * 2), hgt: new Float32Array(nV),
+      cx, t1, t2, P0: cx.clone().multiplyScalar(R), k: Math.pow(outer / 0.8, 1 / (RINGS - 1)),
+    };
+  }
+
+  /** build some more of the ground mesh, for up to `budgetMs`; swap it in when done */
+  private stepPatch(budgetMs: number): void {
+    const J = this.patchJob!;
+    const nV = 1 + RINGS * SEG;
+    const t0 = performance.now();
     const alb = [0, 0, 0];
-    const put = (i: number, d: THREE.Vector3, rho: number, th: number) => {
+    const d = new THREE.Vector3();
+    while (J.next < nV) {
+      const i = J.next++;
+      let rho = 0, th = 0;
+      if (i === 0) d.copy(J.cx);
+      else {
+        const r = Math.floor((i - 1) / SEG), sg = (i - 1) % SEG;
+        rho = 0.8 * Math.pow(J.k, r);
+        // (alternate rings are turned half a step: even triangles, no radial streaks)
+        th = ((sg + (r % 2) * 0.5) / SEG) * Math.PI * 2;
+        const a = rho / R;
+        d.copy(J.cx).multiplyScalar(Math.cos(a)).addScaledVector(J.t1, Math.sin(a) * Math.cos(th)).addScaledVector(J.t2, Math.sin(a) * Math.sin(th)).normalize();
+      }
       const lat = Math.asin(Math.max(-1, Math.min(1, d.z))) / D2R;
       const lon = Math.atan2(d.y, d.x) / D2R;
       const hp = marsHeightParts(lat, lon);
       const hgt = hp.base + hp.detail;
-      const p = d.clone().multiplyScalar(R + hgt).sub(P0);
-      pos.set([p.x, p.y, p.z], i * 3);
+      J.hgt[i] = hgt;
+      J.pos[i * 3] = d.x * (R + hgt) - J.P0.x;
+      J.pos[i * 3 + 1] = d.y * (R + hgt) - J.P0.y;
+      J.pos[i * 3 + 2] = d.z * (R + hgt) - J.P0.z;
       mapAlbedo(lat, lon, alb);
       groundTint(hp.px, hp.py, hp.pz, hp.detail, alb);
-      // a little local variation in the dust
-      const vv = 1;
-      // (the same richer colour as the globe's, so the two meet without a seam)
-      const al = alb[0] * 0.3 + alb[1] * 0.55 + alb[2] * 0.15;
-      if (hasMarsPhoto()) col.set([alb[0] * vv, alb[1] * vv, alb[2] * vv], i * 3);
+      if (hasMarsPhoto()) J.col.set(alb, i * 3);
       else {
+        const al = alb[0] * 0.3 + alb[1] * 0.55 + alb[2] * 0.15;
         const g3 = [Math.max(0, al + (alb[0] - al) * 1.45) * 0.95, Math.max(0, al + (alb[1] - al) * 1.45) * 0.82, Math.max(0, al + (alb[2] - al) * 1.45) * 0.74];
-        col.set([Math.pow(g3[0] / 0.42, 1.5) * 0.3 * vv, Math.pow(g3[1] / 0.42, 1.5) * 0.3 * vv, Math.pow(g3[2] / 0.42, 1.5) * 0.3 * vv], i * 3);
+        J.col.set([Math.pow(g3[0] / 0.42, 1.5) * 0.3, Math.pow(g3[1] / 0.42, 1.5) * 0.3, Math.pow(g3[2] / 0.42, 1.5) * 0.3], i * 3);
       }
-      uv.set([(rho * Math.cos(th)) / 9, (rho * Math.sin(th)) / 9], i * 2);
-    };
-    put(0, cx.clone(), 0, 0);
-    for (let r = 0; r < RINGS; r++) {
-      const rho = rho0 * Math.pow(k, r);
-      const a = rho / R;
-      for (let s = 0; s < SEG; s++) {
-        const th = (s / SEG) * Math.PI * 2;
-        const d = cx.clone().multiplyScalar(Math.cos(a)).addScaledVector(t1, Math.sin(a) * Math.cos(th)).addScaledVector(t2, Math.sin(a) * Math.sin(th)).normalize();
-        put(1 + r * SEG + s, d, rho, th);
-      }
+      J.uv[i * 2] = (rho * Math.cos(th)) / 9;
+      J.uv[i * 2 + 1] = (rho * Math.sin(th)) / 9;
+      if ((i & 63) === 0 && performance.now() - t0 > budgetMs) return;
     }
-    const idx: number[] = [];
-    for (let s = 0; s < SEG; s++) idx.push(0, 1 + s, 1 + ((s + 1) % SEG));
-    for (let r = 0; r < RINGS - 1; r++)
-      for (let s = 0; s < SEG; s++) {
-        const a = 1 + r * SEG + s, b = 1 + r * SEG + ((s + 1) % SEG), cc = a + SEG, dd = b + SEG;
-        idx.push(a, cc, b, b, cc, dd);
-      }
+    this.finishPatch(J);
+    this.patchJob = null;
+  }
+
+  private finishPatch(J: PatchJob): void {
+    const nV = 1 + RINGS * SEG;
+    if (!this.patchIndex) {
+      const idx: number[] = [];
+      for (let sg = 0; sg < SEG; sg++) idx.push(0, 1 + sg, 1 + ((sg + 1) % SEG));
+      for (let r = 0; r < RINGS - 1; r++)
+        for (let sg = 0; sg < SEG; sg++) {
+          const a = 1 + r * SEG + sg, b = 1 + r * SEG + ((sg + 1) % SEG), cc = a + SEG, dd = b + SEG;
+          if (r % 2 === 0) idx.push(a, cc, b, b, cc, dd);
+          else idx.push(a, cc, dd, a, dd, b);
+        }
+      this.patchIndex = new THREE.BufferAttribute(new Uint32Array(idx), 1);
+    }
     const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-    g.setIndex(idx);
+    g.setAttribute('position', new THREE.BufferAttribute(J.pos, 3));
+    g.setAttribute('color', new THREE.BufferAttribute(J.col, 3));
+    g.setAttribute('uv', new THREE.BufferAttribute(J.uv, 2));
+    g.setIndex(this.patchIndex);
     g.computeVertexNormals();
-    // steep ground sheds its dust: slopes show darker, greyer bedrock
+    const col = J.col, pos = J.pos;
     const nrm = g.attributes.normal as THREE.BufferAttribute;
     const up = new THREE.Vector3(), nn = new THREE.Vector3();
     for (let i = 0; i < nV; i++) {
-      up.set(pos[i * 3] + P0.x, pos[i * 3 + 1] + P0.y, pos[i * 3 + 2] + P0.z).normalize();
+      up.set(pos[i * 3] + J.P0.x, pos[i * 3 + 1] + J.P0.y, pos[i * 3 + 2] + J.P0.z).normalize();
       nn.set(nrm.getX(i), nrm.getY(i), nrm.getZ(i));
+      // steep ground sheds its dust: slopes show darker, greyer bedrock
       const steep = THREE.MathUtils.smoothstep(1 - up.dot(nn), 0.04, 0.22);
-      if (steep > 0) {
-        const cr = col[i * 3], cg = col[i * 3 + 1], cb = col[i * 3 + 2];
-        const grey = (cr + cg + cb) / 3 * 0.55;
-        col[i * 3] = cr + (grey * 1.15 - cr) * steep;
-        col[i * 3 + 1] = cg + (grey * 0.95 - cg) * steep;
-        col[i * 3 + 2] = cb + (grey * 0.85 - cb) * steep;
+      let k = 1;
+      // hollows (crater floors, valleys) see less of the sky: a little darker
+      if (i > 0) {
+        const r = Math.floor((i - 1) / SEG), sg = (i - 1) % SEG;
+        if (r > 0 && r < RINGS - 1) {
+          const ring = 1 + r * SEG;
+          const nb = (J.hgt[ring + ((sg + 1) % SEG)] + J.hgt[ring + ((sg + SEG - 1) % SEG)] + J.hgt[ring - SEG + sg] + J.hgt[ring + SEG + sg]) / 4;
+          const spacing = Math.max(1, 0.8 * Math.pow(J.k, r) * (J.k - 1));
+          const cav = (nb - J.hgt[i]) / spacing;
+          k = 1 - Math.min(0.32, Math.max(-0.08, cav * 0.9));
+        }
       }
+      const cr = col[i * 3], cg = col[i * 3 + 1], cb = col[i * 3 + 2];
+      const grey = ((cr + cg + cb) / 3) * 0.55;
+      col[i * 3] = (cr + (grey * 1.15 - cr) * steep) * k;
+      col[i * 3 + 1] = (cg + (grey * 0.95 - cg) * steep) * k;
+      col[i * 3 + 2] = (cb + (grey * 0.85 - cb) * steep) * k;
     }
     if (this.patch) {
       this.patch.geometry.dispose();
@@ -678,7 +793,9 @@ export class MarsView {
       this.patch.frustumCulled = false;
       this.scene.add(this.patch);
     }
-    this.patchAt = { c, outer };
+    this.patchAt = { c: J.c, outer: J.outer };
+    // (the boulders are placed relative to the ground mesh's centre: redo them round the new one)
+    this.rocksAt = null;
   }
 
   /** boulders strewn round the landing point (Mars-fixed, in the patch's frame): many small, a few big, half sunk */

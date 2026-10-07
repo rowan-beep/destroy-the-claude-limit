@@ -17,13 +17,28 @@ export const FOG_SUN = new Float32Array([0, 1, 0, 0]);
 /** colour of the sunlit haze (linear) */
 export const FOG_SUN_COLOR = new Float32Array([1, 0.9, 0.75]);
 
+export const FOG_AEROSOL_SCALE_HEIGHT = 1900;
+export const FOG_RAYLEIGH_SCALE_HEIGHT = 8000;
+/**
+ * Which way is up for the haze: xyz = up, w = the camera's height above the
+ * ground. The default (w below -1e8) is the theaters' world: +Y up, the
+ * camera's y its height. Scenes on another body (Mars, round its floating
+ * origin) set their own and put the default back after drawing.
+ */
+export const FOG_FRAME = new Float32Array([0, 1, 0, -1e9]);
+/** inverse scale heights of the aerosol and the clear-air haze (1/m) */
+export const FOG_SCALE = new Float32Array([1 / FOG_AEROSOL_SCALE_HEIGHT, 1 / FOG_RAYLEIGH_SCALE_HEIGHT]);
+export function resetFogFrame(): void {
+  FOG_FRAME.set([0, 1, 0, -1e9]);
+  FOG_SCALE.set([1 / FOG_AEROSOL_SCALE_HEIGHT, 1 / FOG_RAYLEIGH_SCALE_HEIGHT]);
+}
+
 function addFogSunUniforms(u: Record<string, THREE.IUniform>): void {
   u.fogSun = { value: FOG_SUN };
   u.fogSunColor = { value: FOG_SUN_COLOR };
+  u.fogFrame = { value: FOG_FRAME };
+  u.fogScale = { value: FOG_SCALE };
 }
-
-export const FOG_AEROSOL_SCALE_HEIGHT = 1900;
-export const FOG_RAYLEIGH_SCALE_HEIGHT = 8000;
 
 export function installAltitudeFog(): void {
   if (installed) return;
@@ -48,6 +63,8 @@ export function installAltitudeFog(): void {
   uniform vec3 fogColor;
   uniform vec4 fogSun;
   uniform vec3 fogSunColor;
+  uniform vec4 fogFrame;
+  uniform vec2 fogScale;
   varying vec3 vFogRel;
   // haze lit by the sun: bright forward-scattering glow toward the sun (Mie)
   vec3 hazeColor( vec3 rel ) {
@@ -64,10 +81,11 @@ export function installAltitudeFog(): void {
   float altitudeFogFactor( vec3 rel ) {
     float dist = length( rel );
     #ifdef FOG_EXP2
-      float h0 = max( cameraPosition.y, 0.0 );
-      float dy = rel.y;
-      float bA = 1.0 / ${FOG_AEROSOL_SCALE_HEIGHT.toFixed(1)};
-      float bR = 1.0 / ${FOG_RAYLEIGH_SCALE_HEIGHT.toFixed(1)};
+      bool world = fogFrame.w < -1e8;
+      float h0 = max( world ? cameraPosition.y : fogFrame.w, 0.0 );
+      float dy = world ? rel.y : dot( rel, fogFrame.xyz );
+      float bA = fogScale.x;
+      float bR = fogScale.y;
       float kA = 1.0, kR = 1.0;
       if ( abs( dy ) > 1.0 ) {
         kA = ( 1.0 - exp( -bA * dy ) ) / ( bA * dy );

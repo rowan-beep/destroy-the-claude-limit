@@ -16,7 +16,7 @@ import { MarsFlight, Phase, SHIP_COM, turnToward } from './marsFlight';
 import { DAY, EARTH_P, MARS, STARSHIP, Vec, dateText, earthAir, marsPressure, marsState, earthState, propagate, vadd, vcross, vdot, vlen, vnorm, vscale, vsub } from './marsPhysics';
 import { marsHeight, regionName } from './marsGlobe';
 import { MarsView } from './marsView';
-import { CruiseView } from './cruiseView';
+import { CruiseView, CRUISE_MAP_SCALE } from './cruiseView';
 import { BoosterRig, ShipRig, buildBooster, buildShip, poseShip } from './starshipModel';
 import { StarshipFire } from './starshipFire';
 import { EntryFx } from './marsFx';
@@ -371,6 +371,8 @@ export class MarsMission {
     const now = Date.now() / 86_400_000 + 2_440_587.5;
     const f = (this.flight = new MarsFlight(now));
     f.groundH = marsHeight;
+    // some days are clearer than others; most are hazy with dust
+    this.mars!.dustiness = 0.55 + Math.random() * 0.4;
     // the stack: Super Heavy with the ship on top
     this.holder.add(this.booster!.group, this.ship!.group);
     this.booster!.group.position.set(0, 0, 0);
@@ -654,6 +656,11 @@ export class MarsMission {
       this.camDist = Math.min(this.camDist, f.phase === 'landing' ? 160 : 220);
     }
     if (f.phase === 'orbit' && was === 'ship') this.flash('ORBIT');
+    if (f.phase === 'depart' || f.phase === 'tmi') {
+      // look back down past the ship at the Earth falling away
+      this.camPitch = 0.85;
+      this.camDist = Math.max(this.camDist, 180);
+    }
     if (f.phase === 'cruise') this.flash('BOUND FOR MARS');
     if (f.phase === 'approach') this.flash('MARS');
     if (f.phase === 'entry') this.flash('ENTRY INTERFACE');
@@ -990,6 +997,7 @@ export class MarsMission {
     const dust = f.sEng > 0 ? (f.throttle * f.sEng) / 3 : 0;
     mv.update({ origin: f.r, cam, camUp, look: at, angle: f.marsAngle(), sun: f.sunDir(), dust, axis: f.axis, engineAgl: f.agl + (f.phase === 'landing' || f.phase === 'landed' ? 0 : 4) }, w, h, dt * Math.min(warp, 4));
     this.drawWith?.(mv.scene, mv.camera);
+    mv.restoreFog();
     this.drawOverlay(f, mv.camera, MARS.R, 'MARS');
   }
 
@@ -1011,6 +1019,35 @@ export class MarsMission {
     this.trackPts = pts;
   }
 
+  /** the solar-system map's names: the Sun, Earth, Mars and the ship, with where Mars will be on arrival */
+  private drawSolarLabels(f: MarsFlight, cam: THREE.PerspectiveCamera, g: CanvasRenderingContext2D, w: number, h: number): void {
+    const k = CRUISE_MAP_SCALE;
+    const v = new THREE.Vector3();
+    const at = (p: Vec) => {
+      v.set(p[0] * k, p[1] * k, p[2] * k).project(cam);
+      return v.z > 1 || v.z < -1 ? null : { x: (v.x * 0.5 + 0.5) * w, y: (-v.y * 0.5 + 0.5) * h };
+    };
+    const label = (p: Vec, text: string, col: string, ring: number, dash = false) => {
+      const s = at(p);
+      if (!s) return;
+      g.strokeStyle = col;
+      g.lineWidth = 1.5;
+      g.setLineDash(dash ? [3, 3] : []);
+      g.beginPath();
+      g.arc(s.x, s.y, ring, 0, Math.PI * 2);
+      g.stroke();
+      g.setLineDash([]);
+      g.fillStyle = col;
+      g.fillText(text, s.x + ring + 5, s.y + 4);
+    };
+    g.font = '600 12px Rajdhani, system-ui, sans-serif';
+    label([0, 0, 0], 'SUN', 'rgba(255,220,150,0.95)', 9);
+    label(earthState(f.jd).r, 'EARTH', 'rgba(130,190,255,0.95)', 7);
+    label(marsState(f.jd).r, 'MARS', 'rgba(255,150,100,0.95)', 7);
+    label(marsState(f.window.arr).r, `MARS ON ARRIVAL · ${dateText(f.window.arr)}`, 'rgba(255,150,100,0.6)', 6, true);
+    label(f.r, 'STARSHIP', '#ffffff', 5);
+  }
+
   /** draw the map's path over the scene: bright where it is in view, dashed behind the planet */
   private drawOverlay(f: MarsFlight, cam: THREE.PerspectiveCamera, R: number, name: string): void {
     const cv = this.cv;
@@ -1025,10 +1062,14 @@ export class MarsMission {
     // wipe every pixel (identity transform), and hide the layer outright when no map is up
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, cv.width, cv.height);
-    const show = this.map && this.view !== 'cruise' && this.view !== 'site';
+    const show = this.map && this.view !== 'site';
     cv.style.display = show ? '' : 'none';
     if (!show) return;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (this.view === 'cruise') {
+      this.drawSolarLabels(f, cam, g, w, h);
+      return;
+    }
     // the planet's centre is at -r in the scene; the camera is in scene coordinates
     const c = new THREE.Vector3(-f.r[0], -f.r[1], -f.r[2]);
     const cp = cam.position;
