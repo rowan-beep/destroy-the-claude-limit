@@ -1014,16 +1014,21 @@ export class MarsMission {
   /** draw the map's path over the scene: bright where it is in view, dashed behind the planet */
   private drawOverlay(f: MarsFlight, cam: THREE.PerspectiveCamera, R: number, name: string): void {
     const cv = this.cv;
-    const w = cv.clientWidth, h = cv.clientHeight;
+    // (the layer covers the window; measure the window, since the canvas is hidden between maps)
+    const w = window.innerWidth, h = window.innerHeight;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
       cv.width = Math.round(w * dpr);
       cv.height = Math.round(h * dpr);
     }
     const g = cv.getContext('2d')!;
+    // wipe every pixel (identity transform), and hide the layer outright when no map is up
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, cv.width, cv.height);
+    const show = this.map && this.view !== 'cruise' && this.view !== 'site';
+    cv.style.display = show ? '' : 'none';
+    if (!show) return;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    g.clearRect(0, 0, w, h);
-    if (!this.map || this.view === 'cruise' || this.view === 'site') return;
     // the planet's centre is at -r in the scene; the camera is in scene coordinates
     const c = new THREE.Vector3(-f.r[0], -f.r[1], -f.r[2]);
     const cp = cam.position;

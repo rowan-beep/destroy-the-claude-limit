@@ -156,11 +156,12 @@ export class StarshipFire {
       const core = l.core;
       u.time.value = this.t;
       const nozzle = p.vac ? 1.15 : 0.65;
-      const L = (p.vac ? 40 + 50 * thin : 38 + 110 * thin) * (0.55 + 0.45 * level) * (core ? 0.45 : 1) * (p.booster ? 1.15 : 1);
+      // (in vacuum a methalox plume is nearly invisible: a faint, short, wide bloom)
+      const L = (p.vac ? 30 + 18 * thin : 38 + 60 * thin) * (0.55 + 0.45 * level) * (core ? 0.45 : 1) * (p.booster ? 1.15 : 1);
       l.mesh.scale.set(1, L, 1);
       u.len.value = L;
       u.r0.value = core ? nozzle * 0.85 : nozzle * 1.1;
-      u.r1.value = core ? nozzle * (1.4 + 5 * thin * thin) : nozzle * (2.6 + 26 * Math.pow(thin, 2.2));
+      u.r1.value = core ? nozzle * (1.4 + 2.5 * thin * thin) : nozzle * (2.6 + 9 * Math.pow(thin, 2.2));
       u.spread.value = core ? 0.8 : 0.55;
       // a hot yellow-white core; an orange envelope at sea level fading to violet-pink in thin air
       (u.core.value as THREE.Color).setRGB(8.5, 6.6, 4.8 + 1.5 * thin);
@@ -169,7 +170,7 @@ export class StarshipFire {
       u.diamonds.value = core ? 1.3 * pr : 0;
       u.curtain.value = 0;
       u.turb.value = core ? 0.35 : 0.8;
-      u.power.value = level * fl * many * (core ? 0.9 : 0.75 - 0.5 * Math.pow(thin, 1.4));
+      u.power.value = level * fl * many * (core ? 0.9 - 0.62 * Math.pow(thin, 1.5) : 0.75 - 0.68 * Math.pow(thin, 1.4));
     }
   }
 }
