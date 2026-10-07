@@ -108,7 +108,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, parent: 
 }
 
 /** a neutral grey sky to light bare steel by (tinted for Mars) */
-function neutralEnv(renderer: THREE.WebGLRenderer, top: THREE.Color, mid: THREE.Color, bottom: THREE.Color): THREE.Texture | null {
+export function neutralEnv(renderer: THREE.WebGLRenderer, top: THREE.Color, mid: THREE.Color, bottom: THREE.Color): THREE.Texture | null {
   try {
     const g = new THREE.SphereGeometry(100, 32, 16);
     const pos = g.attributes.position;

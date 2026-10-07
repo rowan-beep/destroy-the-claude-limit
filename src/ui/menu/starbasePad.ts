@@ -45,13 +45,13 @@ export interface Pad2 {
   exhaust: { trench: THREE.Vector3; dir: THREE.Vector3; mount: THREE.Vector3; ring: number };
 }
 
-function prng(seed: number): () => number {
+export function prng(seed: number): () => number {
   let s = seed >>> 0;
   return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296);
 }
 
 /** straight members as one instanced mesh */
-class Bars {
+export class Bars {
   private m: THREE.Matrix4[] = [];
   line(a: THREE.Vector3, b: THREE.Vector3, w: number, d = w): void {
     const mid = a.clone().add(b).multiplyScalar(0.5);
@@ -75,7 +75,7 @@ class Bars {
 }
 
 /** cylinders (tanks, pipes, legs) as one instanced mesh */
-class Cyls {
+export class Cyls {
   private m: THREE.Matrix4[] = [];
   constructor(private seg = 24) {}
   /** a vertical cylinder standing at (x, y0, z) */

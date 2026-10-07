@@ -21,6 +21,7 @@ import { menuMusic } from './audio/menuMusic';
 import { SpaceFlight } from './space/spaceFlight';
 import { MarsMission } from './space/mars/marsMission';
 import { RoverMission, ROVER_MISSIONS } from './space/rover/roverMission';
+import { LaunchMission } from './space/launch/launchMission';
 import { loadProgram, saveProgram, Program } from './ui/menu/program';
 import { LoadingScreen, PauseMenu, ResultsScreen, ControlsModal, BriefingModal } from './ui/menu/screens';
 import { SettingsModal } from './ui/menu/settingsModal';
@@ -188,11 +189,15 @@ async function boot(): Promise<void> {
   const roverMission = new RoverMission(() => game.renderer.renderer, document.body);
   roverMission.drawWith = (sc, cam) => game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping);
   roverMission.onExit = () => showMenus(game.state === 'menu');
-  if (import.meta.env.DEV) Object.assign(window, { __flight: flight, __mars: marsMission, __rover: roverMission });
+  // Falcon Heavy and SLS from the Cape
+  const launchMission = new LaunchMission(() => getFactory(), () => game.renderer.renderer, document.body);
+  launchMission.drawWith = (sc, cam) => game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping);
+  launchMission.onExit = () => showMenus(game.state === 'menu');
+  if (import.meta.env.DEV) Object.assign(window, { __flight: flight, __mars: marsMission, __rover: roverMission, __launch: launchMission });
   Object.assign(window, { __music: menuMusic });
   const showMenus = (v: boolean) => {
     const space = program === 'space';
-    if (flight.active || marsMission.active || roverMission.active) v = false;
+    if (flight.active || marsMission.active || roverMission.active || launchMission.active) v = false;
     menu.show(v && !space);
     spaceMenu.show(v && space);
     if (factory) factory.active = v && space;
@@ -225,6 +230,13 @@ async function boot(): Promise<void> {
       audio.init();
       audio.click();
       roverMission.start(def);
+      showMenus(false);
+      if (factory) factory.active = false;
+    },
+    onLaunchMission: (id) => {
+      audio.init();
+      audio.click();
+      launchMission.start(id);
       showMenus(false);
       if (factory) factory.active = false;
     },
@@ -375,6 +387,7 @@ async function boot(): Promise<void> {
     if (flight.active) flight.frame(step, sz.w, sz.h);
     else if (marsMission.active) marsMission.frame(step, sz.w, sz.h);
     else if (roverMission.active) roverMission.frame(step, sz.w, sz.h);
+    else if (launchMission.active) launchMission.frame(step, sz.w, sz.h);
     else if (program === 'space') getFactory().render(step, sz.w, sz.h);
     else hangar.render(step, sz.w, sz.h);
   };
@@ -409,7 +422,7 @@ async function boot(): Promise<void> {
   game.startLoop();
   // new versions install themselves: straight away in the menu, or once you are back from a flight
   watchForUpdates(
-    () => game.state === 'menu' && !customize.open && !library.open && !flight.active && !marsMission.active && !roverMission.active,
+    () => game.state === 'menu' && !customize.open && !library.open && !flight.active && !marsMission.active && !roverMission.active && !launchMission.active,
     () => {
       if (game.state !== 'menu') game.message('A NEW VERSION IS READY: IT INSTALLS WHEN YOU RETURN TO THE MENU', 'info', 10);
     },

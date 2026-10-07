@@ -14,6 +14,7 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { buildSaturnV, saturnRadiusAt } from '../../space/saturnVModel';
 import { PAD2, buildPad2, pad2Height, type Pad2 } from './starbasePad';
+import { PAD3, buildPad3, pad3Height, type Pad3 } from './falconPad';
 import { Fleet, containerTexture, crawlerCrane, facadeTexture, semiTruck, trackingDish, truckCrane, type PropMats } from './siteProps';
 
 const ZOOM_MIN = 0.35;
@@ -510,6 +511,8 @@ export class LaunchSite {
     h *= Math.min(flat(-20, 20, 270, 170, 80), flat(450, 80, 230, 150, 70), flat(0, 205, 99999, 16, 40), flat(-1400, 720, 160, 140, 90), flat(110, 262, 70, 45, 50));
     // Pad 2, the Starship complex, and its Mega Bay across the road
     h *= Math.min(flat(PAD2.x, PAD2.z, 345, 190, 90), flat(PAD2.x - 180, PAD2.z + 330, 90, 55, 60));
+    // Pad 3 (Falcon) and the two landing zones
+    h *= Math.min(flat(PAD3.x, PAD3.z + 20, 80, 70, 60), flat(PAD3.lz[0].x, PAD3.lz[0].z, 60, 60, 60), flat(PAD3.lz[1].x, PAD3.lz[1].z, 60, 60, 60));
     return h;
   }
 
@@ -840,6 +843,9 @@ export class LaunchSite {
     this.pad2 = buildPad2({ steel: this.steel, darkSteel: this.darkSteel, paint: this.paint, concrete: this.concrete, concreteTop: this.concreteTex(false) });
     s.add(this.pad2.group);
     this.blinkers.push(...this.pad2.lamps);
+    this.pad3 = buildPad3({ steel: this.steel, darkSteel: this.darkSteel, paint: this.paint, concrete: this.concrete, concreteTop: this.concreteTex(false) });
+    s.add(this.pad3.group);
+    this.blinkers.push(...this.pad3.lamps);
     this.buildTower();
     this.buildTankFarm();
     this.buildCrane();
@@ -868,6 +874,8 @@ export class LaunchSite {
     const A = PAD2.apron;
     if (x > PAD2.x + A.x0 - margin && x < PAD2.x + A.x1 + margin && z > PAD2.z + A.z0 - margin && z < PAD2.z + A.z1 + margin) return true; // Pad 2
     if (Math.abs(x - (PAD2.x - 180)) < 80 + margin && Math.abs(z - (PAD2.z + 330)) < 50 + margin) return true; // the Mega Bay
+    if (Math.abs(x - PAD3.x) < 72 + margin && z > PAD3.z - 42 - margin && z < PAD3.z + 82 + margin) return true; // Pad 3
+    for (const lz of PAD3.lz) if (Math.hypot(x - lz.x, z - lz.z) < 58 + margin) return true; // the landing zones
     if (x > -60 - margin && x < 84 + margin && z > -75 - margin && z < 95 + margin) return true; // hardstand and ramp
     if (x > -200 - margin && x < -60 + margin && z > -60 - margin && z < 115 + margin) return true; // tank farm slab
     if (x > 230 - margin && x < 670 + margin && z > -60 - margin && z < 220 + margin) return true; // yard
@@ -2045,11 +2053,23 @@ export class LaunchSite {
 
   /** ground height of the scene at a point (for cameras) */
   groundAt(x: number, z: number): number {
-    return Math.max(this.height(x, z), pad2Height(x, z));
+    return Math.max(this.height(x, z), pad2Height(x, z), pad3Height(x, z));
   }
 
   /** Pad 2 (the Starship complex) */
   pad2: Pad2 | null = null;
+  /** Pad 3 (Falcon) and the landing zones */
+  pad3: Pad3 | null = null;
+  /** fly from one of the pads: moves the exhaust to its trench */
+  usePad(which: 1 | 2 | 3): void {
+    if (which === 3 && this.pad3) this.exhaust = { ...this.pad3.exhaust, trench: this.pad3.exhaust.trench.clone(), mount: this.pad3.exhaust.mount.clone(), width: 12 };
+    else this.useStarshipPad(which === 2);
+    if (this.pad3) this.pad3.te.rotation.x = 0;
+  }
+  /** Pad 3's strongback: tilts back (0..1) as the rocket lifts off */
+  setTe(k: number): void {
+    if (this.pad3) this.pad3.te.rotation.x = 0.035 * clampN(k, 0, 1);
+  }
   /** where the launch exhaust goes: Pad 1's trench by default */
   private exhaust = { trench: new THREE.Vector3(0, 2, -78), dir: new THREE.Vector3(0, 0, -1), mount: new THREE.Vector3(0, PAD_Y + 4, 0), ring: 14, width: 10 };
   /** fly from Pad 2 (Starship) or Pad 1 (Saturn V): moves the exhaust to that pad's trench */
