@@ -75,6 +75,31 @@ const SanitizeShader = {
 
 const SHADOW_SIZE: Record<string, number> = { low: 1024, medium: 2048, high: 4096, ultra: 8192 };
 
+/**
+ * The WebGL renderer, asking for the fast GPU first, then for any GPU, then
+ * for anything at all (some browsers refuse a context with particular
+ * attributes, e.g. on a laptop's second GPU or after a driver reset).
+ */
+function createWebGL(): THREE.WebGLRenderer {
+  const tries: THREE.WebGLRendererParameters[] = [
+    { antialias: false, logarithmicDepthBuffer: true, powerPreference: 'high-performance', stencil: false },
+    { antialias: false, logarithmicDepthBuffer: true, stencil: false },
+    { antialias: false, logarithmicDepthBuffer: true, powerPreference: 'low-power', failIfMajorPerformanceCaveat: false },
+  ];
+  let last: unknown = null;
+  for (const t of tries) {
+    try {
+      return new THREE.WebGLRenderer(t);
+    } catch (e) {
+      last = e;
+      console.warn('WebGL context failed with', t, e);
+    }
+  }
+  const err = new Error('WEBGL_UNAVAILABLE: ' + String((last as Error)?.message ?? last));
+  err.name = 'WebGLUnavailable';
+  throw err;
+}
+
 export class GameRenderer {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
@@ -124,12 +149,7 @@ export class GameRenderer {
 
   constructor(container: HTMLElement) {
     installAltitudeFog();
-    this.renderer = new THREE.WebGLRenderer({
-      antialias: false,
-      logarithmicDepthBuffer: true,
-      powerPreference: 'high-performance',
-      stencil: false,
-    });
+    this.renderer = createWebGL();
     // reading every shader's compile log forces the driver to finish each
     // compile on the spot (long stalls when a new jet or effect first shows)
     this.renderer.debug.checkShaderErrors = import.meta.env.DEV;

@@ -417,7 +417,13 @@ if (q.get('test') === 'world') {
 } else {
   boot().catch((err) => {
     console.error(err);
-    document.body.innerHTML = `<pre style="color:#f88;padding:20px;font-family:monospace">Failed to start: ${String(err?.stack ?? err)}</pre>`;
+    const msg = String(err?.message ?? err);
+    // (Firefox's stack leaves the message out: always show both)
+    const detail = `${msg}\n${String(err?.stack ?? '')}`.replace(/</g, '&lt;');
+    const gl = /WebGL|WEBGL/i.test(msg);
+    document.body.innerHTML = gl
+      ? `<div style="font-family:system-ui,sans-serif;color:#e9eef5;background:#0b1118;position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box"><div style="max-width:560px;line-height:1.5"><h2 style="margin:0 0 10px">The browser won't start 3D graphics right now</h2><p>The game couldn't get a WebGL context. This usually happens after the graphics driver has reset: the browser then turns WebGL off until it is restarted.</p><p><b>Fix:</b> close <i>every</i> browser window (in Firefox: menu ▸ Exit), open it again and reload this page. If it still fails, check that hardware acceleration is on (Firefox: Settings ▸ General ▸ Performance) and look at <code>about:support</code> ▸ WebGL 2.</p><button onclick="location.reload()" style="margin-top:8px;padding:10px 18px;font:inherit;font-weight:700;border-radius:8px;border:0;cursor:pointer">TRY AGAIN</button><pre style="margin-top:18px;color:#f88;font-size:11px;white-space:pre-wrap">${detail}</pre></div></div>`
+      : `<pre style="color:#f88;padding:20px;font-family:monospace;white-space:pre-wrap">Failed to start: ${detail}</pre>`;
   });
 }
 

@@ -84,8 +84,13 @@ float vn(vec3 p) {
 }
 float fbm5(vec3 p) {
   float s = 0.0, a = 0.5;
-  for (int i = 0; i < 5; i++) { s += a * vn(p); p = p * 2.03 + vec3(1.7, 9.2, 3.1); a *= 0.5; }
-  return s / 0.97;
+  for (int i = 0; i < 4; i++) { s += a * vn(p); p = p * 2.03 + vec3(1.7, 9.2, 3.1); a *= 0.5; }
+  return s / 0.94;
+}
+float fbm3(vec3 p) {
+  float s = 0.0, a = 0.5;
+  for (int i = 0; i < 3; i++) { s += a * vn(p); p = p * 2.03 + vec3(1.7, 9.2, 3.1); a *= 0.5; }
+  return s / 0.875;
 }
 void main() {
   #include <logdepthbuf_fragment>
@@ -111,12 +116,16 @@ void main() {
   float near1 = 1.0 - smoothstep(4.0e6, 1.2e7, camDist);
   float near2 = 1.0 - smoothstep(4.0e5, 2.0e6, camDist);
   // (fbm clusters round 0.5: stretch it to the full range)
-  float m1 = smoothstep(0.32, 0.68, fbm5(d * 140.0));
-  float m2 = smoothstep(0.3, 0.7, fbm5(d * 1100.0));
-  float n = vn(d * 6000.0) * 0.6 + vn(d * 15000.0) * 0.4;
-  alb *= mix(1.0, 0.62 + 0.75 * m1, near1);
-  alb *= mix(1.0, 0.72 + 0.56 * m2, near2);
-  alb *= 0.9 + 0.2 * n;
+  // (each layer is only computed where it can be seen: this shader covers the whole screen)
+  if (near1 > 0.002) {
+    float m1 = smoothstep(0.32, 0.68, fbm5(d * 140.0));
+    alb *= mix(1.0, 0.62 + 0.75 * m1, near1);
+  }
+  if (near2 > 0.002) {
+    float m2 = smoothstep(0.3, 0.7, fbm5(d * 1100.0));
+    alb *= mix(1.0, 0.72 + 0.56 * m2, near2);
+    alb *= 0.9 + 0.2 * vn(d * 6000.0);
+  }
   // relief from the height map: east and north slopes
   vec3 E = normalize(vec3(-d.y, d.x, 0.0) + 1e-6);
   vec3 N = cross(d, E);
@@ -127,10 +136,12 @@ void main() {
   float kmE = 2.0 * du * 2.0 * PI * ${(R / 1000).toFixed(1)} * cl, kmN = 2.0 * dv * PI * ${(R / 1000).toFixed(1)};
   vec3 nrm = normalize(d - E * (hE / kmE) * 8.0 - N * (hN / kmN) * 8.0);
   // hills, ridges and crater walls too small for the map: relief from noise, lit by the Sun
-  float bs = 2.2e-4;
-  float b0 = fbm5(d * 2200.0);
-  float bE = fbm5((d + E * bs) * 2200.0), bN = fbm5((d + N * bs) * 2200.0);
-  nrm = normalize(nrm - (E * (bE - b0) + N * (bN - b0)) / bs * 0.006 * near2);
+  if (near2 > 0.002) {
+    float bs = 2.2e-4;
+    float b0 = fbm3(d * 2200.0);
+    float bE = fbm3((d + E * bs) * 2200.0), bN = fbm3((d + N * bs) * 2200.0);
+    nrm = normalize(nrm - (E * (bE - b0) + N * (bN - b0)) / bs * 0.006 * near2);
+  }
   float mu0 = dot(nrm, sunF);
   float muG = dot(d, sunF);
   float lit = max(mu0, 0.0) * smoothstep(-0.08, 0.06, muG);
@@ -546,7 +557,7 @@ export class MarsView {
     if (!r) return;
     const key = `${sun.x.toFixed(2)},${sun.y.toFixed(2)},${sun.z.toFixed(2)}|${upW.x.toFixed(2)},${upW.y.toFixed(2)},${upW.z.toFixed(2)}|${thick.toFixed(2)}|${(sunI * sunUp).toFixed(2)}`;
     const now = performance.now();
-    if (key === this.envKey || (this.envTex && now - this.envAt < 700)) return;
+    if (key === this.envKey || (this.envTex && now - this.envAt < 2500)) return;
     this.envKey = key;
     this.envAt = now;
     if (!this.envScene) {
