@@ -1,9 +1,8 @@
 name: Build and deploy to GitHub Pages
 
+# Run by hand only (Actions → Run workflow): pushes no longer update the site.
+# Pull requests still build, as a check, without deploying.
 on:
-  push:
-    # the repository's default branch is the one allowed to deploy to Pages
-    branches: [main, claude/bold-darwin-occlgg]
   pull_request:
   workflow_dispatch:
 

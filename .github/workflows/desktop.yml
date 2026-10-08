@@ -1,12 +1,9 @@
 name: Desktop app (Windows .exe)
 
 # Builds the portable Windows app and publishes it as the "desktop" release.
-# The app plays the live website, so game updates reach it without a rebuild;
-# this only needs to run when the desktop shell itself changes.
+# The app plays the live website, so game updates reach it without a rebuild.
+# Run by hand only (Actions → Run workflow): pushes no longer build it.
 on:
-  push:
-    branches: [main]
-    paths: ['desktop/**', '.github/workflows/desktop.yml']
   workflow_dispatch:
 
 permissions:
