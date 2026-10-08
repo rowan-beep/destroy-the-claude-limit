@@ -70,7 +70,8 @@ function groundColor(x: number, z: number, h: number, ny: number, out: number[],
     r = 0.62 + 0.25 * k; g = 0.4 + 0.12 * n; b = 0.42 + 0.25 * (1 - k);
     if (ny > 0.95) { r = 0.8; g = 0.74; b = 0.58; }
   } else if (h < -150) {
-    r = 0.33; g = 0.33; b = 0.32;
+    // the basin floor: pale grey silt and the shells of plankton (reflects about a quarter of the light)
+    r = 0.6 + 0.03 * n; g = 0.58 + 0.03 * n; b = 0.53;
   } else if (ny < 0.86) {
     r = 0.38 + 0.04 * n; g = 0.36 + 0.04 * n; b = 0.33;
   } else {

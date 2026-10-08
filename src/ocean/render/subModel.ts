@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import { patchOceanMaterial } from './oceanMaterial';
 
 /** each main lamp's strength (candela in the scene's light units, where full sun is about 3) */
-const LAMP_CD = 9;
+const LAMP_CD = 20;
 
 const srgb = (c: number) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
 
