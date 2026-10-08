@@ -66,7 +66,6 @@ export interface MainMenuCallbacks {
   onLibrary: () => void;
   /** the airshow's photo album */
   onAlbum?: () => void;
-  onCrewChief?: () => void;
   /** switch to the other program (space exploration) */
   onProgram?: (p: Program) => void;
   /** studio portrait of a jet (image URL, '' if unavailable) */
@@ -127,7 +126,6 @@ export class MainMenu {
     act('JET LIBRARY', 'Every jet, in depth', () => cb.onLibrary());
     act('PAINT SHOP', 'Colours, wraps, flight suit', () => cb.onCustomize(this.cfg.aircraft));
     act('PHOTO ALBUM', 'Your airshow pictures', () => cb.onAlbum?.());
-    act('CREW CHIEF', 'Fix the jets in the hangar', () => cb.onCrewChief?.());
     act('MULTIPLAYER', 'Real pilots online', () => cb.onMultiplayer(), 'mm-nav-mp');
     const foot = el('div', 'mm-rail-foot', rail);
     const wn = new WhatsNewModal(document.body, 'air');

@@ -4,16 +4,17 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu lists the space updates.
 
+## v5.6.1 (2026-10-08)
+
+### Air Combat: Crew Chief taken out
+
+- **CREW CHIEF is no longer on the main menu**
+  - The hangar maintenance job from 5.6.0 has been taken out of the game.
+
 ## v5.6.0 (2026-10-08)
 
-### Air Combat: Crew Chief, a real camera for the airshow, and a faster renderer
+### Air Combat: A real camera for the airshow, and a faster renderer
 
-- **New: CREW CHIEF: fix the jets in the hangar**
-  - A new job on the main menu. The jet on show in the hangar comes in with write-ups on its AFTO 781A form, and you work each one off its task card on the jet itself.
-  - Eleven kinds of job: worn tires, brakes, hydraulic leaks, engine oil, fuel leaks, bird strikes (with a borescope), radar faults, canopy seals, stealth coating repairs, loading missiles, and the preflight walkaround every work order ends with. (An SR-71 that leaks fuel on the ground is normal; write that up and you've got it wrong.)
-  - Each step is its own small job: find the right part, take the fasteners out in order, torque them to the number on the card, top up to the line, search the panel for the fault, pick the right fix, take a measurement, run the engine and watch the gauges, pull the safety pins.
-  - Count your tools back in: leave a ratchet in the jet and it costs you foreign object damage.
-  - Sign the jet off for stars and experience and work up seven ranks, from Airman Basic to Master Sergeant; harder jobs open up as you go.
 - **New: The airshow camera works like a real one**
   - Shooting modes: AUTO, P, A (aperture priority), S (shutter priority) and M (manual), plus SPORTS, PORTRAIT, LANDSCAPE and NIGHT scenes.
   - The exposure triangle is real: aperture from f/1.4 to f/22 sets the depth of field, shutter speed from 1/8000 to 1 s sets the motion blur (a slow shutter panned with the jet blurs the background), and ISO from 100 to 25600 brightens the picture and adds noise.

@@ -16,7 +16,6 @@ import { MainMenu } from './ui/menu/mainMenu';
 import { PerfWatch } from './ui/perfWarning';
 import { Hangar } from './ui/menu/hangar';
 import { AirshowAlbum } from './ui/airshowAlbum';
-import { CrewChief } from './ui/crewChief';
 import { loadSpotterLog } from './game/spotterBook';
 import { SpaceMenu } from './ui/menu/spaceMenu';
 import { menuMusic } from './audio/menuMusic';
@@ -85,7 +84,6 @@ async function boot(): Promise<void> {
   game.onWorldBuilt = () => mapView.setGrid(game.world.grid);
   const hangar = new Hangar(game.renderer.renderer);
   let menuAlbum: AirshowAlbum | null = null;
-  let crewChief: CrewChief | null = null;
   game.rollStage = { prepare: (t) => hangar.prepareRollOut(t), render: (t, dt, w, h) => hangar.rollOut(t, dt, w, h), end: () => hangar.endRollOut() };
   if (import.meta.env.DEV) Object.assign(window, { __hangar: hangar, __THREE: THREE });
   hangar.drawWith = (sc, cam) => game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping);
@@ -242,20 +240,6 @@ async function boot(): Promise<void> {
       // (made the first time it is opened: the airshow's album, from the menu)
       menuAlbum ??= new AirshowAlbum(document.body, () => loadSpotterLog(), 'BACK TO THE MENU');
       void menuAlbum.open('photos');
-    },
-    onCrewChief: () => {
-      audio.init();
-      audio.click();
-      // (made the first time: the jet on show in the hangar is the one that needs fixing)
-      if (!crewChief) {
-        crewChief = new CrewChief(document.body, hangar);
-        crewChief.onExit = () => {
-          menu.root.classList.remove('hidden');
-          hangar.setJet(menu.cfg.aircraft, menu.cfg.loadoutId);
-        };
-      }
-      menu.root.classList.add('hidden');
-      crewChief.start(menu.cfg.aircraft);
     },
     onSelectJet: (t, l) => hangar.setJet(t, l),
     onCustomize: (t) => {

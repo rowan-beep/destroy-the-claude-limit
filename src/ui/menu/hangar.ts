@@ -33,9 +33,6 @@ function withBounce(c: THREE.Color, draw: () => void): void {
   }
 }
 
-const _wv = new THREE.Vector3();
-const _wl = new THREE.Vector3();
-
 export class Hangar {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(40, 1, 0.2, 30000);
@@ -321,29 +318,6 @@ export class Hangar {
     for (const j of this.jets.values()) j.vis.root.visible = true;
   }
 
-  // ---- the crew chief's view of the jet
-  private workAt: THREE.Vector3 | null = null;
-  private workLast = new THREE.Vector3();
-  private workDir = new THREE.Vector3(0.6, 0.35, -0.7).normalize();
-  private workDist = 4;
-  private workK = 0;
-
-  /** close in on a point of the jet (world metres; null: back to the orbit), from a direction */
-  work(at: THREE.Vector3 | null, dist = 4, dir?: THREE.Vector3): void {
-    this.workAt = at ? at.clone() : null;
-    this.workDist = dist;
-    if (dir) this.workDir.copy(dir).normalize();
-  }
-
-  /** the jet on show: its type and where a point of it (its own frame: x right, y up, z back) is in the hangar */
-  get jetType(): AircraftType {
-    return this.current;
-  }
-  jetPoint(x: number, y: number, z: number): THREE.Vector3 {
-    const j = this.ensure(this.current);
-    return new THREE.Vector3(x, y + j.ac.spec.gear.height + 0.12, z);
-  }
-
   render(dt: number, w: number, h: number): void {
     this.t += dt;
     this.lastRender = performance.now();
@@ -390,16 +364,7 @@ export class Hangar {
     if (this.inset > 0 && this.inset < h * 0.6) this.camera.setViewOffset(w, h, 0, this.inset * 0.6, w, h);
     else this.camera.clearViewOffset();
     this.camera.updateProjectionMatrix();
-    // the crew chief's work: the camera eases in to the part being worked on
-    this.workK += ((this.workAt ? 1 : 0) - this.workK) * (1 - Math.exp(-dt * 2.6));
-    if (this.workAt) this.workLast.copy(this.workAt);
-    if (this.workK > 0.002) {
-      const k = this.workK * this.workK * (3 - 2 * this.workK);
-      const want = _wv.copy(this.workDir).multiplyScalar(this.workDist).add(this.workLast);
-      want.y = Math.max(0.35, want.y);
-      this.camera.position.lerp(want, k);
-      this.camera.lookAt(_wl.set(tx, ty, 0).lerp(this.workLast, k));
-    } else this.camera.lookAt(tx, ty, 0);
+    this.camera.lookAt(tx, ty, 0);
     const draw = this.drawWith;
     if (draw) {
       withBounce(HANGAR_BOUNCE, () => draw(this.scene, this.camera));
