@@ -36,6 +36,19 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '5.4.1',
+    date: '2026-10-08',
+    air: {
+      title: "Airshow: saving pictures",
+      notes: [
+        fixed("SAVE PICTURE and SAVE COVER work in the claude.ai version",
+          "The page there asks you to confirm the save, then the JPEG downloads. In the web and Windows versions it downloads straight away, as before."),
+        fixed("A picture you have just taken is in the album straight away",
+          "Opening the album right after the shutter used to miss the newest picture until you opened it again."),
+      ],
+    },
+  },
+  {
     version: '5.4.0',
     date: '2026-10-07',
     air: {

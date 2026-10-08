@@ -527,9 +527,12 @@ export class SpotterMode extends GameMode {
     const url = c.toDataURL('image/jpeg', 0.86);
     const seq = ++this.shotSeq;
     // (the album copy, in the background)
-    c.toBlob((b) => {
-      if (b && shot.score >= 15) void savePhoto(shot, b);
-    }, 'image/jpeg', 0.86);
+    this.saving = new Promise<void>((res) =>
+      c.toBlob((b) => {
+        if (b && shot.score >= 15) void savePhoto(shot, b).finally(res);
+        else res();
+      }, 'image/jpeg', 0.86),
+    );
     // the logbook: the best of each kind for this jet, and the points
     const L = this.log;
     const before = rankOf(L.points);
@@ -560,6 +563,8 @@ export class SpotterMode extends GameMode {
   }
 
   private notes: string[] = [];
+  /** the album copy of the last picture, being written (the album waits for it) */
+  saving: Promise<void> = Promise.resolve();
 
   /** how good is the picture: the jet's size and place in the frame, sharpness and the moment */
   private score(cam: THREE.PerspectiveCamera, w: number, h: number): PhotoMeta {

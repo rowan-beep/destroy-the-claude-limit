@@ -86,6 +86,41 @@ function use<T>(name: string): Promise<T | null> {
   ]);
 }
 
+interface DownloadsApi {
+  save(req: { filename: string; data: Blob | string | ArrayBuffer }): Promise<{ status: string }>;
+}
+let downloadsP: Promise<DownloadsApi | null> | null = null;
+
+/**
+ * Give the player a file. Inside a claude.ai artifact a page may not download
+ * by itself: the viewer is asked to confirm the save. Anywhere else (the web
+ * build, the Windows app) it is an ordinary download. Resolves true if saved.
+ */
+export async function saveFile(filename: string, data: Blob): Promise<boolean> {
+  if (runtime()) {
+    if (!downloadsP) downloadsP = use<DownloadsApi>('downloads');
+    const dl = await downloadsP;
+    if (dl) {
+      try {
+        await dl.save({ filename, data });
+        return true;
+      } catch (e) {
+        // (the viewer said no: that is their answer, no fallback)
+        if ((e as { code?: string })?.code === 'declined') return false;
+      }
+    }
+  }
+  const url = URL.createObjectURL(data);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  return true;
+}
+
 let roomP: Promise<LobbyRoom | null> | null = null;
 let userP: Promise<UserApi | null> | null = null;
 

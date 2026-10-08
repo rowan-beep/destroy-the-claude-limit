@@ -10,6 +10,7 @@ import type { SpotterMode } from '../game/modes/spotter';
 import { fovFor } from '../game/modes/spotter';
 import { SHOTS, RANKS, rankOf, listPhotos, photoBlob, deletePhoto, PhotoMeta } from '../game/spotterBook';
 import { AIRCRAFT_TYPES, SPECS } from '../aircraft/specs';
+import { saveFile } from '../net/artifact';
 
 const CSS = `
 .sp-ui{position:fixed;inset:0;pointer-events:none;z-index:31;font-family:'Rajdhani','Segoe UI',system-ui,sans-serif;color:#f1f4f8;letter-spacing:.04em}
@@ -211,6 +212,8 @@ export class SpotterUi {
     for (const u of this.urls) URL.revokeObjectURL(u);
     this.urls = [];
     if (this.tab === 'logbook') return this.fillLogbook();
+    // (a picture just taken may still be on its way into the album)
+    await this.mode.saving;
     const list = await listPhotos();
     if (!list.length) {
       el('div', 'sp-note', body, 'No pictures yet. The ones that score 15 or more are kept here (the best and newest 120).');
@@ -246,11 +249,11 @@ export class SpotterUi {
     for (const t of p.tags) el('span', '', tags, SHOTS[t]?.name ?? t);
     const row = el('div', 'sp-row', b);
     const save = el('button', 'sp-btn', row, 'SAVE PICTURE') as HTMLButtonElement;
-    save.addEventListener('click', () => {
-      const a = document.createElement('a');
-      a.href = i.src;
-      a.download = `${p.jet.replace(/[^a-z0-9]+/gi, '-')}-${p.score}${save.textContent === 'SAVE COVER' ? '-cover' : ''}.jpg`;
-      a.click();
+    save.addEventListener('click', async () => {
+      const name = `${p.jet.replace(/[^a-z0-9]+/gi, '-')}-${p.score}${save.textContent === 'SAVE COVER' ? '-cover' : ''}.jpg`;
+      // (the cover is a data URL; the picture comes straight from the album's store)
+      const blob = i.src.startsWith('data:') ? dataUrlBlob(i.src) : await photoBlob(p.id);
+      if (blob) await saveFile(name, blob);
     });
     if (p.stars >= 3) {
       const cov = el('button', 'sp-btn', row, 'MAGAZINE COVER') as HTMLButtonElement;
@@ -623,4 +626,14 @@ function makeCover(img: HTMLImageElement, p: PhotoMeta): string | null {
   g.textAlign = 'center';
   g.fillText('$7.99', bx + 80, by + 102);
   return c.toDataURL('image/jpeg', 0.9);
+}
+
+/** a data: URL as a Blob (no fetch: the page's security policy may not allow one) */
+function dataUrlBlob(url: string): Blob {
+  const [head, body] = url.split(',', 2);
+  const mime = /data:([^;]+)/.exec(head)?.[1] ?? 'application/octet-stream';
+  const bin = atob(body);
+  const bytes = new Uint8Array(bin.length);
+  for (let k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
+  return new Blob([bytes], { type: mime });
 }

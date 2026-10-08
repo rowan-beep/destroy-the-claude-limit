@@ -4,6 +4,15 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu lists the space updates.
 
+## v5.4.1 (2026-10-08)
+
+### Air Combat: Airshow: saving pictures
+
+- **Fixed: SAVE PICTURE and SAVE COVER work in the claude.ai version**
+  - The page there asks you to confirm the save, then the JPEG downloads. In the web and Windows versions it downloads straight away, as before.
+- **Fixed: A picture you have just taken is in the album straight away**
+  - Opening the album right after the shutter used to miss the newest picture until you opened it again.
+
 ## v5.4.0 (2026-10-07)
 
 ### Air Combat: AIRSHOW: a game for people who love jets
