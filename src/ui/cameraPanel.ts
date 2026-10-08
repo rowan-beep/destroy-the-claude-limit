@@ -69,7 +69,7 @@ export class CameraPanel {
     this.sum = el('div', 'cp-sum', this.root);
     this.body = el('div', '', this.root);
     this.help = el('div', 'cp-help', this.root, 'Point at a setting to see what it does.');
-    el('div', 'cp-keys', this.root, 'KEYS  [ ] shutter · ; \' aperture · , . ISO · 9 0 exposure compensation · Q focus now · C this menu');
+    el('div', 'cp-keys', this.root, 'KEYS  R pick a setting (or click it on the readout) · [ ] change it (or scroll over it) · Q focus now · C this menu');
     // (the panel's clicks don't take pictures or look round)
     for (const ev of ['pointerdown', 'pointerup', 'wheel']) this.root.addEventListener(ev, (e) => e.stopPropagation());
   }

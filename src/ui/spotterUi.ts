@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import { el, clearEl } from './dom';
 import { audio } from '../audio/audio';
-import type { SpotterMode } from '../game/modes/spotter';
+import type { SpotterMode, Dial } from '../game/modes/spotter';
 import { fovFor } from '../game/modes/spotter';
 import { SHOTS, rankOf, kindsFor } from '../game/spotterBook';
 import { SPECS } from '../aircraft/specs';
@@ -44,6 +44,10 @@ const CSS = `
 .sp-exif{position:absolute;left:18px;bottom:62px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;max-width:min(460px,34vw);font-variant-numeric:tabular-nums;text-shadow:0 1px 3px #000;font-size:15px;font-weight:700;letter-spacing:.06em}
 .sp-exif span{font-size:11px;font-weight:600;letter-spacing:.16em;color:#c9d3df}
 .sp-exif .m{background:#ffb14a;color:#1a1206;border-radius:4px;padding:0 6px;font-size:14px}
+.sp-exif b[data-d]{pointer-events:auto;cursor:pointer;border-radius:4px;padding:0 4px;margin:0 -4px;border:1px solid transparent}
+.sp-exif b[data-d]:hover{border-color:#ffffff55}
+.sp-exif b[data-d].sel{border-color:#ffb14a;background:#ffb14a26}
+.sp-exif b[data-d].fixed{opacity:.6;cursor:default}
 .sp-meter{display:flex;align-items:flex-end;gap:2px;height:16px}
 .sp-meter i{display:block;width:2px;height:6px;background:#ffffff77}
 .sp-meter i.z{height:10px;background:#fff}
@@ -153,8 +157,23 @@ export class SpotterUi {
     this.black = el('div', 'sp-cine-l sp-black', this.root);
     this.white = el('div', 'sp-cine-l sp-white', this.root);
     this.help = el('div', 'sp-help', this.root);
-    this.help.textContent = 'DRAG / WASD look · WHEEL or + − zoom · CLICK or SPACE shoot · C camera settings · [ ] shutter · ; \' aperture · , . ISO · Q focus · T auto-track · V spot · N next act · TAB album';
+    this.help.textContent = 'DRAG / WASD look · WHEEL or + − zoom · CLICK or SPACE shoot · R pick a setting · [ ] change it · Q focus · C camera menu · T auto-track · V spot · N next act · TAB album';
     this.elExif = el('div', 'sp-exif', this.root);
+    // the settings on the readout: click one to pick it, scroll over it to change it
+    // (pointerdown, not click: the readout is redrawn every frame)
+    this.elExif.addEventListener('pointerdown', (e) => {
+      const d = (e.target as HTMLElement).closest('[data-d]') as HTMLElement | null;
+      if (!d || !mode.dialsFor().includes(d.dataset.d as Dial)) return;
+      e.stopPropagation();
+      mode.selectDial(d.dataset.d as Dial);
+    });
+    this.elExif.addEventListener('wheel', (e) => {
+      const d = (e.target as HTMLElement).closest('[data-d]') as HTMLElement | null;
+      if (!d || !mode.dialsFor().includes(d.dataset.d as Dial)) return;
+      e.preventDefault();
+      mode.selectDial(d.dataset.d as Dial);
+      mode.turnDial(d.dataset.d as Dial, e.deltaY < 0 ? 1 : -1);
+    }, { passive: false });
     this.elMsg = el('div', 'sp-msg', this.root);
     this.panel = new CameraPanel(document.body, mode.pro, () => mode.focal);
     mode.onTogglePanel = () => this.panel.toggle();
@@ -294,7 +313,9 @@ export class SpotterUi {
     for (let k = -9; k <= 9; k++) meter += `<i class="${k === 0 ? 'z' : ''}${Math.round(Math.max(-3, Math.min(3, bias)) * 3) === k ? ' on' : ''}"></i>`;
     const mode = cs.mode.length === 1 ? cs.mode : cs.mode === 'auto' ? 'AUTO' : cs.mode.toUpperCase();
     const drive = { single: 'S', low: 'CL', high: 'CH', timer2: '⏱2', timer10: '⏱10', interval: pro.intervalOn ? 'INT ●' : 'INT' }[cs.drive];
-    this.elExif.innerHTML = `<b class="m">${mode}</b><b>${fmtShutter(e.shutter)}</b><b>${fmtAperture(e.aperture)}</b><b>ISO ${e.iso}</b><div class="sp-meter">${meter}</div><b>${fmtEv(bias)}</b>` +
+    const ds = m.dialsFor(), sel = m.activeDial();
+    const dial = (d: Dial, text: string) => `<b data-d="${d}" class="${d === sel ? 'sel' : ''}${ds.includes(d) ? '' : ' fixed'}" title="${ds.includes(d) ? 'Click to pick, scroll to change' : 'Set by the camera in this mode'}">${text}</b>`;
+    this.elExif.innerHTML = `<b class="m">${mode}</b>${dial('shutter', fmtShutter(e.shutter))}${dial('aperture', fmtAperture(e.aperture))}${dial('iso', `ISO ${e.iso}`)}<div class="sp-meter">${meter}</div>${dial('ev', fmtEv(bias))}` +
       `<span>${cs.af} ${cs.area === 'wide' ? 'WIDE' : cs.area.toUpperCase()}</span><span>${drive}</span><span>${cs.wb === 'kelvin' ? cs.kelvin + 'K' : cs.wb === 'auto' ? 'AWB' : cs.wb.toUpperCase()}</span><span>${STYLE_NAMES[cs.style]}</span><span>${cs.format.toUpperCase()}${cs.space === 'adobe' ? ' · ARGB' : ''}</span><span>IS ${cs.is.toUpperCase()}</span>`;
     this.panel.update();
     // big messages in the middle: the self-timer, AF-S focusing, a note from the dials

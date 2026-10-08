@@ -71,6 +71,9 @@ export interface ShotResult {
   notes: string[];
 }
 
+export type Dial = 'shutter' | 'aperture' | 'iso' | 'ev';
+export const DIAL_NAMES: Record<Dial, string> = { shutter: 'SHUTTER', aperture: 'APERTURE', iso: 'ISO', ev: 'EXPOSURE' };
+
 export class SpotterMode extends GameMode {
   /** the field and where the crowd stands */
   field!: AirfieldDef;
@@ -489,31 +492,65 @@ export class SpotterMode extends GameMode {
   }
 
   /** the keys for the camera's dials: [ ] shutter, ; ' aperture, , . ISO, 9 0 exposure compensation, Q focus, C settings */
-  private dials(inp: Input): void {
+  /** the setting R picks and [ ] change (only those the shooting mode leaves to you) */
+  dial: Dial = 'shutter';
+
+  dialsFor(): Dial[] {
+    const m = this.pro.s.mode;
+    if (m === 'S') return ['shutter', 'ev', 'iso'];
+    if (m === 'A') return ['aperture', 'ev', 'iso'];
+    if (m === 'M') return ['shutter', 'aperture', 'iso'];
+    return ['ev', 'iso'];
+  }
+
+  /** the dial in use (back to the mode's first one if the mode no longer offers it) */
+  activeDial(): Dial {
+    const ds = this.dialsFor();
+    if (!ds.includes(this.dial)) this.dial = ds[0];
+    return this.dial;
+  }
+
+  /** pick a dial (from the readout, or the next with R) */
+  selectDial(d?: Dial): void {
+    const ds = this.dialsFor();
+    this.dial = d && ds.includes(d) ? d : ds[(ds.indexOf(this.activeDial()) + 1) % ds.length];
+    this.say(`${DIAL_NAMES[this.dial]} ${this.dialValue(this.dial)}`);
+  }
+
+  dialValue(d: Dial): string {
+    const s = this.pro.s, e = this.pro.expo;
+    if (d === 'shutter') return fmtShutter(s.mode === 'S' || s.mode === 'M' ? s.shutter : e.shutter);
+    if (d === 'aperture') return fmtAperture(s.aperture);
+    if (d === 'iso') return s.iso ? String(s.iso) : 'AUTO';
+    return `${s.ev >= 0 ? '+' : ''}${s.ev.toFixed(1)} EV`;
+  }
+
+  /** turn a dial a click: +1 makes the number go up (faster shutter, smaller opening, more ISO, brighter) */
+  turnDial(d: Dial, dir: number): void {
     const s = this.pro.s;
-    const step = <T extends number>(list: T[], v: T, d: number): T => list[Math.max(0, Math.min(list.length - 1, list.indexOf(nearest(list, v) as T) + d))];
-    let changed = false;
-    const shut = (d: number) => {
-      if (s.mode === 'S' || s.mode === 'M') s.shutter = step(SHUTTERS, s.shutter, d);
-      else if (s.mode === 'A') s.aperture = step(APERTURES, s.aperture, -d);
-      else s.ev = Math.max(-3, Math.min(3, Math.round((s.ev + d / 3) * 3) / 3));
-      changed = true;
-    };
-    if (inp.codePressed('BracketRight')) shut(-1);
-    if (inp.codePressed('BracketLeft')) shut(1);
-    if (inp.codePressed('Quote')) ((s.aperture = step(APERTURES, s.aperture, 1)), (changed = true));
-    if (inp.codePressed('Semicolon')) ((s.aperture = step(APERTURES, s.aperture, -1)), (changed = true));
-    if (inp.codePressed('Period')) ((s.iso = s.iso ? step(ISOS, s.iso, 1) : 100), (changed = true));
-    if (inp.codePressed('Comma')) ((s.iso = s.iso === 100 ? 0 : s.iso ? step(ISOS, s.iso, -1) : 0), (changed = true));
-    if (inp.codePressed('Digit0')) ((s.ev = Math.min(3, Math.round((s.ev + 1 / 3) * 3) / 3)), (changed = true));
-    if (inp.codePressed('Digit9')) ((s.ev = Math.max(-3, Math.round((s.ev - 1 / 3) * 3) / 3)), (changed = true));
+    const step = <T extends number>(list: T[], v: T, k: number): T => list[Math.max(0, Math.min(list.length - 1, list.indexOf(nearest(list, v) as T) + k))];
+    if (d === 'shutter') s.shutter = step(SHUTTERS, s.shutter, -dir);
+    else if (d === 'aperture') s.aperture = step(APERTURES, s.aperture, dir);
+    else if (d === 'iso') s.iso = dir > 0 ? (s.iso ? step(ISOS, s.iso, 1) : 100) : s.iso === 100 ? 0 : s.iso ? step(ISOS, s.iso, -1) : 0;
+    else s.ev = Math.max(-3, Math.min(3, Math.round((s.ev + dir / 3) * 3) / 3));
+    this.pro.save();
+    this.say(`${DIAL_NAMES[d]} ${this.dialValue(d)}`);
+  }
+
+  private dials(inp: Input): void {
+    // the simple way: R picks the setting, [ and ] change it
+    if (inp.codePressed('KeyR')) this.selectDial();
+    if (inp.codePressed('BracketRight')) this.turnDial(this.activeDial(), 1);
+    if (inp.codePressed('BracketLeft')) this.turnDial(this.activeDial(), -1);
+    // (the direct keys still work too, for those who learnt them)
+    if (inp.codePressed('Quote')) this.turnDial('aperture', 1);
+    if (inp.codePressed('Semicolon')) this.turnDial('aperture', -1);
+    if (inp.codePressed('Period')) this.turnDial('iso', 1);
+    if (inp.codePressed('Comma')) this.turnDial('iso', -1);
+    if (inp.codePressed('Digit0')) this.turnDial('ev', 1);
+    if (inp.codePressed('Digit9')) this.turnDial('ev', -1);
     if (inp.codePressed('KeyQ')) this.pro.focusNow(this.subject);
     if (inp.codePressed('KeyC')) this.onTogglePanel?.();
-    if (changed) {
-      this.pro.save();
-      const e = this.pro.expo;
-      this.say(s.mode === 'P' || s.mode === 'auto' ? `EV ${s.ev >= 0 ? '+' : ''}${s.ev.toFixed(1)}` : `${fmtShutter(s.mode === 'S' || s.mode === 'M' ? s.shutter : e.shutter)}  ${fmtAperture(s.aperture)}  ISO ${s.iso || 'AUTO'}`);
-    }
   }
 
   /** the camera's settings panel (the UI's) */
