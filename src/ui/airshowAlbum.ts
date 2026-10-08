@@ -226,6 +226,9 @@ export class AirshowAlbum {
 
   private onKey(e: KeyboardEvent): void {
     if (!this.isOpen) return;
+    // (keys on a slider or a text box are theirs: the arrows move the slider, not the picture)
+    const tg = e.target as HTMLElement | null;
+    if (tg && e.code !== 'Escape' && /^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName)) return;
     if (this.big.classList.contains('show')) {
       if (e.code === 'ArrowRight') this.step(1);
       else if (e.code === 'ArrowLeft') this.step(-1);
@@ -780,7 +783,17 @@ export class AirshowAlbum {
     const on = !this.big.classList.contains('full');
     this.big.classList.toggle('full', on);
     try {
-      if (on && !document.fullscreenElement) void this.big.requestFullscreen?.().catch(() => undefined);
+      if (on && !document.fullscreenElement) {
+        void this.big.requestFullscreen?.().then(() => {
+          // (Esc leaves the browser's full screen by itself: the picture goes back with it)
+          const off = () => {
+            if (document.fullscreenElement) return;
+            document.removeEventListener('fullscreenchange', off);
+            this.big.classList.remove('full');
+          };
+          document.addEventListener('fullscreenchange', off);
+        }).catch(() => undefined);
+      }
       else if (!on && document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
     } catch {
       /* (no browser full screen: the picture still fills the window) */
