@@ -4,6 +4,27 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
+## v6.1.0 (2026-10-08)
+
+### Ocean: THE SLOW PULSE: a second mission, 282 m down, and touch and gamepad controls
+
+- **New: THE SLOW PULSE: what was pulsing in the deep basin**
+  - Finish the first expedition and the follow-up opens on the MISSIONS page: nine stages, saved at each one, with its own debrief.
+  - Take two bearings on the 12 kHz pulse (it is kilometres off, so the second bearing needs a long step to the side), go down in the search area and find its source in your lamps.
+  - It is the Kestrel Marine Lab's deep mooring K3: an orange float 282 m down on a taut line, with its relocation pinger, a hydrophone recorder and the lab's tag. Scan the tag from in front and take the recorder off the line with the arm.
+  - The anchor is 339 m down, past PETREL's 300 m rating: ping, and the multibeam under the boat (65° either side, 120 m down) shows what lies across the foot of the line.
+- **New: Touch controls for phones and tablets**
+  - A stick (ahead, astern, turn), buttons for up and down, flood and blow, the side thrusters, listening, sonar, the arm, lamps, the holds and transit time. Drag to look, pinch to zoom.
+  - The emergency blow must be held for 2 s, so it never goes off by accident. On a phone held sideways the instruments move to the top corners.
+- **New: Gamepad**
+  - Left stick to drive, triggers up and down, bumpers for the side thrusters, D-pad for the tanks and the holds (hold up 2 s for the emergency blow), A use, B ping, X listen, Y lamps, right stick to look.
+  - The CONTROLS page and the in-dive help (H) list it all.
+- **Improved: The sea bed is built on a separate thread**
+  - Sea-bed tiles are now built on a worker thread; the game itself only turns them into meshes. On the benchmark route (BALANCED) the slowest tile on the game's own thread went from 13.9 ms to 4.4 ms, frames held up by more than 8 ms of sea-bed work from 9 to none, and the game's own work per frame (95th percentile) from 8.9 to 6.4 ms.
+  - The benchmark can compare: triadBench('balanced', 15, false) builds the tiles the old way.
+- **Improved: Sonar answers across each beam's width**
+  - Each of the 90 beams now answers for anything inside its own width, not only on its centre line, so a thin mooring line 200 m off is found from any side instead of only now and then.
+
 ## v6.0.0 (2026-10-08)
 
 ### Ocean: OCEAN: a survey submarine, a strange knock, and the sea as it really looks

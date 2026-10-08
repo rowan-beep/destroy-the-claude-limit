@@ -124,6 +124,20 @@ the second and third rounds (939 geometries, 109 textures, 81 programs). The fir
 after leaving the menu (up to 1.4 s on Performance, 6 s on Cinematic while the
 shadow shaders compile) are reported apart from the totals.
 
+The sea-bed worker, measured the same way on one production build (BALANCED, one
+run each, `triadBench('balanced', 15, false)` against `triadBench('balanced', 15)`):
+
+| | Tiles built on the main thread | On the worker |
+|---|---|---|
+| Slowest tile, main-thread cost | 13.9 ms | 4.4 ms (making the mesh only) |
+| Frames with more than 8 ms of sea-bed work | 9 | 0 |
+| Game's own work per frame, median / p95 | 2.5 / 8.9 ms | 2.2 / 6.4 ms |
+| Frame interval, median | 331 ms | 331 ms |
+
+On that machine the frame interval is the software rasteriser's; what the worker
+takes away is the sea bed's share of the game's own work, the spikes a player
+with a real graphics card would feel as hitches.
+
 ## Deferred
 
 The smallest coherent version was built first. Not in this slice:
