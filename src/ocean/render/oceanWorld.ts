@@ -11,6 +11,7 @@ import { OceanFx, LAMPS } from './fx';
 import { SubModel } from './subModel';
 import { FishSchools } from './fish';
 import { SEABED_DETAIL } from './seabedDetail';
+import { SeabedLife } from './seabedLife';
 import { OCEAN_FX, daylightAt } from './oceanMaterial';
 import { WEATHERS, Weather, WeatherDef, surfaceHeight } from '../world/waves';
 import { PRESETS, OceanPreset, PresetDef } from '../perf/presets';
@@ -43,6 +44,8 @@ export interface WorldStats {
 export class OceanWorld {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(62, 1, 0.08, 14000);
+  /** the small life and litter of the sea floor round the camera */
+  readonly life: SeabedLife;
   readonly seabed = new SeabedStreamer();
   readonly surface: OceanSurface;
   readonly props: OceanProps;
@@ -73,6 +76,8 @@ export class OceanWorld {
     this.props = new OceanProps(this.preset.decor);
     this.fx = new OceanFx({ snow: this.preset.snow, bubbles: this.preset.bubbles, shafts: this.preset.shafts });
     this.sub = new SubModel(this.preset.shadowMap > 0);
+    this.life = new SeabedLife(this.preset.decor);
+    this.scene.add(this.life.group);
     // sea-bed tiles are built on a worker thread where there is one
     this.seabed.useWorker();
     this.scene.add(this.seabed.group, this.surface.mesh, this.surface.sky, this.props.group, this.fx.group, this.sub.root, this.sun, this.sun.target, this.hemi);
@@ -126,7 +131,10 @@ export class OceanWorld {
     this.seabed.lod = d.lod;
     this.seabed.budgetMs = d.buildBudgetMs;
     if (old.waterRings !== d.waterRings || old.waterSegs !== d.waterSegs) this.surface.setDetail(d.waterRings, d.waterSegs);
-    if (old.decor !== d.decor) this.props.setDecor(d.decor);
+    if (old.decor !== d.decor) {
+      this.props.setDecor(d.decor);
+      this.life.setDensity(d.decor);
+    }
     if (!this.fish || old.fish !== d.fish) {
       if (this.fish) {
         this.scene.remove(this.fish.mesh);
@@ -179,6 +187,7 @@ export class OceanWorld {
     this.seabed.update(cp.x, cp.z, ahead.x, ahead.z);
     this.surface.update(cp, opts.boat, dt);
     this.props.update(cp.x, cp.z, this.t, dt);
+    this.life.update(cp.x, cp.y, cp.z, this.t);
     this.fish?.update(cp);
     // the sun's shadow box follows the camera
     this.sun.position.set(cp.x + this.sunDir.x * 200, cp.y + this.sunDir.y * 200, cp.z + this.sunDir.z * 200);
@@ -237,6 +246,7 @@ export class OceanWorld {
   /** load everything round a point now (behind a loading screen) */
   fill(x: number, z: number): void {
     this.seabed.fill(x, z);
+    this.life.fill(x, z);
   }
 
   /** start the streaming counters again (each benchmark run reports its own) */
@@ -274,6 +284,7 @@ export class OceanWorld {
     this.seabed.dispose();
     this.surface.dispose();
     this.props.dispose();
+    this.life.dispose();
     this.fx.dispose();
     this.sub.dispose();
     this.fish?.dispose();

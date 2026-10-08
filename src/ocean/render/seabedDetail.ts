@@ -67,7 +67,9 @@ if ( uSbDetail > 0.0 && vOcWorld.y < 0.3 ) {
   vec3 k = vec3( patches );
   if ( sbFade > 0.0 ) {
     // heavy minerals settle in the ripple troughs; shell hash glints on the crests
-    float shell = step( 0.965, sbHash( floor( sbP * 16.0 ) ) ) * ( 1.0 - sbRock ) * ( 1.0 - sbSilt );
+    // (small round fragments at random places, not the cells they are drawn from)
+    vec2 sc = floor( sbP * 9.0 ), sf = fract( sbP * 9.0 ) - 0.5 - ( vec2( sbHash( sc + 1.7 ), sbHash( sc + 4.3 ) ) - 0.5 ) * 0.6;
+    float shell = step( 0.9, sbHash( sc ) ) * ( 1.0 - smoothstep( 0.05, 0.12, length( sf * vec2( 1.0, 1.6 ) ) ) ) * ( 1.0 - sbRock ) * ( 1.0 - sbSilt );
     float grain = 0.9 + 0.2 * sbNoise( sbP * 23.0 );
     vec3 sand = vec3( 1.0 - 0.22 * sbTrough ) * grain + shell * 0.45;
     // rock: crevices dark, faces lit; pink coralline crusts in the shallows
