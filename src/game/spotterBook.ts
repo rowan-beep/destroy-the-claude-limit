@@ -195,6 +195,31 @@ export async function deletePhoto(id: string): Promise<void> {
   }
 }
 
+/** delete many pictures at once (one transaction) */
+export async function deletePhotos(ids: string[]): Promise<void> {
+  const set = new Set(ids);
+  for (const id of ids) memory.delete(id);
+  if (listCache) listCache = listCache.filter((p) => !set.has(p.id));
+  const d = await db();
+  if (!d || !ids.length) return;
+  try {
+    const tx = d.transaction(['meta', 'blob', 'thumb'], 'readwrite');
+    const m = tx.objectStore('meta'), b = tx.objectStore('blob'), t = tx.objectStore('thumb');
+    for (const id of ids) {
+      m.delete(id);
+      b.delete(id);
+      t.delete(id);
+    }
+    await new Promise<void>((res) => {
+      tx.oncomplete = () => res();
+      tx.onerror = () => res();
+      tx.onabort = () => res();
+    });
+  } catch {
+    /* (gone already) */
+  }
+}
+
 /** mark (or unmark) a favourite: favourites are never dropped to make room */
 export async function setFavourite(id: string, fav: boolean): Promise<void> {
   const list = await listPhotos();

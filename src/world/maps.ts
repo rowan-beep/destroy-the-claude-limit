@@ -1,6 +1,7 @@
 // Map selection: which theater is active, remembered between visits. The
 // map is chosen before the world is built (a change reloads the page), and
 // the same choice is sent to every terrain worker before its first job.
+import { noteAutoReload } from '../ui/launcher/introSkip';
 
 import { setMapDimensions } from '../core/constants';
 import { applyMapData, MAPS, MapId, activeMap } from './islands';
@@ -51,6 +52,7 @@ export function switchMap(id: MapId, extraHash = ''): void {
   } catch {
     /* ignore */
   }
+  noteAutoReload();
   setTimeout(() => location.reload(), 60);
 }
 

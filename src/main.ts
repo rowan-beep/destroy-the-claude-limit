@@ -40,6 +40,9 @@ import { AdminPanel } from './ui/menu/adminPanel';
 import type { NetLink } from './net/link';
 import { switchMap } from './world/maps';
 import { loadPaint } from './aircraft/models/paint';
+import { Launcher } from './ui/launcher/launcher';
+import { takeIntroSkip, markPicked } from './ui/launcher/introSkip';
+import { hiresImage } from './render/hires';
 import type { MapId } from './world/islands';
 
 wakeOfficialServers();
@@ -56,8 +59,12 @@ async function boot(): Promise<void> {
   } catch {
     /* storage unavailable */
   }
+  // the TRIAD intro: pick a program, then its cinematic loading screen (a reload
+  // the game made by itself, for an update or a server's theater, skips it)
+  const launcher = takeIntroSkip() ? null : new Launcher(loadProgram());
   const loading = new LoadingScreen(document.body);
   loading.set(0.02, 'STARTING');
+  if (launcher) loading.show(false);
 
   const game = new Game(app, settings);
   const hud = new Hud(document.body);
@@ -400,7 +407,60 @@ async function boot(): Promise<void> {
     if (document.hidden && game.state === 'playing') game.setState('paused');
   });
 
-  hangar.setJet(cfg.aircraft, menu.cfg.loadoutId);
+  /** a pause for the loading screen's bar and pictures between two heavy steps */
+  const breathe = () => new Promise<void>((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+  async function preload(p: Program, progress: (f: number, label: string) => void): Promise<void> {
+    const sz = game.renderer.size;
+    if (p === 'air') {
+      progress(0.02, 'OPENING THE HANGAR');
+      hangar.setJet(menu.cfg.aircraft, menu.cfg.loadoutId);
+      await breathe();
+      // its shaders compiled before the first frame, then one frame drawn behind the screen
+      await game.renderer.compileFor(hangar.scene, hangar.scene, hangar.camera).catch(() => undefined);
+      hangar.render(0, sz.w, sz.h);
+      await breathe();
+      // every jet built once (and its library portrait made), so the library opens at once
+      const types = AIRCRAFT_TYPES;
+      for (let i = 0; i < types.length; i++) {
+        progress(0.12 + (0.38 * i) / types.length, 'PREPARING THE JETS');
+        hangar.thumbnail(types[i]);
+        await breathe();
+      }
+      // the theater for the first flight, generated now instead of after LAUNCH
+      // (a slow machine goes on building it in the background once the menu is up)
+      progress(0.5, 'GENERATING THE THEATER');
+      await Promise.race([game.ensureWorld((f, l) => progress(0.5 + f * 0.48, l)), new Promise((r) => setTimeout(r, 20000))]);
+      progress(1, 'READY');
+    } else {
+      progress(0.03, 'LOADING THE SPACE PROGRAM');
+      const sp = await loadSpace();
+      progress(0.3, 'BUILDING THE LAUNCH SITE');
+      await breathe();
+      const site = sp.factory();
+      progress(0.5, 'LIGHTING THE PAD');
+      await breathe();
+      site.render(0, sz.w, sz.h);
+      await breathe();
+      // the big Earth and Mars maps the flights use, fetched now
+      progress(0.65, 'LOADING THE PLANETS');
+      const maps: [string, number][] = [['earth_8k.jpg', 8192], ['earth_clouds_4k.jpg', 4096], ['earth_night_4k.jpg', 4096], ['mars_8k.jpg', 8192]];
+      let n = 0;
+      await Promise.all(maps.map(([f, w]) => hiresImage(f, w).then(() => progress(0.65 + (0.33 * ++n) / maps.length, 'LOADING THE PLANETS'))));
+      progress(1, 'READY');
+    }
+  }
+
+  if (launcher) {
+    const p = await launcher.chosen;
+    if (p !== program) {
+      program = p;
+      saveProgram(p);
+    }
+    // load the chosen program behind the loading screen, so its menu comes up ready
+    await preload(p, (f, l) => launcher.setProgress(f, l)).catch((e) => console.warn('preload', e));
+    launcher.markDone();
+  } else markPicked();
+  hangar.setJet(menu.cfg.aircraft, menu.cfg.loadoutId);
   loading.set(1, 'READY');
   loading.show(false);
   game.setState('menu');

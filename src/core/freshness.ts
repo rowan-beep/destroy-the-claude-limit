@@ -4,6 +4,7 @@
 // While the game runs (website and desktop app) it keeps checking every
 // minute; a new build reloads the game at the main menu (never mid-flight:
 // then it waits until you are back in the menu).
+import { noteAutoReload } from '../ui/launcher/introSkip';
 
 const name = (s: string) => s.match(/assets\/index-[\w-]+\.js/)?.[0];
 
@@ -28,6 +29,7 @@ function reloadTo(live: string): void {
   } catch {
     return;
   }
+  noteAutoReload();
   location.reload();
 }
 

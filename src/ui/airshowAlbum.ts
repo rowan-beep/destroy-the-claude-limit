@@ -8,7 +8,7 @@
 // every jet with the best stars for each.
 
 import { el, clearEl } from './dom';
-import { SHOTS, RANKS, rankOf, listPhotos, photoBlob, photoThumb, deletePhoto, setFavourite, kindsFor, PhotoMeta, SpotterLog, MAX_PHOTOS } from '../game/spotterBook';
+import { SHOTS, RANKS, rankOf, listPhotos, photoBlob, photoThumb, deletePhoto, deletePhotos, setFavourite, kindsFor, PhotoMeta, SpotterLog, MAX_PHOTOS } from '../game/spotterBook';
 import { AIRCRAFT_TYPES, AircraftType, SPECS } from '../aircraft/specs';
 import { saveFile } from '../net/artifact';
 
@@ -55,10 +55,29 @@ const CSS = `
 .aa-score{position:absolute;top:7px;left:8px;font-size:12px;font-weight:700;background:#000a;border-radius:5px;padding:1px 6px}
 .aa-empty{margin:60px auto;max-width:520px;text-align:center;color:#8796a8;font-size:15px;line-height:1.6}
 .aa-more{height:1px}
+.aa-selbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.aa-sbtn{white-space:nowrap;background:#ffffff0b;border:1px solid #ffffff1f;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;letter-spacing:.1em;color:#c4cfdc}
+.aa-sbtn:hover{background:#ffffff1a}
+.aa-sbtn.on{background:#ffb14a;color:#1a1206;border-color:#ffb14a}
+.aa-sbtn.trash{color:#ffb3b3;border-color:#ff6b6b66}
+.aa-sbtn.trash.sure{background:#e8455a;color:#fff;border-color:#e8455a}
+.aa-sbtn:disabled{opacity:.35;cursor:default}
+.aa-scount{font-size:12px;letter-spacing:.14em;color:#ffd38a;min-width:90px}
+.aa-tick{position:absolute;top:7px;right:8px;width:24px;height:24px;border-radius:50%;border:2px solid #fffc;background:#0008;display:none;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#1a1206;box-shadow:0 1px 4px #000}
+.aa.selecting .aa-tick{display:flex}
+.aa.selecting .aa-heart{right:38px}
+.aa-card.sel{border-color:#ffb14a;box-shadow:0 0 0 2px #ffb14a inset}
+.aa-card.sel .aa-tick{background:#ffb14a;border-color:#ffb14a}
+.aa-card.sel img{opacity:.72}
 .aa-big{position:fixed;inset:0;z-index:3;background:#000f;display:none;grid-template-columns:1fr 330px}
 .aa-big.show{display:grid}
 .aa-big-img{position:relative;display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;padding:18px}
-.aa-big-img img{max-width:100%;max-height:100%;border-radius:6px;box-shadow:0 10px 40px #000}
+.aa-big-img img{max-width:100%;max-height:100%;border-radius:6px;box-shadow:0 10px 40px #000;cursor:zoom-in}
+.aa-big.full{grid-template-columns:1fr}
+.aa-big.full .aa-side{display:none}
+.aa-big.full .aa-big-img{padding:0}
+.aa-big.full .aa-big-img img{border-radius:0;box-shadow:none;cursor:zoom-out;width:100%;height:100%;object-fit:contain}
+.aa-fs{position:absolute;right:14px;bottom:14px;border-radius:8px;background:#000a;border:1px solid #ffffff33;padding:6px 10px;font-size:12px;font-weight:700;letter-spacing:.12em}
 .aa-nav{position:absolute;top:50%;transform:translateY(-50%);width:46px;height:64px;border-radius:10px;background:#ffffff14;border:1px solid #ffffff22;font-size:26px}
 .aa-nav:hover{background:#ffffff26}
 .aa-side{background:#0c1016;border-left:1px solid #ffffff14;padding:20px 18px;display:flex;flex-direction:column;gap:10px;overflow-y:auto}
@@ -125,6 +144,13 @@ export class AirshowAlbum {
   private bigI = -1;
   private bigUrl = '';
   private keyFn = (e: KeyboardEvent) => this.onKey(e);
+  /** picking pictures to delete (or save) together */
+  private selecting = false;
+  private sel = new Set<string>();
+  private lastPick = -1;
+  private selCount: HTMLElement | null = null;
+  private trashBtn: HTMLButtonElement | null = null;
+  private trashSure = false;
 
   constructor(
     parent: HTMLElement,
@@ -180,6 +206,7 @@ export class AirshowAlbum {
     window.removeEventListener('keydown', this.keyFn, true);
     this.closeBig();
     this.freeThumbs();
+    if (this.selecting) this.setSelecting(false);
     this.onClose?.();
   }
 
@@ -193,8 +220,16 @@ export class AirshowAlbum {
     if (this.big.classList.contains('show')) {
       if (e.code === 'ArrowRight') this.step(1);
       else if (e.code === 'ArrowLeft') this.step(-1);
-      else if (e.code === 'Escape') this.closeBig();
-      else return;
+      else if (e.code === 'KeyF') this.toggleFull();
+      else if (e.code === 'Escape') {
+        if (this.big.classList.contains('full')) this.toggleFull();
+        else this.closeBig();
+      } else return;
+    } else if (this.selecting && e.code === 'Escape') this.setSelecting(false);
+    else if (this.selecting && (e.code === 'Delete' || e.code === 'Backspace')) void this.trash();
+    else if (this.tab === 'photos' && e.code === 'KeyA' && (e.ctrlKey || e.metaKey)) {
+      if (!this.selecting) this.setSelecting(true);
+      this.selectAll();
     } else if (e.code === 'Escape' || e.code === 'Tab') this.close();
     else return;
     e.preventDefault();
@@ -269,6 +304,99 @@ export class AirshowAlbum {
     this.chip(c3, 'EVERYTHING', pool.length, v.shot === 'all', () => (v.shot = 'all'));
     for (const k of Object.keys(SHOTS)) if (kinds.has(k)) this.chip(c3, SHOTS[k].name, kinds.get(k)!, v.shot === k, () => (v.shot = k));
     if (plain) this.chip(c3, 'PORTRAITS', plain, v.shot === 'none', () => (v.shot = 'none'));
+    // picking several pictures: select, select all, delete
+    const r4 = el('div', 'aa-row aa-selbar', b);
+    el('span', 'aa-lab', r4, 'EDIT');
+    const selB = el('button', 'aa-sbtn' + (this.selecting ? ' on' : ''), r4, this.selecting ? '✓ SELECTING' : '☐ SELECT') as HTMLButtonElement;
+    selB.title = 'Click pictures to pick them (shift-click picks a run of them; Ctrl+A picks all)';
+    selB.addEventListener('click', () => this.setSelecting(!this.selecting));
+    if (this.selecting) {
+      const all = el('button', 'aa-sbtn', r4, 'SELECT ALL') as HTMLButtonElement;
+      all.addEventListener('click', () => this.selectAll());
+      const none = el('button', 'aa-sbtn', r4, 'CLEAR') as HTMLButtonElement;
+      none.addEventListener('click', () => {
+        this.sel.clear();
+        this.syncSel();
+      });
+      this.selCount = el('span', 'aa-scount', r4);
+      this.trashBtn = el('button', 'aa-sbtn trash', r4) as HTMLButtonElement;
+      this.trashBtn.addEventListener('click', () => void this.trash());
+      const done = el('button', 'aa-sbtn', r4, 'DONE') as HTMLButtonElement;
+      done.addEventListener('click', () => this.setSelecting(false));
+    } else {
+      this.selCount = null;
+      this.trashBtn = null;
+      el('span', 'aa-cap-s', r4, 'Pick pictures to delete many at once').style.marginTop = '0';
+    }
+    this.syncSel();
+  }
+
+  private setSelecting(on: boolean): void {
+    this.selecting = on;
+    if (!on) this.sel.clear();
+    this.lastPick = -1;
+    this.root.classList.toggle('selecting', on);
+    this.fillBar();
+    this.syncSel();
+  }
+
+  /** every picture the filters show */
+  private selectAll(): void {
+    for (const p of this.shown) this.sel.add(p.id);
+    this.syncSel();
+  }
+
+  private toggleSel(i: number, range: boolean): void {
+    const p = this.shown[i];
+    if (!p) return;
+    if (range && this.lastPick >= 0) {
+      const on = !this.sel.has(p.id);
+      const [a, z] = this.lastPick < i ? [this.lastPick, i] : [i, this.lastPick];
+      for (let k = a; k <= z; k++) {
+        if (on) this.sel.add(this.shown[k].id);
+        else this.sel.delete(this.shown[k].id);
+      }
+    } else if (this.sel.has(p.id)) this.sel.delete(p.id);
+    else this.sel.add(p.id);
+    this.lastPick = i;
+    this.syncSel();
+  }
+
+  /** the ticks on the cards, the count and the trash button */
+  private syncSel(): void {
+    for (const c of this.body.querySelectorAll<HTMLElement>('.aa-card')) c.classList.toggle('sel', this.sel.has(c.dataset.id ?? ''));
+    const n = this.sel.size;
+    this.trashSure = false;
+    if (this.selCount) this.selCount.textContent = n ? `${n} SELECTED` : 'NONE SELECTED';
+    if (this.trashBtn) {
+      this.trashBtn.classList.remove('sure');
+      this.trashBtn.disabled = !n;
+      this.trashBtn.textContent = `🗑 DELETE${n ? ` ${n}` : ''}`;
+    }
+  }
+
+  /** delete the picked pictures (a second click to be sure) */
+  private async trash(): Promise<void> {
+    const n = this.sel.size;
+    const b = this.trashBtn;
+    if (!n || !b) return;
+    if (!this.trashSure) {
+      this.trashSure = true;
+      b.classList.add('sure');
+      const favs = this.all.filter((p) => p.fav && this.sel.has(p.id)).length;
+      b.textContent = `SURE? DELETE ${n}${favs ? ` (${favs} ♥)` : ''}`;
+      return;
+    }
+    b.disabled = true;
+    b.textContent = 'DELETING…';
+    const ids = [...this.sel];
+    await deletePhotos(ids);
+    const gone = new Set(ids);
+    this.all = this.all.filter((p) => !gone.has(p.id));
+    this.tabPhotos.innerHTML = `PHOTOS<i>${this.all.length}</i>`;
+    this.sel.clear();
+    this.fillBar();
+    this.fillGrid();
   }
 
   private seg(parent: HTMLElement, opts: [string, string][], cur: string, set: (v: string) => void): void {
@@ -398,7 +526,8 @@ export class AirshowAlbum {
   }
 
   private card(grid: HTMLElement, p: PhotoMeta, i: number): void {
-    const c = el('div', 'aa-card', grid);
+    const c = el('div', 'aa-card' + (this.sel.has(p.id) ? ' sel' : ''), grid);
+    c.dataset.id = p.id;
     const img = el('img', '', c) as HTMLImageElement;
     img.alt = p.jet;
     img.dataset.id = p.id;
@@ -410,7 +539,13 @@ export class AirshowAlbum {
     el('span', '', t, short(p.type).toUpperCase());
     el('span', 'aa-st', t).innerHTML = starText(p.stars);
     el('div', 'aa-cap-s', cap, p.tags.length ? p.tags.map((k) => SHOTS[k]?.name ?? k).join(' · ') : 'PORTRAIT');
-    c.addEventListener('click', () => this.openBig(i));
+    el('div', 'aa-tick', c, '✓');
+    c.addEventListener('click', (e) => {
+      // (Ctrl/Cmd-click starts picking straight away)
+      if (!this.selecting && (e.ctrlKey || e.metaKey)) this.setSelecting(true);
+      if (this.selecting) this.toggleSel(i, e.shiftKey);
+      else this.openBig(i);
+    });
   }
 
   private freeThumbs(): void {
@@ -431,12 +566,21 @@ export class AirshowAlbum {
     // (the thumbnail at once, the full picture when it has loaded)
     const tu = this.thumbUrls.get(p.id);
     if (tu) img.src = tu;
+    // (the full picture decoded off-screen first, then swapped in: no blurry flash, no half-drawn frame)
     void photoBlob(p.id).then((blob) => {
       if (!blob || this.bigI !== i) return;
       if (this.bigUrl) URL.revokeObjectURL(this.bigUrl);
-      this.bigUrl = URL.createObjectURL(blob);
-      img.src = this.bigUrl;
+      const url = (this.bigUrl = URL.createObjectURL(blob));
+      const full = new Image();
+      full.decoding = 'async';
+      full.src = url;
+      void full.decode().catch(() => undefined).then(() => {
+        if (this.bigI === i && this.bigUrl === url) img.src = url;
+      });
     });
+    img.addEventListener('dblclick', () => this.toggleFull());
+    const fs = el('button', 'aa-fs', pane, '⛶ FULL SCREEN  F') as HTMLButtonElement;
+    fs.addEventListener('click', () => this.toggleFull());
     const prev = el('button', 'aa-nav', pane, '‹') as HTMLButtonElement;
     prev.style.left = '14px';
     prev.addEventListener('click', () => this.step(-1));
@@ -518,7 +662,20 @@ export class AirshowAlbum {
     this.openBig(i);
   }
 
+  /** the picture alone, filling the screen (the browser's own full screen where allowed) */
+  private toggleFull(): void {
+    const on = !this.big.classList.contains('full');
+    this.big.classList.toggle('full', on);
+    try {
+      if (on && !document.fullscreenElement) void this.big.requestFullscreen?.().catch(() => undefined);
+      else if (!on && document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+    } catch {
+      /* (no browser full screen: the picture still fills the window) */
+    }
+  }
+
   private closeBig(): void {
+    if (this.big.classList.contains('full')) this.toggleFull();
     this.big.classList.remove('show');
     this.bigI = -1;
     if (this.bigUrl) URL.revokeObjectURL(this.bigUrl);

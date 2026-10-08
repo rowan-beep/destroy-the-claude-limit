@@ -55,7 +55,7 @@ const STATIC_ACROSS = BARRIER_Z - 84;
 /** the frame as drawn, scaled on the GPU (a snapshot taken now, ready later) */
 function snapshot(canvas: HTMLCanvasElement, w: number, h: number): Promise<ImageBitmap | null> {
   try {
-    return createImageBitmap(canvas, { resizeWidth: w, resizeHeight: h, resizeQuality: 'medium' }).catch(() => createImageBitmap(canvas).catch(() => null));
+    return createImageBitmap(canvas, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high' }).catch(() => createImageBitmap(canvas).catch(() => null));
   } catch {
     return Promise.resolve(null);
   }
@@ -647,14 +647,14 @@ export class SpotterMode extends GameMode {
     // the odd picture rather than slowing the show down.)
     if (this.capturing >= 2) return;
     this.capturing++;
-    const W = Math.min(1600, canvas.width), H = Math.round((W * canvas.height) / Math.max(1, canvas.width));
+    const W = Math.min(3840, canvas.width), H = Math.round((W * canvas.height) / Math.max(1, canvas.width));
     const caption = `${shot.jet} · ${this.field.name.toUpperCase()} · ${Math.round(this.focal)} MM`;
     const snap = snapshot(canvas, W, H);
     this.saving = (async () => {
       try {
         const bmp = await snap;
         if (!bmp) return;
-        const full = await encodeJpeg(bmp, W, H, caption, 0.86);
+        const full = await encodeJpeg(bmp, W, H, caption, 0.92);
         const tw = 400, th = Math.round((400 * H) / W);
         const thumb = await encodeJpeg(bmp, tw, th, null, 0.78);
         bmp.close();

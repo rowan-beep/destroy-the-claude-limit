@@ -215,8 +215,17 @@ export class Game implements ModeHost {
    * Generate the theater: the height grid, the digital map and the render
    * objects. The menu never needs it, so this waits for the first launch.
    */
-  async ensureWorld(onProgress: (f: number, label: string) => void): Promise<void> {
-    if (this.world.ready) return;
+  private worldBuild: Promise<void> | null = null;
+  private worldProgress: ((f: number, label: string) => void) | null = null;
+  ensureWorld(onProgress: (f: number, label: string) => void): Promise<void> {
+    if (this.world.ready) return Promise.resolve();
+    // (one build at a time: a second caller, say a mission started while the
+    // loading screen was still building it, waits for the same one)
+    this.worldProgress = onProgress;
+    return (this.worldBuild ??= this.buildWorld((f, l) => this.worldProgress?.(f, l)));
+  }
+
+  private async buildWorld(onProgress: (f: number, label: string) => void): Promise<void> {
     const t0 = performance.now();
     const name = `GENERATING ${activeMap.name} (${activeMap.sizeNm} × ${activeMap.sizeNm} NM)`;
     await this.world.buildGrid((f) => onProgress(f * 0.8, name));
