@@ -111,11 +111,13 @@ window.cine = (() => {
   api.capture = async (q = 0.9) => {
     api.frame();
     const c = window.game.renderer.canvas;
+    // (the size of the picture actually taken)
+    const w = c.width, h = c.height;
     const blob = await new Promise((r) => c.toBlob(r, 'image/webp', q));
     const buf = new Uint8Array(await blob.arrayBuffer());
     let s = '';
     for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
-    return { w: c.width, h: c.height, b64: btoa(s) };
+    return { w, h, b64: btoa(s) };
   };
   api.setRes = (rows) => {
     const g = window.game;

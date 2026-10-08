@@ -38,7 +38,12 @@ const shots = require(path.resolve(shotsFile));
       }, [s.toString(), big]);
       if (big && !qhd) await page.evaluate(() => window.cine.setRes('4320'));
       // (set up small, then only the last frames at 2560 x 1440: software rendering is slow)
-      if (qhd) await page.setViewportSize({ width: 2560, height: 1440 });
+      if (qhd) {
+        await page.setViewportSize({ width: 2560, height: 1440 });
+        // (the settle below draws without yielding, so the browser's resize event could come too late: resize now)
+        await page.waitForTimeout(500);
+        await page.evaluate(() => window.game.renderer.resize());
+      }
       await page.evaluate((b) => window.cine.settle(b ? 1500 : 500).catch(() => {}), big);
       const r = await page.evaluate(() => window.cine.capture(0.9));
       const file = path.join(outDir, `${id}.webp`);
