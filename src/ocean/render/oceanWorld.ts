@@ -31,6 +31,9 @@ export interface WorldStats {
   chunkDisposals: number;
   maxChunkMs: number;
   streamStalls: number;
+  /** tiles built on the worker thread, and the slowest there (ms) */
+  workerTiles: number;
+  workerMaxMs: number;
   wreckDetail: boolean;
   wreckBuilds: number;
   wreckDisposals: number;
@@ -69,6 +72,8 @@ export class OceanWorld {
     this.props = new OceanProps(this.preset.decor);
     this.fx = new OceanFx({ snow: this.preset.snow, bubbles: this.preset.bubbles, shafts: this.preset.shafts });
     this.sub = new SubModel(this.preset.shadowMap > 0);
+    // sea-bed tiles are built on a worker thread where there is one
+    this.seabed.useWorker();
     this.scene.add(this.seabed.group, this.surface.mesh, this.surface.sky, this.props.group, this.fx.group, this.sub.root, this.sun, this.sun.target, this.hemi);
     for (const b of this.fx.beams) this.scene.add(b);
     this.scene.fog = new THREE.FogExp2(0xffffff, 1 / 4000);
@@ -232,6 +237,14 @@ export class OceanWorld {
     this.seabed.fill(x, z);
   }
 
+  /** start the streaming counters again (each benchmark run reports its own) */
+  resetStreamStats(): void {
+    const s = this.seabed.stats;
+    s.built = s.disposed = s.stalls = s.workerBuilt = 0;
+    s.maxBuildMs = s.workerMaxMs = 0;
+    this.props.stats.wreckBuilds = this.props.stats.wreckDisposals = 0;
+  }
+
   stats(): WorldStats {
     const info = this.renderer.info;
     const s = this.seabed.stats;
@@ -247,6 +260,8 @@ export class OceanWorld {
       chunkDisposals: s.disposed,
       maxChunkMs: s.maxBuildMs,
       streamStalls: s.stalls,
+      workerTiles: s.workerBuilt,
+      workerMaxMs: s.workerMaxMs,
       wreckDetail: this.props.stats.wreckDetail,
       wreckBuilds: this.props.stats.wreckBuilds,
       wreckDisposals: this.props.stats.wreckDisposals,

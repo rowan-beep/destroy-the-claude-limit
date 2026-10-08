@@ -210,10 +210,10 @@ async function boot(): Promise<void> {
   const oceanActive = () => !!oceanProg?.active;
   // the ocean benchmark, from the console as well as the HARBOR page: triadBench('balanced')
   Object.assign(window, {
-    triadBench: (preset: 'performance' | 'balanced' | 'cinematic' = 'balanced', stepsPerSecond = 60) =>
+    triadBench: (preset: 'performance' | 'balanced' | 'cinematic' = 'balanced', stepsPerSecond = 60, seabedWorker = true) =>
       loadOcean().then((op) => {
         showMenus(false);
-        return op.benchmark(preset, stepsPerSecond).then((r) => {
+        return op.benchmark(preset, stepsPerSecond, seabedWorker).then((r) => {
           showMenus(game.state === 'menu');
           return r;
         });

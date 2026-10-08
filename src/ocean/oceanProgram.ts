@@ -36,6 +36,8 @@ interface BenchRun {
   tris: number;
   /** route steps per second of the route (60: every frame a 60th of a second along it) */
   sps: number;
+  /** tiles built on the worker thread in this run */
+  worker: boolean;
   /** the worst frame of the warm-up (the menu going away, the first frames after it) */
   warmMax: number;
 }
@@ -122,13 +124,16 @@ export class OceanProgram {
    * sampled (60 frames for each second of route by default; a slow machine can
    * use fewer, the same path in fewer frames).
    */
-  benchmark(preset: OceanPreset, stepsPerSecond = 60): Promise<BenchResult> {
+  benchmark(preset: OceanPreset, stepsPerSecond = 60, worker = true): Promise<BenchResult> {
     return new Promise((resolve) => {
       this.world.setPreset(preset);
+      // (the sea-bed worker can be left out, to compare)
+      const usingWorker = this.world.seabed.useWorker(worker);
+      this.world.resetStreamStats();
       this.host.setRenderScale(PRESETS[preset].renderScale);
       const r = this.host.renderer();
       r.info.autoReset = false;
-      this.bench = { seg: 0, t: 0, last: performance.now(), intervals: [], work: [], all: [], allWork: [], results: [], heapStart: heapMB(), preset, resolve, calls: 0, tris: 0, sps: Math.max(5, Math.min(120, stepsPerSecond)), warmMax: 0 };
+      this.bench = { seg: 0, t: 0, last: performance.now(), intervals: [], work: [], all: [], allWork: [], results: [], heapStart: heapMB(), preset, resolve, calls: 0, tris: 0, sps: Math.max(5, Math.min(120, stepsPerSecond)), warmMax: 0, worker: usingWorker };
       this.enterSegment(0);
     });
   }
@@ -222,13 +227,15 @@ export class OceanProgram {
       segments: b.results,
       total: frameStats(b.all, b.allWork),
       warmupMaxMs: Math.round(b.warmMax),
-      stream: { chunkBuilds: st.chunkBuilds, chunkDisposals: st.chunkDisposals, maxChunkMs: Math.round(st.maxChunkMs * 10) / 10, stalls: st.streamStalls, wreckBuilds: st.wreckBuilds, wreckDisposals: st.wreckDisposals },
+      seabedWorker: b.worker,
+      stream: { chunkBuilds: st.chunkBuilds, chunkDisposals: st.chunkDisposals, maxChunkMs: Math.round(st.maxChunkMs * 10) / 10, stalls: st.streamStalls, workerTiles: st.workerTiles, workerMaxMs: Math.round(st.workerMaxMs * 10) / 10, wreckBuilds: st.wreckBuilds, wreckDisposals: st.wreckDisposals },
       memory: { heapStartMB: b.heapStart, heapEndMB: heapMB(), geometries: st.geometries, textures: st.textures, programs: st.programs },
       userAgent: navigator.userAgent,
       gpu,
       t: new Date().toISOString(),
     };
     this.host.setRenderScale(1);
+    this.world.seabed.useWorker(true);
     b.resolve(res);
   }
 }

@@ -24,10 +24,18 @@ if (!files.length) {
 }
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
+// (Vite's `?worker` imports have no meaning outside the browser: a stub that cannot start, so code falls back to the main thread)
+const workerStub = {
+  name: 'worker-stub',
+  setup(b) {
+    b.onResolve({ filter: /\?worker/ }, (args) => ({ path: args.path, namespace: 'worker-stub' }));
+    b.onLoad({ filter: /.*/, namespace: 'worker-stub' }, () => ({ contents: 'export default class { constructor() { throw new Error("no workers in unit tests"); } }', loader: 'js' }));
+  },
+};
 const outs = [];
 for (const f of files) {
   const o = join(out, relative(testsDir, f).replace(/[\\/]/g, '__').replace(/\.ts$/, '.mjs'));
-  await build({ entryPoints: [f], outfile: o, bundle: true, platform: 'node', format: 'esm', target: 'node20', logLevel: 'warning' });
+  await build({ entryPoints: [f], outfile: o, bundle: true, platform: 'node', format: 'esm', target: 'node20', logLevel: 'warning', plugins: [workerStub] });
   outs.push(o);
 }
 const r = spawnSync(process.execPath, ['--test', ...outs], { stdio: 'inherit' });

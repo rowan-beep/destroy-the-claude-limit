@@ -7,11 +7,13 @@
 // no holes open; tiles out of range are disposed of. The material is shared.
 
 import * as THREE from 'three';
-import { seabedHeight, WORLD, SITES, HARBOR } from '../world/geo';
+import { WORLD } from '../world/geo';
 import { patchOceanMaterial } from './oceanMaterial';
+import { buildChunkArrays, CHUNK, type ChunkArrays } from './seabedArrays';
+import type { TileRequest } from './seabedWorker';
+import SeabedWorker from './seabedWorker?worker&inline';
 
-export const CHUNK = 160;
-const SKIRT = 6;
+export { CHUNK };
 /** tile sizes of the three levels (m) and their cells across */
 const SIZE = [160, 320, 640];
 
@@ -38,126 +40,47 @@ export interface StreamStats {
   /** chunk meshes built in total, and disposed of */
   built: number;
   disposed: number;
-  /** slowest single chunk build (ms) */
+  /** slowest single chunk build during play (ms, on the main thread; fills not counted) */
   maxBuildMs: number;
   /** build work in the last frame (ms) */
   frameBuildMs: number;
-  /** frames whose streaming work went over 8 ms */
+  /** frames of play whose streaming work went over 8 ms (fills, which are loading moments, not counted) */
   stalls: number;
   /** chunks waiting */
   queued: number;
   triangles: number;
+  /** tiles built on the worker thread, and the slowest of those (ms, off the main thread) */
+  workerBuilt: number;
+  workerMaxMs: number;
 }
 
-const srgb = (c: number) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
-
-/** colour of the ground: what it is, from height, slope and place */
-function groundColor(x: number, z: number, h: number, ny: number, out: number[], o: number): void {
-  let r: number, g: number, b: number;
-  const n = Math.sin(x * 0.11 + z * 0.07) * 0.5 + Math.sin(x * 0.031 - z * 0.043) * 0.5;
-  const hb = HARBOR.basin;
-  const reefD = Math.hypot(x - SITES.reef.x, z - SITES.reef.z);
-  if (h > 0.5) {
-    // land: dry grass and scrub, grey rock on the steep
-    r = 0.38 + 0.05 * n; g = 0.4 + 0.05 * n; b = 0.24;
-    if (ny < 0.8) { r = 0.44; g = 0.42; b = 0.38; }
-    if (h < 2.2) { r = 0.78; g = 0.72; b = 0.56; }
-  } else if (x > hb.minX && x < hb.maxX && z > hb.minZ - 10 && z < hb.maxZ) {
-    r = 0.55 + 0.04 * n; g = 0.52 + 0.04 * n; b = 0.44;
-  } else if (reefD < SITES.reef.r && h > -34) {
-    // the reef: warm, varied colours
-    const k = 0.5 + 0.5 * Math.sin(x * 0.09) * Math.cos(z * 0.08);
-    r = 0.62 + 0.25 * k; g = 0.4 + 0.12 * n; b = 0.42 + 0.25 * (1 - k);
-    if (ny > 0.95) { r = 0.8; g = 0.74; b = 0.58; }
-  } else if (h < -150) {
-    // the basin floor: pale grey silt and the shells of plankton (reflects about a quarter of the light)
-    r = 0.6 + 0.03 * n; g = 0.58 + 0.03 * n; b = 0.53;
-  } else if (ny < 0.86) {
-    r = 0.38 + 0.04 * n; g = 0.36 + 0.04 * n; b = 0.33;
-  } else {
-    r = 0.76 + 0.06 * n; g = 0.7 + 0.06 * n; b = 0.54 + 0.04 * n;
-  }
-  out[o] = srgb(r);
-  out[o + 1] = srgb(g);
-  out[o + 2] = srgb(b);
-}
-
-/** build one tile's geometry (one height sample per vertex) */
-export function buildChunkGeometry(x0: number, z0: number, segs: number, size = CHUNK): THREE.BufferGeometry {
-  const step = size / segs;
-  const n = segs + 1;
-  // heights with a one-sample border, for normals across chunk edges
-  const W = n + 2;
-  const hs = new Float32Array(W * W);
-  for (let j = 0; j < W; j++) for (let i = 0; i < W; i++) hs[j * W + i] = seabedHeight(x0 + (i - 1) * step, z0 + (j - 1) * step);
-  const skirtN = segs * 4;
-  const vcount = n * n + skirtN * 2;
-  const pos = new Float32Array(vcount * 3);
-  const nor = new Float32Array(vcount * 3);
-  const col = new Float32Array(vcount * 3);
-  let v = 0;
-  for (let j = 0; j < n; j++) {
-    for (let i = 0; i < n; i++) {
-      const h = hs[(j + 1) * W + (i + 1)];
-      const hx = hs[(j + 1) * W + (i + 2)] - hs[(j + 1) * W + i];
-      const hz = hs[(j + 2) * W + (i + 1)] - hs[j * W + (i + 1)];
-      let nx = -hx, ny = 2 * step, nz = -hz;
-      const l = Math.hypot(nx, ny, nz);
-      nx /= l; ny /= l; nz /= l;
-      pos[v * 3] = i * step;
-      pos[v * 3 + 1] = h;
-      pos[v * 3 + 2] = j * step;
-      nor[v * 3] = nx;
-      nor[v * 3 + 1] = ny;
-      nor[v * 3 + 2] = nz;
-      groundColor(x0 + i * step, z0 + j * step, h, ny, col as unknown as number[], v * 3);
-      v++;
-    }
-  }
-  const idx: number[] = [];
-  for (let j = 0; j < segs; j++) {
-    for (let i = 0; i < segs; i++) {
-      const a = j * n + i, b = a + 1, c = a + n, d = c + 1;
-      idx.push(a, c, b, b, c, d);
-    }
-  }
-  // skirts: a curtain hanging from every edge hides the cracks between levels of detail
-  const edge: number[] = [];
-  for (let i = 0; i < segs; i++) edge.push(i);
-  for (let j = 0; j < segs; j++) edge.push(j * n + segs);
-  for (let i = segs; i > 0; i--) edge.push(segs * n + i);
-  for (let j = segs; j > 0; j--) edge.push(j * n);
-  const base = v;
-  for (let k = 0; k < edge.length; k++) {
-    const src = edge[k];
-    pos[v * 3] = pos[src * 3];
-    pos[v * 3 + 1] = pos[src * 3 + 1] - SKIRT;
-    pos[v * 3 + 2] = pos[src * 3 + 2];
-    for (let c = 0; c < 3; c++) {
-      nor[v * 3 + c] = nor[src * 3 + c];
-      col[v * 3 + c] = col[src * 3 + c];
-    }
-    v++;
-  }
-  for (let k = 0; k < edge.length; k++) {
-    const a = edge[k], b = edge[(k + 1) % edge.length];
-    const sa = base + k, sb = base + ((k + 1) % edge.length);
-    idx.push(a, b, sa, b, sb, sa);
-  }
+/** a tile's arrays as a three.js geometry */
+export function chunkGeometry(a: ChunkArrays): THREE.BufferGeometry {
   const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(pos.subarray(0, v * 3), 3));
-  g.setAttribute('normal', new THREE.BufferAttribute(nor.subarray(0, v * 3), 3));
-  g.setAttribute('color', new THREE.BufferAttribute(col.subarray(0, v * 3), 3));
-  g.setIndex(idx);
+  g.setAttribute('position', new THREE.BufferAttribute(a.pos, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(a.nor, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(a.col, 3));
+  g.setIndex(new THREE.BufferAttribute(a.idx, 1));
   g.computeBoundingSphere();
   return g;
+}
+
+/** build one tile's geometry here, on this thread */
+export function buildChunkGeometry(x0: number, z0: number, segs: number, size = CHUNK): THREE.BufferGeometry {
+  return chunkGeometry(buildChunkArrays(x0, z0, segs, size));
 }
 
 export class SeabedStreamer {
   readonly group = new THREE.Group();
   readonly material: THREE.MeshLambertMaterial;
   private tiles = new Map<string, Tile>();
-  stats: StreamStats = { loaded: 0, built: 0, disposed: 0, maxBuildMs: 0, frameBuildMs: 0, stalls: 0, queued: 0, triangles: 0 };
+  stats: StreamStats = { loaded: 0, built: 0, disposed: 0, maxBuildMs: 0, frameBuildMs: 0, stalls: 0, queued: 0, triangles: 0, workerBuilt: 0, workerMaxMs: 0 };
+  /** the tile builder thread, when there is one; requests out and answers back */
+  private worker: Worker | null = null;
+  private inFlight = new Set<string>();
+  private ready = new Map<string, ChunkArrays>();
+  /** tiles asked of the worker at once (nearest first) */
+  maxInFlight = 4;
   /** distances (m): the finest 160 m tiles within lod[0], 160 m tiles within lod[1], 320 m within lod[2], 640 m within lod[3] */
   lod: [number, number, number, number] = [220, 520, 1100, 2400];
   budgetMs = 3;
@@ -170,6 +93,60 @@ export class SeabedStreamer {
   constructor() {
     this.material = patchOceanMaterial(new THREE.MeshLambertMaterial({ vertexColors: true }), 'seabed');
     this.group.name = 'seabed';
+  }
+
+  /**
+   * Build tiles on a worker thread from now on (in a browser). If the worker
+   * cannot start or fails, tiles are built here as before.
+   */
+  useWorker(on = true): boolean {
+    if (!on) {
+      this.dropWorker();
+      this.ready.clear();
+      return false;
+    }
+    if (this.worker || typeof Worker === 'undefined') return !!this.worker;
+    try {
+      this.attachWorker(new SeabedWorker());
+    } catch {
+      this.worker = null;
+    }
+    return !!this.worker;
+  }
+
+  /** take tile answers from this worker (or anything that speaks like one) */
+  attachWorker(w: Pick<Worker, 'postMessage' | 'terminate' | 'onmessage' | 'onerror'>): void {
+    w.onmessage = (e: MessageEvent<ChunkArrays & { key: string; ms: number }>) => {
+      const d = e.data;
+      this.inFlight.delete(d.key);
+      this.ready.set(d.key, { pos: d.pos, nor: d.nor, col: d.col, idx: d.idx });
+      this.stats.workerBuilt++;
+      this.stats.workerMaxMs = Math.max(this.stats.workerMaxMs, d.ms);
+    };
+    w.onerror = () => this.dropWorker();
+    this.worker = w as Worker;
+  }
+
+  /** back to building on this thread (the worker failed) */
+  private dropWorker(): void {
+    this.worker?.terminate();
+    this.worker = null;
+    this.inFlight.clear();
+  }
+
+  get workerActive(): boolean {
+    return !!this.worker;
+  }
+
+  private addTile(w: Want, g: THREE.BufferGeometry): void {
+    const mesh = new THREE.Mesh(g, this.material);
+    mesh.position.set(w.x0, 0, w.z0);
+    mesh.matrixAutoUpdate = false;
+    mesh.updateMatrix();
+    mesh.receiveShadow = true;
+    this.tiles.set(w.key, { key: w.key, x0: w.x0, z0: w.z0, size: w.size, segs: w.segs, mesh });
+    this.group.add(mesh);
+    this.stats.built++;
   }
 
   /** the tiles wanted round (x, z): the quadtree cut by distance */
@@ -220,32 +197,52 @@ export class SeabedStreamer {
    * Bring the tiles round (x, z) to the right detail. `ahead` is where the
    * vehicle will be in a few seconds: tiles near it come first.
    */
-  update(x: number, z: number, aheadX: number, aheadZ: number): void {
+  update(x: number, z: number, aheadX: number, aheadZ: number, sync = false): void {
     const t0 = performance.now();
     const want = this.wanted(x, z, aheadX, aheadZ);
     // build what is missing, nearest first, within the budget
     const todo = [...want.values()].filter((w) => !this.tiles.has(w.key)).sort((a, b) => a.pri - b.pri);
-    let spent = 0, built = 0;
-    for (const w of todo) {
-      if (spent > this.budgetMs) break;
-      const b0 = performance.now();
-      const g = buildChunkGeometry(w.x0, w.z0, w.segs, w.size);
-      const mesh = new THREE.Mesh(g, this.material);
-      mesh.position.set(w.x0, 0, w.z0);
-      mesh.matrixAutoUpdate = false;
-      mesh.updateMatrix();
-      mesh.receiveShadow = true;
-      this.tiles.set(w.key, { key: w.key, x0: w.x0, z0: w.z0, size: w.size, segs: w.segs, mesh });
-      this.group.add(mesh);
-      this.stats.built++;
-      built++;
-      const ms = performance.now() - b0;
-      spent += ms;
-      this.stats.maxBuildMs = Math.max(this.stats.maxBuildMs, ms);
+    let spent = 0;
+    const done = new Set<string>();
+    if (this.worker && !sync) {
+      // answers from the worker: only the arrays are new, making the mesh is quick
+      for (const w of todo) {
+        if (spent > this.budgetMs) break;
+        const a = this.ready.get(w.key);
+        if (!a) continue;
+        const b0 = performance.now();
+        this.ready.delete(w.key);
+        this.addTile(w, chunkGeometry(a));
+        done.add(w.key);
+        const ms = performance.now() - b0;
+        spent += ms;
+        if (!sync) this.stats.maxBuildMs = Math.max(this.stats.maxBuildMs, ms);
+      }
+      // (answers for tiles no longer wanted are dropped)
+      for (const k of this.ready.keys()) if (!want.has(k)) this.ready.delete(k);
+      // ask for the nearest that are still missing
+      for (const w of todo) {
+        if (this.inFlight.size >= this.maxInFlight) break;
+        if (done.has(w.key) || this.inFlight.has(w.key) || this.ready.has(w.key)) continue;
+        this.inFlight.add(w.key);
+        const req: TileRequest = { key: w.key, x0: w.x0, z0: w.z0, size: w.size, segs: w.segs };
+        this.worker.postMessage(req);
+      }
+    } else {
+      for (const w of todo) {
+        if (spent > this.budgetMs) break;
+        const b0 = performance.now();
+        this.addTile(w, buildChunkGeometry(w.x0, w.z0, w.segs, w.size));
+        done.add(w.key);
+        const ms = performance.now() - b0;
+        spent += ms;
+        if (!sync) this.stats.maxBuildMs = Math.max(this.stats.maxBuildMs, ms);
+      }
     }
+    const built = done.size;
     // release what is no longer wanted, once whatever covers its ground is in
     if (built || todo.length === 0 || this.tiles.size > want.size) {
-      const missing = todo.slice(built);
+      const missing = todo.filter((w) => !done.has(w.key));
       for (const [k, t] of this.tiles) {
         if (want.has(k)) continue;
         const covered = !missing.some((m) => m.x0 < t.x0 + t.size && m.x0 + m.size > t.x0 && m.z0 < t.z0 + t.size && m.z0 + m.size > t.z0);
@@ -263,14 +260,14 @@ export class SeabedStreamer {
     this.stats.queued = Math.max(0, todo.length - built);
     const total = performance.now() - t0;
     this.stats.frameBuildMs = total;
-    if (total > 8) this.stats.stalls++;
+    if (total > 8 && !sync) this.stats.stalls++;
   }
 
   /** build everything in range right now (a loading screen moment, not during play) */
   fill(x: number, z: number): void {
     const b = this.budgetMs;
     this.budgetMs = 1e9;
-    this.update(x, z, x, z);
+    this.update(x, z, x, z, true);
     this.budgetMs = b;
   }
 
@@ -280,6 +277,8 @@ export class SeabedStreamer {
   }
 
   dispose(): void {
+    this.dropWorker();
+    this.ready.clear();
     for (const t of this.tiles.values()) {
       t.mesh.geometry.dispose();
       this.group.remove(t.mesh);

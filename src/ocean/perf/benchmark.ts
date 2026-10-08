@@ -172,7 +172,10 @@ export interface BenchResult {
   total: FrameStats;
   /** the worst frame of the first half second (leaving the menu), kept out of the totals */
   warmupMaxMs: number;
-  stream: { chunkBuilds: number; chunkDisposals: number; maxChunkMs: number; stalls: number; wreckBuilds: number; wreckDisposals: number };
+  /** sea-bed tiles built on a worker thread in this run */
+  seabedWorker: boolean;
+  /** maxChunkMs is the slowest tile's cost on the main thread (with a worker: making the mesh from its arrays) */
+  stream: { chunkBuilds: number; chunkDisposals: number; maxChunkMs: number; stalls: number; workerTiles: number; workerMaxMs: number; wreckBuilds: number; wreckDisposals: number };
   memory: { heapStartMB: number | null; heapEndMB: number | null; geometries: number; textures: number; programs: number };
   userAgent: string;
   gpu: string;

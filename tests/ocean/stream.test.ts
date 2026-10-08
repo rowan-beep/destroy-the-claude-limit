@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { SeabedStreamer } from '../../src/ocean/render/seabed';
+import { buildChunkArrays } from '../../src/ocean/render/seabedArrays';
 import { frameStats } from '../../src/ocean/perf/benchmark';
 import { shelterAt, surfaceHeight } from '../../src/ocean/world/waves';
 import { HARBOR, WORLD } from '../../src/ocean/world/geo';
@@ -103,4 +104,37 @@ test('benchmark statistics: percentiles, long frames, frame rate', () => {
   assert.ok(st.p99Ms >= 60);
   assert.ok(Math.abs(st.avgFps - 100000 / (98 * 16 + 180)) < 1e-6);
   assert.equal(st.workMedianMs, 4);
+});
+
+test('tiles built on a worker: the answers come late, the ground stays covered, the detail arrives', () => {
+  const s = new SeabedStreamer();
+  // a worker that answers only when told to
+  const asked: { key: string; x0: number; z0: number; size: number; segs: number }[] = [];
+  const fake = {
+    onmessage: null as ((e: MessageEvent) => void) | null,
+    onerror: null as unknown,
+    postMessage(r: { key: string; x0: number; z0: number; size: number; segs: number }) {
+      asked.push(r);
+    },
+    terminate() {},
+  };
+  s.attachWorker(fake as unknown as Worker);
+  assert.equal(s.workerActive, true);
+  s.fill(0, 300);
+  const answer = (n: number) => {
+    for (const r of asked.splice(0, n)) fake.onmessage!({ data: { key: r.key, ms: 1, ...buildChunkArrays(r.x0, r.z0, r.segs, r.size) } } as MessageEvent);
+  };
+  // jump half a kilometre: nothing is built on this thread, a few tiles are asked for at a time
+  for (let i = 0; i < 400 && (s.pending() > 0 || i === 0); i++) {
+    s.update(400, 700, 400, 700);
+    assert.ok(asked.length <= s.maxInFlight, `${asked.length} requests in flight`);
+    const tiles = [...(s as unknown as { tiles: Map<string, TileLike> }).tiles.values()];
+    assert.ok(cover(tiles, 400.5, 700.5) >= 1, 'the ground under the camera is covered while waiting');
+    answer(2);
+  }
+  s.update(400, 700, 400, 700);
+  assert.equal(s.pending(), 0);
+  checkCoverage(s, 400, 700, 2000);
+  assert.ok(s.stats.workerBuilt > 0);
+  s.dispose();
 });

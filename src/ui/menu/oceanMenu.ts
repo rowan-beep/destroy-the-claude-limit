@@ -556,7 +556,7 @@ export class OceanMenu {
     };
     for (const s of r.segments) row(s.label, s);
     row('WHOLE ROUTE', r.total);
-    el('div', 'sx2-note', this.side, `${r.preset.toUpperCase()} · ${r.width} × ${r.height} · frame times in ms (leaving the menu: ${r.warmupMaxMs} ms, not counted) · heap ${r.memory.heapStartMB ?? '?'} → ${r.memory.heapEndMB ?? '?'} MB · ${r.stream.chunkBuilds} sea-bed chunks built, ${r.stream.chunkDisposals} released, slowest ${r.stream.maxChunkMs} ms · ${r.gpu}`);
+    el('div', 'sx2-note', this.side, `${r.preset.toUpperCase()} · ${r.width} × ${r.height} · frame times in ms (leaving the menu: ${r.warmupMaxMs} ms, not counted) · heap ${r.memory.heapStartMB ?? '?'} → ${r.memory.heapEndMB ?? '?'} MB · ${r.stream.chunkBuilds} sea-bed tiles built${r.stream.workerTiles ? ` (${r.stream.workerTiles} on a worker thread, slowest there ${r.stream.workerMaxMs} ms)` : ''}, ${r.stream.chunkDisposals} released, slowest on the main thread ${r.stream.maxChunkMs} ms · ${r.gpu}`);
   }
 
   // ------------------------------------------------------------------ CHART
