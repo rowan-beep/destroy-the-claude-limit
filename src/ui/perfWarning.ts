@@ -65,7 +65,7 @@ export class PerfWatch {
       this.software
         ? `The game is being drawn without your graphics card (${shortName(this.name)}). ${FIX}`
         : `Graphics: ${shortName(this.name)}, drawing ${size.x} × ${size.y} pixels. If this is not your main graphics card, set the browser to "High performance" in Windows Settings → Display → Graphics. ` +
-            'Otherwise lower Settings → Graphics → Quality or Resolution; Auto resolution also steps down by itself when the frame rate stays low.',
+            'Otherwise lower Settings → Graphics → Quality or Resolution.',
     );
   }
 

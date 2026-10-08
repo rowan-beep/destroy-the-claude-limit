@@ -198,7 +198,7 @@ async function boot(): Promise<void> {
           const r = game.renderer.renderer;
           const e = r.toneMappingExposure;
           r.toneMappingExposure = e * exposure;
-          game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping);
+          game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping, false);
           r.toneMappingExposure = e;
         },
         setRenderScale,
@@ -435,15 +435,12 @@ async function boot(): Promise<void> {
       hangar.setJet(cfg.aircraft, cfg.loadoutId);
     }
   };
-  // the menu hangar draws every display frame (a 60 fps cap on a 144 Hz screen
-  // judders); a slow GPU drops the render resolution by itself instead
+  // the menu hangar draws every display frame (a 60 fps cap on a 144 Hz screen judders)
   game.onMenuFrame = (dt) => {
     // behind the (opaque) loading screen the hangar would only slow the
     // theater and mission from loading
     if (game.state === 'loading') return;
     const step = Math.min(dt, 0.1);
-    // (a benchmark measures one resolution: the automatic scaling waits)
-    if (!oceanProg?.benchmarking) game.renderer.adaptFrame(step);
     const sz = game.renderer.size;
     if (spaceProg?.frame(step, sz.w, sz.h)) return;
     if (oceanProg?.frame(step, sz.w, sz.h)) return;

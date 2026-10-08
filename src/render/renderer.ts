@@ -36,7 +36,7 @@ import { SUN_VIEW, SUN_VIEW_COLOR } from './environment';
 
 export type GraphicsSettings = Pick<
   GraphicsOptions,
-  'resolution' | 'resolutionScale' | 'antialias' | 'shadows' | 'bloom' | 'toneMapping' | 'exposure' | 'contrast' | 'saturation' | 'vignette' | 'fov' | 'quality' | 'autoRes'
+  'resolution' | 'resolutionScale' | 'antialias' | 'shadows' | 'bloom' | 'toneMapping' | 'exposure' | 'contrast' | 'saturation' | 'vignette' | 'fov' | 'quality'
 >;
 
 /** highest device-pixel ratio each world-quality tier renders at on 'native' */
@@ -224,14 +224,7 @@ export class GameRenderer {
     vignette: true,
     fov: 70,
     quality: 'high',
-    autoRes: true,
   };
-  /** automatic resolution: multiplier on the render scale, and its frame-time bookkeeping */
-  private adaptive = 1;
-  private adaptT = 0;
-  private adaptFrames = 0;
-  private adaptSlow = 0;
-  private adaptFast = 0;
   /** depth of field (the airshow camera) */
   private dofPass: DofPass;
   private look: CameraLook | null = null;
@@ -429,7 +422,7 @@ export class GameRenderer {
     let pr: number;
     if (g.resolution === 'native') pr = Math.min(window.devicePixelRatio || 1, DPR_CAP[g.quality] ?? 2);
     else pr = +g.resolution / Math.max(1, this.height); // e.g. 2160 rows = 4K
-    pr *= g.resolutionScale * (g.autoRes ? this.adaptive : 1);
+    pr *= g.resolutionScale;
     // stay inside what the GPU can allocate
     const maxDim = Math.min(this.renderer.capabilities.maxTextureSize, 8192);
     pr = Math.max(0.35, Math.min(pr, 4, maxDim / Math.max(1, this.width), maxDim / Math.max(1, this.height)));
@@ -503,38 +496,6 @@ export class GameRenderer {
     (this.dropletPass.uniforms.texel.value as THREE.Vector2).set(1 / Math.max(1, this.width), 1 / Math.max(1, this.height));
   }
 
-  /**
-   * Automatic resolution (in flight): if the frame rate stays under ~48 fps the
-   * render resolution steps down (to 60 % at most); with steady headroom it
-   * climbs back. Resizing is cheap, but it only ever moves once a second.
-   */
-  adaptFrame(dt: number): void {
-    if (!this.settings.autoRes) {
-      if (this.adaptive !== 1) {
-        this.adaptive = 1;
-        this.resize();
-      }
-      return;
-    }
-    this.adaptT += dt;
-    this.adaptFrames++;
-    if (this.adaptT < 1) return;
-    const fps = this.adaptFrames / this.adaptT;
-    this.adaptT = 0;
-    this.adaptFrames = 0;
-    this.adaptSlow = fps < 48 ? this.adaptSlow + 1 : 0;
-    this.adaptFast = fps > 58 ? this.adaptFast + 1 : 0;
-    let next = this.adaptive;
-    if (this.adaptSlow >= 2) next = Math.max(0.6, this.adaptive - (fps < 35 ? 0.15 : 0.08));
-    else if (this.adaptFast >= 4) next = Math.min(1, this.adaptive + 0.05);
-    if (next !== this.adaptive) {
-      this.adaptive = next;
-      this.adaptSlow = 0;
-      this.adaptFast = 0;
-      this.resize();
-    }
-  }
-
   /** Heat haze behind the engines near the camera (call after the camera moved). */
   setHaze(sources: HazeSource[]): void {
     if (this.settings.quality === 'low') {
@@ -581,9 +542,11 @@ export class GameRenderer {
 
   /**
    * Draw another scene (the hangar) through the same pipeline, so the menu
-   * gets anti-aliasing, bloom and the picture settings too.
+   * gets anti-aliasing, bloom and the picture settings too. `fringe` false
+   * leaves out the lens's colour fringes (a scene of hard edges against a
+   * bright sky shows them as rainbows).
    */
-  renderScene(scene: THREE.Scene, camera: THREE.Camera, toneMapping?: THREE.ToneMapping): void {
+  renderScene(scene: THREE.Scene, camera: THREE.Camera, toneMapping?: THREE.ToneMapping, fringe = true): void {
     const sp = this.scenePass;
     const s = sp.scene, c = sp.camera, os = sp.overlayScene, oc = sp.overlayCamera;
     const vis = this.visionPass.enabled, drp = this.dropletPass.enabled, hz = this.hazePass.enabled;
@@ -602,7 +565,10 @@ export class GameRenderer {
     if (toneMapping !== undefined && this.settings.toneMapping === 'neutral') this.renderer.toneMapping = toneMapping;
     // (other scenes keep their own suns: no shafts or speed blur, but the sharpening and grain)
     this.aimSun(false);
+    const ab = this.finalPass.uniforms.aberration.value;
+    if (!fringe) this.finalPass.uniforms.aberration.value = 0;
     this.composer.render();
+    this.finalPass.uniforms.aberration.value = ab;
     this.renderer.toneMapping = tm;
     sp.scene = s;
     sp.camera = c;

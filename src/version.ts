@@ -37,6 +37,38 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '6.3.1',
+    date: '2026-10-08',
+    air: {
+      title: 'Sharp picture all the time',
+      notes: [
+        fixed("No more automatic resolution drops",
+          "The AUTO RESOLUTION option is gone: it lowered the picture to as little as 60 % of its resolution whenever the frame rate dipped, which made everything look blurry. The game now always draws at the resolution and scale you set in Settings → Graphics."),
+      ],
+    },
+    space: {
+      title: 'Sound and a sharp picture',
+      notes: [
+        fixed("Sounds that were silent",
+          "After the first screen, the game's sound was held at zero everywhere outside a jet flight, so the rover arm's motors, the drill, the time-warp sounds and the clicks in the space menus and missions were not heard. They are now."),
+        fixed("No more automatic resolution drops",
+          "The automatic resolution option is gone: it lowered the picture to as little as 60 % of its resolution whenever the frame rate dipped, which made launches, Mars and the rover look blurry. The picture now stays at the resolution and scale you set."),
+      ],
+    },
+    ocean: {
+      title: 'Sound, the camera the right way round and a sharp picture',
+      notes: [
+        fixed("The dives had no sound",
+          "After the first screen the game's sound was held at zero, so nothing in a dive was heard: the sea, the thrusters, the ballast pumps, the hull, the hydrophone and the clicks. All of it is heard now."),
+        fixed("Looking around turns the way you look",
+          "Dragging right (or the gamepad's right stick to the right) now turns the view right, from the dome and in the chase view; it turned left before. Up and down were already right."),
+        fixed("A sharp, clean picture",
+          "The automatic resolution option is gone: it lowered the picture to as little as 60 % of its resolution whenever the frame rate dipped, which is when the ocean looked blurry. The picture now stays at the resolution and scale you set (the PERFORMANCE preset still draws at 75 %, as it says).",
+          "No more rainbow fringes along hard edges toward the sides of the screen (the posts, rails and the boat against the sky): the ocean is drawn without the lens's colour fringes."),
+      ],
+    },
+  },
+  {
     version: '6.3.0',
     date: '2026-10-08',
     ocean: {

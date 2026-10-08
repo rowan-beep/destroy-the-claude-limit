@@ -4,6 +4,30 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
+## v6.3.1 (2026-10-08)
+
+### Air Combat: Sharp picture all the time
+
+- **Fixed: No more automatic resolution drops**
+  - The AUTO RESOLUTION option is gone: it lowered the picture to as little as 60 % of its resolution whenever the frame rate dipped, which made everything look blurry. The game now always draws at the resolution and scale you set in Settings → Graphics.
+
+### Space Exploration: Sound and a sharp picture
+
+- **Fixed: Sounds that were silent**
+  - After the first screen, the game's sound was held at zero everywhere outside a jet flight, so the rover arm's motors, the drill, the time-warp sounds and the clicks in the space menus and missions were not heard. They are now.
+- **Fixed: No more automatic resolution drops**
+  - The automatic resolution option is gone: it lowered the picture to as little as 60 % of its resolution whenever the frame rate dipped, which made launches, Mars and the rover look blurry. The picture now stays at the resolution and scale you set.
+
+### Ocean: Sound, the camera the right way round and a sharp picture
+
+- **Fixed: The dives had no sound**
+  - After the first screen the game's sound was held at zero, so nothing in a dive was heard: the sea, the thrusters, the ballast pumps, the hull, the hydrophone and the clicks. All of it is heard now.
+- **Fixed: Looking around turns the way you look**
+  - Dragging right (or the gamepad's right stick to the right) now turns the view right, from the dome and in the chase view; it turned left before. Up and down were already right.
+- **Fixed: A sharp, clean picture**
+  - The automatic resolution option is gone: it lowered the picture to as little as 60 % of its resolution whenever the frame rate dipped, which is when the ocean looked blurry. The picture now stays at the resolution and scale you set (the PERFORMANCE preset still draws at 75 %, as it says).
+  - No more rainbow fringes along hard edges toward the sides of the screen (the posts, rails and the boat against the sky): the ocean is drawn without the lens's colour fringes.
+
 ## v6.3.0 (2026-10-08)
 
 ### Ocean: Scanning sonar, a hand-flown arm and floodlights

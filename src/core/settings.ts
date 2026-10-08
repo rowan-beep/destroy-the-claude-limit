@@ -57,8 +57,6 @@ export interface GraphicsOptions {
   clouds: 'clear' | 'scattered' | 'broken' | 'overcast';
   cloudQuality: Tier;
   cloudShadows: boolean;
-  /** lower the render resolution by itself when the frame rate drops */
-  autoRes: boolean;
   /** the starting preset has been chosen for this device */
   autoTier?: boolean;
 }
@@ -92,7 +90,6 @@ export function defaultGraphics(): GraphicsOptions {
     clouds: 'scattered',
     cloudQuality: 'high',
     cloudShadows: true,
-    autoRes: true,
     autoTier: false,
   };
 }

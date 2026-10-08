@@ -49,7 +49,7 @@ export async function runOceanTest(container: HTMLElement): Promise<void> {
     const r = gr.renderer;
     const e = r.toneMappingExposure;
     r.toneMappingExposure = e * (q.get('ev') ? +q.get('ev')! : world.exposureFor(lamps || floods));
-    world.draw((sc, c) => gr.renderScene(sc, c, THREE.ACESFilmicToneMapping));
+    world.draw((sc, c) => gr.renderScene(sc, c, THREE.ACESFilmicToneMapping, false));
     r.toneMappingExposure = e;
     frames++;
     (window as unknown as { __frame: () => void }).__frame = loop;

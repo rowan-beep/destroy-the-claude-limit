@@ -67,11 +67,6 @@ export class OceanProgram {
     return this.dive.active || !!this.bench;
   }
 
-  /** the benchmark is running (the automatic resolution must hold still for it) */
-  get benchmarking(): boolean {
-    return !!this.bench;
-  }
-
   start(mode: DiveMode, resume: boolean): void {
     this.dive.start(mode, resume);
   }

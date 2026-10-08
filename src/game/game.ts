@@ -171,7 +171,9 @@ export class Game implements ModeHost {
     this.state = s;
     if (s !== 'playing') this.autoFlyPanel?.hide();
     this.input.enabled = s === 'playing';
-    audio.setPaused(s !== 'playing');
+    // (a flight on hold is silenced; the menus are not: the jet's sounds are stopped there anyway,
+    // and the ocean's dives and the space missions, which run over the menus, are heard)
+    audio.setPaused(s !== 'playing' && s !== 'menu');
     if (s !== 'playing') this.input.exitPointerLock();
     this.onStateChange?.(s);
   }
@@ -812,7 +814,6 @@ export class Game implements ModeHost {
       return;
     }
     const playing = this.state === 'playing';
-    if (playing) this.renderer.adaptFrame(dt);
     this.input.update(dt);
     if (playing) this.handleInput(dt);
     else if (this.input.pressed('pause') && this.state === 'map') this.setState('playing');

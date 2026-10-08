@@ -232,7 +232,6 @@ export class SettingsModal {
       P('resolution'),
     );
     this.slider(d, 'RESOLUTION SCALE', 'Fine-tune the resolution above. Lower it to gain frame rate.', 0.5, 1, 0.05, g.resolutionScale, P('resolutionScale'), pct);
-    this.toggle(d, 'AUTO RESOLUTION', 'Drops the resolution a little when the frame rate dips in a fight and brings it back when things calm down. Keeps laptops smooth.', g.autoRes, P('autoRes'));
     this.seg(
       d,
       'ANTI-ALIASING',

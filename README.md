@@ -19,7 +19,7 @@ terrain against you.
 
 **Windows app:** [download TRIAD-Air-Combat.exe](https://github.com/rowan-beep/destroy-the-claude-limit/releases/download/desktop/TRIAD-Air-Combat.exe) (portable, updates itself).
 
-Current version: **v6.3.0** — see [CHANGELOG.md](CHANGELOG.md). In the game, each
+Current version: **v6.3.1** — see [CHANGELOG.md](CHANGELOG.md). In the game, each
 menu has its own **NOTES** button: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 

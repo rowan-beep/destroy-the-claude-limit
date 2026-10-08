@@ -489,15 +489,15 @@ export class OceanDive {
   }
 
   // ------------------------------------------------------------------ input
-  /** turn the camera (pixels of drag, or the gamepad's right stick) */
+  /** turn the camera (pixels of drag, or the gamepad's right stick): right looks right, down looks down */
   private lookBy(dx: number, dy: number): void {
     this.lastDrag = performance.now();
     const k = 0.005 * this.settings.lookSpeed;
     if (this.cam === 'dome') {
-      this.lookYaw = Math.max(-1.9, Math.min(1.9, this.lookYaw - dx * k));
+      this.lookYaw = Math.max(-1.9, Math.min(1.9, this.lookYaw + dx * k));
       this.lookPitch = Math.max(-1.0, Math.min(0.9, this.lookPitch - dy * k));
     } else {
-      this.camYaw -= dx * k;
+      this.camYaw += dx * k;
       this.camPitch = Math.max(-0.6, Math.min(1.35, this.camPitch + dy * k));
     }
   }
