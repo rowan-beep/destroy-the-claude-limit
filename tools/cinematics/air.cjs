@@ -124,12 +124,14 @@ module.exports = { map: 'triad', list: {
     const { surfaceHeight } = await import('/src/world/terrain.ts');
     const x = f.x - f.ax * f.length * 0.25, z = f.z - f.az * f.length * 0.25;
     const y = surfaceHeight(x, z) + p.spec.gear.height;
-    c.pose(p, { pos: [x, y, z], hdg: f.heading, pitch: 0, roll: 0, aoa: 0, speed: 60, gear: 1, ab: 1 });
+    c.pose(p, { pos: [x, y, z], hdg: f.heading, pitch: 0, roll: 0, aoa: 0, speed: 0, gear: 1, ab: 0, rpm: 0.7 });
     p.fm.onGround = true;
+    // (held at idle on the brakes: at full power it would be half a mile down the runway by the time the picture is taken)
+    if (p.controls) { p.controls.throttle = 0; p.controls.wheelBrake = 1; p.controls.gearDown = true; }
     const look = c.orbit(c.rel(p, 0, 1, -2), f.heading + 35, 1.5, 34, 32, 0, [0, 0, 0]);
     c.sun(3, look - 10);
     await c.settle(6000);
-    return 'F-15EX · FULL BURNER AT FIRST LIGHT';
+    return 'F-15EX · ON THE RUNWAY AT FIRST LIGHT';
   },
   '12': async (c, g) => {
     await c.start({ jet: 'F15EX', tod: 'afternoon', weather: 'storm' });
