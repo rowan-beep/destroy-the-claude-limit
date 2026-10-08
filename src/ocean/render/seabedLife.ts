@@ -104,8 +104,8 @@ function starfish(): THREE.BufferGeometry {
 }
 
 function urchin(): THREE.BufferGeometry {
-  // (polyhedra come without an index already)
-  const body = new THREE.IcosahedronGeometry(0.28, 1);
+  // (polyhedra come without an index already; the body is mostly hidden by the spines, so a plain one does)
+  const body = new THREE.IcosahedronGeometry(0.28, 0);
   const parts: THREE.BufferGeometry[] = [body];
   const dirs = new THREE.IcosahedronGeometry(1, 1).attributes.position;
   const seen = new Set<string>();
@@ -115,7 +115,8 @@ function urchin(): THREE.BufferGeometry {
     const key = `${d.x.toFixed(2)},${d.y.toFixed(2)},${d.z.toFixed(2)}`;
     if (seen.has(key) || d.y < -0.4) continue;
     seen.add(key);
-    const sp = new THREE.ConeGeometry(0.025, 0.42, 3);
+    // (open at the base: it is inside the body)
+    const sp = new THREE.ConeGeometry(0.025, 0.42, 3, 1, true);
     sp.translate(0, 0.21 + 0.24, 0);
     q.setFromUnitVectors(up, d);
     sp.applyQuaternion(q);
@@ -123,7 +124,7 @@ function urchin(): THREE.BufferGeometry {
   }
   const g = mergeGeometries(parts)!;
   g.translate(0, 0.18, 0);
-  return finish(g, () => [0.22, 0.1, 0.2], none, 48);
+  return finish(g, () => [0.22, 0.1, 0.2], none, 34);
 }
 
 function seagrass(): THREE.BufferGeometry {
@@ -174,18 +175,20 @@ function seaPen(): THREE.BufferGeometry {
 
 function brittleStar(): THREE.BufferGeometry {
   const parts: THREE.BufferGeometry[] = [];
-  const disc = new THREE.CylinderGeometry(0.035, 0.04, 0.015, 10);
+  const disc = new THREE.CylinderGeometry(0.035, 0.04, 0.015, 7, 1, false);
   disc.translate(0, 0.008, 0);
   parts.push(disc.toNonIndexed());
   for (let i = 0; i < 5; i++) {
-    const arm = new THREE.BoxGeometry(0.24, 0.008, 0.012, 4, 1, 1);
+    // (a flat strip: from a little way off, an arm is all top)
+    const arm = new THREE.PlaneGeometry(0.24, 0.012, 4, 1);
+    arm.rotateX(-Math.PI / 2);
     const p = arm.attributes.position;
     const curl = i % 2 ? 1 : -1;
     for (let k = 0; k < p.count; k++) {
       const t = (p.getX(k) + 0.12) / 0.24;
       p.setZ(k, p.getZ(k) + curl * t * t * 0.05);
     }
-    arm.translate(0.03 + 0.12, 0.004, 0);
+    arm.translate(0.03 + 0.12, 0.009, 0);
     arm.rotateY((i / 5) * Math.PI * 2);
     parts.push(arm.toNonIndexed());
   }
@@ -527,9 +530,12 @@ export class SeabedLife {
       const mats = mesh.instanceMatrix.array as Float32Array;
       const cols = mesh.instanceColor!.array as Float32Array;
       const cap = Math.floor(k.cap * Math.max(0.3, this.density));
+      // (nothing past the distance where the shader has shrunk it away, with a cell's diagonal to spare:
+      // the list is only made again when the camera crosses into another cell)
+      const reach = ((k.geo.attributes.aFar as THREE.BufferAttribute).getX(0) + CELL * 1.42) / CELL;
       let n = 0;
       for (const c of cells) {
-        if (n >= cap) break;
+        if (n >= cap || Math.hypot(c.cx - ci, c.cz - cj) > reach) break;
         const it = c.items[ki];
         // (a cell with none of this kind is skipped, not the end of the list)
         const take = Math.min(it.n, cap - n);

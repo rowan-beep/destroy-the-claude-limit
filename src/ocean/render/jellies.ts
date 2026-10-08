@@ -13,18 +13,19 @@ import { patchOceanMaterial } from './oceanMaterial';
 import { rng } from './seabedLife';
 
 const CELL = 32;
-const RANGE = 70;
+// (past this a bell is a few pixels, and the water has taken most of it anyway)
+const RANGE = 50;
 
 /** the bell (a dome, open below) and its fringe; aPart: 0 bell, 1 tentacle (with how far down it is), 2 gonads */
 function jellyGeometry(tentacles: number, tentLen: number, gonads: boolean): THREE.BufferGeometry {
   const parts: THREE.BufferGeometry[] = [];
-  const bell = new THREE.SphereGeometry(0.5, 18, 7, 0, Math.PI * 2, 0, Math.PI * 0.42);
+  const bell = new THREE.SphereGeometry(0.5, 16, 6, 0, Math.PI * 2, 0, Math.PI * 0.42);
   bell.scale(1, 0.55, 1);
   parts.push(tag(bell.toNonIndexed(), 0));
   if (gonads) {
     // four horseshoes seen through the bell
     for (let i = 0; i < 4; i++) {
-      const t = new THREE.TorusGeometry(0.075, 0.018, 3, 8, Math.PI * 1.6);
+      const t = new THREE.TorusGeometry(0.075, 0.018, 3, 6, Math.PI * 1.6);
       t.rotateX(Math.PI / 2);
       t.rotateY((i * Math.PI) / 2);
       t.translate(Math.cos((i * Math.PI) / 2) * 0.13, 0.12, Math.sin((i * Math.PI) / 2) * 0.13);
@@ -33,7 +34,7 @@ function jellyGeometry(tentacles: number, tentLen: number, gonads: boolean): THR
   }
   for (let i = 0; i < tentacles; i++) {
     const a = (i / tentacles) * Math.PI * 2;
-    const p = new THREE.PlaneGeometry(0.012, tentLen, 1, 5);
+    const p = new THREE.PlaneGeometry(0.012, tentLen, 1, 4);
     p.translate(0, -tentLen / 2, 0);
     p.rotateY(-a);
     p.translate(Math.cos(a) * 0.46, 0.2, Math.sin(a) * 0.46);
@@ -122,7 +123,7 @@ export class Jellies {
     this.species = [
       {
         name: 'moon',
-        geo: jellyGeometry(24, 0.18, true),
+        geo: jellyGeometry(18, 0.18, true),
         // in the upper water over the shelf, in drifting aggregations (thick in their cores, a few strays round them)
         per: (d, b, swarm) => (b < 80 && d > 1.5 && d < Math.min(30, b - 2) ? 40 * swarm * swarm : 0),
         size: [0.22, 0.4],

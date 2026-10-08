@@ -9,6 +9,8 @@ import * as THREE from 'three';
 interface CellLike {
   n?: number[];
   items?: { n: number }[];
+  cx?: number;
+  cz?: number;
 }
 const counts = (o: { group: THREE.Group }) => o.group.children.map((m) => (m as THREE.InstancedMesh).count);
 
@@ -67,12 +69,16 @@ test('jellies and sea-floor life: an empty nearby cell does not hide the cells b
   life.fill(-60, 260);
   const cells = [...(life as unknown as { cells: Map<string, CellLike> }).cells.values()];
   const shown = counts(life);
-  const caps = (life.group.children as THREE.InstancedMesh[]).map((m) => m.instanceMatrix.count);
+  const meshes = life.group.children as THREE.InstancedMesh[];
+  const ci = Math.floor(-60 / 16), cj = Math.floor(260 / 16);
   let checked = 0;
   shown.forEach((n, k) => {
-    const total = cells.reduce((s, c) => s + c.items![k].n, 0);
-    assert.equal(n, Math.min(total, caps[k]), `kind ${k}`);
-    if (total > 0 && cells.some((c) => c.items![k].n === 0)) checked++;
+    // (each kind out to where its shader has shrunk it away, plus a cell's diagonal)
+    const reach = ((meshes[k].geometry.attributes.aFar as THREE.BufferAttribute).getX(0) + 16 * 1.42) / 16;
+    const near = cells.filter((c) => Math.hypot(c.cx! - ci, c.cz! - cj) <= reach);
+    const total = near.reduce((s, c) => s + c.items![k].n, 0);
+    assert.equal(n, Math.min(total, meshes[k].instanceMatrix.count), `kind ${k}`);
+    if (total > 0 && near.some((c) => c.items![k].n === 0)) checked++;
   });
   assert.ok(checked > 0, 'at least one kind is missing from some cells');
 });
