@@ -4,6 +4,22 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu lists the space updates.
 
+## v5.7.1 (2026-10-08)
+
+### Air Combat: See the hangar from the SIMPLE menu
+
+- **Improved: The SIMPLE menu shows the hangar**
+  - The tiles are now a smaller strip along the bottom, so your jet and the hangar round it fill the screen behind them.
+  - Drag anywhere on the hangar to look around and scroll to zoom, the same as in the full menu.
+  - HIDE MENU (top right) hides the menu for just the view. SHOW MENU or Esc brings it back.
+
+### Space Exploration: See the launch site from the SIMPLE menu
+
+- **Improved: The SIMPLE menu shows the launch site**
+  - The mission tiles are now a smaller strip along the bottom, so the rocket on the pad and the site round it fill the screen behind them.
+  - Drag anywhere on the view to look around and scroll to zoom, the same as in the full menu.
+  - HIDE MENU (top right) hides the menu for just the view. SHOW MENU or Esc brings it back.
+
 ## v5.7.0 (2026-10-08)
 
 ### Air Combat: A SIMPLE menu, and easier camera controls

@@ -36,6 +36,28 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '5.7.1',
+    date: '2026-10-08',
+    air: {
+      title: "See the hangar from the SIMPLE menu",
+      notes: [
+        improved("The SIMPLE menu shows the hangar",
+          "The tiles are now a smaller strip along the bottom, so your jet and the hangar round it fill the screen behind them.",
+          "Drag anywhere on the hangar to look around and scroll to zoom, the same as in the full menu.",
+          "HIDE MENU (top right) hides the menu for just the view. SHOW MENU or Esc brings it back."),
+      ],
+    },
+    space: {
+      title: "See the launch site from the SIMPLE menu",
+      notes: [
+        improved("The SIMPLE menu shows the launch site",
+          "The mission tiles are now a smaller strip along the bottom, so the rocket on the pad and the site round it fill the screen behind them.",
+          "Drag anywhere on the view to look around and scroll to zoom, the same as in the full menu.",
+          "HIDE MENU (top right) hides the menu for just the view. SHOW MENU or Esc brings it back."),
+      ],
+    },
+  },
+  {
     version: '5.7.0',
     date: '2026-10-08',
     air: {
