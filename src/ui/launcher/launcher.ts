@@ -2,7 +2,7 @@
 // a picture from the game. Picking one starts the music and the loading screen:
 // cinematic shots of that program cross-fading over each other, a fact along the
 // bottom, and a bar that fills smoothly while the game loads that program behind
-// it (models, textures, shaders), so the menu comes up ready. It takes 17 s from
+// it (models, textures, shaders), so the menu comes up ready. It takes 22 s from
 // the click to the menu, however fast the loading is.
 
 import { el } from '../dom';
@@ -14,12 +14,12 @@ import { SHOTS, Shot, shotUrl } from './shots';
 import { markPicked } from './introSkip';
 
 /** from the click to the menu on screen (s) */
-const TOTAL = 17;
+const TOTAL = 22;
 /** the last part of it: the fade into the menu */
 const FADE_OUT = 1.3;
 /** each picture's turn, and the cross-fade between two */
-const SHOT_T = 4;
-const SHOT_FADE = 1.4;
+const SHOT_T = 2.6;
+const SHOT_FADE = 1;
 /** each fact's turn */
 const FACT_T = 7;
 
@@ -111,7 +111,26 @@ function loadImage(url: string): Promise<HTMLImageElement | null> {
   });
 }
 
+/** pictures already asked for (each loads once, however often it is wanted) */
+const loads = new Map<string, Promise<HTMLImageElement | null>>();
+const load = (url: string) => {
+  let l = loads.get(url);
+  if (!l) loads.set(url, (l = loadImage(url)));
+  return l;
+};
+
 export class Launcher {
+  /** each program's pictures in the order they will show: the picker's first (it is already loaded), then shuffled */
+  private orders: Record<Program, Shot[]> = {
+    air: SHOTS.air.length ? [SHOTS.air[0], ...shuffle(SHOTS.air.slice(1))] : [],
+    space: SHOTS.space.length ? [SHOTS.space[0], ...shuffle(SHOTS.space.slice(1))] : [],
+  };
+  private prefetched: Record<Program, number> = { air: 0, space: 0 };
+  /** start loading a program's next few pictures */
+  private prefetch(p: Program, upTo: number): void {
+    const o = this.orders[p];
+    for (; this.prefetched[p] < Math.min(upTo, o.length); this.prefetched[p]++) void load(shotUrl(p, o[this.prefetched[p]]));
+  }
   private root: HTMLDivElement;
   private pickEl: HTMLDivElement;
   private loadEl: HTMLDivElement | null = null;
@@ -150,7 +169,7 @@ export class Launcher {
       el('div', 'fb', s);
       const bg = el('div', 'bg', s);
       const hero = SHOTS[p][0];
-      if (hero) void loadImage(shotUrl(p, hero)).then((img) => {
+      if (hero) void load(shotUrl(p, hero)).then((img) => {
         if (!img) return;
         bg.style.backgroundImage = `url("${img.src}")`;
         requestAnimationFrame(() => bg.classList.add('in'));
@@ -185,6 +204,8 @@ export class Launcher {
   }
 
   private select(p: Program): void {
+    // (the pictures for the loading screen start coming the moment a program is pointed at)
+    this.prefetch(p, 4);
     for (const s of this.pickEl.querySelectorAll('.tl-side')) s.classList.toggle('sel', s.classList.contains(p));
   }
 
@@ -246,13 +267,15 @@ export class Launcher {
     requestAnimationFrame(() => L.classList.add('on'));
 
     // ---- the pictures: in a random order, each loaded while the one before shows
-    const order = shuffle(SHOTS[p]);
+    const order = this.orders[p];
     let next = 0;
     const fetchNext = (): Promise<{ img: HTMLImageElement; shot: Shot } | null> => {
       // (no pictures at all: the gradient behind stays)
       if (!order.length) return Promise.resolve(null);
       const shot = order[next++ % order.length];
-      return loadImage(shotUrl(p, shot)).then((img) => (img ? { img, shot } : null));
+      // (three more always on their way, so each is ready long before its turn)
+      this.prefetch(p, next + 3);
+      return load(shotUrl(p, shot)).then((img) => (img ? { img, shot } : null));
     };
     let pending = fetchNext();
     let lastSwap = -1e9;
@@ -313,12 +336,12 @@ export class Launcher {
       prev = now;
       const t = (now - this.t0) / 1000;
       // (pictures and facts keep coming while a slow machine is still loading; they stop just before the fade)
-      const winding = this.workDone && t >= TOTAL - FADE_OUT - 1;
+      const winding = this.workDone && this.shown > 0.9 && t >= TOTAL - FADE_OUT - 1;
       if (now - lastSwap > SHOT_T * 1000 && !winding) {
         lastSwap = now;
         swap();
       }
-      if (now - lastFact > FACT_T * 1000 && !(this.workDone && t >= TOTAL - FADE_OUT - 2)) {
+      if (now - lastFact > FACT_T * 1000 && !(this.workDone && this.shown > 0.8 && t >= TOTAL - FADE_OUT - 2)) {
         lastFact = now;
         showFact();
       }
@@ -327,7 +350,9 @@ export class Launcher {
       const eased = 1 - Math.pow(1 - clock, 1.6);
       const target = Math.min(eased, this.workDone ? 1 : 0.06 + this.work * 0.9);
       const rate = Math.max(0, target - this.shown);
-      this.shown += Math.min(rate, rate * (1 - Math.exp(-dt * 2.5)) + dt * 0.02, dt * 0.18);
+      // (behind time, after a slow load: it catches up quicker, still without a jump)
+      const late = t > TOTAL - FADE_OUT;
+      this.shown += Math.min(rate, rate * (1 - Math.exp(-dt * (late ? 4 : 2.5))) + dt * (late ? 0.06 : 0.02), dt * (late ? 0.4 : 0.18));
       if (this.fill) this.fill.style.width = `${(this.shown * 100).toFixed(2)}%`;
       if (this.pct) this.pct.textContent = `${Math.floor(this.shown * 100)}%`;
       if (this.lbl) this.lbl.textContent = this.shown > 0.995 ? 'READY' : this.workDone ? (p === 'air' ? 'PREFLIGHT CHECKS' : 'FINAL CHECKS') : this.workLabel;
