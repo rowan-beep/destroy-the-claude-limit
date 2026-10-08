@@ -201,8 +201,16 @@ export class SpotterUi {
     const open = !this.album.isOpen;
     if (open) {
       this.mode.albumOpen = true;
-      // (a picture just taken may still be on its way into the album)
-      void this.mode.saving.then(() => this.album.open());
+      void this.album.open();
+      // (a picture just taken may still be on its way into the album: it shows when it lands)
+      let landed = false;
+      void this.mode.saving.then(() => (landed = true));
+      void Promise.resolve().then(() => {
+        if (!landed)
+          void this.mode.saving.then(() => {
+            if (this.album.isOpen) void this.album.open();
+          });
+      });
     } else this.album.close();
   }
 
