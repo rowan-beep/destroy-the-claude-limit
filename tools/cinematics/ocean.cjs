@@ -55,26 +55,12 @@ module.exports = { setup: dive.toString(), list: {
     await wait(3500);
     return 'MV ORIEL BAY · 84 M DOWN';
   },
-  '06': async () => {
-    await dive({ weather: 'dawn', x: -265.6, y: -82.2, z: 1219.7, h: 252, yaw: 2.2, pitch: 0.35, dist: 7 });
-    const m = window.__dive.world.sub;
-    const r = window.__dive.world.props.recorder;
-    const p = r.getWorldPosition(r.position.clone());
-    m.setArmTarget(m.toBody(p.setY(p.y + 0.4)));
-    m.poseArm(0.92, 0.9);
-    await wait(3500);
-    return 'THE ARM REACHES FOR THE RECORDER';
-  },
-  '07': async () => {
-    await dive({ weather: 'dawn', x: -205, y: -70, z: 1150, h: 300, yaw: 2.8, pitch: 0.45, dist: 16 });
-    window.__dive.ping();
-    await wait(5000);
-    return 'SONAR · THE WRECK IN THE PING';
-  },
+
+
   '08': async () => {
-    await dive({ weather: 'dawn', x: -560, y: -7, z: 420, h: 180, yaw: 2.9, pitch: 0.1, dist: 12, lamps: false });
+    await dive({ weather: 'dawn', x: -512, y: -5, z: 335, h: 0, yaw: 0.25, pitch: 0.05, dist: 10, lamps: false });
     await wait(3000);
-    return 'THE KELP STAND · DAWN';
+    return 'THE KELP STAND · 6 M';
   },
   '09': async () => {
     await dive({ weather: 'overcast', x: 120, y: -0.75, z: 520, h: 230, yaw: 2.2, pitch: 0.18, dist: 15 });
@@ -82,8 +68,9 @@ module.exports = { setup: dive.toString(), list: {
     return 'OVERCAST, ROUGH · SURFACED';
   },
   '10': async () => {
-    await dive({ weather: 'dawn', x: 330, y: -150, z: 2300, h: 0, yaw: 2.6, pitch: 0.15, dist: 10 });
+    // (6 m over the slope at 159 m: below the daylight, the lamps are all there is)
+    await dive({ weather: 'dawn', x: 200, y: -153, z: 1600, h: 0, yaw: 0.35, pitch: 0.35, dist: 9 });
     await wait(3500);
-    return 'THE DEEP BASIN · LAMPS IN THE SNOW';
+    return 'THE SLOPE · 155 M · LAMPS IN THE SNOW';
   },
 } };

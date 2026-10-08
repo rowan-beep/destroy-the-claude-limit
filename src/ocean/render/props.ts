@@ -387,10 +387,11 @@ export class OceanProps {
       count += n;
     }
     // the kelp stand west of the harbor mouth: tall fronds that sway
-    const nk = Math.round(420 * decor);
+    // (giant kelp grows in dense clumps from the rocks; a stand of them west of the harbor mouth)
+    const nk = Math.round(1700 * decor);
     if (nk) {
       if (!this.kelpMat) {
-        this.kelpMat = patchOceanMaterial(new THREE.MeshLambertMaterial({ color: 0x6b6a2a, side: THREE.DoubleSide }), 'kelp');
+        this.kelpMat = patchOceanMaterial(new THREE.MeshLambertMaterial({ color: 0x5d5422, side: THREE.DoubleSide }), 'kelp');
         const base = this.kelpMat.onBeforeCompile;
         this.kelpMat.onBeforeCompile = (sh, r) => {
           base(sh, r);
@@ -403,11 +404,18 @@ export class OceanProps {
             );
         };
       }
-      const blade = new THREE.PlaneGeometry(0.7, 14, 1, 8);
+      // a stipe with its fronds: two crossed strips, so it has body from every side
+      const b1 = new THREE.PlaneGeometry(0.55, 14, 1, 8);
+      const b2 = b1.clone().rotateY(Math.PI / 2);
+      const blade = mergeGeometries([b1, b2])!;
       blade.translate(0, 7, 0);
       const im = new THREE.InstancedMesh(blade, this.kelpMat, nk);
+      const clumps: { x: number; z: number; r: number }[] = [];
+      for (let c = 0; c < 16; c++) clumps.push({ x: -560 + (rnd() - 0.5) * 300, z: 330 + (rnd() - 0.5) * 240, r: 6 + rnd() * 10 });
       for (let i = 0; i < nk; i++) {
-        const x = -560 + (rnd() - 0.5) * 380, z = 330 + (rnd() - 0.5) * 300;
+        const cl = clumps[i % clumps.length];
+        const a = rnd() * Math.PI * 2, rr = Math.sqrt(rnd()) * cl.r;
+        const x = cl.x + Math.cos(a) * rr, z = cl.z + Math.sin(a) * rr;
         const h = seabedHeight(x, z);
         const sc = 0.7 + rnd() * 0.6;
         p.set(x, h, z);
