@@ -410,16 +410,19 @@ export class OceanProps {
       const blade = mergeGeometries([b1, b2])!;
       blade.translate(0, 7, 0);
       const im = new THREE.InstancedMesh(blade, this.kelpMat, nk);
+      // (its own random sequence: the stand stands in the same place on every preset)
+      let ks = 913;
+      const krnd = () => ((ks = (ks * 16807) % 2147483647) / 2147483647);
       const clumps: { x: number; z: number; r: number }[] = [];
-      for (let c = 0; c < 16; c++) clumps.push({ x: -560 + (rnd() - 0.5) * 300, z: 330 + (rnd() - 0.5) * 240, r: 6 + rnd() * 10 });
+      for (let c = 0; c < 16; c++) clumps.push({ x: -560 + (krnd() - 0.5) * 300, z: 330 + (krnd() - 0.5) * 240, r: 6 + krnd() * 10 });
       for (let i = 0; i < nk; i++) {
         const cl = clumps[i % clumps.length];
-        const a = rnd() * Math.PI * 2, rr = Math.sqrt(rnd()) * cl.r;
+        const a = krnd() * Math.PI * 2, rr = Math.sqrt(krnd()) * cl.r;
         const x = cl.x + Math.cos(a) * rr, z = cl.z + Math.sin(a) * rr;
         const h = seabedHeight(x, z);
-        const sc = 0.7 + rnd() * 0.6;
+        const sc = 0.7 + krnd() * 0.6;
         p.set(x, h, z);
-        e.set(0, rnd() * 6.28, 0);
+        e.set(0, krnd() * 6.28, 0);
         q.setFromEuler(e);
         s.set(sc, Math.min(sc * 1.1, (-h - 1) / 14), sc);
         m.compose(p, q, s);

@@ -58,7 +58,7 @@ module.exports = { setup: dive.toString(), list: {
 
 
   '08': async () => {
-    await dive({ weather: 'dawn', x: -512, y: -5, z: 335, h: 0, yaw: 0.25, pitch: 0.05, dist: 10, lamps: false });
+    await dive({ weather: 'dawn', x: -518, y: -6, z: 322, h: 0, yaw: 0.25, pitch: 0.05, dist: 10, lamps: false });
     await wait(3000);
     return 'THE KELP STAND · 6 M';
   },
@@ -68,8 +68,8 @@ module.exports = { setup: dive.toString(), list: {
     return 'OVERCAST, ROUGH · SURFACED';
   },
   '10': async () => {
-    // (6 m over the slope at 159 m: below the daylight, the lamps are all there is)
-    await dive({ weather: 'dawn', x: 200, y: -153, z: 1600, h: 0, yaw: 0.35, pitch: 0.35, dist: 9 });
+    // (3 m over the slope at 159 m: below the daylight, the lamps are all there is)
+    await dive({ weather: 'dawn', x: 200, y: -156, z: 1600, h: 0, yaw: 2.3, pitch: 0.18, dist: 6.5 });
     await wait(3500);
     return 'THE SLOPE · 155 M · LAMPS IN THE SNOW';
   },
