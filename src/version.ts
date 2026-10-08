@@ -37,6 +37,28 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '6.1.0',
+    date: '2026-10-08',
+    ocean: {
+      title: 'THE SLOW PULSE: a second mission, 282 m down, and touch and gamepad controls',
+      notes: [
+        added("THE SLOW PULSE: what was pulsing in the deep basin",
+          "Finish the first expedition and the follow-up opens on the MISSIONS page: nine stages, saved at each one, with its own debrief.",
+          "Take two bearings on the 12 kHz pulse (it is kilometres off, so the second bearing needs a long step to the side), go down in the search area and find its source in your lamps.",
+          "It is the Kestrel Marine Lab's deep mooring K3: an orange float 282 m down on a taut line, with its relocation pinger, a hydrophone recorder and the lab's tag. Scan the tag from in front and take the recorder off the line with the arm.",
+          "The anchor is 339 m down, past PETREL's 300 m rating: ping, and the multibeam under the boat (65° either side, 120 m down) shows what lies across the foot of the line."),
+        added("Touch controls for phones and tablets",
+          "A stick (ahead, astern, turn), buttons for up and down, flood and blow, the side thrusters, listening, sonar, the arm, lamps, the holds and transit time. Drag to look, pinch to zoom.",
+          "The emergency blow must be held for 2 s, so it never goes off by accident. On a phone held sideways the instruments move to the top corners."),
+        added("Gamepad",
+          "Left stick to drive, triggers up and down, bumpers for the side thrusters, D-pad for the tanks and the holds (hold up 2 s for the emergency blow), A use, B ping, X listen, Y lamps, right stick to look.",
+          "The CONTROLS page and the in-dive help (H) list it all."),
+        improved("Sonar answers across each beam's width",
+          "Each of the 90 beams now answers for anything inside its own width, not only on its centre line, so a thin mooring line 200 m off is found from any side instead of only now and then."),
+      ],
+    },
+  },
+  {
     version: '6.0.0',
     date: '2026-10-08',
     ocean: {

@@ -1,7 +1,7 @@
 # OCEAN mode
 
 The third program beside TRIAD air combat and SPACE EXPLORATION. One survey
-submersible, one coastal region, one complete expedition, built around
+submersible, one coastal region, an expedition and its follow-up, built around
 listening, navigation and atmosphere rather than survival or crafting.
 
 ## Playing
@@ -10,12 +10,17 @@ Pick **OCEAN** from the program menu under the TRIAD logo. The menu has three
 pages:
 
 - **MISSIONS**: *Quiet Survey: The Silent Buoy* (begin, continue, start over),
-  a **Free Survey**, and a follow-up contact that opens when the expedition is done.
+  a **Free Survey**, and *The Slow Pulse*, the follow-up that opens when the
+  expedition is done: the pulse on the wreck's recorder comes from the Kestrel
+  Marine Lab's deep mooring K3 (top float 282 m down, inside the boat's 300 m
+  rating; anchor and a lost container 339 m down, outside it, seen only on the
+  multibeam).
 - **HARBOR**: the boat, the ocean's settings and the benchmark.
 - **CHART**: the Echo Atlas (chart, contacts with their bearings and story,
   evidence, expedition log).
 
-Keys (also on the CONTROLS page and in a dive with H):
+Keys (also on the CONTROLS page and in a dive with H, with the gamepad and
+touch controls):
 
 | | |
 |---|---|
@@ -32,6 +37,11 @@ Keys (also on the CONTROLS page and in a dive with H):
 | C | chase camera / pilot's dome |
 | M | chart · Esc pause · , / . transit time ×1 ×2 ×4 |
 
+A standard gamepad drives too (left stick, triggers up / down, bumpers side
+thrust, D-pad tanks and holds, A use, B ping, X listen, Y lamps, right stick
+look). On touch screens a stick and a button pad appear; the emergency blow (on
+the pad, or D-pad up on a gamepad) must be held for 2 s.
+
 ## How it is built
 
 Everything lives in `src/ocean/` and is loaded only when the program is first
@@ -46,8 +56,10 @@ opened (`src/ocean/oceanProgram.ts`, a separate chunk); the menu
 | `acoustics/acoustics.ts` | Passive sonar equation in real units (source level, spherical spreading, Thorp absorption, Knudsen sea noise, own noise), the listening procedure, bearings, triangulation, active sonar rays. Pure. |
 | `atlas/atlas.ts` | The Echo Atlas: contacts, observations, evidence, tracks, markers, expeditions; saved in localStorage, tolerant of damaged saves. |
 | `mission/expedition.ts` | The expedition's ten stages as a state machine over plain state; checkpoints and career. Pure. |
-| `render/*` | Light in water (`oceanMaterial.ts`), sea surface and sky (`water.ts`), streamed sea bed (`seabed.ts`), harbor / reef / wreck (`props.ts`), the boat (`subModel.ts`), particles, shafts, lamp beams, sonar overlay and waterline (`fx.ts`), fish (`fish.ts`), and the scene (`oceanWorld.ts`). |
+| `mission/followup.ts` | The follow-up's nine stages, the second listening point and the multibeam's reach. Pure. |
+| `render/*` | Light in water (`oceanMaterial.ts`), sea surface and sky (`water.ts`), streamed sea bed (`seabed.ts`, its tiles built by `seabedArrays.ts` on a worker thread, `seabedWorker.ts`), harbor / reef / wreck / mooring (`props.ts`), the boat (`subModel.ts`), particles, shafts, lamp beams, sonar overlay and waterline (`fx.ts`), fish (`fish.ts`), and the scene (`oceanWorld.ts`). |
 | `dive/dive.ts`, `dive/hud.ts` | The dive: input, cameras, tools, saving, the instruments and the Quiet Survey panel. |
+| `dive/controls.ts` | Touch and gamepad controls, feeding the same orders as the keys. |
 | `audio/oceanAudio.ts` | Sea, thrusters, pumps, hull, hydrophones and pings through the game's effects bus. |
 | `perf/presets.ts`, `perf/benchmark.ts` | The three presets and the benchmark route. |
 
@@ -67,9 +79,12 @@ camera.
 
 ### Performance
 
-- The sea bed streams as a three-level quadtree of 160 / 320 / 640 m tiles within
-  a per-frame time budget, nearest and ahead first; a tile that is no longer
-  wanted stays until whatever replaces it is built, so no holes open.
+- The sea bed streams as a three-level quadtree of 160 / 320 / 640 m tiles,
+  nearest and ahead first; a tile that is no longer wanted stays until whatever
+  replaces it is built, so no holes open. The tiles are built on a worker thread
+  (a few at a time); the main thread only turns the arrays into a mesh, within a
+  per-frame budget. Where no worker can start, tiles are built on the main
+  thread as before.
 - The wreck's detailed model is built within 520 m and released beyond 760 m.
 - Fish swim entirely in the vertex shader; the reef and kelp are instanced.
 - Presets change only the look (render scale, water and sea-bed detail, foam,
@@ -113,11 +128,8 @@ shadow shaders compile) are reported apart from the totals.
 
 The smallest coherent version was built first. Not in this slice:
 
-- Touch and gamepad controls for the dive (keyboard and mouse only).
-- The follow-up contact's source: it can be heard and triangulated in a free
-  survey, but there is nothing to find at the end of it yet.
-- Sea-bed tile building in a Web Worker (a single fine tile can take ~10-20 ms on
-  a slow CPU; it happens once per tile, mostly when the camera jumps).
-- More regions, vehicles (ROV, research sub), a diver, and cross-mode links.
+- More regions, vehicles (an ROV to go down K3's line past PETREL's rating, a
+  research sub), a diver, and cross-mode links.
+- Remappable gamepad buttons (the layout is fixed to the standard mapping).
 - Multiplayer.
 - Real hydrophone recordings: the contact sounds are synthesised.

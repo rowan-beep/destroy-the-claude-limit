@@ -19,7 +19,7 @@ terrain against you.
 
 **Windows app:** [download TRIAD-Air-Combat.exe](https://github.com/rowan-beep/destroy-the-claude-limit/releases/download/desktop/TRIAD-Air-Combat.exe) (portable, updates itself).
 
-Current version: **v6.0.0** — see [CHANGELOG.md](CHANGELOG.md). In the game, each
+Current version: **v6.1.0** — see [CHANGELOG.md](CHANGELOG.md). In the game, each
 menu has its own **NOTES** button: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
@@ -27,8 +27,10 @@ updates, the space menu the space updates and the ocean menu the ocean updates.
 from the menu under the TRIAD logo). OCEAN puts you in SV-1 PETREL, a one-pilot
 survey submersible off Kestrel Harbor: listen with the hydrophones, take
 bearings from two places to triangulate a sound, ping with the sonar, find a
-wreck in your lamps and recover what is knocking, in one complete expedition
-(*Quiet Survey: The Silent Buoy*) or a free survey. Everything you hear goes into
+wreck in your lamps and recover what is knocking, in a complete expedition
+(*Quiet Survey: The Silent Buoy*), its follow-up 282 m down in the deep basin
+(*The Slow Pulse*) or a free survey. Keyboard and mouse, a gamepad, or on-screen
+touch controls on phones and tablets. Everything you hear goes into
 a persistent Echo Atlas. The acoustics use real units (sonar equation, Thorp
 absorption, Knudsen sea noise) and the water absorbs light per colour with
 depth. Graphics presets (Performance / Balanced / Cinematic) and a repeatable
