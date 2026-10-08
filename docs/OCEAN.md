@@ -88,6 +88,27 @@ geometries, textures, shader programs and JS heap (Chromium). From the console:
 `await triadBench('balanced')` or `triadBench('performance', 15)` (15 route
 steps per second for slow machines: the same path in fewer frames).
 
+The proposed targets are 60 FPS on Performance and Balanced and 30 FPS on
+Cinematic on a desktop graphics card. The only measurements so far are on a
+machine with no graphics card (Chromium drawing on the CPU with SwiftShader,
+960 × 540 window, 15 route steps per second, production build), so they show
+relative cost, not the frame rate a player will see:
+
+| Preset | Render size | Median frame | p95 | p99 | Game's own work (median / p95) | Heap start → end |
+|---|---|---|---|---|---|---|
+| Performance | 540 × 304 | 156 ms | 220 ms | 281 ms | 2.0 / 6.6 ms | 77 → 77 MB |
+| Balanced | 720 × 405 | 332 ms | 442 ms | 565 ms | 2.3 / 8.3 ms | 78 → 82 MB |
+| Cinematic | 720 × 405 | 378 ms | 537 ms | 715 ms | 2.9 / 9.8 ms | 83 → 89 MB |
+
+On that machine nearly all of each frame is the software rasteriser; the
+game's own work (simulation, acoustics, streaming, submitting the draws) is
+2-3 ms. Three passes of the route in one session kept the counts steady
+(325-326 geometries, 51 textures, 40-41 shader programs; heap 78 → 82 MB), and
+after switching between the three programs three times they were the same in
+the second and third rounds (939 geometries, 109 textures, 81 programs). The first frames
+after leaving the menu (up to 1.4 s on Performance, 6 s on Cinematic while the
+shadow shaders compile) are reported apart from the totals.
+
 ## Deferred
 
 The smallest coherent version was built first. Not in this slice:
