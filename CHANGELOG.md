@@ -4,6 +4,21 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu lists the space updates.
 
+## v5.4.2 (2026-10-08)
+
+### Space Exploration: The rover arm drills the rock
+
+- **Fixed: The drill lands on the rock, not in the air**
+  - The arm used to swing to the same pose wherever the rock was, with the drill pointing forward into thin air. Now every joint is worked out for the exact spot on the rock, and the bit comes straight down onto its surface.
+- **New: A final approach**
+  - Press DRILL A CORE at a target and the rover turns on the spot and drives up to the rock (sped up), stopping square on to it with the rock in the arm's reach. If the rock is behind it, it backs up and turns round.
+- **Improved: The whole job, step by step**
+  - The arm unstows joint by joint and swings the turret out over the rock. The drill comes down until its stabilizer prongs rest on the rock, and the bit hammers 6 cm in while the arm holds still, throwing up cuttings that pile round the hole. Then it draws back out, leaving a hole in the rock (2.7 cm across; 1.6 cm for Curiosity).
+  - Perseverance hands the bit to the carousel at the front of the rover, which turns and takes the sample tube inside. Curiosity's drill grinds the rock to powder instead: CHIMRA on its turret shakes the powder through its sieves into the laboratories inside.
+  - Close-up camera shots follow each step, with the sound of the arm's motors and the drill's hammer.
+- **Improved: The rock to drill stands out**
+  - The outcrop picked at each drill target now stands up out of the ground instead of lying almost flush with it.
+
 ## v5.4.1 (2026-10-08)
 
 ### Air Combat: Airshow: saving pictures

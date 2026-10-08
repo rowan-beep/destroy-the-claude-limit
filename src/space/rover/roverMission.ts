@@ -18,7 +18,8 @@ import { menuMusic } from '../../audio/menuMusic';
 import { audio } from '../../audio/audio';
 import { updateRecord } from '../record';
 import { RoverDrive } from './roverDrive';
-import { RoverRig, HeliRig, buildRover, buildIngenuity, deployArm, stowArm, aimMast, ROVER } from './roverModel';
+import { RoverRig, HeliRig, buildRover, buildIngenuity, stowArm, aimMast, ROVER } from './roverModel';
+import { DrillOp, DrillFrame } from './drillOp';
 import { EdlSequence } from './edl';
 import { WarpBar, WarpFx } from '../warp';
 
@@ -337,6 +338,12 @@ export class RoverMission {
   private drag: { id: number; x: number; y: number } | null = null;
   private lastDrag = -1e9;
   private act: Activity | null = null;
+  /** the coring job under way, and what it said last frame (for the camera) */
+  private drillOp: DrillOp | null = null;
+  private drillFrame: DrillFrame | null = null;
+  /** the job camera, eased from shot to shot (site coordinates) */
+  private jobCam: THREE.Vector3 | null = null;
+  private jobLook = new THREE.Vector3();
   private done = new Set<number>();
   samples = 0;
   private heliOut = false;
@@ -555,6 +562,9 @@ export class RoverMission {
     this.mastAz = 0;
     this.mastEl = 0;
     this.act = null;
+    this.drillOp = null;
+    this.drillFrame = null;
+    this.jobCam = null;
     this.done.clear();
     this.samples = 0;
     this.endShown = false;
@@ -706,10 +716,11 @@ export class RoverMission {
     const rockMat = rockMaterial(0x523321);
     for (let k = 0; k < 6; k++) {
       const m = new THREE.Mesh(boulderGeometry(i * 11 + k), rockMat);
-      const sz = k === 0 ? 0.7 : 0.25 + r() * 0.35;
-      const a = r() * 6.28, d = k === 0 ? 0 : 0.8 + r() * 1.6;
-      m.position.set(Math.cos(a) * d, -sz * 0.25, Math.sin(a) * d);
-      m.scale.set(sz * (1.2 + r() * 0.6), sz * 0.55, sz * (1 + r() * 0.5));
+      // (the one picked stands proud of the ground, about a quarter of a metre: the drill's target)
+      const sz = k === 0 ? 0.78 : 0.25 + r() * 0.35;
+      const a = r() * 6.28, d = k === 0 ? 0 : 1.1 + r() * 1.5;
+      m.position.set(Math.cos(a) * d, k === 0 ? -sz * 0.12 : -sz * 0.25, Math.sin(a) * d);
+      m.scale.set(sz * (1.15 + r() * 0.4), sz * (k === 0 ? 0.78 : 0.55), sz * (1 + r() * 0.3));
       m.rotation.y = r() * 6;
       m.castShadow = m.receiveShadow = true;
       g.add(m);
@@ -777,7 +788,13 @@ export class RoverMission {
     d.speed = 0;
     d.controls.drive = d.controls.steer = 0;
     this.act = { kind, t: 0, target: this.def!.targets[i] };
-    if (kind === 'drill') this.say(`Drilling at ${this.act.target.name}: the arm unfolds, the turret swings the coring drill down onto the rock.`);
+    this.jobCam = null;
+    if (kind === 'drill') {
+      const tg = this.act.target;
+      this.rig!.drill.position.y = -0.4;
+      this.drillOp = new DrillOp(this.rig!, d, this.site, this.markers[i], (e, n) => this.ground(e, n), tg.e, tg.n);
+      this.say(`${this.rig!.curiosity ? 'Drilling' : 'Coring'} at ${tg.name}.`);
+    }
     if (kind === 'zap') this.say(`${this.def!.rover === 'curiosity' ? 'ChemCam' : 'SuperCam'} fires its laser at ${this.act.target.name} from ${Math.max(2, Math.hypot(this.act.target.e - d.e, this.act.target.n - d.n)).toFixed(1)} m away: each pulse turns a pinhead of rock to glowing plasma, and the spectrometer reads its light.`);
     if (kind === 'heli') this.say('Ingenuity drops from the rover\'s belly onto the airfield. The rover backs away to watch.');
     if (kind === 'heliFly') this.say('Ingenuity spins its rotors up to 2,537 rpm: in air 1% as thick as Earth\'s, it has to spin that fast to fly at all.');
@@ -938,21 +955,23 @@ export class RoverMission {
     const r = this.rig!;
     const i = this.def!.targets.indexOf(a.target);
     if (a.kind === 'drill') {
-      // unfold (5 s), drill (8 s), stow (4 s)
-      const k = a.t < 5 ? a.t / 5 : a.t < 13 ? 1 : Math.max(0, 1 - (a.t - 13) / 4);
-      deployArm(r, k * k * (3 - 2 * k));
-      r.drill.rotation.y += dt * (a.t > 5 && a.t < 13 ? 40 : 0);
-      if (a.t > 5.5 && a.t < 13) {
-        r.drill.updateMatrixWorld();
-        const tip = r.drill.localToWorld(new THREE.Vector3(0, -0.06, 0));
-        this.site.worldToLocal(tip);
-        this.puff(tip, 0.4, 3);
-      }
-      if (a.t > 17) {
+      const op = this.drillOp!;
+      const f = op.update(dt);
+      this.drillFrame = f;
+      if (f.say) this.say(f.say);
+      if (f.dust && f.dustN) this.puff(f.dust, 0.35, f.dustN);
+      if (f.phase === 'done') {
         stowArm(r);
         this.act = null;
+        this.drillOp = null;
+        this.drillFrame = null;
         this.samples++;
-        this.finish(i, `Core sample #${this.samples} taken at ${a.target.name}: a pencil-thick cylinder of rock, sealed in its titanium tube.`);
+        this.finish(
+          i,
+          r.curiosity
+            ? `Sample #${this.samples} drilled at ${a.target.name}: the rock's powder is in CheMin and SAM, which read its minerals and look for organic molecules.`
+            : `Core sample #${this.samples} taken at ${a.target.name}: a pencil-thick cylinder of rock, sealed in its titanium tube.`,
+        );
       }
     } else if (a.kind === 'zap') {
       // aim the mast head at the rock, fire 30 pulses over 6 s
@@ -1125,7 +1144,10 @@ export class RoverMission {
       lookL = target;
     }
     // the activity cameras: close on the arm, or on the helicopter
-    if (this.act && !this.edl && performance.now() - this.lastDrag > 2500 && this.camMode !== 'mast') {
+    const jobView = !!this.act && !this.edl && performance.now() - this.lastDrag > 2500 && this.camMode !== 'mast';
+    // (dragging the view takes it over; the job camera picks up again from wherever it is left)
+    if (!jobView) this.jobCam = null;
+    if (jobView && this.act) {
       if (this.act.kind === 'heliFly' || this.act.kind === 'heli') {
         const hp = this.heli!.group.position;
         lookL = hp.clone().add(new THREE.Vector3(0, 0.6, 0));
@@ -1134,12 +1156,39 @@ export class RoverMission {
         lookL = hp.clone().add(new THREE.Vector3(0, 0.3, 0));
         camL = hp.clone().add(new THREE.Vector3(c * 3.4 - s * 1.6, 0.9, s * 3.4 + c * 1.6));
         camL.y = Math.max(camL.y, this.ground(camL.x, -camL.z) + 0.4);
-      } else if (this.act.kind === 'drill') {
-        // off the front corner, looking at the turret on the rock
+      } else if (this.act.kind === 'drill' && this.drillFrame) {
+        // the job's own shots: the approach from behind, the arm from off the front corner,
+        // close beside the bit on the rock, and on the carousel
+        const f = this.drillFrame;
         const s = Math.sin(d.heading), c = Math.cos(d.heading);
+        const fw = new THREE.Vector3(s, 0, -c), rt = new THREE.Vector3(c, 0, s);
         const g0 = this.ground(d.e, d.n);
-        lookL = new THREE.Vector3(d.e + s * 1.5, g0 + 0.6, -(d.n + c * 1.5));
-        camL = new THREE.Vector3(d.e + s * 5.2 + c * 3.2, g0 + 2.4, -(d.n + c * 5.2 - s * 3.2));
+        const rover = new THREE.Vector3(d.e, g0, -d.n);
+        let wantCam: THREE.Vector3, wantLook: THREE.Vector3;
+        if (f.view === 'approach') {
+          wantLook = rover.clone().lerp(f.focus, 0.5).setY(g0 + 0.8);
+          wantCam = rover.clone().addScaledVector(fw, -5.5).addScaledVector(rt, 3.4).setY(g0 + 2.8);
+        } else if (f.view === 'close') {
+          wantLook = f.focus.clone().add(new THREE.Vector3(0, 0.26, 0));
+          wantCam = f.focus.clone().addScaledVector(rt, 1.7).addScaledVector(fw, 0.7).add(new THREE.Vector3(0, 0.6, 0));
+        } else if (f.view === 'dock') {
+          // (from off the right front corner, where the turret meets the carousel)
+          wantLook = f.focus.clone().addScaledVector(rt, 0.25).add(new THREE.Vector3(0, 0.05, 0));
+          wantCam = f.focus.clone().addScaledVector(fw, 1.0).addScaledVector(rt, 1.55).add(new THREE.Vector3(0, 0.3, 0));
+        } else {
+          wantLook = rover.clone().addScaledVector(fw, 1.6).setY(g0 + 0.7);
+          wantCam = rover.clone().addScaledVector(fw, 5.0).addScaledVector(rt, 3.4).setY(g0 + 2.3);
+        }
+        wantCam.y = Math.max(wantCam.y, this.ground(wantCam.x, -wantCam.z) + 0.3);
+        if (!this.jobCam) {
+          this.jobCam = camL.clone();
+          this.jobLook.copy(lookL);
+        }
+        const k = 1 - Math.exp(-dt * 1.8);
+        this.jobCam.lerp(wantCam, k);
+        this.jobLook.lerp(wantLook, k);
+        camL = this.jobCam.clone();
+        lookL = this.jobLook.clone();
       }
     }
     const toScene = (p: THREE.Vector3) => p.clone().applyMatrix4(this.site.matrixWorld);

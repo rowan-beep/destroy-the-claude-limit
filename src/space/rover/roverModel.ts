@@ -690,6 +690,43 @@ export function deployArm(r: RoverRig, k = 1): void {
   const work = [0.25, -0.35, 1.2, 0.75, 0];
   setArm(r, stow.map((s, i) => s + (work[i] - s) * k));
 }
+/** the arm's links (m): shoulder to elbow, elbow to wrist, wrist to turret, and the drill bit's tip below the turret */
+export const ARM = { upper: 1.0, fore: 0.9, turret: 0.12, bit: 0.47 };
+/** the stowed pose (driving) */
+export const ARM_STOW = STOW;
+
+/**
+ * The joint angles that put the drill bit's tip at a point (in the rover body's
+ * frame), the drill pointing straight down onto it ('down'), or pointing back
+ * at the rover ('back', to hand the bit to the carousel). The elbow rides above.
+ * Out of reach, the arm stretches as far as it can toward the point.
+ */
+export function armIK(r: RoverRig, tip: THREE.Vector3, mode: 'down' | 'back' = 'down'): number[] {
+  const S = r.arm[0].position;
+  const dx = tip.x - S.x, dy = tip.y - S.y, dz = tip.z - S.z;
+  // the azimuth: the arm's forward (-Z) swung round to face the point
+  const a0 = Math.atan2(-dx, -dz);
+  const h = Math.hypot(dx, dz);
+  // in the arm's own plane (forward, up): where the wrist must be for the tool to reach the tip
+  const ph3 = mode === 'down' ? 0 : -Math.PI / 2;
+  const tf = ARM.bit * Math.sin(ph3) + ARM.turret * Math.cos(ph3);
+  const tu = -ARM.bit * Math.cos(ph3) + ARM.turret * Math.sin(ph3);
+  let wx = h - tf, wy = dy - tu;
+  const L1 = ARM.upper, L2 = ARM.fore;
+  let d = Math.hypot(wx, wy);
+  const dMax = L1 + L2 - 0.005, dMin = Math.abs(L1 - L2) + 0.005;
+  if (d > dMax || d < dMin) {
+    const k = (d > dMax ? dMax : dMin) / Math.max(1e-6, d);
+    wx *= k;
+    wy *= k;
+    d = Math.hypot(wx, wy);
+  }
+  const ph1 = Math.atan2(wy, wx) + Math.acos(Math.max(-1, Math.min(1, (L1 * L1 + d * d - L2 * L2) / (2 * L1 * d))));
+  const ex = L1 * Math.cos(ph1), ey = L1 * Math.sin(ph1);
+  const ph2 = Math.atan2(wy - ey, wx - ex);
+  return [a0, ph1, ph2 - ph1, ph3 - ph2, 0];
+}
+
 /** joint angles: shoulder azimuth, shoulder elevation, elbow, wrist, turret */
 export function setArm(r: RoverRig, j: number[]): void {
   r.arm[0].rotation.set(0, j[0], 0);

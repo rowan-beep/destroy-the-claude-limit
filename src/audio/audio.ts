@@ -1337,6 +1337,23 @@ export class AudioEngine {
     }
   }
 
+  /** A rover arm joint motor: a thin geared whine, rising and settling (Mars's thin air keeps it quiet). */
+  servo(dur = 0.8, pitch = 1): void {
+    if (!this.ctx) return;
+    this.tone(420 * pitch, 610 * pitch, dur, 0.012, 'sawtooth', 0, this.uiBus, 1500);
+    this.tone(840 * pitch, 1220 * pitch, dur * 0.9, 0.004, 'square', 0.02, this.uiBus, 2400);
+    this.burst(this.pinkB, { type: 'bandpass', f0: 900 * pitch, f1: 1300 * pitch, q: 5, dur, vol: 0.03, attack: 0.08, bus: this.uiBus });
+  }
+
+  /** The coring drill: one blow of its percussive hammer as the bit turns. */
+  drillKnock(depth = 0): void {
+    if (!this.ctx) return;
+    const f = 160 + Math.random() * 30 - depth * 300;
+    this.tone(f, f * 0.6, 0.05, 0.05, 'triangle', 0, this.uiBus);
+    this.burst(this.brownB, { type: 'lowpass', f0: 700, f1: 200, dur: 0.06, vol: 0.12, bus: this.uiBus });
+    this.burst(this.whiteB, { type: 'bandpass', f0: 2600, f1: 1800, q: 2.5, dur: 0.025, vol: 0.03, bus: this.uiBus });
+  }
+
   /** Time warp passing a power of ten: a small glassy tick, higher each time. */
   warpTick(level: number): void {
     if (!this.ctx) return;
