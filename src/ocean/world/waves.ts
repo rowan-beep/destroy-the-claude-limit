@@ -32,7 +32,7 @@ export interface WeatherDef {
 export const WEATHERS: Record<Weather, WeatherDef> = {
   calm: { id: 'calm', label: 'CALM DAYLIGHT', amp: 0.55, chop: 0.6, sunEl: 52, sunAz: 160, zenith: [0.2, 0.42, 0.78], horizon: [0.72, 0.84, 0.94], sun: [1, 0.96, 0.9], sunI: 3.0, haze: 5200, wind: 0.25 },
   dawn: { id: 'dawn', label: 'DAWN SWELL', amp: 1.0, chop: 0.8, sunEl: 7, sunAz: 100, zenith: [0.16, 0.22, 0.46], horizon: [0.98, 0.66, 0.46], sun: [1, 0.72, 0.48], sunI: 2.2, haze: 3800, wind: 0.4 },
-  overcast: { id: 'overcast', label: 'OVERCAST, ROUGH', amp: 1.9, chop: 1.4, sunEl: 34, sunAz: 210, zenith: [0.38, 0.42, 0.47], horizon: [0.62, 0.65, 0.68], sun: [0.86, 0.88, 0.9], sunI: 1.3, haze: 2400, wind: 0.85 },
+  overcast: { id: 'overcast', label: 'OVERCAST, ROUGH', amp: 1.9, chop: 1.4, sunEl: 34, sunAz: 210, zenith: [0.62, 0.65, 0.7], horizon: [0.86, 0.88, 0.9], sun: [0.86, 0.88, 0.9], sunI: 1.3, haze: 2400, wind: 0.85 },
 };
 
 /** direction (deg, clockwise from north, the way the wave travels), wavelength (m), amplitude (m), phase */

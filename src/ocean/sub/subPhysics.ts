@@ -28,9 +28,16 @@ export interface SubSpec {
   dragF: number;
   dragL: number;
   dragV: number;
-  /** ballast pump rate (tank fraction per second) and the blow-everything rate */
+  /**
+   * Ballast (tank fraction per second): the vents flood the main tanks quickly
+   * up to `ventTo`, the trim pump does the rest slowly; the low-pressure blower
+   * empties them steadily, the emergency high-pressure air all at once.
+   */
+  ventRate: number;
+  ventTo: number;
   pumpRate: number;
   blowRate: number;
+  emergencyRate: number;
 }
 
 export const SURVEY_SUB: SubSpec = {
@@ -46,8 +53,11 @@ export const SURVEY_SUB: SubSpec = {
   dragF: 300,
   dragL: 2600,
   dragV: 1500,
-  pumpRate: 0.07,
-  blowRate: 0.45,
+  ventRate: 0.2,
+  ventTo: 0.82,
+  pumpRate: 0.05,
+  blowRate: 0.12,
+  emergencyRate: 0.45,
 };
 
 /** ballast fill where the submerged hull weighs exactly what it displaces */
@@ -183,10 +193,11 @@ export function stepSub(s: SubState, spec: SubSpec, input: SubInput, env: SubEnv
   // --- ballast pumps
   let pumping = false;
   if (input.emergencyBlow) {
-    s.ballast = Math.max(0, s.ballast - spec.blowRate * dt);
+    s.ballast = Math.max(0, s.ballast - spec.emergencyRate * dt);
     pumping = true;
   } else if (input.ballast !== 0) {
-    const nb = clamp(s.ballast + Math.sign(input.ballast) * spec.pumpRate * dt, 0, 1);
+    const rate = input.ballast > 0 ? (s.ballast < spec.ventTo ? spec.ventRate : spec.pumpRate) : spec.blowRate;
+    const nb = clamp(s.ballast + Math.sign(input.ballast) * rate * dt, 0, 1);
     pumping = nb !== s.ballast;
     s.ballast = nb;
   }

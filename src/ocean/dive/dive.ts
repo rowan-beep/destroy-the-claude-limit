@@ -114,6 +114,7 @@ export class OceanDive {
   private warnText = '';
   private warnT = 0;
   private batteryCard = false;
+  private lightHintT = 0;
   private tmp = new THREE.Vector3();
   private tmp2 = new THREE.Vector3();
 
@@ -957,6 +958,12 @@ export class OceanDive {
       }
       const scale = TIME_STEPS[this.timeIdx];
       const inp = this.input();
+      // pushing down at the surface with light tanks does nothing: say why
+      this.lightHintT -= dt;
+      if (inp.vertical < 0 && -s.y < 2.5 && s.ballast < NEUTRAL_BALLAST - 0.08 && this.lightHintT <= 0) {
+        this.lightHintT = 5;
+        this.hud.flash('TOO LIGHT TO DIVE', 'FLOOD THE TANKS: HOLD Z', 2.5);
+      }
       let bump: ReturnType<typeof stepSub> = null;
       alpha = this.stepper.advance(dt * scale, s, () => {
         const b = stepSub(s, SURVEY_SUB, inp, this.env, this.stepper.step);

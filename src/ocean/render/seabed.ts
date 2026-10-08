@@ -1,25 +1,36 @@
-// The seabed and coast as streamed chunks: four levels of detail in rings
-// round the camera, built nearest-first (and ahead of the direction of travel)
-// within a time budget per frame, swapped in without holes, and disposed of
-// when they fall out of range. Only the chunk a mesh belongs to owns its
-// geometry; the material is shared.
+// The seabed and coast as streamed tiles in a three-level quadtree round the
+// camera: 160 m tiles near (at two densities), 320 m tiles in the middle
+// distance and 640 m tiles far out, all of 24-48 cells, so the far sea bed
+// costs a few dozen draws instead of hundreds. Tiles are built nearest-first
+// (and ahead of the direction of travel) within a time budget per frame; a tile
+// that is no longer wanted stays until everything that replaces it is built, so
+// no holes open; tiles out of range are disposed of. The material is shared.
 
 import * as THREE from 'three';
 import { seabedHeight, WORLD, SITES, HARBOR } from '../world/geo';
 import { patchOceanMaterial } from './oceanMaterial';
 
 export const CHUNK = 160;
-const SEGS = [48, 24, 12, 6];
 const SKIRT = 6;
+/** tile sizes of the three levels (m) and their cells across */
+const SIZE = [160, 320, 640];
 
-interface Chunk {
+interface Tile {
   key: string;
-  i: number;
-  j: number;
   x0: number;
   z0: number;
-  mesh: THREE.Mesh | null;
-  lod: number;
+  size: number;
+  segs: number;
+  mesh: THREE.Mesh;
+}
+
+interface Want {
+  key: string;
+  x0: number;
+  z0: number;
+  size: number;
+  segs: number;
+  pri: number;
 }
 
 export interface StreamStats {
@@ -70,9 +81,9 @@ function groundColor(x: number, z: number, h: number, ny: number, out: number[],
   out[o + 2] = srgb(b);
 }
 
-/** build one chunk's geometry at a level of detail (one height sample per vertex) */
-export function buildChunkGeometry(x0: number, z0: number, segs: number): THREE.BufferGeometry {
-  const step = CHUNK / segs;
+/** build one tile's geometry (one height sample per vertex) */
+export function buildChunkGeometry(x0: number, z0: number, segs: number, size = CHUNK): THREE.BufferGeometry {
+  const step = size / segs;
   const n = segs + 1;
   // heights with a one-sample border, for normals across chunk edges
   const W = n + 2;
@@ -144,103 +155,111 @@ export function buildChunkGeometry(x0: number, z0: number, segs: number): THREE.
 export class SeabedStreamer {
   readonly group = new THREE.Group();
   readonly material: THREE.MeshLambertMaterial;
-  private chunks = new Map<string, Chunk>();
+  private tiles = new Map<string, Tile>();
   stats: StreamStats = { loaded: 0, built: 0, disposed: 0, maxBuildMs: 0, frameBuildMs: 0, stalls: 0, queued: 0, triangles: 0 };
-  /** LOD distances (m) for the finest .. coarsest level */
+  /** distances (m): the finest 160 m tiles within lod[0], 160 m tiles within lod[1], 320 m within lod[2], 640 m within lod[3] */
   lod: [number, number, number, number] = [220, 520, 1100, 2400];
   budgetMs = 3;
-  private readonly cols: number;
-  private readonly rows: number;
+  /** the tile grid's origin: 640 m tiles covering the area with a margin */
+  private readonly ox = WORLD.minX - 320;
+  private readonly oz = WORLD.minZ - 320;
+  private readonly nx = Math.ceil((WORLD.maxX - WORLD.minX + 640) / 640);
+  private readonly nz = Math.ceil((WORLD.maxZ - WORLD.minZ + 640) / 640);
 
   constructor() {
     this.material = patchOceanMaterial(new THREE.MeshLambertMaterial({ vertexColors: true }), 'seabed');
     this.group.name = 'seabed';
-    this.cols = Math.ceil((WORLD.maxX - WORLD.minX) / CHUNK) + 4;
-    this.rows = Math.ceil((WORLD.maxZ - WORLD.minZ) / CHUNK) + 4;
   }
 
-  private wantLod(d: number): number {
-    for (let k = 0; k < 4; k++) if (d < this.lod[k]) return k;
-    return -1;
+  /** the tiles wanted round (x, z): the quadtree cut by distance */
+  private wanted(x: number, z: number, ax: number, az: number): Map<string, Want> {
+    const out = new Map<string, Want>();
+    const near = (x0: number, z0: number, size: number) => {
+      const dx = Math.max(0, Math.abs(x - (x0 + size / 2)) - size / 2), dz = Math.max(0, Math.abs(z - (z0 + size / 2)) - size / 2);
+      return Math.hypot(dx, dz);
+    };
+    const add = (x0: number, z0: number, size: number, segs: number, d: number) => {
+      const key = `${size}:${x0}:${z0}:${segs}`;
+      const da = Math.hypot(ax - (x0 + size / 2), az - (z0 + size / 2)) - size / 2;
+      out.set(key, { key, x0, z0, size, segs, pri: Math.min(d, Math.max(0, da) * 0.8) });
+    };
+    const [l0, l1, l2, l3] = this.lod;
+    for (let j = 0; j < this.nz; j++) {
+      for (let i = 0; i < this.nx; i++) {
+        const x2 = this.ox + i * 640, z2 = this.oz + j * 640;
+        const d2 = near(x2, z2, 640);
+        if (d2 >= l3) continue;
+        if (d2 >= l2) {
+          add(x2, z2, 640, 24, d2);
+          continue;
+        }
+        for (let b = 0; b < 2; b++) {
+          for (let a = 0; a < 2; a++) {
+            const x1 = x2 + a * 320, z1 = z2 + b * 320;
+            const d1 = near(x1, z1, 320);
+            if (d1 >= l1) {
+              add(x1, z1, 320, 24, d1);
+              continue;
+            }
+            for (let q = 0; q < 2; q++) {
+              for (let p = 0; p < 2; p++) {
+                const x0 = x1 + p * 160, z0 = z1 + q * 160;
+                const d0 = near(x0, z0, 160);
+                add(x0, z0, 160, d0 < l0 ? 48 : 24, d0);
+              }
+            }
+          }
+        }
+      }
+    }
+    return out;
   }
 
   /**
-   * Bring the chunks round (x, z) to the right detail. `ahead` is where the
-   * vehicle will be in a few seconds: chunks near it come first.
+   * Bring the tiles round (x, z) to the right detail. `ahead` is where the
+   * vehicle will be in a few seconds: tiles near it come first.
    */
   update(x: number, z: number, aheadX: number, aheadZ: number): void {
     const t0 = performance.now();
-    const far = this.lod[3];
-    const i0 = Math.max(0, Math.floor((x - far - WORLD.minX) / CHUNK) + 2), i1 = Math.min(this.cols - 1, Math.floor((x + far - WORLD.minX) / CHUNK) + 2);
-    const j0 = Math.max(0, Math.floor((z - far - WORLD.minZ) / CHUNK) + 2), j1 = Math.min(this.rows - 1, Math.floor((z + far - WORLD.minZ) / CHUNK) + 2);
-    const todo: { c: Chunk; lod: number; pri: number }[] = [];
-    const seen = new Set<string>();
-    for (let j = j0; j <= j1; j++) {
-      for (let i = i0; i <= i1; i++) {
-        const x0 = WORLD.minX + (i - 2) * CHUNK, z0 = WORLD.minZ + (j - 2) * CHUNK;
-        const cx = x0 + CHUNK / 2, cz = z0 + CHUNK / 2;
-        // distance to the nearest point of the chunk
-        const dx = Math.max(0, Math.abs(x - cx) - CHUNK / 2), dz = Math.max(0, Math.abs(z - cz) - CHUNK / 2);
-        const d = Math.hypot(dx, dz);
-        const lod = this.wantLod(d);
-        if (lod < 0) continue;
-        const key = `${i},${j}`;
-        seen.add(key);
-        let c = this.chunks.get(key);
-        if (!c) {
-          c = { key, i, j, x0, z0, mesh: null, lod: -1 };
-          this.chunks.set(key, c);
-        }
-        if (c.lod !== lod) {
-          const da = Math.hypot(aheadX - cx, aheadZ - cz);
-          // missing chunks first, then by distance (now and ahead)
-          todo.push({ c, lod, pri: (c.mesh ? 1000 : 0) + Math.min(d, da * 0.8) });
-        }
-      }
-    }
-    // out of range: dispose
-    for (const [k, c] of this.chunks) {
-      if (seen.has(k)) continue;
-      if (c.mesh) {
-        this.group.remove(c.mesh);
-        c.mesh.geometry.dispose();
-        this.stats.disposed++;
-      }
-      this.chunks.delete(k);
-    }
-    todo.sort((a, b) => a.pri - b.pri);
-    let spent = 0;
-    for (const t of todo) {
+    const want = this.wanted(x, z, aheadX, aheadZ);
+    // build what is missing, nearest first, within the budget
+    const todo = [...want.values()].filter((w) => !this.tiles.has(w.key)).sort((a, b) => a.pri - b.pri);
+    let spent = 0, built = 0;
+    for (const w of todo) {
       if (spent > this.budgetMs) break;
       const b0 = performance.now();
-      const g = buildChunkGeometry(t.c.x0, t.c.z0, SEGS[t.lod]);
+      const g = buildChunkGeometry(w.x0, w.z0, w.segs, w.size);
       const mesh = new THREE.Mesh(g, this.material);
-      mesh.position.set(t.c.x0, 0, t.c.z0);
+      mesh.position.set(w.x0, 0, w.z0);
       mesh.matrixAutoUpdate = false;
       mesh.updateMatrix();
       mesh.receiveShadow = true;
-      // swap: the old level stays until the new one is ready
-      if (t.c.mesh) {
-        this.group.remove(t.c.mesh);
-        t.c.mesh.geometry.dispose();
-        this.stats.disposed++;
-      }
-      t.c.mesh = mesh;
-      t.c.lod = t.lod;
+      this.tiles.set(w.key, { key: w.key, x0: w.x0, z0: w.z0, size: w.size, segs: w.segs, mesh });
       this.group.add(mesh);
       this.stats.built++;
+      built++;
       const ms = performance.now() - b0;
       spent += ms;
       this.stats.maxBuildMs = Math.max(this.stats.maxBuildMs, ms);
     }
-    let loaded = 0, tris = 0;
-    for (const c of this.chunks.values()) if (c.mesh) {
-      loaded++;
-      tris += (c.mesh.geometry.index?.count ?? 0) / 3;
+    // release what is no longer wanted, once whatever covers its ground is in
+    if (built || todo.length === 0 || this.tiles.size > want.size) {
+      const missing = todo.slice(built);
+      for (const [k, t] of this.tiles) {
+        if (want.has(k)) continue;
+        const covered = !missing.some((m) => m.x0 < t.x0 + t.size && m.x0 + m.size > t.x0 && m.z0 < t.z0 + t.size && m.z0 + m.size > t.z0);
+        if (!covered) continue;
+        this.group.remove(t.mesh);
+        t.mesh.geometry.dispose();
+        this.tiles.delete(k);
+        this.stats.disposed++;
+      }
     }
-    this.stats.loaded = loaded;
+    let tris = 0;
+    for (const t of this.tiles.values()) tris += (t.mesh.geometry.index?.count ?? 0) / 3;
+    this.stats.loaded = this.tiles.size;
     this.stats.triangles = tris;
-    this.stats.queued = Math.max(0, todo.length - Math.round(spent > 0 ? 1 : 0));
+    this.stats.queued = Math.max(0, todo.length - built);
     const total = performance.now() - t0;
     this.stats.frameBuildMs = total;
     if (total > 8) this.stats.stalls++;
@@ -254,17 +273,17 @@ export class SeabedStreamer {
     this.budgetMs = b;
   }
 
-  /** chunks not yet at their wanted detail */
+  /** tiles not yet at their wanted detail */
   pending(): number {
     return this.stats.queued;
   }
 
   dispose(): void {
-    for (const c of this.chunks.values()) if (c.mesh) {
-      c.mesh.geometry.dispose();
-      this.group.remove(c.mesh);
+    for (const t of this.tiles.values()) {
+      t.mesh.geometry.dispose();
+      this.group.remove(t.mesh);
     }
-    this.chunks.clear();
+    this.tiles.clear();
     this.material.dispose();
   }
 }

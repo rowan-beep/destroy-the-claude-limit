@@ -208,6 +208,17 @@ async function boot(): Promise<void> {
       return oceanProg;
     }));
   const oceanActive = () => !!oceanProg?.active;
+  // the ocean benchmark, from the console as well as the HARBOR page: triadBench('balanced')
+  Object.assign(window, {
+    triadBench: (preset: 'performance' | 'balanced' | 'cinematic' = 'balanced', stepsPerSecond = 60) =>
+      loadOcean().then((op) => {
+        showMenus(false);
+        return op.benchmark(preset, stepsPerSecond).then((r) => {
+          showMenus(game.state === 'menu');
+          return r;
+        });
+      }),
+  });
   const setProgram = (p: Program) => {
     program = p;
     saveProgram(p);
@@ -431,7 +442,8 @@ async function boot(): Promise<void> {
     // theater and mission from loading
     if (game.state === 'loading') return;
     const step = Math.min(dt, 0.1);
-    game.renderer.adaptFrame(step);
+    // (a benchmark measures one resolution: the automatic scaling waits)
+    if (!oceanProg?.benchmarking) game.renderer.adaptFrame(step);
     const sz = game.renderer.size;
     if (spaceProg?.frame(step, sz.w, sz.h)) return;
     if (oceanProg?.frame(step, sz.w, sz.h)) return;

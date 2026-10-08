@@ -296,11 +296,51 @@ export class OceanProps {
     this.reef.name = 'reef';
     let seed = 41;
     const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    const kinds: { geo: THREE.BufferGeometry; n: number; scale: [number, number]; col: [number, number, number][] }[] = [
-      { geo: new THREE.IcosahedronGeometry(1, 1), n: 220, scale: [0.6, 1.8], col: [[0.72, 0.62, 0.42], [0.6, 0.52, 0.48], [0.78, 0.7, 0.5]] }, // brain and boulder corals
-      { geo: new THREE.ConeGeometry(0.4, 1.8, 6), n: 360, scale: [0.6, 1.6], col: [[0.86, 0.48, 0.42], [0.6, 0.42, 0.7], [0.9, 0.62, 0.32]] }, // branching corals
-      { geo: new THREE.CylinderGeometry(1.4, 0.25, 0.35, 10), n: 120, scale: [0.6, 1.8], col: [[0.64, 0.66, 0.5], [0.58, 0.5, 0.62]] }, // table corals
-      { geo: new THREE.DodecahedronGeometry(1, 0), n: 260, scale: [0.8, 3.2], col: [[0.42, 0.4, 0.37], [0.5, 0.47, 0.42]] }, // rocks
+    // (each shape is built with a white base colour; every instance gets its own tint)
+    const white = (g: THREE.BufferGeometry, k = 1) => paint(g, k, k, k, 0.08);
+    const boulder = new THREE.IcosahedronGeometry(1, 2);
+    boulder.scale(1, 0.62, 1);
+    white(boulder);
+    // staghorn: a few forking branches from a short trunk
+    const stag: THREE.BufferGeometry[] = [];
+    let bs = 77;
+    const brnd = () => ((bs = (bs * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 9; i++) {
+      const len = 0.5 + brnd() * 0.55;
+      const b = new THREE.CylinderGeometry(0.03, 0.055, len, 5);
+      b.translate(0, len / 2, 0);
+      b.rotateZ((brnd() - 0.5) * 1.3);
+      b.rotateY(brnd() * Math.PI * 2);
+      b.translate((brnd() - 0.5) * 0.3, 0, (brnd() - 0.5) * 0.3);
+      stag.push(white(b));
+      const tw = new THREE.CylinderGeometry(0.02, 0.035, len * 0.5, 4);
+      tw.translate(0, len * 0.25, 0);
+      tw.rotateZ((brnd() - 0.5) * 1.6);
+      tw.rotateY(brnd() * Math.PI * 2);
+      tw.translate((brnd() - 0.5) * 0.4, len * 0.6, (brnd() - 0.5) * 0.4);
+      stag.push(white(tw));
+    }
+    const staghorn = mergeGeometries(stag.map((g) => (g.index ? g.toNonIndexed() : g)))!;
+    // plate coral: a thin plate on a stalk
+    const plateC = mergeGeometries([white(new THREE.CylinderGeometry(1.3, 1.1, 0.1, 18).translate(0, 0.5, 0)).toNonIndexed(), white(new THREE.CylinderGeometry(0.12, 0.2, 0.5, 8).translate(0, 0.25, 0), 0.85).toNonIndexed()])!;
+    // sea fan: a half disc standing upright, both faces
+    const fanF = new THREE.CircleGeometry(1, 18, 0, Math.PI);
+    const fanB = fanF.clone().rotateY(Math.PI);
+    const fan = mergeGeometries([white(fanF).toNonIndexed(), white(fanB).toNonIndexed(), white(new THREE.CylinderGeometry(0.03, 0.04, 0.3, 4).translate(0, 0.1, 0), 0.7).toNonIndexed()])!;
+    // barrel sponge: an open barrel with a dark hollow
+    const barrel = new THREE.CylinderGeometry(0.45, 0.32, 1.1, 14, 1, true).translate(0, 0.55, 0);
+    const hollow = new THREE.CircleGeometry(0.42, 14).rotateX(-Math.PI / 2).translate(0, 0.95, 0);
+    const sponge = mergeGeometries([white(barrel).toNonIndexed(), paint(hollow, 0.18, 0.15, 0.14, 0).toNonIndexed()])!;
+    const rock = new THREE.DodecahedronGeometry(1, 1);
+    rock.scale(1, 0.7, 1);
+    white(rock);
+    const kinds: { geo: THREE.BufferGeometry; n: number; scale: [number, number]; col: [number, number, number][]; tilt: number; sink: number; wide: number }[] = [
+      { geo: boulder, n: 200, scale: [0.5, 1.7], col: [[0.72, 0.62, 0.42], [0.6, 0.52, 0.48], [0.78, 0.7, 0.5], [0.55, 0.6, 0.42]], tilt: 0.25, sink: 0.25, wide: 1 }, // brain and boulder corals
+      { geo: staghorn, n: 320, scale: [0.7, 1.5], col: [[0.86, 0.6, 0.45], [0.75, 0.5, 0.62], [0.9, 0.72, 0.42], [0.62, 0.66, 0.5]], tilt: 0.3, sink: 0.05, wide: 1 }, // staghorn
+      { geo: plateC, n: 110, scale: [0.6, 1.6], col: [[0.55, 0.48, 0.32], [0.48, 0.44, 0.3], [0.6, 0.52, 0.36]], tilt: 0.35, sink: 0.05, wide: 1 }, // plate corals
+      { geo: fan, n: 140, scale: [0.5, 1.2], col: [[0.75, 0.3, 0.42], [0.62, 0.3, 0.6], [0.9, 0.55, 0.3]], tilt: 0.15, sink: 0, wide: 1 }, // sea fans
+      { geo: sponge, n: 90, scale: [0.6, 1.5], col: [[0.62, 0.38, 0.3], [0.55, 0.45, 0.3], [0.5, 0.36, 0.42]], tilt: 0.2, sink: 0.1, wide: 1 }, // barrel sponges
+      { geo: rock, n: 240, scale: [0.8, 3.0], col: [[0.42, 0.4, 0.37], [0.5, 0.47, 0.42]], tilt: 0.5, sink: 0.35, wide: 1.8 }, // rocks
     ];
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), e = new THREE.Euler();
     const c = new THREE.Color();
@@ -315,22 +355,23 @@ export class OceanProps {
       // (coral grows on the tops and shoulders of the knolls, not in the sand between)
       const around = (seabedHeight(x + 18, z) + seabedHeight(x - 18, z) + seabedHeight(x, z + 18) + seabedHeight(x, z - 18)) / 4;
       if (h - around < 0.4 && tries < 3000) continue;
-      patches.push({ x, z, r: 7 + rnd() * 12 });
+      patches.push({ x, z, r: 5 + rnd() * 8 });
     }
     for (const k of kinds) {
-      const n = Math.round(k.n * 1.6 * decor);
+      // (rocks are fewer; the coral crowds its patches)
+      const n = Math.round(k.n * (k.wide > 1 ? 1.4 : 2.6) * decor);
       if (!n || !patches.length) continue;
       const im = new THREE.InstancedMesh(k.geo, this.mats.painted, n);
       for (let i = 0; i < n; i++) {
         const pt = patches[Math.floor(rnd() * patches.length)];
         // (rocks scatter wider than the living coral)
-        const spread = k.n === 260 ? pt.r * 1.8 : pt.r;
+        const spread = pt.r * k.wide;
         const a = rnd() * Math.PI * 2, r = Math.sqrt(rnd()) * spread;
         const x = pt.x + Math.cos(a) * r, z = pt.z + Math.sin(a) * r;
         const h = seabedHeight(x, z);
         const sc = k.scale[0] + rnd() * (k.scale[1] - k.scale[0]);
-        p.set(x, h + sc * 0.3, z);
-        e.set((rnd() - 0.5) * 0.4, rnd() * 6.28, (rnd() - 0.5) * 0.4);
+        p.set(x, h - sc * k.sink, z);
+        e.set((rnd() - 0.5) * k.tilt, rnd() * 6.28, (rnd() - 0.5) * k.tilt);
         q.setFromEuler(e);
         s.set(sc, sc * (0.7 + rnd() * 0.6), sc);
         m.compose(p, q, s);
@@ -339,8 +380,6 @@ export class OceanProps {
         c.setRGB(srgb(cc[0]), srgb(cc[1]), srgb(cc[2]));
         im.setColorAt(i, c);
       }
-      // (vertex colours: the instance colour multiplies a white base)
-      paint(k.geo, 1, 1, 1, 0.08);
       im.instanceMatrix.needsUpdate = true;
       if (im.instanceColor) im.instanceColor.needsUpdate = true;
       im.computeBoundingSphere();

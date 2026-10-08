@@ -34,6 +34,8 @@ interface BenchRun {
   resolve: (r: BenchResult) => void;
   calls: number;
   tris: number;
+  /** route steps per second of the route (60: every frame a 60th of a second along it) */
+  sps: number;
 }
 
 const heapMB = (): number | null => {
@@ -59,6 +61,11 @@ export class OceanProgram {
 
   get active(): boolean {
     return this.dive.active || !!this.bench;
+  }
+
+  /** the benchmark is running (the automatic resolution must hold still for it) */
+  get benchmarking(): boolean {
+    return !!this.bench;
   }
 
   start(mode: DiveMode, resume: boolean): void {
@@ -107,14 +114,19 @@ export class OceanProgram {
   }
 
   // ------------------------------------------------------------------ benchmark
-  /** run the benchmark route on a preset; resolves with the measurements */
-  benchmark(preset: OceanPreset): Promise<BenchResult> {
+  /**
+   * Run the benchmark route on a preset; resolves with the measurements. The
+   * route is always the same path; `stepsPerSecond` sets how finely it is
+   * sampled (60 frames for each second of route by default; a slow machine can
+   * use fewer, the same path in fewer frames).
+   */
+  benchmark(preset: OceanPreset, stepsPerSecond = 60): Promise<BenchResult> {
     return new Promise((resolve) => {
       this.world.setPreset(preset);
       this.host.setRenderScale(PRESETS[preset].renderScale);
       const r = this.host.renderer();
       r.info.autoReset = false;
-      this.bench = { seg: 0, t: 0, last: performance.now(), intervals: [], work: [], all: [], allWork: [], results: [], heapStart: heapMB(), preset, resolve, calls: 0, tris: 0 };
+      this.bench = { seg: 0, t: 0, last: performance.now(), intervals: [], work: [], all: [], allWork: [], results: [], heapStart: heapMB(), preset, resolve, calls: 0, tris: 0, sps: Math.max(5, Math.min(120, stepsPerSecond)) };
       this.enterSegment(0);
     });
   }
@@ -135,7 +147,7 @@ export class OceanProgram {
     b.last = now;
     const seg = BENCH_ROUTE[b.seg];
     // fixed time steps: the same path whatever the frame rate
-    const dt = 1 / 60;
+    const dt = 1 / b.sps;
     b.t += dt;
     const f = Math.min(1, b.t / seg.seconds);
     const p = seg.pose(f);
@@ -198,6 +210,7 @@ export class OceanProgram {
     const size = r.getSize(new THREE.Vector2());
     const res: BenchResult = {
       preset: b.preset,
+      stepsPerSecond: b.sps,
       width: Math.round(size.x * r.getPixelRatio()),
       height: Math.round(size.y * r.getPixelRatio()),
       pixelRatio: r.getPixelRatio(),

@@ -9,6 +9,7 @@ import { OceanSurface, SKY } from './water';
 import { OceanProps } from './props';
 import { OceanFx, LAMPS } from './fx';
 import { SubModel } from './subModel';
+import { FishSchools } from './fish';
 import { OCEAN_FX, daylightAt } from './oceanMaterial';
 import { WEATHERS, Weather, WeatherDef, surfaceHeight } from '../world/waves';
 import { PRESETS, OceanPreset, PresetDef } from '../perf/presets';
@@ -43,6 +44,7 @@ export class OceanWorld {
   readonly props: OceanProps;
   readonly fx: OceanFx;
   readonly sub: SubModel;
+  private fish: FishSchools | null = null;
   readonly sun = new THREE.DirectionalLight(0xffffff, 3);
   readonly hemi = new THREE.HemisphereLight(0xffffff, 0x334455, 1);
   weather: WeatherDef = WEATHERS.dawn;
@@ -89,7 +91,8 @@ export class OceanWorld {
     SKY.uZenith.value.setRGB(...d.zenith);
     SKY.uHorizon.value.setRGB(...d.horizon);
     SKY.uSunColor.value.setRGB(...d.sun);
-    SKY.uSunI.value = d.sunI * 0.6;
+    // (the sky's brightness in the picture's light units: full sun is 3)
+    SKY.uSunI.value = d.sunI * 0.33;
     this.sun.color.setRGB(...d.sun);
     this.sun.intensity = d.sunI;
     this.hemi.color.setRGB(d.zenith[0] * 0.6 + 0.4, d.zenith[1] * 0.6 + 0.4, d.zenith[2] * 0.6 + 0.4);
@@ -118,6 +121,14 @@ export class OceanWorld {
     this.seabed.budgetMs = d.buildBudgetMs;
     if (old.waterRings !== d.waterRings || old.waterSegs !== d.waterSegs) this.surface.setDetail(d.waterRings, d.waterSegs);
     if (old.decor !== d.decor) this.props.setDecor(d.decor);
+    if (!this.fish || old.fish !== d.fish) {
+      if (this.fish) {
+        this.scene.remove(this.fish.mesh);
+        this.fish.dispose();
+      }
+      this.fish = new FishSchools(d.fish);
+      this.scene.add(this.fish.mesh);
+    }
     this.fx.setCounts({ snow: d.snow, bubbles: d.bubbles, shafts: d.shafts });
     this.surface.material.uniforms.uFoam.value = d.foam ? 1 : 0;
     OCEAN_FX.uCaust.value = d.caustics ? 1 : 0;
@@ -161,6 +172,7 @@ export class OceanWorld {
     this.seabed.update(cp.x, cp.z, ahead.x, ahead.z);
     this.surface.update(cp, opts.boat, dt);
     this.props.update(cp.x, cp.z, this.t, dt);
+    this.fish?.update(cp);
     // the sun's shadow box follows the camera
     this.sun.position.set(cp.x + this.sunDir.x * 200, cp.y + this.sunDir.y * 200, cp.z + this.sunDir.z * 200);
     this.sun.target.position.copy(cp);
@@ -247,6 +259,7 @@ export class OceanWorld {
     this.props.dispose();
     this.fx.dispose();
     this.sub.dispose();
+    this.fish?.dispose();
     this.sun.shadow.map?.dispose();
   }
 }

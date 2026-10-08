@@ -158,6 +158,8 @@ export interface SegmentResult extends FrameStats {
 
 export interface BenchResult {
   preset: string;
+  /** frames per second of route (60 = every frame a 60th of a second along the path) */
+  stepsPerSecond: number;
   width: number;
   height: number;
   pixelRatio: number;
