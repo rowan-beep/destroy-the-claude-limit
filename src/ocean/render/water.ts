@@ -35,7 +35,7 @@ vec3 skyColor( vec3 d, bool disc ) {
   vec2 hs = uSunDir.xz / max( length( uSunDir.xz ), 1e-4 );
   float side = dot( hd, hs ) * 0.5 + 0.5;
   float lowSun = 1.0 - smoothstep( 0.15, 0.7, uSunDir.y );
-  vec3 hor = mix( uHorizon, uZenith * 1.25 + vec3( 0.12 ), lowSun * ( 1.0 - side * side ) * 0.85 );
+  vec3 hor = mix( uHorizon, uZenith * 0.95 + vec3( 0.04 ), lowSun * ( 1.0 - side * side ) * 0.9 );
   vec3 c = mix( hor, uZenith, pow( y, 0.45 ) );
   float mu = max( dot( d, uSunDir ), 0.0 );
   // forward scattering round the sun
@@ -184,12 +184,17 @@ void main() {
     if ( uFoam > 0.0 ) {
       foam += smoothstep( 0.75, 1.05, vCrest / max( waveAmp, 0.2 ) ) * smoothstep( 1.2, 1.8, waveAmp ) * 0.7;
       foam += ( 1.0 - smoothstep( 0.1, 0.7, column ) ) * step( 0.05, column ) * 0.7;
+      // the wake: each mark a spreading ring of broken water, thin and streaky, fading as it spreads
+      float wk = 0.0;
       for ( int i = 0; i < 16; i++ ) {
         vec4 w = uWake[ i ];
         if ( w.w <= 0.0 ) continue;
         float d = length( vWorld.xz - w.xy );
-        foam += ( 1.0 - smoothstep( w.z * 0.4, w.z, d ) ) * w.w;
+        float ring = 1.0 - smoothstep( 0.0, 0.9, abs( d - w.z ) );
+        float core = 1.0 - smoothstep( 0.0, 1.6, d );
+        wk = max( wk, ( ring * 0.55 + core * 0.35 ) * w.w );
       }
+      foam += wk * smoothstep( 0.35, 0.75, texture2D( uRipple, vWorld.xz / 1.7 + time * 0.03 ).g );
       float grain = texture2D( uRipple, vWorld.xz / 3.1 + time * 0.05 ).r;
       foam = clamp( foam * ( 0.55 + 0.9 * grain ), 0.0, 1.0 ) * uFoam;
     }
@@ -323,17 +328,17 @@ export class OceanSurface {
   update(cam: THREE.Vector3, boat: { x: number; z: number; speed: number; surfaced: boolean } | null, dt: number): void {
     (this.material.uniforms.uCam.value as THREE.Vector3).copy(cam);
     this.sky.position.copy(cam);
-    for (const w of this.wake) w.w = Math.max(0, w.w - dt * 0.08);
+    for (const w of this.wake) w.w = Math.max(0, w.w - dt * 0.05);
     if (boat && boat.surfaced && boat.speed > 0.4) {
       if (Math.hypot(boat.x - this.wakeLast.x, boat.z - this.wakeLast.y) > 6) {
         this.wakeLast.set(boat.x, boat.z);
         const w = this.wake[this.wakeHead];
-        w.set(boat.x, boat.z, 3 + boat.speed * 1.5, Math.min(1, boat.speed / 2));
+        w.set(boat.x, boat.z, 1.2, Math.min(0.8, boat.speed / 2.5));
         this.wakeHead = (this.wakeHead + 1) % this.wake.length;
       }
     }
     // older wake spreads out
-    for (const w of this.wake) if (w.w > 0) w.z += dt * 0.6;
+    for (const w of this.wake) if (w.w > 0) w.z += dt * 0.9;
   }
 
   dispose(): void {

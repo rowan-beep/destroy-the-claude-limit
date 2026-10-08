@@ -1,5 +1,6 @@
 // Loading screen, pause menu, results screen, controls reference.
 
+import { OCEAN_KEY_SECTIONS } from '../../ocean/keys';
 import { renderDebrief } from './debrief';
 import type { MapData } from '../../world/mapData';
 import { el, clearEl, button } from '../dom';
@@ -191,6 +192,22 @@ export class ControlsModal {
       el('h3', 'keys-h', this.body, title);
       const g = el('div', 'bind-grid keys-ro', this.body);
       for (const [k, t] of rows) {
+        el('div', '', g, t);
+        el('div', 'bk', g, k);
+      }
+    }
+  }
+  /** the ocean's keys (the jet's are not used there) */
+  showOcean(): void {
+    this.root.classList.remove('hidden');
+    clearEl(this.body);
+    el('div', 'note', this.body, 'The same keys are in every dive: press H or the ? button. Drag to look round; the wheel zooms the chase camera.');
+    for (const rows of OCEAN_KEY_SECTIONS) {
+      const g0 = rows.find(([k]) => k === '#');
+      if (g0) el('h3', 'keys-h', this.body, g0[1]);
+      const g = el('div', 'bind-grid keys-ro', this.body);
+      for (const [k, t] of rows) {
+        if (k === '#') continue;
         el('div', '', g, t);
         el('div', 'bk', g, k);
       }

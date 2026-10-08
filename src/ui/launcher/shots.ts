@@ -55,6 +55,8 @@ export const SHOTS: Record<Program, Shot[]> = {
     { file: '19.webp', caption: "SATURN · THE RINGS" },
     { file: '20.webp', caption: "JUPITER · THE GIANT" },
   ],
+  // (taken in the game, like the others; none yet: the picker and the loading screen use their gradient)
+  ocean: [],
 };
 
 export function shotUrl(p: Program, s: Shot): string {

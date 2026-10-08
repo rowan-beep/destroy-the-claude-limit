@@ -1,5 +1,5 @@
-// The facts shown along the bottom of the loading screen: a hundred for each
-// program (two hundred in all), one at a time.
+// The facts shown along the bottom of the loading screen, one at a time: a
+// hundred each for the air and space programs, thirty for the ocean.
 
 export const AIR_FACTS: string[] = [
   'The SR-71 Blackbird still holds the speed record for a crewed air-breathing jet: 2,193 mph, set in 1976.',
@@ -204,4 +204,37 @@ export const SPACE_FACTS: string[] = [
   'Astronauts drove the Lunar Roving Vehicle on Apollo 15, 16 and 17.',
   "After an oxygen tank exploded, Apollo 13's crew came home safely in 1970, using their lunar module as a lifeboat.",
   'At the top time warp of 1,000,000×, a whole month goes by in under three seconds.',
+];
+
+export const OCEAN_FACTS: string[] = [
+  'Sound travels through seawater at about 1,500 m/s, more than four times faster than through air.',
+  'Seawater absorbs red light first: ten metres down most of it is gone, which is why photographs without a lamp look blue-green.',
+  'Water absorbs blue light least, which is why deep water looks blue.',
+  'In the clearest ocean water, enough sunlight for plants reaches about 200 m down. Below that is the twilight zone.',
+  'Below about 1,000 m no sunlight is left at all: the midnight zone.',
+  'Every 10 m of seawater adds about one atmosphere of pressure.',
+  "Seen from under a calm surface, the whole sky is squeezed into a circle about 97 degrees across: Snell's window.",
+  "Outside Snell's window the underside of the surface is a mirror: light from below is totally reflected.",
+  'The dancing net of light on a shallow sea bed is sunlight focused by the curved surfaces of the waves.',
+  'The underwater locator beacons on flight recorders send a 37.5 kHz pulse about once a second.',
+  'Seawater absorbs high-pitched sound far more than low: about 1 dB per kilometre at 10 kHz, about 10 dB at 37.5 kHz.',
+  "Thorp's formula, published in 1967, is still a good estimate of how seawater absorbs sound at sonar frequencies.",
+  "Knudsen's curves, from 1948, describe how the background noise of the sea rises with the wind and the waves.",
+  'Passive sonar only listens. Active sonar sends out a pulse and listens for echoes, and tells everyone where it was sent from.',
+  'Two bearings on the same sound, taken from two different places, cross where the sound comes from.',
+  'A submersible floods its ballast tanks to grow heavier and dive, and blows compressed air into them to rise.',
+  'A boat that weighs exactly as much as the water it displaces neither rises nor sinks: it is neutrally buoyant.',
+  "Marine snow is a steady fall of organic specks from the sunlit water above. It can take weeks to reach the deep sea floor.",
+  'In deep water a wave travels at a speed set by its length alone: a 100 m swell moves at about 12.5 m/s.',
+  'Sea state 4, "moderate", means waves from 1.25 to 2.5 m high.',
+  'Seawater freezes at about −1.9 °C, colder than fresh water, because of the salt in it.',
+  'The SOFAR channel, a layer about 1,000 m down where sound is slowest, can carry low sounds across whole ocean basins.',
+  'Giant kelp can grow more than half a metre in a day.',
+  'Coral reefs cover well under one percent of the sea floor but are home to about a quarter of all known marine species.',
+  'The deepest point of the ocean, the Challenger Deep in the Mariana Trench, is nearly 11,000 m down.',
+  "In 1960 Jacques Piccard and Don Walsh reached the bottom of the Challenger Deep in the bathyscaphe Trieste.",
+  'In 2012 James Cameron dived alone to the bottom of the Challenger Deep in Deepsea Challenger.',
+  "The research submersible Alvin has made more than 5,000 dives since 1964, including to the wreck of Titanic in 1986.",
+  'The wreck of Titanic lies about 3,800 m down in the North Atlantic.',
+  'The speed of sound in seawater rises with temperature, with salt and with pressure.',
 ];

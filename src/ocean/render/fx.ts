@@ -185,23 +185,25 @@ varying float vA;
 varying float vKind;
 void main() {
   float age = uNow - aBorn;
-  // drawn as the wavefront passes, then fading over 25 s
-  vA = step( 0.0, age ) * ( 1.0 - smoothstep( 4.0, 25.0, age ) );
-  vKind = aKind;
   vec4 mv = modelViewMatrix * vec4( position, 1.0 );
+  // drawn as the wavefront passes, then fading over 25 s; kept out of the camera's face
+  vA = step( 0.0, age ) * ( 1.0 - smoothstep( 4.0, 25.0, age ) ) * smoothstep( 2.0, 7.0, -mv.z );
+  vKind = aKind;
   gl_Position = projectionMatrix * mv;
-  gl_PointSize = clamp( ( aKind > 0.5 ? 0.5 : 0.35 ) * uPx / max( -mv.z, 0.1 ), 1.5, 9.0 );
+  gl_PointSize = clamp( ( aKind > 0.5 ? 0.22 : 0.13 ) * uPx / max( -mv.z, 0.1 ), 1.5, aKind > 0.5 ? 6.0 : 4.0 );
 }
 `;
 const SONAR_FRAG = /* glsl */ `
 uniform sampler2D uDot;
+uniform float uExpInv;
 varying float vA;
 varying float vKind;
 void main() {
   float a = texture2D( uDot, gl_PointCoord ).a * vA;
   if ( a < 0.01 ) discard;
-  vec3 c = vKind > 0.5 ? vec3( 1.0, 0.78, 0.35 ) : vec3( 0.25, 0.85, 1.0 );
-  gl_FragColor = vec4( c * a * 0.9, 0.0 );
+  // (a display overlay: the same brightness whatever the camera's exposure)
+  vec3 c = vKind > 0.5 ? vec3( 1.0, 0.72, 0.3 ) : vec3( 0.2, 0.75, 0.95 );
+  gl_FragColor = vec4( c * a * 0.55 * uExpInv, 0.0 );
 }
 `;
 
@@ -417,7 +419,7 @@ void main() {
     this.sonarMat = new THREE.ShaderMaterial({
       vertexShader: SONAR_VERT,
       fragmentShader: SONAR_FRAG,
-      uniforms: { uNow: { value: 0 }, uPx: this.snowMat.uniforms.uPx, uDot: { value: this.dot } },
+      uniforms: { uNow: { value: 0 }, uPx: this.snowMat.uniforms.uPx, uDot: { value: this.dot }, uExpInv: { value: 1 } },
       transparent: true,
       depthWrite: false,
       blending: THREE.CustomBlending,
@@ -515,6 +517,11 @@ void main() {
     g.attributes.position.needsUpdate = true;
     g.attributes.aBorn.needsUpdate = true;
     g.attributes.aKind.needsUpdate = true;
+  }
+
+  /** the camera's exposure (the overlay keeps its brightness under it) */
+  setExposure(e: number): void {
+    this.sonarMat.uniforms.uExpInv.value = 1 / Math.max(1, e);
   }
 
   clearSonar(): void {

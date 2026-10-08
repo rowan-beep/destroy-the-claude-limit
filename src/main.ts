@@ -20,6 +20,8 @@ import { loadSpotterLog } from './game/spotterBook';
 import { SpaceMenu } from './ui/menu/spaceMenu';
 import { menuMusic } from './audio/menuMusic';
 import type { SpaceProgram } from './space/spaceProgram';
+import type { OceanProgram } from './ocean/oceanProgram';
+import { OceanMenu } from './ui/menu/oceanMenu';
 import { loadProgram, saveProgram, Program } from './ui/menu/program';
 import { LoadingScreen, PauseMenu, ResultsScreen, ControlsModal, BriefingModal } from './ui/menu/screens';
 import { SettingsModal } from './ui/menu/settingsModal';
@@ -180,6 +182,32 @@ async function boot(): Promise<void> {
       return spaceProg;
     }));
   const spaceActive = () => !!spaceProg?.active;
+  // the ocean program's code too, the first time it is needed
+  let oceanProg: OceanProgram | null = null;
+  let oceanLoading: Promise<OceanProgram> | null = null;
+  /** a preset's render scale on top of the player's own (applied only when it changes) */
+  const setRenderScale = (k: number) => {
+    const want = settings.graphics.resolutionScale * k;
+    if (Math.abs(game.renderer.settings.resolutionScale - want) > 1e-6) game.renderer.applySettings({ resolutionScale: want });
+  };
+  const loadOcean = (): Promise<OceanProgram> =>
+    (oceanLoading ??= import('./ocean/oceanProgram').then((m) => {
+      oceanProg = new m.OceanProgram({
+        renderer: () => game.renderer.renderer,
+        draw: (sc, cam, exposure) => {
+          const r = game.renderer.renderer;
+          const e = r.toneMappingExposure;
+          r.toneMappingExposure = e * exposure;
+          game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping);
+          r.toneMappingExposure = e;
+        },
+        setRenderScale,
+        onExit: () => showMenus(game.state === 'menu'),
+      });
+      showMenus(game.state === 'menu');
+      return oceanProg;
+    }));
+  const oceanActive = () => !!oceanProg?.active;
   const setProgram = (p: Program) => {
     program = p;
     saveProgram(p);
@@ -187,16 +215,21 @@ async function boot(): Promise<void> {
     audio.click();
     showMenus(game.state === 'menu');
     if (p === 'air') hangar.setJet(menu.cfg.aircraft, menu.cfg.loadoutId);
+    // (the ocean's render scale belongs to the ocean)
+    if (p !== 'ocean') setRenderScale(1);
   };
   Object.assign(window, { __music: menuMusic });
   const showMenus = (v: boolean) => {
     const space = program === 'space';
-    if (spaceActive()) v = false;
-    menu.show(v && !space);
+    const ocean = program === 'ocean';
+    if (spaceActive() || oceanActive()) v = false;
+    menu.show(v && !space && !ocean);
     spaceMenu.show(v && space);
+    oceanMenu.show(v && ocean);
     if (spaceProg) {
       if (spaceProg.builtSite || (v && space)) spaceProg.factory().active = v && space;
     } else if (v && space) void loadSpace();
+    if (!oceanProg && v && ocean) void loadOcean();
   };
   const spaceMenu = new SpaceMenu(document.body, {
     onProgram: (p) => setProgram(p),
@@ -214,6 +247,30 @@ async function boot(): Promise<void> {
       }),
     onLaunchMission: (id) => startSpace((sp) => sp.launch.start(id)),
     onExplore: () => startSpace((sp) => sp.explorer.start()),
+  });
+  const oceanMenu = new OceanMenu(document.body, {
+    onProgram: (p) => setProgram(p),
+    onSettings: () => {
+      audio.init();
+      settingsModal.show(true);
+    },
+    onControls: () => controls.showOcean(),
+    onDive: (mode, resume) => {
+      audio.init();
+      audio.click();
+      void loadOcean().then((op) => {
+        op.start(mode, resume);
+        showMenus(false);
+      });
+    },
+    onBenchmark: (preset) =>
+      loadOcean().then((op) => {
+        showMenus(false);
+        return op.benchmark(preset).then((r) => {
+          showMenus(game.state === 'menu');
+          return r;
+        });
+      }),
   });
   /** start something in the space program (loading its code first, the first time) */
   function startSpace(go: (sp: SpaceProgram) => void): void {
@@ -377,10 +434,14 @@ async function boot(): Promise<void> {
     game.renderer.adaptFrame(step);
     const sz = game.renderer.size;
     if (spaceProg?.frame(step, sz.w, sz.h)) return;
+    if (oceanProg?.frame(step, sz.w, sz.h)) return;
     if (program === 'space') {
       // (until its code has loaded, the space program's backdrop waits)
       if (spaceProg) spaceProg.factory().render(step, sz.w, sz.h);
       else void loadSpace();
+    } else if (program === 'ocean') {
+      if (oceanProg) oceanProg.renderMenu(step, sz.w, sz.h);
+      else void loadOcean();
     } else hangar.render(step, sz.w, sz.h);
   };
   game.onAfterFrame = (dt) => {
@@ -431,6 +492,17 @@ async function boot(): Promise<void> {
       progress(0.5, 'GENERATING THE THEATER');
       await Promise.race([game.ensureWorld((f, l) => progress(0.5 + f * 0.48, l)), new Promise((r) => setTimeout(r, 20000))]);
       progress(1, 'READY');
+    } else if (p === 'ocean') {
+      progress(0.03, 'LOADING THE OCEAN');
+      const op = await loadOcean();
+      progress(0.4, 'SOUNDING THE HARBOR');
+      await breathe();
+      // its shaders compiled before the first frame, then one frame drawn behind the screen
+      await game.renderer.compileFor(op.world.scene, op.world.scene, op.world.camera).catch(() => undefined);
+      progress(0.8, 'CHARGING THE BATTERY');
+      op.renderMenu(0, sz.w, sz.h);
+      await breathe();
+      progress(1, 'READY');
     } else {
       progress(0.03, 'LOADING THE SPACE PROGRAM');
       const sp = await loadSpace();
@@ -468,9 +540,10 @@ async function boot(): Promise<void> {
   // fetch the space program's code in the background once the jets are up, so
   // switching to it later is instant (it is not built until it is opened)
   setTimeout(() => void import('./space/spaceProgram').catch(() => undefined), 15000);
+  setTimeout(() => void import('./ocean/oceanProgram').catch(() => undefined), 25000);
   // new versions install themselves: straight away in the menu, or once you are back from a flight
   watchForUpdates(
-    () => game.state === 'menu' && !customize.open && !library.open && !spaceActive(),
+    () => game.state === 'menu' && !customize.open && !library.open && !spaceActive() && !oceanActive(),
     () => {
       if (game.state !== 'menu') game.message('A NEW VERSION IS READY: IT INSTALLS WHEN YOU RETURN TO THE MENU', 'info', 10);
     },

@@ -1362,6 +1362,11 @@ export class AudioEngine {
     this.tone(f * 2, f * 3, 0.1, 0.006, 'sine', 0.02, this.uiBus);
   }
 
+  /** the effects bus, for a program that makes its own sounds (the ocean); null before init */
+  get fxOut(): AudioNode | null {
+    return this.ctx ? this.fxBus : null;
+  }
+
   /** Soft switch tick. */
   click(): void {
     if (!this.ctx) return;

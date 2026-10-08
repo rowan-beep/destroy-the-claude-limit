@@ -3,6 +3,8 @@
 // and in the water shader (the vertices), so both always agree. Fine ripples
 // are shading only. Three authored weathers scale the same waves.
 
+import { HARBOR } from './geo';
+
 export type Weather = 'calm' | 'dawn' | 'overcast';
 
 export interface WeatherDef {
@@ -49,18 +51,31 @@ export const WAVE_TABLE = BASE.map(([dir, len, amp, ph]) => {
   return { kx: Math.sin(dir * DEG) * k, kz: -Math.cos(dir * DEG) * k, w: Math.sqrt(G * k), amp, ph, len };
 });
 
+const SHELTER = 0.2;
+const SHELTER_EDGE = 45;
+/** the breakwater's shelter: inside the basin the swell is a fifth of the open sea's, easing in over 45 m */
+export function shelterAt(x: number, z: number): number {
+  const b = HARBOR.basin;
+  const inside = Math.min(x - b.minX, b.maxX - x, z - b.minZ, b.maxZ - z);
+  if (inside <= 0) return 1;
+  const k = Math.min(1, inside / SHELTER_EDGE);
+  return 1 - (1 - SHELTER) * k * k * (3 - 2 * k);
+}
+
 /** sea surface height (m) at x, z and time t, for weather amplitude scale `amp` */
 export function surfaceHeight(x: number, z: number, t: number, amp: number): number {
   let h = 0;
-  for (const s of WAVE_TABLE) h += s.amp * amp * Math.sin(s.kx * x + s.kz * z - s.w * t + s.ph);
+  const a = amp * shelterAt(x, z);
+  for (const s of WAVE_TABLE) h += s.amp * a * Math.sin(s.kx * x + s.kz * z - s.w * t + s.ph);
   return h;
 }
 
 /** surface slope (dh/dx, dh/dz) for floating attitude */
 export function surfaceSlope(x: number, z: number, t: number, amp: number): [number, number] {
   let dx = 0, dz = 0;
+  const a = amp * shelterAt(x, z);
   for (const s of WAVE_TABLE) {
-    const c = s.amp * amp * Math.cos(s.kx * x + s.kz * z - s.w * t + s.ph);
+    const c = s.amp * a * Math.cos(s.kx * x + s.kz * z - s.w * t + s.ph);
     dx += c * s.kx;
     dz += c * s.kz;
   }
@@ -75,10 +90,17 @@ export function wavesGlsl(): string {
       ` float q = ${s.kx.toFixed(6)} * p.x + ${s.kz.toFixed(6)} * p.y - ${s.w.toFixed(6)} * t + ${s.ph.toFixed(3)};` +
       ` h += a * sin( q ); d += a * cos( q ) * vec2( ${s.kx.toFixed(6)}, ${s.kz.toFixed(6)} ); }`,
   );
+  const b = HARBOR.basin;
   return `
+float oceanShelter( vec2 p ) {
+  float inside = min( min( p.x - ${b.minX.toFixed(1)}, ${b.maxX.toFixed(1)} - p.x ), min( p.y - ${b.minZ.toFixed(1)}, ${b.maxZ.toFixed(1)} - p.y ) );
+  if ( inside <= 0.0 ) return 1.0;
+  return 1.0 - ${(1 - SHELTER).toFixed(3)} * smoothstep( 0.0, ${SHELTER_EDGE.toFixed(1)}, inside );
+}
 vec3 oceanWaves( vec2 p, float t, float dist ) {
   float h = 0.0; vec2 d = vec2( 0.0 );
-${lines.join('\n')}
+  float waveAmpS = waveAmp * oceanShelter( p );
+${lines.join('\n').replace(/waveAmp \* f/g, 'waveAmpS * f')}
   return vec3( h, d );
 }
 `;

@@ -119,6 +119,7 @@ export class OceanProps {
   /** the recorder's beacon light (blinks with its pulses) */
   readonly beacon: THREE.Mesh;
   readonly recorder: THREE.Group;
+  private recorderHome: { position: THREE.Vector3; quaternion: THREE.Quaternion };
   readonly plate: THREE.Mesh;
   private beaconMat: THREE.MeshBasicMaterial;
   private lights: { mesh: THREE.Mesh; period: number; phase: number }[] = [];
@@ -141,7 +142,10 @@ export class OceanProps {
     // the recorder capsule and its beacon (always present: it is the mission's object)
     this.beaconMat = new THREE.MeshBasicMaterial({ color: 0x9fe8ff });
     this.recorder = this.buildRecorder();
+    this.recorderHome = { position: this.recorder.position.clone(), quaternion: this.recorder.quaternion.clone() };
     this.beacon = this.recorder.getObjectByName('beacon') as THREE.Mesh;
+    // (a locator beacon is heard, not seen: no light)
+    this.beacon.visible = false;
     this.group.add(this.recorder);
     // the stern plate (always present: it is scanned)
     this.plate = this.buildPlate();
@@ -548,6 +552,14 @@ export class OceanProps {
     this.kelpTime.value = t;
     for (const l of this.lights) l.mesh.visible = (t + l.phase) % l.period < 0.6;
     void dt;
+  }
+
+  /** put the recorder back where it lies (a restarted expedition) */
+  resetRecorder(): void {
+    if (this.recorder.parent !== this.group) this.group.add(this.recorder);
+    this.recorder.position.copy(this.recorderHome.position);
+    this.recorder.quaternion.copy(this.recorderHome.quaternion);
+    this.recorder.scale.set(1, 1, 1);
   }
 
   /** the beacon flashes with each pulse it sends */

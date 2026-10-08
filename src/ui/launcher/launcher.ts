@@ -9,7 +9,7 @@ import { el } from '../dom';
 import type { Program } from '../menu/program';
 import { menuMusic } from '../../audio/menuMusic';
 import { audio } from '../../audio/audio';
-import { AIR_FACTS, SPACE_FACTS } from './facts';
+import { AIR_FACTS, SPACE_FACTS, OCEAN_FACTS } from './facts';
 import { SHOTS, Shot, shotUrl } from './shots';
 import { markPicked } from './introSkip';
 
@@ -37,22 +37,27 @@ const CSS = /* css */ `
 .tl-side:hover .bg,.tl-side.sel .bg{filter:brightness(.85) saturate(1.1)}
 .tl-side.air .fb{background:radial-gradient(120% 90% at 30% 70%,#d9733a 0%,#5a2a3c 38%,#101a33 70%,#04060c 100%)}
 .tl-side.space .fb{background:radial-gradient(90% 70% at 70% 40%,#2b3d6e 0%,#0c1430 45%,#020309 80%),#020309}
+.tl-side.ocean .fb{background:radial-gradient(110% 80% at 60% 20%,#2f8f9a 0%,#0d4157 34%,#06192b 68%,#02060c 100%)}
 .tl-side .fb{position:absolute;inset:0}
 .tl-side::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,#0008 0%,#0000 30%,#0000 55%,#000c 100%);pointer-events:none}
 .tl-side.air{clip-path:polygon(0 0,100% 0,calc(100% - 6vh) 100%,0 100%);margin-right:-3vh}
-.tl-side.space{clip-path:polygon(6vh 0,100% 0,100% 100%,0 100%);margin-left:-3vh}
+.tl-side.space{clip-path:polygon(6vh 0,100% 0,calc(100% - 6vh) 100%,0 100%);margin:0 -3vh}
+.tl-side.ocean{clip-path:polygon(6vh 0,100% 0,100% 100%,0 100%);margin-left:-3vh}
 .tl-card{position:absolute;bottom:10vh;z-index:2;padding:0 6vw;transition:transform .8s cubic-bezier(.2,.8,.2,1)}
-.tl-side.space .tl-card{right:0;text-align:right}
+.tl-side.space .tl-card{left:0;right:0;text-align:center}
+.tl-side.space .tl-card .d{margin:0 auto}
+.tl-side.ocean .tl-card{right:0;text-align:right}
 .tl-side:hover .tl-card,.tl-side.sel .tl-card{transform:translateY(-1.5vh)}
 .tl-card .k{font-size:clamp(11px,1.3vh,15px);letter-spacing:.5em;color:#ffb35c;font-weight:700}
 .tl-side.space .tl-card .k{color:#8fc4ff}
+.tl-side.ocean .tl-card .k{color:#7cf0c8}
 .tl-card .t{font-size:clamp(34px,7vh,92px);font-weight:800;letter-spacing:.05em;line-height:.95;margin:.25em 0 .2em;text-shadow:0 4px 30px #000a}
 .tl-card .d{font-size:clamp(13px,1.8vh,19px);letter-spacing:.12em;color:#d7dde6;opacity:.85;max-width:34em}
 .tl-card .go{display:inline-block;margin-top:2.2vh;padding:.7em 1.6em;border:1px solid #fff6;border-radius:999px;font-size:clamp(12px,1.5vh,16px);letter-spacing:.3em;font-weight:700;background:#ffffff10;backdrop-filter:blur(6px);transition:background .3s,border-color .3s,letter-spacing .4s}
 .tl-side:hover .go,.tl-side.sel .go{background:#ffffff26;border-color:#fff;letter-spacing:.38em}
 .tl-logo{position:absolute;left:0;right:0;top:7vh;z-index:3;text-align:center;pointer-events:none}
 .tl-logo .m{font-size:clamp(40px,9vh,120px);font-weight:800;letter-spacing:.42em;padding-left:.42em;text-shadow:0 0 40px #fff3,0 6px 30px #000;animation:tlIn 2.2s cubic-bezier(.2,.7,.2,1) both}
-.tl-logo .r{height:2px;width:min(46vw,620px);margin:1.2vh auto;background:linear-gradient(90deg,#0000,#ffb35c,#fff,#8fc4ff,#0000);animation:tlRule 2.4s .4s cubic-bezier(.2,.7,.2,1) both}
+.tl-logo .r{height:2px;width:min(46vw,620px);margin:1.2vh auto;background:linear-gradient(90deg,#0000,#ffb35c,#fff,#8fc4ff,#7cf0c8,#0000);animation:tlRule 2.4s .4s cubic-bezier(.2,.7,.2,1) both}
 .tl-logo .s{font-size:clamp(11px,1.5vh,16px);letter-spacing:.6em;padding-left:.6em;color:#cfd6df;animation:tlIn 2s .8s ease both}
 @keyframes tlIn{from{opacity:0;letter-spacing:.9em;filter:blur(8px)}to{opacity:1}}
 @keyframes tlRule{from{transform:scaleX(0);opacity:0}to{transform:none;opacity:1}}
@@ -65,6 +70,7 @@ const CSS = /* css */ `
 .tl-fb{position:absolute;inset:0}
 .tl-load.air .tl-fb{background:radial-gradient(120% 90% at 30% 70%,#d9733a 0%,#5a2a3c 38%,#101a33 70%,#04060c 100%)}
 .tl-load.space .tl-fb{background:radial-gradient(90% 70% at 70% 40%,#2b3d6e 0%,#0c1430 45%,#020309 80%),#020309}
+.tl-load.ocean .tl-fb{background:radial-gradient(110% 80% at 60% 20%,#2f8f9a 0%,#0d4157 34%,#06192b 68%,#02060c 100%)}
 .tl-shade{position:absolute;inset:0;background:radial-gradient(120% 100% at 50% 45%,#0000 55%,#0009 100%),linear-gradient(180deg,#0000 60%,#000d 100%);pointer-events:none}
 .tl-bars::before,.tl-bars::after{content:'';position:absolute;left:0;right:0;height:6.5vh;background:#000;z-index:2}
 .tl-bars::before{top:0}.tl-bars::after{bottom:0}
@@ -73,18 +79,21 @@ const CSS = /* css */ `
 .tl-brand .m{font-size:clamp(22px,3.4vh,40px);font-weight:800;letter-spacing:.35em}
 .tl-brand .p{font-size:clamp(11px,1.4vh,15px);letter-spacing:.42em;color:#ffb35c;margin-top:.3vh}
 .tl-load.space .tl-brand .p{color:#8fc4ff}
+.tl-load.ocean .tl-brand .p{color:#7cf0c8}
 .tl-foot{position:absolute;left:4vw;right:4vw;bottom:calc(6.5vh + 2.6vh);z-index:3}
 .tl-fact{min-height:3.4em;max-width:62em;margin-bottom:2.2vh;transition:opacity .9s ease,transform .9s ease;text-shadow:0 2px 10px #000}
 .tl-fact.hide{opacity:0;transform:translateY(8px)}
 .tl-fact .h{font-size:clamp(10px,1.25vh,13px);letter-spacing:.42em;color:#ffb35c;font-weight:700;margin-bottom:.5vh}
 .tl-load.space .tl-fact .h{color:#8fc4ff}
+.tl-load.ocean .tl-fact .h{color:#7cf0c8}
 .tl-fact .x{font-size:clamp(15px,2.15vh,24px);letter-spacing:.03em;line-height:1.35;color:#f2f5f8}
 .tl-bar{position:relative;height:3px;background:#ffffff1f;border-radius:2px;overflow:hidden}
 .tl-fill{position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,#ffb35c,#fff);box-shadow:0 0 12px #ffb35c99;border-radius:2px}
 .tl-load.space .tl-fill{background:linear-gradient(90deg,#5aa8ff,#fff);box-shadow:0 0 12px #5aa8ff99}
+.tl-load.ocean .tl-fill{background:linear-gradient(90deg,#3fd6b0,#fff);box-shadow:0 0 12px #3fd6b099}
 .tl-fill::after{content:'';position:absolute;right:0;top:-3px;bottom:-3px;width:40px;background:radial-gradient(closest-side,#fff,#fff0);opacity:.8}
 .tl-meta{display:flex;justify-content:space-between;margin-top:1vh;font-size:clamp(10px,1.25vh,13px);letter-spacing:.3em;color:#fffa}
-@media (max-aspect-ratio: 4/5){.tl-pick{flex-direction:column}.tl-side.air,.tl-side.space{clip-path:none;margin:0}.tl-card{bottom:6vh}}
+@media (max-aspect-ratio: 4/5){.tl-pick{flex-direction:column}.tl-side.air,.tl-side.space,.tl-side.ocean{clip-path:none;margin:0}.tl-card{bottom:6vh}}
 @media (prefers-reduced-motion: reduce){.tl-shot,.tl-side .bg{transition:opacity 1s ease !important}}
 `;
 
@@ -124,8 +133,9 @@ export class Launcher {
   private orders: Record<Program, Shot[]> = {
     air: SHOTS.air.length ? [SHOTS.air[0], ...shuffle(SHOTS.air.slice(1))] : [],
     space: SHOTS.space.length ? [SHOTS.space[0], ...shuffle(SHOTS.space.slice(1))] : [],
+    ocean: SHOTS.ocean.length ? [SHOTS.ocean[0], ...shuffle(SHOTS.ocean.slice(1))] : [],
   };
-  private prefetched: Record<Program, number> = { air: 0, space: 0 };
+  private prefetched: Record<Program, number> = { air: 0, space: 0, ocean: 0 };
   /** start loading a program's next few pictures */
   private prefetch(p: Program, upTo: number): void {
     const o = this.orders[p];
@@ -185,19 +195,22 @@ export class Launcher {
     };
     side('air', 'PROGRAM 01', 'AIR COMBAT', 'Thirteen jets, carriers, campaigns, airshows and dogfights over a 400-mile theater.');
     side('space', 'PROGRAM 02', 'SPACE EXPLORATION', 'Saturn V to the Moon, Falcon, Starship, the ISS, rovers on Mars and the whole Solar System.');
+    side('ocean', 'PROGRAM 03', 'OCEAN', 'A survey submarine off Kestrel Harbor: listen in the dark, take bearings, chart the deep and find what is knocking.');
     const logo = el('div', 'tl-logo', this.pickEl);
     el('div', 'm', logo, 'TRIAD');
     el('div', 'r', logo);
     el('div', 's', logo, 'CHOOSE YOUR PROGRAM');
-    el('div', 'tl-hint', this.pickEl, '← →  TO CHOOSE  ·  ENTER TO START');
+    el('div', 'tl-hint', this.pickEl, '← →  OR  1 2 3  TO CHOOSE  ·  ENTER TO START');
     this.keyHandler = (e) => {
       if (this.picked) return;
-      if (e.key === 'ArrowLeft' || e.key === '1') this.select('air');
-      else if (e.key === 'ArrowRight' || e.key === '2') this.select('space');
-      else if (e.key === 'Enter' || e.key === ' ') {
-        const s = this.pickEl.querySelector('.tl-side.sel');
-        this.pick(s?.classList.contains('space') ? 'space' : 'air');
-      } else return;
+      const order: Program[] = ['air', 'space', 'ocean'];
+      const s = this.pickEl.querySelector('.tl-side.sel');
+      const cur = order.find((p) => s?.classList.contains(p)) ?? 'air';
+      if (e.key === '1' || e.key === '2' || e.key === '3') this.select(order[Number(e.key) - 1]);
+      else if (e.key === 'ArrowLeft') this.select(order[Math.max(0, order.indexOf(cur) - 1)]);
+      else if (e.key === 'ArrowRight') this.select(order[Math.min(order.length - 1, order.indexOf(cur) + 1)]);
+      else if (e.key === 'Enter' || e.key === ' ') this.pick(cur);
+      else return;
       e.preventDefault();
     };
     window.addEventListener('keydown', this.keyHandler, true);
@@ -253,7 +266,7 @@ export class Launcher {
     el('div', 'tl-bars', L).style.cssText = 'position:absolute;inset:0;pointer-events:none';
     const brand = el('div', 'tl-brand', L);
     el('div', 'm', brand, 'TRIAD');
-    el('div', 'p', brand, p === 'air' ? 'AIR COMBAT' : 'SPACE EXPLORATION');
+    el('div', 'p', brand, p === 'air' ? 'AIR COMBAT' : p === 'space' ? 'SPACE EXPLORATION' : 'OCEAN');
     const cap = el('div', 'tl-cap', L);
     const foot = el('div', 'tl-foot', L);
     const fact = el('div', 'tl-fact hide', foot);
@@ -313,7 +326,7 @@ export class Launcher {
     swap();
 
     // ---- the facts: a random one every 7 s
-    const facts = shuffle(p === 'air' ? AIR_FACTS : SPACE_FACTS);
+    const facts = shuffle(p === 'air' ? AIR_FACTS : p === 'space' ? SPACE_FACTS : OCEAN_FACTS);
     let fi = 0;
     const showFact = () => {
       fact.classList.add('hide');

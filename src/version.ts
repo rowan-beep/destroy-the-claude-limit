@@ -1,15 +1,15 @@
 // Game version and release notes, newest release first.
 //
-// A release can carry notes for either game: `air` shows in the TRIAD (air
-// combat) menu and `space` in the Space Exploration menu, so each game only
-// lists its own updates. CHANGELOG.md is made from this list: npm run changelog.
+// A release can carry notes for each game: `air` shows in the TRIAD (air
+// combat) menu, `space` in the Space Exploration menu and `ocean` in the Ocean
+// menu, so each game only lists its own updates. CHANGELOG.md is made from this list: npm run changelog.
 //
 // Write each note as a short headline with the full details as points under it,
 // using added() for something new, improved() for a change and fixed() for a fix.
 // (Releases before 4.43.0 have their notes as paragraphs; the notes panel lays
 // them out the same way, from their lead-in and sentences.)
 
-export type Game = 'air' | 'space';
+export type Game = 'air' | 'space' | 'ocean';
 
 /** what kind of change a note is: shown as a small tag beside the headline */
 export type NoteKind = 'new' | 'better' | 'fix';
@@ -27,6 +27,7 @@ export interface Release {
   date: string;
   air?: Notes;
   space?: Notes;
+  ocean?: Notes;
 }
 
 const added = (h: string, ...d: string[]): Note => ({ k: 'new', h, d });

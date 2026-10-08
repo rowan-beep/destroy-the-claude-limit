@@ -149,8 +149,9 @@ export class OceanWorld {
    * Per frame, once the camera and the boat are placed: stream the sea bed,
    * move the surface and the sky with the camera, and set the light in the water.
    */
-  update(dt: number, viewH: number, ahead: { x: number; z: number }, opts: { lamps: boolean; overlay: boolean; boat: { x: number; z: number; speed: number; surfaced: boolean } | null }): void {
-    this.t += dt;
+  update(dt: number, viewH: number, ahead: { x: number; z: number }, opts: { lamps: boolean; overlay: boolean; boat: { x: number; z: number; speed: number; surfaced: boolean } | null; time?: number }): void {
+    // (in a dive the sea keeps the simulation's time, so the hull rides the waves that are drawn)
+    this.t = opts.time ?? this.t + dt;
     OCEAN_FX.uTime.value = this.t;
     const cam = this.camera;
     const cp = cam.position;

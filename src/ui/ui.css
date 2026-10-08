@@ -324,6 +324,7 @@ body.touch-mode .weapon-bar { bottom: auto; top: calc(96px + env(safe-area-inset
 .wn-space .modal-head { border-bottom-color: rgba(170, 205, 255, 0.16); }
 .wn-space .wn-rel { border-color: rgba(170, 205, 255, 0.16); border-radius: 8px; }
 .wn-space .wn-close { border-radius: 6px; }
+.modal.whatsnew.wn-ocean { --wn-a: #7cf0c8; --wn-bg: rgba(3, 16, 24, 0.92); --wn-row: rgba(124, 240, 200, 0.04); --wn-dim: #8fb3bf; border-color: rgba(124, 240, 200, 0.22); }
 @media (max-width: 560px) {
   .wn-date { display: none; }
   .wn-rel-head { gap: 8px; padding: 10px; }

@@ -63,6 +63,10 @@ export class SubModel {
   readonly root = new THREE.Group();
   /** the boat's frame inside the root (pitch and roll) */
   private body = new THREE.Group();
+  /** the pilot (hidden when the camera is in the dome) */
+  private pilot = new THREE.Group();
+  /** where the pilot's eyes are, in the boat's frame */
+  readonly eye = new THREE.Vector3(0, 0.36, -1.86);
   private hullMat: THREE.MeshStandardMaterial;
   private metalMat: THREE.MeshStandardMaterial;
   private darkMat: THREE.MeshStandardMaterial;
@@ -177,9 +181,10 @@ export class SubModel {
     screens.rotation.x = -0.6;
     this.body.add(screens);
     const suit = std({ color: 0x2b4f7a, roughness: 0.8 }, 'sub-suit');
-    add(new THREE.CapsuleGeometry(0.2, 0.42, 6, 12).translate(0, -0.12, -1.72), suit);
-    add(new THREE.SphereGeometry(0.13, 16, 12).translate(0, 0.34, -1.8), std({ color: 0xc89a7a, roughness: 0.7 }, 'sub-skin'));
-    add(new THREE.TorusGeometry(0.135, 0.022, 6, 16, Math.PI).rotateZ(0).translate(0, 0.36, -1.8), this.darkMat);
+    this.body.add(this.pilot);
+    add(new THREE.CapsuleGeometry(0.2, 0.42, 6, 12).translate(0, -0.12, -1.72), suit, this.pilot);
+    add(new THREE.SphereGeometry(0.13, 16, 12).translate(0, 0.34, -1.8), std({ color: 0xc89a7a, roughness: 0.7 }, 'sub-skin'), this.pilot);
+    add(new THREE.TorusGeometry(0.135, 0.022, 6, 16, Math.PI).translate(0, 0.36, -1.8), this.darkMat, this.pilot);
 
     // --- tail fins and the two stern thrusters
     for (const [w, h, x, y] of [[0.06, 0.7, 0, 0.62], [0.06, 0.6, 0, -0.58], [0.7, 0.06, 0.58, 0], [0.7, 0.06, -0.58, 0]] as const) {
@@ -374,6 +379,23 @@ export class SubModel {
     this.wrist.rotation.set(stowWrist * (1 - e), 0, 0);
     this.jawL.rotation.y = -0.45 * jaw;
     this.jawR.rotation.y = 0.45 * jaw;
+  }
+
+  /** a world point in the boat's own frame (for the arm) */
+  toBody(p: THREE.Vector3): THREE.Vector3 {
+    this.root.updateMatrixWorld(true);
+    return this.body.worldToLocal(p);
+  }
+
+  /** a point of the boat's frame in the world */
+  toWorld(p: THREE.Vector3): THREE.Vector3 {
+    this.root.updateMatrixWorld(true);
+    return this.body.localToWorld(p);
+  }
+
+  /** the camera is in the dome: hide the pilot */
+  setInterior(v: boolean): void {
+    this.pilot.visible = !v;
   }
 
   get armPose(): number {

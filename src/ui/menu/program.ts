@@ -1,16 +1,17 @@
-// The two programs the game holds: TRIAD (air combat) and SPACE EXPLORATION.
+// The programs the game holds: TRIAD (air combat), SPACE EXPLORATION and OCEAN.
 // The logo at the top of the menu rail opens a dropdown to switch between
 // them; the choice is remembered, and each program keeps its own data.
 
 import { el } from '../dom';
 
-export type Program = 'air' | 'space';
+export type Program = 'air' | 'space' | 'ocean';
 
 const KEY = 'triad.program';
 
 export function loadProgram(): Program {
   try {
-    return localStorage.getItem(KEY) === 'space' ? 'space' : 'air';
+    const p = localStorage.getItem(KEY);
+    return p === 'space' || p === 'ocean' ? p : 'air';
   } catch {
     return 'air';
   }
@@ -49,6 +50,7 @@ export function programLogo(parent: HTMLElement, current: Program, sub: string, 
   };
   item('air', 'TRIAD', 'Air combat: jets, missions, logbook');
   item('space', 'SPACE EXPLORATION', 'Rockets, the Moon and Mars');
+  item('ocean', 'OCEAN', 'A survey submarine: listen, chart, investigate');
   const close = () => {
     list.classList.remove('open');
     btn.classList.remove('open');

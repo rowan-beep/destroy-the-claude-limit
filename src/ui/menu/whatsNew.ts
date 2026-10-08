@@ -1,13 +1,13 @@
-// "What's new" panel: one game's release notes (the air combat menu and the
-// space menu each have their own, and each lists only its own updates). Opens
+// "What's new" panel: one game's release notes (the air combat, space and
+// ocean menus each have their own, and each lists only its own updates). Opens
 // by itself the first time there are notes the player hasn't seen. The newest
 // release is open; older ones are folded to a line each and open on a click.
 
 import { el, clearEl, button } from '../dom';
 import { releasesFor, latestFor, compareVersions, Game, Note, NoteKind } from '../../version';
 
-const SEEN_KEY: Record<Game, string> = { air: 'triad.seenVersion', space: 'triad.space.seenVersion' };
-const GAME_NAME: Record<Game, string> = { air: 'AIR COMBAT', space: 'SPACE EXPLORATION' };
+const SEEN_KEY: Record<Game, string> = { air: 'triad.seenVersion', space: 'triad.space.seenVersion', ocean: 'triad.ocean.seenVersion' };
+const GAME_NAME: Record<Game, string> = { air: 'AIR COMBAT', space: 'SPACE EXPLORATION', ocean: 'OCEAN' };
 const TAG: Record<NoteKind, string> = { new: 'NEW', better: 'IMPROVED', fix: 'FIXED' };
 
 /** a paragraph split into its sentences */
@@ -62,7 +62,7 @@ export class WhatsNewModal {
 
   constructor(parent: HTMLElement, private game: Game = 'air') {
     this.root = el('div', 'modal-back hidden', parent);
-    const m = el('div', 'modal whatsnew' + (game === 'space' ? ' wn-space' : ''), this.root);
+    const m = el('div', 'modal whatsnew' + (game === 'space' ? ' wn-space' : game === 'ocean' ? ' wn-space wn-ocean' : ''), this.root);
     const head = el('div', 'modal-head', m);
     const t = el('div', 'wn-title', head);
     el('h2', '', t, "WHAT'S NEW");
