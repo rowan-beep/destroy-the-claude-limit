@@ -170,6 +170,8 @@ export interface BenchResult {
   pixelRatio: number;
   segments: SegmentResult[];
   total: FrameStats;
+  /** the worst frame of the first half second (leaving the menu), kept out of the totals */
+  warmupMaxMs: number;
   stream: { chunkBuilds: number; chunkDisposals: number; maxChunkMs: number; stalls: number; wreckBuilds: number; wreckDisposals: number };
   memory: { heapStartMB: number | null; heapEndMB: number | null; geometries: number; textures: number; programs: number };
   userAgent: string;

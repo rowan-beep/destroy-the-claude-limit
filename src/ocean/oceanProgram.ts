@@ -36,6 +36,8 @@ interface BenchRun {
   tris: number;
   /** route steps per second of the route (60: every frame a 60th of a second along it) */
   sps: number;
+  /** the worst frame of the warm-up (the menu going away, the first frames after it) */
+  warmMax: number;
 }
 
 const heapMB = (): number | null => {
@@ -126,7 +128,7 @@ export class OceanProgram {
       this.host.setRenderScale(PRESETS[preset].renderScale);
       const r = this.host.renderer();
       r.info.autoReset = false;
-      this.bench = { seg: 0, t: 0, last: performance.now(), intervals: [], work: [], all: [], allWork: [], results: [], heapStart: heapMB(), preset, resolve, calls: 0, tris: 0, sps: Math.max(5, Math.min(120, stepsPerSecond)) };
+      this.bench = { seg: 0, t: 0, last: performance.now(), intervals: [], work: [], all: [], allWork: [], results: [], heapStart: heapMB(), preset, resolve, calls: 0, tris: 0, sps: Math.max(5, Math.min(120, stepsPerSecond)), warmMax: 0 };
       this.enterSegment(0);
     });
   }
@@ -173,8 +175,11 @@ export class OceanProgram {
     const work = performance.now() - now;
     b.calls = Math.max(b.calls, r.info.render.calls);
     b.tris = Math.max(b.tris, r.info.render.triangles);
-    // (the first frames of a segment carry the jump; they count, as the stalls a player would see)
-    if (b.t > dt * 1.5) {
+    // (the first half second of the route is a warm-up: the page is still putting the menu away,
+    // which can take seconds in a software compositor; its worst frame is reported on its own.
+    // The first frames of the later segments carry the jump and count, as a player would see them.)
+    if (b.seg === 0 && b.t <= 0.5) b.warmMax = Math.max(b.warmMax, interval);
+    else if (b.t > dt * 1.5) {
       b.intervals.push(interval);
       b.work.push(work);
       b.all.push(interval);
@@ -216,6 +221,7 @@ export class OceanProgram {
       pixelRatio: r.getPixelRatio(),
       segments: b.results,
       total: frameStats(b.all, b.allWork),
+      warmupMaxMs: Math.round(b.warmMax),
       stream: { chunkBuilds: st.chunkBuilds, chunkDisposals: st.chunkDisposals, maxChunkMs: Math.round(st.maxChunkMs * 10) / 10, stalls: st.streamStalls, wreckBuilds: st.wreckBuilds, wreckDisposals: st.wreckDisposals },
       memory: { heapStartMB: b.heapStart, heapEndMB: heapMB(), geometries: st.geometries, textures: st.textures, programs: st.programs },
       userAgent: navigator.userAgent,

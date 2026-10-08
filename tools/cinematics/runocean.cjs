@@ -36,6 +36,8 @@ const shots = require(path.resolve(shotsFile));
         // the page's own panels out of the picture (only the canvas is captured anyway)
         window.wait = (ms) => new Promise((r) => setTimeout(r, ms));
       });
+      // the shots' shared helper, into the page
+      await page.evaluate((src) => { window.dive = eval('(' + src + ')'); }, shots.setup);
       const cap = await page.evaluate(async (src) => {
         const fn = eval('(' + src + ')');
         return await fn(window.game);

@@ -1,5 +1,6 @@
 // the ocean program's cinematic shots: each puts PETREL somewhere, frames the
-// chase camera and lets the light settle (the dive's debugging hooks)
+// chase camera and lets the light settle (the dive's debugging hooks). The shots
+// run inside the page: `setup` is put there as window.dive first (runocean.cjs).
 const dive = async (o) => {
   const d = window.__dive, oc = window.__ocean;
   localStorage.setItem('triad.ocean.settings.v1', JSON.stringify({ preset: 'cinematic', weather: o.weather, guidance: 'instruments', relaxed: true, reduceMotion: true, largeHud: false, visibilityAid: false, lookSpeed: 1 }));
@@ -25,7 +26,7 @@ const dive = async (o) => {
   await wait(1200);
   d.exposure = oc.world.exposureFor(s.lights);
 };
-module.exports = { list: {
+module.exports = { setup: dive.toString(), list: {
   // the hero: PETREL alongside at first light
   '01': async () => {
     await dive({ weather: 'dawn', x: -12, y: -0.75, z: -150, h: 180, yaw: 2.5, pitch: 0.12, dist: 13 });
