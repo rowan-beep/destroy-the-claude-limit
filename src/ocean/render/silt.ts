@@ -20,6 +20,8 @@ uniform vec3 uScatter;
 uniform float uDayK;
 uniform vec3 uLampP0, uLampD0, uLampP1, uLampD1;
 uniform float uLampOn;
+uniform vec3 uFloodP;
+uniform float uFloodOn;
 varying vec2 vUv;
 varying vec4 vLook;
 varying vec3 vCol;
@@ -44,6 +46,8 @@ void main() {
   vec3 day = exp( -uKd * depth ) * uDayK * ( 0.75 + 0.25 * position.y );
   float lit = ( beam( c, uLampP0, uLampD0 ) + beam( c, uLampP1, uLampD1 ) ) * uLampOn;
   vec3 lamp = vec3( 1.0, 0.95, 0.88 ) * lit * 2.2 * exp( -uSigma * length( c - uLampP0 ) );
+  vec3 fv = c - uFloodP;
+  lamp += vec3( 1.0, 0.96, 0.9 ) * uFloodOn * 0.45 / ( 1.0 + dot( fv, fv ) * 0.3 ) * exp( -uSigma * length( fv ) );
   // and the water between it and the eye
   float L = length( c - cameraPosition );
   vec3 T = exp( -uSigma * L );

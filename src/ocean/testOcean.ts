@@ -1,5 +1,6 @@
 // Developer harness: the ocean world from a scripted camera
-// (?test=ocean&x=..&y=..&z=..&h=..&p=..&wx=dawn|calm|overcast&q=balanced&lamps=1&sub=x,y,z,h).
+// (?test=ocean&x=..&y=..&z=..&h=..&p=..&wx=dawn|calm|overcast&q=balanced&lamps=1&floods=1&sub=x,y,z,h&sweep=deg,spanDeg).
+import { OCEAN_FX } from './render/oceanMaterial';
 import * as THREE from 'three';
 import { GameRenderer } from '../render/renderer';
 import { emptyVision } from '../render/vision';
@@ -22,6 +23,8 @@ export async function runOceanTest(container: HTMLElement): Promise<void> {
   else world.sub.place(-12, 0.3, -150, 180, 0, 0);
   const lamps = q.get('lamps') !== '0';
   world.sub.setLights(lamps);
+  const floods = q.get('floods') === '1';
+  world.sub.setFloods(floods);
   if (q.get('arm')) world.sub.poseArm(+q.get('arm')!, 0.8);
   const t0 = performance.now();
   world.fill(pos.x, pos.z);
@@ -30,11 +33,22 @@ export async function runOceanTest(container: HTMLElement): Promise<void> {
   const loop = () => {
     const sz = gr.size;
     world.resize(sz.w, sz.h);
-    world.update(1 / 60, sz.h, { x: pos.x, z: pos.z }, { lamps, overlay: false, boat: null });
+    // the scanning sonar's picture, from the boat, the beam at a bearing with a span painted behind it
+    const sw = (q.get('sweep') ?? '').split(',').map(Number);
+    if (sw.length === 2) {
+      const sp = world.sub.root.position;
+      OCEAN_FX.uSweep.value.set(sp.x, sp.z, (sw[0] * Math.PI) / 180, 280);
+      OCEAN_FX.uSweepY.value = sp.y;
+      OCEAN_FX.uSweepSpan.value = (sw[1] * Math.PI) / 180;
+      OCEAN_FX.uSweepLead.value = 1;
+      OCEAN_FX.uSweepK.value = 1;
+      OCEAN_FX.uSweepExpInv.value = 1 / world.exposureFor(lamps || floods);
+    }
+    world.update(1 / 60, sz.h, { x: pos.x, z: pos.z }, { lamps, floods, overlay: false, boat: null });
     gr.setVision(emptyVision());
     const r = gr.renderer;
     const e = r.toneMappingExposure;
-    r.toneMappingExposure = e * (q.get('ev') ? +q.get('ev')! : world.exposureFor(lamps));
+    r.toneMappingExposure = e * (q.get('ev') ? +q.get('ev')! : world.exposureFor(lamps || floods));
     world.draw((sc, c) => gr.renderScene(sc, c, THREE.ACESFilmicToneMapping));
     r.toneMappingExposure = e;
     frames++;

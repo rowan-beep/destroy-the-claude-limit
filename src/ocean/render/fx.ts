@@ -49,6 +49,9 @@ export const LAMPS = {
   uLampD1: { value: new THREE.Vector3(0, 0, -1) },
   /** 0 off .. 1 full */
   uLampOn: { value: 0 },
+  /** the floodlights: where they shine from (all round), 0 off .. 1 full */
+  uFloodP: { value: new THREE.Vector3() },
+  uFloodOn: { value: 0 },
 };
 
 const SNOW_VERT = /* glsl */ `
@@ -58,6 +61,8 @@ uniform vec3 uDrift;
 uniform float uPx;
 uniform vec3 uLampP0, uLampD0, uLampP1, uLampD1;
 uniform float uLampOn;
+uniform vec3 uFloodP;
+uniform float uFloodOn;
 uniform vec3 uKd;
 uniform vec3 uSigma;
 uniform float uWaterY;
@@ -79,6 +84,9 @@ void main() {
   vec3 day = exp( -uKd * max( -p.y, 0.0 ) ) * 0.05;
   float lit = ( beam( p, uLampP0, uLampD0 ) + beam( p, uLampP1, uLampD1 ) ) * uLampOn;
   vec3 lamp = vec3( 1.0, 0.95, 0.88 ) * lit * 1.6 * exp( -uSigma * length( p - uLampP0 ) );
+  // the floodlights light the water all round the boat
+  vec3 fv = p - uFloodP;
+  lamp += vec3( 1.0, 0.96, 0.9 ) * uFloodOn * 0.45 / ( 1.0 + dot( fv, fv ) * 0.3 ) * exp( -uSigma * length( fv ) );
   vCol = ( day + lamp ) * exp( -uSigma * d );
   // not above the water, not right at the lens, fading at the edge of the box
   vA = step( p.y, uWaterY - 0.2 ) * smoothstep( 0.25, 1.0, d ) * ( 1.0 - smoothstep( ${(SNOW_BOX * 0.36).toFixed(1)}, ${(SNOW_BOX * 0.5).toFixed(1)}, d ) );
@@ -523,6 +531,7 @@ void main() {
   /** the camera's exposure (the overlay keeps its brightness under it) */
   setExposure(e: number): void {
     this.sonarMat.uniforms.uExpInv.value = 1 / Math.max(1, e);
+    OCEAN_FX.uSweepExpInv.value = 1 / Math.max(1, e);
   }
 
   clearSonar(): void {

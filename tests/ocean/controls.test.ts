@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DiveGamepad, deadzone, EMERGENCY_HOLD_S, type ControlTarget } from '../../src/ocean/dive/controls';
+import { DiveGamepad, deadzone, EMERGENCY_HOLD_S, PAD_HOLD_S, type ControlTarget } from '../../src/ocean/dive/controls';
 
 /** a standard-layout pad the test can move, and a clock it controls */
 function rig() {
@@ -104,5 +104,39 @@ test('the right stick turns the camera', () => {
   g.poll(0.1, r.t, true);
   assert.equal(r.looks.length, 1);
   assert.ok(r.looks[0][0] > 0 && r.looks[0][1] === 0);
+  r.restore();
+});
+
+test('A, B and Y: a tap gives one order on release, a hold the other, once', () => {
+  const r = rig();
+  const g = new DiveGamepad();
+  // Y tapped: lamps
+  r.press(3, true);
+  g.poll(1 / 60, r.t, true);
+  assert.deepEqual(r.orders, [], 'nothing until it is let go');
+  r.advance(150);
+  r.press(3, false);
+  g.poll(1 / 60, r.t, true);
+  assert.deepEqual(r.orders, ['KeyL']);
+  // Y held: floodlights, and nothing more on release
+  r.press(3, true);
+  g.poll(1 / 60, r.t, true);
+  r.advance(PAD_HOLD_S * 1000 + 20);
+  g.poll(1 / 60, r.t, true);
+  r.advance(1000);
+  g.poll(1 / 60, r.t, true);
+  r.press(3, false);
+  g.poll(1 / 60, r.t, true);
+  assert.deepEqual(r.orders, ['KeyL', 'KeyK']);
+  // A: use on a tap, the arm on a hold; B: ping on a tap, the scanning sonar on a hold
+  for (const [b, ms] of [[0, 100], [0, 900], [1, 100], [1, 900]] as const) {
+    r.press(b, true);
+    g.poll(1 / 60, r.t, true);
+    r.advance(ms);
+    g.poll(1 / 60, r.t, true);
+    r.press(b, false);
+    g.poll(1 / 60, r.t, true);
+  }
+  assert.deepEqual(r.orders.slice(2), ['KeyE', 'KeyV', 'KeyP', 'KeyN']);
   r.restore();
 });

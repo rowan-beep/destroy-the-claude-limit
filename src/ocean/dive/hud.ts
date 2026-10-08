@@ -50,6 +50,12 @@ const CSS = `
 .oc-survey.show { display: flex; }
 .oc-btr { width: 260px; height: 120px; display: block; border-radius: 4px; background: #020a10; }
 .oc-ppi { width: 120px; height: 120px; display: block; border-radius: 50%; background: #020a10; }
+.oc-scope { right: 16px; bottom: 16px; width: 214px; padding: 6px 8px 8px; display: none; }
+.oc-scope.show { display: block; }
+.oc-scope canvas { width: 198px; height: 198px; display: block; margin-top: 4px; }
+.oc-hud.scoping .oc-mini { display: none; }
+.oc-hud.scoping .oc-survey { left: calc(50% - 125px); }
+.oc-hud.touch .oc-scope { display: none; }
 .oc-sv-mid { flex: 1; min-width: 0; font-size: 12px; }
 .oc-sv-h { font-size: 10px; letter-spacing: 0.2em; color: var(--a); }
 .oc-noise { display: grid; grid-template-columns: 72px 1fr 48px; gap: 3px 6px; align-items: center; margin-top: 6px; font-size: 10.5px; color: var(--dim); }
@@ -172,6 +178,9 @@ export class DiveHud {
   private btr: HTMLCanvasElement;
   private btrRows: Float32Array[] = [];
   private ppi: HTMLCanvasElement;
+  private scope: HTMLElement;
+  private scopeCv: HTMLCanvasElement;
+  private scopeHead: HTMLElement;
   private svNoise: HTMLElement;
   private svContacts: HTMLElement;
   private svBar: HTMLElement;
@@ -247,6 +256,10 @@ export class DiveHud {
     // minimap
     const mini = el('div', 'oc-panel oc-mini', this.root);
     this.mini = el('canvas', '', mini);
+    // the scanning sonar's display (in the minimap's place while the head turns)
+    this.scope = el('div', 'oc-panel oc-scope', this.root);
+    this.scopeHead = el('div', 'oc-sv-h', this.scope, 'SCANNING SONAR · 280 M');
+    this.scopeCv = el('canvas', '', this.scope);
     // Quiet Survey
     this.survey = el('div', 'oc-panel oc-survey', this.root);
     const btrBox = el('div', '', this.survey);
@@ -261,7 +274,7 @@ export class DiveHud {
     this.svBar = el('b', '', gb);
     this.svText = el('div', 'oc-gauge-t', gauge);
     const ppiBox = el('div', '', this.survey);
-    el('div', 'oc-sv-h', ppiBox, 'SONAR · LAST PING');
+    el('div', 'oc-sv-h', ppiBox, 'SONAR');
     this.ppi = el('canvas', 'oc-ppi', ppiBox);
     this.prompt = el('div', 'oc-prompt', this.root);
     this.warn = el('div', 'oc-warn', this.root);
@@ -534,9 +547,11 @@ export class DiveHud {
   }
 
   /** the Quiet Survey panel and the sonar */
-  updateSurvey(s: SurveyState, ping: { returns: SonarReturn[]; age: number; heading: number } | null, dt: number): void {
-    this.survey.classList.toggle('show', s.show || !!(ping && ping.age < 20));
-    if (!s.show && !(ping && ping.age < 20)) return;
+  updateSurvey(s: SurveyState, ping: { view: ScopeView; age: number } | null, dt: number): void {
+    // (with the sonar's own display up, the panel is for listening only)
+    const pinged = !!(ping && ping.age < 20) && !this.root.classList.contains('scoping');
+    this.survey.classList.toggle('show', s.show || pinged);
+    if (!s.show && !pinged) return;
     // noise budget
     const nk = `${Math.round(s.self)}|${Math.round(s.sea)}|${Math.round(s.ping)}`;
     if (this.last.get(this.svNoise) !== nk) {
@@ -571,7 +586,18 @@ export class DiveHud {
       this.btrT = 0;
       this.drawBtr(s.energy, s.heading);
     }
-    if (ping) this.drawPpi(ping.returns, ping.age, ping.heading);
+    if (ping) drawScope(this.ppi, 120, ping.view);
+  }
+
+  /** the scanning sonar's display, while the head turns and a little after (null: the minimap again) */
+  updateScope(v: ScopeView | null): void {
+    // (on a touch screen the panel's small display does instead: the corner is the controls')
+    const on = !!v && v.k > 0.01 && !this.root.classList.contains('touch');
+    this.scope.classList.toggle('show', on);
+    this.root.classList.toggle('scoping', on);
+    if (!on) return;
+    this.text(this.scopeHead, v!.scanning ? `SCANNING SONAR · ${v!.range} M` : `SONAR · PING · ${v!.range} M`);
+    drawScope(this.scopeCv, 198, v!);
   }
 
   private drawBtr(energy: Float32Array, heading: number): void {
@@ -619,36 +645,6 @@ export class DiveHud {
     g.fillText('STBD', W - 28, H - 3);
   }
 
-  private drawPpi(rs: SonarReturn[], age: number, heading: number): void {
-    const cv = this.ppi;
-    const S = 120;
-    if (cv.width !== S) {
-      cv.width = S;
-      cv.height = S;
-    }
-    const g = cv.getContext('2d')!;
-    g.fillStyle = '#020a10';
-    g.fillRect(0, 0, S, S);
-    const R = S / 2 - 4, c = S / 2;
-    g.strokeStyle = 'rgba(124,240,200,0.25)';
-    for (const r of [0.25, 0.5, 1]) {
-      g.beginPath();
-      g.arc(c, c, R * r, 0, Math.PI * 2);
-      g.stroke();
-    }
-    const fade = Math.max(0.15, 1 - age / 20);
-    for (const r of rs) {
-      if (r.r < 0) continue;
-      // heading-up: the bow at the top
-      const a = ((r.b - heading) * Math.PI) / 180;
-      const d = (r.r / 280) * R;
-      g.fillStyle = r.kind === 'object' ? `rgba(255,200,90,${fade})` : `rgba(124,240,200,${fade * (0.35 + r.s * 0.6)})`;
-      g.fillRect(c + Math.sin(a) * d - 1.5, c - Math.cos(a) * d - 1.5, r.kind === 'object' ? 4 : 3, r.kind === 'object' ? 4 : 3);
-    }
-    g.fillStyle = '#ffe17a';
-    g.fillRect(c - 1.5, c - 1.5, 3, 3);
-  }
-
   /** the minimap: the boat in the middle, north up */
   drawMini(atlas: AtlasData, o: ChartOverlay, dt: number): void {
     this.miniT += dt;
@@ -682,5 +678,137 @@ export class DiveHud {
 
   get cardOpen(): boolean {
     return this.modal.classList.contains('show');
+  }
+}
+
+/** what the sonar display shows: the returns, where the beam is and how much of the turn it has painted */
+export interface ScopeView {
+  returns: SonarReturn[];
+  /** the beam's bearing (degrees, clockwise from north) */
+  deg: number;
+  /** how far round it has painted (degrees, up to 360) */
+  span: number;
+  /** the beam is turning */
+  lead: boolean;
+  /** 0..1: the picture fades a few seconds after a single sweep */
+  k: number;
+  /** the boat's heading: the display is heading-up */
+  heading: number;
+  range: number;
+  scanning: boolean;
+}
+
+/**
+ * A scanning sonar's display, heading-up: the beam goes round, the sea bed
+ * and anything hard light up as it passes and fade behind it, with range
+ * rings every 50 m. Hard returns are drawn amber.
+ */
+export function drawScope(cv: HTMLCanvasElement, S: number, v: ScopeView): void {
+  if (cv.width !== S) {
+    cv.width = S;
+    cv.height = S;
+  }
+  const g = cv.getContext('2d')!;
+  const c = S / 2, R = S / 2 - 3;
+  const TAU = Math.PI * 2;
+  // a bearing to the canvas's angle (0 = to the right, clockwise: the bow at the top)
+  const scr = (b: number) => ((b - v.heading) * Math.PI) / 180 - Math.PI / 2;
+  g.clearRect(0, 0, S, S);
+  g.save();
+  g.beginPath();
+  g.arc(c, c, R, 0, TAU);
+  g.clip();
+  const bg = g.createRadialGradient(c, c, 0, c, c, R);
+  bg.addColorStop(0, '#04202e');
+  bg.addColorStop(1, '#010810');
+  g.fillStyle = bg;
+  g.fillRect(0, 0, S, S);
+  // the trace behind the beam
+  if (v.k > 0) {
+    const steps = 40, trail = Math.min(v.span, 150);
+    for (let i = 0; i < steps; i++) {
+      const a0 = v.deg - ((i + 1) * trail) / steps, a1 = v.deg - (i * trail) / steps;
+      g.fillStyle = `rgba(30, 140, 255, ${(0.34 * Math.exp((-i / steps) * 3.2) * v.k).toFixed(3)})`;
+      g.beginPath();
+      g.moveTo(c, c);
+      g.arc(c, c, R, scr(a0), scr(a1));
+      g.closePath();
+      g.fill();
+    }
+  }
+  // range rings and the bow line
+  g.strokeStyle = 'rgba(90, 180, 255, 0.22)';
+  g.lineWidth = 1;
+  for (let r = 50; r < v.range; r += 50) {
+    g.beginPath();
+    g.arc(c, c, (R * r) / v.range, 0, TAU);
+    g.stroke();
+  }
+  g.beginPath();
+  g.moveTo(c, c);
+  g.lineTo(c, c - R);
+  g.stroke();
+  // the returns: bright as the beam passes, fading behind it
+  for (const r of v.returns) {
+    if (r.r < 0) continue;
+    const since = (((v.deg - r.b) % 360) + 360) % 360;
+    if (since > v.span) continue;
+    const fade = Math.exp((-since / 360) * 3.5) * (0.3 + 0.7 * v.k);
+    if (fade < 0.02) continue;
+    const a = scr(r.b), d = (r.r / v.range) * R;
+    if (r.kind === 'object') {
+      g.fillStyle = `rgba(255, 214, 120, ${fade.toFixed(3)})`;
+      g.shadowColor = 'rgba(255, 190, 80, 0.9)';
+      g.shadowBlur = 8 * fade;
+      g.beginPath();
+      g.arc(c + Math.cos(a) * d, c + Math.sin(a) * d, S > 150 ? 3 : 2.2, 0, TAU);
+      g.fill();
+      g.shadowBlur = 0;
+    } else {
+      // the bottom answers along the beam's width, strongest at the face it meets, and nothing comes from behind it
+      const w = (Math.PI / 90) * 1.1;
+      const grd = g.createRadialGradient(c, c, Math.max(0, d - 2), c, c, Math.min(R, d + R * 0.12));
+      grd.addColorStop(0, `rgba(110, 210, 255, ${(fade * (0.45 + r.s * 0.55)).toFixed(3)})`);
+      grd.addColorStop(1, 'rgba(110, 210, 255, 0)');
+      g.fillStyle = grd;
+      g.beginPath();
+      g.arc(c, c, Math.min(R, d + R * 0.12), a - w, a + w);
+      g.arc(c, c, Math.max(0, d - 1.5), a + w, a - w, true);
+      g.closePath();
+      g.fill();
+    }
+  }
+  // the beam
+  if (v.lead && v.k > 0) {
+    const a = scr(v.deg);
+    g.strokeStyle = 'rgba(170, 235, 255, 0.95)';
+    g.lineWidth = S > 150 ? 2 : 1.5;
+    g.shadowColor = 'rgba(70, 170, 255, 1)';
+    g.shadowBlur = 10;
+    g.beginPath();
+    g.moveTo(c, c);
+    g.lineTo(c + Math.cos(a) * R, c + Math.sin(a) * R);
+    g.stroke();
+    g.shadowBlur = 0;
+  }
+  g.restore();
+  // the rim, the boat and the range
+  g.strokeStyle = 'rgba(90, 180, 255, 0.55)';
+  g.lineWidth = 1.5;
+  g.beginPath();
+  g.arc(c, c, R, 0, TAU);
+  g.stroke();
+  g.fillStyle = '#ffe17a';
+  g.beginPath();
+  g.moveTo(c, c - 5);
+  g.lineTo(c + 3.5, c + 4);
+  g.lineTo(c - 3.5, c + 4);
+  g.closePath();
+  g.fill();
+  if (S > 150) {
+    g.fillStyle = 'rgba(200, 235, 255, 0.65)';
+    g.font = '9px Consolas, monospace';
+    g.fillText('100', c + 3, c - (R * 100) / v.range - 2);
+    g.fillText('200', c + 3, c - (R * 200) / v.range - 2);
   }
 }

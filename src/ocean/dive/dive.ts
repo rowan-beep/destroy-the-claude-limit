@@ -7,14 +7,15 @@
 
 import * as THREE from 'three';
 import type { OceanWorld } from '../render/oceanWorld';
-import { DiveHud, type HudState, type SurveyState } from './hud';
+import { DiveHud, type HudState, type SurveyState, type ScopeView } from './hud';
 import { OceanAudio } from '../audio/oceanAudio';
 import { OCEAN_KEY_SECTIONS } from '../keys';
 import { DiveTouch, DiveGamepad, type ControlTarget } from './controls';
+import { ARM_READY, moveArmTarget } from './manipulator';
 import { isTouchDevice } from '../../ui/touchControls';
 import { SURVEY_SUB, NEUTRAL_BALLAST, newSubState, stepSub, FixedStepper, interpolate, rangeEstimate, speedOf, type SubState, type SubInput, type SubEnv } from '../sub/subPhysics';
 import { buildColliders, seabedHeight, groundAt, bearing, HARBOR, SITES, K3, DEPTH_BANDS, regionAt, type Collider } from '../world/geo';
-import { CONTACTS, listen, ambientNoise, selfNoise, addDb, pingMask, ListenGauge, bearingHalfWidth, measureBearing, sonarRays, HEAR_SNR, PING_MASK_S, type SonarReturn } from '../acoustics/acoustics';
+import { CONTACTS, listen, ambientNoise, selfNoise, addDb, pingMask, ListenGauge, bearingHalfWidth, measureBearing, sonarRays, HEAR_SNR, PING_MASK_S, SONAR_RANGE, type SonarReturn } from '../acoustics/acoustics';
 import { EchoAtlas, TrackRecorder } from '../atlas/atlas';
 import { Expedition, STAGES, MISSION_ID, MISSION_TITLE, toolReady, CAREER_KEY, parseCheckpoint, parseCareer, type Checkpoint, type MissionRun, type Career } from '../mission/expedition';
 import { PulseMission, PULSE_ID, PULSE_TITLE, PULSE_STAGES, multibeamSees, type PulseCtx } from '../mission/followup';
@@ -30,6 +31,38 @@ type CamMode = 'chase' | 'dome';
 const DEG = Math.PI / 180;
 const TIME_STEPS = [1, 2, 4];
 const PING_RAYS = 90;
+/** a full turn of the scanning sonar's head (s) */
+const SWEEP_S = 3;
+/** what the arm can take, as the pilot sees it */
+const SAMPLE_NAMES: Record<string, string> = { shell: 'SHELL', stone: 'STONE', starfish: 'STARFISH', urchin: 'SEA URCHIN', cucumber: 'SEA CUCUMBER' };
+
+/** something in the jaw */
+interface Held {
+  what: 'recorder' | 'hydrophone' | 'sample';
+  obj: THREE.Object3D;
+  name: string;
+  depth: number;
+}
+
+/** the arm under the pilot's own hands */
+interface Manip {
+  /** 0 stowed .. 1 out (the joints blend from the stowed pose) */
+  k: number;
+  /** where the jaw is wanted, in the boat's frame */
+  tip: THREE.Vector3;
+  /** 0 closed .. 1 open */
+  jaw: number;
+  held: Held | null;
+  /** seconds into stowing, or -1 while working */
+  stowing: number;
+  /** the holds as they were before the arm came out */
+  prevPos: SubState['holdPos'];
+  prevDepth: number | null;
+  /** the jaw is on the bottom */
+  touching: boolean;
+  /** where the jaw started stowing from */
+  from: THREE.Vector3;
+}
 
 /** what the story says as each piece falls into place */
 const STORY = {
@@ -103,6 +136,14 @@ export class OceanDive {
   private pingRays: SonarReturn[] = [];
   private pingNext = PING_RAYS;
   private pingOrigin = { x: 0, y: 0, z: 0, heading: 0 };
+  /** the scanning sonar: when this turn of the head began (sim time), the bearing it began at (deg) */
+  private sweepT0 = -1e9;
+  private sweepFrom = 0;
+  /** the last turn's returns (they stay on the display until the beam comes round again) */
+  private prevRays: SonarReturn[] = [];
+  /** the head keeps turning, a ping a turn, until it is switched off */
+  private scanning = false;
+  private scanSince = 0;
   private heardT = new Map<string, number>();
   private soundT = new Map<string, number>();
   private energy = new Float32Array(360);
@@ -118,6 +159,13 @@ export class OceanDive {
   /** what the scanner and the arm are working on */
   private scanWhat: 'plate' | 'tag' = 'plate';
   private armWhat: 'recorder' | 'hydrophone' = 'recorder';
+  /** the arm flown by hand, and what the controls ask of it this frame */
+  private manip: Manip | null = null;
+  private armIn = { reach: 0, side: 0, up: 0 };
+  /** samples in the basket this dive */
+  private samples: string[] = [];
+  /** samples let go of, lying on the bottom */
+  private dropped: THREE.Object3D[] = [];
   private docked = false;
   private photoPending = false;
   private photo: string | null = null;
@@ -141,6 +189,7 @@ export class OceanDive {
   private sparkAcc = 0;
   private tmp = new THREE.Vector3();
   private tmp2 = new THREE.Vector3();
+  private tmp3 = new THREE.Vector3();
   // touch and gamepad: held controls added to the keys, orders as key codes
   private touch: DiveTouch;
   private pad = new DiveGamepad();
@@ -263,6 +312,15 @@ export class OceanDive {
     this.pingAt = null;
     this.pingRays = [];
     this.pingNext = PING_RAYS;
+    this.sweepT0 = -1e9;
+    this.prevRays = [];
+    this.scanning = false;
+    this.clearManip();
+    for (const o of this.dropped) o.removeFromParent();
+    this.dropped = [];
+    this.samples = [];
+    for (const c of [...this.world.sub.basket.children]) if (c.name.startsWith('sample-')) c.removeFromParent();
+    this.world.life.resetTaken();
     this.heardT.clear();
     this.soundT.clear();
     this.scanT = -1;
@@ -309,6 +367,7 @@ export class OceanDive {
     }
     if (this.exp && !this.safe) this.safe = this.checkpoint();
     this.world.sub.setLights(this.sub.lights);
+    this.world.sub.setFloods(this.sub.floods);
     this.world.fill(this.sub.x, this.sub.z);
     this.hud.show(true);
     this.hud.setLarge(this.settings.largeHud);
@@ -421,6 +480,7 @@ export class OceanDive {
     this.world.props.resetK3Hydrophone();
     this.world.sub.poseArm(0, 0.6);
     this.arm = null;
+    this.clearManip();
     this.scanT = -1;
     this.restore(this.safe);
     this.world.fill(this.sub.x, this.sub.z);
@@ -475,12 +535,19 @@ export class OceanDive {
     else if (this.chartOpen) used = false;
     else if (c === 'KeyQ') this.setQuiet(!this.quiet);
     else if (c === 'KeyP') this.ping();
+    else if (c === 'KeyN') this.setScanning(!this.scanning);
+    else if (c === 'KeyV') this.toggleArm();
     else if (c === 'KeyO') {
       this.overlay = !this.overlay;
       this.hud.flash('SONAR', this.overlay ? 'OVERLAY ON' : 'OVERLAY OFF', 1.5);
     } else if (c === 'KeyL') {
       this.sub.lights = !this.sub.lights;
       this.world.sub.setLights(this.sub.lights);
+      audio.click();
+    } else if (c === 'KeyK') {
+      this.sub.floods = !this.sub.floods;
+      this.world.sub.setFloods(this.sub.floods);
+      this.hud.flash('FLOODLIGHTS', this.sub.floods ? 'ON' : 'OFF', 1.2);
       audio.click();
     } else if (c === 'KeyT') {
       const d = Math.max(0, -this.sub.y);
@@ -497,7 +564,10 @@ export class OceanDive {
         this.sub.holdDepth = null;
         this.hud.flash('EMERGENCY BLOW', 'ALL TANKS TO THE SURFACE', 2.5);
       }
-    } else if (c === 'KeyE') this.use();
+    } else if (c === 'KeyE') {
+      if (this.manip) this.grip();
+      else this.use();
+    }
     else if (c === 'KeyC') this.cycleCam();
     else if (c === 'Comma' || c === 'Period') this.stepTime(c === 'Period' ? 1 : -1);
     else if (c === 'TimeCycle') this.stepTime(this.timeIdx >= TIME_STEPS.length - 1 ? -this.timeIdx : 1);
@@ -506,6 +576,8 @@ export class OceanDive {
   }
 
   private setQuiet(v: boolean): void {
+    // (listening and a turning sonar head do not go together)
+    if (v && this.scanning) this.setScanning(false, true);
     this.quiet = v;
     this.gauge.reset();
     if (v && this.timeIdx) this.timeIdx = 0;
@@ -731,9 +803,14 @@ export class OceanDive {
   private ping(): void {
     if (this.simT - this.lastPing < 2) return;
     const s = this.sub;
+    // scanning, the head goes on round from where it is; a single ping starts it at the bow
+    const turn = (this.simT - this.sweepT0) / SWEEP_S;
+    this.sweepFrom = this.scanning && turn < 1.5 ? (this.sweepFrom + 360 * Math.min(1, turn)) % 360 : s.heading;
+    this.sweepT0 = this.simT;
     this.lastPing = this.simT;
     this.pingAt = { x: s.x, z: s.z };
     this.pingOrigin = { x: s.x, y: s.y, z: s.z, heading: s.heading };
+    if (this.pingRays.length) this.prevRays = this.pingRays;
     this.pingRays = [];
     this.pingNext = 0;
     this.gauge.reset();
@@ -741,12 +818,34 @@ export class OceanDive {
     this.sound.ping(Math.min(0.5, (2 * Math.max(2, alt)) / 1500 + 0.05));
   }
 
-  /** the ping's rays, a slice per frame; each answer goes on the sector display and the overlay */
+  /** the scanning sonar on (a ping every turn of the head) or off */
+  private setScanning(v: boolean, quietly = false): void {
+    if (v && this.quiet) this.setQuiet(false);
+    this.scanning = v;
+    if (v) {
+      this.scanSince = this.simT;
+      this.lastPing = -1e9;
+      this.ping();
+    }
+    if (!quietly) this.hud.flash('SCANNING SONAR', v ? 'ON · THE HYDROPHONES ARE MASKED' : 'OFF', 1.8);
+    audio.click();
+  }
+
+  /** the ping's rays, cast as the head turns past them; each answer goes on the display and the overlay */
   private pingStep(): void {
     if (this.pingNext >= PING_RAYS) return;
     const o = this.pingOrigin;
-    const to = Math.min(PING_RAYS, this.pingNext + 18);
-    const rays = sonarRays(o.x, o.y, o.z, this.colliders, PING_RAYS, this.pingNext, to, 5);
+    const to = Math.min(PING_RAYS, Math.ceil(((this.simT - this.sweepT0) / SWEEP_S) * PING_RAYS));
+    if (to <= this.pingNext) return;
+    // (the head starts where the turn began and goes clockwise: the rays in its order, wrapping past north)
+    const i0 = Math.round(this.sweepFrom / (360 / PING_RAYS));
+    const rays: SonarReturn[] = [];
+    for (let k = this.pingNext; k < to; ) {
+      const a = (i0 + k) % PING_RAYS;
+      const n = Math.min(to - k, PING_RAYS - a);
+      rays.push(...sonarRays(o.x, o.y, o.z, this.colliders, PING_RAYS, a, a + n, 5));
+      k += n;
+    }
     this.pingRays.push(...rays);
     const pts: { x: number; y: number; z: number; kind: number; at: number }[] = [];
     const t0 = this.world.t;
@@ -950,29 +1049,232 @@ export class OceanDive {
           audio.servo(0.6, 0.8);
         }
         if (a.t < 5.6) m.poseArm(1 - (a.t - 3.0) / 2.6, 0.15);
-        else if (hyd) {
-          this.stowHydrophone();
+        else {
+          this.recovered(hyd);
           m.poseArm(0, 0.6);
           this.arm = null;
-          this.hydrophoneTaken = true;
           s.holdPos = null;
-          this.sound.clunk();
-          this.atlas.addEvidence({ contactId: 'deep-pulse', kind: 'item', title: 'Hydrophone recorder from mooring K3', text: "A grey pressure housing with a hydrophone at one end, unclamped from K3's line 3 m below the top float. It has been recording the basin since the autumn." });
-          if (this.atlas.contact('deep-pulse')) this.atlas.confirm('deep-pulse', { x: K3.x, z: K3.z, depth: -K3.pingerY }, 'MOORING K3 · RELOCATION PINGER', PULSE_STORY.recovered);
-          this.hud.flash('RECOVERED', 'HYDROPHONE RECORDER', 3.5);
-        } else {
-          this.stowRecorder();
-          m.poseArm(0, 0.6);
-          this.arm = null;
-          this.recorderTaken = true;
-          s.holdPos = null;
-          this.sound.clunk();
-          this.atlas.addEvidence({ contactId: 'knock', kind: 'item', title: 'Voyage data recorder capsule', text: 'An orange recorder capsule with its underwater locator beacon (37.5 kHz), still pinging weakly. Recovered from beside the bridge.' });
-          if (this.atlas.contact('knock')) this.atlas.confirm('knock', { x: SITES.recorder.x, z: SITES.recorder.z, depth: -seabedHeight(SITES.recorder.x, SITES.recorder.z) }, 'MV ORIEL BAY · VDR BEACON', STORY.recovered);
-          this.hud.flash('RECOVERED', 'VOYAGE DATA RECORDER', 3.5);
         }
       }
     }
+  }
+
+  /** the recorder (or K3's hydrophone recorder) is in the basket: the record and the story */
+  private recovered(hyd: boolean): void {
+    this.sound.clunk();
+    if (hyd) {
+      this.stowHydrophone();
+      this.hydrophoneTaken = true;
+      this.atlas.addEvidence({ contactId: 'deep-pulse', kind: 'item', title: 'Hydrophone recorder from mooring K3', text: "A grey pressure housing with a hydrophone at one end, unclamped from K3's line 3 m below the top float. It has been recording the basin since the autumn." });
+      if (this.atlas.contact('deep-pulse')) this.atlas.confirm('deep-pulse', { x: K3.x, z: K3.z, depth: -K3.pingerY }, 'MOORING K3 · RELOCATION PINGER', PULSE_STORY.recovered);
+      this.hud.flash('RECOVERED', 'HYDROPHONE RECORDER', 3.5);
+    } else {
+      this.stowRecorder();
+      this.recorderTaken = true;
+      this.atlas.addEvidence({ contactId: 'knock', kind: 'item', title: 'Voyage data recorder capsule', text: 'An orange recorder capsule with its underwater locator beacon (37.5 kHz), still pinging weakly. Recovered from beside the bridge.' });
+      if (this.atlas.contact('knock')) this.atlas.confirm('knock', { x: SITES.recorder.x, z: SITES.recorder.z, depth: -seabedHeight(SITES.recorder.x, SITES.recorder.z) }, 'MV ORIEL BAY · VDR BEACON', STORY.recovered);
+      this.hud.flash('RECOVERED', 'VOYAGE DATA RECORDER', 3.5);
+    }
+  }
+
+  // ------------------------------------------------------------------ the arm, by hand
+  /** the arm out (the boat holds its place and depth) or, if out, stowed */
+  private toggleArm(): void {
+    if (this.manip) {
+      if (this.manip.stowing < 0 && this.manip.k >= 1) {
+        this.manip.stowing = 0;
+        this.manip.from.copy(this.manip.tip);
+        audio.servo(1.2, 1);
+      }
+      return;
+    }
+    if (this.arm || this.scanT >= 0 || this.batteryCard || this.docked) return;
+    const s = this.sub;
+    if (-s.y < 2) {
+      this.hud.flash('ARM', 'DIVE FIRST: THE ARM WORKS UNDER WATER', 1.8);
+      return;
+    }
+    this.manip = { k: 0, tip: ARM_READY.clone(), jaw: 1, held: null, stowing: -1, prevPos: s.holdPos, prevDepth: s.holdDepth, touching: false, from: new THREE.Vector3() };
+    s.holdPos = { x: s.x, z: s.z, heading: s.heading };
+    if (s.holdDepth === null) {
+      s.holdDepth = -s.y;
+      s.holdI = 0;
+    }
+    // (the camera comes down level with the bow to watch the jaw)
+    this.camPitch = 0.12;
+    audio.servo(1.2, 1);
+    this.hud.flash('MANIPULATOR', 'W/S REACH · A/D SWING · R/F UP / DOWN · E GRIP · V STOW', 3.5);
+  }
+
+  /** the arm put away at once (a new dive, back to a safe point) */
+  private clearManip(): void {
+    const a = this.manip;
+    if (!a) return;
+    if (a.held) {
+      if (a.held.what === 'sample') a.held.obj.removeFromParent();
+      else if (a.held.what === 'recorder') this.world.props.resetRecorder();
+      else this.world.props.resetK3Hydrophone();
+    }
+    this.manip = null;
+    this.world.sub.poseArm(0, 0.6);
+  }
+
+  /** what the jaw could close on at a world point */
+  private reachable(p: THREE.Vector3, take: boolean): Held | null {
+    const pulse = this.exp?.missionId === PULSE_ID;
+    // the expedition's recorder, once the expedition has got that far
+    if (!pulse && !this.recorderTaken && this.world.props.recorder.visible && (!this.exp || this.exp.id === 'recover' || this.exp.stage > STAGES.indexOf('recover'))) {
+      const rec = this.world.props.recorder;
+      const y = rec.getWorldPosition(this.tmp3).y + 0.4;
+      if (Math.hypot(p.x - SITES.recorder.x, p.y - y, p.z - SITES.recorder.z) < 0.55) return { what: 'recorder', obj: rec, name: 'THE RECORDER', depth: -y };
+    }
+    // K3's hydrophone recorder
+    if (pulse && !this.hydrophoneTaken && this.world.props.k3HydrophoneShown && this.exp!.stage >= PULSE_STAGES.indexOf('recover')) {
+      const hp = K3.hydrophone;
+      if (Math.hypot(p.x - hp.x, p.y - (hp.y + 0.1), p.z - hp.z) < 0.55) return { what: 'hydrophone', obj: this.world.props.k3Hydrophone, name: 'THE HYDROPHONE RECORDER', depth: -hp.y };
+    }
+    // something off the bottom
+    if (!take) {
+      const n = this.world.life.peekNear(p, 0.35);
+      return n ? { what: 'sample', obj: this.world.sub.grip, name: SAMPLE_NAMES[n] ?? n.toUpperCase(), depth: -p.y } : null;
+    }
+    const smp = this.world.life.takeNear(p, 0.35);
+    if (!smp) return null;
+    this.world.scene.add(smp.mesh);
+    return { what: 'sample', obj: smp.mesh, name: SAMPLE_NAMES[smp.name] ?? smp.name.toUpperCase(), depth: smp.depth };
+  }
+
+  /** E with the arm out: close the jaw on what is between it, or let go */
+  private grip(): void {
+    const a = this.manip!;
+    if (a.k < 1 || a.stowing >= 0) return;
+    const m = this.world.sub;
+    if (a.held) {
+      if (a.held.what !== 'sample') {
+        this.hud.flash('ARM', 'V PUTS IT IN THE BASKET', 1.8);
+        return;
+      }
+      // let go: it falls back to the bottom
+      const o = a.held.obj;
+      this.world.scene.attach(o);
+      o.position.y = seabedHeight(o.position.x, o.position.z);
+      this.dropped.push(o);
+      a.held = null;
+      a.jaw = 1;
+      audio.servo(0.5, 0.7);
+      return;
+    }
+    if (a.jaw < 0.5) {
+      a.jaw = 1;
+      audio.servo(0.5, 0.7);
+      return;
+    }
+    const held = this.reachable(m.grip.getWorldPosition(this.tmp), true);
+    audio.servo(0.6, 0.8);
+    if (!held) {
+      a.jaw = 0;
+      return;
+    }
+    a.held = held;
+    a.jaw = 0.18;
+    m.grip.attach(held.obj);
+    this.sound.clunk();
+  }
+
+  /** the arm, each frame: out, flown, or on its way back to the basket */
+  private manipStep(dt: number): void {
+    const a = this.manip;
+    if (!a) return;
+    const m = this.world.sub;
+    const s = this.sub;
+    if (a.stowing < 0) {
+      a.k = Math.min(1, a.k + dt / 1.4);
+      if (a.k >= 1) {
+        moveArmTarget(a.tip, m.shoulderAt, this.armIn, dt);
+        // not into the bottom: the jaw rests on it, and stirs it
+        const w = m.toWorld(this.tmp.copy(a.tip));
+        const g = seabedHeight(w.x, w.z) + 0.06;
+        if (w.y < g) {
+          w.y = g;
+          a.tip.copy(m.toBody(w));
+          if (!a.touching) {
+            const kind = groundAt(w.x, w.z, g);
+            if (kind === 'sand' || kind === 'silt') this.world.silt.emit(w.x, g, w.z, 3, 0, 0, kind === 'silt');
+          }
+          a.touching = true;
+        } else a.touching = false;
+      }
+    } else {
+      // back to the basket: over it, open the jaw, then fold
+      a.stowing += dt;
+      const over = this.tmp2.copy(m.basketAt).add(this.tmp.set(0, 0.45, -0.05));
+      if (a.held) {
+        const f = Math.min(1, a.stowing / 1.6);
+        a.tip.lerpVectors(a.from, over, f * f * (3 - 2 * f));
+        if (f >= 1) {
+          const h = a.held;
+          a.held = null;
+          a.jaw = 1;
+          if (h.what === 'sample') {
+            m.basket.attach(h.obj);
+            h.obj.position.set((Math.random() - 0.5) * 0.8, -0.1, (Math.random() - 0.5) * 0.35);
+            this.samples.push(h.name);
+            this.atlas.addEvidence({ contactId: null, kind: 'item', title: `Sample: ${h.name.toLowerCase()} from ${Math.round(h.depth)} m`, text: `Taken off the bottom with the arm at ${Math.round(h.depth)} m and stowed in the sample basket.` });
+            this.hud.flash('IN THE BASKET', `${h.name} · ${this.samples.length} SAMPLE${this.samples.length > 1 ? 'S' : ''}`, 2.5);
+            this.sound.clunk();
+          } else this.recovered(h.what === 'hydrophone');
+          a.stowing = 0;
+          a.from.copy(a.tip);
+        }
+      } else {
+        a.k = Math.max(0, a.k - dt / 1.4);
+        if (a.k <= 0) {
+          this.manip = null;
+          m.poseArm(0, 0.6);
+          s.holdPos = a.prevPos;
+          s.holdDepth = a.prevDepth;
+          return;
+        }
+      }
+    }
+    m.setArmTarget(a.tip);
+    m.poseArm(a.k, a.jaw);
+  }
+
+  /** the sonar display: this turn's returns over the last turn's, and where the beam is */
+  private scopeView(): ScopeView {
+    const el = this.simT - this.sweepT0;
+    const going = this.scanning || el < SWEEP_S;
+    const turn = Math.max(0, Math.min(1, el / SWEEP_S));
+    const span = Math.min(1, Math.max(0, (this.scanning ? this.simT - this.scanSince : el) / SWEEP_S));
+    return {
+      returns: this.scanning ? this.prevRays.concat(this.pingRays) : this.pingRays,
+      deg: this.sweepFrom + 360 * turn,
+      span: span * 360,
+      lead: going,
+      // (the display fades more slowly than the overlay: it is the instrument)
+      k: el < 0 ? 0 : going ? 1 : Math.max(0, 1 - (el - SWEEP_S) / 12),
+      heading: this.sub.heading,
+      range: SONAR_RANGE,
+      scanning: this.scanning,
+    };
+  }
+
+  /** the scanning sonar's sweep, for the overlay, the display and the head on the deck */
+  private updateSweep(): void {
+    const el = this.simT - this.sweepT0;
+    const turn = Math.max(0, Math.min(1, el / SWEEP_S));
+    const going = this.scanning || el < SWEEP_S;
+    const deg = this.sweepFrom + 360 * turn;
+    const span = Math.min(1, Math.max(0, (this.scanning ? this.simT - this.scanSince : el) / SWEEP_S));
+    const k = !this.overlay || el < 0 ? 0 : going ? 1 : Math.max(0, 1 - (el - SWEEP_S) / 4);
+    const o = this.pingOrigin;
+    OCEAN_FX.uSweep.value.set(o.x, o.z, deg * DEG, SONAR_RANGE);
+    OCEAN_FX.uSweepY.value = o.y;
+    OCEAN_FX.uSweepSpan.value = span * Math.PI * 2;
+    OCEAN_FX.uSweepLead.value = going ? 1 : 0;
+    OCEAN_FX.uSweepK.value = k;
+    this.world.sub.setSonarHead((deg - this.sub.heading) * DEG);
   }
 
   private dock(): void {
@@ -1125,11 +1427,18 @@ export class OceanDive {
     // the keys, the touch controls and a gamepad together, each control within -1..1
     const t = this.touch.analog, g = this.pad.analog;
     const sum = (key: number, f: 'thrust' | 'yaw' | 'vertical' | 'lateral' | 'ballast') => Math.max(-1, Math.min(1, key + t[f] + g[f]));
-    const busy = !!this.arm;
+    const thrust = sum(Math.max(-1, Math.min(1, k('KeyW') + k('ArrowUp') - k('KeyS') - k('ArrowDown'))), 'thrust');
+    const yaw = sum(k('KeyD') - k('KeyA'), 'yaw');
+    const vertical = sum(k('KeyR') - k('KeyF'), 'vertical');
+    // with the arm out the same controls fly the jaw, and the boat holds still
+    this.armIn.reach = this.manip ? thrust : 0;
+    this.armIn.side = this.manip ? yaw : 0;
+    this.armIn.up = this.manip ? vertical : 0;
+    const busy = !!this.arm || !!this.manip;
     return {
-      thrust: busy ? 0 : sum(Math.max(-1, Math.min(1, k('KeyW') + k('ArrowUp') - k('KeyS') - k('ArrowDown'))), 'thrust'),
-      yaw: busy ? 0 : sum(k('KeyD') - k('KeyA'), 'yaw'),
-      vertical: busy ? 0 : sum(k('KeyR') - k('KeyF'), 'vertical'),
+      thrust: busy ? 0 : thrust,
+      yaw: busy ? 0 : yaw,
+      vertical: busy ? 0 : vertical,
       lateral: busy ? 0 : sum(k('ArrowRight') - k('ArrowLeft'), 'lateral'),
       ballast: sum(k('KeyZ') - k('KeyX'), 'ballast'),
       quiet: this.quiet,
@@ -1215,8 +1524,11 @@ export class OceanDive {
       this.stirBottom(sdt);
       this.disturbPlankton(sdt);
       this.listenStep(sdt);
+      // scanning: the next turn begins as the last one ends
+      if (this.scanning && this.pingNext >= PING_RAYS && this.simT - this.sweepT0 >= SWEEP_S) this.ping();
       this.pingStep();
       this.toolStep(sdt);
+      this.manipStep(sdt);
       // the expedition
       if (this.exp && !this.exp.done) {
         const moved = this.exp.update(this.ctx());
@@ -1232,7 +1544,7 @@ export class OceanDive {
       }
       // checkpoints now and then, and the regions as they are reached
       this.saveT += dt;
-      if (this.saveT > 20 && !this.arm) {
+      if (this.saveT > 20 && !this.arm && !this.manip) {
         this.saveT = 0;
         this.save();
       }
@@ -1268,9 +1580,10 @@ export class OceanDive {
     const cam = this.world.camera;
     this.world.resize(w, h);
     const fwd = s.heading * DEG;
-    this.world.update(dt, h, { x: s.x + Math.sin(fwd) * 60 + s.vx * 8, z: s.z - Math.cos(fwd) * 60 + s.vz * 8 }, { lamps: s.lights, overlay: this.overlay, boat: { x: s.x, z: s.z, speed: Math.hypot(s.vx, s.vz), surfaced: -s.y < 1.2 }, time: s.t });
+    this.updateSweep();
+    this.world.update(dt, h, { x: s.x + Math.sin(fwd) * 60 + s.vx * 8, z: s.z - Math.cos(fwd) * 60 + s.vz * 8 }, { lamps: s.lights, floods: s.floods, overlay: this.overlay, boat: { x: s.x, z: s.z, speed: Math.hypot(s.vx, s.vz), surfaced: -s.y < 1.2 }, time: s.t });
     // the eye adapts: quickly to light, more slowly to the dark
-    const want = this.world.exposureFor(s.lights);
+    const want = this.world.exposureFor(s.lights || s.floods);
     const k = want > this.exposure ? 0.7 : 2.2;
     this.exposure += (want - this.exposure) * Math.min(1, dt * k);
     this.world.fx.setExposure(this.exposure);
@@ -1414,15 +1727,16 @@ export class OceanDive {
     } else {
       // the chase camera swings in behind the boat unless the player has looked away recently;
       // while the arm or the scanner works it moves round to watch from ahead and to the side
-      const task = !!this.arm || this.scanT >= 0;
+      const task = !!this.arm || this.scanT >= 0 || !!this.manip;
       const free = performance.now() - this.lastDrag > 4000 && !this.drag;
       if (free) {
-        const target = task ? 2.3 : 0;
+        // (the hand-flown arm is watched from starboard and a little ahead, its side of the bow, low enough to see under it)
+        const target = this.manip ? -1.9 : task ? 2.3 : 0;
         this.camYaw += (target - this.camYaw) * Math.min(1, dt * (task ? 1.2 : 0.6));
       }
       const yaw = p.heading * DEG + this.camYaw;
-      const d = task ? Math.min(this.camDist, 8) : this.camDist;
-      const pitch = task ? Math.max(this.camPitch, 0.35) : this.camPitch;
+      const d = this.manip ? Math.min(this.camDist, 5) : task ? Math.min(this.camDist, 8) : this.camDist;
+      const pitch = this.manip ? Math.max(-0.1, Math.min(0.3, this.camPitch)) : task ? Math.max(this.camPitch, 0.35) : this.camPitch;
       const want = this.tmp.set(p.x - Math.sin(yaw) * Math.cos(pitch) * d, p.y + 1.2 + Math.sin(pitch) * d, p.z + Math.cos(yaw) * Math.cos(pitch) * d);
       // stay off the bottom
       const g = seabedHeight(want.x, want.z) + 0.8;
@@ -1438,7 +1752,11 @@ export class OceanDive {
         cam.position.y += (Math.random() - 0.5) * 0.12;
       }
       cam.up.set(0, 1, 0);
-      cam.lookAt(p.x, p.y + 0.8, p.z);
+      if (this.manip) {
+        // between the boat and the jaw
+        const j = m.grip.getWorldPosition(this.tmp2);
+        cam.lookAt((p.x + j.x) / 2, (p.y + 0.8 + j.y) / 2, (p.z + j.z) / 2);
+      } else cam.lookAt(p.x, p.y + 0.8, p.z);
       cam.fov = 62;
       cam.near = 0.08;
     }
@@ -1494,6 +1812,10 @@ export class OceanDive {
     if (s.holdDepth !== null) tags.push([`HOLD ${Math.round(s.holdDepth)} M`, 'on']);
     if (s.holdPos) tags.push(['HOLD POS', 'on']);
     tags.push(['LAMPS', s.lights ? 'on' : '']);
+    if (s.floods) tags.push(['FLOODS', 'on']);
+    if (this.scanning) tags.push(['SCANNING', 'on']);
+    if (this.manip) tags.push(['ARM', 'on']);
+    if (this.samples.length) tags.push([`SAMPLES ${this.samples.length}`, '']);
     if (this.overlay) tags.push(['OVERLAY', '']);
     if (this.timeIdx) tags.push([`TIME ×${TIME_STEPS[this.timeIdx]}`, 'amber']);
     if (this.emergency) tags.push(['EMERG BLOW', 'amber']);
@@ -1506,7 +1828,7 @@ export class OceanDive {
     else if (alt < 2.5 && s.vy < -0.15 && depth > 3) warn = 'BOTTOM CLOSE';
     this.warnT -= dt;
     this.touch.setAway(this.paused || this.ended || this.chartOpen || this.batteryCard);
-    this.touch.sync({ quiet: this.quiet, lamps: s.lights, holdDepth: s.holdDepth !== null, holdPos: !!s.holdPos, overlay: this.overlay, time: TIME_STEPS[this.timeIdx], emergency: this.emergency });
+    this.touch.sync({ quiet: this.quiet, lamps: s.lights, floods: s.floods, arm: !!this.manip, scan: this.scanning, holdDepth: s.holdDepth !== null, holdPos: !!s.holdPos, overlay: this.overlay, time: TIME_STEPS[this.timeIdx], emergency: this.emergency });
     this.hud.update(
       {
         kicker,
@@ -1532,7 +1854,9 @@ export class OceanDive {
       dt,
     );
     const age = this.simT - this.lastPing;
-    this.hud.updateSurvey(this.survey, this.pingRays.length ? { returns: this.pingRays, age, heading: this.pingOrigin.heading } : null, dt);
+    const view = this.scopeView();
+    this.hud.updateSurvey(this.survey, this.pingRays.length ? { view, age } : null, dt);
+    this.hud.updateScope(view.k > 0 ? view : null);
     // the prompt for the tool in reach
     this.hud.setPrompt(...this.promptText());
     // the guide marker in view
@@ -1576,6 +1900,15 @@ export class OceanDive {
     const speed = speedOf(s);
     if (this.scanT >= 0) return [`SCANNING ${Math.round((this.scanT / 2) * 100)} % · HOLD STILL`, false];
     if (this.arm) return ['ARM WORKING · HOLDING POSITION', false];
+    if (this.manip) {
+      const a = this.manip;
+      if (a.stowing >= 0) return [a.held ? 'INTO THE BASKET' : 'STOWING THE ARM', false];
+      if (a.k < 1) return ['ARM COMING OUT · HOLDING POSITION', false];
+      if (a.held) return [a.held.what === 'sample' ? `HOLDING ${a.held.name} · V BASKET · E LET GO` : `HOLDING ${a.held.name} · V PUTS IT IN THE BASKET`, false];
+      const near = this.reachable(this.world.sub.grip.getWorldPosition(this.tmp2), false);
+      if (near) return [`E · GRIP ${near.name}`, false];
+      return [a.jaw < 0.5 ? 'JAW CLOSED · E OPENS IT' : 'W/S REACH · A/D SWING · R/F UP / DOWN · E GRIP · V STOW', false];
+    }
     if (Math.hypot(s.x - HARBOR.berth.x, s.z - HARBOR.berth.z) < 16 && -s.y < 1.6) {
       if (this.exp && this.exp.id !== 'dock') return ['', false];
       return speed > 0.7 ? ['SLOW DOWN TO DOCK', true] : ['E · DOCK AT THE BERTH', false];

@@ -15,6 +15,7 @@ import { SeabedLife } from './seabedLife';
 import { SiltClouds } from './silt';
 import { Jellies } from './jellies';
 import { Bioluminescence } from './biolum';
+import { SweepDisc } from './sonarSweep';
 import { OCEAN_FX, daylightAt } from './oceanMaterial';
 import { WEATHERS, Weather, WeatherDef, surfaceHeight } from '../world/waves';
 import { PRESETS, OceanPreset, PresetDef } from '../perf/presets';
@@ -55,6 +56,8 @@ export class OceanWorld {
   readonly jellies: Jellies;
   /** plankton that flash when disturbed in dark water */
   biolum: Bioluminescence;
+  /** the scanning sonar's sweep in the open water (the overlay) */
+  readonly sweep = new SweepDisc();
   readonly seabed = new SeabedStreamer();
   readonly surface: OceanSurface;
   readonly props: OceanProps;
@@ -93,6 +96,7 @@ export class OceanWorld {
     this.scene.add(this.jellies.group);
     this.biolum = new Bioluminescence(this.preset.sparks, this.fx.dot);
     this.scene.add(this.biolum.points);
+    this.scene.add(this.sweep.mesh);
     // sea-bed tiles are built on a worker thread where there is one
     this.seabed.useWorker();
     this.scene.add(this.seabed.group, this.surface.mesh, this.surface.sky, this.props.group, this.fx.group, this.sub.root, this.sun, this.sun.target, this.hemi);
@@ -203,7 +207,7 @@ export class OceanWorld {
    * Per frame, once the camera and the boat are placed: stream the sea bed,
    * move the surface and the sky with the camera, and set the light in the water.
    */
-  update(dt: number, viewH: number, ahead: { x: number; z: number }, opts: { lamps: boolean; overlay: boolean; boat: { x: number; z: number; speed: number; surfaced: boolean } | null; time?: number }): void {
+  update(dt: number, viewH: number, ahead: { x: number; z: number }, opts: { lamps: boolean; floods?: boolean; overlay: boolean; boat: { x: number; z: number; speed: number; surfaced: boolean } | null; time?: number }): void {
     // (in a dive the sea keeps the simulation's time, so the hull rides the waves that are drawn)
     this.t = opts.time ?? this.t + dt;
     OCEAN_FX.uTime.value = this.t;
@@ -224,6 +228,7 @@ export class OceanWorld {
     this.silt.update(dt);
     this.jellies.update(cp.x, cp.y, cp.z, this.t);
     this.biolum.update(this.t, viewH / (2 * Math.tan((cam.fov * Math.PI) / 360)), this.under);
+    this.sweep.update();
     this.fish?.update(cp);
     // the sun's shadow box follows the camera
     this.sun.position.set(cp.x + this.sunDir.x * 200, cp.y + this.sunDir.y * 200, cp.z + this.sunDir.z * 200);
@@ -232,6 +237,8 @@ export class OceanWorld {
     this.surface.sky.visible = true;
     // the lamps as the snow and the beams see them
     LAMPS.uLampOn.value = opts.lamps ? 1 : 0;
+    LAMPS.uFloodOn.value = opts.floods ? 1 : 0;
+    this.sub.floodWorld(LAMPS.uFloodP.value);
     if (this.sub.lights.length >= 2) {
       this.sub.lampWorld(0, LAMPS.uLampP0.value, LAMPS.uLampD0.value);
       this.sub.lampWorld(1, LAMPS.uLampP1.value, LAMPS.uLampD1.value);
@@ -324,6 +331,7 @@ export class OceanWorld {
     this.silt.dispose();
     this.jellies.dispose();
     this.biolum.dispose();
+    this.sweep.dispose();
     this.fx.dispose();
     this.sub.dispose();
     this.fish?.dispose();

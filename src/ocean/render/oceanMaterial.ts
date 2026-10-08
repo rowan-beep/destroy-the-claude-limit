@@ -19,10 +19,18 @@ export const OCEAN_FX = {
   uTime: { value: 0 },
   /** caustics strength (0 = off: the Performance preset) */
   uCaust: { value: 1 },
-  /** the ping: x, z, wavefront radius (m), strength (0..1) */
-  uPing: { value: new THREE.Vector4(0, 0, 0, 0) },
-  /** the ping's origin height */
-  uPingY: { value: 0 },
+  /** the scanning sonar's sweep: the head (x, z), the beam's bearing (radians clockwise from north), the range (m) */
+  uSweep: { value: new THREE.Vector4(0, 0, 0, 280) },
+  /** the head's height */
+  uSweepY: { value: 0 },
+  /** how far round the beam has gone since the scan began (radians, up to a full turn) */
+  uSweepSpan: { value: 0 },
+  /** the beam itself: 1 while it turns, 0 once a single sweep is done */
+  uSweepLead: { value: 0 },
+  /** the whole picture: fades once a single sweep is done; 0 with the overlay off */
+  uSweepK: { value: 0 },
+  /** 1 / the eye's exposure (the picture keeps its brightness) */
+  uSweepExpInv: { value: 1 },
   /** stronger silhouettes nearby (the visibility aid) */
   uAid: { value: 0 },
   /** sunlight colour for the caustics */
@@ -57,8 +65,8 @@ varying vec3 vOcWorld;
 varying vec3 vOcNormal;
 uniform float uTime;
 uniform float uCaust;
-uniform vec4 uPing;
-uniform float uPingY;
+uniform vec4 uSweep;
+uniform float uSweepY, uSweepSpan, uSweepLead, uSweepK, uSweepExpInv;
 uniform float uAid;
 uniform vec3 uSunCol;
 uniform vec3 uKd;
@@ -105,13 +113,6 @@ const FRAG_MAIN = /* glsl */ `
     float k = uCaust * clamp( vOcNormal.y, 0.0, 1.0 ) * smoothstep( 0.0, 1.5, ocDepth ) * ( 1.0 - smoothstep( 5.0, 28.0, ocDepth ) );
     totalEmissiveRadiance += diffuseColor.rgb * uSunCol * ocDaylight() * ocCaustic( vOcWorld.xz, uTime ) * k * 0.9;
   }
-  // the ping: a bright wavefront, then a fading outline of the steep faces it crossed
-  if ( uPing.w > 0.0 ) {
-    float d = length( vec3( vOcWorld.x - uPing.x, ( vOcWorld.y - uPingY ) * 0.6, vOcWorld.z - uPing.y ) );
-    float front = smoothstep( uPing.z - 7.0, uPing.z, d ) * ( 1.0 - smoothstep( uPing.z, uPing.z + 1.5, d ) );
-    float edge = step( d, uPing.z ) * ( 1.0 - abs( vOcNormal.y ) ) * 0.55;
-    totalEmissiveRadiance += vec3( 0.25, 0.85, 1.0 ) * ( front * 1.3 + edge ) * uPing.w;
-  }
   if ( uAid > 0.0 ) totalEmissiveRadiance += diffuseColor.rgb * 0.18 * uAid;
 }
 `;
@@ -137,6 +138,29 @@ const FOG = /* glsl */ `
   if ( ocC >= 0.0 ) {
     #include <fog_fragment>
   }
+  // the scanning sonar's picture: what the beam hits lights up blue and fades behind it
+  // (a display laid over the view, so after the water, at the same brightness at any depth)
+  if ( uSweepK > 0.0 && ocF < 0.0 ) {
+    vec2 sv = vOcWorld.xz - uSweep.xy;
+    float sd = length( sv );
+    float since = mod( uSweep.z - atan( sv.x, -sv.y ), 6.2831853 );
+    if ( sd < uSweep.w && since <= uSweepSpan ) {
+      float lead = exp( -since * 18.0 ) * uSweepLead;
+      float trail = exp( -since * 1.6 );
+      // the beam fans out downward: far above or below the head it is faint
+      float fan = exp( -max( 0.0, abs( vOcWorld.y - uSweepY ) - 4.0 - sd * 0.5 ) * 0.15 );
+      float fall = ( 1.0 - smoothstep( uSweep.w * 0.75, uSweep.w, sd ) ) * smoothstep( 3.5, 6.0, sd );
+      // what faces the head sends the sound back; the far sides of ridges, rocks and hulls lie in its shadow
+      vec3 toHead = normalize( vec3( uSweep.x, uSweepY, uSweep.y ) - vOcWorld );
+      float facing = max( dot( inverseTransformDirection( normal, viewMatrix ), toHead ), 0.0 );
+      float back = 0.15 + 1.6 * facing * facing;
+      // range rings every 50 m
+      float ring = exp( -pow( ( fract( sd / 50.0 + 0.5 ) - 0.5 ) * 50.0, 2.0 ) * 0.5 ) * 0.6;
+      float a = ( ( lead * 1.3 + trail * 0.45 ) * back + ( lead + trail ) * ring ) * fan * fall * uSweepK;
+      // (laid over the picture: the scene dims under it a little, so it shows in bright shallow water too)
+      gl_FragColor.rgb = gl_FragColor.rgb * ( 1.0 - 0.4 * min( a, 1.0 ) ) + vec3( 0.12, 0.55, 1.0 ) * a * uSweepExpInv * 1.4;
+    }
+  }
 }
 `;
 
@@ -144,6 +168,7 @@ const FOG = /* glsl */ `
 function lightsChunk(): string {
   return THREE.ShaderChunk.lights_fragment_begin
     .replace('getSpotLightInfo( spotLight, geometryPosition, directLight );', 'getSpotLightInfo( spotLight, geometryPosition, directLight );\n\t\tdirectLight.color *= exp( -uSigma * length( spotLight.position - geometryPosition ) );')
+    .replace('getPointLightInfo( pointLight, geometryPosition, directLight );', 'getPointLightInfo( pointLight, geometryPosition, directLight );\n\t\tdirectLight.color *= exp( -uSigma * length( pointLight.position - geometryPosition ) );')
     .replace('getDirectionalLightInfo( directionalLight, directLight );', 'getDirectionalLightInfo( directionalLight, directLight );\n\t\tdirectLight.color *= ocDaylight();')
     .replace('vec3 irradiance = getAmbientLightIrradiance( ambientLightColor );', 'vec3 irradiance = getAmbientLightIrradiance( ambientLightColor ) * ocDaylight();')
     .replace('irradiance += getHemisphereLightIrradiance( hemisphereLights[ i ], geometryNormal );', 'irradiance += getHemisphereLightIrradiance( hemisphereLights[ i ], geometryNormal ) * ocDaylight();');
@@ -160,7 +185,7 @@ export function patchOceanMaterial<T extends THREE.MeshLambertMaterial | THREE.M
       .replace('#include <lights_fragment_begin>', lightsChunk())
       .replace('#include <fog_fragment>', FOG);
   };
-  mat.customProgramCacheKey = () => 'ocean-fx3-' + key;
+  mat.customProgramCacheKey = () => 'ocean-fx4-' + key;
   return mat;
 }
 

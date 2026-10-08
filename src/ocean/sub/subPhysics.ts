@@ -102,6 +102,8 @@ export interface SubState {
   /** battery 0..1 */
   battery: number;
   lights: boolean;
+  /** the floodlights round the hull */
+  floods: boolean;
   /** hold-depth target (m below the surface), or null */
   holdDepth: number | null;
   /** the hold-depth controller's integral (it trims out a heavy or light boat) */
@@ -134,7 +136,7 @@ export function newSubState(x: number, z: number, heading: number): SubState {
   return {
     x, y: 0.2, z, vx: 0, vy: 0, vz: 0,
     heading, yawRate: 0, pitch: 0, roll: 0,
-    ballast: 0, battery: 1, lights: true,
+    ballast: 0, battery: 1, lights: true, floods: false,
     holdDepth: null, holdI: 0, holdPos: null,
     out: { thrust: 0, lateral: 0, vertical: 0, yaw: 0, pumping: false },
     t: 0,
@@ -144,10 +146,10 @@ export function newSubState(x: number, z: number, heading: number): SubState {
 /**
  * Battery use (fraction per second): the hotel load (life support, sonar,
  * computers) about five hours on its own, full thrust on top of it about an
- * hour and a half, the lamps and the pumps a little more.
+ * hour and a half, the lamps, the floodlights and the pumps a little more.
  */
-export function drain(thrust: number, lights: boolean, pumping: boolean): number {
-  return 0.000055 + 0.00012 * thrust + (lights ? 0.00002 : 0) + (pumping ? 0.00005 : 0);
+export function drain(thrust: number, lights: boolean, pumping: boolean, floods = false): number {
+  return 0.000055 + 0.00012 * thrust + (lights ? 0.00002 : 0) + (floods ? 0.00003 : 0) + (pumping ? 0.00005 : 0);
 }
 
 /** depth below the mean surface (positive down) */
@@ -301,7 +303,7 @@ export function stepSub(s: SubState, spec: SubSpec, input: SubInput, env: SubEnv
 
   // --- battery: hotel load, thrusters, lights, pumps
   if (!env.relaxed) {
-    const use = drain(Math.abs(thrust) + 0.5 * Math.abs(lateral) + 0.7 * Math.abs(vertical), s.lights, pumping);
+    const use = drain(Math.abs(thrust) + 0.5 * Math.abs(lateral) + 0.7 * Math.abs(vertical), s.lights, pumping, s.floods);
     s.battery = Math.max(0, s.battery - use * dt);
   }
   // a flat battery leaves only a crawl
@@ -381,6 +383,6 @@ export function interpolate(prev: FixedStepper['prev'], s: SubState, a: number):
 export function rangeEstimate(s: SubState, spec: SubSpec): number {
   const v = Math.max(0.6, Math.hypot(s.vx, s.vz));
   const thrustFrac = Math.min(1, v / 3.6);
-  const use = drain(thrustFrac, s.lights, false);
+  const use = drain(thrustFrac, s.lights, false, s.floods);
   return (s.battery / use) * v;
 }

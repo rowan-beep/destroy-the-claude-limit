@@ -37,6 +37,27 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '6.3.0',
+    date: '2026-10-08',
+    ocean: {
+      title: 'Scanning sonar, a hand-flown arm and floodlights',
+      notes: [
+        added("Scanning sonar",
+          "PETREL's sonar head now turns: a ping is one full turn (3 s), the beam sweeping round from the bow, and N keeps it turning, a ping every turn, until you switch it off. While it turns the hydrophones are masked, so listening switches it off.",
+          "With the overlay on (O), whatever the beam sweeps over in the water lights up blue as it passes and fades behind it, out to 280 m with range rings every 50 m: the slope, the reef, the wreck and K3's mooring stand out well beyond what the lamps reach.",
+          "A round sonar display shows the same picture, heading-up, in the minimap's place while the head turns (and in the Quiet Survey panel): the sea bed in blue, hard returns in amber."),
+        added("The manipulator arm, flown by hand",
+          "V brings the arm out and the boat holds its place and depth. W/S move the jaw ahead and back, A/D left and right, R/F up and down; E closes the jaw on what is between it, V stows the arm and puts what it holds in the sample basket.",
+          "The jaw reaches 2.1 m from its shoulder, not behind it or into the hull, rests on the bottom (and stirs it) instead of going through it, and the camera moves round to watch it.",
+          "Take shells, stones, starfish, sea urchins and sea cucumbers off the bottom: each one in the basket goes into the Echo Atlas with the depth it came from. The expeditions' recorders can be taken by hand too; E outside the arm still does it for you."),
+        added("Floodlights",
+          "K switches on the floodlights round the hull (along both sides, under the belly and at the stern): the water and the bottom all round the boat light up, not only ahead, and the particles in the water catch the light. They draw a little more from the battery."),
+        note("Controls",
+          "Gamepad: hold A for the arm, hold B for the scanning sonar, hold Y for the floodlights (a tap still does what it did). Touch: ARM, SCAN SONAR and FLOODS buttons; with the arm out the stick and up / down move the jaw and USE grips."),
+      ],
+    },
+  },
+  {
     version: '6.2.0',
     date: '2026-10-08',
     ocean: {

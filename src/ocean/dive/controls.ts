@@ -32,6 +32,11 @@ export interface ControlTarget {
 export interface ControlState {
   quiet: boolean;
   lamps: boolean;
+  floods: boolean;
+  /** the manipulator is out: the stick and up / down work the arm */
+  arm: boolean;
+  /** the scanning sonar is turning */
+  scan: boolean;
   holdDepth: boolean;
   holdPos: boolean;
   overlay: boolean;
@@ -51,10 +56,7 @@ export function deadzone(v: number, dz = 0.15): number {
 // ---------------------------------------------------------------- gamepad
 /** standard-layout buttons to the orders they give (pressed once) */
 const PAD_PRESS: Record<number, string> = {
-  0: 'KeyE', // A: use
-  1: 'KeyP', // B: ping
   2: 'KeyQ', // X: Quiet Survey
-  3: 'KeyL', // Y: lamps
   8: 'KeyM', // View / Back: chart
   9: 'Escape', // Menu / Start: pause
   10: 'KeyC', // left stick press: camera
@@ -63,6 +65,14 @@ const PAD_PRESS: Record<number, string> = {
   15: 'KeyG', // D-pad right: hold position
 };
 
+/** buttons with two orders: a tap, and a hold of PAD_HOLD_S */
+const PAD_TAP_HOLD: Record<number, [string, string]> = {
+  0: ['KeyE', 'KeyV'], // A: use (in the arm: grip) · hold: the arm out / stowed
+  1: ['KeyP', 'KeyN'], // B: ping · hold: scanning sonar on / off
+  3: ['KeyL', 'KeyK'], // Y: lamps · hold: floodlights
+};
+export const PAD_HOLD_S = 0.7;
+
 export class DiveGamepad {
   readonly analog = zeroAnalog();
   connected = false;
@@ -70,6 +80,9 @@ export class DiveGamepad {
   /** when D-pad up went down (wall clock, ms: a hold is timed in real seconds, whatever the frame rate) */
   private upSince = -1;
   private blew = false;
+  /** when each tap-or-hold button went down (wall clock, ms), and whether its hold has fired */
+  private downAt = new Map<number, number>();
+  private heldFired = new Set<number>();
 
   /** read the first connected pad; `drive` false (paused, chart open) leaves only the orders */
   poll(dt: number, t: ControlTarget, drive: boolean): void {
@@ -92,6 +105,21 @@ export class DiveGamepad {
     for (const [i, code] of Object.entries(PAD_PRESS)) {
       const k = Number(i);
       if (pressed[k] && !this.prev[k]) t.command(code);
+    }
+    // tap or hold: the tap's order on release, the hold's once it has been held long enough
+    const now = performance.now();
+    for (const [i, [tap, hold]] of Object.entries(PAD_TAP_HOLD)) {
+      const k = Number(i);
+      if (pressed[k] && !this.prev[k]) {
+        this.downAt.set(k, now);
+        this.heldFired.delete(k);
+      } else if (pressed[k] && this.downAt.has(k) && !this.heldFired.has(k) && now - this.downAt.get(k)! >= PAD_HOLD_S * 1000) {
+        this.heldFired.add(k);
+        t.command(hold);
+      } else if (!pressed[k] && this.prev[k] && this.downAt.has(k)) {
+        if (!this.heldFired.has(k)) t.command(tap);
+        this.downAt.delete(k);
+      }
     }
     this.prev = pressed;
     if (!drive) {
@@ -224,6 +252,9 @@ export class DiveTouch {
       { label: 'SIDE ▶', hold: ['lateral', 1] },
       { label: 'HOLD DEPTH', code: 'KeyT', on: 'holdDepth' },
       { label: 'HOLD POS', code: 'KeyG', on: 'holdPos' },
+      { label: 'ARM', code: 'KeyV', on: 'arm' },
+      { label: 'SCAN SONAR', code: 'KeyN', on: 'scan' },
+      { label: 'FLOODS', code: 'KeyK', on: 'floods' },
     ];
     for (const b of btns) this.button(pad, b);
     // two fingers on the view zoom the chase camera

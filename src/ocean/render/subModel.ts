@@ -1,8 +1,9 @@
 // SV-1 PETREL, the survey submersible: a one-pilot boat about 6.4 m long. A
 // yellow pressure hull under a white foam fairing, an acrylic bow dome with
 // the pilot inside, two stern thrusters and two vertical ones on outriggers,
-// a bar of LED lamps over the dome, skids, a forward-looking sonar head on
-// top, and a five-function manipulator arm folded beside a sample basket.
+// a bar of LED lamps over the dome, floodlights round the hull, skids, a
+// scanning sonar head on top, and a five-function manipulator arm folded
+// beside a sample basket.
 //
 // The model is built in its own frame: forward is -z, up is +y, right is +x.
 
@@ -11,6 +12,8 @@ import { patchOceanMaterial } from './oceanMaterial';
 
 /** each main lamp's strength (candela in the scene's light units, where full sun is about 3) */
 const LAMP_CD = 20;
+/** the floodlights together, as one light shining all round from the middle of the boat */
+const FLOOD_CD = 14;
 
 const srgb = (c: number) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
 
@@ -77,6 +80,11 @@ export class SubModel {
   private lamps: Lamp[] = [];
   /** the two working lights (the rest are the lenses only) */
   readonly lights: THREE.SpotLight[] = [];
+  /** the floodlights' lenses, and the one light that stands for all of them */
+  private floodLenses: THREE.Mesh[] = [];
+  readonly floodLight: THREE.PointLight;
+  /** the scanning sonar's head (it turns with the sweep) */
+  private sonarHead: THREE.Group;
   private props: THREE.Object3D[] = [];
   private vprops: THREE.Object3D[] = [];
   private propSpin = 0;
@@ -145,11 +153,14 @@ export class SubModel {
     // the hatch, the lifting eye, the sonar head, the antenna and the strobe
     add(new THREE.CylinderGeometry(0.34, 0.36, 0.12, 24).translate(0, 1.26, 0.35), this.metalMat);
     add(new THREE.TorusGeometry(0.16, 0.035, 8, 16).translate(0, 1.42, -0.4), this.metalMat);
+    // the scanning sonar: a pedestal and a head that turns (its transducer face looks out to one side)
+    add(new THREE.CylinderGeometry(0.07, 0.09, 0.16, 12).translate(0, 1.27, -1.45), this.metalMat);
     const sonar = new THREE.Group();
-    sonar.position.set(0, 1.3, -1.45);
-    add(new THREE.CylinderGeometry(0.16, 0.16, 0.34, 18).rotateZ(Math.PI / 2), this.darkMat, sonar);
-    add(new THREE.BoxGeometry(0.12, 0.2, 0.12).translate(0, -0.12, 0.05), this.metalMat, sonar);
+    sonar.position.set(0, 1.42, -1.45);
+    add(new THREE.CylinderGeometry(0.13, 0.13, 0.2, 18), this.darkMat, sonar);
+    add(new THREE.BoxGeometry(0.06, 0.14, 0.16).translate(0, 0, -0.13), this.metalMat, sonar);
     this.body.add(sonar);
+    this.sonarHead = sonar;
     add(new THREE.CylinderGeometry(0.018, 0.025, 1.3, 6).translate(0.35, 1.85, 1.35), this.darkMat);
     add(new THREE.CylinderGeometry(0.045, 0.05, 0.12, 10).translate(-0.35, 1.3, 1.35), this.metalMat);
     this.strobe = add(new THREE.SphereGeometry(0.055, 10, 8).translate(-0.35, 1.4, 1.35), new THREE.MeshBasicMaterial({ color: new THREE.Color(6, 6, 7), toneMapped: false }));
@@ -289,6 +300,30 @@ export class SubModel {
       this.lamps.push({ lens, light });
     }
 
+    // --- floodlights: wide LED floods along the sides, under the belly and at the stern
+    const floods: [number, number, number, number, number, number][] = [
+      [-1.22, -0.5, -0.9, -1, -0.55, -0.1], [1.22, -0.5, -0.9, 1, -0.55, -0.1],
+      [-1.12, -0.6, 1.3, -1, -0.6, 0.35], [1.12, -0.6, 1.3, 1, -0.6, 0.35],
+      [-0.4, -1.13, -0.3, -0.2, -1, 0], [0.4, -1.13, 0.6, 0.2, -1, 0],
+      [0, -0.45, 3.1, 0, -0.35, 1],
+    ];
+    for (const [x, y, z, dx, dy, dz] of floods) {
+      const h = new THREE.Group();
+      h.position.set(x, y, z);
+      // (the body is still at the origin: its own frame is the world's)
+      h.lookAt(x + dx, y + dy, z + dz);
+      add(cylZ(0.08, 0.095, 0.12, 14), this.darkMat, h);
+      const lens = new THREE.Mesh(new THREE.CircleGeometry(0.07, 14), this.lensOff);
+      lens.position.z = 0.061;
+      h.add(lens);
+      this.body.add(h);
+      this.floodLenses.push(lens);
+    }
+    // (in the scene from the start at no strength: adding a light later would recompile every material)
+    this.floodLight = new THREE.PointLight(0xfff2e0, 0, 60, 2);
+    this.floodLight.position.set(0, -0.7, 0.3);
+    this.body.add(this.floodLight);
+
     // --- the sample basket and the manipulator
     const bk = this.basket;
     bk.position.copy(this.basketAt);
@@ -338,6 +373,26 @@ export class SubModel {
   setLampLevel(k: number): void {
     this.lampLevel = k;
     for (const l of this.lights) l.intensity = this.lampOn ? LAMP_CD * k : 0;
+    this.floodLight.intensity = this.floodOn ? FLOOD_CD * k : 0;
+  }
+
+  private floodOn = false;
+
+  /** the floodlights on or off */
+  setFloods(on: boolean): void {
+    this.floodOn = on;
+    for (const l of this.floodLenses) l.material = on ? this.lensOn : this.lensOff;
+    this.setLampLevel(this.lampLevel);
+  }
+
+  /** where the floodlights shine from, in the world */
+  floodWorld(out: THREE.Vector3): THREE.Vector3 {
+    return this.floodLight.getWorldPosition(out);
+  }
+
+  /** turn the sonar head to a bearing relative to the bow (radians, clockwise) */
+  setSonarHead(rel: number): void {
+    this.sonarHead.rotation.y = -rel;
   }
 
   /** the thrusters turn with their demand; the strobe blinks at the surface */

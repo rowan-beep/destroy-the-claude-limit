@@ -353,6 +353,17 @@ const VERT_MOVE = /* glsl */ `
 }
 `;
 
+/** what the arm can pick up, and the largest of each it can hold (instance scale) */
+const PICKABLE: Record<string, number> = { shell: 1, stone: 0.35, starfish: 1, urchin: 1, cucumber: 1.2 };
+
+/** a sample the arm has lifted off the floor */
+export interface Sample {
+  name: string;
+  mesh: THREE.Mesh;
+  /** how deep it lay (m) */
+  depth: number;
+}
+
 export class SeabedLife {
   readonly group = new THREE.Group();
   private material: THREE.MeshLambertMaterial;
@@ -367,6 +378,9 @@ export class SeabedLife {
   budgetMs = 2.5;
   /** for the benchmark: cells built, the slowest (ms) */
   readonly stats = { cells: 0, maxCellMs: 0, instances: 0 };
+  /** what the arm has taken, by cell ("i:j") then "kind:index" (gone for the rest of the dive) */
+  private taken = new Map<string, Set<string>>();
+  private heldMats: THREE.Material[] = [];
 
   constructor(density: number) {
     this.group.name = 'seabed-life';
@@ -397,6 +411,73 @@ export class SeabedLife {
   setDensity(d: number): void {
     if (d === this.density && this.cells.size) return;
     this.density = d;
+    this.cells.clear();
+    // (a new density places different things: what was taken no longer matches)
+    this.taken.clear();
+    this.dirty = true;
+  }
+
+  /**
+   * The nearest thing the arm can pick up within r of a world point: it leaves
+   * the floor (for the rest of the dive) and comes back as a mesh to hold.
+   */
+  takeNear(p: THREE.Vector3, r: number): Sample | null {
+    const best = this.findNear(p, r);
+    if (!best) return null;
+    const { key, ki, a } = best;
+    const it = this.cells.get(key)!.items[ki];
+    const m4 = new THREE.Matrix4().fromArray(it.m, a * 16);
+    const col = new THREE.Color(it.c[a * 3], it.c[a * 3 + 1], it.c[a * 3 + 2]);
+    it.m.fill(0, a * 16, a * 16 + 16);
+    if (!this.taken.has(key)) this.taken.set(key, new Set());
+    this.taken.get(key)!.add(`${ki}:${a}`);
+    this.dirty = true;
+    const mat = patchOceanMaterial(new THREE.MeshLambertMaterial({ vertexColors: true, color: col }), 'life-held');
+    this.heldMats.push(mat);
+    const mesh = new THREE.Mesh(KINDS[ki].geo, mat);
+    m4.decompose(mesh.position, mesh.quaternion, mesh.scale);
+    mesh.name = 'sample-' + KINDS[ki].name;
+    return { name: KINDS[ki].name, mesh, depth: -mesh.position.y };
+  }
+
+  /** what the arm could pick up within r of a world point (nothing is taken) */
+  peekNear(p: THREE.Vector3, r: number): string | null {
+    const b = this.findNear(p, r);
+    return b ? KINDS[b.ki].name : null;
+  }
+
+  private findNear(p: THREE.Vector3, r: number): { key: string; ki: number; a: number } | null {
+    const ci = Math.floor(p.x / CELL), cj = Math.floor(p.z / CELL);
+    let best: { key: string; ki: number; a: number } | null = null;
+    let bd = r;
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+      const key = `${ci + di}:${cj + dj}`;
+      const c = this.cells.get(key);
+      if (!c) continue;
+      KINDS.forEach((k, ki) => {
+        const max = PICKABLE[k.name];
+        if (!max) return;
+        const it = c.items[ki];
+        for (let a = 0; a < it.n; a++) {
+          const o = a * 16;
+          if (it.m[o + 15] === 0) continue;
+          // (its size: the length of the first column of its matrix)
+          if (Math.hypot(it.m[o], it.m[o + 1], it.m[o + 2]) > max) continue;
+          const d = Math.hypot(it.m[o + 12] - p.x, it.m[o + 13] - p.y, it.m[o + 14] - p.z);
+          if (d < bd) {
+            bd = d;
+            best = { key, ki, a };
+          }
+        }
+      });
+    }
+    return best;
+  }
+
+  /** a fresh dive: everything back where it grew */
+  resetTaken(): void {
+    if (!this.taken.size) return;
+    this.taken.clear();
     this.cells.clear();
     this.dirty = true;
   }
@@ -517,6 +598,14 @@ export class SeabedLife {
       }
       return { m, c, n: w };
     });
+    // what the arm took from this cell stays gone
+    const gone = this.taken.get(`${i}:${j}`);
+    if (gone) {
+      for (const g of gone) {
+        const [ki, a] = g.split(':').map(Number);
+        if (a < items[ki].n) items[ki].m.fill(0, a * 16, a * 16 + 16);
+      }
+    }
     return { cx: i, cz: j, items };
   }
 
@@ -555,6 +644,7 @@ export class SeabedLife {
   dispose(): void {
     for (const m of this.meshes) m.geometry.dispose();
     this.material.dispose();
+    for (const m of this.heldMats) m.dispose();
     this.cells.clear();
   }
 }
