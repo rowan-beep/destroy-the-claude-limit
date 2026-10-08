@@ -2,7 +2,7 @@
 // the pictures themselves as JPEGs) and the spotter's logbook (localStorage): the
 // best shot of each kind for each jet, points, and the rank they add up to.
 
-import type { AircraftType } from '../aircraft/specs';
+import { SPECS, AircraftType } from '../aircraft/specs';
 
 /** the kinds of shot to collect, what earns them, and what they are worth */
 export const SHOTS: Record<string, { name: string; hint: string; pts: number }> = {
@@ -32,6 +32,17 @@ export const RANKS: { name: string; pts: number; lens: number; perk: string }[] 
   { name: 'MAGAZINE COVER', pts: 8000, lens: 1120, perk: 'A 1.4x teleconverter: 1120 mm' },
 ];
 
+/** the kinds of shot a jet's display offers (the heavy jets fly no aerobatics; only the thrust-vectoring jets cobra) */
+export function kindsFor(t: AircraftType): string[] {
+  const heavy = t === 'SR71' || t === 'MIG31';
+  const tvc = (SPECS[t].tvcDeg ?? 0) > 0;
+  return Object.keys(SHOTS).filter((k) => {
+    if (k === 'cobra') return tvc && !heavy;
+    if (heavy && ['vertical', 'highg', 'inverted', 'knife', 'highalpha', 'topside', 'vapor'].includes(k)) return false;
+    return true;
+  });
+}
+
 export interface PhotoMeta {
   id: string;
   time: number;
@@ -48,6 +59,8 @@ export interface PhotoMeta {
   sy?: number;
   /** where it was taken from (the photo spot's id) */
   spot?: string;
+  /** a favourite: kept however full the album gets */
+  fav?: boolean;
 }
 
 export interface SpotterLog {
@@ -88,20 +101,23 @@ export function rankOf(points: number): { i: number; rank: (typeof RANKS)[number
 // ------------------------------------------------------------------ the album
 
 const DB = 'triad-spotter';
-const MAX_PHOTOS = 120;
+/** how many pictures the album keeps (favourites are never dropped) */
+export const MAX_PHOTOS = 1000;
 let dbP: Promise<IDBDatabase | null> | null = null;
 /** if IndexedDB is blocked, the album lives for this session */
-const memory = new Map<string, { meta: PhotoMeta; blob: Blob }>();
+const memory = new Map<string, { meta: PhotoMeta; blob: Blob; thumb?: Blob }>();
 
 function db(): Promise<IDBDatabase | null> {
   if (!dbP)
     dbP = new Promise((res) => {
       try {
-        const r = indexedDB.open(DB, 1);
+        // (version 2 added small thumbnails for the album's grid)
+        const r = indexedDB.open(DB, 2);
         r.onupgradeneeded = () => {
           const d = r.result;
           if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta', { keyPath: 'id' });
           if (!d.objectStoreNames.contains('blob')) d.createObjectStore('blob');
+          if (!d.objectStoreNames.contains('thumb')) d.createObjectStore('thumb');
         };
         r.onsuccess = () => res(r.result);
         r.onerror = () => res(null);
@@ -120,7 +136,10 @@ function req<T>(r: IDBRequest<T>): Promise<T> {
   });
 }
 
+let listCache: PhotoMeta[] | null = null;
+
 export async function listPhotos(): Promise<PhotoMeta[]> {
+  if (listCache) return listCache.slice();
   const d = await db();
   let list: PhotoMeta[];
   if (!d) list = [...memory.values()].map((m) => m.meta);
@@ -131,7 +150,8 @@ export async function listPhotos(): Promise<PhotoMeta[]> {
       list = [...memory.values()].map((m) => m.meta);
     }
   }
-  return list.sort((a, b) => b.time - a.time);
+  listCache = list.sort((a, b) => b.time - a.time);
+  return listCache.slice();
 }
 
 export async function photoBlob(id: string): Promise<Blob | null> {
@@ -146,45 +166,90 @@ export async function photoBlob(id: string): Promise<Blob | null> {
   }
 }
 
+/** the small picture for the grid (the full one for pictures from before thumbnails) */
+export async function photoThumb(id: string): Promise<Blob | null> {
+  const m = memory.get(id);
+  if (m) return m.thumb ?? m.blob;
+  const d = await db();
+  if (!d) return null;
+  try {
+    const t = (await req(d.transaction('thumb').objectStore('thumb').get(id))) as Blob | undefined;
+    return t ?? (await photoBlob(id));
+  } catch {
+    return photoBlob(id);
+  }
+}
+
 export async function deletePhoto(id: string): Promise<void> {
   memory.delete(id);
+  if (listCache) listCache = listCache.filter((p) => p.id !== id);
   const d = await db();
   if (!d) return;
   try {
-    const tx = d.transaction(['meta', 'blob'], 'readwrite');
+    const tx = d.transaction(['meta', 'blob', 'thumb'], 'readwrite');
     tx.objectStore('meta').delete(id);
     tx.objectStore('blob').delete(id);
+    tx.objectStore('thumb').delete(id);
   } catch {
     /* (gone already) */
   }
 }
 
-/** keep a photo; the album holds the best and newest 120 (the weakest old ones go first) */
-export async function savePhoto(meta: PhotoMeta, blob: Blob): Promise<void> {
+/** mark (or unmark) a favourite: favourites are never dropped to make room */
+export async function setFavourite(id: string, fav: boolean): Promise<void> {
+  const list = await listPhotos();
+  const p = list.find((x) => x.id === id);
+  if (!p) return;
+  p.fav = fav;
+  if (listCache) {
+    const c = listCache.find((x) => x.id === id);
+    if (c) c.fav = fav;
+  }
+  const m = memory.get(id);
+  if (m) m.meta.fav = fav;
   const d = await db();
+  if (!d) return;
+  try {
+    d.transaction('meta', 'readwrite').objectStore('meta').put(p);
+  } catch {
+    /* (this session only) */
+  }
+}
+
+/** keep a picture; past the limit the weakest old ones (never a favourite) go first */
+export async function savePhoto(meta: PhotoMeta, blob: Blob, thumb?: Blob): Promise<void> {
+  const d = await db();
+  if (listCache) listCache.unshift(meta);
   if (!d) {
-    memory.set(meta.id, { meta, blob });
+    memory.set(meta.id, { meta, blob, thumb });
     return;
   }
   try {
-    const tx = d.transaction(['meta', 'blob'], 'readwrite');
+    const tx = d.transaction(['meta', 'blob', 'thumb'], 'readwrite');
     tx.objectStore('meta').put(meta);
     tx.objectStore('blob').put(blob, meta.id);
+    if (thumb) tx.objectStore('thumb').put(thumb, meta.id);
     await new Promise<void>((res, rej) => {
       tx.oncomplete = () => res();
       tx.onerror = () => rej(tx.error);
     });
   } catch {
-    memory.set(meta.id, { meta, blob });
+    memory.set(meta.id, { meta, blob, thumb });
     return;
   }
-  const all = await listPhotos();
-  if (all.length > MAX_PHOTOS) {
-    // the oldest of the low scorers make room
-    const drop = all
-      .slice(20)
-      .sort((a, b) => a.score - b.score || a.time - b.time)
-      .slice(0, all.length - MAX_PHOTOS);
-    for (const p of drop) await deletePhoto(p.id);
+  // (a count is cheap; the full list only when there is something to drop)
+  let n = 0;
+  try {
+    n = await req(d.transaction('meta').objectStore('meta').count());
+  } catch {
+    return;
   }
+  if (n <= MAX_PHOTOS) return;
+  const all = await listPhotos();
+  const drop = all
+    .slice(50)
+    .filter((p) => !p.fav)
+    .sort((a, b) => a.score - b.score || a.time - b.time)
+    .slice(0, all.length - MAX_PHOTOS);
+  for (const p of drop) await deletePhoto(p.id);
 }

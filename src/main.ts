@@ -15,6 +15,8 @@ import { WeatherWidget } from './ui/weatherWidget';
 import { MainMenu } from './ui/menu/mainMenu';
 import { PerfWatch } from './ui/perfWarning';
 import { Hangar } from './ui/menu/hangar';
+import { AirshowAlbum } from './ui/airshowAlbum';
+import { loadSpotterLog } from './game/spotterBook';
 import { SpaceMenu } from './ui/menu/spaceMenu';
 import { menuMusic } from './audio/menuMusic';
 import type { SpaceProgram } from './space/spaceProgram';
@@ -74,6 +76,7 @@ async function boot(): Promise<void> {
   const mapView = new MapView(document.body, () => game.setState('playing'));
   game.onWorldBuilt = () => mapView.setGrid(game.world.grid);
   const hangar = new Hangar(game.renderer.renderer);
+  let menuAlbum: AirshowAlbum | null = null;
   if (import.meta.env.DEV) Object.assign(window, { __hangar: hangar, __THREE: THREE });
   hangar.drawWith = (sc, cam) => game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping);
   hangar.compileWith = (o, sc, cam) => game.renderer.compileFor(o, sc, cam);
@@ -225,6 +228,11 @@ async function boot(): Promise<void> {
     },
     onControls: () => controls.show(true, settings.input),
     onLogbook: () => logbook.show(game.logbook),
+    onAlbum: () => {
+      // (made the first time it is opened: the airshow's album, from the menu)
+      menuAlbum ??= new AirshowAlbum(document.body, () => loadSpotterLog(), 'BACK TO THE MENU');
+      void menuAlbum.open('photos');
+    },
     onSelectJet: (t, l) => hangar.setJet(t, l),
     onCustomize: (t) => {
       menu.root.classList.add('hidden');

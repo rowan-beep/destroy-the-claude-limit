@@ -52,6 +52,33 @@ const STATIC_AT = SHOW_CENTRE - 230;
 const STATIC_GAP = 58;
 const STATIC_ACROSS = BARRIER_Z - 84;
 
+/** the frame as drawn, scaled on the GPU (a snapshot taken now, ready later) */
+function snapshot(canvas: HTMLCanvasElement, w: number, h: number): Promise<ImageBitmap | null> {
+  try {
+    return createImageBitmap(canvas, { resizeWidth: w, resizeHeight: h, resizeQuality: 'medium' }).catch(() => createImageBitmap(canvas).catch(() => null));
+  } catch {
+    return Promise.resolve(null);
+  }
+}
+
+/** a JPEG of a bitmap at a size, with the photographer's caption along the bottom */
+async function encodeJpeg(bmp: ImageBitmap, w: number, h: number, caption: string | null, q: number): Promise<Blob | null> {
+  const off = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(w, h) : null;
+  const c = off ?? Object.assign(document.createElement('canvas'), { width: w, height: h });
+  const g = c.getContext('2d') as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+  if (!g) return null;
+  g.drawImage(bmp, 0, 0, w, h);
+  if (caption) {
+    g.fillStyle = 'rgba(0,0,0,0.35)';
+    g.fillRect(0, h - 26, w, 26);
+    g.fillStyle = 'rgba(255,255,255,0.85)';
+    g.font = `600 ${Math.round(h / 45)}px Rajdhani, system-ui`;
+    g.fillText(caption, 12, h - 8);
+  }
+  if (off) return off.convertToBlob({ type: 'image/jpeg', quality: q });
+  return new Promise((res) => (c as HTMLCanvasElement).toBlob((b) => res(b), 'image/jpeg', q));
+}
+
 export interface ShotResult {
   meta: PhotoMeta;
   url: string;
@@ -286,6 +313,8 @@ export class SpotterMode extends GameMode {
   }
 
   dispose(): void {
+    for (const u of this.urls) URL.revokeObjectURL(u);
+    this.urls = [];
     this.grounds?.dispose();
     this.grounds = null;
     for (const [k, fn] of this.listeners) window.removeEventListener(k, fn);
@@ -358,10 +387,8 @@ export class SpotterMode extends GameMode {
   }
 
   handleInput(inp: Input, dt: number): void {
-    if (this.albumOpen) {
-      if (inp.codePressed('Tab') || inp.codePressed('Escape')) this.onToggleAlbum?.();
-      return;
-    }
+    // (the album handles its own keys)
+    if (this.albumOpen) return;
     if (inp.codePressed('Space')) this.wantShot = true;
     // burst (from the third rank): hold the shutter
     const burst = rankOf(this.log.points).i >= 2;
@@ -511,30 +538,7 @@ export class SpotterMode extends GameMode {
     audio.click();
     audio.beep(5200, 0.025, 0.03, 'square');
     const shot = this.score(cam, canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
-    // the picture: the frame as drawn, scaled to at most 1600 px wide
-    const W = Math.min(1600, canvas.width), H = Math.round((W * canvas.height) / Math.max(1, canvas.width));
-    const c = document.createElement('canvas');
-    c.width = W;
-    c.height = H;
-    const g = c.getContext('2d');
-    if (!g) return;
-    g.drawImage(canvas, 0, 0, W, H);
-    // the photographer's caption in the corner
-    g.fillStyle = 'rgba(0,0,0,0.35)';
-    g.fillRect(0, H - 26, W, 26);
-    g.fillStyle = 'rgba(255,255,255,0.85)';
-    g.font = `600 ${Math.round(H / 45)}px Rajdhani, system-ui`;
-    g.fillText(`${shot.jet} · ${this.field.name.toUpperCase()} · ${Math.round(this.focal)} MM`, 12, H - 8);
-    const url = c.toDataURL('image/jpeg', 0.86);
-    const seq = ++this.shotSeq;
-    // (the album copy, in the background)
-    this.saving = new Promise<void>((res) =>
-      c.toBlob((b) => {
-        if (b && shot.score >= 15) void savePhoto(shot, b).finally(res);
-        else res();
-      }, 'image/jpeg', 0.86),
-    );
-    // the logbook: the best of each kind for this jet, and the points
+    // the logbook: the best of each kind for this jet, and the points (at once: the picture follows)
     const L = this.log;
     const before = rankOf(L.points);
     const best = (L.best[shot.type] ??= {});
@@ -559,9 +563,43 @@ export class SpotterMode extends GameMode {
     L.topScore = Math.max(L.topScore, shot.score);
     saveSpotterLog(L);
     const after = rankOf(L.points);
-    this.lastShot = { meta: shot, url, newTags, points, rankUp: after.i > before.i ? after.rank.name : null, notes: this.notes };
-    void seq;
+    const result: ShotResult = { meta: shot, url: '', newTags, points, rankUp: after.i > before.i ? after.rank.name : null, notes: this.notes };
+    this.lastShot = result;
+    this.shotSeq++;
+    // the picture: a snapshot of the frame taken on the GPU now (no stall reading the
+    // whole 4K frame back), scaled and encoded off the main thread, once; and a small
+    // copy for the album's grid. (A burst faster than that keeps its scores and skips
+    // the odd picture rather than slowing the show down.)
+    if (this.capturing >= 2) return;
+    this.capturing++;
+    const W = Math.min(1600, canvas.width), H = Math.round((W * canvas.height) / Math.max(1, canvas.width));
+    const caption = `${shot.jet} · ${this.field.name.toUpperCase()} · ${Math.round(this.focal)} MM`;
+    const snap = snapshot(canvas, W, H);
+    this.saving = (async () => {
+      try {
+        const bmp = await snap;
+        if (!bmp) return;
+        const full = await encodeJpeg(bmp, W, H, caption, 0.86);
+        const tw = 400, th = Math.round((400 * H) / W);
+        const thumb = await encodeJpeg(bmp, tw, th, null, 0.78);
+        bmp.close();
+        if (!full) return;
+        result.url = URL.createObjectURL(full);
+        this.urls.push(result.url);
+        // (the cards keep the last few)
+        while (this.urls.length > 4) URL.revokeObjectURL(this.urls.shift()!);
+        if (shot.score >= 15) await savePhoto(shot, full, thumb ?? undefined);
+      } catch {
+        /* (no picture this time: the score stands) */
+      } finally {
+        this.capturing--;
+      }
+    })();
   }
+
+  /** pictures being made, and the card pictures' object URLs */
+  private capturing = 0;
+  private urls: string[] = [];
 
   private notes: string[] = [];
   /** the album copy of the last picture, being written (the album waits for it) */

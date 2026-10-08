@@ -8,9 +8,9 @@ import * as THREE from 'three';
 import { el, clearEl } from './dom';
 import type { SpotterMode } from '../game/modes/spotter';
 import { fovFor } from '../game/modes/spotter';
-import { SHOTS, RANKS, rankOf, listPhotos, photoBlob, deletePhoto, PhotoMeta } from '../game/spotterBook';
-import { AIRCRAFT_TYPES, SPECS } from '../aircraft/specs';
-import { saveFile } from '../net/artifact';
+import { SHOTS, rankOf, kindsFor } from '../game/spotterBook';
+import { SPECS } from '../aircraft/specs';
+import { AirshowAlbum } from './airshowAlbum';
 
 const CSS = `
 .sp-ui{position:fixed;inset:0;pointer-events:none;z-index:31;font-family:'Rajdhani','Segoe UI',system-ui,sans-serif;color:#f1f4f8;letter-spacing:.04em}
@@ -59,29 +59,6 @@ const CSS = `
 .sp-arrow{position:absolute;width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-bottom:16px solid #ffd38a;filter:drop-shadow(0 1px 2px #000)}
 .sp-help{position:absolute;left:50%;bottom:90px;transform:translateX(-50%);width:max-content;max-width:min(600px,calc(100vw - 680px));text-align:center;font-size:11px;color:#c3cdda;letter-spacing:.1em;line-height:1.5;text-shadow:0 1px 2px #000;transition:opacity 1.5s}
 .sp-help.dim{opacity:0}
-.sp-album{position:absolute;inset:0;background:#070a0ef2;display:none;pointer-events:auto;overflow:auto}
-.sp-album.show{display:block}
-.sp-al-top{position:sticky;top:0;display:flex;gap:10px;align-items:center;padding:14px 22px;background:#070a0ef8;border-bottom:1px solid #ffffff14;z-index:2}
-.sp-al-top h2{margin:0 12px 0 0;font-size:22px;letter-spacing:.16em}
-.sp-al-body{padding:16px 22px 40px}
-.sp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
-.sp-ph{position:relative;border-radius:8px;overflow:hidden;background:#111;cursor:pointer;border:1px solid #ffffff14}
-.sp-ph img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}
-.sp-ph div{position:absolute;left:0;right:0;bottom:0;padding:16px 8px 6px;background:linear-gradient(transparent,#000c);font-size:11px;letter-spacing:.1em;display:flex;justify-content:space-between}
-.sp-ph div b{color:#ffc85a}
-.sp-big{position:fixed;inset:0;background:#000e;display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px;z-index:5;pointer-events:auto}
-.sp-big.show{display:flex}
-.sp-big img{max-width:94vw;max-height:80vh;border-radius:6px}
-.sp-big .sp-row{width:min(900px,94vw)}
-.sp-lb{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
-.sp-lb-j{background:#0f141b;border:1px solid #ffffff14;border-radius:10px;padding:10px 12px}
-.sp-lb-j h3{margin:0 0 6px;font-size:14px;letter-spacing:.14em;display:flex;justify-content:space-between}
-.sp-lb-j h3 span{color:#ffd38a;font-size:12px}
-.sp-lb-j .sp-chips span{font-size:10px;padding:3px 6px;cursor:help}
-.sp-ranks{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
-.sp-ranks div{flex:1 1 170px;background:#0f141b;border:1px solid #ffffff14;border-radius:8px;padding:8px 10px;font-size:12px;color:#aab6c6}
-.sp-ranks div.on{border-color:#ffb14a}
-.sp-ranks b{display:block;color:#fff;font-size:13px;letter-spacing:.1em}
 @media (max-width:1000px){.sp-help{display:none}}
 @media (max-width:760px){.sp-tr{width:180px}.sp-card{width:220px}.sp-prog{display:none}}
 `;
@@ -98,9 +75,7 @@ export class SpotterUi {
   private elTag: HTMLElement;
   private elArrow: HTMLElement;
   private card: HTMLElement;
-  private album: HTMLElement;
-  private albumBody: HTMLElement;
-  private big: HTMLElement;
+  private album: AirshowAlbum;
   private btnTrack: HTMLButtonElement;
   private btnSpeed: HTMLButtonElement;
   private btnGrid: HTMLButtonElement;
@@ -109,11 +84,11 @@ export class SpotterUi {
   /** (the key help fades out after the first half minute) */
   private helpT = 30;
   private seen = 0;
+  private cardImg: HTMLImageElement | null = null;
+  private cardShot: SpotterMode['lastShot'] = null;
   private cardT = 0;
   private trKey = '';
   private progKey = '';
-  private tab: 'photos' | 'logbook' = 'photos';
-  private urls: string[] = [];
 
   constructor(
     parent: HTMLElement,
@@ -160,37 +135,15 @@ export class SpotterUi {
     b('NEXT ACT', () => mode.nextAct());
     b('ALBUM', () => this.toggleAlbum(), 'big');
     b('EXIT', () => onExit());
-    // the album
-    this.album = el('div', 'sp-album', this.root);
-    const top = el('div', 'sp-al-top', this.album);
-    el('h2', '', top, 'ALBUM');
-    const tp = el('button', 'sp-btn on', top, 'PHOTOS') as HTMLButtonElement;
-    const tlb = el('button', 'sp-btn', top, "SPOTTER'S LOGBOOK") as HTMLButtonElement;
-    tp.addEventListener('click', () => {
-      this.tab = 'photos';
-      tp.classList.add('on');
-      tlb.classList.remove('on');
-      void this.fillAlbum();
-    });
-    tlb.addEventListener('click', () => {
-      this.tab = 'logbook';
-      tlb.classList.add('on');
-      tp.classList.remove('on');
-      void this.fillAlbum();
-    });
-    el('div', '', top).style.flex = '1';
-    const close = el('button', 'sp-btn big', top, 'BACK TO THE SHOW') as HTMLButtonElement;
-    close.addEventListener('click', () => this.toggleAlbum());
-    this.albumBody = el('div', 'sp-al-body', this.album);
-    this.big = el('div', 'sp-big', this.root);
-    this.big.addEventListener('click', (e) => {
-      if (e.target === this.big) this.big.classList.remove('show');
-    });
+    // the album (the same one the main menu opens)
+    this.album = new AirshowAlbum(document.body, () => mode.log, 'BACK TO THE SHOW');
+    // (the show keeps ignoring the keys for a moment, so the Escape that closed it doesn't pause the game)
+    this.album.onClose = () => setTimeout(() => (mode.albumOpen = false), 150);
     mode.onToggleAlbum = () => this.toggleAlbum();
   }
 
   dispose(): void {
-    for (const u of this.urls) URL.revokeObjectURL(u);
+    this.album.dispose();
     this.root.remove();
   }
 
@@ -199,126 +152,12 @@ export class SpotterUi {
   }
 
   toggleAlbum(): void {
-    const open = !this.album.classList.contains('show');
-    this.album.classList.toggle('show', open);
-    this.mode.albumOpen = open;
-    if (!open) this.big.classList.remove('show');
-    if (open) void this.fillAlbum();
-  }
-
-  private async fillAlbum(): Promise<void> {
-    const body = this.albumBody;
-    clearEl(body);
-    for (const u of this.urls) URL.revokeObjectURL(u);
-    this.urls = [];
-    if (this.tab === 'logbook') return this.fillLogbook();
-    // (a picture just taken may still be on its way into the album)
-    await this.mode.saving;
-    const list = await listPhotos();
-    if (!list.length) {
-      el('div', 'sp-note', body, 'No pictures yet. The ones that score 15 or more are kept here (the best and newest 120).');
-      return;
-    }
-    el('div', 'sp-note', body, `${list.length} pictures · click one to see it big`).style.marginBottom = '10px';
-    const grid = el('div', 'sp-grid', body);
-    for (const p of list) {
-      const cell = el('div', 'sp-ph', grid);
-      const img = el('img', '', cell) as HTMLImageElement;
-      const cap = el('div', '', cell);
-      el('span', '', cap, p.jet);
-      el('b', '', cap, '★'.repeat(p.stars) + ` ${p.score}`);
-      void photoBlob(p.id).then((b) => {
-        if (!b) return;
-        const u = URL.createObjectURL(b);
-        this.urls.push(u);
-        img.src = u;
-      });
-      cell.addEventListener('click', () => this.showBig(p, img));
-    }
-  }
-
-  private showBig(p: PhotoMeta, img: HTMLImageElement): void {
-    const b = this.big;
-    clearEl(b);
-    const i = el('img', '', b) as HTMLImageElement;
-    i.src = img.src;
-    const r = el('div', 'sp-row', b);
-    el('span', '', r, `${p.jet} · ${p.base.toUpperCase()} · ${p.lens} MM · ${new Date(p.time).toLocaleString()}`);
-    el('b', '', r, `${'★'.repeat(p.stars)} ${p.score}`);
-    const tags = el('div', 'sp-tags', b);
-    for (const t of p.tags) el('span', '', tags, SHOTS[t]?.name ?? t);
-    const row = el('div', 'sp-row', b);
-    const save = el('button', 'sp-btn', row, 'SAVE PICTURE') as HTMLButtonElement;
-    save.addEventListener('click', async () => {
-      const name = `${p.jet.replace(/[^a-z0-9]+/gi, '-')}-${p.score}${save.textContent === 'SAVE COVER' ? '-cover' : ''}.jpg`;
-      // (the cover is a data URL; the picture comes straight from the album's store)
-      const blob = i.src.startsWith('data:') ? dataUrlBlob(i.src) : await photoBlob(p.id);
-      if (blob) await saveFile(name, blob);
-    });
-    if (p.stars >= 3) {
-      const cov = el('button', 'sp-btn', row, 'MAGAZINE COVER') as HTMLButtonElement;
-      cov.addEventListener('click', () => {
-        const url = makeCover(i, p);
-        if (!url) return;
-        i.src = url;
-        cov.remove();
-        save.textContent = 'SAVE COVER';
-      });
-    }
-    const del = el('button', 'sp-btn', row, 'DELETE') as HTMLButtonElement;
-    del.addEventListener('click', async () => {
-      await deletePhoto(p.id);
-      b.classList.remove('show');
-      void this.fillAlbum();
-    });
-    const cl = el('button', 'sp-btn big', row, 'CLOSE') as HTMLButtonElement;
-    cl.addEventListener('click', () => b.classList.remove('show'));
-    b.classList.add('show');
-  }
-
-  private fillLogbook(): void {
-    const body = this.albumBody;
-    const L = this.mode.log;
-    const r = rankOf(L.points);
-    const ranks = el('div', 'sp-ranks', body);
-    RANKS.forEach((k, i) => {
-      const d = el('div', i === r.i ? 'on' : '', ranks);
-      el('b', '', d, k.name);
-      el('span', '', d, `${k.pts.toLocaleString('en-US')} pts · ${k.perk}`);
-    });
-    const tot = AIRCRAFT_TYPES.filter((t) => t !== 'X15');
-    let got = 0, all = 0;
-    const lb = el('div', 'sp-lb', body);
-    for (const t of tot) {
-      const best = L.best[t] ?? {};
-      const kinds = this.kindsFor(t);
-      const n = kinds.filter((k) => best[k]).length;
-      got += n;
-      all += kinds.length;
-      const box = el('div', 'sp-lb-j', lb);
-      const h = el('h3', '', box, SPECS[t].name);
-      el('span', '', h, `${n} / ${kinds.length}`);
-      const chips = el('div', 'sp-chips', box);
-      for (const k of kinds) {
-        const s = best[k] ?? 0;
-        const c = el('span', s ? 'on' : '', chips, `${SHOTS[k].name}${s ? ' ' + '★'.repeat(s) : ''}`);
-        c.title = SHOTS[k].hint;
-      }
-    }
-    const head = el('div', 'sp-note', body, `${L.points.toLocaleString('en-US')} points · ${L.shots} pictures taken · best score ${L.topScore} · ${got} of ${all} shots collected`);
-    body.insertBefore(head, body.firstChild);
-  }
-
-  /** the kinds of shot a jet's display offers */
-  kindsFor(t: string): string[] {
-    const heavy = t === 'SR71' || t === 'MIG31';
-    const tvc = (SPECS[t as keyof typeof SPECS].tvcDeg ?? 0) > 0;
-    return Object.keys(SHOTS).filter((k) => {
-      if (k === 'cobra') return tvc && !heavy;
-      if (heavy && ['vertical', 'highg', 'inverted', 'knife', 'highalpha', 'topside'].includes(k)) return false;
-      if (heavy && k === 'vapor') return false;
-      return true;
-    });
+    const open = !this.album.isOpen;
+    if (open) {
+      this.mode.albumOpen = true;
+      // (a picture just taken may still be on its way into the album)
+      void this.mode.saving.then(() => this.album.open());
+    } else this.album.close();
   }
 
   /** every frame */
@@ -347,7 +186,7 @@ export class SpotterUi {
     // the spotter's panel
     const L = m.log;
     const r = rankOf(L.points);
-    const kinds = j ? this.kindsFor(j.ac.type) : [];
+    const kinds = j ? kindsFor(j.ac.type) : [];
     const best = j ? L.best[j.ac.type] ?? {} : {};
     const tk = `${L.points}|${j?.ac.type}|${kinds.map((k) => best[k] ?? 0).join('')}`;
     if (tk !== this.trKey) {
@@ -383,6 +222,7 @@ export class SpotterUi {
       this.fillCard(s);
       this.cardT = 5;
     }
+    if (this.cardImg && this.cardShot?.url && !this.cardImg.src) this.cardImg.src = this.cardShot.url;
     if (this.cardT > 0) {
       this.cardT -= dt;
       if (this.cardT <= 0) this.card.classList.remove('show');
@@ -393,7 +233,10 @@ export class SpotterUi {
     const c = this.card;
     clearEl(c);
     const img = el('img', '', c) as HTMLImageElement;
-    img.src = s.url;
+    // (the picture arrives a moment after the score)
+    if (s.url) img.src = s.url;
+    this.cardImg = img;
+    this.cardShot = s;
     const b = el('div', 'sp-card-b', c);
     const st = el('div', 'sp-stars', b);
     st.innerHTML = '★'.repeat(s.meta.stars) + `<i>${'★'.repeat(5 - s.meta.stars)}</i>`;
@@ -513,127 +356,3 @@ export class SpotterUi {
   }
 }
 
-/** the cover line for a picture, from the best moment in it */
-const COVER_LINES: [string, string][] = [
-  ['cobra', 'THE COBRA: NOSE PAST VERTICAL'],
-  ['vapor', 'SHOCK WAVE: THE VAPOUR CONE UP CLOSE'],
-  ['highg', 'MAX G: VAPOUR POURING OFF THE WINGS'],
-  ['knife', 'KNIFE EDGE AT SHOW CENTRE'],
-  ['topside', 'TOP SIDE: CRANKING IN THE TURN'],
-  ['vertical', 'STRAIGHT UP ON TWIN BURNERS'],
-  ['highalpha', 'SLOW, NOSE HIGH, HANGING ON THE WINGS'],
-  ['inverted', 'OVER THE TOP, UPSIDE DOWN'],
-  ['takeoff', 'WHEELS UP: THE DISPLAY BEGINS'],
-  ['touchdown', 'ON THE NUMBERS'],
-  ['gear', 'GEAR DOWN, OVER THE FENCE'],
-  ['belly', 'THE UNDERSIDE: EVERY PYLON'],
-  ['afterburner', 'FULL BURNERS'],
-  ['headon', 'HEAD-ON'],
-  ['static', 'ON THE STATIC LINE'],
-];
-
-/** a magazine cover from a picture: the jet cropped to a portrait page under the masthead */
-function makeCover(img: HTMLImageElement, p: PhotoMeta): string | null {
-  const W = 960, H = 1280;
-  const c = document.createElement('canvas');
-  c.width = W;
-  c.height = H;
-  const g = c.getContext('2d');
-  if (!g || !img.naturalWidth) return null;
-  // the crop: full height, 3:4, centred on the jet (minus the caption strip at the bottom)
-  const iw = img.naturalWidth, ih = img.naturalHeight - Math.round(img.naturalHeight / 30);
-  const cw = Math.min(iw, ih * (W / H));
-  const cx = Math.max(0, Math.min(iw - cw, (p.sx ?? 0.5) * iw - cw / 2));
-  g.drawImage(img, cx, 0, cw, ih, 0, 0, W, H);
-  // a darker top and bottom so the type reads
-  let gr = g.createLinearGradient(0, 0, 0, 300);
-  gr.addColorStop(0, 'rgba(0,0,0,0.55)');
-  gr.addColorStop(1, 'rgba(0,0,0,0)');
-  g.fillStyle = gr;
-  g.fillRect(0, 0, W, 300);
-  gr = g.createLinearGradient(0, H - 420, 0, H);
-  gr.addColorStop(0, 'rgba(0,0,0,0)');
-  gr.addColorStop(1, 'rgba(0,0,0,0.7)');
-  g.fillStyle = gr;
-  g.fillRect(0, H - 420, W, 420);
-  const font = (w: number, px: number) => `${w} ${px}px Rajdhani, 'Arial Narrow', system-ui, sans-serif`;
-  // the masthead
-  g.textBaseline = 'alphabetic';
-  g.fillStyle = '#ffffff';
-  g.font = font(800, 200);
-  g.shadowColor = 'rgba(0,0,0,0.5)';
-  g.shadowBlur = 18;
-  const mast = 'AIRSHOW';
-  const mw = g.measureText(mast).width;
-  g.save();
-  g.translate(W / 2, 200);
-  g.scale(Math.min(1, (W - 60) / mw), 1);
-  g.textAlign = 'center';
-  g.fillText(mast, 0, 0);
-  g.restore();
-  g.shadowBlur = 0;
-  g.fillStyle = '#e8322c';
-  g.fillRect(30, 222, W - 60, 6);
-  g.fillStyle = '#ffffff';
-  g.font = font(700, 26);
-  g.textAlign = 'left';
-  const d = new Date(p.time);
-  g.fillText(`THE SPOTTER'S MONTHLY  ·  ${d.toLocaleString('en-US', { month: 'long' }).toUpperCase()} ${d.getFullYear()}`, 32, 262);
-  g.textAlign = 'right';
-  g.fillText(`ISSUE ${(d.getMonth() + 1) * 7 + 113}`, W - 32, 262);
-  // cover lines down the left
-  g.textAlign = 'left';
-  g.shadowColor = 'rgba(0,0,0,0.7)';
-  g.shadowBlur = 10;
-  const side = [`${p.base.toUpperCase()}`, 'THE SHOW REPORT', '', `${p.lens} MM`, 'HOW THE COVER', 'WAS SHOT'];
-  g.font = font(800, 34);
-  side.forEach((t, i) => {
-    g.fillStyle = i % 3 === 0 ? '#ffd23a' : '#ffffff';
-    g.fillText(t, 32, 340 + i * 40);
-  });
-  // the headline: the jet and the moment
-  const line = COVER_LINES.find(([t]) => p.tags.includes(t))?.[1] ?? 'DISPLAY SEASON SPECIAL';
-  const short = p.jet.replace(/^(Lockheed Martin|Boeing|Sukhoi|Dassault|Saab|Eurofighter|Mikoyan|General Dynamics|McDonnell Douglas)\s+/i, '');
-  g.fillStyle = '#ffd23a';
-  g.font = font(700, 30);
-  g.fillText(line, 32, H - 210);
-  g.fillStyle = '#ffffff';
-  g.font = font(800, 104);
-  const hw = g.measureText(short.toUpperCase()).width;
-  g.save();
-  g.translate(32, H - 108);
-  g.scale(Math.min(1, (W - 250) / hw), 1);
-  g.fillText(short.toUpperCase(), 0, 0);
-  g.restore();
-  g.font = font(600, 26);
-  const where: Record<string, string> = { crowd: 'FROM THE CROWD LINE', static: 'ON THE STATIC PARK', fence: 'AT THE LANDING FENCE', end: 'FROM THE RUNWAY END' };
-  g.fillText(`${'★'.repeat(p.stars)}  PHOTOGRAPHED ${where[p.spot ?? 'crowd'] ?? where.crowd}`, 32, H - 60);
-  g.shadowBlur = 0;
-  // the barcode and the price
-  const bx = W - 190, by = H - 150;
-  g.fillStyle = '#ffffff';
-  g.fillRect(bx, by, 160, 112);
-  g.fillStyle = '#000000';
-  let x = bx + 10;
-  let seed = p.score * 7919 + p.time % 10007;
-  while (x < bx + 150) {
-    seed = (seed * 16807) % 2147483647;
-    const wv = 1 + (seed % 3);
-    if (seed % 2) g.fillRect(x, by + 10, wv, 72);
-    x += wv + 1;
-  }
-  g.font = font(700, 18);
-  g.textAlign = 'center';
-  g.fillText('$7.99', bx + 80, by + 102);
-  return c.toDataURL('image/jpeg', 0.9);
-}
-
-/** a data: URL as a Blob (no fetch: the page's security policy may not allow one) */
-function dataUrlBlob(url: string): Blob {
-  const [head, body] = url.split(',', 2);
-  const mime = /data:([^;]+)/.exec(head)?.[1] ?? 'application/octet-stream';
-  const bin = atob(body);
-  const bytes = new Uint8Array(bin.length);
-  for (let k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
-  return new Blob([bytes], { type: mime });
-}
