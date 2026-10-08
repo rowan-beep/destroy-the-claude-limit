@@ -9,6 +9,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import type { AirfieldDef } from '../world/islands';
 import { surfaceHeight } from '../world/terrain';
 import { CROWD_Z } from './airshow';
+import { CrowdMaterial, personGeometry, randomSpectator, spectatorAttributes } from './crowdRig';
 
 /** where the crowd barrier runs (runway-local, metres across from the centreline) */
 export const BARRIER_Z = CROWD_Z + 4;
@@ -24,62 +25,14 @@ export interface SpotFence {
 
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
 
-function colorGeo(g: THREE.BufferGeometry, c: THREE.Color): THREE.BufferGeometry {
-  const n = g.attributes.position.count;
-  const a = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) {
-    a[i * 3] = c.r;
-    a[i * 3 + 1] = c.g;
-    a[i * 3 + 2] = c.b;
-  }
-  g.setAttribute('color', new THREE.BufferAttribute(a, 3));
-  return g;
-}
-
-/** one standing person (about 1.75 m): the shirt (takes the shirt colour) and the rest (takes the skin colour) */
-function personGeos(): { shirt: THREE.BufferGeometry; rest: THREE.BufferGeometry } {
-  const parts = (list: THREE.BufferGeometry[]) => list.map((g) => g.toNonIndexed());
-  // a tapered, slightly flattened torso and two arms hanging a little out from it
-  const torso = new THREE.CylinderGeometry(0.2, 0.165, 0.6, 6).scale(1, 1, 0.62).translate(0, 1.2, 0);
-  const armL = new THREE.CylinderGeometry(0.055, 0.045, 0.62, 5, 1, true).rotateZ(0.08).translate(-0.25, 1.17, 0);
-  const armR = new THREE.CylinderGeometry(0.055, 0.045, 0.62, 5, 1, true).rotateZ(-0.08).translate(0.25, 1.17, 0);
-  const shirt = mergeGeometries(parts([torso, armL, armR]))!;
-  const white = new THREE.Color(1, 1, 1);
-  const jeans = new THREE.Color(0.3, 0.33, 0.42);
-  const hair = new THREE.Color(0.32, 0.22, 0.16);
-  const legs = [-0.095, 0.095].map((x) => colorGeo(new THREE.CylinderGeometry(0.08, 0.065, 0.9, 5, 1, true).translate(x, 0.45, 0).toNonIndexed(), jeans));
-  const hips = colorGeo(new THREE.CylinderGeometry(0.17, 0.16, 0.14, 6).scale(1, 1, 0.65).translate(0, 0.88, 0).toNonIndexed(), jeans);
-  const head = colorGeo(new THREE.SphereGeometry(0.105, 7, 5).scale(0.92, 1.1, 1).translate(0, 1.66, 0).toNonIndexed(), white);
-  const cap = colorGeo(new THREE.SphereGeometry(0.112, 7, 3, 0, Math.PI * 2, 0, Math.PI * 0.45).scale(0.95, 1.1, 1.02).translate(0, 1.67, -0.01).toNonIndexed(), hair);
-  const neck = colorGeo(new THREE.CylinderGeometry(0.045, 0.05, 0.08, 5, 1, true).translate(0, 1.53, 0).toNonIndexed(), white);
-  const hands = [-0.27, 0.27].map((x) => colorGeo(new THREE.BoxGeometry(0.07, 0.09, 0.07).translate(x, 0.84, 0).toNonIndexed(), white));
-  const rest = mergeGeometries([...legs, hips, head, cap, neck, ...hands])!;
-  for (const g of [shirt, rest]) {
-    g.deleteAttribute('uv');
-    g.computeVertexNormals();
-  }
-  colorGeo(shirt, white);
-  return { shirt, rest };
-}
-
-/** a person far off: three boxes */
-function farPersonGeos(): { shirt: THREE.BufferGeometry; rest: THREE.BufferGeometry } {
-  const shirt = colorGeo(new THREE.BoxGeometry(0.46, 0.62, 0.26).translate(0, 1.2, 0).toNonIndexed(), new THREE.Color(1, 1, 1));
-  const legs = colorGeo(new THREE.BoxGeometry(0.34, 0.9, 0.2).translate(0, 0.45, 0).toNonIndexed(), new THREE.Color(0.3, 0.33, 0.42));
-  const head = colorGeo(new THREE.BoxGeometry(0.2, 0.24, 0.2).translate(0, 1.66, 0).toNonIndexed(), new THREE.Color(1, 1, 1));
-  const rest = mergeGeometries([legs, head])!;
-  for (const g of [shirt, rest]) g.deleteAttribute('uv');
-  return { shirt, rest };
-}
-
-const SHIRTS = [0xc8302c, 0x2b5fb3, 0xe7e2d6, 0x1f2328, 0x3f7a3a, 0xe0a52a, 0x7b4a9a, 0x2d8fa8, 0xd86a2b, 0x8a8f96, 0xf0f0ee, 0x2a3f6b, 0xb8324f, 0x6c7a3c];
-const SKINS = [0xf1c8a8, 0xd9a47e, 0xa8714a, 0x6e4529, 0xe8b894, 0xc68a5e];
-
 export class AirshowScene {
   readonly group = new THREE.Group();
   private disposables: { dispose(): void }[] = [];
   private steelMat: THREE.MeshLambertMaterial | null = null;
   private meshMat: THREE.MeshLambertMaterial | null = null;
+  /** everyone shares the one material (and so the one clock, and the one jet to look at) */
+  private crowdMat = new CrowdMaterial();
+  private personGeo: [THREE.BufferGeometry, THREE.BufferGeometry] | null = null;
 
   constructor(
     readonly f: AirfieldDef,
@@ -182,10 +135,10 @@ export class AirshowScene {
     this.disposables.push(steel, panel, post, p1, p2, r1, r2);
   }
 
-  /** people near a photo spot get the detailed figure, the rest three boxes */
+  /** people near a photo spot get the detailed figure, the rest a lighter one */
   private crowd(list: { a: number; c: number; s: number; rot: number }[]): void {
     // (in 200 m blocks along the runway, so the ones out of view are skipped)
-    const geos = [farPersonGeos(), personGeos()];
+    const geos = (this.personGeo ??= [personGeometry(false), personGeometry(true)]);
     const blocks = new Map<string, { list: typeof list; lod: number }>();
     for (const o of list) {
       const lod = this.nearSpot(o.a, o.c) ? 1 : 0;
@@ -195,7 +148,6 @@ export class AirshowScene {
       b.list.push(o);
     }
     for (const b of blocks.values()) this.crowdMesh(b.list, geos[b.lod]);
-    for (const g of geos) this.disposables.push(g.shirt, g.rest);
   }
 
   /** within sight of a spot the camera stands at */
@@ -204,33 +156,40 @@ export class AirshowScene {
     return false;
   }
 
-  private crowdMesh(list: { a: number; c: number; s: number; rot: number }[], geos: { shirt: THREE.BufferGeometry; rest: THREE.BufferGeometry }): void {
-    const { shirt, rest } = geos;
-    const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
-    const bodies = new THREE.InstancedMesh(shirt, mat, list.length);
-    const others = new THREE.InstancedMesh(rest, mat, list.length);
+  private crowdMesh(list: { a: number; c: number; s: number; rot: number }[], base: THREE.BufferGeometry): void {
+    // (the person's shape shared, each block with its own people's clothes and doings)
+    const g = new THREE.BufferGeometry();
+    for (const k of ['position', 'normal', 'aRig']) g.setAttribute(k, base.getAttribute(k));
+    g.setIndex(base.index);
+    g.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 1, 0), 1.2);
+    spectatorAttributes(g, list.map((o) => randomSpectator(o.s < 0.8)));
+    const mesh = new THREE.InstancedMesh(g, this.crowdMat, list.length);
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
     const up = new THREE.Vector3(0, 1, 0);
-    const col = new THREE.Color();
     list.forEach((o, i) => {
       // (facing the runway, +x in the group frame, give or take)
       q.setFromAxisAngle(up, -Math.PI / 2 + o.rot);
-      s.set(o.s, o.s * rand(0.97, 1.05), o.s);
+      // (some broader, some slimmer)
+      const w = rand(0.92, 1.12);
+      s.set(o.s * w, o.s * rand(0.97, 1.05), o.s * (0.5 + w * 0.5));
       p.set(o.c, this.y(o.a, o.c), -o.a);
       m.compose(p, q, s);
-      bodies.setMatrixAt(i, m);
-      others.setMatrixAt(i, m);
-      bodies.setColorAt(i, col.setHex(SHIRTS[Math.floor(Math.random() * SHIRTS.length)]).multiplyScalar(rand(0.8, 1.1)));
-      others.setColorAt(i, col.setHex(SKINS[Math.floor(Math.random() * SKINS.length)]));
+      mesh.setMatrixAt(i, m);
     });
-    for (const x of [bodies, others]) {
-      if (x.instanceColor) x.instanceColor.needsUpdate = true;
-      x.computeBoundingSphere();
-      x.castShadow = false;
-      x.receiveShadow = true;
-      this.group.add(x);
-    }
-    this.disposables.push(mat);
+    mesh.computeBoundingSphere();
+    mesh.castShadow = false;
+    mesh.receiveShadow = true;
+    this.group.add(mesh);
+    this.disposables.push(g);
+  }
+
+  /** the crowd's clock, and the jet everyone is watching (world position; null: nothing flying) */
+  animate(time: number, jet: THREE.Vector3 | null): void {
+    const r = this.crowdMat.rig;
+    r.uTime.value = time;
+    if (jet) r.uJet.value.copy(jet);
+    // (eyes come round to a new jet over a second or so)
+    r.uJetOn.value += ((jet ? 1 : 0) - r.uJetOn.value) * 0.05;
   }
 
   private tents(list: [number, number, number, number][]): void {
@@ -283,6 +242,8 @@ export class AirshowScene {
     this.group.removeFromParent();
     this.steelMat?.dispose();
     this.meshMat?.dispose();
+    this.crowdMat.dispose();
+    for (const g of this.personGeo ?? []) g.dispose();
     for (const d of this.disposables) d.dispose();
     this.disposables = [];
   }

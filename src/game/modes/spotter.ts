@@ -367,6 +367,8 @@ export class SpotterMode extends GameMode {
   update(dt: number): void {
     this.elapsed += dt;
     const j = this.jet;
+    // (the crowd watches the display jet once it's moving)
+    this.grounds?.animate(this.elapsed, j && !this.transition && j.ac.fm.vel.lengthSq() > 4 ? j.ac.fm.pos : null);
     if (!j) return;
     if (j.done) {
       this.gap += dt;
