@@ -36,6 +36,25 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '5.4.3',
+    date: '2026-10-08',
+    air: {
+      title: "Camera controls the right way round",
+      notes: [
+        fixed("Looking around turns the way you look",
+          "AIRSHOW: A and the left arrow now look left, D and the right arrow look right, and dragging turns the view the way you drag. All of it was reversed.",
+          "Looking round your jet in the chase view (holding the right mouse button), when spectating and in replays: drag right to look right, drag up to look up. Both were reversed there too; the cockpit and the mouse-aim view already worked this way."),
+      ],
+    },
+    space: {
+      title: "Camera controls the right way round",
+      notes: [
+        fixed("The launch site view turns the way you drag",
+          "Dragging up now looks up and dragging right looks right on the launch site; both were reversed. The views in flight, on Mars, on the rover and in the solar system already turn the way you drag."),
+      ],
+    },
+  },
+  {
     version: '5.4.2',
     date: '2026-10-08',
     space: {

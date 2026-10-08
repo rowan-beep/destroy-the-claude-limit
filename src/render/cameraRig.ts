@@ -235,8 +235,9 @@ export class CameraRig {
       // orbit around the aircraft, relative to its heading, horizon-stabilised
       const hdg = Math.atan2(fm.fwd.x, -fm.fwd.z);
       const pitchBase = this.followRoll ? Math.asin(clamp(fm.fwd.y, -1, 1)) : 0;
-      const yaw = hdg + Math.PI + this.lookYawSm;
-      const pitch = clamp(10 * DEG + this.lookPitchSm - pitchBase * 0.85, -85 * DEG, 85 * DEG);
+      // (the view turns the way you drag, as in the cockpit and the mouse-aim chase: right looks right, up looks up)
+      const yaw = hdg + Math.PI - this.lookYawSm;
+      const pitch = clamp(10 * DEG - this.lookPitchSm - pitchBase * 0.85, -85 * DEG, 85 * DEG);
       const offset = _v.set(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch)).multiplyScalar(dist);
       desired = _v2.copy(fm.pos).add(offset);
       if (!this.chaseInit) {

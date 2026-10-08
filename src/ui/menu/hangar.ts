@@ -126,9 +126,8 @@ export class Hangar {
         const dy = e.clientY - this.drag.y;
         this.drag.x = e.clientX;
         this.drag.y = e.clientY;
-        // the jet follows your hand: drag right to swing the camera left around it
+        // the view turns the way you drag (the jet follows your hand): right looks right, up looks up
         const dyaw = dx * 0.006;
-        // dragging up raises the view over the jet (vertical reversed); left / right unchanged
         const dpitch = dy * 0.005;
         this.yaw += dyaw;
         this.pitch = clampN(this.pitch + dpitch, -0.02, 1.45);

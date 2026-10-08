@@ -4,6 +4,19 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu lists the space updates.
 
+## v5.4.3 (2026-10-08)
+
+### Air Combat: Camera controls the right way round
+
+- **Fixed: Looking around turns the way you look**
+  - AIRSHOW: A and the left arrow now look left, D and the right arrow look right, and dragging turns the view the way you drag. All of it was reversed.
+  - Looking round your jet in the chase view (holding the right mouse button), when spectating and in replays: drag right to look right, drag up to look up. Both were reversed there too; the cockpit and the mouse-aim view already worked this way.
+
+### Space Exploration: Camera controls the right way round
+
+- **Fixed: The launch site view turns the way you drag**
+  - Dragging up now looks up and dragging right looks right on the launch site; both were reversed. The views in flight, on Mars, on the rover and in the solar system already turn the way you drag.
+
 ## v5.4.2 (2026-10-08)
 
 ### Space Exploration: The rover arm drills the rock

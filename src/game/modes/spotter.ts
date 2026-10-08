@@ -317,10 +317,10 @@ export class SpotterMode extends GameMode {
       d.x = e.clientX;
       d.y = e.clientY;
       d.moved += Math.abs(dx) + Math.abs(dy);
-      // (look round: drag right to look right; slower the longer the lens)
+      // (look round: the view turns the way you drag, right looks right; slower the longer the lens)
       if (d.moved > 5 || d.btn !== 0) {
         const k = (fovFor(this.focal) * D2R) / Math.max(300, window.innerHeight);
-        this.yaw += dx * k;
+        this.yaw -= dx * k;
         this.pitch = Math.max(-0.2, Math.min(1.5, this.pitch - dy * k));
         if (this.track) this.track = false;
       }
@@ -385,7 +385,8 @@ export class SpotterMode extends GameMode {
     const kx = (inp.codeHeld('ArrowRight') || inp.codeHeld('KeyD') ? 1 : 0) - (inp.codeHeld('ArrowLeft') || inp.codeHeld('KeyA') ? 1 : 0);
     const ky = (inp.codeHeld('ArrowUp') || inp.codeHeld('KeyW') ? 1 : 0) - (inp.codeHeld('ArrowDown') || inp.codeHeld('KeyS') ? 1 : 0);
     if (kx || ky) {
-      this.yaw += kx * k;
+      // (A / left looks left, D / right looks right)
+      this.yaw -= kx * k;
       this.pitch = Math.max(-0.2, Math.min(1.5, this.pitch + ky * k));
       this.track = false;
     }

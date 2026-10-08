@@ -1988,10 +1988,11 @@ export class LaunchSite {
       const dx = e.clientX - this.drag.x, dy = e.clientY - this.drag.y;
       this.drag.x = e.clientX;
       this.drag.y = e.clientY;
-      this.yaw += dx * 0.004;
-      this.pitch = clampN(this.pitch - dy * 0.003, 0.0, 1.2); // vertical inverted: drag up to look from higher
-      this.vYaw = dx * 0.12;
-      this.vPitch = -dy * 0.09;
+      // the view turns the way you drag: right looks right, up looks up
+      this.yaw -= dx * 0.004;
+      this.pitch = clampN(this.pitch + dy * 0.003, 0.0, 1.2);
+      this.vYaw = -dx * 0.12;
+      this.vPitch = dy * 0.09;
     });
     const up = (e: PointerEvent) => {
       if (this.drag?.id === e.pointerId) this.drag = null;
