@@ -21,6 +21,8 @@ export const SHOTS: Record<string, { name: string; hint: string; pts: number }> 
   gear: { name: 'GEAR DOWN', hint: 'On final with the gear down', pts: 20 },
   touchdown: { name: 'TOUCHDOWN', hint: 'Wheels on the runway', pts: 35 },
   static: { name: 'STATIC DISPLAY', hint: 'Parked behind the crowd (turn round): fill the frame with it', pts: 20 },
+  panning: { name: 'PANNING SHOT', hint: 'A slow shutter (1/250 or slower) swung with the jet: the jet sharp, the background streaked', pts: 70 },
+  bokeh: { name: 'BOKEH', hint: 'A parked jet sharp against a background melted by a wide aperture (f/4 or wider)', pts: 30 },
 };
 
 /** spotter ranks: the points to reach each, and what it brings */
@@ -61,6 +63,25 @@ export interface PhotoMeta {
   spot?: string;
   /** a favourite: kept however full the album gets */
   fav?: boolean;
+  /** the camera's settings for this picture */
+  exif?: Exif;
+  /** a RAW was kept with it (a lossless, unprocessed copy) */
+  raw?: boolean;
+}
+
+export interface Exif {
+  mode: string;
+  shutter: number;
+  aperture: number;
+  iso: number;
+  ev: number;
+  metering: string;
+  af: string;
+  wb: string;
+  style: string;
+  space: string;
+  format: string;
+  is: string;
 }
 
 export interface SpotterLog {
@@ -111,13 +132,14 @@ function db(): Promise<IDBDatabase | null> {
   if (!dbP)
     dbP = new Promise((res) => {
       try {
-        // (version 2 added small thumbnails for the album's grid)
-        const r = indexedDB.open(DB, 2);
+        // (version 2 added small thumbnails for the album's grid, 3 the RAW files)
+        const r = indexedDB.open(DB, 3);
         r.onupgradeneeded = () => {
           const d = r.result;
           if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta', { keyPath: 'id' });
           if (!d.objectStoreNames.contains('blob')) d.createObjectStore('blob');
           if (!d.objectStoreNames.contains('thumb')) d.createObjectStore('thumb');
+          if (!d.objectStoreNames.contains('raw')) d.createObjectStore('raw');
         };
         r.onsuccess = () => res(r.result);
         r.onerror = () => res(null);
@@ -166,6 +188,17 @@ export async function photoBlob(id: string): Promise<Blob | null> {
   }
 }
 
+/** the RAW kept with a picture (a lossless PNG), if there is one */
+export async function photoRaw(id: string): Promise<Blob | null> {
+  const d = await db();
+  if (!d) return null;
+  try {
+    return ((await req(d.transaction('raw').objectStore('raw').get(id))) as Blob) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** the small picture for the grid (the full one for pictures from before thumbnails) */
 export async function photoThumb(id: string): Promise<Blob | null> {
   const m = memory.get(id);
@@ -186,10 +219,11 @@ export async function deletePhoto(id: string): Promise<void> {
   const d = await db();
   if (!d) return;
   try {
-    const tx = d.transaction(['meta', 'blob', 'thumb'], 'readwrite');
+    const tx = d.transaction(['meta', 'blob', 'thumb', 'raw'], 'readwrite');
     tx.objectStore('meta').delete(id);
     tx.objectStore('blob').delete(id);
     tx.objectStore('thumb').delete(id);
+    tx.objectStore('raw').delete(id);
   } catch {
     /* (gone already) */
   }
@@ -203,12 +237,13 @@ export async function deletePhotos(ids: string[]): Promise<void> {
   const d = await db();
   if (!d || !ids.length) return;
   try {
-    const tx = d.transaction(['meta', 'blob', 'thumb'], 'readwrite');
-    const m = tx.objectStore('meta'), b = tx.objectStore('blob'), t = tx.objectStore('thumb');
+    const tx = d.transaction(['meta', 'blob', 'thumb', 'raw'], 'readwrite');
+    const m = tx.objectStore('meta'), b = tx.objectStore('blob'), t = tx.objectStore('thumb'), r = tx.objectStore('raw');
     for (const id of ids) {
       m.delete(id);
       b.delete(id);
       t.delete(id);
+      r.delete(id);
     }
     await new Promise<void>((res) => {
       tx.oncomplete = () => res();
@@ -242,7 +277,8 @@ export async function setFavourite(id: string, fav: boolean): Promise<void> {
 }
 
 /** keep a picture; past the limit the weakest old ones (never a favourite) go first */
-export async function savePhoto(meta: PhotoMeta, blob: Blob, thumb?: Blob): Promise<void> {
+export async function savePhoto(meta: PhotoMeta, blob: Blob, thumb?: Blob, raw?: Blob): Promise<void> {
+  if (raw) meta.raw = true;
   const d = await db();
   if (listCache) listCache.unshift(meta);
   if (!d) {
@@ -250,10 +286,11 @@ export async function savePhoto(meta: PhotoMeta, blob: Blob, thumb?: Blob): Prom
     return;
   }
   try {
-    const tx = d.transaction(['meta', 'blob', 'thumb'], 'readwrite');
+    const tx = d.transaction(['meta', 'blob', 'thumb', 'raw'], 'readwrite');
     tx.objectStore('meta').put(meta);
     tx.objectStore('blob').put(blob, meta.id);
     if (thumb) tx.objectStore('thumb').put(thumb, meta.id);
+    if (raw) tx.objectStore('raw').put(raw, meta.id);
     await new Promise<void>((res, rej) => {
       tx.oncomplete = () => res();
       tx.onerror = () => rej(tx.error);

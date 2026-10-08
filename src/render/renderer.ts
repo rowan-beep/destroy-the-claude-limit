@@ -15,6 +15,22 @@ import { DropletShader, ScreenDroplets } from './droplets';
 import { HeatHazeShader, HazeSource, writeHaze } from './heatHaze';
 import { SunShaftPass } from './cinematic';
 import { FinalPass } from './finalPass';
+import { DofPass } from './dofPass';
+
+/** the airshow camera's look on the picture (see FinalPass) */
+export interface CameraLook {
+  exposure: number;
+  wb: [number, number, number];
+  contrast: number;
+  saturation: number;
+  lift: number;
+  warm: number;
+  mono: number;
+  noise: number;
+  /** lens vignetting and colour fringes (lens corrections off) */
+  vignette: number;
+  aberration: number;
+}
 import { SUN_VIEW, SUN_VIEW_COLOR } from './environment';
 
 export type GraphicsSettings = Pick<
@@ -212,6 +228,9 @@ export class GameRenderer {
   private adaptFrames = 0;
   private adaptSlow = 0;
   private adaptFast = 0;
+  /** depth of field (the airshow camera) */
+  private dofPass: DofPass;
+  private look: CameraLook | null = null;
   /** god rays and lens ghosts from the sun (HDR) */
   private sunPass: SunShaftPass;
   private sunK = 0;
@@ -255,6 +274,9 @@ export class GameRenderer {
     this.hazePass.enabled = false;
     this.scenePass = new ScenePass(this.scene, this.camera, this.hazePass);
     this.composer.addPass(this.scenePass);
+    this.dofPass = new DofPass();
+    this.dofPass.enabled = false;
+    this.composer.addPass(this.dofPass);
     this.dropletPass = new ShaderPass(DropletShader);
     this.dropletPass.uniforms.tDrops.value = this.droplets.texture;
     this.dropletPass.enabled = false;
@@ -302,19 +324,57 @@ export class GameRenderer {
     // bloom
     this.bloomPass.enabled = g.bloom > 0.001;
     this.bloomPass.strength = g.bloom;
-    // grade
-    const fu = this.finalPass.uniforms;
-    fu.contrast.value = g.contrast;
-    fu.saturation.value = g.saturation;
-    fu.vignette.value = g.vignette ? 0.28 : 0;
-    this.finalPass.grade = Math.abs(g.contrast - 1) > 0.001 || Math.abs(g.saturation - 1) > 0.001 || g.vignette;
+    this.applyGrade();
     // the camera's look: sharpening on every tier; grain, lens fringes and sun shafts from medium up
+    const fu = this.finalPass.uniforms;
     const q = g.quality;
     fu.sharpen.value = q === 'low' ? 0.3 : 0.45;
     fu.grain.value = q === 'low' ? 0 : 0.01;
     fu.aberration.value = q === 'low' ? 0 : 0.0014;
+    this.applyGrade();
     this.camera.fov = g.fov;
     this.resize();
+  }
+
+  /** the picture's grade: the settings, and the airshow camera's look on top */
+  private applyGrade(): void {
+    const g = this.settings;
+    const fu = this.finalPass.uniforms;
+    const l = this.look;
+    fu.contrast.value = g.contrast * (l?.contrast ?? 1);
+    fu.saturation.value = g.saturation * (l?.saturation ?? 1);
+    fu.vignette.value = l ? l.vignette : g.vignette ? 0.28 : 0;
+    if (l) fu.aberration.value = l.aberration;
+    else fu.aberration.value = g.quality === 'low' ? 0 : 0.0014;
+    this.finalPass.grade = !!l || Math.abs(g.contrast - 1) > 0.001 || Math.abs(g.saturation - 1) > 0.001 || g.vignette;
+    this.finalPass.camera = !!l;
+    if (l) {
+      fu.camExposure.value = l.exposure;
+      fu.camWb.value.set(l.wb[0], l.wb[1], l.wb[2]);
+      fu.camLift.value = l.lift;
+      fu.camWarm.value = l.warm;
+      fu.camMono.value = l.mono;
+      fu.camNoise.value = l.noise;
+    }
+  }
+
+  /** the airshow camera's look (null: the game's own picture) */
+  setCameraLook(l: CameraLook | null): void {
+    if (!l && !this.look) return;
+    this.look = l;
+    this.applyGrade();
+  }
+
+  /** depth of field for the airshow camera (null: off); only with the reversed depth buffer */
+  setDof(o: { focal: number; fNumber: number; focusM: number } | null): void {
+    const msaa = this.scenePass.msaa;
+    const on = !!o && REVERSED_Z && !!msaa.depthTexture;
+    this.dofPass.enabled = on;
+    msaa.resolveDepthBuffer = on;
+    if (on && o) {
+      this.dofPass.depth = msaa.depthTexture;
+      this.dofPass.setLens(o.focal, o.fNumber, o.focusM, this.height * this.pixelRatio, this.camera);
+    }
   }
 
   /** the aircraft the camera rides with, for the speed blur (m/s) */
@@ -521,6 +581,10 @@ export class GameRenderer {
     const sp = this.scenePass;
     const s = sp.scene, c = sp.camera, os = sp.overlayScene, oc = sp.overlayCamera;
     const vis = this.visionPass.enabled, drp = this.dropletPass.enabled, hz = this.hazePass.enabled;
+    // (the airshow camera's look and depth of field belong to the game's own scene)
+    const dof = this.dofPass.enabled, look = this.look;
+    this.dofPass.enabled = false;
+    if (look) this.setCameraLook(null);
     this.nightPass.enabled = false;
     this.dropletPass.enabled = false;
     this.hazePass.enabled = false;
@@ -541,5 +605,7 @@ export class GameRenderer {
     this.visionPass.enabled = vis;
     this.dropletPass.enabled = drp;
     this.hazePass.enabled = hz;
+    this.dofPass.enabled = dof;
+    if (look) this.setCameraLook(look);
   }
 }

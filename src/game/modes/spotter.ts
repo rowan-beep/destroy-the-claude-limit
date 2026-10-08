@@ -19,15 +19,16 @@ import { surfaceHeight } from '../../world/terrain';
 import { buildDisplay, DisplayJet, DisplayRoutine } from '../airshow';
 import { AirshowScene, BARRIER_Z, SpotFence } from '../airshowScene';
 import { SHOTS, RANKS, PhotoMeta, loadSpotterLog, saveSpotterLog, rankOf, savePhoto, SpotterLog } from '../spotterBook';
+import { process as developFrame } from '../camera/processor';
 import { audio, OtherJetSound } from '../../audio/audio';
+import { ProCamera, Light, Subject } from '../camera/proCamera';
+import { APERTURES, SHUTTERS, ISOS, nearest, fmtShutter, fmtAperture } from '../camera/cameraBody';
 import type { Input } from '../../core/input';
 
 const D2R = Math.PI / 180;
 /** the sensor's height (full frame, 24 mm): the field of view from the focal length */
 const SENSOR_H = 24;
 export const fovFor = (mm: number) => (2 * Math.atan(SENSOR_H / 2 / mm)) / D2R;
-/** the shutter: fast enough to freeze a jet, slow enough that panning matters */
-const EXPOSURE = 1 / 500;
 const _cam = new THREE.PerspectiveCamera();
 const _v = new THREE.Vector3();
 const _zero = new THREE.Vector3();
@@ -59,24 +60,6 @@ function snapshot(canvas: HTMLCanvasElement, w: number, h: number): Promise<Imag
   } catch {
     return Promise.resolve(null);
   }
-}
-
-/** a JPEG of a bitmap at a size, with the photographer's caption along the bottom */
-async function encodeJpeg(bmp: ImageBitmap, w: number, h: number, caption: string | null, q: number): Promise<Blob | null> {
-  const off = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(w, h) : null;
-  const c = off ?? Object.assign(document.createElement('canvas'), { width: w, height: h });
-  const g = c.getContext('2d') as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
-  if (!g) return null;
-  g.drawImage(bmp, 0, 0, w, h);
-  if (caption) {
-    g.fillStyle = 'rgba(0,0,0,0.35)';
-    g.fillRect(0, h - 26, w, 26);
-    g.fillStyle = 'rgba(255,255,255,0.85)';
-    g.font = `600 ${Math.round(h / 45)}px Rajdhani, system-ui`;
-    g.fillText(caption, 12, h - 8);
-  }
-  if (off) return off.convertToBlob({ type: 'image/jpeg', quality: q });
-  return new Promise((res) => (c as HTMLCanvasElement).toBlob((b) => res(b), 'image/jpeg', q));
 }
 
 export interface ShotResult {
@@ -111,7 +94,21 @@ export class SpotterMode extends GameMode {
   lastShot: ShotResult | null = null;
   shotSeq = 0;
   private wantShot = false;
-  private burstT = 0;
+  /** the shutter button: pressed this frame (a click or Space), and held */
+  private press = false;
+  private mouseHeld = false;
+  /** the camera body: exposure, focus, drive, colour */
+  readonly pro = new ProCamera();
+  /** the light, from the game each frame */
+  readonly light: Light = { tod: 'noon', gloom: 0, sunAngle: 1, dark: false };
+  readonly sunDir = new THREE.Vector3(0, 1, 0);
+  /** what the camera sees of the jet */
+  subject: Subject = { inFrame: false, x: 0, y: 0, fill: 0, dist: 1000, moving: true };
+  /** the camera's settings panel is open (the keys go to it) */
+  panelOpen = false;
+  /** a note for the viewfinder (BUFFER FULL...) */
+  note = '';
+  noteT = 0;
   /** the jet's motion across the frame (px/s) */
   readonly screenVel = new THREE.Vector2();
   /** the view's own turn rate (rad/s, smoothed), for panning */
@@ -410,7 +407,7 @@ export class SpotterMode extends GameMode {
       const e = ev as PointerEvent;
       if (e.target !== canvas || this.albumOpen) return;
       this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: 0, btn: e.button };
-      if (e.button === 0) this.burstT = 0;
+      if (e.button === 0) this.mouseHeld = true;
     });
     on('pointermove', (ev) => {
       const e = ev as PointerEvent;
@@ -432,7 +429,8 @@ export class SpotterMode extends GameMode {
       const e = ev as PointerEvent;
       const d = this.drag;
       if (!d || d.id !== e.pointerId) return;
-      if (d.btn === 0 && d.moved <= 5) this.wantShot = true;
+      if (d.btn === 0 && d.moved <= 5) this.press = true;
+      if (d.btn === 0) this.mouseHeld = false;
       this.drag = null;
     };
     on('pointerup', up);
@@ -463,16 +461,13 @@ export class SpotterMode extends GameMode {
   handleInput(inp: Input, dt: number): void {
     // (the album handles its own keys)
     if (this.albumOpen) return;
-    if (inp.codePressed('Space')) this.wantShot = true;
-    // burst (from the third rank): hold the shutter
-    const burst = rankOf(this.log.points).i >= 2;
-    if (burst && (inp.codeHeld('Space') || (this.drag && this.drag.btn === 0 && this.drag.moved <= 5 && inp.mouseHeld(0)))) {
-      this.burstT += dt;
-      if (this.burstT > 0.35) {
-        this.wantShot = true;
-        this.burstT = 0.35 - 0.12;
-      }
-    }
+    // the shutter: the drive mode decides what a press and a hold do
+    const pressed = inp.codePressed('Space') || this.press;
+    this.press = false;
+    const held = inp.codeHeld('Space') || (this.mouseHeld && !!this.drag && this.drag.btn === 0 && this.drag.moved <= 5);
+    if (!this.transition && this.pro.shutter(dt, pressed, held, this.subject, this.focal)) this.wantShot = true;
+    // the camera's dials
+    this.dials(inp);
     if (inp.codePressed('KeyT')) this.track = !this.track;
     if (inp.codePressed('KeyG')) this.grid = !this.grid;
     if (inp.codePressed('KeyN')) this.nextAct();
@@ -491,6 +486,42 @@ export class SpotterMode extends GameMode {
       this.pitch = Math.max(-0.2, Math.min(1.5, this.pitch + ky * k));
       this.track = false;
     }
+  }
+
+  /** the keys for the camera's dials: [ ] shutter, ; ' aperture, , . ISO, 9 0 exposure compensation, Q focus, C settings */
+  private dials(inp: Input): void {
+    const s = this.pro.s;
+    const step = <T extends number>(list: T[], v: T, d: number): T => list[Math.max(0, Math.min(list.length - 1, list.indexOf(nearest(list, v) as T) + d))];
+    let changed = false;
+    const shut = (d: number) => {
+      if (s.mode === 'S' || s.mode === 'M') s.shutter = step(SHUTTERS, s.shutter, d);
+      else if (s.mode === 'A') s.aperture = step(APERTURES, s.aperture, -d);
+      else s.ev = Math.max(-3, Math.min(3, Math.round((s.ev + d / 3) * 3) / 3));
+      changed = true;
+    };
+    if (inp.codePressed('BracketRight')) shut(-1);
+    if (inp.codePressed('BracketLeft')) shut(1);
+    if (inp.codePressed('Quote')) ((s.aperture = step(APERTURES, s.aperture, 1)), (changed = true));
+    if (inp.codePressed('Semicolon')) ((s.aperture = step(APERTURES, s.aperture, -1)), (changed = true));
+    if (inp.codePressed('Period')) ((s.iso = s.iso ? step(ISOS, s.iso, 1) : 100), (changed = true));
+    if (inp.codePressed('Comma')) ((s.iso = s.iso === 100 ? 0 : s.iso ? step(ISOS, s.iso, -1) : 0), (changed = true));
+    if (inp.codePressed('Digit0')) ((s.ev = Math.min(3, Math.round((s.ev + 1 / 3) * 3) / 3)), (changed = true));
+    if (inp.codePressed('Digit9')) ((s.ev = Math.max(-3, Math.round((s.ev - 1 / 3) * 3) / 3)), (changed = true));
+    if (inp.codePressed('KeyQ')) this.pro.focusNow(this.subject);
+    if (inp.codePressed('KeyC')) this.onTogglePanel?.();
+    if (changed) {
+      this.pro.save();
+      const e = this.pro.expo;
+      this.say(s.mode === 'P' || s.mode === 'auto' ? `EV ${s.ev >= 0 ? '+' : ''}${s.ev.toFixed(1)}` : `${fmtShutter(s.mode === 'S' || s.mode === 'M' ? s.shutter : e.shutter)}  ${fmtAperture(s.aperture)}  ISO ${s.iso || 'AUTO'}`);
+    }
+  }
+
+  /** the camera's settings panel (the UI's) */
+  onTogglePanel: (() => void) | null = null;
+
+  say(t: string, secs = 1.6): void {
+    this.note = t;
+    this.noteT = secs;
   }
 
   // ------------------------------------------------------------------ the camera
@@ -525,7 +556,8 @@ export class SpotterMode extends GameMode {
     }
     this.pitch = Math.max(-0.25, Math.min(1.56, this.pitch));
     cam.position.copy(this.eye);
-    cam.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
+    // (the photographer's hands: the long lens wobbles, less with stabilisation)
+    cam.rotation.set(this.pitch + this.pro.shakePitch, this.yaw + this.pro.shakeYaw, 0, 'YXZ');
     cam.fov = fovFor(this.focal);
     cam.near = 0.5;
     cam.updateProjectionMatrix();
@@ -545,6 +577,46 @@ export class SpotterMode extends GameMode {
     this.screenVel.set(0, 0);
     if (j) this.screenMotion(cam, j.ac.fm.pos, j.ac.fm.vel, clock, this.screenVel);
     this.flash = Math.max(0, this.flash - dt);
+    // the camera body: what it sees of the jet, the light, then its meter, focus and hands
+    this.subject = this.seeSubject(cam);
+    const fwd = _v.set(0, 0, -1).applyQuaternion(cam.quaternion);
+    this.light.sunAngle = Math.acos(Math.max(-1, Math.min(1, fwd.dot(this.sunDir))));
+    const w = window.innerWidth, hh = window.innerHeight;
+    this.pro.update(dt, this.focal, this.pitch, this.light, this.subject, w / Math.max(1, hh));
+    this.noteT = Math.max(0, this.noteT - dt);
+  }
+
+  /** the jet the camera is on: the flying one, or the parked one nearest the middle of the frame */
+  private seeSubject(cam: THREE.PerspectiveCamera): Subject {
+    const w = window.innerWidth, hh = window.innerHeight;
+    const aspect = w / Math.max(1, hh);
+    const tanH = Math.tan((cam.fov * D2R) / 2) * aspect;
+    const view = (a: Aircraft, moving: boolean): Subject | null => {
+      const c = _v.copy(a.fm.pos).project(cam);
+      if (c.z > 1 || c.z < -1 || Math.abs(c.x) > 1.05 || Math.abs(c.y) > 1.05) return null;
+      const to = a.fm.pos.clone().sub(this.eye);
+      const d = Math.max(1, to.length());
+      const side = 1 - Math.abs(a.fm.fwd.dot(to.divideScalar(d)));
+      const ext = Math.max(a.spec.span, a.spec.length * (0.35 + 0.65 * side));
+      return { inFrame: true, x: c.x, y: c.y, fill: ext / (2 * d * tanH), dist: d, moving };
+    };
+    const j = this.jet;
+    let best: Subject | null = j && !j.done ? view(j.ac, true) : null;
+    if (!best && this.staticsIn) {
+      for (const a of this.statics) {
+        const v = view(a, false);
+        if (v && (!best || Math.hypot(v.x, v.y) < Math.hypot(best.x, best.y))) best = v;
+      }
+    }
+    return best ?? { inFrame: false, x: 0, y: 0, fill: 0, dist: 1e5, moving: !!j };
+  }
+
+  /** the depth of field to draw (null where it is too shallow to see) */
+  dofLens(heightPx: number): { focal: number; fNumber: number; focusM: number } | null {
+    const far = this.pro.cocPx(this.focal, 1e6) * (heightPx / 1080);
+    const near = this.pro.cocPx(this.focal, 30) * (heightPx / 1080);
+    if (Math.max(far, near) < 1) return null;
+    return { focal: this.focal, fNumber: this.pro.expo.aperture, focusM: this.pro.focusM };
   }
 
   /** how fast a point moving at `vel` (scaled by `clock`) crosses the frame (px/s), with the view swinging as it is */
@@ -610,8 +682,10 @@ export class SpotterMode extends GameMode {
     if (!this.wantShot) return;
     this.wantShot = false;
     this.flash = 0.12;
+    // (the shutter's sound: a long exposure is a slower clack)
     audio.click();
     audio.beep(5200, 0.025, 0.03, 'square');
+    if (this.pro.expo.shutter >= 1 / 60) setTimeout(() => audio.beep(4200, 0.02, 0.025, 'square'), Math.min(900, this.pro.expo.shutter * 1000));
     const shot = this.score(cam, canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
     // the logbook: the best of each kind for this jet, and the points (at once: the picture follows)
     const L = this.log;
@@ -641,35 +715,78 @@ export class SpotterMode extends GameMode {
     const result: ShotResult = { meta: shot, url: '', newTags, points, rankUp: after.i > before.i ? after.rank.name : null, notes: this.notes };
     this.lastShot = result;
     this.shotSeq++;
-    // the picture: a snapshot of the frame taken on the GPU now (no stall reading the
-    // whole 4K frame back), scaled and encoded off the main thread, once; and a small
-    // copy for the album's grid. (A burst faster than that keeps its scores and skips
-    // the odd picture rather than slowing the show down.)
-    if (this.capturing >= 2) return;
+    // the picture. The frame just drawn is what the viewfinder showed; the picture is
+    // made from the sensor's own (neutral) frames: as many as the shutter is long
+    // enough to need, the view and the jet stepped through the exposure and averaged
+    // (motion blur, really), then developed off the main thread into the RAW and the
+    // JPEG. (A burst faster than that skips the odd picture: "BUFFER FULL".)
+    if (this.capturing >= 2) {
+      this.say('BUFFER FULL');
+      return;
+    }
+    const exp = this.pro.expo.shutter;
+    const j = this.jet;
+    const w = canvas.clientWidth || window.innerWidth;
+    const pxPerRad = (canvas.clientHeight || window.innerHeight) / (fovFor(this.focal) * D2R);
+    const panPx = Math.hypot(this.panYaw, this.panPitch) * pxPerRad * exp;
+    const jetPx = this.screenVel.length() * exp;
+    const shakePx = this.pro.shakeRate * pxPerRad * exp;
+    void w;
+    const n = Math.max(1, Math.min(12, Math.ceil(Math.max(panPx, jetPx, shakePx) / 2.5)));
+    const frame = this.host.exposeFrames?.(
+      n,
+      (i) => this.stepExposure(i, n, exp, cam, j),
+      this.pro.look(true),
+    );
     this.capturing++;
     const W = Math.min(3840, canvas.width), H = Math.round((W * canvas.height) / Math.max(1, canvas.width));
-    const caption = `${shot.jet} · ${this.field.name.toUpperCase()} · ${Math.round(this.focal)} MM`;
-    const snap = snapshot(canvas, W, H);
+    const caption = `${shot.jet} · ${this.field.name.toUpperCase()} · ${Math.round(this.focal)} MM · ${fmtShutter(exp)} ${fmtAperture(this.pro.expo.aperture)} ISO ${this.pro.expo.iso}`;
+    const fmt = this.pro.s.format;
+    const params = this.pro.developParams();
+    const snap = snapshot(frame ?? canvas, W, H);
     this.saving = (async () => {
       try {
         const bmp = await snap;
         if (!bmp) return;
-        const full = await encodeJpeg(bmp, W, H, caption, 0.92);
-        const tw = 400, th = Math.round((400 * H) / W);
-        const thumb = await encodeJpeg(bmp, tw, th, null, 0.78);
-        bmp.close();
-        if (!full) return;
-        result.url = URL.createObjectURL(full);
+        const out = await developFrame({ bmp, w: W, h: H, params, caption, jpeg: fmt !== 'raw', raw: fmt !== 'jpeg', quality: 0.92, thumbW: 400 });
+        const main = out.jpeg ?? out.raw;
+        if (!main) return;
+        result.url = URL.createObjectURL(main);
         this.urls.push(result.url);
         // (the cards keep the last few)
         while (this.urls.length > 4) URL.revokeObjectURL(this.urls.shift()!);
-        if (shot.score >= 15) await savePhoto(shot, full, thumb ?? undefined);
+        if (shot.score >= 15) await savePhoto(shot, main, out.thumb ?? undefined, out.jpeg && out.raw ? out.raw : undefined);
       } catch {
         /* (no picture this time: the score stands) */
       } finally {
         this.capturing--;
       }
     })();
+  }
+
+  /**
+   * One instant of the exposure (i of n, -1 puts everything back): the view swung
+   * on as it was swinging, the jet moved on along its way, the hands' shake.
+   */
+  private expoSave: { yaw: number; pitch: number; pos: THREE.Vector3 | null } | null = null;
+  private stepExposure(i: number, n: number, exp: number, cam: THREE.PerspectiveCamera, j: DisplayJet | null): void {
+    if (i < 0) {
+      const sv = this.expoSave;
+      if (sv) {
+        cam.rotation.set(sv.pitch, sv.yaw, 0, 'YXZ');
+        if (sv.pos && j) j.ac.fm.pos.copy(sv.pos);
+      }
+      this.expoSave = null;
+      cam.updateMatrixWorld();
+      return;
+    }
+    if (!this.expoSave) this.expoSave = { yaw: cam.rotation.y, pitch: cam.rotation.x, pos: j ? j.ac.fm.pos.clone() : null };
+    const sv = this.expoSave;
+    const t = n > 1 ? (i / (n - 1) - 0.5) * exp : 0;
+    const sh = this.pro.shakeRate * t * 0.7;
+    cam.rotation.set(sv.pitch + this.panPitch * t + sh, sv.yaw + this.panYaw * t + sh * 0.6, 0, 'YXZ');
+    cam.updateMatrixWorld();
+    if (j && sv.pos) j.ac.fm.pos.copy(sv.pos).addScaledVector(j.ac.fm.vel, t * this.clock);
   }
 
   /** pictures being made, and the card pictures' object URLs */
@@ -684,7 +801,7 @@ export class SpotterMode extends GameMode {
   private score(cam: THREE.PerspectiveCamera, w: number, h: number): PhotoMeta {
     const j = this.jet;
     const notes: string[] = [];
-    const meta: PhotoMeta = { id: `${Date.now()}-${Math.floor(Math.random() * 1e6)}`, time: Date.now(), type: j?.ac.type ?? 'F15EX', jet: j?.ac.spec.name ?? '', score: 0, stars: 0, tags: [], base: this.field.name, lens: Math.round(this.focal) };
+    const meta: PhotoMeta = { id: `${Date.now()}-${Math.floor(Math.random() * 1e6)}`, time: Date.now(), type: j?.ac.type ?? 'F15EX', jet: j?.ac.spec.name ?? '', score: 0, stars: 0, tags: [], base: this.field.name, lens: Math.round(this.focal), exif: this.pro.exif() };
     this.notes = notes;
     // what is in the picture: the jet flying its display, or one on the static display
     // (whichever fills more of the frame; the flying one wins a close call)
@@ -746,15 +863,40 @@ export class SpotterMode extends GameMode {
     const nose = fm.pos.clone().add(fm.fwd).project(cam);
     const lead = Math.sign(nose.x - c.x) * (0.5 - sx);
     if (lead > 0.05) comp = Math.min(1, comp + 0.15);
-    // sharpness: how far it moved across the frame while the shutter was open
+    // sharpness: how far it moved across the frame while the shutter was open (the
+    // shutter speed set), the hands' shake, and whether the lens was focused on it
+    const pro = this.pro;
+    const exp = pro.expo.shutter;
+    const pxPerRad = h / (cam.fov * D2R);
     const motion = flying ? this.screenVel : this.screenMotion(cam, fm.pos, _zero, 0, new THREE.Vector2());
-    const blurPx = motion.length() * EXPOSURE;
-    const sharp = Math.exp(-blurPx / 7);
-    if (blurPx > 10) notes.push(flying ? `Motion blur: pan with the jet (${Math.round(blurPx)} px of blur)` : `Camera shake: hold still (${Math.round(blurPx)} px of blur)`);
+    const shakePx = pro.shakeRate * pxPerRad * exp;
+    const blurPx = Math.hypot(motion.length() * exp, shakePx);
+    const coc = pro.cocPx(this.focal, toJet.length()) * (h / 1080);
+    const sharp = Math.exp(-blurPx / 7) * Math.exp(-Math.max(0, coc - 1.5) / 5);
+    if (blurPx > 10) notes.push(shakePx > motion.length() * exp ? `Camera shake at ${fmtShutter(exp)}: a faster shutter or stabilisation` : flying ? `Motion blur at ${fmtShutter(exp)}: pan with the jet (${Math.round(blurPx)} px)` : `Camera shake: hold still (${Math.round(blurPx)} px of blur)`);
+    if (coc > 5) notes.push(`Out of focus (the lens was at ${Math.round(pro.focusM)} m, the jet ${Math.round(toJet.length())} m)`);
+    // exposure: how bright the jet and the sky come out in the picture (stops against
+    // a well-exposed frame; a jet with the sun behind it shows its shaded side)
+    const e = pro.expo;
+    const g2 = Math.log2(Math.max(1e-4, e.gain));
+    const subj = g2 - 1.4 * pro.light.backlit;
+    const sky = g2 + 2.4 * pro.light.backlit;
+    let expQ = Math.exp(-Math.pow(Math.max(0, Math.abs(subj) - 0.5), 2) / (2 * 1.1 * 1.1));
+    if (subj < -1.3) notes.push(`Underexposed: the jet is a silhouette (${subj.toFixed(1)} EV)${pro.light.backlit > 0.3 && pro.s.metering !== 'spot' ? ' · try SPOT metering or +EV' : ''}`);
+    else if (subj > 1.3) notes.push(`Overexposed: the jet is washed out (+${subj.toFixed(1)} EV)`);
+    if (sky > 2.3) {
+      expQ *= 0.9;
+      notes.push('The sky is blown out to white');
+    }
+    // high ISO: grain
+    const isoQ = e.iso > 12800 ? 0.84 : e.iso > 6400 ? 0.92 : e.iso > 3200 ? 0.97 : 1;
+    if (e.iso > 6400) notes.push(`Noisy at ISO ${e.iso}`);
     if (!flying) {
       // the static display: a portrait of a parked jet
       const tags = fill >= 0.2 ? ['static'] : [];
-      const q = size > 0 ? 0.36 * size + 0.19 * comp + 0.45 * sharp : 0;
+      // a wide aperture melting what is behind it
+      if (fill >= 0.2 && e.aperture <= 4 && pro.cocPx(this.focal, toJet.length() * 3) * (h / 1080) > 10 && coc < 3) tags.push('bokeh');
+      const q = (size > 0 ? 0.36 * size + 0.19 * comp + 0.45 * sharp : 0) * expQ * isoQ;
       const score = Math.round(100 * q * (0.72 + 0.28 * (tags.length ? 0.45 : 0)));
       const stars = score >= 88 ? 5 : score >= 74 ? 4 : score >= 58 ? 3 : score >= 40 ? 2 : score >= 20 ? 1 : 0;
       if (!tags.length && size > 0) notes.push('Fill more of the frame with it');
@@ -784,10 +926,13 @@ export class SpotterMode extends GameMode {
     if (air && fm.alpha > 50 * D2R) tags.push('cobra');
     if (air && fm.gearPos > 0.95 && label === 'LANDING') tags.push('gear');
     if (fm.onGround && label === 'LANDING' && fm.tas > 40) tags.push('touchdown');
+    // the panning shot: a slow shutter swung with the jet, the jet sharp and the world streaked
+    const bgPx = Math.hypot(this.panYaw, this.panPitch) * pxPerRad * exp;
+    if (exp >= 1 / 250 && bgPx > 22 && blurPx < 6 && coc < 3) tags.push('panning');
     // the score: the picture itself (size, framing, sharpness) makes up to three stars;
     // the moment caught (vapour, afterburners, the top side in a turn...) makes it a four
     // or five. Auto-track does the panning for you: four stars at most.
-    const q = size > 0 ? 0.36 * size + 0.19 * comp + 0.45 * sharp : 0;
+    const q = (size > 0 ? 0.36 * size + 0.19 * comp + 0.45 * sharp : 0) * expQ * isoQ;
     const moment = Math.min(1, tags.reduce((s, t) => s + (SHOTS[t]?.pts ?? 20), 0) / 60);
     let score = 100 * q * (0.72 + 0.28 * moment);
     if (this.track) score = Math.min(score * 0.92, 87);

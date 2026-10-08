@@ -8,7 +8,7 @@ import { WeaponSelect, MISSILES, isIrMissile, launchCall, isBomb, weaponShort } 
 import { BombComputer } from '../weapons/bombing';
 import { predictBomb } from '../weapons/bomb';
 import * as THREE from 'three';
-import { GameRenderer } from '../render/renderer';
+import { GameRenderer, CameraLook } from '../render/renderer';
 import { World, WORLD_QUALITY } from '../world/world';
 import { Sim } from './sim';
 import { TeamPicture } from './teamPicture';
@@ -365,6 +365,37 @@ export class Game implements ModeHost {
 
   /** the menu hangar, lent to the airshow for its roll-out between acts */
   rollStage: { prepare(t: AircraftType): void; render(t: number, dt: number, w: number, h: number): THREE.Vector3 | null; end(): void } | null = null;
+
+  /** the airshow camera's exposure: n frames of the moment, averaged (see ModeHost) */
+  private exposeCanvas: HTMLCanvasElement | null = null;
+  exposeFrames(n: number, step: (i: number) => void, look: CameraLook): HTMLCanvasElement | null {
+    const R = this.renderer;
+    const src = R.canvas;
+    const c = (this.exposeCanvas ??= document.createElement('canvas'));
+    if (c.width !== src.width || c.height !== src.height) {
+      c.width = src.width;
+      c.height = src.height;
+    }
+    const g = c.getContext('2d');
+    if (!g) return null;
+    const cam = R.camera;
+    R.setCameraLook(look);
+    try {
+      for (let i = 0; i < n; i++) {
+        step(i);
+        this.combat.update(0, cam);
+        R.render();
+        // (a running average: each frame weighs the same in the end)
+        g.globalAlpha = 1 / (i + 1);
+        g.drawImage(src, 0, 0);
+      }
+    } finally {
+      step(-1);
+      this.combat.update(0, cam);
+      g.globalAlpha = 1;
+    }
+    return c;
+  }
   /** the airshow's screen (while the spotter mode runs) */
   spotterUi: SpotterUi | null = null;
 
@@ -768,6 +799,9 @@ export class Game implements ModeHost {
     }
     this.frameCount++;
     if (this.state === 'menu' || this.state === 'loading') {
+      // (the airshow camera's look and depth of field stay with the airshow)
+      this.renderer.setCameraLook(null);
+      this.renderer.setDof(null);
       this.onMenuFrame?.(dt);
       this.input.endFrame();
       return;
@@ -832,6 +866,8 @@ export class Game implements ModeHost {
       this.input.endFrame();
       return;
     }
+    this.renderer.setCameraLook(null);
+    this.renderer.setDof(null);
     // team battle: once shot down, spectate after a few seconds
     if (p && simOn && !p.alive && this.mode && !this.mode.over && this.mode.roster().length > 0) {
       this.deadTime += dt;
@@ -890,9 +926,18 @@ export class Game implements ModeHost {
   private spotterFrame(dt: number, playing: boolean, m: SpotterMode): void {
     const cam = this.renderer.camera;
     this.renderer.setOverlay(null, null);
+    // the light, for the camera's meter and white balance
+    const env = this.world.env;
+    m.light.tod = env.tod;
+    m.light.gloom = env.weather.gloom;
+    m.light.dark = NIGHT.dark;
+    m.sunDir.copy(env.sunDir);
     const pv = this.player ? this.combat.aircraftVis.get(this.player) : undefined;
     pv?.setCockpitView(false);
     m.frameCamera(cam, dt, playing);
+    // the viewfinder shows what the camera will take: its exposure, colour, noise, focus
+    this.renderer.setCameraLook(m.pro.look());
+    this.renderer.setDof(m.dofLens(this.renderer.renderSize.h));
     this.world.update(dt, cam, m.eye);
     this.renderer.updateDroplets(dt, this.world.precip.rainOnCamera, this.world.precip.camSpeed);
     this.combat.update(playing ? dt : 0, cam);

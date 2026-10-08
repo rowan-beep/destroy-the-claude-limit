@@ -66,6 +66,11 @@ export interface ModeHost {
   brief?(b: Briefing): void;
   /** the menu hangar, lent to the airshow for its roll-out between acts */
   rollStage?: { prepare(t: import('../../aircraft/specs').AircraftType): void; render(t: number, dt: number, w: number, h: number): THREE.Vector3 | null; end(): void } | null;
+  /**
+   * The airshow camera's exposure: draw `n` frames, calling `step(i)` before each
+   * (and `step(-1)` after), with the camera's neutral look, averaged into a picture.
+   */
+  exposeFrames?(n: number, step: (i: number) => void, look: import('../../render/renderer').CameraLook): HTMLCanvasElement | null;
   /** a mission that needs a pitch-black night (false puts the player's own weather back) */
   setDark?(on: boolean): void;
 }

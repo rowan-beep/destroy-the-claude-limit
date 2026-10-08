@@ -6,11 +6,14 @@
 
 import * as THREE from 'three';
 import { el, clearEl } from './dom';
+import { audio } from '../audio/audio';
 import type { SpotterMode } from '../game/modes/spotter';
 import { fovFor } from '../game/modes/spotter';
 import { SHOTS, rankOf, kindsFor } from '../game/spotterBook';
 import { SPECS } from '../aircraft/specs';
 import { AirshowAlbum } from './airshowAlbum';
+import { CameraPanel } from './cameraPanel';
+import { fmtShutter, fmtAperture, fmtEv, STYLE_NAMES } from '../game/camera/cameraBody';
 
 const CSS = `
 .sp-ui{position:fixed;inset:0;pointer-events:none;z-index:31;font-family:'Rajdhani','Segoe UI',system-ui,sans-serif;color:#f1f4f8;letter-spacing:.04em}
@@ -38,11 +41,20 @@ const CSS = `
 .sp-read b{font-size:22px;font-weight:700}
 .sp-read span{font-size:12px;letter-spacing:.18em;color:#d2dae6}
 .sp-read .on{color:#ffd38a}
+.sp-exif{position:absolute;left:18px;bottom:62px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;max-width:min(460px,34vw);font-variant-numeric:tabular-nums;text-shadow:0 1px 3px #000;font-size:15px;font-weight:700;letter-spacing:.06em}
+.sp-exif span{font-size:11px;font-weight:600;letter-spacing:.16em;color:#c9d3df}
+.sp-exif .m{background:#ffb14a;color:#1a1206;border-radius:4px;padding:0 6px;font-size:14px}
+.sp-meter{display:flex;align-items:flex-end;gap:2px;height:16px}
+.sp-meter i{display:block;width:2px;height:6px;background:#ffffff77}
+.sp-meter i.z{height:10px;background:#fff}
+.sp-meter i.on{background:#ffb14a;height:14px}
+.sp-msg{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);font-size:22px;font-weight:800;letter-spacing:.24em;text-shadow:0 2px 8px #000;opacity:0;transition:opacity .25s}
+.sp-msg.on{opacity:1}
 .sp-bot{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);width:max-content;max-width:calc(100vw - 32px);display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center}
 .sp-btn{background:#121820d8;border:1px solid #ffffff2a;color:#f1f4f8;border-radius:8px;padding:7px 12px;font-size:13px;font-weight:600;letter-spacing:.1em}
 .sp-btn.on{background:#7a4a12;border-color:#ffb14a}
 .sp-btn.big{background:linear-gradient(180deg,#fff2dc,#ffcf8a);color:#1a1206;border:0;font-weight:800}
-.sp-card{position:absolute;right:16px;bottom:60px;width:300px;background:#0d1219ee;border:1px solid #ffffff26;border-radius:12px;overflow:hidden;opacity:0;transform:translateY(12px);transition:opacity .35s,transform .35s}
+.sp-card{position:absolute;right:16px;bottom:64px;width:300px;background:#0d1219ee;border:1px solid #ffffff26;border-radius:12px;overflow:hidden;opacity:0;transform:translateY(12px);transition:opacity .35s,transform .35s}
 .sp-card.show{opacity:1;transform:none}
 .sp-card img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:#000}
 .sp-card-b{padding:9px 12px 11px}
@@ -57,7 +69,7 @@ const CSS = `
 .sp-tag{position:absolute;transform:translate(-50%,-100%);font-size:11px;font-weight:700;letter-spacing:.14em;text-shadow:0 1px 3px #000;white-space:nowrap;text-align:center;color:#ffe2b0}
 .sp-tag i{display:block;font-style:normal;font-weight:500;font-size:10px;color:#d2dae6}
 .sp-arrow{position:absolute;width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-bottom:16px solid #ffd38a;filter:drop-shadow(0 1px 2px #000)}
-.sp-help{position:absolute;left:50%;bottom:90px;transform:translateX(-50%);width:max-content;max-width:min(600px,calc(100vw - 680px));text-align:center;font-size:11px;color:#c3cdda;letter-spacing:.1em;line-height:1.5;text-shadow:0 1px 2px #000;transition:opacity 1.5s}
+.sp-help{position:absolute;left:50%;bottom:118px;transform:translateX(-50%);width:max-content;max-width:min(600px,calc(100vw - 680px));text-align:center;font-size:11px;color:#c3cdda;letter-spacing:.1em;line-height:1.5;text-shadow:0 1px 2px #000;transition:opacity 1.5s}
 .sp-help.dim{opacity:0}
 .sp-cine-l{position:absolute;inset:0;pointer-events:none;opacity:0}
 .sp-black{background:#000}
@@ -106,6 +118,9 @@ export class SpotterUi {
   private cardShot: SpotterMode['lastShot'] = null;
   private cardT = 0;
   private trKey = '';
+  private panel: CameraPanel;
+  private elExif: HTMLElement;
+  private elMsg: HTMLElement;
   private progKey = '';
 
   constructor(
@@ -138,7 +153,12 @@ export class SpotterUi {
     this.black = el('div', 'sp-cine-l sp-black', this.root);
     this.white = el('div', 'sp-cine-l sp-white', this.root);
     this.help = el('div', 'sp-help', this.root);
-    this.help.textContent = 'DRAG / WASD look · WHEEL or + − zoom · CLICK or SPACE shoot · T auto-track · V photo spot · N next act · F show speed · TAB album · ESC pause';
+    this.help.textContent = 'DRAG / WASD look · WHEEL or + − zoom · CLICK or SPACE shoot · C camera settings · [ ] shutter · ; \' aperture · , . ISO · Q focus · T auto-track · V spot · N next act · TAB album';
+    this.elExif = el('div', 'sp-exif', this.root);
+    this.elMsg = el('div', 'sp-msg', this.root);
+    this.panel = new CameraPanel(document.body, mode.pro, () => mode.focal);
+    mode.onTogglePanel = () => this.panel.toggle();
+    mode.pro.onBeep = (fast) => audio.beep(fast ? 2600 : 2000, 0.05, 0.05, 'sine');
     const bot = el('div', 'sp-bot', this.root);
     const b = (t: string, fn: () => void, cls = '') => {
       const x = el('button', 'sp-btn ' + cls, bot, t) as HTMLButtonElement;
@@ -156,6 +176,7 @@ export class SpotterUi {
     this.btnSpot = b('SPOT', () => mode.nextSpot());
     this.btnSpeed = b('SHOW 1×', () => (mode.showSpeed = mode.showSpeed >= 4 ? 1 : mode.showSpeed * 2));
     b('NEXT ACT', () => mode.nextAct());
+    b('CAMERA', () => this.panel.toggle());
     b('ALBUM', () => this.toggleAlbum(), 'big');
     b('EXIT', () => onExit());
     // the album (the same one the main menu opens)
@@ -167,11 +188,13 @@ export class SpotterUi {
 
   dispose(): void {
     this.album.dispose();
+    this.panel.root.remove();
     this.root.remove();
   }
 
   show(on: boolean): void {
     this.root.classList.toggle('hidden', !on);
+    if (!on && this.panel?.open) this.panel.show(false);
   }
 
   toggleAlbum(): void {
@@ -255,7 +278,21 @@ export class SpotterUi {
       if (this.helpT <= 0) this.help.classList.add('dim');
     }
     // the readout
-    this.elRead.innerHTML = `<span>LENS</span><b>${Math.round(m.focal)} MM</b><span>MAX ${m.maxFocal()}</span><span>1/500 S</span><span class="${m.track ? 'on' : ''}">${m.track ? 'AUTO-TRACK' : 'MANUAL'}</span><span>SHOW ${m.showSpeed}×</span>`;
+    this.elRead.innerHTML = `<span>LENS</span><b>${Math.round(m.focal)} MM</b><span>MAX ${m.maxFocal()}</span><span class="${m.track ? 'on' : ''}">${m.track ? 'AUTO-TRACK' : 'MANUAL'}</span><span>SHOW ${m.showSpeed}×</span>`;
+    // the camera's own readout, like the line under a viewfinder
+    const pro = m.pro, e = pro.expo, cs = pro.s;
+    const bias = cs.mode === 'M' ? e.bias : cs.ev;
+    let meter = '';
+    for (let k = -9; k <= 9; k++) meter += `<i class="${k === 0 ? 'z' : ''}${Math.round(Math.max(-3, Math.min(3, bias)) * 3) === k ? ' on' : ''}"></i>`;
+    const mode = cs.mode.length === 1 ? cs.mode : cs.mode === 'auto' ? 'AUTO' : cs.mode.toUpperCase();
+    const drive = { single: 'S', low: 'CL', high: 'CH', timer2: '⏱2', timer10: '⏱10', interval: pro.intervalOn ? 'INT ●' : 'INT' }[cs.drive];
+    this.elExif.innerHTML = `<b class="m">${mode}</b><b>${fmtShutter(e.shutter)}</b><b>${fmtAperture(e.aperture)}</b><b>ISO ${e.iso}</b><div class="sp-meter">${meter}</div><b>${fmtEv(bias)}</b>` +
+      `<span>${cs.af} ${cs.area === 'wide' ? 'WIDE' : cs.area.toUpperCase()}</span><span>${drive}</span><span>${cs.wb === 'kelvin' ? cs.kelvin + 'K' : cs.wb === 'auto' ? 'AWB' : cs.wb.toUpperCase()}</span><span>${STYLE_NAMES[cs.style]}</span><span>${cs.format.toUpperCase()}${cs.space === 'adobe' ? ' · ARGB' : ''}</span><span>IS ${cs.is.toUpperCase()}</span>`;
+    this.panel.update();
+    // big messages in the middle: the self-timer, AF-S focusing, a note from the dials
+    const msg = pro.timerLeft >= 0 ? `${Math.ceil(pro.timerLeft)}` : pro.focusing ? 'FOCUSING' : m.noteT > 0 ? m.note : '';
+    this.elMsg.textContent = msg;
+    this.elMsg.classList.toggle('on', !!msg);
     this.btnTrack.classList.toggle('on', m.track);
     this.btnGrid.classList.toggle('on', m.grid);
     this.btnSpeed.textContent = `SHOW ${m.showSpeed}×`;
@@ -337,20 +374,43 @@ export class SpotterUi {
       }
       g.stroke();
     }
-    // the focus point: it locks green on the jet
+    // the focus area: a point, a zone, or (wide) a box that follows the jet it detects;
+    // green when the lens is focused on the jet
     const sp = m.screenPos(cam, w, h);
-    const onJet = !!sp && Math.abs(sp.x - w / 2) < w * 0.12 && Math.abs(sp.y - h / 2) < h * 0.12;
-    g.strokeStyle = onJet ? 'rgba(120,255,150,0.95)' : 'rgba(255,255,255,0.7)';
+    const pro = m.pro;
+    const ok = pro.inFocus && pro.subjectInArea;
+    g.strokeStyle = ok ? 'rgba(120,255,150,0.95)' : pro.subjectInArea ? 'rgba(255,220,140,0.9)' : 'rgba(255,255,255,0.7)';
     g.lineWidth = 2;
-    const s = 22;
+    const area = pro.s.area;
+    const sub = m.subject;
+    let cx = w / 2, cy = h / 2, bw = 22, bh = 22;
+    if (pro.s.af === 'MF') bw = bh = 16;
+    else if (area === 'zone') {
+      bw = h * 0.32;
+      bh = h * 0.3;
+    } else if (area === 'wide' && sub.inFrame) {
+      cx = (sub.x * 0.5 + 0.5) * w;
+      cy = (-sub.y * 0.5 + 0.5) * h;
+      bw = Math.max(26, sub.fill * w * 0.55);
+      bh = Math.max(20, bw * 0.55);
+    } else if (area === 'wide') {
+      bw = w * 0.42;
+      bh = h * 0.4;
+    }
+    const tick = Math.min(14, bw * 0.35);
     for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-      const x = w / 2 + sx * s, y = h / 2 + sy * s;
+      const x = cx + sx * bw, y = cy + sy * bh;
       g.beginPath();
-      g.moveTo(x, y - sy * 8);
+      g.moveTo(x, y - sy * tick);
       g.lineTo(x, y);
-      g.lineTo(x - sx * 8, y);
+      g.lineTo(x - sx * tick, y);
       g.stroke();
     }
+    // the focus distance, under the area
+    g.fillStyle = ok ? 'rgba(140,255,170,0.9)' : 'rgba(255,255,255,0.6)';
+    g.font = '600 11px Rajdhani, system-ui';
+    const fm = pro.focusM;
+    g.fillText(`${pro.s.af} · ${fm > 20000 ? '∞' : Math.round(fm) + ' M'}`, cx - 26, cy + bh + 16);
     // how the jet is moving across the frame: a short streak (long = blurry: pan with it)
     if (sp && m.jet && !m.jet.done) {
       const v = m.screenVel;

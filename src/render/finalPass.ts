@@ -36,6 +36,15 @@ uniform float aberration;
 uniform float grain;
 uniform float speedBlur;
 uniform float time;
+// the airshow camera: exposure (before the tone curve), then in the picture's own
+// space white balance, the picture style (contrast/saturation above, lift, warmth,
+// monochrome) and the sensor's noise at high ISO
+uniform float camExposure;
+uniform vec3 camWb;
+uniform float camLift;
+uniform float camWarm;
+uniform float camMono;
+uniform float camNoise;
 #include <tonemapping_pars_fragment>
 #include <colorspace_pars_fragment>
 in vec2 vUv;
@@ -46,6 +55,9 @@ vec3 shown(vec2 uv) {
   vec3 c = texture(tDiffuse, uv).rgb;
   if (any(isnan(c)) || any(notEqual(c, c))) c = vec3(0.0);
   c = min(max(c, vec3(0.0)), vec3(256.0));
+  #ifdef CAMERA
+    c *= camExposure;
+  #endif
   #if defined( LINEAR_TONE_MAPPING )
     c = LinearToneMapping(c);
   #elif defined( REINHARD_TONE_MAPPING )
@@ -68,6 +80,11 @@ vec3 shown(vec2 uv) {
     c = clamp(c, 0.0, 1.0);
     vec3 s = c * c * (3.0 - 2.0 * c);
     c = contrast >= 1.0 ? mix(c, s, (contrast - 1.0) * 1.6) : mix(vec3(0.5), c, 0.5 + 0.5 * contrast);
+  #endif
+  #ifdef CAMERA
+    c = clamp(c * camWb * vec3(1.0 + camWarm, 1.0, 1.0 - camWarm), 0.0, 1.0);
+    c = mix(c, vec3(dot(c, vec3(0.2126, 0.7152, 0.0722))), camMono);
+    c = c * (1.0 - camLift) + camLift;
   #endif
   return clamp(c, 0.0, 1.0);
 }
@@ -111,6 +128,19 @@ void main() {
     float gn = fract(sin(dot(vUv * vec2(1931.7, 1153.3) + time * 17.31, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
     col += gn * grain * (1.0 - abs(lum * 2.0 - 1.0));
   #endif
+  #ifdef CAMERA
+    // sensor noise: strongest in the shadows, with some colour in it (none in monochrome)
+    if (camNoise > 0.0) {
+      vec2 q = floor(vUv / texel);
+      float t = fract(time * 7.13);
+      float n1 = fract(sin(dot(q + t * 61.0, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
+      float n2 = fract(sin(dot(q + t * 37.0, vec2(39.3468, 11.135))) * 24634.6345) - 0.5;
+      float n3 = fract(sin(dot(q + t * 17.0, vec2(73.156, 52.235))) * 13421.7631) - 0.5;
+      float sh = 1.0 - 0.75 * dot(col, vec3(0.299, 0.587, 0.114));
+      vec3 chroma = vec3(n1, n2, n3) * (1.0 - camMono);
+      col += camNoise * sh * (vec3(n1 + n2 + n3) * 0.45 + chroma * 0.6);
+    }
+  #endif
   fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
 }`;
 
@@ -128,7 +158,15 @@ export class FinalPass extends Pass {
     grain: { value: 0.01 },
     speedBlur: { value: 0 },
     time: { value: 0 },
+    camExposure: { value: 1 },
+    camWb: { value: new THREE.Vector3(1, 1, 1) },
+    camLift: { value: 0 },
+    camWarm: { value: 0 },
+    camMono: { value: 0 },
+    camNoise: { value: 0 },
   };
+  /** the airshow camera's look is on */
+  camera = false;
   readonly material: THREE.RawShaderMaterial;
   private quad: FullScreenQuad;
   private key = '';
@@ -147,7 +185,7 @@ export class FinalPass extends Pass {
     this.uniforms.tDiffuse.value = readBuffer.texture;
     this.uniforms.toneMappingExposure.value = renderer.toneMappingExposure;
     const tm = renderer.toneMapping, cs = renderer.outputColorSpace;
-    const key = `${tm}|${cs}|${this.grade}|${this.finish}`;
+    const key = `${tm}|${cs}|${this.grade}|${this.finish}|${this.camera}`;
     if (key !== this.key) {
       this.key = key;
       const d: Record<string, string> = {};
@@ -160,6 +198,7 @@ export class FinalPass extends Pass {
       else if (tm === THREE.NeutralToneMapping) d.NEUTRAL_TONE_MAPPING = '';
       if (this.grade) d.GRADE = '';
       if (this.finish) d.FINISH = '';
+      if (this.camera) d.CAMERA = '';
       this.material.defines = d;
       this.material.needsUpdate = true;
     }

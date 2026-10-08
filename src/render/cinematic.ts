@@ -107,6 +107,9 @@ export class SunShaftPass extends Pass {
   }
   render(renderer: THREE.WebGLRenderer, _w: THREE.WebGLRenderTarget, readBuffer: THREE.WebGLRenderTarget): void {
     this.uniforms.tDiffuse.value = readBuffer.texture as unknown as null;
+    // (no auto-clear: the rays are added over the picture, not instead of it)
+    const auto = renderer.autoClear;
+    renderer.autoClear = false;
     this.quad.material = this.rayMat;
     renderer.setRenderTarget(this.rt);
     renderer.clear();
@@ -115,6 +118,7 @@ export class SunShaftPass extends Pass {
     this.quad.material = this.addMat;
     renderer.setRenderTarget(this.renderToScreen ? null : readBuffer);
     this.quad.render(renderer);
+    renderer.autoClear = auto;
   }
   dispose(): void {
     this.rt.dispose();

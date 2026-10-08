@@ -8,7 +8,10 @@
 // every jet with the best stars for each.
 
 import { el, clearEl } from './dom';
-import { SHOTS, RANKS, rankOf, listPhotos, photoBlob, photoThumb, deletePhoto, deletePhotos, setFavourite, kindsFor, PhotoMeta, SpotterLog, MAX_PHOTOS } from '../game/spotterBook';
+import { SHOTS, RANKS, rankOf, listPhotos, photoBlob, photoThumb, photoRaw, savePhoto, deletePhoto, deletePhotos, setFavourite, kindsFor, PhotoMeta, SpotterLog, MAX_PHOTOS } from '../game/spotterBook';
+import { fmtShutter, fmtAperture, fmtEv, STYLE_NAMES, STYLE_LOOK, kelvinRgb, Style } from '../game/camera/cameraBody';
+import { develop, DevelopParams } from '../game/camera/develop';
+import { process as developFrame } from '../game/camera/processor';
 import { AIRCRAFT_TYPES, AircraftType, SPECS } from '../aircraft/specs';
 import { saveFile } from '../net/artifact';
 
@@ -69,6 +72,12 @@ const CSS = `
 .aa-card.sel{border-color:#ffb14a;box-shadow:0 0 0 2px #ffb14a inset}
 .aa-card.sel .aa-tick{background:#ffb14a;border-color:#ffb14a}
 .aa-card.sel img{opacity:.72}
+.aa-dev{display:flex;flex-direction:column;gap:6px;margin-top:4px;padding:8px;border:1px solid #ffb14a55;border-radius:8px;background:#ffb14a0d}
+.aa-dev label{display:grid;grid-template-columns:88px 1fr 46px;align-items:center;gap:6px;font-size:11px;letter-spacing:.12em;color:#c6d0dc}
+.aa-dev input[type=range]{width:100%;accent-color:#ffb14a}
+.aa-dev select{background:#0c1016;color:#eef2f7;border:1px solid #ffffff2a;border-radius:6px;padding:3px;font:inherit;font-size:12px}
+.aa-dev b{font-size:12px;text-align:right;font-variant-numeric:tabular-nums}
+.aa-raw{position:absolute;top:7px;left:44px;font-size:10px;font-weight:800;letter-spacing:.12em;background:#3c8cff;color:#fff;border-radius:4px;padding:1px 5px}
 .aa-big{position:fixed;inset:0;z-index:3;background:#000f;display:none;grid-template-columns:1fr 330px}
 .aa-big.show{display:grid}
 .aa-big-img{position:relative;display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;padding:18px}
@@ -533,6 +542,7 @@ export class AirshowAlbum {
     img.dataset.id = p.id;
     this.io?.observe(img);
     el('div', 'aa-score', c, String(p.score));
+    if (p.raw) el('div', 'aa-raw', c, 'RAW');
     if (p.fav) el('div', 'aa-heart', c, '♥');
     const cap = el('div', 'aa-cap', c);
     const t = el('div', 'aa-cap-t', cap);
@@ -606,6 +616,14 @@ export class AirshowAlbum {
     kv('AIRSHOW', p.base);
     kv('FROM', SPOT_NAME[p.spot ?? 'crowd'] ?? 'Crowd line');
     kv('LENS', `${p.lens} mm`);
+    const x = p.exif;
+    if (x) {
+      kv('EXPOSURE', `${fmtShutter(x.shutter)} · ${fmtAperture(x.aperture)} · ISO ${x.iso}`);
+      kv('MODE', `${x.mode.length === 1 ? x.mode : x.mode.toUpperCase()} · ${fmtEv(x.ev)} EV · ${x.metering.toUpperCase()}`);
+      kv('FOCUS', x.af);
+      kv('COLOUR', `${x.wb} · ${STYLE_NAMES[x.style as Style] ?? x.style} · ${x.space === 'adobe' ? 'Adobe RGB' : 'sRGB'}`);
+      kv('FILE', `${x.format.toUpperCase()}${p.raw ? ' (RAW kept)' : ''} · IS ${x.is.toUpperCase()}`);
+    }
     kv('PICTURE', `${i + 1} of ${this.shown.length}`);
     const acts = el('div', 'aa-act', side);
     const favB = el('button', 'aa-btn', acts, p.fav ? '♥ FAVOURITE' : '♡ ADD TO FAVOURITES') as HTMLButtonElement;
@@ -632,6 +650,18 @@ export class AirshowAlbum {
         save.textContent = 'SAVE COVER';
       });
     }
+    if (p.raw) {
+      const sr = el('button', 'aa-btn', acts, 'SAVE RAW (.PNG)') as HTMLButtonElement;
+      sr.addEventListener('click', async () => {
+        const blob = await photoRaw(p.id);
+        if (blob) await saveFile(`${p.jet.replace(/[^a-z0-9]+/gi, '-')}-${p.score}-raw.png`, blob);
+      });
+      const dv = el('button', 'aa-btn gold', acts, 'DEVELOP RAW') as HTMLButtonElement;
+      dv.addEventListener('click', () => {
+        dv.remove();
+        void this.developPanel(acts, p, img);
+      });
+    }
     const del = el('button', 'aa-btn red', acts, 'DELETE') as HTMLButtonElement;
     del.addEventListener('click', async () => {
       if (del.dataset.sure !== '1') {
@@ -650,6 +680,89 @@ export class AirshowAlbum {
     const back = el('button', 'aa-btn', acts, 'BACK TO THE ALBUM') as HTMLButtonElement;
     back.addEventListener('click', () => this.closeBig());
     b.classList.add('show');
+  }
+
+  /** develop a RAW: exposure, white balance, contrast, colour and a picture style, live, then kept as a new picture */
+  private async developPanel(parent: HTMLElement, p: PhotoMeta, img: HTMLImageElement): Promise<void> {
+    const raw = await photoRaw(p.id);
+    if (!raw) return;
+    const bmp = await createImageBitmap(raw);
+    // (the preview at screen size; the full picture when it is kept)
+    const pw = Math.min(bmp.width, 1600), ph = Math.round((pw * bmp.height) / bmp.width);
+    const prev = document.createElement('canvas');
+    prev.width = pw;
+    prev.height = ph;
+    const pg = prev.getContext('2d', { willReadFrequently: true })!;
+    pg.drawImage(bmp, 0, 0, pw, ph);
+    const base = pg.getImageData(0, 0, pw, ph);
+    const box = el('div', 'aa-dev', parent);
+    const v = { ev: 0, kelvin: 5500, con: 1, sat: 1, style: 'standard' as Style };
+    const params = (): DevelopParams => {
+      const set = kelvinRgb(v.kelvin), day = kelvinRgb(5500);
+      const g: [number, number, number] = [day[0] / set[0], 1, day[2] / set[2]];
+      const m = (g[0] + g[1] + g[2]) / 3;
+      const st = STYLE_LOOK[v.style];
+      return { wb: [g[0] / m, g[1] / m, g[2] / m], ev: v.ev, contrast: st.con * v.con, saturation: st.sat * v.sat, lift: st.lift, warm: st.warm, mono: st.mono, adobe: false };
+    };
+    let pending = 0;
+    const redraw = () => {
+      cancelAnimationFrame(pending);
+      pending = requestAnimationFrame(() => {
+        const im = new ImageData(new Uint8ClampedArray(base.data), pw, ph);
+        develop(im, params());
+        pg.putImageData(im, 0, 0);
+        img.src = prev.toDataURL('image/jpeg', 0.9);
+      });
+    };
+    const slider = (label: string, min: number, max: number, step: number, get: () => number, set: (x: number) => void, fmt: (x: number) => string) => {
+      const l = el('label', '', box);
+      el('span', '', l, label);
+      const r = el('input', '', l) as HTMLInputElement;
+      r.type = 'range';
+      r.min = String(min);
+      r.max = String(max);
+      r.step = String(step);
+      r.value = String(get());
+      const out = el('b', '', l, fmt(get()));
+      r.addEventListener('input', () => {
+        set(+r.value);
+        out.textContent = fmt(+r.value);
+        redraw();
+      });
+    };
+    slider('EXPOSURE', -2, 2, 0.1, () => v.ev, (x) => (v.ev = x), (x) => fmtEv(x));
+    slider('TEMPERATURE', 2500, 10000, 100, () => v.kelvin, (x) => (v.kelvin = x), (x) => `${x}K`);
+    slider('CONTRAST', 0.7, 1.4, 0.01, () => v.con, (x) => (v.con = x), (x) => x.toFixed(2));
+    slider('SATURATION', 0, 1.6, 0.01, () => v.sat, (x) => (v.sat = x), (x) => x.toFixed(2));
+    const sl = el('label', '', box);
+    el('span', '', sl, 'STYLE');
+    const sel = el('select', '', sl) as HTMLSelectElement;
+    for (const k of Object.keys(STYLE_NAMES) as Style[]) {
+      const o = el('option', '', sel, STYLE_NAMES[k]) as HTMLOptionElement;
+      o.value = k;
+    }
+    sel.addEventListener('change', () => {
+      v.style = sel.value as Style;
+      redraw();
+    });
+    const keep = el('button', 'aa-btn gold', box, 'KEEP AS A NEW PICTURE') as HTMLButtonElement;
+    keep.addEventListener('click', async () => {
+      keep.disabled = true;
+      keep.textContent = 'DEVELOPING…';
+      const full = await createImageBitmap(raw);
+      const out = await developFrame({ bmp: full, w: full.width, h: full.height, params: params(), caption: null, jpeg: true, raw: false, quality: 0.93, thumbW: 400 });
+      if (out.jpeg) {
+        const meta: PhotoMeta = { ...p, id: `${Date.now()}-${Math.floor(Math.random() * 1e6)}`, time: Date.now(), raw: false, fav: false, exif: p.exif ? { ...p.exif, style: v.style, wb: `${v.kelvin} K`, format: 'developed' } : undefined };
+        await savePhoto(meta, out.jpeg, out.thumb ?? undefined);
+        this.all = await listPhotos();
+        keep.textContent = 'KEPT ✓ (NEWEST IN THE ALBUM)';
+        this.fillBar();
+        this.fillGrid();
+        // (the open picture moved down one: keep the arrows stepping from it)
+        this.bigI = Math.max(0, this.shown.findIndex((x) => x.id === p.id));
+      } else keep.textContent = 'COULD NOT DEVELOP';
+    });
+    redraw();
   }
 
   private step(d: number): void {
