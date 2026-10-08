@@ -23,6 +23,7 @@ import { loadNetPrefs } from '../../net/servers';
 import { programLogo, Program } from './program';
 import { menuMusic } from '../../audio/menuMusic';
 import type { TimeOfDay } from '../../render/environment';
+import { menuStyle, setMenuStyle, renderSimple, picture } from './simpleMenu';
 
 const DIFF_TEXT: Record<Difficulty, string> = {
   EASY: 'Conservative, rarely uses afterburner, flies predictable straight lines and gentle arcs. Only shoots with a perfect sustained lock. Never hides behind terrain.',
@@ -90,6 +91,8 @@ export class MainMenu {
   private caption: HTMLElement;
   private thumbs = new Map<AircraftType, string>();
   private thumbQueue: AircraftType[] = [];
+  /** the SIMPLE menu (drawn over the hangar instead of the panels when chosen) */
+  private simpleEl: HTMLElement;
 
   constructor(
     parent: HTMLElement,
@@ -134,6 +137,7 @@ export class MainMenu {
     small('SETTINGS', () => cb.onSettings());
     small('CONTROLS', () => cb.onControls());
     small(`v${wn.latest} NOTES`, () => wn.show(true));
+    small('SIMPLE MENU', () => this.setStyle('simple'));
     const mus = (this.musBtn = small(menuMusic.enabled ? 'MUSIC ON' : 'MUSIC OFF', () => {
       mus.textContent = menuMusic.toggle() ? 'MUSIC ON' : 'MUSIC OFF';
     }));
@@ -156,8 +160,80 @@ export class MainMenu {
     lb.addEventListener('click', () => this.cb.onFly({ ...this.cfg }));
     el('div', 'hangar-hint mm-hint', this.root, 'DRAG TO LOOK AROUND · SCROLL TO ZOOM · DOUBLE-CLICK TO RESET');
 
+    this.simpleEl = el('div', 'sm', this.root);
+    this.root.classList.toggle('simple', menuStyle('air') === 'simple');
+
     this.selectJet(cfg.aircraft);
     this.go('play');
+  }
+
+  private setStyle(v: 'current' | 'simple'): void {
+    setMenuStyle('air', v);
+    this.root.classList.toggle('simple', v === 'simple');
+    this.render();
+  }
+
+  // --- the SIMPLE menu ---------------------------------------------------------------------------------------------
+  /** the modes it offers (a picture each), in order */
+  private static readonly SIMPLE_MODES: [ModeId, string, string][] = [
+    ['free', 'FREE FLIGHT', '04'],
+    ['spotter', 'AIRSHOW', '16'],
+    ['campaign', 'CAMPAIGN', '13'],
+    ['duel', 'DOGFIGHT', '14'],
+    ['waves', 'WAVE COMBAT', '12'],
+    ['daily', 'DAILY MISSION', '10'],
+  ];
+
+  private renderSimpleMenu(): void {
+    if (!this.root.classList.contains('simple')) return;
+    const ocean = activeMap.id === 'ocean';
+    const modes = MainMenu.SIMPLE_MODES.filter(([m]) => !(ocean && OCEAN_OFF.includes(m)));
+    // (a mode the simple menu doesn't show, picked in the full one, still flies from here)
+    const s = SPECS[this.cfg.aircraft];
+    const jets = AIRCRAFT_TYPES.filter((t) => jetAllowedIn(t, this.cfg.mode));
+    renderSimple(this.simpleEl, {
+      program: 'air',
+      subtitle: 'AIR COMBAT SIMULATOR',
+      heading: 'WHAT DO YOU WANT TO FLY?',
+      tiles: modes.map(([m, title, pic]) => ({
+        title,
+        sub: m === 'campaign' ? `Mission ${(m === this.cfg.mode ? this.cfg.campaignMission : nextCampaignMission()) + 1} of ${CAMPAIGN.length}` : MODE_INFO[m].subtitle,
+        img: picture('air', pic),
+        on: m === this.cfg.mode,
+        click: () => {
+          if (m === 'campaign' && this.cfg.mode !== 'campaign') this.cfg.campaignMission = nextCampaignMission();
+          this.cfg.mode = m;
+          if (!jetAllowedIn(this.cfg.aircraft, m)) this.selectJet(this.lastFighter);
+          else this.render();
+        },
+      })),
+      middle: (mid) => {
+        const row = el('div', 'sm-jet', mid);
+        const step = (d: number) => {
+          const i = jets.indexOf(this.cfg.aircraft);
+          if (jets.length) this.selectJet(jets[(i + d + jets.length) % jets.length]);
+        };
+        const prev = el('button', 'sm-arrow', row, '‹') as HTMLButtonElement;
+        prev.type = 'button';
+        prev.title = 'Previous jet';
+        prev.addEventListener('click', () => step(-1));
+        const t = el('div', '', row);
+        el('div', 'sm-jet-k', t, 'YOUR JET');
+        el('div', 'sm-jet-n', t, s.name.toUpperCase());
+        const next = el('button', 'sm-arrow', row, '›') as HTMLButtonElement;
+        next.type = 'button';
+        next.title = 'Next jet';
+        next.addEventListener('click', () => step(1));
+      },
+      go: { label: 'FLY', sub: `${MainMenu.SIMPLE_MODES.find(([m]) => m === this.cfg.mode)?.[1] ?? MODE_INFO[this.cfg.mode].title} · ${s.shortName.toUpperCase()}`, click: () => this.cb.onFly({ ...this.cfg }) },
+      links: [
+        ['PHOTO ALBUM', () => this.cb.onAlbum?.()],
+        ['SETTINGS', () => this.cb.onSettings()],
+        ['CONTROLS', () => this.cb.onControls()],
+      ],
+      onProgram: (p) => this.cb.onProgram?.(p),
+      onFull: () => this.setStyle('current'),
+    });
   }
 
   show(v: boolean): void {
@@ -204,6 +280,7 @@ export class MainMenu {
     this.renderLaunch();
     this.renderCaption();
     this.renderPilot();
+    this.renderSimpleMenu();
   }
 
   // --- pilot card ------------------------------------------------------------------------------------------------

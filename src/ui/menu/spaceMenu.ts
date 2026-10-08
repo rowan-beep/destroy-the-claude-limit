@@ -12,6 +12,7 @@ import { loadNetPrefs } from '../../net/servers';
 import { programLogo, Program } from './program';
 import { WhatsNewModal } from './whatsNew';
 import { menuMusic } from '../../audio/menuMusic';
+import { menuStyle, setMenuStyle, renderSimple, picture } from './simpleMenu';
 
 type Section = 'missions' | 'factory' | 'destinations';
 
@@ -57,6 +58,8 @@ export class SpaceMenu {
   private musBtn!: HTMLButtonElement;
   private notes: WhatsNewModal;
   private notesTimer = 0;
+  /** the SIMPLE menu (instead of the panels, when chosen) */
+  private simpleEl: HTMLElement;
 
   constructor(parent: HTMLElement, private cb: SpaceMenuCallbacks) {
     this.root = el('div', 'screen menu-root sx2 hidden', parent);
@@ -156,9 +159,56 @@ export class SpaceMenu {
     button('CONTROLS', 'sx2-fbtn', foot, () => cb.onControls());
     this.notes = new WhatsNewModal(document.body, 'space');
     button(`v${this.notes.latest} NOTES`, 'sx2-fbtn sx2-notes', foot, () => this.notes.show(true));
+    button('SIMPLE MENU', 'sx2-fbtn', foot, () => this.setStyle('simple'));
     el('div', 'sx2-hint', this.root, 'DRAG TO LOOK AROUND · SCROLL TO ZOOM · DOUBLE-CLICK TO RESET');
 
+    this.simpleEl = el('div', 'sm', this.root);
+    this.root.classList.toggle('simple', menuStyle('space') === 'simple');
+    this.renderSimpleMenu();
+
     this.go(this.section, false);
+  }
+
+  private setStyle(v: 'current' | 'simple'): void {
+    setMenuStyle('space', v);
+    this.root.classList.toggle('simple', v === 'simple');
+    this.renderSimpleMenu();
+    if (v === 'current') requestAnimationFrame(() => this.placeIndicator());
+  }
+
+  /** the SIMPLE menu: every mission a picture; click one and go */
+  private renderSimpleMenu(): void {
+    if (!this.root.classList.contains('simple')) return;
+    const cb = this.cb;
+    renderSimple(this.simpleEl, {
+      program: 'space',
+      subtitle: 'SPACE EXPLORATION',
+      heading: 'WHERE DO YOU WANT TO GO?',
+      tiles: [
+        { title: 'SATURN V', sub: 'Liftoff from the pad to orbit', img: picture('space', '02'), click: () => cb.onLaunch('pad') },
+        { title: 'APOLLO · THE MOON', sub: 'Start in lunar orbit and land', img: picture('space', '05'), click: () => cb.onLaunch('lunar') },
+        { title: 'STARSHIP TO MARS', sub: 'From the pad all the way to Mars', img: picture('space', '14'), click: () => cb.onMars() },
+        { title: 'CREW DRAGON · ISS', sub: 'Launch, then dock with the station', img: picture('space', '07'), click: () => cb.onLaunchMission('iss') },
+        { title: 'ARTEMIS II', sub: 'Round the far side of the Moon', img: picture('space', '11'), click: () => cb.onLaunchMission('artemis') },
+        { title: 'FALCON HEAVY', sub: 'Europa Clipper, the long way to Jupiter', img: picture('space', '10'), click: () => cb.onLaunchMission('clipper') },
+        { title: 'MARS LANDING', sub: 'Entry, parachute and the sky crane', img: picture('space', '16'), click: () => cb.onRover('m2020-edl') },
+        { title: 'PERSEVERANCE', sub: 'Drive Jezero Crater, fly Ingenuity', img: picture('space', '17'), click: () => cb.onRover('m2020-jezero') },
+        { title: 'CURIOSITY', sub: 'Drill and climb toward Mount Sharp', img: picture('space', '18'), click: () => cb.onRover('msl-gale') },
+        { title: 'SOLAR SYSTEM', sub: 'Fly to any planet or moon', img: picture('space', '19'), click: () => cb.onExplore() },
+      ],
+      links: [
+        ['SETTINGS', () => cb.onSettings()],
+        ['CONTROLS', () => cb.onControls()],
+        [`v${this.notes.latest} NOTES`, () => this.notes.show(true)],
+        [menuMusic.enabled ? 'MUSIC ON' : 'MUSIC OFF', () => {
+          menuMusic.toggle();
+          this.musBtn.classList.toggle('on', menuMusic.enabled);
+          this.renderSimpleMenu();
+        }],
+      ],
+      onProgram: (p) => cb.onProgram(p),
+      onFull: () => this.setStyle('current'),
+    });
   }
 
   show(v: boolean): void {
