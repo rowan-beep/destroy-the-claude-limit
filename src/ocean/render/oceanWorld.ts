@@ -12,6 +12,7 @@ import { SubModel } from './subModel';
 import { FishSchools } from './fish';
 import { SEABED_DETAIL } from './seabedDetail';
 import { SeabedLife } from './seabedLife';
+import { SiltClouds } from './silt';
 import { OCEAN_FX, daylightAt } from './oceanMaterial';
 import { WEATHERS, Weather, WeatherDef, surfaceHeight } from '../world/waves';
 import { PRESETS, OceanPreset, PresetDef } from '../perf/presets';
@@ -46,6 +47,8 @@ export class OceanWorld {
   readonly camera = new THREE.PerspectiveCamera(62, 1, 0.08, 14000);
   /** the small life and litter of the sea floor round the camera */
   readonly life: SeabedLife;
+  /** sediment the boat stirs up */
+  silt: SiltClouds;
   readonly seabed = new SeabedStreamer();
   readonly surface: OceanSurface;
   readonly props: OceanProps;
@@ -78,6 +81,8 @@ export class OceanWorld {
     this.sub = new SubModel(this.preset.shadowMap > 0);
     this.life = new SeabedLife(this.preset.decor);
     this.scene.add(this.life.group);
+    this.silt = new SiltClouds(this.preset.silt);
+    this.scene.add(this.silt.mesh);
     // sea-bed tiles are built on a worker thread where there is one
     this.seabed.useWorker();
     this.scene.add(this.seabed.group, this.surface.mesh, this.surface.sky, this.props.group, this.fx.group, this.sub.root, this.sun, this.sun.target, this.hemi);
@@ -144,6 +149,12 @@ export class OceanWorld {
       this.scene.add(this.fish.mesh);
     }
     this.fx.setCounts({ snow: d.snow, bubbles: d.bubbles, shafts: d.shafts });
+    if (this.silt && old.silt !== d.silt) {
+      this.scene.remove(this.silt.mesh);
+      this.silt.dispose();
+      this.silt = new SiltClouds(d.silt);
+      this.scene.add(this.silt.mesh);
+    }
     this.surface.material.uniforms.uFoam.value = d.foam ? 1 : 0;
     OCEAN_FX.uCaust.value = d.caustics ? 1 : 0;
     SEABED_DETAIL.value = d.seabedDetail;
@@ -188,6 +199,9 @@ export class OceanWorld {
     this.surface.update(cp, opts.boat, dt);
     this.props.update(cp.x, cp.z, this.t, dt);
     this.life.update(cp.x, cp.y, cp.z, this.t);
+    // (daylight on the silt: the same sun and sky that light the sea bed)
+    this.silt.dayK.value = (this.sun.intensity * 0.7 + this.hemi.intensity) / Math.PI;
+    this.silt.update(dt);
     this.fish?.update(cp);
     // the sun's shadow box follows the camera
     this.sun.position.set(cp.x + this.sunDir.x * 200, cp.y + this.sunDir.y * 200, cp.z + this.sunDir.z * 200);
@@ -285,6 +299,7 @@ export class OceanWorld {
     this.surface.dispose();
     this.props.dispose();
     this.life.dispose();
+    this.silt.dispose();
     this.fx.dispose();
     this.sub.dispose();
     this.fish?.dispose();

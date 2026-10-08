@@ -13,7 +13,7 @@ import { OCEAN_KEY_SECTIONS } from '../keys';
 import { DiveTouch, DiveGamepad, type ControlTarget } from './controls';
 import { isTouchDevice } from '../../ui/touchControls';
 import { SURVEY_SUB, NEUTRAL_BALLAST, newSubState, stepSub, FixedStepper, interpolate, rangeEstimate, speedOf, type SubState, type SubInput, type SubEnv } from '../sub/subPhysics';
-import { buildColliders, seabedHeight, bearing, HARBOR, SITES, K3, DEPTH_BANDS, regionAt, type Collider } from '../world/geo';
+import { buildColliders, seabedHeight, groundAt, bearing, HARBOR, SITES, K3, DEPTH_BANDS, regionAt, type Collider } from '../world/geo';
 import { CONTACTS, listen, ambientNoise, selfNoise, addDb, pingMask, ListenGauge, bearingHalfWidth, measureBearing, sonarRays, HEAR_SNR, PING_MASK_S, type SonarReturn } from '../acoustics/acoustics';
 import { EchoAtlas, TrackRecorder } from '../atlas/atlas';
 import { Expedition, STAGES, MISSION_ID, MISSION_TITLE, toolReady, CAREER_KEY, parseCheckpoint, parseCareer, type Checkpoint, type MissionRun, type Career } from '../mission/expedition';
@@ -135,6 +135,8 @@ export class OceanDive {
   private warnT = 0;
   private batteryCard = false;
   private lightHintT = 0;
+  /** silt the wash has stirred but not yet released as puffs */
+  private siltAcc = 0;
   private tmp = new THREE.Vector3();
   private tmp2 = new THREE.Vector3();
   // touch and gamepad: held controls added to the keys, orders as key codes
@@ -1208,6 +1210,7 @@ export class OceanDive {
       }
       this.maxDepth = Math.max(this.maxDepth, depth);
       this.track.add(s.x, s.z, Math.max(0, depth));
+      this.stirBottom(sdt);
       this.listenStep(sdt);
       this.pingStep();
       this.toolStep(sdt);
@@ -1274,7 +1277,45 @@ export class OceanDive {
     this.sound.update({ depth: -s.y, surfaced: -s.y < 1.2, thrust: s.out.thrust, vertical: s.out.vertical, lateral: s.out.lateral, pumping: s.out.pumping, quiet: this.quiet, listening: this.quiet, paused: this.paused || this.ended });
   }
 
+  /**
+   * The thrusters' wash on the bottom: the stern jets blow aft (or forward when
+   * going astern), the vertical ones push water down when the boat climbs. Close
+   * to sand or mud it lifts the sediment; rock and reef stay clear.
+   */
+  private stirBottom(dt: number): void {
+    const s = this.sub;
+    if (-s.y < 2 || dt <= 0) return;
+    const ground = seabedHeight(s.x, s.z);
+    const alt = s.y - 1.4 - ground;
+    if (alt > 3.5) return;
+    const o = s.out;
+    const near = 1 - Math.max(0, alt) / 3.5;
+    const stir = (Math.abs(o.thrust) + Math.max(0, o.vertical) * 1.8 + Math.abs(o.lateral) * 0.6) * near;
+    if (stir < 0.05) return;
+    this.siltAcc += stir * dt * 30;
+    const m = this.world.sub;
+    const back = o.thrust >= 0 ? 1 : -1;
+    while (this.siltAcc >= 1) {
+      this.siltAcc -= 1;
+      // where this puff starts: in the stern jets' wash, or under the boat for the vertical ones
+      const vertical = Math.random() * stir < Math.max(0, o.vertical) * 1.8 * near;
+      const w = vertical ? m.toWorld(this.tmp.set((Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 3)) : m.toWorld(this.tmp.set((Math.random() - 0.5) * 1.6, 0, back * (3 + Math.random() * 2)));
+      const g = seabedHeight(w.x, w.z);
+      const kind = groundAt(w.x, w.z, g);
+      if (kind === 'rock' || kind === 'reef' || kind === 'land' || kind === 'quay') continue;
+      // pushed away from the jet
+      const dx = w.x - s.x, dz = w.z - s.z, dl = Math.hypot(dx, dz) || 1;
+      this.world.silt.emit(w.x, g + 0.15, w.z, 1, (dx / dl) * 0.7, (dz / dl) * 0.7, kind === 'silt');
+    }
+  }
+
   private onBump(b: { speed: number; tag: string; severity: 'light' | 'hard' }): void {
+    // touching the bottom raises a cloud
+    if (b.tag === 'seabed' && b.speed > 0.1) {
+      const g = seabedHeight(this.sub.x, this.sub.z);
+      const kind = groundAt(this.sub.x, this.sub.z, g);
+      if (kind === 'sand' || kind === 'silt') this.world.silt.emit(this.sub.x, g + 0.1, this.sub.z, Math.min(14, 3 + Math.round(b.speed * 20)), 0, 0, kind === 'silt');
+    }
     if (b.speed < 0.15) return;
     this.sound.bump(b.severity === 'hard');
     if (b.severity === 'hard') {

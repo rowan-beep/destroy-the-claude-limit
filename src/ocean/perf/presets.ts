@@ -21,6 +21,8 @@ export interface PresetDef {
   buildBudgetMs: number;
   /** suspended particles round the camera */
   snow: number;
+  /** silt puffs the thrusters can stir up at once */
+  silt: number;
   /** bubble pool */
   bubbles: number;
   /** foam on crests, the shore and the wake */
@@ -50,6 +52,7 @@ export const PRESETS: Record<OceanPreset, PresetDef> = {
     lod: [140, 360, 800, 2000],
     buildBudgetMs: 2,
     snow: 0,
+    silt: 160,
     bubbles: 40,
     foam: false,
     shafts: false,
@@ -69,6 +72,7 @@ export const PRESETS: Record<OceanPreset, PresetDef> = {
     lod: [220, 520, 1100, 2400],
     buildBudgetMs: 3,
     snow: 700,
+    silt: 360,
     bubbles: 120,
     foam: true,
     shafts: true,
@@ -88,6 +92,7 @@ export const PRESETS: Record<OceanPreset, PresetDef> = {
     lod: [300, 700, 1400, 2800],
     buildBudgetMs: 4,
     snow: 1600,
+    silt: 600,
     bubbles: 240,
     foam: true,
     shafts: true,
