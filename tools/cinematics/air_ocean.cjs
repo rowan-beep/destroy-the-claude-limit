@@ -22,12 +22,17 @@ module.exports = { map: 'ocean', list: {
     const cv = CARRIERS.find((x) => x.f.team === 'blue') || CARRIERS[0];
     const f = cv.f;
     const back = 260;
-    const x = f.x - f.ax * back, z = f.z - f.az * back;
-    const y = f.elev + back * Math.tan(3.5 * Math.PI / 180) + 4;
-    c.pose(p, { pos: [x, y, z], hdg: f.heading, pitch: 5, roll: -3, aoa: 9, speed: 72, gear: 1, ab: 0 });
-    const look = c.orbit(c.rel(p, 0, 0, -60), f.heading + 205, 10, 110, 30, 0, [0, -6, 0]);
+    const place = () => {
+      const x = f.x - f.ax * back, z = f.z - f.az * back;
+      const y = f.elev + back * Math.tan(3.5 * Math.PI / 180) + 4;
+      c.pose(p, { pos: [x, y, z], hdg: f.heading, pitch: 5, roll: -3, aoa: 9, speed: 72, gear: 1, ab: 0 });
+      return c.orbit(c.rel(p, 0, 0, -60), f.heading + 205, 10, 110, 30, 0, [0, -6, 0]);
+    };
+    const look = place();
     c.sun(30, look + 70);
     await c.settle(7000);
+    // (the jet flies on while the picture is set up: back on the glide slope for the picture itself)
+    c.before = place;
     return 'F-35A · IN THE GROOVE';
   },
 }};

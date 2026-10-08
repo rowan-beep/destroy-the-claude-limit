@@ -6,6 +6,8 @@ window.cine = (() => {
   const api = {};
   api.extra = [];
   api.start = async (o) => {
+    // (a shot may set this: put its subject back just before the picture, for anything that moves)
+    api.before = null;
     const g = window.game;
     const { defaultMission } = await import('/src/game/mission.ts');
     const { WEATHER_PRESETS } = await import('/src/world/weather.ts');
@@ -109,6 +111,7 @@ window.cine = (() => {
     }
   };
   api.capture = async (q = 0.9) => {
+    if (api.before) api.before();
     api.frame();
     const c = window.game.renderer.canvas;
     // (the size of the picture actually taken)

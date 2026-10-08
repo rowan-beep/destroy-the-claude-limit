@@ -308,14 +308,17 @@ export class Launcher {
       if (this.finished) return;
       this.raf = requestAnimationFrame(tick);
       const now = performance.now();
-      const dt = Math.min(0.1, (now - prev) / 1000);
+      // (real time, even at a low frame rate: the screen must not outstay its 17 s on a slow machine)
+      const dt = Math.min(0.5, (now - prev) / 1000);
       prev = now;
       const t = (now - this.t0) / 1000;
-      if (now - lastSwap > SHOT_T * 1000 && t < TOTAL - FADE_OUT - 1) {
+      // (pictures and facts keep coming while a slow machine is still loading; they stop just before the fade)
+      const winding = this.workDone && t >= TOTAL - FADE_OUT - 1;
+      if (now - lastSwap > SHOT_T * 1000 && !winding) {
         lastSwap = now;
         swap();
       }
-      if (now - lastFact > FACT_T * 1000 && t < TOTAL - FADE_OUT - 2) {
+      if (now - lastFact > FACT_T * 1000 && !(this.workDone && t >= TOTAL - FADE_OUT - 2)) {
         lastFact = now;
         showFact();
       }
