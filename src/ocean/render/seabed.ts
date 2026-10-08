@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { WORLD } from '../world/geo';
 import { patchOceanMaterial } from './oceanMaterial';
+import { addSeabedDetail } from './seabedDetail';
 import { buildChunkArrays, CHUNK, type ChunkArrays } from './seabedArrays';
 import type { TileRequest } from './seabedWorker';
 import SeabedWorker from './seabedWorker?worker&inline';
@@ -91,7 +92,7 @@ export class SeabedStreamer {
   private readonly nz = Math.ceil((WORLD.maxZ - WORLD.minZ + 640) / 640);
 
   constructor() {
-    this.material = patchOceanMaterial(new THREE.MeshLambertMaterial({ vertexColors: true }), 'seabed');
+    this.material = addSeabedDetail(patchOceanMaterial(new THREE.MeshLambertMaterial({ vertexColors: true }), 'seabed'));
     this.group.name = 'seabed';
   }
 

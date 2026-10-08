@@ -29,6 +29,8 @@ export interface PresetDef {
   shafts: boolean;
   /** caustic light on the shallow seabed */
   caustics: boolean;
+  /** the sea bed close up: 1 colour detail, 2 colour and relief (ripples, rock, burrows) */
+  seabedDetail: number;
   /** the lamps cast shadows (size of the map, 0 = none) */
   shadowMap: number;
   /** decorative reef and kelp density (0..1) */
@@ -52,6 +54,7 @@ export const PRESETS: Record<OceanPreset, PresetDef> = {
     foam: false,
     shafts: false,
     caustics: false,
+    seabedDetail: 1,
     shadowMap: 0,
     decor: 0.45,
     fish: 10,
@@ -70,6 +73,7 @@ export const PRESETS: Record<OceanPreset, PresetDef> = {
     foam: true,
     shafts: true,
     caustics: true,
+    seabedDetail: 2,
     shadowMap: 0,
     decor: 0.8,
     fish: 22,
@@ -88,6 +92,7 @@ export const PRESETS: Record<OceanPreset, PresetDef> = {
     foam: true,
     shafts: true,
     caustics: true,
+    seabedDetail: 2,
     shadowMap: 1024,
     decor: 1,
     fish: 36,

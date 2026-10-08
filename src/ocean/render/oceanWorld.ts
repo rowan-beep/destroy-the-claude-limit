@@ -10,6 +10,7 @@ import { OceanProps } from './props';
 import { OceanFx, LAMPS } from './fx';
 import { SubModel } from './subModel';
 import { FishSchools } from './fish';
+import { SEABED_DETAIL } from './seabedDetail';
 import { OCEAN_FX, daylightAt } from './oceanMaterial';
 import { WEATHERS, Weather, WeatherDef, surfaceHeight } from '../world/waves';
 import { PRESETS, OceanPreset, PresetDef } from '../perf/presets';
@@ -137,6 +138,7 @@ export class OceanWorld {
     this.fx.setCounts({ snow: d.snow, bubbles: d.bubbles, shafts: d.shafts });
     this.surface.material.uniforms.uFoam.value = d.foam ? 1 : 0;
     OCEAN_FX.uCaust.value = d.caustics ? 1 : 0;
+    SEABED_DETAIL.value = d.seabedDetail;
     const shadows = d.shadowMap > 0;
     this.sun.castShadow = shadows;
     if (shadows) {
