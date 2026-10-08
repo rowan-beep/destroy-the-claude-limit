@@ -137,6 +137,8 @@ export class OceanDive {
   private lightHintT = 0;
   /** silt the wash has stirred but not yet released as puffs */
   private siltAcc = 0;
+  /** plankton sparks the hull and the wash have set off but not yet placed */
+  private sparkAcc = 0;
   private tmp = new THREE.Vector3();
   private tmp2 = new THREE.Vector3();
   // touch and gamepad: held controls added to the keys, orders as key codes
@@ -1211,6 +1213,7 @@ export class OceanDive {
       this.maxDepth = Math.max(this.maxDepth, depth);
       this.track.add(s.x, s.z, Math.max(0, depth));
       this.stirBottom(sdt);
+      this.disturbPlankton(sdt);
       this.listenStep(sdt);
       this.pingStep();
       this.toolStep(sdt);
@@ -1307,6 +1310,38 @@ export class OceanDive {
       const dx = w.x - s.x, dz = w.z - s.z, dl = Math.hypot(dx, dz) || 1;
       this.world.silt.emit(w.x, g + 0.15, w.z, 1, (dx / dl) * 0.7, (dz / dl) * 0.7, kind === 'silt');
     }
+  }
+
+  /**
+   * In dark water the plankton flash where the hull pushes through them and in
+   * the thrusters' wash. Faint: seen only once the daylight has gone (the deep,
+   * or the slope at night with the lamps off), as the eye opens up.
+   */
+  private disturbPlankton(dt: number): void {
+    const dark = 1 - Math.min(1, this.world.ambient / 0.004);
+    if (dark <= 0 || !this.world.under || dt <= 0) return;
+    const s = this.sub, o = s.out;
+    const speed = speedOf(s);
+    this.sparkAcc += (speed * 90 + Math.abs(o.thrust) * 120 + Math.abs(o.vertical) * 60 + Math.abs(o.lateral) * 40) * dt;
+    const m = this.world.sub;
+    const back = o.thrust >= 0 ? 1 : -1;
+    let n = 0;
+    while (this.sparkAcc >= 1 && n++ < 60) {
+      this.sparkAcc -= 1;
+      let w: THREE.Vector3;
+      if (Math.random() < 0.65) {
+        // on the hull's skin, more of them toward the bow (where it meets the water)
+        const a = Math.random() * Math.PI * 2;
+        const zz = -3 + Math.pow(Math.random(), 1.6) * 6;
+        const r = Math.sqrt(Math.max(0.05, 1 - (zz / 3.2) ** 2));
+        w = m.toWorld(this.tmp.set(Math.cos(a) * 1.15 * r, Math.sin(a) * 1.1 * r, zz));
+      } else {
+        // in the stern jets' wash
+        w = m.toWorld(this.tmp.set(1.2 * (Math.random() < 0.5 ? -1 : 1) + (Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 0.6, back * (2.8 + Math.random() * 3)));
+      }
+      this.world.biolum.spark(w.x, w.y, w.z, this.world.t, 0.13 * dark);
+    }
+    this.sparkAcc = Math.min(this.sparkAcc, 60);
   }
 
   private onBump(b: { speed: number; tag: string; severity: 'light' | 'hard' }): void {

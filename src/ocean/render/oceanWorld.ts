@@ -13,6 +13,8 @@ import { FishSchools } from './fish';
 import { SEABED_DETAIL } from './seabedDetail';
 import { SeabedLife } from './seabedLife';
 import { SiltClouds } from './silt';
+import { Jellies } from './jellies';
+import { Bioluminescence } from './biolum';
 import { OCEAN_FX, daylightAt } from './oceanMaterial';
 import { WEATHERS, Weather, WeatherDef, surfaceHeight } from '../world/waves';
 import { PRESETS, OceanPreset, PresetDef } from '../perf/presets';
@@ -49,6 +51,10 @@ export class OceanWorld {
   readonly life: SeabedLife;
   /** sediment the boat stirs up */
   silt: SiltClouds;
+  /** jellyfish drifting in open water */
+  readonly jellies: Jellies;
+  /** plankton that flash when disturbed in dark water */
+  biolum: Bioluminescence;
   readonly seabed = new SeabedStreamer();
   readonly surface: OceanSurface;
   readonly props: OceanProps;
@@ -83,6 +89,10 @@ export class OceanWorld {
     this.scene.add(this.life.group);
     this.silt = new SiltClouds(this.preset.silt);
     this.scene.add(this.silt.mesh);
+    this.jellies = new Jellies(this.preset.decor);
+    this.scene.add(this.jellies.group);
+    this.biolum = new Bioluminescence(this.preset.sparks, this.fx.dot);
+    this.scene.add(this.biolum.points);
     // sea-bed tiles are built on a worker thread where there is one
     this.seabed.useWorker();
     this.scene.add(this.seabed.group, this.surface.mesh, this.surface.sky, this.props.group, this.fx.group, this.sub.root, this.sun, this.sun.target, this.hemi);
@@ -139,6 +149,7 @@ export class OceanWorld {
     if (old.decor !== d.decor) {
       this.props.setDecor(d.decor);
       this.life.setDensity(d.decor);
+      this.jellies?.setDensity(d.decor);
     }
     if (!this.fish || old.fish !== d.fish) {
       if (this.fish) {
@@ -154,6 +165,12 @@ export class OceanWorld {
       this.silt.dispose();
       this.silt = new SiltClouds(d.silt);
       this.scene.add(this.silt.mesh);
+    }
+    if (this.biolum && old.sparks !== d.sparks) {
+      this.scene.remove(this.biolum.points);
+      this.biolum.dispose();
+      this.biolum = new Bioluminescence(d.sparks, this.fx.dot);
+      this.scene.add(this.biolum.points);
     }
     this.surface.material.uniforms.uFoam.value = d.foam ? 1 : 0;
     OCEAN_FX.uCaust.value = d.caustics ? 1 : 0;
@@ -195,6 +212,9 @@ export class OceanWorld {
     const wl = this.surfaceAt(cp.x, cp.z);
     OCEAN_FX.uWaterY.value = wl;
     this.under = cp.y < wl;
+    // (from below, the surface is the far side of everything in the water: drawn first, so the
+    // snow, silt, jellies and beams in front of it, which do not write depth, are not painted over)
+    this.surface.mesh.renderOrder = this.under ? -5 : 10;
     this.seabed.update(cp.x, cp.z, ahead.x, ahead.z);
     this.surface.update(cp, opts.boat, dt);
     this.props.update(cp.x, cp.z, this.t, dt);
@@ -202,6 +222,8 @@ export class OceanWorld {
     // (daylight on the silt: the same sun and sky that light the sea bed)
     this.silt.dayK.value = (this.sun.intensity * 0.7 + this.hemi.intensity) / Math.PI;
     this.silt.update(dt);
+    this.jellies.update(cp.x, cp.y, cp.z, this.t);
+    this.biolum.update(this.t, viewH / (2 * Math.tan((cam.fov * Math.PI) / 360)), this.under);
     this.fish?.update(cp);
     // the sun's shadow box follows the camera
     this.sun.position.set(cp.x + this.sunDir.x * 200, cp.y + this.sunDir.y * 200, cp.z + this.sunDir.z * 200);
@@ -300,6 +322,8 @@ export class OceanWorld {
     this.props.dispose();
     this.life.dispose();
     this.silt.dispose();
+    this.jellies.dispose();
+    this.biolum.dispose();
     this.fx.dispose();
     this.sub.dispose();
     this.fish?.dispose();

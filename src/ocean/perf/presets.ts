@@ -23,6 +23,8 @@ export interface PresetDef {
   snow: number;
   /** silt puffs the thrusters can stir up at once */
   silt: number;
+  /** bioluminescent sparks alive at once */
+  sparks: number;
   /** bubble pool */
   bubbles: number;
   /** foam on crests, the shore and the wake */
@@ -53,6 +55,7 @@ export const PRESETS: Record<OceanPreset, PresetDef> = {
     buildBudgetMs: 2,
     snow: 0,
     silt: 160,
+    sparks: 300,
     bubbles: 40,
     foam: false,
     shafts: false,
@@ -73,6 +76,7 @@ export const PRESETS: Record<OceanPreset, PresetDef> = {
     buildBudgetMs: 3,
     snow: 700,
     silt: 360,
+    sparks: 800,
     bubbles: 120,
     foam: true,
     shafts: true,
@@ -93,6 +97,7 @@ export const PRESETS: Record<OceanPreset, PresetDef> = {
     buildBudgetMs: 4,
     snow: 1600,
     silt: 600,
+    sparks: 1500,
     bubbles: 240,
     foam: true,
     shafts: true,

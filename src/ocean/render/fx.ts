@@ -249,7 +249,8 @@ export class OceanFx {
   readonly group = new THREE.Group();
   private snow: THREE.Points | null = null;
   private snowMat: THREE.ShaderMaterial;
-  private dot = dotTexture(false);
+  /** a soft round dot, shared with the other point effects */
+  readonly dot = dotTexture(false);
   private ring = dotTexture(true);
   // bubbles (CPU-driven)
   private bub: THREE.Points;
