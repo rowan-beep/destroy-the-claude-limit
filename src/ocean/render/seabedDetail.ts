@@ -46,8 +46,9 @@ float sbRelief( vec2 p, float depth, float rock, float silt, out float trough ) 
   float amp = lam * 0.085 * ( 1.0 - smoothstep( 25.0, 90.0, depth ) ) * ( 0.45 + 0.55 * sbNoise( p * 0.045 + 3.0 ) );
   trough = ( 1.0 - s ) * ( amp > 0.0 ? 1.0 : 0.0 );
   float sand = rip * amp + ( sbNoise( p * 6.0 ) - 0.5 ) * 0.014;
-  float rk = ( sbNoise( p * 0.8 ) - 0.5 ) * 0.4 + ( sbNoise( p * 2.9 ) - 0.5 ) * 0.13 + ( sbNoise( p * 8.7 ) - 0.5 ) * 0.035;
-  float sl = sbBurrows( p ) + ( sbNoise( p * 0.6 ) - 0.5 ) * 0.06;
+  // (the rock's and the silt's relief only where there is rock or silt: most of the floor is one or the other)
+  float rk = rock > 0.0 ? ( sbNoise( p * 0.8 ) - 0.5 ) * 0.4 + ( sbNoise( p * 2.9 ) - 0.5 ) * 0.13 + ( sbNoise( p * 8.7 ) - 0.5 ) * 0.035 : 0.0;
+  float sl = silt > 0.0 ? sbBurrows( p ) + ( sbNoise( p * 0.6 ) - 0.5 ) * 0.06 : 0.0;
   return mix( mix( sand, rk, rock ), sl, silt );
 }
 `;
@@ -86,11 +87,11 @@ if ( uSbDetail > 0.0 && vOcWorld.y < 0.3 ) {
 
 const NORMALS = /* glsl */ `
 if ( uSbDetail > 1.5 && sbFade > 0.0 && vOcWorld.y < 0.3 ) {
-  // the relief's slope by finite differences, near the camera only
+  // the relief's slope by finite differences from the height already found here, near the camera only
   float e = 0.04, tr;
-  float hx = sbRelief( sbP + vec2( e, 0.0 ), sbDepth, sbRock, sbSilt, tr ) - sbRelief( sbP - vec2( e, 0.0 ), sbDepth, sbRock, sbSilt, tr );
-  float hz = sbRelief( sbP + vec2( 0.0, e ), sbDepth, sbRock, sbSilt, tr ) - sbRelief( sbP - vec2( 0.0, e ), sbDepth, sbRock, sbSilt, tr );
-  vec3 nw = normalize( vOcNormal - vec3( hx, 0.0, hz ) / ( 2.0 * e ) * sbFade );
+  float hx = sbRelief( sbP + vec2( e, 0.0 ), sbDepth, sbRock, sbSilt, tr ) - sbRel;
+  float hz = sbRelief( sbP + vec2( 0.0, e ), sbDepth, sbRock, sbSilt, tr ) - sbRel;
+  vec3 nw = normalize( vOcNormal - vec3( hx, 0.0, hz ) / e * sbFade );
   normal = normalize( mat3( viewMatrix ) * nw );
 }
 `;
@@ -107,6 +108,6 @@ export function addSeabedDetail<T extends THREE.Material>(mat: T): T {
       .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n' + NORMALS);
   };
   const key = mat.customProgramCacheKey.bind(mat);
-  mat.customProgramCacheKey = () => key() + '-sbdetail1';
+  mat.customProgramCacheKey = () => key() + '-sbdetail2';
   return mat;
 }
