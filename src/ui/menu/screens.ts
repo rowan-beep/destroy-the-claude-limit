@@ -201,7 +201,7 @@ export class ControlsModal {
   showOcean(): void {
     this.root.classList.remove('hidden');
     clearEl(this.body);
-    el('div', 'note', this.body, 'The same keys are in every dive: press H or the ? button. Drag to look round; the wheel zooms the chase camera.');
+    el('div', 'note', this.body, 'The same controls are in every dive: press H or the ? button. Drag to look round; the wheel zooms the chase camera. A gamepad works as soon as it is connected, and phones and tablets get on-screen controls.');
     for (const rows of OCEAN_KEY_SECTIONS) {
       const g0 = rows.find(([k]) => k === '#');
       if (g0) el('h3', 'keys-h', this.body, g0[1]);

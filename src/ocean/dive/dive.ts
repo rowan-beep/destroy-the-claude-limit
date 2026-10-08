@@ -10,6 +10,8 @@ import type { OceanWorld } from '../render/oceanWorld';
 import { DiveHud, type HudState, type SurveyState } from './hud';
 import { OceanAudio } from '../audio/oceanAudio';
 import { OCEAN_KEY_SECTIONS } from '../keys';
+import { DiveTouch, DiveGamepad, type ControlTarget } from './controls';
+import { isTouchDevice } from '../../ui/touchControls';
 import { SURVEY_SUB, NEUTRAL_BALLAST, newSubState, stepSub, FixedStepper, interpolate, rangeEstimate, speedOf, type SubState, type SubInput, type SubEnv } from '../sub/subPhysics';
 import { buildColliders, seabedHeight, bearing, HARBOR, SITES, K3, DEPTH_BANDS, regionAt, type Collider } from '../world/geo';
 import { CONTACTS, listen, ambientNoise, selfNoise, addDb, pingMask, ListenGauge, bearingHalfWidth, measureBearing, sonarRays, HEAR_SNR, PING_MASK_S, type SonarReturn } from '../acoustics/acoustics';
@@ -135,6 +137,10 @@ export class OceanDive {
   private lightHintT = 0;
   private tmp = new THREE.Vector3();
   private tmp2 = new THREE.Vector3();
+  // touch and gamepad: held controls added to the keys, orders as key codes
+  private touch: DiveTouch;
+  private pad = new DiveGamepad();
+  private ctl: ControlTarget;
 
   constructor(private world: OceanWorld, private host: DiveHost, parent: HTMLElement) {
     this.colliders = buildColliders();
@@ -146,13 +152,28 @@ export class OceanDive {
       else if (id === 'camera') this.cycleCam();
       else this.setPaused(true);
     });
+    const dive = this;
+    this.ctl = {
+      command: (c) => {
+        if (dive.active) dive.command(c);
+      },
+      look: (dx, dy) => dive.lookBy(dx, dy),
+      zoom: (k) => {
+        dive.camDist = Math.max(5, Math.min(60, dive.camDist * k));
+        dive.lastDrag = performance.now();
+      },
+      get emergency() {
+        return dive.emergency;
+      },
+    };
+    this.touch = new DiveTouch(parent, this.ctl);
     window.addEventListener('keydown', (e) => this.onKey(e, true), { capture: true });
     window.addEventListener('keyup', (e) => this.onKey(e, false), { capture: true });
     window.addEventListener('blur', () => this.keys.clear());
     window.addEventListener('pointerdown', (e) => {
       if (!this.active || this.paused || this.chartOpen) return;
       const t = e.target as HTMLElement | null;
-      if (t && t.closest && t.closest('button, .oc-panel, .oc-modal, select')) return;
+      if (t && t.closest && t.closest('button, .oc-panel, .oc-modal, select, .oct-stick, .oct-pad')) return;
       this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
     });
     window.addEventListener('pointermove', (e) => {
@@ -160,15 +181,8 @@ export class OceanDive {
       const dx = e.clientX - this.drag.x, dy = e.clientY - this.drag.y;
       this.drag.x = e.clientX;
       this.drag.y = e.clientY;
-      this.lastDrag = performance.now();
-      const k = 0.005 * this.settings.lookSpeed;
-      if (this.cam === 'dome') {
-        this.lookYaw = Math.max(-1.9, Math.min(1.9, this.lookYaw - dx * k));
-        this.lookPitch = Math.max(-1.0, Math.min(0.9, this.lookPitch - dy * k));
-      } else {
-        this.camYaw -= dx * k;
-        this.camPitch = Math.max(-0.6, Math.min(1.35, this.camPitch + dy * k));
-      }
+      // (two fingers zoom: the camera does not turn meanwhile)
+      if (!this.touch.pinching) this.lookBy(dx, dy);
     });
     const up = (e: PointerEvent) => {
       if (this.drag?.id === e.pointerId) this.drag = null;
@@ -294,6 +308,9 @@ export class OceanDive {
     this.world.fill(this.sub.x, this.sub.z);
     this.hud.show(true);
     this.hud.setLarge(this.settings.largeHud);
+    const touch = isTouchDevice();
+    this.touch.show(touch);
+    this.hud.root.classList.toggle('touch', touch);
     this.hud.showCard(null);
     // (no music in a dive: the sea and the hydrophones are the soundtrack)
     this.sound.start();
@@ -307,6 +324,7 @@ export class OceanDive {
     if (this.exp && !this.ended) this.save();
     this.active = false;
     this.hud.show(false);
+    this.touch.show(false);
     this.sound.stop();
     this.host.setRenderScale(1);
     OCEAN_FX.uAid.value = 0;
@@ -407,6 +425,19 @@ export class OceanDive {
   }
 
   // ------------------------------------------------------------------ input
+  /** turn the camera (pixels of drag, or the gamepad's right stick) */
+  private lookBy(dx: number, dy: number): void {
+    this.lastDrag = performance.now();
+    const k = 0.005 * this.settings.lookSpeed;
+    if (this.cam === 'dome') {
+      this.lookYaw = Math.max(-1.9, Math.min(1.9, this.lookYaw - dx * k));
+      this.lookPitch = Math.max(-1.0, Math.min(0.9, this.lookPitch - dy * k));
+    } else {
+      this.camYaw -= dx * k;
+      this.camPitch = Math.max(-0.6, Math.min(1.35, this.camPitch + dy * k));
+    }
+  }
+
   private onKey(e: KeyboardEvent, down: boolean): void {
     if (!this.active) return;
     const tag = (e.target as HTMLElement | null)?.tagName;
@@ -421,6 +452,14 @@ export class OceanDive {
       return;
     }
     if (!down || e.repeat) return;
+    if (this.command(c)) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }
+
+  /** a one-shot order, from a key, a touch button or the gamepad; true if it meant something now */
+  private command(c: string): boolean {
     let used = true;
     if (c === 'Escape') {
       if (this.hud.help.classList.contains('show')) this.hud.help.classList.remove('show');
@@ -457,11 +496,9 @@ export class OceanDive {
     } else if (c === 'KeyE') this.use();
     else if (c === 'KeyC') this.cycleCam();
     else if (c === 'Comma' || c === 'Period') this.stepTime(c === 'Period' ? 1 : -1);
+    else if (c === 'TimeCycle') this.stepTime(this.timeIdx >= TIME_STEPS.length - 1 ? -this.timeIdx : 1);
     else used = false;
-    if (used) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
+    return used;
   }
 
   private setQuiet(v: boolean): void {
@@ -1081,14 +1118,16 @@ export class OceanDive {
   // ------------------------------------------------------------------ the frame
   private input(): SubInput {
     const k = (c: string) => (this.keys.has(c) ? 1 : 0);
+    // the keys, the touch controls and a gamepad together, each control within -1..1
+    const t = this.touch.analog, g = this.pad.analog;
+    const sum = (key: number, f: 'thrust' | 'yaw' | 'vertical' | 'lateral' | 'ballast') => Math.max(-1, Math.min(1, key + t[f] + g[f]));
     const busy = !!this.arm;
-    const thrust = busy ? 0 : k('KeyW') + k('ArrowUp') - k('KeyS') - k('ArrowDown');
     return {
-      thrust,
-      yaw: busy ? 0 : k('KeyD') - k('KeyA'),
-      vertical: busy ? 0 : k('KeyR') - k('KeyF'),
-      lateral: busy ? 0 : k('ArrowRight') - k('ArrowLeft'),
-      ballast: k('KeyZ') - k('KeyX'),
+      thrust: busy ? 0 : sum(Math.max(-1, Math.min(1, k('KeyW') + k('ArrowUp') - k('KeyS') - k('ArrowDown'))), 'thrust'),
+      yaw: busy ? 0 : sum(k('KeyD') - k('KeyA'), 'yaw'),
+      vertical: busy ? 0 : sum(k('KeyR') - k('KeyF'), 'vertical'),
+      lateral: busy ? 0 : sum(k('ArrowRight') - k('ArrowLeft'), 'lateral'),
+      ballast: sum(k('KeyZ') - k('KeyX'), 'ballast'),
       quiet: this.quiet,
       emergencyBlow: this.emergency,
     };
@@ -1131,6 +1170,7 @@ export class OceanDive {
     const dt = Number.isFinite(dtReal) ? Math.max(0, Math.min(0.1, dtReal)) : 0;
     const s = this.sub;
     const frozen = this.paused || this.chartOpen || this.ended;
+    this.pad.poll(dt, this.ctl, !frozen && !this.batteryCard);
     let alpha = 1;
     if (!frozen) {
       if (this.timeIdx && this.timeBlocked()) {
@@ -1389,6 +1429,8 @@ export class OceanDive {
     else if (this.warnT > 0) warn = this.warnText;
     else if (alt < 2.5 && s.vy < -0.15 && depth > 3) warn = 'BOTTOM CLOSE';
     this.warnT -= dt;
+    this.touch.setAway(this.paused || this.ended || this.chartOpen || this.batteryCard);
+    this.touch.sync({ quiet: this.quiet, lamps: s.lights, holdDepth: s.holdDepth !== null, holdPos: !!s.holdPos, overlay: this.overlay, time: TIME_STEPS[this.timeIdx], emergency: this.emergency });
     this.hud.update(
       {
         kicker,
