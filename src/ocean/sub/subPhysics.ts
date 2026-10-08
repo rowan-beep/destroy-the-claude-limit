@@ -3,8 +3,9 @@
 // position). Pure TypeScript (no three.js), so it is tested on its own and
 // behaves identically on every quality preset.
 //
-// Tuning is fictional and for play: it should settle, drift and stop where the
-// player expects, not reproduce a real vessel.
+// Tuned to the class of small battery-electric survey submersibles: about
+// 5 knots flat out, under a knot of vertical speed, slow to turn; game rules
+// (depth bands, battery) are simplified, not operating guidance.
 
 import { seabedHeight, seabedNormal, colliderDistance, currentAt, angleDiff, type Collider } from '../world/geo';
 import { surfaceHeight, surfaceSlope } from '../world/waves';
@@ -37,9 +38,9 @@ export const SURVEY_SUB: SubSpec = {
   mass: 7800,
   length: 6.4,
   radius: 1.25,
-  thrust: 5200,
-  lateral: 1300,
-  vertical: 2600,
+  thrust: 2450,
+  lateral: 900,
+  vertical: 1900,
   yawRate: 26,
   yawAccel: 34,
   dragF: 300,

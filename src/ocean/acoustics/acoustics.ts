@@ -1,7 +1,11 @@
-// Listening, pinging and triangulating: a deliberately simplified acoustic
-// model with fictional tuning (decibels here are game numbers, not a sonar
-// equation to rely on). Pure TypeScript: the same numbers drive the sound, the
-// listening display, the bearings and the Echo Atlas on every quality preset.
+// Listening, pinging and triangulating, on the passive sonar equation in its
+// simplest form: signal excess = source level - transmission loss - noise.
+// Levels are in dB re 1 µPa; transmission loss is spherical spreading plus
+// Thorp's seawater absorption at the contact's frequency; sea noise follows the
+// Knudsen curves for the sea state. Simplified (no refraction, no multipath, no
+// terrain shadowing) and tuned for play, but every number has a real meaning.
+// Pure TypeScript: the same numbers drive the sound, the listening display, the
+// bearings and the Echo Atlas on every quality preset.
 
 import { seabedHeight, colliderDistance, bearing, angleDiff, type Collider, SITES } from '../world/geo';
 
@@ -26,8 +30,10 @@ export interface ContactDef {
   x: number;
   y: number;
   z: number;
-  /** source level (game dB) */
+  /** source level (dB re 1 µPa at 1 m) */
   level: number;
+  /** frequency (kHz): sets the absorption and the noise it competes with */
+  freqKhz: number;
   pattern: SoundPattern;
 }
 
@@ -38,8 +44,10 @@ export const CONTACTS: ContactDef[] = [
     x: SITES.recorder.x,
     y: seabedHeight(SITES.recorder.x, SITES.recorder.z) + 1,
     z: SITES.recorder.z,
-    level: 128,
-    pattern: { kind: 'knock', period: 2.4, beats: 2, pitch: 420, caption: 'Two dull metallic knocks, every 2.4 s' },
+    // a voyage recorder's underwater locator beacon (37.5 kHz), damaged: weak and slow
+    level: 140,
+    freqKhz: 37.5,
+    pattern: { kind: 'knock', period: 2.4, beats: 2, pitch: 420, caption: 'Two short 37.5 kHz pulses every 2.4 s, heard as a double knock' },
   },
   {
     id: 'deep-pulse',
@@ -47,25 +55,48 @@ export const CONTACTS: ContactDef[] = [
     x: SITES.deepPulse.x,
     y: seabedHeight(SITES.deepPulse.x, SITES.deepPulse.z) + 2,
     z: SITES.deepPulse.z,
-    level: 132,
-    pattern: { kind: 'pulse', period: 6.5, beats: 1, pitch: 95, caption: 'A long low pulse, every 6.5 s' },
+    level: 176,
+    freqKhz: 12,
+    pattern: { kind: 'pulse', period: 6.5, beats: 1, pitch: 95, caption: 'A long 12 kHz pulse every 6.5 s, heard as a low tone' },
   },
 ];
 
-/** background sea noise (game dB), louder near a windy surface */
-export function ambientNoise(depth: number, wind: number): number {
-  return 52 + wind * 12 * Math.max(0, 1 - depth / 25);
+/** the listening band the processor integrates over (Hz) */
+export const BAND_HZ = 200;
+
+/** Thorp's absorption of sound in seawater (dB per km) at f kHz */
+export function thorpDbPerKm(f: number): number {
+  const f2 = f * f;
+  return (0.11 * f2) / (1 + f2) + (44 * f2) / (4100 + f2) + 2.75e-4 * f2 + 0.003;
 }
 
-/** the submarine's own noise: thrusters, pumps, flow over the hull */
+/**
+ * Sea noise in the listening band (dB re 1 µPa): the Knudsen spectrum for the
+ * sea state (from the wind), falling 17 dB a decade with frequency; the surface
+ * noise fades a little with depth.
+ */
+export function ambientNoise(depth: number, wind: number, fKhz = 37.5): number {
+  const seaState = 1 + wind * 3;
+  const at1k = 44.5 + 6.5 * Math.log2(1 + seaState);
+  const spectral = at1k - 17 * Math.log10(Math.max(0.1, fKhz));
+  const surfaceFade = 3 * Math.min(1, depth / 100);
+  return spectral + 10 * Math.log10(BAND_HZ) - surfaceFade;
+}
+
+/**
+ * The submarine's own noise at its hydrophone, in the band (dB re 1 µPa):
+ * electric thrusters (broadband, rising steeply with power), ballast pumps,
+ * and flow noise over the hull with speed.
+ */
 export function selfNoise(out: { thrust: number; lateral: number; vertical: number; pumping: boolean }, speed: number): number {
-  return 38 + 24 * Math.abs(out.thrust) + 9 * Math.abs(out.vertical) + 8 * Math.abs(out.lateral) + 10 * Math.min(1, speed / 4) + (out.pumping ? 14 : 0);
+  const thr = Math.min(1, Math.abs(out.thrust) + 0.4 * Math.abs(out.vertical) + 0.3 * Math.abs(out.lateral));
+  return addDb(48 + 40 * Math.pow(thr, 0.6), out.pumping ? 74 : 0, 40 + 12 * Math.min(1, speed / 2.6));
 }
 
 /** how long a ping rings in the water (s), masking faint contacts */
 export const PING_MASK_S = 6;
 
-/** extra noise from the ping's ringing, decaying to nothing over PING_MASK_S */
+/** extra noise from the ping's ringing (reverberation and the receiver recovering), decaying to nothing over PING_MASK_S: a game rule */
 export function pingMask(sincePing: number): number {
   if (sincePing < 0 || sincePing >= PING_MASK_S) return 0;
   return 40 * (1 - sincePing / PING_MASK_S);
@@ -78,14 +109,19 @@ export function addDb(...dbs: number[]): number {
   return 10 * Math.log10(p);
 }
 
-/** what arrives from a contact at a listener (game dB) */
-export function receivedLevel(c: ContactDef, x: number, y: number, z: number): number {
-  const d = Math.max(1, Math.hypot(c.x - x, c.y - y, c.z - z));
-  return c.level - 20 * Math.log10(d) - 0.0035 * d;
+/** transmission loss (dB) over r metres at f kHz: spherical spreading and absorption */
+export function transmissionLoss(r: number, fKhz: number): number {
+  const d = Math.max(1, r);
+  return 20 * Math.log10(d) + (thorpDbPerKm(fKhz) * d) / 1000;
 }
 
-/** a contact is heard above this signal-to-noise ratio (dB) */
-export const HEAR_SNR = 4;
+/** what arrives from a contact at a listener (dB re 1 µPa) */
+export function receivedLevel(c: ContactDef, x: number, y: number, z: number): number {
+  return c.level - transmissionLoss(Math.hypot(c.x - x, c.y - y, c.z - z), c.freqKhz);
+}
+
+/** a contact is heard above this signal-to-noise ratio (dB): the detection threshold */
+export const HEAR_SNR = 6;
 
 /** half-width of the bearing wedge (degrees): a cleaner signal gives a narrower wedge */
 export function bearingHalfWidth(snr: number): number {
@@ -99,19 +135,24 @@ export function measureBearing(trueBearing: number, halfWidth: number, seed: num
   return (trueBearing + u * halfWidth * 0.35 + 360) % 360;
 }
 
-/** listening from a position: the snr and true bearing of every contact */
+/**
+ * Listening from a position: the signal-to-noise ratio and true bearing of
+ * every contact. `noise(fKhz)` is the total noise in the band at a frequency
+ * (sea plus the vehicle plus a ping's ringing).
+ */
 export function listen(
   x: number,
   y: number,
   z: number,
-  noise: number,
+  noise: (fKhz: number) => number,
   contacts: ContactDef[] = CONTACTS,
   active: (id: string) => boolean = () => true,
-): { id: string; snr: number; bearing: number }[] {
-  const out: { id: string; snr: number; bearing: number }[] = [];
+): { id: string; snr: number; bearing: number; level: number }[] {
+  const out: { id: string; snr: number; bearing: number; level: number }[] = [];
   for (const c of contacts) {
     if (!active(c.id)) continue;
-    out.push({ id: c.id, snr: receivedLevel(c, x, y, z) - noise, bearing: bearing(x, z, c.x, c.z) });
+    const level = receivedLevel(c, x, y, z);
+    out.push({ id: c.id, snr: level - noise(c.freqKhz), bearing: bearing(x, z, c.x, c.z), level });
   }
   return out;
 }

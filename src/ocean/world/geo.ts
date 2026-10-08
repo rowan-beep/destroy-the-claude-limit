@@ -65,15 +65,23 @@ export const HARBOR = {
   depth: 9,
 };
 
+/** the broken freighter, on the upper slope: centre and heading of its keel (degrees) */
+const WRECK = { x: -260, z: 1180, yaw: 28 };
+
+/** a point given in the wreck's own frame (lx across, lz along: + toward the stern) */
+export function wreckLocal(lx: number, lz: number): { x: number; z: number } {
+  const s = Math.sin((WRECK.yaw * Math.PI) / 180), c = Math.cos((WRECK.yaw * Math.PI) / 180);
+  return { x: WRECK.x + lx * c - lz * s, z: WRECK.z + lx * s + lz * c };
+}
+
 /** the authored places of the first expedition */
 export const SITES = {
   buoy: { x: 150, z: 430, label: 'TRAINING BUOY' },
-  /** the broken freighter, on the upper slope */
-  wreck: { x: -260, z: 1180, yaw: 28, label: 'WRECK' },
-  /** where the recorder's knock comes from (the voyage recorder lying by the bridge) */
-  recorder: { x: -251, z: 1168 },
-  /** the identification plate on the stern */
-  plate: { x: -278, z: 1214 },
+  wreck: { ...WRECK, label: 'WRECK' },
+  /** the voyage data recorder capsule, fallen from the bridge roof onto the sea bed (its beacon is the knock) */
+  recorder: wreckLocal(11.5, 40),
+  /** the name and port of registry painted on the stern transom */
+  plate: wreckLocal(0, 55),
   /** the slow pulse the recorder points to (a later chapter) */
   deepPulse: { x: 640, z: 2860 },
   reef: { x: 560, z: 520, r: 300 },

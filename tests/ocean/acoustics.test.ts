@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CONTACTS, listen, selfNoise, ambientNoise, addDb, triangulate, wedgeOverlap, bearingHalfWidth, pingMask, ListenGauge, PING_MASK_S, sonarRays, measureBearing } from '../../src/ocean/acoustics/acoustics';
+import { CONTACTS, listen, selfNoise, ambientNoise, addDb, triangulate, wedgeOverlap, bearingHalfWidth, pingMask, ListenGauge, PING_MASK_S, sonarRays, measureBearing, thorpDbPerKm, transmissionLoss } from '../../src/ocean/acoustics/acoustics';
 import { SITES, bearing, buildColliders, seabedHeight } from '../../src/ocean/world/geo';
 
 const quiet = { thrust: 0, lateral: 0, vertical: 0, pumping: false };
@@ -8,12 +8,22 @@ const loud = { thrust: 1, lateral: 0, vertical: 0, pumping: false };
 
 test('the knock is heard from the training buoy when quiet, and drowned by full thrust', () => {
   const b = SITES.buoy;
-  const nQuiet = addDb(ambientNoise(20, 0.25), selfNoise(quiet, 0.2));
-  const nLoud = addDb(ambientNoise(20, 0.25), selfNoise(loud, 4));
+  const nQuiet = (f: number) => addDb(ambientNoise(20, 0.25, f), selfNoise(quiet, 0.2));
+  const nLoud = (f: number) => addDb(ambientNoise(20, 0.25, f), selfNoise(loud, 2.6));
   const q = listen(b.x, -20, b.z, nQuiet).find((c) => c.id === 'knock')!;
   const l = listen(b.x, -20, b.z, nLoud).find((c) => c.id === 'knock')!;
-  assert.ok(q.snr > 6, `quiet snr ${q.snr}`);
-  assert.ok(l.snr < 4, `loud snr ${l.snr}`);
+  assert.ok(q.snr > 9, `quiet snr ${q.snr}`);
+  assert.ok(l.snr < 0, `loud snr ${l.snr}`);
+  // and it is out of reach from far up the coast
+  const far = listen(-1700, -20, -100, nQuiet).find((c) => c.id === 'knock')!;
+  assert.ok(far.snr < 6, `far snr ${far.snr}`);
+});
+
+test('Thorp absorption: about 1 dB/km at 10 kHz, about 12 at 37.5 kHz', () => {
+  assert.ok(Math.abs(thorpDbPerKm(10) - 1.2) < 0.3, `${thorpDbPerKm(10)}`);
+  assert.ok(Math.abs(thorpDbPerKm(37.5) - 11.7) < 1, `${thorpDbPerKm(37.5)}`);
+  // spreading: 60 dB at a kilometre, plus the absorption
+  assert.ok(Math.abs(transmissionLoss(1000, 1) - 60.07) < 0.1);
 });
 
 test('a ping masks faint contacts for its ringing time only', () => {

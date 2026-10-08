@@ -23,13 +23,13 @@ test('flooding the tanks dives; blowing them surfaces', () => {
   assert.ok(s.y > -1.5, `surfaced to ${s.y}`);
 });
 
-test('full thrust tops out near 4 m/s and coasting stops the boat', () => {
+test('full thrust tops out near 5 knots and coasting stops the boat', () => {
   const s = newSubState(-500, 500, 180);
   s.ballast = NEUTRAL_BALLAST;
   s.y = -15;
   run(s, { ...NO_INPUT, thrust: 1 }, 40);
   const v = Math.hypot(s.vx, s.vz);
-  assert.ok(v > 3.5 && v < 4.6, `top speed ${v}`);
+  assert.ok(v > 2.3 && v < 2.9, `top speed ${v}`);
   // coasting settles under the listening speed in well under half a minute
   run(s, NO_INPUT, 22);
   assert.ok(Math.hypot(s.vx, s.vz) < 1.2, `coasted to ${Math.hypot(s.vx, s.vz)}`);
@@ -40,7 +40,7 @@ test('full thrust tops out near 4 m/s and coasting stops the boat', () => {
     stepSub(s, SURVEY_SUB, { ...NO_INPUT, thrust: -1 }, env, 1 / 60);
     t += 1 / 60;
   }
-  assert.ok(t < 8, `stopped in ${t.toFixed(1)} s`);
+  assert.ok(t < 12, `stopped in ${t.toFixed(1)} s`);
 });
 
 test('hold depth keeps the depth within half a metre', () => {
