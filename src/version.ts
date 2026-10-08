@@ -36,6 +36,48 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '5.6.0',
+    date: '2026-10-08',
+    air: {
+      title: "Crew Chief, a real camera for the airshow, and a faster renderer",
+      notes: [
+        added("CREW CHIEF: fix the jets in the hangar",
+          "A new job on the main menu. The jet on show in the hangar comes in with write-ups on its AFTO 781A form, and you work each one off its task card on the jet itself.",
+          "Eleven kinds of job: worn tires, brakes, hydraulic leaks, engine oil, fuel leaks, bird strikes (with a borescope), radar faults, canopy seals, stealth coating repairs, loading missiles, and the preflight walkaround every work order ends with. (An SR-71 that leaks fuel on the ground is normal; write that up and you've got it wrong.)",
+          "Each step is its own small job: find the right part, take the fasteners out in order, torque them to the number on the card, top up to the line, search the panel for the fault, pick the right fix, take a measurement, run the engine and watch the gauges, pull the safety pins.",
+          "Count your tools back in: leave a ratchet in the jet and it costs you foreign object damage.",
+          "Sign the jet off for stars and experience and work up seven ranks, from Airman Basic to Master Sergeant; harder jobs open up as you go."),
+        added("The airshow camera works like a real one",
+          "Shooting modes: AUTO, P, A (aperture priority), S (shutter priority) and M (manual), plus SPORTS, PORTRAIT, LANDSCAPE and NIGHT scenes.",
+          "The exposure triangle is real: aperture from f/1.4 to f/22 sets the depth of field, shutter speed from 1/8000 to 1 s sets the motion blur (a slow shutter panned with the jet blurs the background), and ISO from 100 to 25600 brightens the picture and adds noise.",
+          "Metering (matrix, centre-weighted, spot) and exposure compensation; a jet against a bright sky comes out as a silhouette unless you correct for it.",
+          "Focus: AF-S, AF-C, AF-A or manual, with point, zone or wide tracking areas drawn in the viewfinder, green when the jet is sharp.",
+          "Drive: single, continuous at 4 or 10 frames a second, 2 s and 10 s self-timers, and an interval timer. Shoot faster than the camera can save and it shows BUFFER FULL.",
+          "White balance (auto, daylight, cloudy, shade, tungsten, fluorescent, or a Kelvin value), nine picture styles (Standard, Vivid, Portrait, Landscape, Neutral, Monochrome, Classic Chrome, Velvia, Acros), sRGB or Adobe RGB, image stabilisation (off, on, sport) and lens corrections.",
+          "JPEG, RAW or RAW+JPEG. The viewfinder shows what the picture will look like, with the settings along the bottom; C opens the full camera menu, and every setting has its own keys.",
+          "Scoring now judges the real picture: shutter speed, camera shake, focus and exposure all count, and there are new PANNING and BOKEH shots to collect."),
+        improved("Photo album: sharper pictures, full screen, and quick deleting",
+          "Pictures are saved at up to 3840 pixels wide (they were 1600) at a higher quality, and the full-size view waits for the whole picture before showing it, so it is never shown blurry.",
+          "FULL SCREEN (or F, or double-click) shows the picture alone, filling the screen.",
+          "SELECT, then click pictures (or SELECT ALL, Ctrl+A, or Shift-click for a run) and press the bin to delete them all at once. Ctrl-click a picture to start selecting.",
+          "Each picture keeps its camera settings. RAW pictures can be saved as a lossless PNG, or developed again with their own exposure, white balance, contrast, saturation and style, kept as a new picture."),
+        improved("A faster renderer",
+          "Depth is now stored in a way the graphics card can test before shading, so it skips surfaces hidden behind others again, still with no flickering at long range.",
+          "Anti-aliasing, the depth of field and the final colour pass are cheaper: the last steps run as one, bloom works at a quarter of the screen and sun rays at half.",
+          "At 4K and above, anti-aliasing is held at 4x and ultra shadows at 4096, where more costs a lot and shows little."),
+      ],
+    },
+    space: {
+      title: "A faster renderer",
+      notes: [
+        improved("A faster renderer",
+          "Depth is now stored in a way the graphics card can test before shading, so it skips surfaces hidden behind others again, still with no flickering at long range.",
+          "The final colour pass runs as one step and bloom works at a quarter of the screen.",
+          "At 4K and above, anti-aliasing is held at 4x and ultra shadows at 4096."),
+      ],
+    },
+  },
+  {
     version: '5.5.0',
     date: '2026-10-08',
     air: {
