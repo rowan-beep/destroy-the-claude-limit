@@ -3,3 +3,6 @@ dist/
 dist-single/
 *.log
 .DS_Store
+
+# loading-screen renders in progress
+tools/cinematics/out/

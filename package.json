@@ -12,7 +12,8 @@
     "changelog": "node scripts/changelog.mjs",
     "preview": "vite preview",
     "server": "node server/server.mjs",
-    "build:exe": "npm run build:single && node desktop/prepare.cjs && cd desktop && npm install --no-audit --no-fund && npx electron-builder --win portable --x64 -c.win.signAndEditExecutable=false --publish never"
+    "build:exe": "npm run build:single && node desktop/prepare.cjs && cd desktop && npm install --no-audit --no-fund && npx electron-builder --win portable --x64 -c.win.signAndEditExecutable=false --publish never",
+    "cinematics": "node tools/cinematics/render-all.cjs"
   },
   "dependencies": {
     "three": "0.186.1"
