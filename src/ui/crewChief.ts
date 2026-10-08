@@ -546,6 +546,7 @@ export class CrewChief {
     });
     btn.addEventListener('pointerup', release);
     btn.addEventListener('pointerleave', release);
+    btn.addEventListener('pointercancel', release);
     const kd = (e: KeyboardEvent) => {
       if (!play.isConnected) return window.removeEventListener('keydown', kd);
       if (e.code === 'Space') {
@@ -606,7 +607,7 @@ export class CrewChief {
     };
     requestAnimationFrame(tick);
     go.addEventListener('pointerdown', () => (holding = true));
-    for (const ev of ['pointerup', 'pointerleave']) go.addEventListener(ev, () => (holding = false));
+    for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) go.addEventListener(ev, () => (holding = false));
     back.addEventListener('click', () => (v = Math.max(0, Math.min(step.max, v + (down ? 1 : -1) * step.max * 0.03))));
     ok.addEventListener('click', () => {
       if (v >= step.lo && v <= step.hi) {
