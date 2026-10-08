@@ -11,6 +11,9 @@
 // lens chromatic aberration toward the corners; a fine, animated film grain;
 // and, at high speed, a radial blur toward the screen edges that sells it.
 
+import * as THREE from 'three';
+import { Pass, FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js';
+
 export const SunShaftShader = {
   uniforms: {
     tDiffuse: { value: null },
@@ -31,14 +34,15 @@ export const SunShaftShader = {
     // what counts as "light behind": the bright sky and the sun itself
     vec3 bright(vec2 uv) {
       vec3 c = texture2D(tDiffuse, clamp(uv, 0.001, 0.999)).rgb;
+      if (any(isnan(c))) c = vec3(0.0);
+      c = clamp(c, 0.0, 256.0);
       float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
       // capped: the sun's disc alone must not flood the rays
       return min(c * smoothstep(1.2, 4.0, l), vec3(2.5));
     }
     float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
     void main() {
-      vec4 base = texture2D(tDiffuse, vUv);
-      if (strength <= 0.0) { gl_FragColor = base; return; }
+      if (strength <= 0.0) { gl_FragColor = vec4(0.0); return; }
       // rays: march from this pixel toward the sun, gathering the light behind
       vec2 d = (sunUv - vUv);
       float dist = length(d * vec2(aspect, 1.0));
@@ -72,9 +76,53 @@ export const SunShaftShader = {
         }
         ghosts *= min(sunGlow, 2.0);
       }
-      gl_FragColor = vec4(base.rgb + (rays + ghosts) * strength, base.a);
+      gl_FragColor = vec4((rays + ghosts) * strength, 1.0);
     }`,
 };
+
+/**
+ * The sun's rays, worked out at half resolution (they are soft: nobody can tell,
+ * and it is a quarter of the work) and added over the picture.
+ */
+export class SunShaftPass extends Pass {
+  private rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false });
+  private rayMat = new THREE.ShaderMaterial({ ...SunShaftShader, uniforms: THREE.UniformsUtils.clone(SunShaftShader.uniforms) });
+  private addMat = new THREE.ShaderMaterial({
+    uniforms: { tRays: { value: null as THREE.Texture | null } },
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform sampler2D tRays; varying vec2 vUv; void main(){ gl_FragColor = vec4(texture2D(tRays, vUv).rgb, 1.0); }',
+    blending: THREE.AdditiveBlending,
+    depthTest: false,
+    depthWrite: false,
+    transparent: true,
+  });
+  private quad = new FullScreenQuad(this.rayMat);
+  readonly uniforms = this.rayMat.uniforms as typeof SunShaftShader.uniforms;
+  constructor() {
+    super();
+    this.needsSwap = false;
+  }
+  setSize(w: number, h: number): void {
+    this.rt.setSize(Math.max(1, Math.ceil(w / 2)), Math.max(1, Math.ceil(h / 2)));
+  }
+  render(renderer: THREE.WebGLRenderer, _w: THREE.WebGLRenderTarget, readBuffer: THREE.WebGLRenderTarget): void {
+    this.uniforms.tDiffuse.value = readBuffer.texture as unknown as null;
+    this.quad.material = this.rayMat;
+    renderer.setRenderTarget(this.rt);
+    renderer.clear();
+    this.quad.render(renderer);
+    this.addMat.uniforms.tRays.value = this.rt.texture;
+    this.quad.material = this.addMat;
+    renderer.setRenderTarget(this.renderToScreen ? null : readBuffer);
+    this.quad.render(renderer);
+  }
+  dispose(): void {
+    this.rt.dispose();
+    this.rayMat.dispose();
+    this.addMat.dispose();
+    this.quad.dispose();
+  }
+}
 
 export const FinishShader = {
   uniforms: {

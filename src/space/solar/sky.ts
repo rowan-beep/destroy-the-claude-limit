@@ -67,7 +67,11 @@ export class StarSky {
           vC = color;
           vec4 mv = modelViewMatrix * vec4(position, 1.0);
           gl_Position = projectionMatrix * mv;
+          #ifdef USE_REVERSED_DEPTH_BUFFER
+          gl_Position.z = gl_Position.w * 0.00001;
+          #else
           gl_Position.z = gl_Position.w * 0.99999;
+          #endif
           gl_PointSize = size * px;
         }`,
       fragmentShader: /* glsl */ `
@@ -102,7 +106,11 @@ export class StarSky {
           vD = position;
           vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
           gl_Position = p;
+          #ifdef USE_REVERSED_DEPTH_BUFFER
+          gl_Position.z = p.w * 0.00001;
+          #else
           gl_Position.z = p.w * 0.99999;
+          #endif
         }`,
       fragmentShader: /* glsl */ `
         uniform sampler2D map;

@@ -4,9 +4,8 @@
 import * as THREE from 'three';
 import './curvature';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
-import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { Pass, FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import type { GraphicsOptions } from '../core/settings';
 import { installAltitudeFog } from './fog';
@@ -14,7 +13,8 @@ import { VisionShader, VisionState } from './vision';
 import { NightShader, NIGHT, updateLights } from './night';
 import { DropletShader, ScreenDroplets } from './droplets';
 import { HeatHazeShader, HazeSource, writeHaze } from './heatHaze';
-import { FinishShader, SunShaftShader } from './cinematic';
+import { SunShaftPass } from './cinematic';
+import { FinalPass } from './finalPass';
 import { SUN_VIEW, SUN_VIEW_COLOR } from './environment';
 
 export type GraphicsSettings = Pick<
@@ -25,57 +25,107 @@ export type GraphicsSettings = Pick<
 /** highest device-pixel ratio each world-quality tier renders at on 'native' */
 const DPR_CAP: Record<string, number> = { low: 1, medium: 1.25, high: 2, ultra: 2 };
 
-/** Final picture grade in display space: contrast, saturation and a soft vignette. */
-const GradeShader = {
-  uniforms: {
-    tDiffuse: { value: null },
-    contrast: { value: 1 },
-    saturation: { value: 1 },
-    vignette: { value: 0 },
-    aspect: { value: 1 },
-  },
-  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-  fragmentShader: /* glsl */ `
-    uniform sampler2D tDiffuse;
-    uniform float contrast;
-    uniform float saturation;
-    uniform float vignette;
-    uniform float aspect;
-    varying vec2 vUv;
-    void main() {
-      vec4 c = texture2D( tDiffuse, vUv );
-      vec3 col = c.rgb;
-      float l = dot( col, vec3( 0.2126, 0.7152, 0.0722 ) );
-      col = mix( vec3( l ), col, saturation );
-      // S-curve style contrast around mid grey, keeps black and white anchored
-      col = clamp( col, 0.0, 1.0 );
-      vec3 s = col * col * ( 3.0 - 2.0 * col );
-      col = contrast >= 1.0 ? mix( col, s, ( contrast - 1.0 ) * 1.6 ) : mix( vec3( 0.5 ), col, 0.5 + 0.5 * contrast );
-      vec2 p = ( vUv - 0.5 ) * vec2( aspect, 1.0 );
-      col *= 1.0 - vignette * smoothstep( 0.45, 1.25, length( p ) );
-      gl_FragColor = vec4( clamp( col, 0.0, 1.0 ), c.a );
-    }`,
-};
+// (ultra was 8192: four times the pixels of high to clear and draw every frame, for
+// edges the PCF filter softens anyway)
+const SHADOW_SIZE: Record<string, number> = { low: 1024, medium: 2048, high: 4096, ultra: 4096 };
 
 /**
- * Scrub the HDR scene buffer before bloom: half-float overflows (a sun glint
- * off glossy paint can exceed 65504) become Infinity, and bloom would smear
- * that -- and the NaNs it breeds -- across the whole screen as black.
+ * The 3D scene, drawn into its own multisampled buffer and resolved once into the
+ * post-processing chain. (The chain's own buffers used to be multisampled too, so
+ * every full-screen pass after it wrote all its samples and resolved them again.)
+ * The cockpit is drawn over the world in the same buffer; with heat haze on, the
+ * haze bends the world first and the cockpit goes over that.
  */
-const SanitizeShader = {
-  uniforms: { tDiffuse: { value: null } },
-  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-  fragmentShader: /* glsl */ `
-    uniform sampler2D tDiffuse;
-    varying vec2 vUv;
-    void main() {
-      vec4 c = texture2D( tDiffuse, vUv );
-      if ( any( isnan( c ) ) || any( notEqual( c, c ) ) ) c = vec4( 0.0, 0.0, 0.0, 1.0 );
-      gl_FragColor = vec4( min( max( c.rgb, vec3( 0.0 ) ), vec3( 256.0 ) ), clamp( c.a, 0.0, 1.0 ) );
-    }`,
-};
+class ScenePass extends Pass {
+  readonly msaa: THREE.WebGLRenderTarget;
+  overlayScene: THREE.Scene | null = null;
+  overlayCamera: THREE.Camera | null = null;
+  private copy = new THREE.ShaderMaterial({
+    uniforms: { tDiffuse: { value: null as THREE.Texture | null } },
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform sampler2D tDiffuse; varying vec2 vUv; void main(){ gl_FragColor = texture2D(tDiffuse, vUv); }',
+    depthTest: false,
+    depthWrite: false,
+  });
+  private quad = new FullScreenQuad(this.copy);
+  constructor(
+    public scene: THREE.Scene,
+    public camera: THREE.Camera,
+    private haze: ShaderPass,
+  ) {
+    super();
+    this.needsSwap = false;
+    this.msaa = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4, resolveDepthBuffer: false });
+    // a reversed depth buffer needs floating-point depth to keep its precision
+    if (REVERSED_Z) this.msaa.depthTexture = new THREE.DepthTexture(1, 1, THREE.FloatType);
+  }
+  setSize(w: number, h: number): void {
+    this.msaa.setSize(w, h);
+  }
+  render(r: THREE.WebGLRenderer, _write: THREE.WebGLRenderTarget, read: THREE.WebGLRenderTarget): void {
+    const auto = r.autoClear;
+    r.autoClear = false;
+    r.setRenderTarget(this.msaa);
+    r.clear();
+    r.render(this.scene, this.camera);
+    const ov = this.overlayScene && this.overlayCamera;
+    if (this.haze.enabled) {
+      this.haze.render(r, read, this.msaa, 0, false);
+      if (ov) {
+        r.setRenderTarget(read);
+        r.clearDepth();
+        r.render(this.overlayScene!, this.overlayCamera!);
+      }
+    } else {
+      if (ov) {
+        r.clearDepth();
+        r.render(this.overlayScene!, this.overlayCamera!);
+      }
+      this.copy.uniforms.tDiffuse.value = this.msaa.texture;
+      r.setRenderTarget(read);
+      this.quad.render(r);
+    }
+    r.autoClear = auto;
+  }
+  dispose(): void {
+    this.msaa.dispose();
+    this.copy.dispose();
+    this.quad.dispose();
+  }
+}
 
-const SHADOW_SIZE: Record<string, number> = { low: 1024, medium: 2048, high: 4096, ultra: 8192 };
+/**
+ * Depth: a reversed floating-point depth buffer where the browser has it
+ * (EXT_clip_control). It keeps the precision a 0.3 m .. 1700 km view needs, as the
+ * logarithmic depth buffer did, without writing the depth from every pixel's
+ * shader: that turned off the GPU's early depth test, so every hidden pixel of
+ * terrain, trees and airframes was fully shaded before being thrown away.
+ */
+export let REVERSED_Z = false;
+function clipControl(): boolean {
+  try {
+    const gl = document.createElement('canvas').getContext('webgl2');
+    const ok = !!gl?.getExtension('EXT_clip_control');
+    gl?.getExtension('WEBGL_lose_context')?.loseContext();
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+// Screen positions worked out in the game (HUD markers, labels) read the depth
+// as before: in front of the camera -1..1, behind it past 1.
+const _project = THREE.Vector3.prototype.project;
+THREE.Vector3.prototype.project = function (this: THREE.Vector3, camera: THREE.Camera) {
+  _project.call(this, camera);
+  const c = camera as THREE.PerspectiveCamera;
+  if (c.reversedDepth && c.isPerspectiveCamera) {
+    const n = c.near, f = c.far;
+    const zv = (f * n) / (f - n) / (-this.z - n / (f - n));
+    this.z = (-((f + n) / (f - n)) * zv - (2 * f * n) / (f - n)) / -zv;
+  }
+  return this;
+};
 
 /**
  * The WebGL renderer, asking for the fast GPU first, then for any GPU, then
@@ -83,15 +133,19 @@ const SHADOW_SIZE: Record<string, number> = { low: 1024, medium: 2048, high: 409
  * attributes, e.g. on a laptop's second GPU or after a driver reset).
  */
 function createWebGL(): THREE.WebGLRenderer {
+  const rev = clipControl();
+  const depth: THREE.WebGLRendererParameters = rev ? { reversedDepthBuffer: true } : { logarithmicDepthBuffer: true };
   const tries: THREE.WebGLRendererParameters[] = [
-    { antialias: false, logarithmicDepthBuffer: true, powerPreference: 'high-performance', stencil: false },
-    { antialias: false, logarithmicDepthBuffer: true, stencil: false },
+    { antialias: false, ...depth, powerPreference: 'high-performance', stencil: false },
+    { antialias: false, ...depth, stencil: false },
     { antialias: false, logarithmicDepthBuffer: true, powerPreference: 'low-power', failIfMajorPerformanceCaveat: false },
   ];
   let last: unknown = null;
   for (const t of tries) {
     try {
-      return new THREE.WebGLRenderer(t);
+      const r = new THREE.WebGLRenderer(t);
+      REVERSED_Z = r.capabilities.reversedDepthBuffer;
+      return r;
     } catch (e) {
       last = e;
       console.warn('WebGL context failed with', t, e);
@@ -126,14 +180,12 @@ export class GameRenderer {
   private dropletPass: ShaderPass;
   /** shimmer behind hot engines */
   private hazePass: ShaderPass;
-  private renderPass: RenderPass;
-  /** second scene pass drawn over the world (the cockpit) */
-  private overlayPass: RenderPass;
+  private scenePass: ScenePass;
   private visionPass: ShaderPass;
   private nightPass: ShaderPass;
-  private outputPass: OutputPass;
   private bloomPass: UnrealBloomPass;
-  private gradePass: ShaderPass;
+  /** tone mapping, grade and the camera's finish, in one pass */
+  private finalPass: FinalPass;
   /** the sun light whose shadow map follows the shadow setting */
   shadowLight: THREE.DirectionalLight | null = null;
   private width = 1;
@@ -160,11 +212,9 @@ export class GameRenderer {
   private adaptFrames = 0;
   private adaptSlow = 0;
   private adaptFast = 0;
-  private sanitizePass!: ShaderPass;
-  /** god rays and lens ghosts from the sun (HDR), and the final sharpen / grain / speed pass */
-  private sunPass!: ShaderPass;
+  /** god rays and lens ghosts from the sun (HDR) */
+  private sunPass: SunShaftPass;
   private sunK = 0;
-  private finishPass!: ShaderPass;
   /** the speed of the camera's aircraft (m/s), for the speed blur */
   private speed = 0;
 
@@ -186,47 +236,38 @@ export class GameRenderer {
     this.camera = new THREE.PerspectiveCamera(70, 1, 0.3, 1700000);
     this.camera.rotation.order = 'YXZ';
 
-    const rt = new THREE.WebGLRenderTarget(1, 1, {
-      type: THREE.HalfFloatType,
-      samples: 4,
-    });
+    // (the chain's buffers: one sample, no depth needed but for the cockpit over heat haze)
+    const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
     this.composer = new EffectComposer(this.renderer, rt);
-    this.renderPass = new RenderPass(this.scene, this.camera);
-    this.overlayPass = new RenderPass(new THREE.Scene(), this.camera);
-    this.overlayPass.clear = false;
-    this.overlayPass.clearDepth = true;
-    this.overlayPass.enabled = false;
     this.visionPass = new ShaderPass(VisionShader);
     this.nightPass = new ShaderPass(NightShader);
     this.nightPass.enabled = false;
-    this.outputPass = new OutputPass();
     // HDR bloom: only light far brighter than sunlit paint or snow glows
     // (sun disc, afterburners, flares, explosions, runway lights)
     this.bloomPass = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.55, 0.55, 2.6);
-    this.gradePass = new ShaderPass(GradeShader);
-    this.composer.addPass(this.renderPass);
+    // an overflowed pixel must not reach the blur (it would smear black across the screen)
+    this.bloomPass.materialHighPassFilter.fragmentShader = this.bloomPass.materialHighPassFilter.fragmentShader.replace(
+      'vec4 texel = texture2D( tDiffuse, vUv );',
+      'vec4 texel = texture2D( tDiffuse, vUv ); if ( any( isnan( texel ) ) ) texel = vec4( 0.0 ); texel = clamp( texel, 0.0, 256.0 );',
+    );
     // haze bends the world only: the cockpit is drawn over it afterwards
     this.hazePass = new ShaderPass(HeatHazeShader);
     this.hazePass.enabled = false;
-    this.composer.addPass(this.hazePass);
-    this.composer.addPass(this.overlayPass);
+    this.scenePass = new ScenePass(this.scene, this.camera, this.hazePass);
+    this.composer.addPass(this.scenePass);
     this.dropletPass = new ShaderPass(DropletShader);
     this.dropletPass.uniforms.tDrops.value = this.droplets.texture;
     this.dropletPass.enabled = false;
     this.composer.addPass(this.dropletPass);
-    this.sanitizePass = new ShaderPass(SanitizeShader);
-    this.composer.addPass(this.sanitizePass);
     this.composer.addPass(this.bloomPass);
     // the sun's rays go on after the bloom, so the bloom never blooms them again
-    this.sunPass = new ShaderPass(SunShaftShader);
+    this.sunPass = new SunShaftPass();
     this.sunPass.enabled = false;
     this.composer.addPass(this.sunPass);
     this.composer.addPass(this.nightPass);
     this.composer.addPass(this.visionPass);
-    this.composer.addPass(this.outputPass);
-    this.composer.addPass(this.gradePass);
-    this.finishPass = new ShaderPass(FinishShader);
-    this.composer.addPass(this.finishPass);
+    this.finalPass = new FinalPass();
+    this.composer.addPass(this.finalPass);
 
     window.addEventListener('resize', () => this.resize());
     this.resize();
@@ -260,25 +301,14 @@ export class GameRenderer {
     r.toneMappingExposure = g.exposure;
     // bloom
     this.bloomPass.enabled = g.bloom > 0.001;
-    // the scrub only protects the bloom from overflowed pixels
-    this.sanitizePass.enabled = this.bloomPass.enabled;
     this.bloomPass.strength = g.bloom;
     // grade
-    const gu = this.gradePass.uniforms;
-    gu.contrast.value = g.contrast;
-    gu.saturation.value = g.saturation;
-    gu.vignette.value = g.vignette ? 0.28 : 0;
-    this.gradePass.enabled = Math.abs(g.contrast - 1) > 0.001 || Math.abs(g.saturation - 1) > 0.001 || g.vignette;
-    // anti-aliasing: MSAA on the scene buffers
-    const samples = Math.min(g.antialias, r.capabilities.maxSamples);
-    for (const rt of [this.composer.renderTarget1, this.composer.renderTarget2]) {
-      if (rt.samples !== samples) {
-        rt.samples = samples;
-        rt.dispose();
-      }
-    }
+    const fu = this.finalPass.uniforms;
+    fu.contrast.value = g.contrast;
+    fu.saturation.value = g.saturation;
+    fu.vignette.value = g.vignette ? 0.28 : 0;
+    this.finalPass.grade = Math.abs(g.contrast - 1) > 0.001 || Math.abs(g.saturation - 1) > 0.001 || g.vignette;
     // the camera's look: sharpening on every tier; grain, lens fringes and sun shafts from medium up
-    const fu = this.finishPass.uniforms;
     const q = g.quality;
     fu.sharpen.value = q === 'low' ? 0.3 : 0.45;
     fu.grain.value = q === 'low' ? 0 : 0.01;
@@ -312,7 +342,7 @@ export class GameRenderer {
     u.strength.value = this.sunK * 0.45;
     this.sunPass.enabled = this.sunK > 0.01;
     // speed: noticeable from ~500 kt, strongest very fast and low
-    const fu = this.finishPass.uniforms;
+    const fu = this.finalPass.uniforms;
     fu.speedBlur.value = on && this.settings.quality !== 'low' ? THREE.MathUtils.smoothstep(this.speed, 240, 560) * 0.7 : 0;
     fu.time.value = (performance.now() / 1000) % 1000;
   }
@@ -342,13 +372,29 @@ export class GameRenderer {
     this.renderer.setSize(this.width, this.height);
     this.composer.setPixelRatio(this.pixelRatio);
     this.composer.setSize(this.width, this.height);
-    this.gradePass.uniforms.aspect.value = this.width / Math.max(1, this.height);
-    const fu = this.finishPass.uniforms;
+    // bloom from a quarter-size picture up (not half): the glow is just as soft, at a quarter of the work
+    this.bloomPass.setSize(Math.round((this.width * this.pixelRatio) / 2), Math.round((this.height * this.pixelRatio) / 2));
+    this.updateSamples();
+    const fu = this.finalPass.uniforms;
     fu.texel.value = [1 / Math.max(1, this.width * this.pixelRatio), 1 / Math.max(1, this.height * this.pixelRatio)];
     fu.aspect.value = this.width / Math.max(1, this.height);
     this.sunPass.uniforms.aspect.value = this.width / Math.max(1, this.height);
     this.camera.aspect = this.width / this.height;
     this.camera.updateProjectionMatrix();
+  }
+
+  /**
+   * MSAA on the scene buffer. Above about 1440p the pixels are small enough that
+   * 8 samples look no different from 4, and cost twice the memory traffic.
+   */
+  private updateSamples(): void {
+    const px = this.width * this.pixelRatio * this.height * this.pixelRatio;
+    const samples = Math.min(this.settings.antialias, this.renderer.capabilities.maxSamples, px > 4.2e6 ? 4 : 8);
+    const rt = this.scenePass.msaa;
+    if (rt.samples !== samples) {
+      rt.samples = samples;
+      rt.dispose();
+    }
   }
 
   /** The actual number of pixels rendered (for the settings readout). */
@@ -362,11 +408,8 @@ export class GameRenderer {
 
   /** Draw another scene over the world with its own camera (null = off). */
   setOverlay(scene: THREE.Scene | null, camera: THREE.Camera | null): void {
-    if (scene && camera) {
-      this.overlayPass.scene = scene;
-      this.overlayPass.camera = camera;
-      this.overlayPass.enabled = true;
-    } else this.overlayPass.enabled = false;
+    this.scenePass.overlayScene = scene && camera ? scene : null;
+    this.scenePass.overlayCamera = scene && camera ? camera : null;
   }
 
   setVision(v: VisionState): void {
@@ -461,7 +504,7 @@ export class GameRenderer {
     const r = this.renderer;
     const prev = r.getRenderTarget();
     // the programs depend on the target (HDR buffer: no tone mapping, linear output)
-    r.setRenderTarget(this.composer.readBuffer);
+    r.setRenderTarget(this.scenePass.msaa);
     try {
       // never wait on it for long: the worst case is the old blocking compile
       return Promise.race([r.compileAsync(obj, camera, scene), new Promise((res) => setTimeout(res, 5000))]);
@@ -475,24 +518,26 @@ export class GameRenderer {
    * gets anti-aliasing, bloom and the picture settings too.
    */
   renderScene(scene: THREE.Scene, camera: THREE.Camera, toneMapping?: THREE.ToneMapping): void {
-    const s = this.renderPass.scene, c = this.renderPass.camera;
-    const ov = this.overlayPass.enabled, vis = this.visionPass.enabled, drp = this.dropletPass.enabled, hz = this.hazePass.enabled;
+    const sp = this.scenePass;
+    const s = sp.scene, c = sp.camera, os = sp.overlayScene, oc = sp.overlayCamera;
+    const vis = this.visionPass.enabled, drp = this.dropletPass.enabled, hz = this.hazePass.enabled;
     this.nightPass.enabled = false;
     this.dropletPass.enabled = false;
     this.hazePass.enabled = false;
     const tm = this.renderer.toneMapping;
-    this.renderPass.scene = scene;
-    this.renderPass.camera = camera;
-    this.overlayPass.enabled = false;
+    sp.scene = scene;
+    sp.camera = camera;
+    sp.overlayScene = sp.overlayCamera = null;
     this.visionPass.enabled = false;
     if (toneMapping !== undefined && this.settings.toneMapping === 'neutral') this.renderer.toneMapping = toneMapping;
     // (other scenes keep their own suns: no shafts or speed blur, but the sharpening and grain)
     this.aimSun(false);
     this.composer.render();
     this.renderer.toneMapping = tm;
-    this.renderPass.scene = s;
-    this.renderPass.camera = c;
-    this.overlayPass.enabled = ov;
+    sp.scene = s;
+    sp.camera = c;
+    sp.overlayScene = os;
+    sp.overlayCamera = oc;
     this.visionPass.enabled = vis;
     this.dropletPass.enabled = drp;
     this.hazePass.enabled = hz;
