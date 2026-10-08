@@ -301,18 +301,29 @@ export class OceanProps {
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), e = new THREE.Euler();
     const c = new THREE.Color();
     let count = 0;
+    // a patch reef: dense coral heads on knolls, with sand channels between them
+    const patches: { x: number; z: number; r: number }[] = [];
+    for (let tries = 0; patches.length < 70 && tries < 4000; tries++) {
+      const a = rnd() * Math.PI * 2, r = Math.sqrt(rnd()) * (SITES.reef.r - 20);
+      const x = SITES.reef.x + Math.cos(a) * r, z = SITES.reef.z + Math.sin(a) * r;
+      const h = seabedHeight(x, z);
+      if (h < -30) continue;
+      // (coral grows on the tops and shoulders of the knolls, not in the sand between)
+      const around = (seabedHeight(x + 18, z) + seabedHeight(x - 18, z) + seabedHeight(x, z + 18) + seabedHeight(x, z - 18)) / 4;
+      if (h - around < 0.4 && tries < 3000) continue;
+      patches.push({ x, z, r: 7 + rnd() * 12 });
+    }
     for (const k of kinds) {
-      const n = Math.round(k.n * decor);
-      if (!n) continue;
+      const n = Math.round(k.n * 1.6 * decor);
+      if (!n || !patches.length) continue;
       const im = new THREE.InstancedMesh(k.geo, this.mats.painted, n);
       for (let i = 0; i < n; i++) {
-        const a = rnd() * Math.PI * 2, r = Math.sqrt(rnd()) * (SITES.reef.r - 10);
-        const x = SITES.reef.x + Math.cos(a) * r, z = SITES.reef.z + Math.sin(a) * r;
+        const pt = patches[Math.floor(rnd() * patches.length)];
+        // (rocks scatter wider than the living coral)
+        const spread = k.n === 260 ? pt.r * 1.8 : pt.r;
+        const a = rnd() * Math.PI * 2, r = Math.sqrt(rnd()) * spread;
+        const x = pt.x + Math.cos(a) * r, z = pt.z + Math.sin(a) * r;
         const h = seabedHeight(x, z);
-        if (h < -34) {
-          i--;
-          continue;
-        }
         const sc = k.scale[0] + rnd() * (k.scale[1] - k.scale[0]);
         p.set(x, h + sc * 0.3, z);
         e.set((rnd() - 0.5) * 0.4, rnd() * 6.28, (rnd() - 0.5) * 0.4);

@@ -4,10 +4,12 @@
 //    depth of that surface (diffuse attenuation Kd), so a wreck at 85 m sits in
 //    blue twilight while the shallows stay warm;
 //  - the vehicle's lamps lose their red over the distance they travel;
-//  - what the eye sees is extinguished per colour along the view path and
-//    replaced by light scattered in the water (the colour of the sea at that
-//    depth); seen from the air, only the part of the path under the surface
-//    counts, which is what makes shallow water turquoise and deep water navy.
+//  - what the eye sees is extinguished per colour along the part of the sight
+//    line that is under water, and replaced by light scattered in the water
+//    (the colour of the sea at that depth). The same rule covers looking down
+//    from the air (shallow water turquoise, deep water navy), looking up from
+//    below at the harbor wall, and a camera sitting right at the waterline,
+//    where the top of the picture is in air and the bottom in the sea.
 // Plus caustics on the shallow seabed and the sonar ping's wavefront.
 // Coefficients are for clear coastal water (roughly Jerlov type II).
 
@@ -29,12 +31,10 @@ export const OCEAN_FX = {
   uKd: { value: new THREE.Vector3(0.42, 0.072, 0.045) },
   /** beam attenuation along a line of sight, per colour (1/m) */
   uSigma: { value: new THREE.Vector3(0.46, 0.095, 0.075) },
-  /** light scattered into the line of sight at the camera's depth (linear) */
-  uScatter: { value: new THREE.Color(0.0, 0.05, 0.07) },
-  /** the same just under the surface (for the view from the air) */
-  uScatterSurf: { value: new THREE.Color(0.01, 0.12, 0.15) },
-  /** 1 when the camera is under water */
-  uCamUnder: { value: 0 },
+  /** light scattered into a line of sight just under the surface (linear); deeper it is dimmed by uKd */
+  uScatter: { value: new THREE.Color(0.006, 0.11, 0.16) },
+  /** the sea surface's height where the camera is (the waterline between air and water near it) */
+  uWaterY: { value: 0 },
 };
 
 const VERT_PARS = /* glsl */ `
@@ -64,21 +64,36 @@ uniform vec3 uSunCol;
 uniform vec3 uKd;
 uniform vec3 uSigma;
 uniform vec3 uScatter;
-uniform vec3 uScatterSurf;
-uniform float uCamUnder;
+uniform float uWaterY;
 /** daylight left at this fragment's depth, per colour */
 vec3 ocDaylight() {
   float d = max( -vOcWorld.y, 0.0 );
   return exp( -uKd * d );
 }
+vec2 ocHash( vec2 p ) {
+  p = vec2( dot( p, vec2( 127.1, 311.7 ) ), dot( p, vec2( 269.5, 183.3 ) ) );
+  return fract( sin( p ) * 43758.5453 );
+}
+/** distance to the nearest cell edge of a drifting cellular pattern */
+float ocCells( vec2 p, float t ) {
+  vec2 i = floor( p ), f = fract( p );
+  float d1 = 8.0, d2 = 8.0;
+  for ( int y = -1; y <= 1; y++ ) for ( int x = -1; x <= 1; x++ ) {
+    vec2 g = vec2( float( x ), float( y ) );
+    vec2 o = ocHash( i + g );
+    o = 0.5 + 0.42 * sin( t * 0.9 + 6.2831 * o );
+    float d = length( g + o - f );
+    if ( d < d1 ) { d2 = d1; d1 = d; } else if ( d < d2 ) d2 = d;
+  }
+  return d2 - d1;
+}
 float ocCaustic( vec2 p, float t ) {
-  // drifting interference of a few waves: bright thin lines like light focused by the surface
-  vec2 q = p * 0.21;
-  float a = sin( q.x * 1.7 + t * 0.9 + sin( q.y * 1.3 + t * 0.6 ) * 1.6 );
-  float b = sin( q.y * 1.9 - t * 0.8 + sin( q.x * 1.1 - t * 0.7 ) * 1.5 );
-  float c = sin( ( q.x + q.y ) * 1.3 + t * 0.5 );
-  float v = abs( a + b + c ) / 3.0;
-  return pow( 1.0 - clamp( v, 0.0, 1.0 ), 6.0 );
+  // the net of bright lines the waves above focus on the bottom: two drifting cell patterns
+  // of about a metre, bright where their edges cross
+  float a = ocCells( p * 0.85, t );
+  float b = ocCells( p * 0.85 * 1.37 + vec2( 3.1, 7.7 ), t * 1.3 );
+  float l = exp( -a * 9.0 ) + exp( -b * 9.0 );
+  return l * l * 0.35;
 }
 `;
 const FRAG_MAIN = /* glsl */ `
@@ -86,8 +101,9 @@ const FRAG_MAIN = /* glsl */ `
   float ocDepth = max( -vOcWorld.y, 0.0 );
   // caustics: strongest in the first metres, on faces that look up at the sun
   if ( uCaust > 0.0 && vOcWorld.y < 0.0 ) {
-    float k = uCaust * clamp( vOcNormal.y, 0.0, 1.0 ) * smoothstep( 0.0, 1.5, ocDepth );
-    totalEmissiveRadiance += diffuseColor.rgb * uSunCol * ocDaylight() * ocCaustic( vOcWorld.xz, uTime ) * k * 0.8;
+    // (they blur away with depth as the focus spreads)
+    float k = uCaust * clamp( vOcNormal.y, 0.0, 1.0 ) * smoothstep( 0.0, 1.5, ocDepth ) * ( 1.0 - smoothstep( 5.0, 28.0, ocDepth ) );
+    totalEmissiveRadiance += diffuseColor.rgb * uSunCol * ocDaylight() * ocCaustic( vOcWorld.xz, uTime ) * k * 0.9;
   }
   // the ping: a bright wavefront, then a fading outline of the steep faces it crossed
   if ( uPing.w > 0.0 ) {
@@ -101,19 +117,24 @@ const FRAG_MAIN = /* glsl */ `
 `;
 const FOG = /* glsl */ `
 {
-  if ( uCamUnder > 0.5 ) {
-    // all of the line of sight is water
-    float ocD = length( vOcWorld - cameraPosition );
-    vec3 T = exp( -uSigma * ocD );
-    gl_FragColor.rgb = gl_FragColor.rgb * T + uScatter * ( 1.0 - T );
-  } else {
-    if ( vOcWorld.y < 0.0 ) {
-      // seen from the air: only the stretch of the ray below the surface
-      vec3 v = normalize( vOcWorld - cameraPosition );
-      float path = -vOcWorld.y / max( 0.1, -v.y );
-      vec3 T = exp( -uSigma * path );
-      gl_FragColor.rgb = gl_FragColor.rgb * T + uScatterSurf * ( 1.0 - T );
-    }
+  // the stretch of the sight line under the surface (taken as level through the camera's waterline)
+  float ocC = cameraPosition.y - uWaterY, ocF = vOcWorld.y - uWaterY;
+  float ocFrac = 0.0;
+  if ( ocC < 0.0 && ocF < 0.0 ) ocFrac = 1.0;
+  else if ( ocC < 0.0 || ocF < 0.0 ) {
+    float t = ocC / ( ocC - ocF );
+    ocFrac = ocC < 0.0 ? t : 1.0 - t;
+  }
+  if ( ocFrac > 0.0 ) {
+    float L = length( vOcWorld - cameraPosition ) * ocFrac;
+    // most of the light scattered toward the eye comes from the first few metres of water
+    float d0 = max( -cameraPosition.y, 0.0 ), d1 = max( -vOcWorld.y, 0.0 );
+    if ( ocC >= 0.0 ) d0 = 0.0;
+    float dEff = mix( d0, d1, min( L, 9.0 ) / max( L, 1e-3 ) );
+    vec3 T = exp( -uSigma * L );
+    gl_FragColor.rgb = gl_FragColor.rgb * T + uScatter * exp( -uKd * dEff ) * ( 1.0 - T );
+  }
+  if ( ocC >= 0.0 ) {
     #include <fog_fragment>
   }
 }
@@ -139,7 +160,7 @@ export function patchOceanMaterial<T extends THREE.MeshLambertMaterial | THREE.M
       .replace('#include <lights_fragment_begin>', lightsChunk())
       .replace('#include <fog_fragment>', FOG);
   };
-  mat.customProgramCacheKey = () => 'ocean-fx2-' + key;
+  mat.customProgramCacheKey = () => 'ocean-fx3-' + key;
   return mat;
 }
 

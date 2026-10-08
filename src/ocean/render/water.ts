@@ -30,13 +30,19 @@ uniform vec3 uSunColor;
 uniform float uSunI;
 vec3 skyColor( vec3 d, bool disc ) {
   float y = max( d.y, 0.0 );
-  vec3 c = mix( uHorizon, uZenith, pow( y, 0.45 ) );
+  // with the sun low the horizon glows on its side only; the far side stays a pale blue-grey
+  vec2 hd = d.xz / max( length( d.xz ), 1e-4 );
+  vec2 hs = uSunDir.xz / max( length( uSunDir.xz ), 1e-4 );
+  float side = dot( hd, hs ) * 0.5 + 0.5;
+  float lowSun = 1.0 - smoothstep( 0.15, 0.7, uSunDir.y );
+  vec3 hor = mix( uHorizon, uZenith * 1.25 + vec3( 0.12 ), lowSun * ( 1.0 - side * side ) * 0.85 );
+  vec3 c = mix( hor, uZenith, pow( y, 0.45 ) );
   float mu = max( dot( d, uSunDir ), 0.0 );
   // forward scattering round the sun
   c += uSunColor * ( pow( mu, 6.0 ) * 0.22 + pow( mu, 48.0 ) * 0.45 );
   if ( disc ) c += uSunColor * smoothstep( 0.99955, 0.9998, mu ) * 40.0;
   // below the horizon (the far sea seen in reflections)
-  if ( d.y < 0.0 ) c = mix( uHorizon * 0.55, uHorizon, exp( d.y * 10.0 ) );
+  if ( d.y < 0.0 ) c = mix( hor * 0.55, hor, exp( d.y * 10.0 ) );
   return c * uSunI;
 }
 `;
@@ -131,8 +137,8 @@ uniform float uFoam;
 uniform vec4 uWake[ 16 ];
 uniform vec3 uSigma;
 uniform vec3 uScatter;
-uniform vec3 uScatterSurf;
-uniform float uCamUnder;
+uniform vec3 uKd;
+uniform float uWaterY;
 varying vec3 vWorld;
 varying vec2 vSlope;
 varying float vDist;
@@ -141,6 +147,10 @@ ${SKY_GLSL}
 void main() {
   // the wave normal, with ripples that fade into the distance (where they would only shimmer)
   vec3 n = normalize( vec3( -vSlope.x, 1.0, -vSlope.y ) );
+  // which side of the surface this piece is seen from (at the waterline the picture holds both)
+  // (near the camera by the wave's own facing, so the waterline can split the picture; farther
+  // away by the camera's side, or grazing views from below would catch the backs of distant waves)
+  bool fromAir = vDist < 6.0 ? dot( cameraPosition - vWorld, n ) > 0.0 : cameraPosition.y >= uWaterY;
   float rf = uChop * ( 1.0 - smoothstep( 40.0, 900.0, vDist ) );
   vec3 r1 = texture2D( uRipple, vWorld.xz / 23.0 + vec2( 0.012, 0.007 ) * time ).xzy * 2.0 - 1.0;
   vec3 r2 = texture2D( uRipple, vWorld.xz / 7.3 + vec2( -0.021, 0.016 ) * time ).xzy * 2.0 - 1.0;
@@ -148,18 +158,22 @@ void main() {
   vec3 V = normalize( cameraPosition - vWorld );
   vec2 duv = ( vWorld.xz - uWorld.xy ) / uWorld.zw;
   float column = ( duv.x < 0.0 || duv.y < 0.0 || duv.x > 1.0 || duv.y > 1.0 ) ? 400.0 : texture2D( uDepth, duv ).r;
-  if ( uCamUnder < 0.5 ) {
+  if ( fromAir ) {
     // --- from the air
     float cosv = max( dot( n, V ), 0.0 );
+    // (on a rough sea the facets that face the eye show, and they reflect higher, bluer sky;
+    // the facets that would mirror the horizon are hidden behind the waves in front)
     float F = 0.02 + 0.98 * pow( 1.0 - cosv, 5.0 );
+    F *= 1.0 - 0.3 * clamp( uChop, 0.0, 1.0 ) * smoothstep( 0.6, 1.0, F );
     vec3 R = reflect( -V, n );
-    R.y = abs( R.y );
+    R.y = abs( R.y ) + 0.08 + 0.1 * clamp( uChop, 0.0, 1.5 );
+    R = normalize( R );
     vec3 refl = skyColor( R, false );
     // the sun's glint, sharp on calm water and spread by ripples
     float spec = pow( max( dot( R, uSunDir ), 0.0 ), mix( 1200.0, 240.0, clamp( uChop, 0.0, 1.0 ) ) );
     refl += uSunColor * uSunI * spec * 18.0;
     // light scattered back out of the water body, brightest through the thin crests
-    vec3 body = uScatterSurf * ( 0.8 + 0.6 * clamp( vCrest / max( waveAmp, 0.2 ), 0.0, 1.0 ) );
+    vec3 body = uScatter * ( 0.8 + 0.6 * clamp( vCrest / max( waveAmp, 0.2 ), 0.0, 1.0 ) );
     // beyond the streamed sea bed the water is drawn opaque (deep and far)
     float far = smoothstep( 1500.0, 2300.0, vDist ) + smoothstep( 120.0, 220.0, column );
     far = clamp( far, 0.0, 1.0 );
@@ -169,7 +183,7 @@ void main() {
     float foam = 0.0;
     if ( uFoam > 0.0 ) {
       foam += smoothstep( 0.75, 1.05, vCrest / max( waveAmp, 0.2 ) ) * smoothstep( 1.2, 1.8, waveAmp ) * 0.7;
-      foam += ( 1.0 - smoothstep( 0.2, 1.6, column ) ) * step( 0.05, column ) * 0.8;
+      foam += ( 1.0 - smoothstep( 0.1, 0.7, column ) ) * step( 0.05, column ) * 0.7;
       for ( int i = 0; i < 16; i++ ) {
         vec4 w = uWake[ i ];
         if ( w.w <= 0.0 ) continue;
@@ -192,21 +206,21 @@ void main() {
     vec3 nd = -n;              // the surface faces down at the viewer
     float cosi = clamp( dot( I, -nd ), 0.0, 1.0 );
     vec3 t = refract( I, nd, 1.0 / 1.333 );
-    vec3 under = uScatter * 1.25;
+    float camD = max( -cameraPosition.y, 0.0 );
+    // outside the window: total internal reflection of the darker water below
+    vec3 under = uScatter * 0.55;
     vec3 col;
     if ( dot( t, t ) > 0.0 ) {
       // inside the window: the sky, dimmed toward its edge where reflection takes over
       float Fw = 0.02 + 0.98 * pow( 1.0 - cosi, 5.0 );
       float edge = smoothstep( 0.66, 0.75, cosi );
       col = mix( under, skyColor( normalize( t ), true ) * 0.9, ( 1.0 - Fw ) * edge );
-    } else {
-      // total internal reflection: the dim sea mirrored
-      col = under;
-    }
+    } else col = under;
     // the water between the eye and the surface
     float d = length( vWorld - cameraPosition );
     vec3 T = exp( -uSigma * d );
-    col = col * T + uScatter * ( 1.0 - T );
+    float dEff = camD * ( 1.0 - min( d, 9.0 ) / max( d, 1e-3 ) );
+    col = col * T + uScatter * exp( -uKd * dEff ) * ( 1.0 - T );
     gl_FragColor = vec4( col, 1.0 );
   }
 }
@@ -271,8 +285,8 @@ export class OceanSurface {
         uWake: { value: this.wake },
         uSigma: OCEAN_FX.uSigma,
         uScatter: OCEAN_FX.uScatter,
-        uScatterSurf: OCEAN_FX.uScatterSurf,
-        uCamUnder: OCEAN_FX.uCamUnder,
+        uKd: OCEAN_FX.uKd,
+        uWaterY: OCEAN_FX.uWaterY,
       },
       side: THREE.DoubleSide,
       transparent: true,
@@ -287,9 +301,10 @@ export class OceanSurface {
     this.mesh.name = 'water';
     // the sky dome (above the water only)
     const skyMat = new THREE.ShaderMaterial({
-      uniforms: { ...SKY },
+      uniforms: { ...SKY, uScatter: OCEAN_FX.uScatter, uKd: OCEAN_FX.uKd, uWaterY: OCEAN_FX.uWaterY },
       vertexShader: 'varying vec3 vDir; void main(){ vDir = normalize( position ); vec4 p = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); gl_Position = p.xyww; }',
-      fragmentShader: `${SKY_GLSL}\nvarying vec3 vDir; void main(){ gl_FragColor = vec4( skyColor( normalize( vDir ), true ), 1.0 ); }`,
+      // (under water, any gap the surface leaves is the water's own colour)
+      fragmentShader: `${SKY_GLSL}\nuniform vec3 uScatter; uniform vec3 uKd; uniform float uWaterY; varying vec3 vDir; void main(){ gl_FragColor = vec4( cameraPosition.y < uWaterY ? uScatter * exp( -uKd * max( -cameraPosition.y, 0.0 ) ) : skyColor( normalize( vDir ), true ), 1.0 ); }`,
       side: THREE.BackSide,
       depthWrite: false,
     });

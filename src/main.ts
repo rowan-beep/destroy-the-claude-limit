@@ -488,6 +488,8 @@ async function boot(): Promise<void> {
 const q = new URLSearchParams(location.search);
 if (q.get('test') === 'world') {
   import('./testWorld').then((m) => m.runWorldTest(document.getElementById('app')!));
+} else if (q.get('test') === 'ocean') {
+  import('./ocean/testOcean').then((m) => m.runOceanTest(document.getElementById('app')!));
 } else if (q.get('test') === 'models') {
   import('./testModels').then((m) => m.runModelTest(document.getElementById('app')!));
 } else {
