@@ -154,7 +154,7 @@ void main() {
   // dust whirling round the column, streaming upward
   vec2 q = vec2(vUv.x * 2.0 + time * spin, vUv.y * 3.0 - time * 0.35);
   float n = texture2D(noise, q * 0.5 + seed).b * 0.65 + texture2D(noise, q * 1.7 + seed).r * 0.35;
-  float body = pow(vRim, 0.7);
+  float body = pow(clamp(vRim, 0.0, 1.0), 0.7);
   float h = vUv.y;
   // thickest low down, a ragged top that fades out
   float a = alpha * n * body * smoothstep(0.0, 0.06, h) * (1.0 - smoothstep(0.55, 1.0, h));

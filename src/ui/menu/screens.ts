@@ -5,6 +5,7 @@ import type { MapData } from '../../world/mapData';
 import { el, clearEl, button } from '../dom';
 import type { MissionResult, Briefing } from '../../game/modes/mode';
 import { ACTION_LABELS, Action, InputSettings } from '../../core/input';
+import { SPACE_KEY_SECTIONS } from '../../space/keyHelp';
 
 const TIPS = [
   'Afterburner drains fuel roughly ten times faster than cruise. Use it to fight, not to commute.',
@@ -180,6 +181,20 @@ export class ControlsModal {
     this.root.addEventListener('click', (e) => {
       if (e.target === this.root) this.show(false);
     });
+  }
+  /** the space program's keys, mission by mission (the flight keys above are the jets') */
+  showSpace(): void {
+    this.root.classList.remove('hidden');
+    clearEl(this.body);
+    el('div', 'note', this.body, 'Every mission also shows its own keys in flight: press H or the ? button. The mouse drags the view round and the wheel zooms everywhere.');
+    for (const [title, rows] of SPACE_KEY_SECTIONS) {
+      el('h3', 'keys-h', this.body, title);
+      const g = el('div', 'bind-grid keys-ro', this.body);
+      for (const [k, t] of rows) {
+        el('div', '', g, t);
+        el('div', 'bk', g, k);
+      }
+    }
   }
   show(v: boolean, input?: InputSettings): void {
     this.root.classList.toggle('hidden', !v);

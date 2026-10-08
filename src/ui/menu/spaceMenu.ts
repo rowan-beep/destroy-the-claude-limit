@@ -323,8 +323,8 @@ export class SpaceMenu {
     const items: [string, string, string, (() => void) | null, string?][] = [
       ['ORBITAL FLIGHT', 'Saturn V: reach orbit, go to the Moon, land', 'LEO', () => this.chooseSpawn()],
       ['STARSHIP TO MARS', 'Fly Starship from the pad to Mars and land', 'MARS', () => this.cb.onMars()],
-      ['FALCON HEAVY · EUROPA CLIPPER', 'Twin booster landings, then the long way round to Jupiter', 'JUPITER', () => this.cb.onLaunchMission('clipper'), 'NEW'],
-      ['FALCON 9 · CREW DRAGON TO THE ISS', 'A drone ship landing, then chase down the station and dock', 'ISS', () => this.cb.onLaunchMission('iss'), 'NEW'],
+      ['EUROPA CLIPPER', 'Falcon Heavy: twin booster landings, then the long way round to Jupiter', 'JUPITER', () => this.cb.onLaunchMission('clipper'), 'NEW'],
+      ['CREW DRAGON TO THE ISS', 'Falcon 9: a drone ship landing, then chase down the station and dock', 'ISS', () => this.cb.onLaunchMission('iss'), 'NEW'],
       ['SLS · ARTEMIS II', 'Four astronauts round the far side of the Moon and home', 'MOON', () => this.cb.onLaunchMission('artemis'), 'NEW'],
       ['SOLAR SYSTEM EXPLORER', 'Fly to any planet or moon at real scale, on the real orbits', 'TOUR', () => this.cb.onExplore(), 'NEW'],
       ['SEVEN MINUTES OF TERROR', 'Mars 2020: entry, parachute, sky crane, then drive Perseverance', 'MARS', () => this.cb.onRover('m2020-edl'), 'NEW'],
@@ -443,7 +443,7 @@ export class SpaceMenu {
   }
 
   private renderDestinations(): void {
-    this.head('DESTINATIONS', 'From low orbit to the red planet.');
+    this.head('DESTINATIONS', 'Shortcuts: start right where each trip begins. Every planet and moon is in the Solar System Explorer.');
     // each destination flies straight there: the Saturn V in Earth orbit or round the Moon, Starship to Mars
     const go: (() => void)[] = [() => this.cb.onLaunch('orbit'), () => this.cb.onLaunch('lunar'), () => this.cb.onMars()];
     DESTINATIONS.forEach(([name, sub, orb, desc], i) => {
@@ -456,5 +456,14 @@ export class SpaceMenu {
       el('div', 'sx2-lock', r, 'FLY');
       r.addEventListener('click', go[i]);
     });
+    // the rest of the solar system
+    const r = el('div', 'sx2-card open sx2-dest', this.side);
+    el('div', 'sx2-orb', r).style.background = 'radial-gradient(circle at 32% 28%, #fff1c8, #d9a64a 45%, #5a3a12 80%)';
+    const t = el('div', 'sx2-card-t', r);
+    el('div', 'sx2-card-l', t, 'EVERY OTHER WORLD');
+    el('div', 'sx2-card-s mono', t, 'SOLAR SYSTEM EXPLORER');
+    el('div', 'sx2-card-d', t, 'Every planet and major moon at real scale, on the real orbits.');
+    el('div', 'sx2-lock', r, 'GO');
+    r.addEventListener('click', () => this.cb.onExplore());
   }
 }

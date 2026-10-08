@@ -60,6 +60,8 @@ float n3(vec3 p) {
 void main() {
   #include <logdepthbuf_fragment>
   float t = clamp(vT, 0.0, 1.0);
+  // (0 at the outline: extrapolated past it on anti-aliased edges, it must not go negative in pow())
+  float edge = clamp(vEdge, 0.0, 1.0);
   // turbulence streaming down the flame: coarse billows and fine flicker
   vec3 q = vec3(cos(vAng) * 2.2, sin(vAng) * 2.2, t * len * 0.09 - time * 9.0) + seed;
   float n = n3(q) * 0.6 + n3(q * 2.7 + vec3(0.0, 0.0, -time * 6.0)) * 0.3 + n3(q * 7.1) * 0.1;
@@ -68,11 +70,11 @@ void main() {
   float hot = exp(-t * 6.5);
   // shock diamonds: bright knots down the core in thick air
   float dpos = t * 9.0;
-  float dia = diamonds * pow(0.5 + 0.5 * cos(dpos * 6.2832), 10.0) * exp(-t * 2.6) * pow(vEdge, 3.0);
+  float dia = diamonds * pow(0.5 + 0.5 * cos(dpos * 6.2832), 10.0) * exp(-t * 2.6) * pow(edge, 3.0);
   // the F-1's turbine exhaust: a dark, fuel-rich curtain hugging the plume for its first stretch
-  float shade = 1.0 - curtain * smoothstep(0.0, 0.03, t) * (1.0 - smoothstep(0.07, 0.2, t)) * (1.0 - pow(vEdge, 2.0)) * 0.85;
+  float shade = 1.0 - curtain * smoothstep(0.0, 0.03, t) * (1.0 - smoothstep(0.07, 0.2, t)) * (1.0 - pow(edge, 2.0)) * 0.85;
   vec3 c = mix(mix(smoke, outer, smoothstep(0.85, 0.35, t)), core, hot);
-  c *= along * pow(vEdge, 1.2) * billow * shade;
+  c *= along * pow(edge, 1.2) * billow * shade;
   c += core * dia * 2.2;
   gl_FragColor = vec4(c * power, 1.0);
 }`;

@@ -59,26 +59,28 @@ export class LogbookModal {
 
     const grid = el('div', 'lb-grid', this.body);
 
-    // per aircraft
-    const jets = el('div', 'card', grid);
+    // per aircraft: a row for each jet (a column each no longer fits), across the whole width
+    const jets = el('div', 'card lb-wide', grid);
     el('h3', '', jets, 'BY AIRCRAFT');
-    const jt = el('table', 'specs', jets);
+    const jt = el('table', 'specs lb-jets', el('div', 'lb-scroll', jets));
+    const cols: [string, (a: (typeof AIRCRAFT_TYPES)[number]) => string][] = [
+      ['SORTIES', (a) => String(b.byJet[a].sorties)],
+      ['HOURS', (a) => fmtHours(b.byJet[a].flightSec)],
+      ['KILLS', (a) => String(b.byJet[a].kills)],
+      ['LOSSES', (a) => String(b.byJet[a].losses)],
+      ['EJECTIONS', (a) => String(b.byJet[a].ejections)],
+      ['LANDINGS', (a) => `${b.byJet[a].landings}${b.byJet[a].greasers ? ` (${b.byJet[a].greasers}★)` : ''}`],
+      ['BEST WAVE', (a) => (b.bestWaveByJet[a] ? String(b.bestWaveByJet[a]) : '—')],
+      ['SHOT DOWN', (a) => String(b.killsOf[a] ?? 0)],
+    ];
     const hr = el('tr', '', jt);
     el('td', '', hr, '');
-    for (const a of AIRCRAFT_TYPES) el('td', '', hr, SPECS[a].shortName.toUpperCase());
-    const row = (label: string, f: (a: (typeof AIRCRAFT_TYPES)[number]) => string) => {
+    for (const [label] of cols) el('td', '', hr, label);
+    for (const a of AIRCRAFT_TYPES) {
       const tr = el('tr', '', jt);
-      el('td', '', tr, label);
-      for (const a of AIRCRAFT_TYPES) el('td', '', tr, f(a));
-    };
-    row('SORTIES', (a) => String(b.byJet[a].sorties));
-    row('HOURS', (a) => fmtHours(b.byJet[a].flightSec));
-    row('KILLS', (a) => String(b.byJet[a].kills));
-    row('LOSSES', (a) => String(b.byJet[a].losses));
-    row('EJECTIONS', (a) => String(b.byJet[a].ejections));
-    row('LANDINGS', (a) => `${b.byJet[a].landings}${b.byJet[a].greasers ? ` (${b.byJet[a].greasers}★)` : ''}`);
-    row('BEST WAVE', (a) => (b.bestWaveByJet[a] ? String(b.bestWaveByJet[a]) : '—'));
-    row('SHOT DOWN', (a) => String(b.killsOf[a] ?? 0));
+      el('td', '', tr, SPECS[a].shortName.toUpperCase());
+      for (const [, f] of cols) el('td', '', tr, f(a));
+    }
 
     // duel / records
     const dr = el('div', 'card', grid);

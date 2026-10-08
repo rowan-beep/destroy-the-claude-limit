@@ -184,7 +184,7 @@ export class EdlSequence {
     const wm = new THREE.ShaderMaterial({
       uniforms: { k: { value: 0 } },
       vertexShader: 'varying float vY; varying vec3 vN; varying vec3 vV; void main(){ vY = position.y / 60.0; vec4 mv = modelViewMatrix * vec4(position,1.0); vN = normalize(normalMatrix*normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
-      fragmentShader: 'uniform float k; varying float vY; varying vec3 vN; varying vec3 vV; void main(){ float edge = pow(1.0 - abs(dot(vN, vV)), 1.5); float a = k * (1.0 - vY) * (1.0 - vY) * (0.25 + edge); gl_FragColor = vec4(vec3(2.4, 1.1, 0.7) * a, a); }',
+      fragmentShader: 'uniform float k; varying float vY; varying vec3 vN; varying vec3 vV; void main(){ float edge = pow(max(1.0 - abs(dot(vN, vV)), 0.0), 1.5); float a = k * (1.0 - vY) * (1.0 - vY) * (0.25 + edge); gl_FragColor = vec4(vec3(2.4, 1.1, 0.7) * a, a); }',
       transparent: true,
       depthWrite: false,
       blending: THREE.AdditiveBlending,

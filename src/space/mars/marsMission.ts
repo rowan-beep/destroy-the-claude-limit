@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import type { LaunchSite } from '../../ui/menu/launchSite';
 import { PAD2 } from '../../ui/menu/starbasePad';
+import { MARS_KEYS } from '../keyHelp';
 import { SpaceScene } from '../spaceScene';
 import { sunDirection } from '../flightSim';
 import { EARTH, PAD, V3, earthAngle, ecefDir, padScene, rotY } from '../universe';
@@ -264,17 +265,7 @@ export class MarsMission {
     exit.addEventListener('click', () => this.setPaused(true));
     this.elFlash = el('div', 'mm-flash', this.ui);
     this.elHelp = el('div', 'mm-help', this.ui);
-    this.elHelp.innerHTML = [
-      ['SPACE', 'the next step (launch, refuel, injection burn…)'],
-      ['F', 'fast forward to the next event'],
-      ['1 … 0  ,  .', 'time warp: a speed, or the next mark (or drag the slider)'],
-      ['T', 'autopilot on / off'],
-      ['W S / A D', 'pitch / yaw (autopilot off)'],
-      ['SHIFT / CTRL', 'throttle up / down (autopilot off)'],
-      ['M', 'map'],
-      ['DRAG · WHEEL', 'look around · zoom'],
-      ['ESC', 'pause'],
-    ].map(([k, v]) => `<div><b>${k}</b>${v}</div>`).join('');
+    this.elHelp.innerHTML = MARS_KEYS.map(([k, v]) => `<div><b>${k}</b>${v}</div>`).join('');
     this.elHelp.addEventListener('click', () => this.elHelp.classList.remove('show'));
     this.elCard = el('div', 'mm-card', this.ui);
     const cb = el('div', 'mm-card-b', this.elCard);

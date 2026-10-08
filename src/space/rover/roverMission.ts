@@ -11,6 +11,7 @@
 
 import * as THREE from 'three';
 import { MarsView } from '../mars/marsView';
+import { ROVER_KEYS } from '../keyHelp';
 import { marsHeight, regionName } from '../mars/marsGlobe';
 import { MARS, Vec, marsState, vnorm, vscale, dateText } from '../mars/marsPhysics';
 import { boulderGeometry, rockMaterial } from '../mars/marsSurface';
@@ -137,6 +138,11 @@ const CSS = `
 .rv-map{position:absolute;right:16px;bottom:70px;width:200px;height:200px;border-radius:10px;background:#1a110cc0;border:1px solid #ffffff1c}
 .rv-lab{position:absolute;transform:translate(-50%,-100%);font-size:12px;font-weight:700;letter-spacing:.12em;text-shadow:0 1px 3px #000;white-space:nowrap;text-align:center}
 .rv-lab i{display:block;font-style:normal;font-weight:500;font-size:11px;color:#f2d7bf}
+.rv-lab.next::after{content:'';display:block;margin:5px auto 0;width:9px;height:9px;transform:rotate(45deg);border:2px solid #ffb27a;animation:rvPulse 1.4s ease-in-out infinite}
+.rv-goal{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:5px;pointer-events:none;color:#ffd2a8;font-size:12px;font-weight:700;letter-spacing:.12em;text-shadow:0 1px 3px #000;white-space:nowrap;text-align:center}
+.rv-goal b{display:block;width:22px;height:22px;background:#ffb27a;clip-path:polygon(0 8%,100% 50%,0 92%,22% 50%);animation:rvPulse 1.4s ease-in-out infinite}
+.rv-goal i{display:block;font-style:normal;font-weight:500;font-size:11px;color:#f2d7bf}
+@keyframes rvPulse{50%{opacity:.45}}
 .rv-flash{position:absolute;left:50%;top:22%;transform:translateX(-50%);font-size:30px;font-weight:800;letter-spacing:.2em;text-align:center;text-shadow:0 2px 12px #000;opacity:0;transition:opacity .6s}
 .rv-flash.show{opacity:1}
 .rv-card{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#0008;pointer-events:auto}
@@ -337,6 +343,10 @@ export class RoverMission {
   private keys = new Set<string>();
   private drag: { id: number; x: number; y: number } | null = null;
   private lastDrag = -1e9;
+  /** the rover's heading last frame: the chase camera turns with it (null = put the camera behind) */
+  private camHeading: number | null = null;
+  /** the job shot the player took the camera away from: it stays theirs until the next shot */
+  private jobOff: string | null = null;
   private act: Activity | null = null;
   /** the coring job under way, and what it said last frame (for the camera) */
   private drillOp: DrillOp | null = null;
@@ -415,15 +425,7 @@ export class RoverMission {
     this.elFlash = el('div', 'rv-flash', this.ui);
     this.elWarn = el('div', 'rv-warn', this.ui);
     this.elHelp = el('div', 'rv-help', this.ui);
-    this.elHelp.innerHTML = [
-      ['W / S', 'drive forward / back'],
-      ['A / D', 'steer (alone: turn on the spot)'],
-      ['SPACE', 'the job at a target (drill, laser, helicopter)'],
-      ['1 … 6 · , .', 'time warp (or drag the slider)'],
-      ['C', 'camera: chase, orbit, Mastcam'],
-      ['DRAG · WHEEL', 'look around · zoom'],
-      ['ESC', 'pause'],
-    ].map(([k, v]) => `<div><b>${k}</b>${v}</div>`).join('');
+    this.elHelp.innerHTML = ROVER_KEYS.map(([k, v]) => `<div><b>${k}</b>${v}</div>`).join('');
     this.elHelp.addEventListener('click', () => this.elHelp.classList.remove('show'));
     this.elCard = el('div', 'rv-card', this.ui);
     const cb = el('div', 'rv-card-b', this.elCard);
@@ -475,6 +477,7 @@ export class RoverMission {
       this.drag.x = e.clientX;
       this.drag.y = e.clientY;
       this.lastDrag = performance.now();
+      if (this.act) this.jobOff = this.jobShot();
       if (this.camMode === 'mast') {
         this.mastAz -= dx * 0.004;
         this.mastEl = Math.max(-0.9, Math.min(0.9, this.mastEl - dy * 0.004));
@@ -556,6 +559,7 @@ export class RoverMission {
     this.shade.w = 0;
     this.paused = false;
     this.camMode = 'chase';
+    this.camHeading = null;
     this.camYaw = 0.6;
     this.camPitch = 0.25;
     this.camDist = 9;
@@ -647,6 +651,11 @@ export class RoverMission {
   private setWarp(w: number): void {
     this.warp = w;
     this.warpBar.set(w);
+  }
+
+  /** which of the job camera's shots is on (the activity, and the drill's view) */
+  private jobShot(): string {
+    return `${this.act?.kind ?? ''}|${this.drillFrame?.view ?? ''}`;
   }
 
   private cycleCam(): void {
@@ -1118,7 +1127,7 @@ export class RoverMission {
     let camL: THREE.Vector3;
     let lookL: THREE.Vector3;
     if (this.edl) {
-      const c = this.edl.camera(this.camYaw, this.camPitch, performance.now() - this.lastDrag > 3500);
+      const c = this.edl.camera(this.camYaw, this.camPitch, !this.drag && performance.now() - this.lastDrag > 3500);
       camL = c.cam;
       lookL = c.look;
     } else if (this.camMode === 'mast') {
@@ -1129,13 +1138,14 @@ export class RoverMission {
       this.site.worldToLocal(camL);
       this.site.worldToLocal(lookL);
     } else {
-      // chase: behind the rover, swinging round with its heading when nobody is dragging
-      const idle = performance.now() - this.lastDrag > 2500;
-      if (this.camMode === 'chase' && idle) {
-        const want = -d.heading + Math.PI + 0.5;
-        let dy = ((want - this.camYaw + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
-        this.camYaw += dy * Math.min(1, dt * 0.8);
-      }
+      // chase: starts behind the rover, then turns with it, keeping the angle the player
+      // dragged it to (it used to swing back behind 2.5 s after every drag)
+      const idle = !this.drag && performance.now() - this.lastDrag > 2500;
+      if (this.camMode === 'chase') {
+        if (this.camHeading === null) this.camYaw = -d.heading + Math.PI + 0.5;
+        else this.camYaw -= ((d.heading - this.camHeading + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+        this.camHeading = d.heading;
+      } else this.camHeading = null;
       if (this.camMode === 'orbit' && idle) this.camYaw += dt * 0.05;
       const cp = Math.cos(this.camPitch);
       camL = target.clone().add(new THREE.Vector3(Math.sin(this.camYaw) * cp, Math.sin(this.camPitch), Math.cos(this.camYaw) * cp).multiplyScalar(this.camDist));
@@ -1144,8 +1154,9 @@ export class RoverMission {
       lookL = target;
     }
     // the activity cameras: close on the arm, or on the helicopter
-    const jobView = !!this.act && !this.edl && performance.now() - this.lastDrag > 2500 && this.camMode !== 'mast';
-    // (dragging the view takes it over; the job camera picks up again from wherever it is left)
+    if (!this.act) this.jobOff = null;
+    const jobView = !!this.act && !this.edl && !this.drag && this.jobShot() !== this.jobOff && this.camMode !== 'mast';
+    // (dragging the view takes it over until the job's next shot, which picks up from wherever it was left)
     if (!jobView) this.jobCam = null;
     if (jobView && this.act) {
       if (this.act.kind === 'heliFly' || this.act.kind === 'heli') {
@@ -1299,15 +1310,28 @@ export class RoverMission {
     const def = this.def!;
     let html = '';
     const d = this.drive!;
+    // the next target is always marked: on it when in view, else at the screen's edge pointing the way
+    const next = this.edl ? -1 : def.targets.findIndex((_, k) => !this.done.has(k));
     if (!this.edl)
       def.targets.forEach((tg, i) => {
         const p = new THREE.Vector3(tg.e, this.ground(tg.e, tg.n) + 3, -tg.n).applyMatrix4(this.site.matrixWorld).project(cam);
-        if (p.z > 1 || p.z < -1) return;
-        const x = (p.x * 0.5 + 0.5) * w, y = (-p.y * 0.5 + 0.5) * h;
-        if (x < -50 || x > w + 50 || y < -50 || y > h + 50) return;
         const dist = Math.hypot(tg.e - d.e, tg.n - d.n);
+        const x = (p.x * 0.5 + 0.5) * w, y = (-p.y * 0.5 + 0.5) * h;
+        const inView = p.z <= 1 && p.z >= -1 && x > 70 && x < w - 70 && y > 70 && y < h - 90;
+        if (i === next && !inView) {
+          // (behind the camera the projection comes out mirrored)
+          const s = p.z > 1 ? -1 : 1;
+          let dx = s * p.x * w * 0.5, dy = -s * p.y * h * 0.5;
+          if (Math.hypot(dx, dy) < 1e-3) dy = 1;
+          const k = Math.min((w * 0.5 - 90) / Math.max(Math.abs(dx), 1e-6), (h * 0.5 - 100) / Math.max(Math.abs(dy), 1e-6));
+          const gx = w * 0.5 + dx * k, gy = h * 0.5 + dy * k;
+          html += `<div class="rv-goal" style="left:${gx.toFixed(0)}px;top:${gy.toFixed(0)}px"><b style="transform:rotate(${Math.atan2(dy, dx).toFixed(3)}rad)"></b>${tg.name}<i>${dist.toFixed(0)} m</i></div>`;
+          return;
+        }
+        if (p.z > 1 || p.z < -1) return;
+        if (x < -50 || x > w + 50 || y < -50 || y > h + 50) return;
         const col = this.done.has(i) ? '#8ff0b8' : '#ffd2a8';
-        html += `<div class="rv-lab" style="left:${x.toFixed(0)}px;top:${y.toFixed(0)}px;color:${col}">${tg.name}<i>${this.done.has(i) ? 'DONE' : dist.toFixed(0) + ' m'}</i></div>`;
+        html += `<div class="rv-lab${i === next ? ' next' : ''}" style="left:${x.toFixed(0)}px;top:${y.toFixed(0)}px;color:${col}">${tg.name}<i>${this.done.has(i) ? 'DONE' : dist.toFixed(0) + ' m'}</i></div>`;
       });
     if (html !== this.elLabels.innerHTML) this.elLabels.innerHTML = html;
   }

@@ -16,6 +16,7 @@ import { HeatHazeShader, HazeSource, writeHaze } from './heatHaze';
 import { SunShaftPass } from './cinematic';
 import { FinalPass } from './finalPass';
 import { DofPass } from './dofPass';
+import { BAD_TEXEL_GLSL, SCRUB_GLSL } from './scrub';
 
 /** the airshow camera's look on the picture (see FinalPass) */
 export interface CameraLook {
@@ -56,10 +57,11 @@ class ScenePass extends Pass {
   readonly msaa: THREE.WebGLRenderTarget;
   overlayScene: THREE.Scene | null = null;
   overlayCamera: THREE.Camera | null = null;
+  // (the copy into the chain fills in broken pixels, so no blur downstream spreads them)
   private copy = new THREE.ShaderMaterial({
-    uniforms: { tDiffuse: { value: null as THREE.Texture | null } },
+    uniforms: { tDiffuse: { value: null as THREE.Texture | null }, px: { value: new THREE.Vector2(1, 1) } },
     vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: 'uniform sampler2D tDiffuse; varying vec2 vUv; void main(){ gl_FragColor = texture2D(tDiffuse, vUv); }',
+    fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 px; varying vec2 vUv;\n${SCRUB_GLSL}\nvoid main(){ gl_FragColor = sceneTexel(tDiffuse, vUv, px); }`,
     depthTest: false,
     depthWrite: false,
   });
@@ -77,6 +79,8 @@ class ScenePass extends Pass {
   }
   setSize(w: number, h: number): void {
     this.msaa.setSize(w, h);
+    this.copy.uniforms.px.value.set(1 / Math.max(1, w), 1 / Math.max(1, h));
+    (this.haze.uniforms as unknown as typeof HeatHazeShader.uniforms).px.value.set(1 / Math.max(1, w), 1 / Math.max(1, h));
   }
   render(r: THREE.WebGLRenderer, _write: THREE.WebGLRenderTarget, read: THREE.WebGLRenderTarget): void {
     const auto = r.autoClear;
@@ -265,10 +269,12 @@ export class GameRenderer {
     // (sun disc, afterburners, flares, explosions, runway lights)
     this.bloomPass = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.55, 0.55, 2.6);
     // an overflowed pixel must not reach the blur (it would smear black across the screen)
-    this.bloomPass.materialHighPassFilter.fragmentShader = this.bloomPass.materialHighPassFilter.fragmentShader.replace(
-      'vec4 texel = texture2D( tDiffuse, vUv );',
-      'vec4 texel = texture2D( tDiffuse, vUv ); if ( any( isnan( texel ) ) ) texel = vec4( 0.0 ); texel = clamp( texel, 0.0, 256.0 );',
-    );
+    this.bloomPass.materialHighPassFilter.fragmentShader = this.bloomPass.materialHighPassFilter.fragmentShader
+      .replace('void main() {', BAD_TEXEL_GLSL + '\nvoid main() {')
+      .replace(
+        'vec4 texel = texture2D( tDiffuse, vUv );',
+        'vec4 texel = texture2D( tDiffuse, vUv ); if ( badTexel( texel ) ) texel = vec4( 0.0 ); texel = clamp( texel, 0.0, 256.0 );',
+      );
     // haze bends the world only: the cockpit is drawn over it afterwards
     this.hazePass = new ShaderPass(HeatHazeShader);
     this.hazePass.enabled = false;

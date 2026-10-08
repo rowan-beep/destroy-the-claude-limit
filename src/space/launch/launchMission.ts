@@ -31,6 +31,7 @@ import { planClipper, clipperAt, ClipperPlan, CLIPPER_DATES, solveFreeReturnStep
 import { SolarView } from '../solar/solarView';
 import { WarpBar, WarpFx } from '../warp';
 import { LookMomentum } from '../lookMomentum';
+import { LAUNCH_KEYS } from '../keyHelp';
 import { neutralEnv } from '../mars/marsMission';
 import { BODIES, bodyPos, BodyId, PLANETS, planetState } from '../solar/bodies';
 import { AU, Vec, dateText, propagate } from '../mars/marsPhysics';
@@ -329,15 +330,7 @@ export class LaunchMission {
     ex.addEventListener('click', () => this.setPaused(true));
     this.elFlash = el('div', 'mm-flash', this.ui);
     this.elHelp = el('div', 'mm-help', this.ui);
-    this.elHelp.innerHTML = [
-      ['SPACE', 'the next step (launch, burns…)'],
-      ['F', 'fast forward to the next event'],
-      ['1 … 0 · , .', 'time warp (or drag the slider)'],
-      ['C', 'camera: follow the rocket or the boosters'],
-      ['M', 'the map: the Earth, your track and the orbit ahead (drag to turn it, wheel to zoom)'],
-      ['DRAG · WHEEL', 'look around · zoom'],
-      ['ESC', 'pause'],
-    ].map(([k, v]) => `<div><b>${k}</b>${v}</div>`).join('');
+    this.elHelp.innerHTML = LAUNCH_KEYS.map(([k, v]) => `<div><b>${k}</b>${v}</div>`).join('');
     this.elHelp.addEventListener('click', () => this.elHelp.classList.remove('show'));
     this.elCard = el('div', 'mm-card', this.ui);
     const cb = el('div', 'mm-card-b', this.elCard);

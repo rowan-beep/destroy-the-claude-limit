@@ -13,6 +13,7 @@ import { ENGINES, FlightSim, PART_ORDER, PartId, PARTS, SasMode, Status, qrot } 
 import type { Action } from './autopilot';
 import type { MoonwalkStats } from './moonwalk';
 import { WarpBar, WarpFx } from './warp';
+import { SATURN_KEYS, MOONWALK_KEYS } from './keyHelp';
 
 /** the marks on the Saturn V's time-warp slider (it runs smoothly in between) */
 export const WARP_MARKS = [1, 2, 10, 100, 500, 1000, 10_000];
@@ -327,7 +328,7 @@ export class FlightUI {
     this.evaFlag = el('div', 'fx-eva-o', ob, 'Plant the flag');
     el('div', 'fx-eva-o', ob, 'Climb back aboard to finish');
     const keys = el('div', 'fx-panel fx-eva-k', this.eva);
-    for (const [k, t] of [['W A S D', 'walk'], ['SHIFT', 'lope (the Apollo bunny hop)'], ['SPACE', 'jump'], ['E', 'plant the flag · climb aboard'], ['V', 'change spacesuit'], ['MOUSE', 'drag to look round · scroll to zoom']]) {
+    for (const [k, t] of MOONWALK_KEYS) {
       const r = el('div', 'fx-eva-key', keys);
       el('span', 'k', r, k);
       el('span', 't', r, t);
@@ -370,18 +371,7 @@ export class FlightUI {
     const hp = this.helpEl;
     el('div', 'fx-h', hp, 'FLYING THE SATURN V');
     const easy = el('div', 'fx-help-easy', hp);
-    const easyRows: [string, string][] = [
-      ['SPACE', 'Do the highlighted goal: LAUNCH, GO TO THE MOON, LAND ON THE MOON…'],
-      ['2 · 3 · 4', 'The other goal buttons'],
-      ['AUTO · F', 'Fast forward: skips the waiting and slows down by itself for every burn'],
-      ['WARP SLIDER', 'Drag it to any speed from 1× to 10,000×: the clock runs at exactly the speed you set (burns and the air hold it back)'],
-      ['W A S D', 'Steer yourself (this switches the autopilot off)'],
-      ['Mouse', 'Drag to look around, scroll to zoom'],
-      ['M · C', 'Map of your orbit · change camera'],
-      ['B B', 'ABORT during the climb: the escape tower saves the crew'],
-      ['P', 'Pro controls: every switch of the real rocket'],
-      ['ESC', 'Pause'],
-    ];
+    const easyRows = SATURN_KEYS;
     for (const [k, t] of easyRows) {
       const r = el('div', 'fx-help-r', easy);
       el('span', 'k', r, k);

@@ -176,6 +176,8 @@ export class MainMenu {
   // --- the SIMPLE menu ---------------------------------------------------------------------------------------------
   /** the modes it offers (a picture each), in order */
   private static readonly SIMPLE_MODES: [ModeId, string, string][] = [
+    // (first: where a new player most needs it)
+    ['tutorial', 'FLIGHT SCHOOL', '11'],
     ['free', 'FREE FLIGHT', '04'],
     ['spotter', 'AIRSHOW', '16'],
     ['campaign', 'CAMPAIGN', '13'],
@@ -199,6 +201,7 @@ export class MainMenu {
         title,
         sub: m === 'campaign' ? `Mission ${(m === this.cfg.mode ? this.cfg.campaignMission : nextCampaignMission()) + 1} of ${CAMPAIGN.length}` : MODE_INFO[m].subtitle,
         img: picture('air', pic),
+        tag: m === 'tutorial' ? 'NEW? START HERE' : undefined,
         on: m === this.cfg.mode,
         click: () => {
           if (m === 'campaign' && this.cfg.mode !== 'campaign') this.cfg.campaignMission = nextCampaignMission();
@@ -617,7 +620,9 @@ export class MainMenu {
       el('div', 'mm-lo-t', c, title);
       const counts = new Map<string, number>();
       for (const st of Object.values(l.stores)) counts.set(st, (counts.get(st) ?? 0) + 1);
-      el('div', 'mm-lo-d', c, detail || [...counts].map(([k, n]) => `${n}× ${MISSILES[k as keyof typeof MISSILES]?.short ?? 'FUEL TANK'}`).join(' · ') || 'Clean');
+      const d = el('div', 'mm-lo-d', c, detail || [...counts].map(([k, n]) => `${n}× ${MISSILES[k as keyof typeof MISSILES]?.short ?? 'FUEL TANK'}`).join(' · ') || 'Clean');
+      // (a short window shows only the chosen loadout's stores: the rest on hover)
+      c.title = `${title} — ${d.textContent}`;
       c.addEventListener('click', () => {
         this.cfg.loadoutId = l.id;
         this.cb.onSelectJet(t, l.id);
@@ -626,8 +631,10 @@ export class MainMenu {
     }
     el('div', 'mm-h', p, 'PERFORMANCE');
     const all = AIRCRAFT_TYPES.map((x) => SPECS[x]);
+    // (two to a row, so the panel fits a laptop screen without cutting rows off)
+    const bars = el('div', 'mm-bars', p);
     const bar = (label: string, v: number, max: number, text: string) => {
-      const r = el('div', 'mm-bar', p);
+      const r = el('div', 'mm-bar', bars);
       const top = el('div', 'mm-bar-top', r);
       el('span', '', top, label);
       el('span', 'mm-bar-v', top, text);

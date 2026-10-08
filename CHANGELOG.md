@@ -4,6 +4,41 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu lists the space updates.
 
+## v5.8.0 (2026-10-08)
+
+### Air Combat: No more dots on the coastlines, and tidier menus
+
+- **Fixed: No more coloured dots on distant coastlines**
+  - Far-off coasts were outlined with dotted green and black lines, and through the airshow camera's depth of field those dots grew into coloured circles. A shading fault where the beach meets the sea bed made broken pixels there; it is fixed.
+  - Any broken pixel is now also filled in from its neighbours before the picture is blurred, so depth of field and glow can never spread one into a circle.
+- **Fixed: The flight HUD stays out of the menus**
+  - Closing the settings put the flight HUD over the menu (it then showed behind the Logbook too). It now only appears in flight.
+- **New: Flight School on the SIMPLE menu**
+  - It is the first tile, marked NEW? START HERE: the place a new pilot most needs it.
+- **Improved: Logbook: a row for each jet**
+  - The BY AIRCRAFT table had a column for every jet and ran out of its box. Now each jet has its own row, across the whole width.
+- **Improved: The hangar panel fits a laptop screen**
+  - The performance bars sit two to a row. On shorter windows the loadout list is tighter (only the chosen loadout spells out its stores; the others show them on hover) and the weapon and sensor facts are left to the FULL DOSSIER, so nothing is cut off, down to 1280 × 720.
+
+### Space Exploration: No more stars through the Earth, a rover camera that stays put
+
+- **Fixed: No more stars showing through the Earth**
+  - From orbit, and most of all in the map view, the stars showed through the Earth's night side as a speckle of coloured dots. The sky is now drawn behind everything solid.
+- **Fixed: Clean rocket plumes**
+  - The edges of the exhaust plumes could break up into dotted coloured lines. The same fault is fixed on the edges of the Mars dust devils and the glowing wake behind the capsule on the way down to Mars.
+- **Improved: The rover camera stays where you put it**
+  - Drag the view round and it keeps that angle, turning with the rover as it drives. It used to swing back behind the rover 2.5 s after you let go.
+  - During a job (drilling, flying Ingenuity) the job's camera now waits for its next shot instead of snapping straight back.
+- **New: Always know where the next target is**
+  - The next target is marked on screen all the time: a pulsing diamond on it when it is in view, or an arrow at the edge of the screen pointing the way, with its name and distance.
+- **New: A space CONTROLS page**
+  - CONTROLS on the space menu now lists the keys of each mission (the Saturn V, walking on the Moon, the launches, Starship to Mars, the rovers and the Solar System Explorer) instead of the jet's.
+- **Fixed: No flight HUD over the space menu**
+  - Closing the settings put the jet's HUD over the space menu. It no longer appears there.
+- **Improved: Missions and destinations easier to read**
+  - The MISSIONS column is wider and every name fits on one line (EUROPA CLIPPER and CREW DRAGON TO THE ISS, with the rocket in the line below).
+  - DESTINATIONS says what it is: shortcuts that start you where each trip begins. A new card, EVERY OTHER WORLD, opens the Solar System Explorer.
+
 ## v5.7.1 (2026-10-08)
 
 ### Air Combat: See the hangar from the SIMPLE menu

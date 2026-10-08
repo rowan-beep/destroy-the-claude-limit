@@ -296,7 +296,7 @@ void main() {
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
   gl_Position = projectionMatrix * mv;
   #ifdef USE_REVERSED_DEPTH_BUFFER
-  gl_Position.z = gl_Position.w * 0.000001;
+  gl_Position.z = 0.0;
   #else
   gl_Position.z = gl_Position.w * 0.999999;
   #endif
@@ -416,7 +416,7 @@ export class SpaceScene {
     const gPole = new THREE.Vector3(...ecefDir(27.13, 192.86 - 180)).normalize();
     this.milkyMat = new THREE.ShaderMaterial({
         uniforms: { gPole: { value: gPole }, bright: { value: 1 } },
-        vertexShader: `varying vec3 vDir; void main(){ vDir = position; vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position = p;\n#ifdef USE_REVERSED_DEPTH_BUFFER\ngl_Position.z = p.w * 0.000001;\n#else\ngl_Position.z = p.w * 0.999999;\n#endif\n}`,
+        vertexShader: `varying vec3 vDir; void main(){ vDir = position; vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position = p;\n#ifdef USE_REVERSED_DEPTH_BUFFER\ngl_Position.z = 0.0;\n#else\ngl_Position.z = p.w * 0.999999;\n#endif\n}`,
         fragmentShader: MILKY_FRAG,
         side: THREE.BackSide,
         depthWrite: false,

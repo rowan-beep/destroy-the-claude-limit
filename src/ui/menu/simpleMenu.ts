@@ -142,10 +142,10 @@ export function renderSimple(host: HTMLElement, v: SimpleView): void {
   el('div', 'sm-hint', host, 'DRAG TO LOOK AROUND · SCROLL TO ZOOM');
   el('div', 'sm-h', host, v.heading);
   const tiles = el('div', 'sm-tiles', host);
-  // one row of up to six; more than that in two rows, so the view above stays open
+  // one row of up to seven; more than that in two rows, so the view above stays open
   const n = v.tiles.length;
-  tiles.style.setProperty('--cols', String(n <= 6 ? n : Math.ceil(n / 2)));
-  tiles.style.setProperty('--th', n <= 6 ? 'clamp(84px, 13vh, 140px)' : 'clamp(70px, 10vh, 112px)');
+  tiles.style.setProperty('--cols', String(n <= 7 ? n : Math.ceil(n / 2)));
+  tiles.style.setProperty('--th', n <= 7 ? 'clamp(84px, 13vh, 140px)' : 'clamp(70px, 10vh, 112px)');
   for (const t of v.tiles) {
     const b = el('button', 'sm-tile' + (t.on ? ' on' : ''), tiles) as HTMLButtonElement;
     b.type = 'button';

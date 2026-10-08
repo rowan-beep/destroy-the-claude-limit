@@ -204,7 +204,7 @@ async function boot(): Promise<void> {
       audio.init();
       settingsModal.show(true);
     },
-    onControls: () => controls.show(true, settings.input),
+    onControls: () => controls.showSpace(),
     onLaunch: (mode) => startSpace((sp) => sp.flight.start(mode)),
     onMars: () => startSpace((sp) => sp.mars.start()),
     onRover: (id) =>

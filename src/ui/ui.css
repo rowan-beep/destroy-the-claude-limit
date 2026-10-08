@@ -188,6 +188,8 @@ select { background: #111a22; color: var(--menu-text); border: 1px solid var(--m
 .bind-grid { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; font-size: 13px; }
 .bind-grid .bk { font-family: var(--mono); color: #bff5d2; cursor: pointer; border: 1px solid var(--menu-line); padding: 2px 8px; min-width: 140px; text-align: center; background: #111a22; }
 .bind-grid .bk.listening { border-color: var(--hud-amber); color: var(--hud-amber); }
+.keys-h { font-size: 12px; letter-spacing: 3px; color: var(--menu-dim); margin: 16px 0 6px; }
+.keys-ro .bk { cursor: default; }
 .pause-menu { width: 360px; display: flex; flex-direction: column; gap: 8px; padding: 18px; background: #0d151d; border: 1px solid var(--menu-line); }
 .pause-menu h2 { margin: 0 0 6px; text-align: center; letter-spacing: 6px; }
 .results { width: min(560px, 92vw); background: #0d151d; border: 1px solid var(--menu-line); padding: 20px 24px; }
@@ -222,6 +224,12 @@ select { background: #111a22; color: var(--menu-text); border: 1px solid var(--m
 .lb-tile b { font-size: 26px; font-family: var(--mono); color: #e9f3f8; font-variant-numeric: tabular-nums; }
 .lb-tile small { letter-spacing: 2px; color: var(--menu-dim); font-size: 11px; }
 .lb-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; }
+.lb-grid > .lb-wide { grid-column: 1 / -1; }
+.lb-scroll { overflow-x: auto; }
+.lb-jets { width: 100%; }
+.lb-jets td { white-space: nowrap; }
+.lb-jets td:not(:first-child) { text-align: right; color: #e9f3f8; padding-left: 14px; }
+.lb-jets tr:first-child td { font-size: 11px; letter-spacing: 2px; color: var(--menu-dim); }
 .specs.recent td:last-child, .specs.recent td { text-align: left; }
 .specs.recent td:last-child { text-align: right; }
 .lb-foot { display: flex; justify-content: flex-end; margin-top: 6px; }
@@ -778,8 +786,9 @@ body.touch-mode .weapon-bar { bottom: auto; top: calc(96px + env(safe-area-inset
 .mm-lo.on { border-color: var(--mm-acc); background: rgba(255, 170, 60, 0.12); }
 .mm-lo-t { font-size: 12.5px; font-weight: 800; letter-spacing: 0.08em; }
 .mm-lo-d { font-size: 11px; color: var(--mm-dim); margin-top: 2px; }
-.mm-bar { margin: 9px 0; }
-.mm-bar-top { display: flex; justify-content: space-between; font-size: 10.5px; letter-spacing: 0.16em; color: var(--mm-dim); margin-bottom: 4px; }
+.mm-bars { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; }
+.mm-bar { margin: 7px 0; min-width: 0; }
+.mm-bar-top { display: flex; justify-content: space-between; gap: 6px; font-size: 10px; letter-spacing: 0.1em; color: var(--mm-dim); margin-bottom: 4px; white-space: nowrap; }
 .mm-bar-v { color: #fff; font-weight: 700; letter-spacing: 0.06em; }
 .mm-bar-track { height: 4px; background: rgba(255, 255, 255, 0.08); border-radius: 2px; overflow: hidden; }
 .mm-bar-fill { height: 100%; background: linear-gradient(90deg, #d0781b, var(--mm-acc)); border-radius: 2px; transition: width 0.35s ease; }
@@ -788,6 +797,19 @@ body.touch-mode .weapon-bar { bottom: auto; top: calc(96px + env(safe-area-inset
 .mm-fact-k { color: var(--mm-dim); font-size: 10.5px; letter-spacing: 0.14em; }
 .mm-fact-v { text-align: right; }
 .mm-acts { display: flex; gap: 6px; margin-top: 14px; }
+/* a shorter window: tighter loadouts, and the facts left to the full dossier, so nothing is cut off */
+@media (max-height: 960px) {
+  .mm-right .mm-h:not(:first-child) { margin-top: 12px; }
+  .mm-lo { padding: 6px 10px; }
+  .mm-loadouts { gap: 5px; }
+  .mm-right .mm-facts { display: none; }
+  .mm-acts { margin-top: 10px; }
+}
+/* a laptop screen: only the chosen loadout spells out its stores (the others on hover) */
+@media (max-height: 800px) {
+  .mm-lo { padding: 5px 10px; }
+  .mm-lo:not(.on) .mm-lo-d { display: none; }
+}
 
 /* THEATER */
 .mm-map { padding: 14px 16px; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--mm-line); background: rgba(255, 255, 255, 0.025); cursor: pointer; }
@@ -938,7 +960,7 @@ body:has(#hud.cockpit-clean) .wx-widget { opacity: 0; pointer-events: none; }
 .sx2-stat-k { font-size: 8.5px; letter-spacing: 0.2em; color: var(--dim); text-align: center; }
 
 /* left panel */
-.sx2-side { left: 18px; top: 96px; bottom: 96px; width: 360px; padding: 18px; overflow-y: auto; scrollbar-width: thin; }
+.sx2-side { left: 18px; top: 96px; bottom: 96px; width: 430px; padding: 18px; overflow-y: auto; scrollbar-width: thin; }
 .sx2-side.swap .sx2-item { animation: sx2-item 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) calc(var(--i) * 0.06s) both; }
 .sx2.play .sx2-item { animation: sx2-item 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) calc(0.3s + var(--i) * 0.07s) both; }
 @keyframes sx2-item { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
@@ -951,7 +973,7 @@ body:has(#hud.cockpit-clean) .wx-widget { opacity: 0; pointer-events: none; }
 .sx2-card:hover::after { transform: translateX(120%); }
 .sx2-card-n { font-size: 20px; font-weight: 200; color: var(--a); width: 28px; font-family: 'Consolas', 'Menlo', monospace; }
 .sx2-card-t { flex: 1; min-width: 0; }
-.sx2-card-l { font-size: 14px; font-weight: 800; letter-spacing: 0.14em; display: flex; align-items: center; gap: 8px; }
+.sx2-card-l { font-size: 13.5px; font-weight: 800; letter-spacing: 0.09em; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .sx2-card-s { font-size: 11.5px; color: var(--dim); margin-top: 3px; }
 .sx2-card-s.mono { font-family: 'Consolas', 'Menlo', monospace; font-size: 10.5px; letter-spacing: 0.08em; }
 .sx2-card-d { font-size: 12px; color: #d6e2f5; margin-top: 6px; line-height: 1.45; }
@@ -1006,7 +1028,7 @@ body:has(#hud.cockpit-clean) .wx-widget { opacity: 0; pointer-events: none; }
 @keyframes sx2-pulse { 50% { opacity: 0.35; } }
 
 /* bottom */
-.sx2-hero { position: absolute; left: 400px; right: 340px; bottom: 34px; text-align: center; pointer-events: none !important; text-shadow: 0 2px 24px rgba(0, 0, 0, 0.7); }
+.sx2-hero { position: absolute; left: 470px; right: 340px; bottom: 34px; text-align: center; pointer-events: none !important; text-shadow: 0 2px 24px rgba(0, 0, 0, 0.7); }
 .sx2-hero-k { font-size: 11px; letter-spacing: 0.4em; color: #ffd3a8; }
 .sx2-hero-t { font-size: 34px; font-weight: 800; letter-spacing: 0.3em; margin-top: 6px; white-space: nowrap; }
 .sx2-hero-t span { display: inline-block; animation: sx2-letter 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both; }

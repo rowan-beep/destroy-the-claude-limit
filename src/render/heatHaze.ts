@@ -4,6 +4,7 @@
 // cooled); inside it the picture is displaced by noise that flows downstream.
 
 import * as THREE from 'three';
+import { SCRUB_GLSL } from './scrub';
 
 export const MAX_HAZE = 8;
 
@@ -24,6 +25,8 @@ export const HeatHazeShader = {
     time: { value: 0 },
     count: { value: 0 },
     aspect: { value: 1 },
+    /** one pixel, in uv */
+    px: { value: new THREE.Vector2(1, 1) },
     seg: { value: Array.from({ length: MAX_HAZE }, () => new THREE.Vector4()) },
     rad: { value: Array.from({ length: MAX_HAZE }, () => new THREE.Vector4()) },
   },
@@ -33,6 +36,8 @@ export const HeatHazeShader = {
     uniform float time;
     uniform int count;
     uniform float aspect;
+    uniform vec2 px;
+    ${SCRUB_GLSL}
     uniform vec4 seg[${MAX_HAZE}];   // exit uv, end uv
     uniform vec4 rad[${MAX_HAZE}];   // radius at exit, at end (uv height units), strength
     varying vec2 vUv;
@@ -64,7 +69,7 @@ export const HeatHazeShader = {
         vec2 g = vec2( n2( f ) + 0.5 * n2( f * 2.3 + 7.1 ), n2( f + 19.7 ) + 0.5 * n2( f * 2.3 + 3.3 ) ) - 0.75;
         off += g * w * R * 0.1;
       }
-      gl_FragColor = texture2D( tDiffuse, vUv + off * vec2( 1.0 / aspect, 1.0 ) );
+      gl_FragColor = sceneTexel( tDiffuse, vUv + off * vec2( 1.0 / aspect, 1.0 ), px );
     }`,
 };
 

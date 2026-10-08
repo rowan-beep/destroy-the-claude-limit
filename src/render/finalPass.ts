@@ -13,6 +13,7 @@
 
 import * as THREE from 'three';
 import { Pass, FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js';
+import { BAD_TEXEL_GLSL } from './scrub';
 
 const VERT = /* glsl */ `
 precision highp float;
@@ -49,11 +50,12 @@ uniform float camNoise;
 #include <colorspace_pars_fragment>
 in vec2 vUv;
 out vec4 fragColor;
+${BAD_TEXEL_GLSL}
 
 // one pixel of the HDR picture as it will be shown
 vec3 shown(vec2 uv) {
   vec3 c = texture(tDiffuse, uv).rgb;
-  if (any(isnan(c)) || any(notEqual(c, c))) c = vec3(0.0);
+  if (badTexel(vec4(c, 1.0))) c = vec3(0.0);
   c = min(max(c, vec3(0.0)), vec3(256.0));
   #ifdef CAMERA
     c *= camExposure;

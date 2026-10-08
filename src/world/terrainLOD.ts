@@ -313,7 +313,9 @@ export function createTerrainMaterial(): THREE.MeshLambertMaterial {
       .replace(
         '#include <color_fragment>',
         /* glsl */ `
-        diffuseColor.rgb *= pow( vColor.rgb, vec3( 2.2 ) );
+        // (with anti-aliasing an edge pixel's colour is extrapolated past the triangle and a
+        // near-black seabed channel dips below zero: pow() of that is NaN, dotting the coasts)
+        diffuseColor.rgb *= pow( max( vColor.rgb, vec3( 0.0 ) ), vec3( 2.2 ) );
         // surface relief (metres) for the lighting, and how much of this is snow
         float tBump = 0.0;
         float tSnow = 0.0;

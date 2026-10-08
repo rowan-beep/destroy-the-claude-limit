@@ -177,7 +177,8 @@ export class Hud {
     this.buildHelp(g);
     // an unarmed jet (the SR-71) has no weapons to show
     setClass(this.weaponBar, 'hidden', !!g.player && !g.player.spec.stations.some((st) => st.allowed.some((t) => t !== 'TANK')) && g.player.spec.gun.rounds === 0);
-    this.root.classList.remove('hidden');
+    // (whether it shows at all is the game state's call: a reset from the settings in the
+    // menus used to put the flight HUD over them)
     setClass(this.help, 'hidden', !g.settings.gameplay.showHelp);
   }
 

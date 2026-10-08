@@ -68,7 +68,7 @@ export class StarSky {
           vec4 mv = modelViewMatrix * vec4(position, 1.0);
           gl_Position = projectionMatrix * mv;
           #ifdef USE_REVERSED_DEPTH_BUFFER
-          gl_Position.z = gl_Position.w * 0.00001;
+          gl_Position.z = 0.0;
           #else
           gl_Position.z = gl_Position.w * 0.99999;
           #endif
@@ -92,7 +92,9 @@ export class StarSky {
     });
     const pts = new THREE.Points(buildStars(), this.mat);
     pts.frustumCulled = false;
-    pts.renderOrder = -10;
+    // drawn after everything solid, on the far plane: any planet or craft in front hides it
+    // (drawn first, the stars showed through the Earth's night side)
+    pts.renderOrder = 100001;
     if (!milky) {
       milky = new THREE.TextureLoader().load(milkyUrl);
       milky.colorSpace = THREE.SRGBColorSpace;
@@ -107,7 +109,7 @@ export class StarSky {
           vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
           gl_Position = p;
           #ifdef USE_REVERSED_DEPTH_BUFFER
-          gl_Position.z = p.w * 0.00001;
+          gl_Position.z = 0.0;
           #else
           gl_Position.z = p.w * 0.99999;
           #endif
@@ -138,7 +140,7 @@ export class StarSky {
     (this.mwMat.uniforms.toEq.value as THREE.Matrix3).set(1, 0, 0, 0, Math.cos(e), -Math.sin(e), 0, Math.sin(e), Math.cos(e));
     const mw = new THREE.Mesh(new THREE.SphereGeometry(900, 48, 24), this.mwMat);
     mw.frustumCulled = false;
-    mw.renderOrder = -11;
+    mw.renderOrder = 100000;
     this.group.add(mw, pts);
   }
 
