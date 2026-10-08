@@ -19,7 +19,7 @@ terrain against you.
 
 **Windows app:** [download TRIAD-Air-Combat.exe](https://github.com/rowan-beep/destroy-the-claude-limit/releases/download/desktop/TRIAD-Air-Combat.exe) (portable, updates itself).
 
-Current version: **v6.2.0** — see [CHANGELOG.md](CHANGELOG.md). In the game, each
+Current version: **v6.3.0** — see [CHANGELOG.md](CHANGELOG.md). In the game, each
 menu has its own **NOTES** button: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
@@ -36,7 +36,9 @@ absorption, Knudsen sea noise) and the water absorbs light per colour with
 depth. The sea is alive: ripples and burrows on the sea bed, seagrass meadows,
 starfish and glass sponges, jellyfish drifting in open water, silt your
 thrusters stir up, and plankton that spark blue-green round the hull in the
-dark. Graphics presets (Performance / Balanced / Cinematic) and a repeatable
+dark. The boat has a scanning sonar whose beam paints the sea bed blue as it
+sweeps round, a manipulator arm you fly by hand to take samples off the bottom,
+and floodlights all round the hull. Graphics presets (Performance / Balanced / Cinematic) and a repeatable
 benchmark route are on its HARBOR page (or `triadBench('balanced')` in the
 console).
 

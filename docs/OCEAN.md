@@ -31,16 +31,35 @@ touch controls):
 | B | emergency blow (straight to the surface) |
 | T / G | hold depth / hold position |
 | Q | Quiet Survey (listen) |
-| P | sonar ping · O sonar overlay |
-| L | lamps |
+| P | sonar ping (one turn of the scanning head) · N scanning sonar on / off · O sonar overlay |
+| L / K | lamps / floodlights |
 | E | scan, recover with the arm, dock |
+| V | manipulator arm out / stowed; with it out W/S, A/D, R/F move the jaw and E grips |
 | C | chase camera / pilot's dome |
 | M | chart · Esc pause · , / . transit time ×1 ×2 ×4 |
 
 A standard gamepad drives too (left stick, triggers up / down, bumpers side
 thrust, D-pad tanks and holds, A use, B ping, X listen, Y lamps, right stick
-look). On touch screens a stick and a button pad appear; the emergency blow (on
-the pad, or D-pad up on a gamepad) must be held for 2 s.
+look; hold A for the arm, B for the scanning sonar, Y for the floodlights). On
+touch screens a stick and a button pad appear; the emergency blow (on the pad,
+or D-pad up on a gamepad) must be held for 2 s.
+
+### The sonar, the arm and the lights
+
+- The sonar head turns: a ping is one full turn (3 s) from the bow, its 90 beams
+  cast as the head passes them; the scanning sonar (N) keeps it turning, a ping
+  a turn, and masks the hydrophones while it does. The overlay paints what the
+  beam sweeps over (out to 280 m, range rings every 50 m) in blue that fades
+  behind it, and a heading-up display shows the same picture.
+- The arm is flown by its jaw in the boat's frame (`dive/manipulator.ts`): it
+  reaches 2.1 m from the shoulder, never behind it or into the hull, rests on
+  the bottom, and the joints follow by a two-link solution. It can take the
+  expeditions' recorders and samples off the bottom (shells, stones, starfish,
+  urchins, sea cucumbers), which stay gone for the dive and go into the Echo
+  Atlas when stowed in the basket.
+- The floodlights are lenses round the hull and one light at the middle of the
+  boat that stands for them (cheaper than seven); the marine snow and the silt
+  are lit by it too.
 
 ## How it is built
 
@@ -57,7 +76,7 @@ opened (`src/ocean/oceanProgram.ts`, a separate chunk); the menu
 | `atlas/atlas.ts` | The Echo Atlas: contacts, observations, evidence, tracks, markers, expeditions; saved in localStorage, tolerant of damaged saves. |
 | `mission/expedition.ts` | The expedition's ten stages as a state machine over plain state; checkpoints and career. Pure. |
 | `mission/followup.ts` | The follow-up's nine stages, the second listening point and the multibeam's reach. Pure. |
-| `render/*` | Light in water (`oceanMaterial.ts`), sea surface and sky (`water.ts`), streamed sea bed (`seabed.ts`, its tiles built by `seabedArrays.ts` on a worker thread, `seabedWorker.ts`) and its close-up detail (`seabedDetail.ts`), harbor / reef / wreck / mooring (`props.ts`), the boat (`subModel.ts`), particles, shafts, lamp beams, sonar overlay and waterline (`fx.ts`), fish (`fish.ts`), sea-floor life (`seabedLife.ts`), jellyfish (`jellies.ts`), stirred-up silt (`silt.ts`), bioluminescence (`biolum.ts`), and the scene (`oceanWorld.ts`). |
+| `render/*` | Light in water (`oceanMaterial.ts`), sea surface and sky (`water.ts`), streamed sea bed (`seabed.ts`, its tiles built by `seabedArrays.ts` on a worker thread, `seabedWorker.ts`) and its close-up detail (`seabedDetail.ts`), harbor / reef / wreck / mooring (`props.ts`), the boat (`subModel.ts`), particles, shafts, lamp beams, sonar overlay and waterline (`fx.ts`), fish (`fish.ts`), sea-floor life (`seabedLife.ts`), jellyfish (`jellies.ts`), stirred-up silt (`silt.ts`), bioluminescence (`biolum.ts`), the sonar sweep's disc (`sonarSweep.ts`), and the scene (`oceanWorld.ts`). |
 | `dive/dive.ts`, `dive/hud.ts` | The dive: input, cameras, tools, saving, the instruments and the Quiet Survey panel. |
 | `dive/controls.ts` | Touch and gamepad controls, feeding the same orders as the keys. |
 | `audio/oceanAudio.ts` | Sea, thrusters, pumps, hull, hydrophones and pings through the game's effects bus. |
