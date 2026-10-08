@@ -4,6 +4,24 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu lists the space updates.
 
+## v5.7.0 (2026-10-08)
+
+### Air Combat: A SIMPLE menu, and easier camera controls
+
+- **New: A SIMPLE menu**
+  - SIMPLE MENU (at the bottom of the menu) swaps the full menu for a simple one: six big picture tiles (Free Flight, Airshow, Campaign, Dogfight, Wave Combat and the Daily Mission), your jet with arrows to change it, and one big FLY button.
+  - FULL MENU brings the full one back. The game remembers which you like.
+- **Improved: The airshow camera is easier to work**
+  - Press R to pick a setting and [ or ] to change it, instead of a pair of keys for each one. R only offers what the shooting mode leaves to you: shutter, exposure compensation and ISO in S, aperture, exposure compensation and ISO in A, shutter, aperture and ISO in M, exposure compensation and ISO in the others.
+  - Or click a setting on the readout at the bottom left to pick it, and scroll over it to change it. The one you are changing is outlined.
+  - Nothing was taken away: every setting is still in the camera menu (C), and the old keys still work.
+
+### Space Exploration: A SIMPLE menu
+
+- **New: A SIMPLE menu**
+  - SIMPLE MENU (at the bottom of the menu) swaps the full menu for a simple one: every mission as a big picture tile, from the Saturn V and Apollo to Starship, Crew Dragon, Artemis II, Falcon Heavy, the Mars landing, both rovers and the Solar System. Click one and you're off.
+  - FULL MENU brings the full one back. The game remembers which you like.
+
 ## v5.6.1 (2026-10-08)
 
 ### Air Combat: Crew Chief taken out

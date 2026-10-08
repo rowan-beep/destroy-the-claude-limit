@@ -36,6 +36,30 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '5.7.0',
+    date: '2026-10-08',
+    air: {
+      title: "A SIMPLE menu, and easier camera controls",
+      notes: [
+        added("A SIMPLE menu",
+          "SIMPLE MENU (at the bottom of the menu) swaps the full menu for a simple one: six big picture tiles (Free Flight, Airshow, Campaign, Dogfight, Wave Combat and the Daily Mission), your jet with arrows to change it, and one big FLY button.",
+          "FULL MENU brings the full one back. The game remembers which you like."),
+        improved("The airshow camera is easier to work",
+          "Press R to pick a setting and [ or ] to change it, instead of a pair of keys for each one. R only offers what the shooting mode leaves to you: shutter, exposure compensation and ISO in S, aperture, exposure compensation and ISO in A, shutter, aperture and ISO in M, exposure compensation and ISO in the others.",
+          "Or click a setting on the readout at the bottom left to pick it, and scroll over it to change it. The one you are changing is outlined.",
+          "Nothing was taken away: every setting is still in the camera menu (C), and the old keys still work."),
+      ],
+    },
+    space: {
+      title: "A SIMPLE menu",
+      notes: [
+        added("A SIMPLE menu",
+          "SIMPLE MENU (at the bottom of the menu) swaps the full menu for a simple one: every mission as a big picture tile, from the Saturn V and Apollo to Starship, Crew Dragon, Artemis II, Falcon Heavy, the Mars landing, both rovers and the Solar System. Click one and you're off.",
+          "FULL MENU brings the full one back. The game remembers which you like."),
+      ],
+    },
+  },
+  {
     version: '5.6.1',
     date: '2026-10-08',
     air: {
