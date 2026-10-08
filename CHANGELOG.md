@@ -4,6 +4,27 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu lists the space updates.
 
+## v5.5.0 (2026-10-08)
+
+### Air Combat: Airshow: the photo album, the hangar roll-out and a real crowd
+
+- **New: Your photo album, right from the menu**
+  - PHOTO ALBUM on the main menu opens your airshow pictures without starting a show; ALBUM (or Tab) still opens it during one.
+  - Sort by newest, oldest, best rated or by jet, and filter by rating (3, 4 or 5 stars), by jet, and by what the jet was doing: vapour cone, knife edge, inverted, head-on, gear down and the rest. Each chip shows how many pictures match.
+  - Pictures are grouped under headers (by day, by stars or by jet) and load as you scroll. Open one to see it full size, step through with the arrow keys, save it, make a magazine cover from it, or delete it.
+  - Mark your favourites with the heart; the FAVOURITES filter shows just those, and favourites are never cleared out to make room.
+  - The album now keeps up to 1,000 pictures (it was 120).
+- **New: A jet rolls out of the hangar before every act**
+  - Between acts the screen fades to black and the next jet taxis out of the hangar into the daylight, filmed from the door post and then from the apron, with its name, its role and which act it is, before a flash cuts back to the show.
+- **New: A crowd that looks like people**
+  - Every spectator is new: shaped heads with hair, ears and noses, real shoulders and hips, shoes, short or long sleeves, shorts or trousers, caps and sunglasses, and a much wider range of skin tones, hair and clothes.
+  - They do ten different things: watch, point the jet out, film it on a phone, wave, clap, shade their eyes, cheer, sip a coffee, chat to the person next to them, or shoot it on a camera with a long lens.
+  - Heads (and a little of the body) turn to follow the display jet across the sky.
+- **Improved: Taking a picture no longer stalls the show**
+  - The picture is now scaled and encoded in the background instead of on the frame you press the shutter, and saving it no longer reads the whole album first, so a big album doesn't slow it down.
+- **Improved: Only the jets you need are loaded**
+  - The jet flying the act is the only one in the air; the next one is loaded under the black screen between acts. The static display jets are only loaded while you're at the static park, and your own parked jet uses the ordinary model instead of the full cockpit one.
+
 ## v5.4.3 (2026-10-08)
 
 ### Air Combat: Camera controls the right way round
