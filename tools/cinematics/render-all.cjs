@@ -18,7 +18,7 @@ const { spawn } = require('child_process');
 
 const ROOT = path.join(__dirname, '..', '..');
 const OUT = path.join(__dirname, 'out');
-const PORT = 5199;
+const PORT = +process.env.CINE_PORT || 5199;
 /** the picture shown first (and on the picker) for each program */
 const HERO = { air: '01', space: '01' };
 const JOBS = {
