@@ -57,7 +57,7 @@ opened (`src/ocean/oceanProgram.ts`, a separate chunk); the menu
 | `atlas/atlas.ts` | The Echo Atlas: contacts, observations, evidence, tracks, markers, expeditions; saved in localStorage, tolerant of damaged saves. |
 | `mission/expedition.ts` | The expedition's ten stages as a state machine over plain state; checkpoints and career. Pure. |
 | `mission/followup.ts` | The follow-up's nine stages, the second listening point and the multibeam's reach. Pure. |
-| `render/*` | Light in water (`oceanMaterial.ts`), sea surface and sky (`water.ts`), streamed sea bed (`seabed.ts`, its tiles built by `seabedArrays.ts` on a worker thread, `seabedWorker.ts`), harbor / reef / wreck / mooring (`props.ts`), the boat (`subModel.ts`), particles, shafts, lamp beams, sonar overlay and waterline (`fx.ts`), fish (`fish.ts`), and the scene (`oceanWorld.ts`). |
+| `render/*` | Light in water (`oceanMaterial.ts`), sea surface and sky (`water.ts`), streamed sea bed (`seabed.ts`, its tiles built by `seabedArrays.ts` on a worker thread, `seabedWorker.ts`) and its close-up detail (`seabedDetail.ts`), harbor / reef / wreck / mooring (`props.ts`), the boat (`subModel.ts`), particles, shafts, lamp beams, sonar overlay and waterline (`fx.ts`), fish (`fish.ts`), sea-floor life (`seabedLife.ts`), jellyfish (`jellies.ts`), stirred-up silt (`silt.ts`), bioluminescence (`biolum.ts`), and the scene (`oceanWorld.ts`). |
 | `dive/dive.ts`, `dive/hud.ts` | The dive: input, cameras, tools, saving, the instruments and the Quiet Survey panel. |
 | `dive/controls.ts` | Touch and gamepad controls, feeding the same orders as the keys. |
 | `audio/oceanAudio.ts` | Sea, thrusters, pumps, hull, hydrophones and pings through the game's effects bus. |
@@ -77,6 +77,33 @@ The surface shows the sky by Fresnel's law from above and Snell's window with
 total internal reflection from below. Exposure adapts to the light round the
 camera.
 
+### Life and detail in the water
+
+- The sea bed's close-up detail is worked out per pixel on top of the tile's
+  colour: wave ripples across the swell (longer and fainter with depth, gone
+  below about 90 m), grains and shell hash, rock relief with crevices and
+  coralline crusts in the shallows, and burrows and mounds on the deep silt.
+  The relief tilts the normal near the camera (25-140 m fade).
+- Sea-floor life is placed by a hash of 16 m cells round the camera, the same in
+  every dive, each kind where it lives: seagrass meadows on shallow sand (2.5-18
+  m), shells, urchins on rock and reef, starfish, sea pens, brittle stars and
+  sea cucumbers on the deeper sand and silt, glass sponges below 150 m. The
+  seagrass leans with the surge in the vertex shader.
+- Jellyfish: moon jellies in drifting aggregations in the upper 30 m over the
+  shelf, deep-red helmet jellies below 120 m in the basin (seen only in the
+  lamps, and losing their red with distance). Their bells pulse and their
+  tentacles trail in the vertex shader; the bell scatters the daylight coming
+  down through it.
+- Silt: the thrusters' wash near sand or mud, or a touch on the bottom, lifts
+  billowing clouds lit by the daylight at their depth and by the lamps. Fine
+  silt hangs for about half a minute and drifts with the current; sand drops
+  out within seconds.
+- Bioluminescence: in dark water (daylight below a set level) the hull and the
+  thrusters' wash set off blue-green sparks that flare and fade over a second
+  or so.
+- Seen from below, the surface is drawn before the transparent things in the
+  water (none of which write depth), so it never paints over them.
+
 ### Performance
 
 - The sea bed streams as a three-level quadtree of 160 / 320 / 640 m tiles,
@@ -88,8 +115,9 @@ camera.
 - The wreck's detailed model is built within 520 m and released beyond 760 m.
 - Fish swim entirely in the vertex shader; the reef and kelp are instanced.
 - Presets change only the look (render scale, water and sea-bed detail, foam,
-  caustics, light shafts, particles, fish, reef density, lamp shadows); every
-  clue, control and sonar reading is identical on all three.
+  caustics, light shafts, particles, silt and spark pools, fish, reef, sea-floor
+  life and jellyfish density, lamp shadows); every clue, control and sonar
+  reading is identical on all three.
 
 ### Benchmark
 

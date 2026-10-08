@@ -4,6 +4,29 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
+## v6.2.0 (2026-10-08)
+
+### Ocean: A living sea: the sea bed up close, jellyfish, silt and bioluminescence
+
+- **New: The sea bed up close**
+  - Wave ripples in the sand run across the swell, longer and fainter with depth until they die out below about 90 m, with shell fragments on the crests and darker sand in the troughs.
+  - Rock is lumpy and cracked, with dark crevices and pink coralline crusts in the shallows; the deep silt is marked with the burrows and mounds of the animals living in it.
+  - The relief catches the sunlight, the caustics and your lamps, and fades out with distance so nothing shimmers far off.
+- **New: Life on the sea floor**
+  - Seagrass meadows on the shallow sand that lean with the surge, shells, starfish, urchins on the rock and reef, sea pens, brittle stars and sea cucumbers on the deeper sand and mud, and glass sponges below 150 m.
+  - Each lives where it would, and they are in the same places in every dive.
+- **New: Jellyfish**
+  - Moon jellies drift in loose swarms in the upper 30 m over the shelf; seen from below they catch the daylight coming down through them.
+  - In the dark water of the basin, below 120 m, there are deep-red helmet jellies: they show only in your lamps, and lose their red a few metres off as the water takes it away.
+  - Their bells pulse, a quick stroke and a slow relaxation, and the tentacles trail after them.
+- **New: Silt**
+  - Run the thrusters close to sand or mud, or touch the bottom, and the wash lifts the sediment in billowing clouds, lit by the daylight at that depth and by your lamps.
+  - The fine mud of the deep basin hangs for about half a minute and drifts with the current; sand drops back within seconds. Rock stays clear.
+- **New: Bioluminescence**
+  - In dark water the plankton flash blue-green where the hull pushes through them and in the thrusters' wash. Switch the lamps off in the deep basin and the boat is outlined in sparks.
+- **Fixed: Things in the water no longer vanish against the surface**
+  - Seen from below, the surface was drawn over the marine snow, silt and lamp beams that were between it and the camera. It is now drawn behind them.
+
 ## v6.1.0 (2026-10-08)
 
 ### Ocean: THE SLOW PULSE: a second mission, 282 m down, and touch and gamepad controls
