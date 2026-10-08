@@ -19,9 +19,21 @@ terrain against you.
 
 **Windows app:** [download TRIAD-Air-Combat.exe](https://github.com/rowan-beep/destroy-the-claude-limit/releases/download/desktop/TRIAD-Air-Combat.exe) (portable, updates itself).
 
-Current version: **v5.8.0** — see [CHANGELOG.md](CHANGELOG.md). In the game, each
+Current version: **v6.0.0** — see [CHANGELOG.md](CHANGELOG.md). In the game, each
 menu has its own **NOTES** button: the air combat menu lists the air combat
-updates and the space menu the space updates.
+updates, the space menu the space updates and the ocean menu the ocean updates.
+
+**Three programs:** TRIAD air combat, SPACE EXPLORATION and **OCEAN** (pick one
+from the menu under the TRIAD logo). OCEAN puts you in SV-1 PETREL, a one-pilot
+survey submersible off Kestrel Harbor: listen with the hydrophones, take
+bearings from two places to triangulate a sound, ping with the sonar, find a
+wreck in your lamps and recover what is knocking, in one complete expedition
+(*Quiet Survey: The Silent Buoy*) or a free survey. Everything you hear goes into
+a persistent Echo Atlas. The acoustics use real units (sonar equation, Thorp
+absorption, Knudsen sea noise) and the water absorbs light per colour with
+depth. Graphics presets (Performance / Balanced / Cinematic) and a repeatable
+benchmark route are on its HARBOR page (or `triadBench('balanced')` in the
+console).
 
 Each jet is a high-detail procedural model: about 250k-390k triangles for the jets
 around you, and a hero build with about 10x that (2.5-4 million triangles) for your

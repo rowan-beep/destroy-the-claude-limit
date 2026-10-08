@@ -74,7 +74,8 @@ const CSS = /* css */ `
 .sm-spacer{flex:1}
 .sm-hint{text-align:center;font-size:11px;letter-spacing:.3em;color:#ffffffa6;text-shadow:0 1px 4px #000;margin-bottom:10px}
 .sm-h{font-size:clamp(12px,1.5vh,15px);letter-spacing:.45em;font-weight:700;margin:0 0 9px 4px;text-shadow:0 1px 6px #000}
-.sm.air .sm-h{color:#ffb35c}.sm.space .sm-h{color:#8fc4ff}
+.sm.air .sm-h{color:#ffb35c}.sm.space .sm-h{color:#8fc4ff}.sm.ocean .sm-h{color:#7cf0c8}
+.sm.ocean .sm-tile{background-color:#0b2230;background-image:radial-gradient(120% 90% at 50% 0%,#2a7f8c55,#0000 70%)}
 .sm-tiles{display:grid;grid-template-columns:repeat(var(--cols),minmax(0,1fr));gap:10px}
 .sm-tile{position:relative;height:var(--th);border-radius:12px;overflow:hidden;cursor:pointer;border:2px solid #ffffff2e;background:#141a22 center/cover no-repeat;transition:transform .25s cubic-bezier(.2,.8,.2,1),border-color .25s,box-shadow .25s;text-align:left;padding:0;color:inherit;font:inherit;box-shadow:0 6px 20px #0007}
 .sm-tile::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,#0000 35%,#000d 100%)}
@@ -126,7 +127,7 @@ export function renderSimple(host: HTMLElement, v: SimpleView): void {
   }
   const top = el('div', 'sm-top', host);
   // (each program's logo is styled by its own menu's brand box)
-  const brand = el('div', v.program === 'space' ? 'sx2-brand' : '', top);
+  const brand = el('div', v.program !== 'air' ? 'sx2-brand' : '', top);
   programLogo(brand, v.program, v.subtitle, (p) => v.onProgram(p));
   const tr = el('div', 'sm-top-r', top);
   // (the scene behind on its own: the hangar, or the launch site round the rocket)

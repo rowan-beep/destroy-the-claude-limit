@@ -153,6 +153,11 @@ export class EchoAtlas {
     this.store.set(ATLAS_KEY, JSON.stringify(this.data));
   }
 
+  /** read the saved atlas again (another page may have changed or cleared it) */
+  reload(): void {
+    this.data = EchoAtlas.parse(this.store.get(ATLAS_KEY));
+  }
+
   contact(id: string): AtlasContact | undefined {
     return this.data.contacts.find((c) => c.id === id);
   }

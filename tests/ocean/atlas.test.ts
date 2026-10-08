@@ -52,3 +52,16 @@ test('the route recorder keeps a point every spacing metres', () => {
   assert.equal(t.points.length, 5);
   assert.ok(Math.abs(t.distance - 100) < 1e-9);
 });
+
+test('an atlas cleared elsewhere is not written back by an older copy', () => {
+  const mem = new Map<string, string>();
+  const store = { get: (k: string) => mem.get(k) ?? null, set: (k: string, v: string) => void mem.set(k, v) };
+  const a = new EchoAtlas(store), b = new EchoAtlas(store);
+  a.hear('knock', 'KNOCK', { kind: 'knock', period: 2, beats: 2, pitch: 400, caption: '' }, 'x');
+  b.reload();
+  assert.equal(b.data.contacts.length, 1);
+  b.reset();
+  a.reload();
+  a.addMarker('note', 0, 0, 'here');
+  assert.equal(new EchoAtlas(store).data.contacts.length, 0);
+});

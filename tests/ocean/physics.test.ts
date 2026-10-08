@@ -92,3 +92,21 @@ test('battery drains with use and not in relaxed mode', () => {
   assert.equal(b.battery, 1);
   assert.ok(speedOf(a) > 1);
 });
+
+test('the battery lasts well over an hour at full thrust and hours when idle', () => {
+  const s = newSubState(-500, 500, 180);
+  s.ballast = NEUTRAL_BALLAST;
+  s.y = -15;
+  let t = 0;
+  while (s.battery > 0 && t < 30000) {
+    stepSub(s, SURVEY_SUB, { ...NO_INPUT, thrust: 1 }, env, 0.1);
+    t += 0.1;
+  }
+  assert.ok(t > 60 * 70 && t < 60 * 110, `full thrust ${Math.round(t / 60)} min`);
+  const idle = newSubState(-500, 500, 180);
+  idle.lights = false;
+  idle.ballast = NEUTRAL_BALLAST;
+  idle.y = -15;
+  for (let i = 0; i < 3 * 3600 * 10; i++) stepSub(idle, SURVEY_SUB, NO_INPUT, env, 0.1);
+  assert.ok(idle.battery > 0.3, `after three idle hours ${idle.battery}`);
+});

@@ -141,6 +141,15 @@ export function newSubState(x: number, z: number, heading: number): SubState {
   };
 }
 
+/**
+ * Battery use (fraction per second): the hotel load (life support, sonar,
+ * computers) about five hours on its own, full thrust on top of it about an
+ * hour and a half, the lamps and the pumps a little more.
+ */
+export function drain(thrust: number, lights: boolean, pumping: boolean): number {
+  return 0.000055 + 0.00012 * thrust + (lights ? 0.00002 : 0) + (pumping ? 0.00005 : 0);
+}
+
 /** depth below the mean surface (positive down) */
 export const depthOf = (s: SubState): number => -s.y;
 
@@ -292,7 +301,7 @@ export function stepSub(s: SubState, spec: SubSpec, input: SubInput, env: SubEnv
 
   // --- battery: hotel load, thrusters, lights, pumps
   if (!env.relaxed) {
-    const use = 0.00022 + 0.00048 * (Math.abs(thrust) + 0.5 * Math.abs(lateral) + 0.7 * Math.abs(vertical)) + (s.lights ? 0.00008 : 0) + (pumping ? 0.0002 : 0);
+    const use = drain(Math.abs(thrust) + 0.5 * Math.abs(lateral) + 0.7 * Math.abs(vertical), s.lights, pumping);
     s.battery = Math.max(0, s.battery - use * dt);
   }
   // a flat battery leaves only a crawl
@@ -372,6 +381,6 @@ export function interpolate(prev: FixedStepper['prev'], s: SubState, a: number):
 export function rangeEstimate(s: SubState, spec: SubSpec): number {
   const v = Math.max(0.6, Math.hypot(s.vx, s.vz));
   const thrustFrac = Math.min(1, v / 3.6);
-  const use = 0.00022 + 0.00048 * thrustFrac + (s.lights ? 0.00008 : 0);
+  const use = drain(thrustFrac, s.lights, false);
   return (s.battery / use) * v;
 }

@@ -2,7 +2,47 @@
 
 Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
-updates and the space menu lists the space updates.
+updates, the space menu the space updates and the ocean menu the ocean updates.
+
+## v6.0.0 (2026-10-08)
+
+### Ocean: OCEAN: a survey submarine, a strange knock, and the sea as it really looks
+
+- **New: A third program: OCEAN**
+  - Pick OCEAN from the program menu under the TRIAD logo. Its menu has three pages: MISSIONS (the expedition and the free survey), HARBOR (the boat, the ocean's settings and a benchmark) and CHART (the Echo Atlas).
+  - There is a SIMPLE menu too, like the air and space programs.
+- **New: SV-1 PETREL, a one-pilot survey submersible**
+  - 6.4 m long and 7.8 t, with an acrylic bow dome, two stern and two vertical thrusters, LED lamps, a forward-looking sonar with a multibeam under the hull, hydrophones and a five-function arm.
+  - Top speed 2.6 m/s (5 knots). Rated to 300 m; past 360 m the tanks blow by themselves.
+  - Real ballast: the vents flood the main tanks in about 4 s, the trim pump does the last bit slowly, the blower empties them, and B blows everything straight to the surface. Too light to dive? The boat says so.
+  - Assists hold a depth (T) or a position (G). The battery lasts about 85 minutes at full thrust with the lamps on.
+  - The physics runs in fixed 1/60 s steps, so the boat handles the same at any frame rate.
+- **New: The expedition: QUIET SURVEY: THE SILENT BUOY**
+  - Ten stages: leave Kestrel Harbor, dive by the training buoy, hear a faint double knock, take two bearings on it from two places, ping the search area, find a wreck in your lamps at about 85 m, scan her stern plate, recover what is knocking with the arm, come home and dock.
+  - Nothing marks the source until you have found it yourself: the bearings and the search area they make are the only guide.
+  - A debrief tells the story, with your scan photo, time, distance, depth, bearings and how close your search area was.
+- **New: Quiet Survey: listening is the game**
+  - Q quiets the thrusters and turns the hydrophones up. Hold slow (under 1.2 m/s) and steady (turning under 6°/s) for 3.5 s and you get a bearing, as a wedge 3° to 22° wide depending on how clearly the sound stands out.
+  - The acoustics use real units: source levels in dB, spreading loss, seawater absorption by Thorp's formula (about 12 dB per km at the beacon's 37.5 kHz), the sea's own noise by Knudsen's curves, and your boat's noise from its thrusters, pumps and speed.
+  - Every sound is also shown and written out: a bearing / time display, a noise budget (your noise, the sea's, the ping's), and a caption of each contact's pattern.
+- **New: Active sonar**
+  - P pings: the sector display and a sonar overlay in the view show the ground and anything hard within 280 m. A ping drowns faint sounds for 6 s, so you can't listen and ping at once.
+- **New: The Echo Atlas**
+  - Every contact, every bearing (with where you took it), every search area, the evidence (recordings, scans, photographs, the recovered item), your routes and an expedition log, kept between sessions.
+  - M opens the chart in a dive; CHART in the menu shows it all with the story of each contact.
+- **New: The sea as it really looks**
+  - Water takes the red out of light first, then the green: the reef at 10 m is blue-green, the wreck at 85 m is in deep blue twilight and only your lamps show colour, and only close up.
+  - Looking up from below you see the sky squeezed into Snell's window, with the mirror of total reflection outside it. Sunlight makes caustic nets on the shallow bottom and shafts through the water; marine snow drifts in your lamp beams.
+  - At the waterline the picture is split properly between air and sea. The surface reflects the sky by Fresnel's law, and the swell is smaller inside the breakwater.
+  - The camera's exposure adapts to the light, as a real camera's does.
+- **New: Three graphics presets**
+  - PERFORMANCE, BALANCED and CINEMATIC change only how things look (render scale, water and sea-bed detail, foam, caustics, light shafts, particles, fish, reef density, lamp shadows). Every clue, control and sonar reading is the same on all three.
+  - The sea bed streams in tiles round you, finer near and coarser far, and is released behind you.
+- **New: A free survey, and something more out there**
+  - FREE SURVEY leaves the harbor with no task: listen, ping and chart the reef, the kelp, the slope and the deep basin. Finishing the expedition opens a follow-up contact you can hear and take bearings on.
+- **New: Help when you need it**
+  - Progress saves at every stage and every 20 s: CONTINUE picks up where you left off. The pause menu can take you back to the last safe point. A flat battery? Call a tow.
+  - Settings: guidance (markers in view, compass only, or instruments only), a relaxed battery, a visibility aid, a large HUD, reduce motion and look speed. The CONTROLS page lists the ocean's keys.
 
 ## v5.8.0 (2026-10-08)
 

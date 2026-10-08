@@ -189,18 +189,6 @@ export class OceanDive {
   }
 
   // ------------------------------------------------------------------ lifecycle
-  /** is there an expedition to continue? */
-  static savedStage(): number | null {
-    let raw: string | null = null;
-    try {
-      raw = localStorage.getItem(PROGRESS_KEY);
-    } catch {
-      /* none */
-    }
-    const c = parseCheckpoint(raw);
-    return c ? c.stage : null;
-  }
-
   static loadCareer(): Career {
     try {
       return parseCareer(localStorage.getItem(CAREER_KEY));
@@ -214,8 +202,12 @@ export class OceanDive {
     this.mode = mode;
     this.settings = loadOceanSettings();
     this.career = OceanDive.loadCareer();
+    // (the menu may have cleared the atlas since the last dive)
+    this.atlas.reload();
     this.applySettings();
     this.world.props.resetRecorder();
+    // (once the expedition is done the recorder is ashore: a free survey finds the wreck without it)
+    this.world.props.recorder.visible = !(mode === 'free' && this.career.completed.includes(MISSION_ID));
     this.sub = newSubState(HARBOR.berth.x, HARBOR.berth.z, HARBOR.berth.heading);
     this.sub.y = -0.75;
     this.stepper = new FixedStepper(8);
@@ -734,7 +726,7 @@ export class OceanDive {
       }
     }
     // recover the recorder
-    if (!this.recorderTaken && (!this.exp || this.exp.id === 'recover' || this.exp.stage > STAGES.indexOf('recover'))) {
+    if (!this.recorderTaken && this.world.props.recorder.visible && (!this.exp || this.exp.id === 'recover' || this.exp.stage > STAGES.indexOf('recover'))) {
       const rp = SITES.recorder;
       const d = Math.hypot(s.x - rp.x, s.z - rp.z);
       if (d < 30) {
@@ -1286,7 +1278,7 @@ export class OceanDive {
         return r.ok ? ['E · SCAN THE PLATE', false] : [r.why, true];
       }
     }
-    if (!this.recorderTaken && (!this.exp || this.exp.id === 'recover')) {
+    if (!this.recorderTaken && this.world.props.recorder.visible && (!this.exp || this.exp.id === 'recover')) {
       const rp = SITES.recorder;
       if (Math.hypot(s.x - rp.x, s.z - rp.z) < 30) {
         const r = toolReady(s.x, s.z, s.heading, speed, rp.x, rp.z, 5.5, 35);

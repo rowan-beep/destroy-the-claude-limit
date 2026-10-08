@@ -127,6 +127,8 @@ export interface FrameStats {
   /** our own work in the frame (simulation, streaming, the draw call submission) */
   workMedianMs: number;
   workP95Ms: number;
+  /** the slowest frame's own work (a long interval with little work is the renderer catching up) */
+  workAtMaxMs: number;
 }
 
 export function frameStats(intervals: number[], work: number[]): FrameStats {
@@ -146,12 +148,15 @@ export function frameStats(intervals: number[], work: number[]): FrameStats {
     avgFps: total > 0 ? (intervals.length * 1000) / total : 0,
     workMedianMs: q(work, 0.5),
     workP95Ms: q(work, 0.95),
+    workAtMaxMs: intervals.length ? work[intervals.indexOf(Math.max(...intervals))] ?? 0 : 0,
   };
 }
 
 export interface SegmentResult extends FrameStats {
   id: string;
   label: string;
+  /** which frame of the segment was the slowest */
+  maxAt: number;
   drawCalls: number;
   triangles: number;
 }

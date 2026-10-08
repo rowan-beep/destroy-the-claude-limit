@@ -181,7 +181,7 @@ export class OceanProgram {
       b.allWork.push(work);
     }
     if (f >= 1) {
-      b.results.push({ id: seg.id, label: seg.label, ...frameStats(b.intervals, b.work), drawCalls: b.calls, triangles: b.tris });
+      b.results.push({ id: seg.id, label: seg.label, ...frameStats(b.intervals, b.work), maxAt: b.intervals.indexOf(Math.max(...b.intervals)), drawCalls: b.calls, triangles: b.tris });
       b.intervals = [];
       b.work = [];
       b.calls = 0;
