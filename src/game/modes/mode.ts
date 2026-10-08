@@ -64,6 +64,8 @@ export interface ModeHost {
   throttle?(): number;
   /** show a briefing box; the mission waits for OKAY */
   brief?(b: Briefing): void;
+  /** the menu hangar, lent to the airshow for its roll-out between acts */
+  rollStage?: { prepare(t: import('../../aircraft/specs').AircraftType): void; render(t: number, dt: number, w: number, h: number): THREE.Vector3 | null; end(): void } | null;
   /** a mission that needs a pitch-black night (false puts the player's own weather back) */
   setDark?(on: boolean): void;
 }

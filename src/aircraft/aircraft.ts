@@ -311,6 +311,8 @@ export class Aircraft {
   scripted = false;
   /** parked on a static display: nobody in the cockpit */
   crewless = false;
+  /** drawn with the ordinary model even as the player's jet (the airshow's static display) */
+  plainModel = false;
   /** moves a scripted jet along its path, once per physics step (so it is drawn as smoothly as the rest) */
   script: ((dt: number) => void) | null = null;
 

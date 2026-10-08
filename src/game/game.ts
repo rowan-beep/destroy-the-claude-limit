@@ -57,7 +57,7 @@ import { prewarmAirframes, setHeroDetail } from '../aircraft/models';
 import { randomizeWind, wind } from '../core/weather';
 import { AutoFly, topSpeedKts } from './autoFly';
 import type { AutoFlyPanel, AutoFlyChoice } from '../ui/autoFlyPanel';
-import { enemyTypesFor, AIRCRAFT_TYPES, getSpec } from '../aircraft/specs';
+import { enemyTypesFor, AIRCRAFT_TYPES, getSpec, AircraftType } from '../aircraft/specs';
 import { CARRIERS, carrierOf, clearCatapults, nearestCarrier, updateCarriers } from '../world/carriers';
 import { armCarriers } from './navy';
 import { NIGHT } from '../render/night';
@@ -274,7 +274,7 @@ export class Game implements ModeHost {
     if (cfg.mode === 'team' || cfg.mode === 'recon' || cfg.mode === 'campaign') for (const t of enemyTypesFor(cfg.aircraft)) pre.push(new Aircraft(t, 'blue', 'PRE'));
     if (cfg.mode === 'ffa') pre.push(new Aircraft(cfg.aircraft, 'red', 'PRE'));
     if (cfg.mode === 'daily') pre.push(new Aircraft(todaysMission().enemy.type, 'red', 'PRE'));
-    if (cfg.mode === 'spotter') for (const t of AIRCRAFT_TYPES) if (t !== 'X15' && t !== cfg.aircraft) pre.push(new Aircraft(t, 'blue', 'PRE'));
+    // (the airshow builds each act's jet as it rolls out of the hangar, not every jet up front)
     prewarmAirframes(pre);
     this.stopSpectating();
     resetRules();
@@ -354,6 +354,8 @@ export class Game implements ModeHost {
     return this.mode instanceof OnlineMode;
   }
 
+  /** the menu hangar, lent to the airshow for its roll-out between acts */
+  rollStage: { prepare(t: AircraftType): void; render(t: number, dt: number, w: number, h: number): THREE.Vector3 | null; end(): void } | null = null;
   /** the airshow's screen (while the spotter mode runs) */
   spotterUi: SpotterUi | null = null;
 
@@ -807,8 +809,15 @@ export class Game implements ModeHost {
     // the airshow: the spotter's camera on the crowd line
     if (p && this.mode instanceof SpotterMode) {
       this.spotterFrame(dt, simOn, this.mode);
-      this.renderer.render();
-      this.mode.afterRender(this.renderer.renderer.domElement, this.renderer.camera);
+      if (simOn) this.mode.stepTransition(dt);
+      // (between acts: the hangar and the jet rolling out of it, instead of the airfield)
+      if (this.mode.inHangar && this.rollStage) {
+        const sz = this.renderer.size;
+        this.rollStage.render(this.mode.rollT, dt, sz.w, sz.h);
+      } else {
+        this.renderer.render();
+        this.mode.afterRender(this.renderer.renderer.domElement, this.renderer.camera);
+      }
       this.interp.restore();
       this.onAfterFrame?.(dt);
       this.input.endFrame();

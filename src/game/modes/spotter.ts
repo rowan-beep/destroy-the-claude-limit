@@ -160,6 +160,8 @@ export class SpotterMode extends GameMode {
     // the static display behind the crowd: the spotter's own pick (the game's "player" jet:
     // it never flies) and three more, parked nose-in toward the crowd
     const p = h.createPlayer();
+    // (parked: the ordinary model, not the cockpit-and-all one the player's own jet gets)
+    p.plainModel = true;
     const pool = AIRCRAFT_TYPES.filter((t) => t !== 'X15' && t !== cfg.aircraft);
     for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -204,7 +206,12 @@ export class SpotterMode extends GameMode {
     this.focal = 70;
     // (auto-track on to begin with: the show is easy to find; pan by hand for the best pictures)
     this.track = true;
-    this.nextAct();
+    // (the show opens with the first jet rolling out of the hangar)
+    this.swapAct();
+    if (this.host.rollStage) {
+      this.host.rollStage.prepare(this.acts[this.actI]);
+      this.transition = { t: SpotterMode.T_BLACK, swapped: true };
+    }
     h.order(
       `AIRSHOW AT ${f.name.toUpperCase()}`,
       `You're on the crowd line with a camera. ${SPECS[first].name} opens the show. DRAG to look round, WHEEL to zoom, CLICK or SPACE to take a picture. Pan with the jet to keep it sharp. T: auto-track · G: grid · N: next act · F: show speed · TAB: the album.`,
@@ -225,10 +232,23 @@ export class SpotterMode extends GameMode {
   }
 
   /** walk to a spot */
+  /** the static display in the world only while it can be seen (from the static park) */
+  private staticsIn = true;
+  private showStatics(on: boolean): void {
+    if (on === this.staticsIn) return;
+    this.staticsIn = on;
+    const sim = this.host.sim;
+    for (const a of this.statics) {
+      if (on) sim.add(a);
+      else sim.remove(a);
+    }
+  }
+
   goTo(i: number): void {
     const s = this.spots[i];
     if (!s) return;
     this.spotI = i;
+    this.showStatics(s.id === 'static');
     const f = this.field;
     const e = fromRunwayLocal(f, s.along, s.across);
     this.eye.set(e.x, surfaceHeight(e.x, e.z) + 1.7, e.z);
@@ -267,7 +287,56 @@ export class SpotterMode extends GameMode {
   }
 
   /** the next act on: the jet lines up on the runway */
+  /**
+   * Between acts: the screen fades to black, the next jet is built while nothing
+   * can be seen, then it rolls out of the hangar through the open doors into the
+   * sun (the menu's hangar, lent for it), and a white flash cuts back to the show.
+   */
+  transition: { t: number; swapped: boolean } | null = null;
+  static readonly T_BLACK = 0.5;
+  static readonly T_ROLL = 0.65;
+  static readonly T_FLASH = 4.6;
+  static readonly T_END = 5.2;
+
+  /** the next act on, by way of the hangar when there is one */
   nextAct(): void {
+    if (this.transition) return;
+    if (!this.host.rollStage) {
+      this.swapAct();
+      return;
+    }
+    this.transition = { t: 0, swapped: false };
+  }
+
+  /** showing the hangar instead of the airfield */
+  get inHangar(): boolean {
+    const tr = this.transition;
+    return !!tr && tr.swapped && tr.t < SpotterMode.T_FLASH + 0.1;
+  }
+
+  /** the roll-out's own clock */
+  get rollT(): number {
+    return Math.max(0, (this.transition?.t ?? 0) - SpotterMode.T_ROLL);
+  }
+
+  /** advance the act change (real time) */
+  stepTransition(dt: number): void {
+    const tr = this.transition;
+    if (!tr) return;
+    tr.t += Math.min(dt, 0.1);
+    if (!tr.swapped && tr.t >= SpotterMode.T_BLACK) {
+      // (under the black: out with the old jet, the new one built and ready on the runway)
+      this.swapAct();
+      this.host.rollStage?.prepare(this.acts[this.actI]);
+      tr.swapped = true;
+      tr.t = SpotterMode.T_BLACK;
+    }
+    if (tr.swapped && tr.t >= SpotterMode.T_FLASH && tr.t - Math.min(dt, 0.1) < SpotterMode.T_FLASH) this.host.rollStage?.end();
+    if (tr.t >= SpotterMode.T_END) this.transition = null;
+  }
+
+  /** out with the jet that has flown, in with the next (lined up on the runway) */
+  private swapAct(): void {
     const sim = this.host.sim;
     if (this.jet) {
       sim.remove(this.jet.ac);
@@ -280,7 +349,8 @@ export class SpotterMode extends GameMode {
     const jet = new DisplayJet(ac, this.routine(type), this.field);
     // (flown along its path inside the physics step, so it is drawn as smoothly as any jet)
     ac.script = (dt) => {
-      if (jet.done) return;
+      // (held at the line-up until it has rolled out of the hangar)
+      if (jet.done || this.transition) return;
       // the long repositioning legs between passes go by four times faster
       const fast = jet.label === 'REPOSITIONING' ? 4 : 1;
       jet.update(dt * this.showSpeed * fast);
@@ -313,6 +383,8 @@ export class SpotterMode extends GameMode {
   }
 
   dispose(): void {
+    if (this.transition) this.host.rollStage?.end();
+    this.transition = null;
     for (const u of this.urls) URL.revokeObjectURL(u);
     this.urls = [];
     this.grounds?.dispose();
@@ -532,6 +604,7 @@ export class SpotterMode extends GameMode {
 
   /** right after the frame is drawn: take the picture if the shutter was pressed */
   afterRender(canvas: HTMLCanvasElement, cam: THREE.PerspectiveCamera): void {
+    if (this.transition) this.wantShot = false;
     if (!this.wantShot) return;
     this.wantShot = false;
     this.flash = 0.12;
@@ -632,7 +705,7 @@ export class SpotterMode extends GameMode {
       bestFill = fillOf(j.ac) * 1.5;
       flying = true;
     }
-    for (const x of this.statics) {
+    for (const x of this.staticsIn ? this.statics : []) {
       if (!inFrame(x)) continue;
       const fl = fillOf(x);
       if (fl > bestFill) {

@@ -77,6 +77,7 @@ async function boot(): Promise<void> {
   game.onWorldBuilt = () => mapView.setGrid(game.world.grid);
   const hangar = new Hangar(game.renderer.renderer);
   let menuAlbum: AirshowAlbum | null = null;
+  game.rollStage = { prepare: (t) => hangar.prepareRollOut(t), render: (t, dt, w, h) => hangar.rollOut(t, dt, w, h), end: () => hangar.endRollOut() };
   if (import.meta.env.DEV) Object.assign(window, { __hangar: hangar, __THREE: THREE });
   hangar.drawWith = (sc, cam) => game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping);
   hangar.compileWith = (o, sc, cam) => game.renderer.compileFor(o, sc, cam);

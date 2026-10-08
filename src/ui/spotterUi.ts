@@ -59,6 +59,19 @@ const CSS = `
 .sp-arrow{position:absolute;width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-bottom:16px solid #ffd38a;filter:drop-shadow(0 1px 2px #000)}
 .sp-help{position:absolute;left:50%;bottom:90px;transform:translateX(-50%);width:max-content;max-width:min(600px,calc(100vw - 680px));text-align:center;font-size:11px;color:#c3cdda;letter-spacing:.1em;line-height:1.5;text-shadow:0 1px 2px #000;transition:opacity 1.5s}
 .sp-help.dim{opacity:0}
+.sp-cine-l{position:absolute;inset:0;pointer-events:none;opacity:0}
+.sp-black{background:#000}
+.sp-white{background:#fff8ee}
+.sp-bars::before,.sp-bars::after{content:'';position:absolute;left:0;right:0;height:11vh;background:#000}
+.sp-bars::before{top:0}.sp-bars::after{bottom:0}
+.sp-ttl{position:absolute;left:6vw;bottom:15vh;opacity:0;transform:translateX(-30px);transition:opacity .5s,transform .7s cubic-bezier(.2,.8,.2,1);text-shadow:0 2px 12px #000c}
+.sp-ttl.show{opacity:1;transform:none}
+.sp-ttl .k{font-size:16px;letter-spacing:.42em;color:#ffc163;font-weight:700;text-shadow:0 0 10px #000,0 1px 3px #000}
+.sp-ttl .n{font-size:min(7vw,64px);font-weight:800;letter-spacing:.06em;line-height:1;margin:6px 0 4px}
+.sp-ttl .s{font-size:15px;letter-spacing:.24em;color:#d8e0ea}
+.sp-ttl .rule{height:3px;width:0;background:linear-gradient(90deg,#ffb14a,#ffb14a00);margin-top:10px;transition:width 1.2s .3s ease-out}
+.sp-ttl.show .rule{width:min(60vw,560px)}
+.sp-ui.cine .sp-cv,.sp-ui.cine .sp-tl,.sp-ui.cine .sp-tr,.sp-ui.cine .sp-read,.sp-ui.cine .sp-bot,.sp-ui.cine .sp-help,.sp-ui.cine .sp-tag,.sp-ui.cine .sp-arrow,.sp-ui.cine .sp-card{visibility:hidden}
 @media (max-width:1000px){.sp-help{display:none}}
 @media (max-width:760px){.sp-tr{width:180px}.sp-card{width:220px}.sp-prog{display:none}}
 `;
@@ -84,6 +97,11 @@ export class SpotterUi {
   /** (the key help fades out after the first half minute) */
   private helpT = 30;
   private seen = 0;
+  private bars: HTMLElement;
+  private ttl: HTMLElement;
+  private black: HTMLElement;
+  private white: HTMLElement;
+  private ttlAct = -1;
   private cardImg: HTMLImageElement | null = null;
   private cardShot: SpotterMode['lastShot'] = null;
   private cardT = 0;
@@ -114,6 +132,11 @@ export class SpotterUi {
     this.elTag = el('div', 'sp-tag', this.root);
     this.elArrow = el('div', 'sp-arrow', this.root);
     this.card = el('div', 'sp-card', this.root);
+    // the act change: letterbox bars and a title over the hangar, black and white cuts round it
+    this.bars = el('div', 'sp-cine-l sp-bars', this.root);
+    this.ttl = el('div', 'sp-ttl', this.root);
+    this.black = el('div', 'sp-cine-l sp-black', this.root);
+    this.white = el('div', 'sp-cine-l sp-white', this.root);
     this.help = el('div', 'sp-help', this.root);
     this.help.textContent = 'DRAG / WASD look · WHEEL or + − zoom · CLICK or SPACE shoot · T auto-track · V photo spot · N next act · F show speed · TAB album · ESC pause';
     const bot = el('div', 'sp-bot', this.root);
@@ -160,9 +183,39 @@ export class SpotterUi {
     } else this.album.close();
   }
 
+  /** the act change: black, the hangar under bars with the next jet's title, a white flash back */
+  private cinema(): void {
+    const m = this.mode;
+    const tr = m.transition;
+    this.root.classList.toggle('cine', !!tr && m.inHangar);
+    if (!tr) {
+      this.black.style.opacity = this.white.style.opacity = this.bars.style.opacity = '0';
+      this.ttl.classList.remove('show');
+      return;
+    }
+    const t = tr.t;
+    const B = 0.5, R = 0.65, F = 4.6, E = 5.2;
+    // to black, then up out of it onto the hangar
+    const black = !tr.swapped ? Math.min(1, t / B) : Math.max(0, 1 - (t - B) / (R + 0.35 - B));
+    // the flash: up to white as the jet reaches the sun, then out of it onto the airfield
+    const white = t < F - 0.3 ? 0 : t < F ? (t - (F - 0.3)) / 0.3 : Math.max(0, 1 - (t - F) / (E - F));
+    this.black.style.opacity = String(black);
+    this.white.style.opacity = String(Math.min(1, white));
+    this.bars.style.opacity = m.inHangar ? '1' : '0';
+    const showT = m.inHangar && t > R + 0.25 && t < F - 0.15;
+    if (showT && this.ttlAct !== m.actI) {
+      this.ttlAct = m.actI;
+      const j = m.jet;
+      const s = j?.ac.spec;
+      this.ttl.innerHTML = `<div class="k">${m.actI === 0 && t < 2 && this.seen === 0 ? 'OPENING THE SHOW' : 'NEXT ACT'} · ${m.actI + 1} OF ${m.acts.length}</div><div class="n">${(s?.name ?? '').toUpperCase()}</div><div class="s">${(s?.role ?? '').toUpperCase()}</div><div class="rule"></div>`;
+    }
+    this.ttl.classList.toggle('show', showT);
+  }
+
   /** every frame */
   update(dt: number, cam: THREE.PerspectiveCamera, w: number, h: number): void {
     const m = this.mode;
+    this.cinema();
     const j = m.jet;
     // the programme
     const pk = `${m.actI}|${j?.label ?? ''}|${j?.done}`;

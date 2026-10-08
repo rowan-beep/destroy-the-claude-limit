@@ -225,7 +225,7 @@ export class CombatRenderer {
 
   private addAircraft(a: Aircraft): void {
     if (this.aircraftVis.has(a)) return;
-    const v = createAirframe(a, a.isPlayer);
+    const v = createAirframe(a, a.isPlayer && !a.plainModel);
     if (a.isPlayer) paintAirframe(v, loadPaint(a.type));
     else if (a.paint) paintAirframe(v, a.paint);
     this.aircraftVis.set(a, v);

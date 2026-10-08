@@ -244,6 +244,80 @@ export class Hangar {
     this.interior.placeJetProps(j.ac, j.vis);
   }
 
+  // ------------------------------------------------------------------ the airshow's roll-out
+  /** the jet rolling out between airshow acts (the ordinary model: it is the same one the show then flies) */
+  private roll: { ac: Aircraft; vis: AirframeVisual; t: number } | null = null;
+
+  /** the next act's jet, parked deep in the hangar, ready to roll out */
+  prepareRollOut(type: AircraftType): void {
+    this.endRollOut();
+    const ac = new Aircraft(type, 'blue', 'ROLL');
+    ac.fm.gearPos = 1;
+    ac.fm.onGround = true;
+    ac.fm.rpm.fill(0.4);
+    const vis = createAirframe(ac, false);
+    paintAirframe(vis, loadPaint(type));
+    vis.root.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.isMesh && m.name !== 'shadow-proxy' && !(m.material as THREE.Material).transparent) m.castShadow = true;
+    });
+    this.scene.add(vis.root);
+    for (const j of this.jets.values()) j.vis.root.visible = false;
+    this.roll = { ac, vis, t: 0 };
+  }
+
+  /**
+   * One frame of the roll-out, `t` seconds in (about four): the jet taxis out
+   * of the hangar through the open doors into the sun; two shots, low by the
+   * doors as it comes at the camera, then out on the apron as it emerges.
+   * Returns where the jet is (for its sound).
+   */
+  rollOut(t: number, dt: number, w: number, h: number): THREE.Vector3 | null {
+    const r = this.roll;
+    if (!r) return null;
+    r.t = t;
+    this.interior.update(dt);
+    const L = r.ac.spec.length;
+    // (rolling forward, nose first, toward the doors at -z: picking up speed)
+    const z = 4 - (2.2 * t + 1.25 * t * t);
+    const gy = r.ac.spec.gear.height + 0.12;
+    r.ac.fm.pos.set(0, gy, z);
+    r.ac.fm.vel.set(0, 0, -(2.2 + 2.5 * t));
+    r.ac.fm.gs = r.ac.fm.tas = -r.ac.fm.vel.z;
+    r.vis.update(dt);
+    r.vis.root.position.set(0, gy, z);
+    r.vis.root.quaternion.identity();
+    const nose = new THREE.Vector3(0, gy + 0.6, z - L * 0.45);
+    if (t < 1.9) {
+      // low by the left door post, the nose coming at the lens
+      const k = t / 1.9;
+      this.camera.position.set(-5.2 + k * 0.8, 0.75 + k * 0.15, -22.5 + k * 1.5);
+      this.camera.lookAt(nose.x, nose.y + 0.4, nose.z);
+    } else {
+      // out on the apron, looking back as it rolls out of the dark into the sun
+      const k = (t - 1.9) / 2.2;
+      this.camera.position.set(9.5 - k * 1.5, 1.4 + k * 0.4, -42 - k * 2);
+      this.camera.lookAt(0, gy + 1.2, z - L * 0.1);
+    }
+    this.camera.aspect = w / Math.max(1, h);
+    this.camera.clearViewOffset();
+    this.camera.fov = 40;
+    this.camera.updateProjectionMatrix();
+    const draw = this.drawWith;
+    if (draw) withBounce(HANGAR_BOUNCE, () => draw(this.scene, this.camera));
+    return r.vis.root.position.clone();
+  }
+
+  /** the roll-out over: the menu's own jet back on show */
+  endRollOut(): void {
+    const r = this.roll;
+    if (!r) return;
+    this.scene.remove(r.vis.root);
+    releaseAirframe(r.vis);
+    this.roll = null;
+    for (const j of this.jets.values()) j.vis.root.visible = true;
+  }
+
   render(dt: number, w: number, h: number): void {
     this.t += dt;
     this.lastRender = performance.now();
