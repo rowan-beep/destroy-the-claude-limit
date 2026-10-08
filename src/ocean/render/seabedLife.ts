@@ -39,9 +39,17 @@ function finish(g: THREE.BufferGeometry, col: (x: number, y: number, z: number) 
   return ng;
 }
 
-/** a small deterministic random from a seed */
-function rng(seed: number): () => number {
-  let s = (Math.abs(Math.floor(seed)) % 2147483646) + 1;
+/**
+ * A small deterministic random from a seed. The seed is hashed first: a bare
+ * Lehmer generator's first draws are a linear function of the seed, so
+ * neighbouring cells would get related numbers (rows of cells alike).
+ */
+export function rng(seed: number): () => number {
+  let h = Math.floor(seed) | 0;
+  h = Math.imul(h ^ (h >>> 16), 0x7feb352d);
+  h = Math.imul(h ^ (h >>> 15), 0x846ca68b);
+  h ^= h >>> 16;
+  let s = ((h >>> 0) % 2147483646) + 1;
   return () => ((s = (s * 16807) % 2147483647) / 2147483647);
 }
 
@@ -96,9 +104,10 @@ function starfish(): THREE.BufferGeometry {
 }
 
 function urchin(): THREE.BufferGeometry {
+  // (polyhedra come without an index already)
   const body = new THREE.IcosahedronGeometry(0.28, 1);
-  const parts: THREE.BufferGeometry[] = [body.toNonIndexed()];
-  const dirs = new THREE.IcosahedronGeometry(1, 1).toNonIndexed().attributes.position;
+  const parts: THREE.BufferGeometry[] = [body];
+  const dirs = new THREE.IcosahedronGeometry(1, 1).attributes.position;
   const seen = new Set<string>();
   const up = new THREE.Vector3(0, 1, 0), d = new THREE.Vector3(), q = new THREE.Quaternion();
   for (let i = 0; i < dirs.count; i++) {
@@ -520,9 +529,11 @@ export class SeabedLife {
       const cap = Math.floor(k.cap * Math.max(0.3, this.density));
       let n = 0;
       for (const c of cells) {
+        if (n >= cap) break;
         const it = c.items[ki];
+        // (a cell with none of this kind is skipped, not the end of the list)
         const take = Math.min(it.n, cap - n);
-        if (take <= 0) break;
+        if (take <= 0) continue;
         mats.set(it.m.subarray(0, take * 16), n * 16);
         cols.set(it.c.subarray(0, take * 3), n * 3);
         n += take;
