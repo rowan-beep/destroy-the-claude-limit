@@ -127,6 +127,12 @@ export class CrewChief {
     this.tools = el('div', 'cc-tools', this.root);
     this.overlay = el('div', '', this.root);
     for (const ev of ['pointerdown', 'wheel']) this.card.addEventListener(ev, (e) => e.stopPropagation());
+    // (Escape leaves the hangar floor, unless a box is up)
+    window.addEventListener('keydown', (e) => {
+      if (!this.open || e.code !== 'Escape' || this.overlay.childElementCount) return;
+      e.preventDefault();
+      this.close();
+    });
   }
 
   get open(): boolean {
