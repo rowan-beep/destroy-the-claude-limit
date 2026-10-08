@@ -56,7 +56,15 @@ export const SHOTS: Record<Program, Shot[]> = {
     { file: '20.webp', caption: "JUPITER · THE GIANT" },
   ],
   // (taken in the game, like the others; none yet: the picker and the loading screen use their gradient)
-  ocean: [],
+  ocean: [
+    { file: '01.webp', caption: "SV-1 PETREL · KESTREL HARBOR AT FIRST LIGHT" },
+    { file: '02.webp', caption: "PETREL · AT THE WATERLINE" },
+    { file: '03.webp', caption: "LANTERN REEF · 15 M" },
+    { file: '04.webp', caption: "SNELL'S WINDOW · LOOKING UP FROM 14 M" },
+    { file: '05.webp', caption: "MV ORIEL BAY · 84 M DOWN" },
+    { file: '08.webp', caption: "THE KELP STAND · 6 M" },
+    { file: '09.webp', caption: "OVERCAST, ROUGH · SURFACED" },
+  ],
 };
 
 export function shotUrl(p: Program, s: Shot): string {
