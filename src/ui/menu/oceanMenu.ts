@@ -15,6 +15,7 @@ import { WEATHERS } from '../../ocean/world/waves';
 import { EchoAtlas } from '../../ocean/atlas/atlas';
 import { drawChart, fitView, type ChartView } from '../../ocean/ui/chart';
 import { parseCheckpoint, parseCareer, PROGRESS_KEY, CAREER_KEY, MISSION_ID, MISSION_TITLE, STAGES } from '../../ocean/mission/expedition';
+import { PULSE_ID, PULSE_PROGRESS_KEY, PULSE_STAGES } from '../../ocean/mission/followup';
 import { SURVEY_SUB } from '../../ocean/sub/subPhysics';
 import { DEPTH_BANDS } from '../../ocean/world/geo';
 import type { BenchResult } from '../../ocean/perf/benchmark';
@@ -26,7 +27,7 @@ export interface OceanMenuCallbacks {
   onSettings: () => void;
   onControls: () => void;
   /** start a dive: the expedition (fresh or continued) or a free survey */
-  onDive: (mode: 'expedition' | 'free', resume: boolean) => void;
+  onDive: (mode: 'expedition' | 'free' | 'pulse', resume: boolean) => void;
   /** run the benchmark route on a preset */
   onBenchmark: (preset: OceanPreset) => Promise<BenchResult>;
 }
@@ -83,17 +84,19 @@ const CSS = `
 .oc2-run div { position: absolute; left: 50%; top: 18px; transform: translateX(-50%); padding: 8px 16px; border-radius: 8px; background: rgba(3, 18, 28, 0.8); border: 1px solid rgba(124, 240, 200, 0.4); color: #7cf0c8; font: 700 12px 'Segoe UI', system-ui, sans-serif; letter-spacing: 0.2em; }
 `;
 
-function readSaved(): { stage: number | null; completed: boolean; unlocked: boolean } {
-  let raw: string | null = null, car: string | null = null;
+function readSaved(): { stage: number | null; completed: boolean; unlocked: boolean; pulseStage: number | null; pulseDone: boolean } {
+  let raw: string | null = null, car: string | null = null, praw: string | null = null;
   try {
     raw = localStorage.getItem(PROGRESS_KEY);
     car = localStorage.getItem(CAREER_KEY);
+    praw = localStorage.getItem(PULSE_PROGRESS_KEY);
   } catch {
     /* none */
   }
   const c = parseCheckpoint(raw);
+  const pc = parseCheckpoint(praw, PULSE_ID);
   const career = parseCareer(car);
-  return { stage: c ? c.stage : null, completed: career.completed.includes(MISSION_ID), unlocked: career.unlocked.includes('deep-pulse') };
+  return { stage: c ? c.stage : null, completed: career.completed.includes(MISSION_ID), unlocked: career.unlocked.includes('deep-pulse'), pulseStage: pc ? pc.stage : null, pulseDone: career.completed.includes(PULSE_ID) };
 }
 
 export class OceanMenu {
@@ -250,6 +253,7 @@ export class OceanMenu {
     const s = readSaved();
     const tiles = [
       { title: s.stage !== null ? 'CONTINUE THE EXPEDITION' : 'THE SILENT BUOY', sub: s.stage !== null ? `Stage ${s.stage + 1} of ${STAGES.length}` : 'Find what is knocking under the slope', img: '', tag: s.completed ? 'DONE' : undefined, click: () => cb.onDive('expedition', s.stage !== null) },
+      ...(s.unlocked ? [{ title: s.pulseStage !== null ? 'CONTINUE THE SLOW PULSE' : 'THE SLOW PULSE', sub: s.pulseStage !== null ? `Stage ${s.pulseStage + 1} of ${PULSE_STAGES.length}` : 'Find what is pulsing in the deep basin', img: '', tag: s.pulseDone ? 'DONE' : undefined, click: () => cb.onDive('pulse', s.pulseStage !== null) }] : []),
       { title: 'FREE SURVEY', sub: 'Leave the harbor: listen, ping, chart', img: '', click: () => cb.onDive('free', false) },
       { title: 'ECHO ATLAS', sub: 'The chart and everything heard', img: '', click: () => {
         this.setStyle('current');
@@ -419,7 +423,7 @@ export class OceanMenu {
 
   // ------------------------------------------------------------------ MISSIONS
   private renderMissions(): void {
-    this.head('MISSIONS', 'One expedition, and the open sea.');
+    this.head('MISSIONS', 'An expedition, its follow-up, and the open sea.');
     const s = readSaved();
     const card = (n: string, title: string, tag: string, sub: string, lock: string, run: (() => void) | null, status?: [string, boolean]) => {
       const r = el('div', 'sx2-card' + (run ? ' open' : ' locked'), this.side);
@@ -440,7 +444,20 @@ export class OceanMenu {
       button('START OVER', 'oc2-btn', b, () => this.cb.onDive('expedition', false));
     }
     card('02', 'FREE SURVEY', 'OPEN SEA', 'Leave the harbor with no task. Listen, ping, chart the reef, the slope and the deep basin. Dock at the berth to finish.', 'DIVE', () => this.cb.onDive('free', false));
-    card('03', 'THE SLOW PULSE', 'FOLLOW-UP', s.unlocked ? 'A slow, low pulse from the deep basin, found on the recorder. Take bearings on it on a free survey: its source is not built yet.' : 'Finish the expedition to open this.', s.unlocked ? 'LISTEN' : 'LOCKED', s.unlocked ? () => this.cb.onDive('free', false) : null);
+    card(
+      '03',
+      'THE SLOW PULSE',
+      'FOLLOW-UP',
+      s.unlocked ? "A slow, low pulse from the deep basin, on ORIEL BAY's recorder and the harbor's hydrophone log. Take bearings on it, go down and find what is sending it, and bring back what it knows. Deep work: 280 m and more." : 'Finish the expedition to open this.',
+      !s.unlocked ? 'LOCKED' : s.pulseStage !== null ? 'GO ON' : 'DIVE',
+      s.unlocked ? () => this.cb.onDive('pulse', s.pulseStage !== null) : null,
+      s.pulseStage !== null ? [`STAGE ${s.pulseStage + 1}/${PULSE_STAGES.length}`, false] : s.pulseDone ? ['COMPLETED', true] : undefined,
+    );
+    if (s.unlocked && s.pulseStage !== null) {
+      const b = el('div', 'oc2-btns', this.side);
+      button('CONTINUE', 'oc2-btn primary', b, () => this.cb.onDive('pulse', true));
+      button('START OVER', 'oc2-btn', b, () => this.cb.onDive('pulse', false));
+    }
     el('div', 'sx2-note', this.side, 'Ocean is about listening. Slow down and go quiet (Q) to hear faint sounds; take bearings from two places and they cross where the sound comes from. A ping (P) shows the ground and anything hard, but drowns faint sounds for a few seconds.');
   }
 

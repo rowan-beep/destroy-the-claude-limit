@@ -6,7 +6,7 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { HARBOR, SITES, seabedHeight, wreckLocal, buildColliders } from '../world/geo';
+import { HARBOR, SITES, K3, seabedHeight, wreckLocal, buildColliders } from '../world/geo';
 import { patchOceanMaterial } from './oceanMaterial';
 
 const srgb = (c: number) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
@@ -121,6 +121,13 @@ export class OceanProps {
   readonly recorder: THREE.Group;
   private recorderHome: { position: THREE.Vector3; quaternion: THREE.Quaternion };
   readonly plate: THREE.Mesh;
+  /** the lab's mooring K3 in the deep basin, and the recorder the arm takes off its line */
+  private k3: THREE.Group;
+  readonly k3Hydrophone: THREE.Group;
+  private k3HydrophoneHome: { position: THREE.Vector3; quaternion: THREE.Quaternion };
+  private k3TagMat: THREE.MeshStandardMaterial;
+  /** false once the recorder is ashore (the follow-up done): it is no longer on the line */
+  k3HydrophoneShown = true;
   private beaconMat: THREE.MeshBasicMaterial;
   private lights: { mesh: THREE.Mesh; period: number; phase: number }[] = [];
   private kelpMat: THREE.MeshLambertMaterial | null = null;
@@ -150,6 +157,14 @@ export class OceanProps {
     // the stern plate (always present: it is scanned)
     this.plate = this.buildPlate();
     this.group.add(this.plate);
+    // the mooring K3 (small: built once, shown near it)
+    const tagTex = textTexture([['KESTREL MARINE LAB', 30], ['MOORING K3', 46], ['IF FOUND DO NOT CUT', 24]], 512, 256, '#e9e6dc', '#1d2a33');
+    this.k3TagMat = patchOceanMaterial(new THREE.MeshStandardMaterial({ map: tagTex, roughness: 0.8, metalness: 0.05 }), 'k3tag');
+    this.k3 = this.buildK3();
+    this.group.add(this.k3);
+    this.k3Hydrophone = this.buildK3Hydrophone();
+    this.k3HydrophoneHome = { position: this.k3Hydrophone.position.clone(), quaternion: this.k3Hydrophone.quaternion.clone() };
+    this.group.add(this.k3Hydrophone);
   }
 
   // ---------------------------------------------------------------- harbor
@@ -575,6 +590,114 @@ export class OceanProps {
     return m;
   }
 
+  // ---------------------------------------------------------------- the mooring K3
+  /** anchor, release, line, glass floats, top float with pinger and tag, and the container at the foot */
+  private buildK3(): THREE.Group {
+    const g = new THREE.Group();
+    g.name = 'k3';
+    const { x, z, ground, floatY, floatR } = K3;
+    const metal: THREE.BufferGeometry[] = [];
+    const painted: THREE.BufferGeometry[] = [];
+    // the anchor: three scrap railway wheels stacked on the mud, with a chain to the release
+    for (let i = 0; i < 3; i++) {
+      const y = ground + 0.07 + i * 0.14;
+      metal.push(weather(cyl(0.46, 0.46, 0.12, 20, x, y, z), [0.3, 0.2, 0.14]));
+      metal.push(weather(cyl(0.5, 0.5, 0.03, 20, x, y - 0.045, z), [0.28, 0.18, 0.12]));
+    }
+    for (let i = 0; i < 6; i++) {
+      const l = new THREE.TorusGeometry(0.07, 0.018, 4, 8);
+      l.rotateY(i % 2 ? Math.PI / 2 : 0);
+      l.translate(x, ground + 0.5 + i * 0.12, z);
+      metal.push(weather(l, [0.25, 0.18, 0.13]));
+    }
+    // the acoustic release: the lab sends it a coded ping and it lets go of the anchor
+    painted.push(paint(cyl(0.09, 0.09, 0.95, 14, x, ground + 1.75, z), 0.92, 0.9, 0.86));
+    painted.push(paint(cyl(0.1, 0.1, 0.12, 14, x, ground + 2.2, z), 0.95, 0.75, 0.1));
+    // the line (jacketed wire, yellow), anchor to float
+    const y0 = ground + 2.3, y1 = floatY - 0.95;
+    painted.push(paint(cyl(0.012, 0.012, y1 - y0, 6, x, (y0 + y1) / 2, z), 0.85, 0.7, 0.15));
+    // glass flotation spheres in yellow hard hats, strung in fours on the line
+    for (const yc of [ground + 6, ground + 24, floatY - 14]) {
+      for (let k = 0; k < 4; k++) {
+        const sp = new THREE.SphereGeometry(0.22, 14, 10);
+        sp.translate(x + (k % 2 ? 0.24 : -0.24), yc + k * 0.5, z);
+        painted.push(paint(sp, 0.96, 0.78, 0.08));
+      }
+    }
+    // the top float (syntactic foam) with its steel band and a frame underneath
+    const fl = new THREE.SphereGeometry(floatR, 24, 16);
+    fl.translate(x, floatY, z);
+    painted.push(paint(fl, 0.95, 0.5, 0.08, 0.04));
+    const band = new THREE.TorusGeometry(floatR + 0.01, 0.035, 6, 28);
+    band.rotateX(Math.PI / 2);
+    band.translate(x, floatY, z);
+    metal.push(paint(band, 0.55, 0.56, 0.58));
+    for (const dx of [-0.42, 0.42]) metal.push(paint(box(0.05, 0.9, 0.05, x + dx, floatY - 0.7, z), 0.55, 0.56, 0.58));
+    metal.push(paint(box(0.9, 0.05, 0.05, x, floatY - 1.15, z), 0.55, 0.56, 0.58));
+    // the tag's backing plate on the frame
+    metal.push(paint(box(0.56, 0.3, 0.02, K3.tag.x, K3.tag.y, K3.tag.z + 0.02), 0.55, 0.56, 0.58));
+    // the relocation pinger hanging under the float
+    metal.push(paint(cyl(0.055, 0.055, 0.38, 12, x - 0.2, K3.pingerY, z), 0.08, 0.08, 0.09));
+    // the container across the line at the foot, settled into the mud and rusting at the corners
+    const c = K3.container;
+    const cg = new THREE.BoxGeometry(c.hx * 2, c.hy * 2, c.hz * 2, 2, 2, 12);
+    const cp = cg.attributes.position;
+    // corrugated sides
+    for (let i = 0; i < cp.count; i++) if (Math.abs(Math.abs(cp.getX(i)) - c.hx) < 1e-3) cp.setX(i, cp.getX(i) + Math.sin(cp.getZ(i) * 9) * 0.03);
+    cg.rotateZ(0.09);
+    cg.rotateY((-c.yaw * Math.PI) / 180);
+    cg.translate(c.x, c.y - 0.25, c.z);
+    metal.push(weather(cg, [0.16, 0.3, 0.42]));
+    const gm = new THREE.Mesh(mergeGeometries(metal.map((p) => (p.index ? p.toNonIndexed() : p)))!, this.mats.metal);
+    gm.castShadow = true;
+    const gp = new THREE.Mesh(mergeGeometries(painted.map((p) => (p.index ? p.toNonIndexed() : p)))!, this.mats.painted);
+    gp.castShadow = true;
+    g.add(gm, gp);
+    const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.25), this.k3TagMat);
+    tag.position.set(K3.tag.x, K3.tag.y, K3.tag.z);
+    // (a plane faces +z: turned to face south, toward -z)
+    tag.rotation.y = Math.PI;
+    tag.name = 'k3-tag';
+    g.add(tag);
+    return g;
+  }
+
+  /** the hydrophone recorder clamped to the line: a grey pressure housing, its hydrophone at the bottom */
+  private buildK3Hydrophone(): THREE.Group {
+    const g = new THREE.Group();
+    const parts: THREE.BufferGeometry[] = [];
+    parts.push(paint(cyl(0.085, 0.085, 0.62, 16, 0, 0, 0), 0.6, 0.62, 0.64));
+    parts.push(paint(cyl(0.09, 0.09, 0.06, 16, 0, 0.33, 0), 0.15, 0.15, 0.17));
+    const hp = new THREE.SphereGeometry(0.05, 10, 8);
+    hp.translate(0, -0.36, 0);
+    parts.push(paint(hp, 0.1, 0.1, 0.12));
+    for (const y of [-0.18, 0.18]) {
+      const cl = new THREE.TorusGeometry(0.095, 0.015, 4, 14);
+      cl.rotateX(Math.PI / 2);
+      cl.translate(0, y, 0);
+      parts.push(paint(cl, 0.7, 0.7, 0.72));
+    }
+    const m = new THREE.Mesh(mergeGeometries(parts.map((p) => (p.index ? p.toNonIndexed() : p)))!, this.mats.metal);
+    m.castShadow = true;
+    g.add(m);
+    g.position.set(K3.hydrophone.x, K3.hydrophone.y, K3.hydrophone.z);
+    g.name = 'k3-hydrophone';
+    return g;
+  }
+
+  /** where K3's tag is (for the scanner) */
+  k3TagWorld(out = new THREE.Vector3()): THREE.Vector3 {
+    return out.set(K3.tag.x, K3.tag.y, K3.tag.z);
+  }
+
+  /** put the hydrophone recorder back on the line (a restarted follow-up) */
+  resetK3Hydrophone(): void {
+    if (this.k3Hydrophone.parent !== this.group) this.group.add(this.k3Hydrophone);
+    this.k3Hydrophone.position.copy(this.k3HydrophoneHome.position);
+    this.k3Hydrophone.quaternion.copy(this.k3HydrophoneHome.quaternion);
+    this.k3Hydrophone.scale.set(1, 1, 1);
+  }
+
   /** where the plate is (for the scanner and the camera) */
   plateWorld(out = new THREE.Vector3()): THREE.Vector3 {
     return out.copy(this.plate.position);
@@ -599,6 +722,8 @@ export class OceanProps {
     this.wreckFar.visible = !this.wreckNear && dw < 2200;
     if (this.reef) this.reef.visible = Math.hypot(camX - SITES.reef.x, camZ - SITES.reef.z) < 1100;
     if (this.kelp) this.kelp.visible = Math.hypot(camX + 560, camZ - 330) < 900;
+    this.k3.visible = Math.hypot(camX - K3.x, camZ - K3.z) < 900;
+    if (this.k3Hydrophone.parent === this.group) this.k3Hydrophone.visible = this.k3.visible && this.k3HydrophoneShown;
     this.kelpTime.value = t;
     for (const l of this.lights) l.mesh.visible = (t + l.phase) % l.period < 0.6;
     void dt;
@@ -625,6 +750,8 @@ export class OceanProps {
     for (const mat of Object.values(this.mats)) mat.dispose();
     this.kelpMat?.dispose();
     this.beaconMat.dispose();
+    this.k3TagMat.map?.dispose();
+    this.k3TagMat.dispose();
     const pm = this.plate.material as THREE.MeshStandardMaterial;
     pm.map?.dispose();
     pm.dispose();

@@ -7,7 +7,7 @@
 // Pure TypeScript: the same numbers drive the sound, the listening display, the
 // bearings and the Echo Atlas on every quality preset.
 
-import { seabedHeight, colliderDistance, bearing, angleDiff, type Collider, SITES } from '../world/geo';
+import { seabedHeight, colliderDistance, bearing, angleDiff, type Collider, SITES, K3 } from '../world/geo';
 
 export type PatternKind = 'knock' | 'pulse' | 'chirp';
 
@@ -52,9 +52,10 @@ export const CONTACTS: ContactDef[] = [
   {
     id: 'deep-pulse',
     unknownLabel: 'SLOW PULSE',
-    x: SITES.deepPulse.x,
-    y: seabedHeight(SITES.deepPulse.x, SITES.deepPulse.z) + 2,
-    z: SITES.deepPulse.z,
+    // the relocation pinger under mooring K3's top float, 57 m above the basin floor
+    x: K3.x,
+    y: K3.pingerY,
+    z: K3.z,
     level: 176,
     freqKhz: 12,
     pattern: { kind: 'pulse', period: 6.5, beats: 1, pitch: 95, caption: 'A long 12 kHz pulse every 6.5 s, heard as a low tone' },
@@ -315,8 +316,10 @@ export function sonarRays(x: number, y: number, z: number, colliders: Collider[]
         break;
       }
       let hitTag = '';
+      // (each ray stands for a beam as wide as the spacing between rays: anything inside that footprint answers)
+      const footprint = Math.max(2.5, r * Math.tan(((180 / count) * Math.PI) / 180));
       for (const c of near) {
-        if (colliderDistance(c, px, y - r * 0.02, pz).d < 2.5) {
+        if (colliderDistance(c, px, y - r * 0.02, pz).d < footprint) {
           hitTag = c.tag;
           break;
         }

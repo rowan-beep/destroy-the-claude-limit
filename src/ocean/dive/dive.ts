@@ -11,17 +11,18 @@ import { DiveHud, type HudState, type SurveyState } from './hud';
 import { OceanAudio } from '../audio/oceanAudio';
 import { OCEAN_KEY_SECTIONS } from '../keys';
 import { SURVEY_SUB, NEUTRAL_BALLAST, newSubState, stepSub, FixedStepper, interpolate, rangeEstimate, speedOf, type SubState, type SubInput, type SubEnv } from '../sub/subPhysics';
-import { buildColliders, seabedHeight, bearing, HARBOR, SITES, DEPTH_BANDS, regionAt, type Collider } from '../world/geo';
+import { buildColliders, seabedHeight, bearing, HARBOR, SITES, K3, DEPTH_BANDS, regionAt, type Collider } from '../world/geo';
 import { CONTACTS, listen, ambientNoise, selfNoise, addDb, pingMask, ListenGauge, bearingHalfWidth, measureBearing, sonarRays, HEAR_SNR, PING_MASK_S, type SonarReturn } from '../acoustics/acoustics';
 import { EchoAtlas, TrackRecorder } from '../atlas/atlas';
-import { Expedition, STAGES, MISSION_ID, MISSION_TITLE, toolReady, PROGRESS_KEY, CAREER_KEY, parseCheckpoint, parseCareer, type Checkpoint, type MissionCtx, type Career } from '../mission/expedition';
+import { Expedition, STAGES, MISSION_ID, MISSION_TITLE, toolReady, CAREER_KEY, parseCheckpoint, parseCareer, type Checkpoint, type MissionRun, type Career } from '../mission/expedition';
+import { PulseMission, PULSE_ID, PULSE_TITLE, PULSE_STAGES, multibeamSees, type PulseCtx } from '../mission/followup';
 import { loadOceanSettings, saveOceanSettings, PRESETS, type OceanSettings } from '../perf/presets';
 import { WEATHERS } from '../world/waves';
 import { OCEAN_FX } from '../render/oceanMaterial';
 import { el } from '../../ui/dom';
 import { audio } from '../../audio/audio';
 
-export type DiveMode = 'expedition' | 'free';
+export type DiveMode = 'expedition' | 'free' | 'pulse';
 type CamMode = 'chase' | 'dome';
 
 const DEG = Math.PI / 180;
@@ -37,6 +38,17 @@ const STORY = {
   found: 'A wreck: a small cargo ship sitting upright, her bow broken off.',
   plate: 'The stern reads ORIEL BAY, KESTREL: the coaster reported missing in the January gale.',
   recovered: 'The knock was the locator beacon on her voyage data recorder, running down. The recorder is aboard.',
+};
+
+/** and the follow-up's */
+const PULSE_STORY = {
+  heard: 'A slow, low pulse from far out in the basin.',
+  bearing: 'One bearing on the pulse. It is kilometres off: the second bearing needs a long step to the side.',
+  located: 'The bearings cross over the deep basin, where the bottom is 330 m down and more.',
+  found: 'An orange float in the lamps, 282 m down, on a taut yellow line running down into the dark: a deep mooring.',
+  tag: 'The tag reads KESTREL MARINE LAB · MOORING K3. Its relocation pinger only starts when the mooring is knocked over.',
+  recovered: "K3's hydrophone recorder is aboard. It has been listening to the basin since the autumn.",
+  foot: "The multibeam shows a box 6 m long lying across the line at the anchor, 339 m down: a shipping container. Past PETREL's rating: a job for the lab's ROV.",
 };
 
 export interface DiveHost {
@@ -59,7 +71,7 @@ export class OceanDive {
   private env: SubEnv;
   private colliders: Collider[];
   private keys = new Set<string>();
-  private exp: Expedition | null = null;
+  private exp: MissionRun<PulseCtx> | null = null;
   private career: Career = parseCareer(null);
   private quiet = false;
   private gauge = new ListenGauge();
@@ -98,6 +110,12 @@ export class OceanDive {
   private arm: { t: number; attached: boolean } | null = null;
   private plateScanned = false;
   private recorderTaken = false;
+  private tagScanned = false;
+  private hydrophoneTaken = false;
+  private footPinged = false;
+  /** what the scanner and the arm are working on */
+  private scanWhat: 'plate' | 'tag' = 'plate';
+  private armWhat: 'recorder' | 'hydrophone' = 'recorder';
   private docked = false;
   private photoPending = false;
   private photo: string | null = null;
@@ -208,10 +226,13 @@ export class OceanDive {
     this.world.props.resetRecorder();
     // (once the expedition is done the recorder is ashore: a free survey finds the wreck without it)
     this.world.props.recorder.visible = !(mode === 'free' && this.career.completed.includes(MISSION_ID));
+    // (likewise K3's hydrophone recorder once the follow-up is done)
+    this.world.props.resetK3Hydrophone();
+    this.world.props.k3HydrophoneShown = mode === 'pulse' || !this.career.completed.includes(PULSE_ID);
     this.sub = newSubState(HARBOR.berth.x, HARBOR.berth.z, HARBOR.berth.heading);
     this.sub.y = -0.75;
     this.stepper = new FixedStepper(8);
-    this.exp = mode === 'expedition' ? new Expedition(0) : null;
+    this.exp = mode === 'expedition' ? new Expedition(0) : mode === 'pulse' ? new PulseMission(0) : null;
     this.quiet = false;
     this.gauge.reset();
     this.emergency = false;
@@ -230,6 +251,9 @@ export class OceanDive {
     this.arm = null;
     this.plateScanned = false;
     this.recorderTaken = false;
+    this.tagScanned = false;
+    this.hydrophoneTaken = false;
+    this.footPinged = false;
     this.docked = false;
     this.photo = null;
     this.track = new TrackRecorder(25);
@@ -248,19 +272,19 @@ export class OceanDive {
     this.camDist = 11;
     this.camInit = false;
     this.world.sub.setInterior(false);
-    if (mode === 'expedition' && resume) {
+    if (this.exp && resume) {
       let raw: string | null = null;
       try {
-        raw = localStorage.getItem(PROGRESS_KEY);
+        raw = localStorage.getItem(this.exp.progressKey);
       } catch {
         /* none */
       }
-      const c = parseCheckpoint(raw);
+      const c = parseCheckpoint(raw, this.exp.missionId);
       if (c) this.restore(c);
     }
-    if (mode === 'expedition' && !resume) {
+    if (this.exp && !resume) {
       try {
-        localStorage.removeItem(PROGRESS_KEY);
+        localStorage.removeItem(this.exp.progressKey);
       } catch {
         /* */
       }
@@ -274,8 +298,8 @@ export class OceanDive {
     // (no music in a dive: the sea and the hydrophones are the soundtrack)
     this.sound.start();
     this.active = true;
-    const title = mode === 'expedition' ? MISSION_TITLE : 'FREE SURVEY';
-    this.hud.flash(mode === 'expedition' ? (resume ? 'EXPEDITION RESUMED' : 'EXPEDITION') : 'KESTREL HARBOR', title, 4);
+    const title = this.exp ? this.exp.title : 'FREE SURVEY';
+    this.hud.flash(this.exp ? (resume ? 'RESUMED' : mode === 'pulse' ? 'FOLLOW-UP' : 'EXPEDITION') : 'KESTREL HARBOR', title, 4);
   }
 
   stop(): void {
@@ -308,7 +332,7 @@ export class OceanDive {
   private checkpoint(): Checkpoint {
     const s = this.sub;
     return {
-      mission: MISSION_ID,
+      mission: this.exp?.missionId ?? MISSION_ID,
       stage: this.exp?.stage ?? 0,
       sub: { x: s.x, y: s.y, z: s.z, heading: s.heading, ballast: s.ballast, battery: s.battery },
       elapsed: this.elapsed,
@@ -317,6 +341,9 @@ export class OceanDive {
       battery0: this.battery0,
       plateScanned: this.plateScanned,
       recorderTaken: this.recorderTaken,
+      tagScanned: this.tagScanned,
+      hydrophoneTaken: this.hydrophoneTaken,
+      footPinged: this.footPinged,
       second: this.exp?.second ?? null,
       track: this.track.points.slice(),
       t: Date.now(),
@@ -326,7 +353,7 @@ export class OceanDive {
   private save(): void {
     if (!this.exp || this.ended) return;
     try {
-      localStorage.setItem(PROGRESS_KEY, JSON.stringify(this.checkpoint()));
+      localStorage.setItem(this.exp.progressKey, JSON.stringify(this.checkpoint()));
     } catch {
       /* storage full or blocked: the dive goes on */
     }
@@ -353,10 +380,14 @@ export class OceanDive {
     this.battery0 = c.battery0;
     this.plateScanned = c.plateScanned;
     this.recorderTaken = c.recorderTaken;
+    this.tagScanned = !!c.tagScanned;
+    this.hydrophoneTaken = !!c.hydrophoneTaken;
+    this.footPinged = !!c.footPinged;
     this.track = new TrackRecorder(25);
     this.track.points = c.track.slice();
     this.track.distance = c.distance;
     if (this.recorderTaken) this.stowRecorder();
+    if (this.hydrophoneTaken) this.stowHydrophone();
     this.safe = c;
     this.camInit = false;
   }
@@ -365,6 +396,7 @@ export class OceanDive {
   private recoverToSafe(): void {
     if (!this.safe) return;
     this.world.props.resetRecorder();
+    this.world.props.resetK3Hydrophone();
     this.world.sub.poseArm(0, 0.6);
     this.arm = null;
     this.scanT = -1;
@@ -469,6 +501,7 @@ export class OceanDive {
     const alt = this.sub.y - 1.4 - seabedHeight(this.sub.x, this.sub.z);
     if (alt < 6 && -this.sub.y > 2) return 'TOO CLOSE TO THE BOTTOM';
     if (Math.hypot(this.sub.x - SITES.wreck.x, this.sub.z - SITES.wreck.z) < 300) return 'NEAR THE SITE: ×1';
+    if (Math.hypot(this.sub.x - K3.x, this.sub.z - K3.z) < 300 && -this.sub.y > 150) return 'NEAR THE SITE: ×1';
     if (this.sub.x > HARBOR.basin.minX && this.sub.x < HARBOR.basin.maxX && this.sub.z < HARBOR.basin.maxZ + 30) return 'INSIDE THE HARBOR: ×1';
     return '';
   }
@@ -485,7 +518,7 @@ export class OceanDive {
   private pauseCard(): void {
     this.hud.showCard((c) => {
       el('h2', '', c, 'PAUSED');
-      el('div', 'sub', c, this.exp ? `${MISSION_TITLE} · stage ${Math.min(this.exp.stage + 1, STAGES.length)} of ${STAGES.length}. Progress is saved at every stage.` : 'Free survey from Kestrel Harbor.');
+      el('div', 'sub', c, this.exp ? `${this.exp.title} · stage ${Math.min(this.exp.stage + 1, this.exp.stageCount)} of ${this.exp.stageCount}. Progress is saved at every stage.` : 'Free survey from Kestrel Harbor.');
       const set = el('div', 'oc-set', c);
       const sel = <K extends keyof OceanSettings>(label: string, key: K, opts: [OceanSettings[K], string][]) => {
         el('span', '', set, label);
@@ -522,7 +555,7 @@ export class OceanDive {
       btn('RESUME', () => this.setPaused(false), true);
       btn('CONTROLS', () => this.hud.help.classList.add('show'));
       if (this.exp && this.safe) btn('RECOVER TO LAST SAFE POINT', () => this.recoverToSafe());
-      if (this.exp) btn('RESTART EXPEDITION', () => this.start('expedition', false));
+      if (this.exp) btn('RESTART', () => this.start(this.mode, false));
       btn(this.exp ? 'SAVE AND QUIT TO HARBOR' : 'QUIT TO HARBOR', () => this.exit());
     });
   }
@@ -567,7 +600,7 @@ export class OceanDive {
 
   private activeContact = (id: string): boolean => {
     if (id === 'knock') return !this.recorderTaken && !this.career.completed.includes(MISSION_ID);
-    if (id === 'deep-pulse') return this.career.unlocked.includes('deep-pulse');
+    if (id === 'deep-pulse') return this.mode === 'pulse' || this.career.unlocked.includes('deep-pulse');
     return true;
   };
 
@@ -615,7 +648,7 @@ export class OceanDive {
         const t = (this.heardT.get(h.id) ?? 0) + dt;
         this.heardT.set(h.id, t);
         if (t > 1.5 && !known) {
-          this.atlas.hear(h.id, def.unknownLabel, def.pattern, h.id === 'knock' ? STORY.heard : 'A slow, low pulse from far out in the basin.');
+          this.atlas.hear(h.id, def.unknownLabel, def.pattern, h.id === 'knock' ? STORY.heard : PULSE_STORY.heard);
           this.hud.flash('NEW CONTACT', def.unknownLabel);
         }
         if (!best || h.snr > best.snr) best = { id: h.id, snr: h.snr, bearing: h.bearing };
@@ -631,7 +664,7 @@ export class OceanDive {
       if (done && best) {
         this.gauge.reset();
         const def = CONTACTS.find((c) => c.id === best!.id)!;
-        if (!this.atlas.contact(def.id)) this.atlas.hear(def.id, def.unknownLabel, def.pattern, def.id === 'knock' ? STORY.heard : 'A slow, low pulse from far out in the basin.');
+        if (!this.atlas.contact(def.id)) this.atlas.hear(def.id, def.unknownLabel, def.pattern, def.id === 'knock' ? STORY.heard : PULSE_STORY.heard);
         const hw = bearingHalfWidth(best.snr);
         const n0 = this.atlas.data.observations.length;
         const measured = measureBearing(best.bearing, hw, n0 * 7919 + Math.round(s.x * 13 + s.z * 7));
@@ -640,9 +673,11 @@ export class OceanDive {
         const c = this.atlas.contact(def.id)!;
         if (fix) {
           if (def.id === 'knock') this.atlas.interpret(def.id, STORY.located);
+          else if (def.id === 'deep-pulse' && c.status !== 'confirmed') this.atlas.interpret(def.id, PULSE_STORY.located);
           this.hud.flash('BEARINGS CROSS', 'SEARCH AREA ON THE CHART', 3.5);
         } else {
           if (def.id === 'knock' && c.interpretations.length < 2) this.atlas.interpret(def.id, STORY.bearing);
+          else if (def.id === 'deep-pulse' && c.interpretations.length < 2) this.atlas.interpret(def.id, PULSE_STORY.bearing);
           this.hud.flash('BEARING RECORDED', `${String(Math.round(measured)).padStart(3, '0')}° ± ${Math.round(hw)}°`, 3);
         }
       }
@@ -698,6 +733,29 @@ export class OceanDive {
         this.atlas.interpret('knock', STORY.pinged);
         this.hud.flash('SONAR', `HARD RETURN AT ${Math.round(Math.min(...hard.map((r) => r.r)))} M`, 3);
       }
+      // small hard returns: K3's float and line, when the ping is made near their depth
+      const k3 = this.pingRays.filter((r) => r.kind === 'object' && r.tag.startsWith('k3'));
+      if (k3.length && !hard.length) {
+        const n = k3.reduce((a, b) => (b.r < a.r ? b : a));
+        this.hud.flash('SONAR', `SMALL HARD RETURN · ${String(Math.round(n.b)).padStart(3, '0')}° · ${Math.round(n.r)} M`, 3.5);
+      }
+      // the multibeam looks down where the boat may not go: the foot of K3's line
+      const kc = K3.container;
+      if (multibeamSees(o.x, o.y, o.z, kc.x, kc.y, kc.z)) {
+        const box: { x: number; y: number; z: number; kind: number; at: number }[] = [];
+        const a = (kc.yaw * Math.PI) / 180, ca = Math.cos(a), sa = Math.sin(a);
+        const at = t0 + (o.y - kc.y) / 1500;
+        for (let i = -2; i <= 2; i++) {
+          for (let j = -5; j <= 5; j++) {
+            const lx = (i / 2) * kc.hx, lz = (j / 5) * kc.hz;
+            box.push({ x: kc.x + lx * ca - lz * sa, y: kc.y + kc.hy, z: kc.z + lx * sa + lz * ca, kind: 1, at });
+          }
+        }
+        this.world.fx.addSonar(box);
+        this.hud.flash('MULTIBEAM', `A ${Math.round(kc.hz * 2)} M BOX ON THE BOTTOM AT ${Math.round(-kc.y)} M`, 3.5);
+        if (!this.footPinged && this.atlas.contact('deep-pulse')) this.atlas.interpret('deep-pulse', PULSE_STORY.foot);
+        this.footPinged = true;
+      }
     }
   }
 
@@ -714,19 +772,52 @@ export class OceanDive {
       return this.hud.flash('DOCKING', 'THE EXPEDITION IS NOT FINISHED', 2);
     }
     if (this.batteryCard || this.arm || this.scanT >= 0) return;
+    const pulse = this.exp?.missionId === PULSE_ID;
+    // scan K3's tag
+    if (pulse && !this.tagScanned && this.exp!.id === 'scan') {
+      const p = this.world.props.k3TagWorld(this.tmp);
+      if (Math.hypot(s.x - p.x, s.z - p.z) < 30 && Math.abs(s.y - p.y) < 15) {
+        const r = toolReady(s.x, s.z, s.heading, speed, p.x, p.z, 8, 45);
+        if (!r.ok) return this.hud.flash('SCANNER', r.why, 1.8);
+        if (!this.facingTag()) return this.hud.flash('SCANNER', 'GO ROUND: THE TAG FACES NORTH', 2);
+        if (Math.abs(s.y - p.y) > 3) return this.hud.flash('SCANNER', 'COME LEVEL WITH THE TAG', 1.8);
+        this.scanT = 0;
+        this.scanWhat = 'tag';
+        this.sound.camera();
+        return;
+      }
+    }
+    // take the hydrophone recorder off K3's line
+    if (pulse && !this.hydrophoneTaken && this.world.props.k3HydrophoneShown && this.exp!.stage >= PULSE_STAGES.indexOf('recover')) {
+      const hp = K3.hydrophone;
+      if (Math.hypot(s.x - hp.x, s.z - hp.z) < 30 && Math.abs(s.y - hp.y) < 15) {
+        const r = toolReady(s.x, s.z, s.heading, speed, hp.x, hp.z, 4.5, 35);
+        if (!r.ok) return this.hud.flash('ARM', r.why, 1.8);
+        // (the arm works below and ahead of the boat: the recorder should be level with the skids, or a little below)
+        const above = s.y - hp.y;
+        if (above > 2.6) return this.hud.flash('ARM', 'GO LOWER: LEVEL WITH THE RECORDER', 2);
+        if (above < -0.6) return this.hud.flash('ARM', 'GO HIGHER: LEVEL WITH THE RECORDER', 2);
+        this.arm = { t: 0, attached: false };
+        this.armWhat = 'hydrophone';
+        s.holdPos = { x: s.x, z: s.z, heading: s.heading };
+        audio.servo(1.2, 1);
+        return;
+      }
+    }
     // scan the plate
-    if (!this.plateScanned && (!this.exp || this.exp.id === 'scan')) {
+    if (!pulse && !this.plateScanned && (!this.exp || this.exp.id === 'scan')) {
       const p = this.world.props.plateWorld(this.tmp);
       const r = toolReady(s.x, s.z, s.heading, speed, p.x, p.z, 12, 45);
       if (Math.hypot(s.x - p.x, s.z - p.z) < 30) {
         if (!r.ok) return this.hud.flash('SCANNER', r.why, 1.8);
         this.scanT = 0;
+        this.scanWhat = 'plate';
         this.sound.camera();
         return;
       }
     }
     // recover the recorder
-    if (!this.recorderTaken && this.world.props.recorder.visible && (!this.exp || this.exp.id === 'recover' || this.exp.stage > STAGES.indexOf('recover'))) {
+    if (!pulse && !this.recorderTaken && this.world.props.recorder.visible && (!this.exp || this.exp.id === 'recover' || this.exp.stage > STAGES.indexOf('recover'))) {
       const rp = SITES.recorder;
       const d = Math.hypot(s.x - rp.x, s.z - rp.z);
       if (d < 30) {
@@ -735,11 +826,28 @@ export class OceanDive {
         if (!r.ok) return this.hud.flash('ARM', r.why, 1.8);
         if (above > 4.2) return this.hud.flash('ARM', 'GO LOWER: THE ARM REACHES 2 M BELOW THE SKIDS', 2);
         this.arm = { t: 0, attached: false };
+        this.armWhat = 'recorder';
         s.holdPos = { x: s.x, z: s.z, heading: s.heading };
         audio.servo(1.2, 1);
         return;
       }
     }
+  }
+
+  /** the tag is read from in front: the boat must be on its side of the float (within 60° of where it faces) */
+  private facingTag(): boolean {
+    const s = this.sub, t = K3.tag;
+    const dx = s.x - t.x, dz = s.z - t.z;
+    // (it faces north, -z)
+    return -dz > 0.5 * Math.hypot(dx, dz);
+  }
+
+  private stowHydrophone(): void {
+    const h = this.world.props.k3Hydrophone;
+    this.world.sub.basket.add(h);
+    h.position.set(0.2, 0.02, 0);
+    h.rotation.set(0, 0, Math.PI / 2);
+    h.scale.setScalar(1);
   }
 
   private stowRecorder(): void {
@@ -754,14 +862,23 @@ export class OceanDive {
     const s = this.sub;
     // the scan: two seconds of holding still facing the plate
     if (this.scanT >= 0) {
-      const p = this.world.props.plateWorld(this.tmp);
-      const r = toolReady(s.x, s.z, s.heading, speedOf(s), p.x, p.z, 12, 45);
-      if (!r.ok) {
+      const tag = this.scanWhat === 'tag';
+      const p = tag ? this.world.props.k3TagWorld(this.tmp) : this.world.props.plateWorld(this.tmp);
+      const r = toolReady(s.x, s.z, s.heading, speedOf(s), p.x, p.z, tag ? 8 : 12, 45);
+      const facing = !tag || this.facingTag();
+      if (!r.ok || !facing) {
         this.scanT = -1;
-        this.hud.flash('SCAN INTERRUPTED', r.why, 2);
+        this.hud.flash('SCAN INTERRUPTED', r.ok ? 'GO ROUND: THE TAG FACES NORTH' : r.why, 2);
       } else {
         this.scanT += dt;
-        if (this.scanT >= 2) {
+        if (this.scanT >= 2 && tag) {
+          this.scanT = -1;
+          this.tagScanned = true;
+          this.photoPending = true;
+          this.atlas.addEvidence({ contactId: 'deep-pulse', kind: 'scan', title: 'Mooring tag: KESTREL MARINE LAB · K3', text: 'Photograph of the tag on the top float: KESTREL MARINE LAB, MOORING K3, IF FOUND DO NOT CUT.' });
+          if (this.atlas.contact('deep-pulse')) this.atlas.interpret('deep-pulse', PULSE_STORY.tag);
+          this.hud.flash('SCANNED', 'MOORING K3 · KESTREL MARINE LAB', 3.5);
+        } else if (this.scanT >= 2) {
           this.scanT = -1;
           this.plateScanned = true;
           this.photoPending = true;
@@ -776,10 +893,11 @@ export class OceanDive {
       const a = this.arm;
       a.t += dt;
       const m = this.world.sub;
-      const rec = this.world.props.recorder;
+      const hyd = this.armWhat === 'hydrophone';
+      const rec = hyd ? this.world.props.k3Hydrophone : this.world.props.recorder;
       if (!a.attached) {
-        // reach for the capsule's handle
-        const tgt = m.toBody(this.tmp.set(SITES.recorder.x, rec.getWorldPosition(this.tmp2).y + 0.4, SITES.recorder.z));
+        // reach for the capsule's handle (or the recorder's clamp on the line)
+        const tgt = hyd ? m.toBody(this.tmp.set(K3.hydrophone.x, K3.hydrophone.y + 0.1, K3.hydrophone.z)) : m.toBody(this.tmp.set(SITES.recorder.x, rec.getWorldPosition(this.tmp2).y + 0.4, SITES.recorder.z));
         m.setArmTarget(tgt);
       }
       if (a.t < 2.4) m.poseArm(a.t / 2.4, 1);
@@ -791,7 +909,17 @@ export class OceanDive {
           audio.servo(0.6, 0.8);
         }
         if (a.t < 5.6) m.poseArm(1 - (a.t - 3.0) / 2.6, 0.15);
-        else {
+        else if (hyd) {
+          this.stowHydrophone();
+          m.poseArm(0, 0.6);
+          this.arm = null;
+          this.hydrophoneTaken = true;
+          s.holdPos = null;
+          this.sound.clunk();
+          this.atlas.addEvidence({ contactId: 'deep-pulse', kind: 'item', title: 'Hydrophone recorder from mooring K3', text: "A grey pressure housing with a hydrophone at one end, unclamped from K3's line 3 m below the top float. It has been recording the basin since the autumn." });
+          if (this.atlas.contact('deep-pulse')) this.atlas.confirm('deep-pulse', { x: K3.x, z: K3.z, depth: -K3.pingerY }, 'MOORING K3 · RELOCATION PINGER', PULSE_STORY.recovered);
+          this.hud.flash('RECOVERED', 'HYDROPHONE RECORDER', 3.5);
+        } else {
           this.stowRecorder();
           m.poseArm(0, 0.6);
           this.arm = null;
@@ -823,6 +951,7 @@ export class OceanDive {
   // ------------------------------------------------------------------ the expedition's end
   private finish(): void {
     if (this.ended) return;
+    if (this.exp?.missionId === PULSE_ID) return this.finishPulse();
     this.ended = true;
     const knock = this.atlas.contact('knock');
     const fixErr = knock?.estimate ? Math.hypot(knock.estimate.x - SITES.recorder.x, knock.estimate.z - SITES.recorder.z) : null;
@@ -835,13 +964,13 @@ export class OceanDive {
     if (fresh) this.career.unlocked.push('deep-pulse');
     try {
       localStorage.setItem(CAREER_KEY, JSON.stringify(this.career));
-      localStorage.removeItem(PROGRESS_KEY);
+      localStorage.removeItem(this.exp!.progressKey);
     } catch {
       /* */
     }
     if (fresh) {
       const dp = CONTACTS.find((c) => c.id === 'deep-pulse')!;
-      this.atlas.hear(dp.id, dp.unknownLabel, dp.pattern, 'Found on the recorder\'s last minutes, and on the harbor hydrophone log since: a slow, low pulse from far out in the deep basin. Listen for it on a free survey.');
+      this.atlas.hear(dp.id, dp.unknownLabel, dp.pattern, "Found on the recorder's last minutes, and on the harbor hydrophone log since: a slow, low pulse from far out in the deep basin. Follow it up from the MISSIONS page.");
     }
     const mm = (x: number) => `${Math.floor(x / 60)} min ${String(Math.round(x % 60)).padStart(2, '0')} s`;
     this.hud.showCard((c) => {
@@ -851,12 +980,66 @@ export class OceanDive {
       const l = el('div', '', g);
       el('p', '', l, 'Three weeks ago the coaster MV ORIEL BAY stopped answering in a winter gale off Kestrel. Nothing was found on the surface.');
       el('p', '', l, 'Your bearings on a faint double knock crossed over the slope. Sonar showed a hull; your lamps found her upright at 85 m, bow broken off. The stern plate confirmed her name, and the knock was her voyage data recorder\'s locator beacon, nearly flat.');
-      el('p', '', l, 'The recorder is ashore with the investigators. Its last minutes, and the harbor\'s own hydrophone log, carry something else: a slow, low pulse from the deep basin. It is in your Echo Atlas.');
+      el('p', '', l, "The recorder is ashore with the investigators. Its last minutes, and the harbor's own hydrophone log, carry something else: a slow, low pulse from the deep basin. It is in your Echo Atlas, and THE SLOW PULSE is open on the MISSIONS page.");
       const r = el('div', '', g);
       if (this.photo) {
         const im = el('img', '', r) as HTMLImageElement;
         im.src = this.photo;
         im.alt = 'Scan photograph of the stern plate';
+      }
+      const st = el('div', 'oc-deb-stats', r);
+      st.style.marginTop = '12px';
+      const row = (k: string, v: string) => {
+        el('span', '', st, k);
+        el('span', '', st, v);
+      };
+      row('Time', mm(this.elapsed));
+      row('Distance', `${(this.track.distance / 1000).toFixed(2)} km`);
+      row('Deepest', `${Math.round(this.maxDepth)} m`);
+      row('Bearings taken', String(bearings));
+      row('Search area centre to source', fixErr === null ? '—' : `${Math.round(fixErr)} m`);
+      row('Battery used', `${Math.round((this.battery0 - this.sub.battery) * 100)} %`);
+      row('Bumps', String(this.bumps));
+      const b = el('div', 'btns', c);
+      const x = el('button', 'oc-btn primary', b, 'BACK TO THE HARBOR') as HTMLButtonElement;
+      x.type = 'button';
+      x.addEventListener('click', () => {
+        audio.click();
+        this.exit();
+      });
+    }, true);
+  }
+
+  /** the follow-up's end: what K3 was, what lay at its foot, and what its recorder heard */
+  private finishPulse(): void {
+    this.ended = true;
+    const pc = this.atlas.contact('deep-pulse');
+    const fixErr = pc?.estimate ? Math.hypot(pc.estimate.x - K3.x, pc.estimate.z - K3.z) : null;
+    const bearings = this.atlas.data.observations.filter((o) => o.contactId === 'deep-pulse').length;
+    this.atlas.addExpedition({ mission: PULSE_ID, t: Date.now(), durationS: this.elapsed, distanceM: this.track.distance, maxDepth: this.maxDepth, bearings, fixErrorM: fixErr, batteryUsed: this.battery0 - this.sub.battery, recovered: this.hydrophoneTaken ? ['Hydrophone recorder (K3)'] : [] });
+    this.track.add(this.sub.x, this.sub.z, Math.max(0, -this.sub.y));
+    this.atlas.addTrack({ mission: PULSE_ID, t: Date.now(), points: this.track.points });
+    if (!this.career.completed.includes(PULSE_ID)) this.career.completed.push(PULSE_ID);
+    try {
+      localStorage.setItem(CAREER_KEY, JSON.stringify(this.career));
+      localStorage.removeItem(this.exp!.progressKey);
+    } catch {
+      /* */
+    }
+    const mm = (x: number) => `${Math.floor(x / 60)} min ${String(Math.round(x % 60)).padStart(2, '0')} s`;
+    this.hud.showCard((c) => {
+      el('h2', '', c, 'DEBRIEF');
+      el('div', 'sub', c, PULSE_TITLE);
+      const g = el('div', 'oc-deb', c);
+      const l = el('div', '', g);
+      el('p', '', l, "The slow pulse on ORIEL BAY's recorder was not hers. Your bearings crossed over the deep basin, and 282 m down your lamps found the top float of the Kestrel Marine Lab's current-meter mooring K3.");
+      el('p', '', l, "K3's relocation pinger only starts when the mooring is knocked over. The multibeam showed why: a 20-foot container lying across the line at the anchor, 339 m down, past PETREL's rating.");
+      el('p', '', l, "The lab played back the hydrophone recorder you brought up. On the night of the gale it heard a ship's engine pass overhead, a heavy splash, and the mooring jerk as the container came down across its line. ORIEL BAY was already losing her deck cargo over the basin, before she went down on the slope. The investigators now know where it began.");
+      const r = el('div', '', g);
+      if (this.photo) {
+        const im = el('img', '', r) as HTMLImageElement;
+        im.src = this.photo;
+        im.alt = "Photograph of K3's tag";
       }
       const st = el('div', 'oc-deb-stats', r);
       st.style.marginTop = '12px';
@@ -918,10 +1101,16 @@ export class OceanDive {
     return v.guide.kind === 'area' ? { kind: 'area', x: v.guide.x, z: v.guide.z, r: v.guide.r, label: v.guide.label } : { kind: 'point', x: v.guide.x, z: v.guide.z, label: v.guide.label };
   }
 
-  private ctx(): MissionCtx {
+  private ctx(): PulseCtx {
     const s = this.sub;
     const knock = this.atlas.contact('knock');
     return {
+      pulse: this.atlas.contact('deep-pulse'),
+      pulseBearings: this.atlas.data.observations.filter((o) => o.contactId === 'deep-pulse').length,
+      lamps: s.lights,
+      tagScanned: this.tagScanned,
+      hydrophoneTaken: this.hydrophoneTaken,
+      footPinged: this.footPinged,
       x: s.x,
       z: s.z,
       depth: -s.y,
@@ -987,7 +1176,8 @@ export class OceanDive {
         const moved = this.exp.update(this.ctx());
         if (moved) {
           if (this.exp.lastNote === 'A wreck in the lights' && this.atlas.contact('knock')) this.atlas.interpret('knock', STORY.found);
-          this.hud.flash(`STAGE ${this.exp.stage} OF ${STAGES.length}`, this.exp.lastNote.toUpperCase(), 3);
+          if (this.exp.lastNote === 'A mooring float in the lamps' && this.atlas.contact('deep-pulse')) this.atlas.interpret('deep-pulse', PULSE_STORY.found);
+          this.hud.flash(`STAGE ${this.exp.stage} OF ${this.exp.stageCount}`, this.exp.lastNote.toUpperCase(), 3);
           this.sound.chime();
           this.safe = this.checkpoint();
           this.save();
@@ -1148,7 +1338,8 @@ export class OceanDive {
       c.height = Math.round((400 * src.height) / Math.max(1, src.width));
       c.getContext('2d')!.drawImage(src, 0, 0, c.width, c.height);
       this.photo = c.toDataURL('image/jpeg', 0.72);
-      this.atlas.addEvidence({ contactId: 'knock', kind: 'photo', title: 'Photograph: the stern of the wreck', text: 'Taken by the pilot\'s camera during the scan.', image: this.photo });
+      const tag = this.scanWhat === 'tag';
+      this.atlas.addEvidence({ contactId: tag ? 'deep-pulse' : 'knock', kind: 'photo', title: tag ? "Photograph: K3's top float and tag" : 'Photograph: the stern of the wreck', text: "Taken by the pilot's camera during the scan.", image: this.photo });
     } catch {
       /* no picture (a tainted or lost canvas): the scan itself is recorded */
     }
@@ -1168,12 +1359,12 @@ export class OceanDive {
       task = v.task;
       hint = v.hint;
       stage = this.exp.stage;
-      kicker = `${MISSION_TITLE} · ${stage + 1}/${STAGES.length}`;
+      kicker = `${this.exp.title} · ${stage + 1}/${this.exp.stageCount}`;
     } else if (this.exp) {
       task = 'Expedition complete';
       hint = '';
-      stage = STAGES.length;
-      kicker = MISSION_TITLE;
+      stage = this.exp.stageCount;
+      kicker = this.exp.title;
     }
     // compass marks
     const marks: HudState['marks'] = [];
@@ -1204,7 +1395,7 @@ export class OceanDive {
         task,
         hint,
         stage,
-        stages: this.exp ? STAGES.length : 0,
+        stages: this.exp ? this.exp.stageCount : 0,
         heading: s.heading,
         depth,
         alt: alt < 150 && depth > 1.5 ? Math.max(0, alt) : null,
@@ -1271,14 +1462,35 @@ export class OceanDive {
       if (this.exp && this.exp.id !== 'dock') return ['', false];
       return speed > 0.7 ? ['SLOW DOWN TO DOCK', true] : ['E · DOCK AT THE BERTH', false];
     }
-    if (!this.plateScanned && (!this.exp || this.exp.id === 'scan')) {
+    const pulse = this.exp?.missionId === PULSE_ID;
+    if (pulse && !this.tagScanned && this.exp!.id === 'scan') {
+      const p = this.world.props.k3TagWorld(this.tmp2);
+      if (Math.hypot(s.x - p.x, s.z - p.z) < 30 && Math.abs(s.y - p.y) < 15) {
+        const r = toolReady(s.x, s.z, s.heading, speed, p.x, p.z, 8, 45);
+        if (!r.ok) return [r.why, true];
+        if (!this.facingTag()) return ['GO ROUND: THE TAG FACES NORTH', true];
+        return Math.abs(s.y - p.y) > 3 ? ['COME LEVEL WITH THE TAG', true] : ['E · SCAN THE TAG', false];
+      }
+    }
+    if (pulse && !this.hydrophoneTaken && this.world.props.k3HydrophoneShown && this.exp!.id === 'recover') {
+      const hp = K3.hydrophone;
+      if (Math.hypot(s.x - hp.x, s.z - hp.z) < 30 && Math.abs(s.y - hp.y) < 15) {
+        const r = toolReady(s.x, s.z, s.heading, speed, hp.x, hp.z, 4.5, 35);
+        if (!r.ok) return [r.why, true];
+        const above = s.y - hp.y;
+        if (above > 2.6) return ['GO LOWER: LEVEL WITH THE RECORDER', true];
+        if (above < -0.6) return ['GO HIGHER: LEVEL WITH THE RECORDER', true];
+        return ['E · TAKE THE RECORDER WITH THE ARM', false];
+      }
+    }
+    if (!pulse && !this.plateScanned && (!this.exp || this.exp.id === 'scan')) {
       const pl = this.world.props.plateWorld(this.tmp2);
       if (Math.hypot(s.x - pl.x, s.z - pl.z) < 30) {
         const r = toolReady(s.x, s.z, s.heading, speed, pl.x, pl.z, 12, 45);
         return r.ok ? ['E · SCAN THE PLATE', false] : [r.why, true];
       }
     }
-    if (!this.recorderTaken && this.world.props.recorder.visible && (!this.exp || this.exp.id === 'recover')) {
+    if (!pulse && !this.recorderTaken && this.world.props.recorder.visible && (!this.exp || this.exp.id === 'recover')) {
       const rp = SITES.recorder;
       if (Math.hypot(s.x - rp.x, s.z - rp.z) < 30) {
         const r = toolReady(s.x, s.z, s.heading, speed, rp.x, rp.z, 5.5, 35);

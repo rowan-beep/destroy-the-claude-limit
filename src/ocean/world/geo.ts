@@ -182,6 +182,38 @@ export function groundAt(x: number, z: number, h = seabedHeight(x, z)): Ground {
   return n[1] < 0.86 ? 'rock' : 'sand';
 }
 
+/**
+ * The Kestrel Marine Lab's current-meter mooring K3, where the slow pulse comes
+ * from. A deep mooring stands up from its anchor on taut line held by its
+ * floats: railway-wheel anchor and acoustic release on the bottom, glass
+ * flotation spheres on the line, and at the top a syntactic-foam float carrying
+ * the relocation pinger (12 kHz, the oceanographers' frequency), a hydrophone
+ * recorder and the lab's tag. Its top is inside PETREL's rating; its foot is
+ * not. A shipping container lies across the line at the foot.
+ */
+export const K3 = (() => {
+  const x = SITES.deepPulse.x, z = SITES.deepPulse.z;
+  const ground = seabedHeight(x, z);
+  const top = -282;
+  return {
+    x,
+    z,
+    /** the sea bed at the anchor */
+    ground,
+    /** the top float's centre */
+    floatY: top,
+    floatR: 0.65,
+    /** the pinger hangs under the float: the sound comes from here */
+    pingerY: top - 1.1,
+    /** the hydrophone recorder is clamped to the line below the float */
+    hydrophone: { x: x + 0.14, y: top - 3.2, z },
+    /** the tag on the float frame, facing north (toward the harbor, -z): it is read from that side */
+    tag: { x, y: top - 0.15, z: z - 0.72 },
+    /** the container at the foot: centre, half sizes (a 20-foot box) and yaw */
+    container: { x: x + 2.4, y: ground + 1.3, z: z - 1.6, hx: 1.22, hy: 1.3, hz: 3.03, yaw: 62 },
+  };
+})();
+
 // ---------------------------------------------------------------- solid shapes
 /** an oriented box (yaw in degrees about y), or an upright cylinder, or a sphere */
 export type Collider =
@@ -229,6 +261,12 @@ export function buildColliders(): Collider[] {
     const p = at(-14 - i * 7, -48 - i * 13 + (i % 2) * 6);
     c.push({ kind: 'box', x: p.x, y: seabedHeight(p.x, p.z) + 1.3, z: p.z, hx: 1.25, hy: 1.3, hz: 3, yaw: ry + i * 23, tag: 'cargo' });
   }
+  // the mooring K3: its top float, the line, the anchor and the container across it
+  c.push({ kind: 'sphere', x: K3.x, y: K3.floatY, z: K3.z, r: K3.floatR + 0.15, tag: 'k3-float' });
+  c.push({ kind: 'cyl', x: K3.x, z: K3.z, y0: K3.ground, y1: K3.floatY - K3.floatR, r: 0.06, tag: 'k3-line' });
+  c.push({ kind: 'cyl', x: K3.x, z: K3.z, y0: K3.ground, y1: K3.ground + 0.9, r: 0.5, tag: 'k3-anchor' });
+  const kc = K3.container;
+  c.push({ kind: 'box', x: kc.x, y: kc.y, z: kc.z, hx: kc.hx, hy: kc.hy, hz: kc.hz, yaw: kc.yaw, tag: 'container' });
   // reef arches: a few big rocks the submarine must steer round
   for (let i = 0; i < 7; i++) {
     const a = i * 0.9 + 0.4, r = 70 + (i % 3) * 70;

@@ -19,7 +19,7 @@ export type Guide =
   | { kind: 'none' };
 
 export interface StageView {
-  id: StageId;
+  id: string;
   /** the one task, in plain words */
   task: string;
   /** a short hint for how (keys) */
@@ -48,6 +48,23 @@ export interface MissionCtx {
 export const MISSION_ID = 'silent-buoy';
 export const MISSION_TITLE = 'QUIET SURVEY: THE SILENT BUOY';
 
+/** what the dive needs from a mission: its stages as a state machine over plain state */
+export interface MissionRun<C extends MissionCtx = MissionCtx> {
+  readonly missionId: string;
+  readonly title: string;
+  readonly stageCount: number;
+  /** where its progress is saved */
+  readonly progressKey: string;
+  stage: number;
+  second: { x: number; z: number } | null;
+  changed: boolean;
+  lastNote: string;
+  readonly id: string;
+  readonly done: boolean;
+  view(ctx: C): StageView;
+  update(ctx: C): boolean;
+}
+
 /** where a second bearing would cross the first well: off to the side, in open water */
 export function secondListeningPoint(obsX: number, obsZ: number, firstBearing: number): { x: number; z: number } {
   // two candidates square to the first bearing; keep the one in open shelf water, away from the harbor
@@ -59,7 +76,11 @@ export function secondListeningPoint(obsX: number, obsZ: number, firstBearing: n
   return score(a) <= score(b) ? a : b;
 }
 
-export class Expedition {
+export class Expedition implements MissionRun {
+  readonly missionId = MISSION_ID;
+  readonly title = MISSION_TITLE;
+  readonly stageCount = STAGES.length;
+  readonly progressKey = PROGRESS_KEY;
   stage = 0;
   /** the suggested second listening position, once the first bearing is in */
   second: { x: number; z: number } | null = null;
@@ -214,6 +235,10 @@ export interface Checkpoint {
   battery0: number;
   plateScanned: boolean;
   recorderTaken: boolean;
+  /** the follow-up's tasks (absent in the first expedition's saves) */
+  tagScanned?: boolean;
+  hydrophoneTaken?: boolean;
+  footPinged?: boolean;
   second: { x: number; z: number } | null;
   /** the route so far */
   track: [number, number, number][];
@@ -229,11 +254,11 @@ export interface Career {
 export const PROGRESS_KEY = 'triad.ocean.progress.v1';
 export const CAREER_KEY = 'triad.ocean.career.v1';
 
-export function parseCheckpoint(raw: string | null): Checkpoint | null {
+export function parseCheckpoint(raw: string | null, mission = MISSION_ID): Checkpoint | null {
   if (!raw) return null;
   try {
     const c = JSON.parse(raw) as Checkpoint;
-    if (c && c.mission === MISSION_ID && typeof c.stage === 'number' && c.sub && Number.isFinite(c.sub.x)) return c;
+    if (c && c.mission === mission && typeof c.stage === 'number' && c.sub && Number.isFinite(c.sub.x)) return c;
   } catch {
     /* a damaged checkpoint: the expedition starts over */
   }
