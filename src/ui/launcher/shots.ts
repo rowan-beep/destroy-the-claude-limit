@@ -1,5 +1,5 @@
 // The loading screen's pictures: twenty cinematic shots of each program, taken in
-// the game itself at 7680 × 4320 (8K) and kept as separate files next to the page
+// the game itself at 2560 × 1440 and kept as separate files next to the page
 // (cinematics/<program>/NN.webp), so the page itself stays small and each one is
 // only downloaded when it is about to be shown. The first of each is the picker's.
 
