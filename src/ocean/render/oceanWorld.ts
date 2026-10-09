@@ -18,7 +18,7 @@ import { Bioluminescence } from './biolum';
 import { SweepDisc } from './sonarSweep';
 import { buildLandscape, type Landscape } from './landscape';
 import { OCEAN_FX, daylightAt } from './oceanMaterial';
-import { WEATHERS, Weather, WeatherDef, surfaceHeight } from '../world/waves';
+import { WEATHERS, WeatherDef, surfaceHeight } from '../world/waves';
 import { PRESETS, OceanPreset, PresetDef } from '../perf/presets';
 import { FOG_SUN, FOG_SUN_COLOR } from '../../render/fog';
 
@@ -85,7 +85,7 @@ export class OceanWorld {
   private tmpP = new THREE.Vector3();
   private tmpD = new THREE.Vector3();
 
-  constructor(private renderer: THREE.WebGLRenderer, preset: OceanPreset, weather: Weather) {
+  constructor(private renderer: THREE.WebGLRenderer, preset: OceanPreset, weather: WeatherDef) {
     this.preset = PRESETS[preset];
     this.surface = new OceanSurface(this.preset.waterRings, this.preset.waterSegs);
     this.props = new OceanProps(this.preset.decor);
@@ -113,8 +113,7 @@ export class OceanWorld {
     this.setWeather(weather);
   }
 
-  setWeather(w: Weather): void {
-    const d = WEATHERS[w];
+  setWeather(d: WeatherDef): void {
     this.weather = d;
     const el = d.sunEl * DEG, az = d.sunAz * DEG;
     this.sunDir.set(Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el)).normalize();
@@ -137,7 +136,7 @@ export class OceanWorld {
     // how much light gets into the sea: less from a low sun (more is reflected and the path is longer)
     this.lightK = (d.sunI / 3) * (0.3 + 0.7 * Math.sin(Math.max(el, 2 * DEG)));
     // (the caustics and the shafts are the direct sun's share of it: weak from a low or hidden sun)
-    const direct = this.lightK * (w === 'overcast' ? 0.35 : 1) * Math.sin(Math.max(el, 2 * DEG)) * 2;
+    const direct = this.lightK * (d.clouds[1] > 0.5 ? 0.35 : 1) * Math.sin(Math.max(el, 2 * DEG)) * 2;
     OCEAN_FX.uSunCol.value.setRGB(d.sun[0] * direct, d.sun[1] * direct, d.sun[2] * direct);
     OCEAN_FX.uScatter.value.copy(SCATTER0).multiplyScalar(this.lightK);
     // the haze over the land and the sea: the sky's colour just above the horizon

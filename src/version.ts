@@ -37,6 +37,52 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '6.4.1',
+    date: '2026-10-09',
+    ocean: {
+      title: 'Weather, a bright harbor and a free look',
+      notes: [
+        added("Weather",
+          "Pick the time of day (Dawn, Morning, Noon, Afternoon, Sunset), the sky (Clear, Fair, Cloudy, Overcast) and the sea (Calm, Moderate, Rough): 60 combinations. The new Weather panel at the menu's right has a slider for the time and buttons for the sky and the sea; The boat page and a dive's pause card have the same three.",
+          "The sun's height and colour, the sky, the clouds, the haze, the light under water, the waves and the wind all follow. The menu's harbor changes at once."),
+        improved("A bright menu",
+          "The harbor now starts at noon with a few clouds and a calm sea instead of dawn. The dark veil over the left of the menu is gone (a light one stays behind the text), the glass panels let the harbor's colour through, and the picture behind the menu has a richer grade.",
+          "Saved weather carries over: Calm daylight becomes Noon, Fair, Calm; Overcast becomes Afternoon, Overcast, Rough; Dawn swell, which was everyone's default, becomes the new bright noon."),
+        added("Look around the harbor",
+          "Drag on the harbor to turn the view round PETREL, scroll to come closer or stand back, double-click to go back to the slow drift. A flick keeps it turning for a moment. The camera stays above the water, the pier and the survey vessel."),
+        fixed("Time warp and the battery",
+          "With less than 10 % battery left, time now runs at most 10×: at 100× with full thrust and the lamps on, the last 10 % used to go in about 5 seconds. Behind the Battery flat card time runs at 1×."),
+        fixed("No sound from a tab you have left",
+          "Switching to another browser tab left the sub's motor and the sea sounding in the background. The sound now stops while the tab is hidden and comes back when you return."),
+        fixed("The dive's instruments on narrower windows",
+          "The objective panel no longer runs into the compass, and the survey panel and the prompt above it sit higher so they no longer cover the bottom of the screen. On a phone held upright the big messages appear under the compass instead of over the objective panel."),
+        fixed("The simple menu's tiles",
+          "On narrower windows the tile titles and their descriptions were cut off; tiles now take two lines and the titles scale to the tile."),
+      ],
+    },
+    space: {
+      title: 'Quiet when paused, tidier menus',
+      notes: [
+        fixed("The Saturn V goes quiet when paused",
+          "The engines' roar kept playing behind the PAUSED card. It now stops while the flight is frozen and comes back with RESUME."),
+        fixed("No sound from a tab you have left",
+          "Switching to another browser tab left the rocket and the other mission sounds playing in the background. The sound now stops while the tab is hidden and comes back when you return."),
+        fixed("Menus fit narrower windows",
+          "In the simple menu the tile titles (APOLLO · THE MOON, STARSHIP TO MARS, CREW DRAGON · ISS, PERSEVERANCE) and their descriptions were cut off on narrower windows, from 1280 pixels wide down to a phone: tiles now take two lines and the titles scale to the tile.",
+          "The main menu's top bar ran off the right edge at 1024 wide (its mission counters now give way below 1100), and on a phone the footer's SIMPLE MENU button ran off the screen (the footer now wraps)."),
+      ],
+    },
+    air: {
+      title: 'Sound stays off while paused',
+      notes: [
+        fixed("Paused means silent",
+          "Opening Settings from the pause menu and closing it (or changing a volume there) turned the sound back on while the flight was still paused. It now stays silent until you resume."),
+        fixed("The simple menu's tiles",
+          "The AIRSHOW tile's description was cut off at every window size, and at 1024 and 820 pixels wide most tile titles were too (FLIGHT SCHOOL, FREE FLIGHT, WAVE COMBAT, AIRSHOW, CAMPAIGN). Tiles now take two lines and the titles scale to the tile."),
+      ],
+    },
+  },
+  {
     version: '6.4.0',
     date: '2026-10-09',
     ocean: {

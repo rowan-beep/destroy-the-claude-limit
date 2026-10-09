@@ -1,17 +1,21 @@
 // Developer harness: the ocean world from a scripted camera
-// (?test=ocean&x=..&y=..&z=..&h=..&p=..&wx=dawn|calm|overcast&q=balanced&lamps=1&floods=1&sub=x,y,z,h&sweep=deg,spanDeg).
+// (?test=ocean&x=..&y=..&z=..&h=..&p=..&wx=dawn|calm|overcast|time/sky/sea&q=balanced&lamps=1&floods=1&sub=x,y,z,h&sweep=deg,spanDeg).
 import { OCEAN_FX } from './render/oceanMaterial';
 import * as THREE from 'three';
 import { GameRenderer } from '../render/renderer';
 import { emptyVision } from '../render/vision';
 import { OceanWorld } from './render/oceanWorld';
-import type { Weather } from './world/waves';
+import { WEATHERS, weatherOf, readWeather, type Weather } from './world/waves';
 import type { OceanPreset } from './perf/presets';
 
 export async function runOceanTest(container: HTMLElement): Promise<void> {
   const q = new URLSearchParams(location.search);
   const gr = new GameRenderer(container);
-  const world = new OceanWorld(gr.renderer, (q.get('q') ?? 'balanced') as OceanPreset, (q.get('wx') ?? 'dawn') as Weather);
+  // (a benchmark weather by name, or a picked one as time/sky/sea)
+  const wx = q.get('wx') ?? 'dawn';
+  const [time, sky, sea] = wx.split('/');
+  const weather = wx in WEATHERS ? WEATHERS[wx as Weather] : weatherOf(readWeather({ time, sky, sea }));
+  const world = new OceanWorld(gr.renderer, (q.get('q') ?? 'balanced') as OceanPreset, weather);
   const cam = world.camera;
   Object.assign(window, { __ow: world, __gr: gr });
   const pos = new THREE.Vector3(+(q.get('x') ?? 0), +(q.get('y') ?? 10), +(q.get('z') ?? -100));

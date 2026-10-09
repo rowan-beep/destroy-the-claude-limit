@@ -194,11 +194,14 @@ async function boot(): Promise<void> {
     (oceanLoading ??= import('./ocean/oceanProgram').then((m) => {
       oceanProg = new m.OceanProgram({
         renderer: () => game.renderer.renderer,
-        draw: (sc, cam, exposure) => {
+        draw: (sc, cam, exposure, grade) => {
           const r = game.renderer.renderer;
           const e = r.toneMappingExposure;
           r.toneMappingExposure = e * exposure;
+          // (the menu's harbor has its own richer grade, for this picture only)
+          if (grade) game.renderer.setGradeBoost(grade[0], grade[1]);
           game.renderer.renderScene(sc, cam, THREE.ACESFilmicToneMapping, false);
+          if (grade) game.renderer.setGradeBoost(1, 1);
           r.toneMappingExposure = e;
         },
         setRenderScale,
@@ -475,6 +478,8 @@ async function boot(): Promise<void> {
   });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && game.state === 'playing') game.setState('paused');
+    // (the space and ocean programs' sounds too: a rocket or the sub's motor no longer drones on in a tab put away)
+    audio.setHidden(document.hidden);
   });
 
   /** a pause for the loading screen's bar and pictures between two heavy steps */

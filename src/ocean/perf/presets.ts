@@ -4,6 +4,8 @@
 // collision, sonar returns and the acoustic model are identical on all three:
 // every clue survives the cheapest preset.
 
+import { DEFAULT_WEATHER, readWeather, type WeatherPick } from '../world/waves';
+
 export type OceanPreset = 'performance' | 'balanced' | 'cinematic';
 
 export interface PresetDef {
@@ -111,7 +113,8 @@ export const PRESETS: Record<OceanPreset, PresetDef> = {
 
 export interface OceanSettings {
   preset: OceanPreset;
-  weather: 'calm' | 'dawn' | 'overcast';
+  /** the weather above the harbor: time of day, sky and sea */
+  weather: WeatherPick;
   /** navigation help: route markers, bearing and range only, or instruments only */
   guidance: 'markers' | 'bearing' | 'instruments';
   /** no battery drain */
@@ -130,7 +133,7 @@ export const OCEAN_SETTINGS_KEY = 'triad.ocean.settings.v1';
 
 export const DEFAULT_OCEAN_SETTINGS: OceanSettings = {
   preset: 'balanced',
-  weather: 'dawn',
+  weather: { ...DEFAULT_WEATHER },
   guidance: 'markers',
   relaxed: false,
   reduceMotion: false,
@@ -142,7 +145,10 @@ export const DEFAULT_OCEAN_SETTINGS: OceanSettings = {
 export function loadOceanSettings(): OceanSettings {
   try {
     const raw = localStorage.getItem(OCEAN_SETTINGS_KEY);
-    if (raw) return { ...DEFAULT_OCEAN_SETTINGS, ...(JSON.parse(raw) as Partial<OceanSettings>) };
+    if (raw) {
+      const j = JSON.parse(raw) as Partial<OceanSettings> & { weather?: unknown };
+      return { ...DEFAULT_OCEAN_SETTINGS, ...j, weather: readWeather(j.weather) };
+    }
   } catch {
     /* defaults */
   }

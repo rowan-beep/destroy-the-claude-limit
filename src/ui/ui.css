@@ -1046,6 +1046,10 @@ body:has(#hud.cockpit-clean) .wx-widget { opacity: 0; pointer-events: none; }
 @media (max-height: 800px) { .sx2-tele { display: none; } }
 /* narrower windows: the clock leaves the top bar so the commander's badge fits */
 @media (max-width: 1180px) { .sx2-clock { display: none; } }
+/* (and below that the commander's tallies, so the music switch stays on screen) */
+@media (max-width: 1100px) { .sx2-stats { display: none; } .sx2-tab { padding: 10px 12px; } }
+/* phones: the footer's buttons wrap onto two rows instead of running off the side */
+@media (max-width: 760px) { .sx2-foot { width: auto; right: 18px; flex-wrap: wrap; } .sx2-notes { margin-left: 0; } }
 @media (max-width: 900px) {
   .sx2-tabs { display: none; }
   .sx2-tele, .sx2-hero, .sx2-hint { display: none; }

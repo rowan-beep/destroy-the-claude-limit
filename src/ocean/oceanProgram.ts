@@ -7,13 +7,14 @@ import { OceanWorld } from './render/oceanWorld';
 import { OceanDive, type DiveMode } from './dive/dive';
 import { loadOceanSettings, PRESETS, type OceanPreset } from './perf/presets';
 import { HARBOR } from './world/geo';
+import { WEATHERS, weatherId, weatherOf } from './world/waves';
 import { BENCH_ROUTE, frameStats, type BenchResult, type SegmentResult } from './perf/benchmark';
 import { listen, ambientNoise, selfNoise, addDb } from './acoustics/acoustics';
 
 export interface OceanHost {
   renderer: () => THREE.WebGLRenderer;
-  /** draw a scene through the game's post-processing at an exposure */
-  draw: (scene: THREE.Scene, camera: THREE.Camera, exposure: number) => void;
+  /** draw a scene through the game's post-processing at an exposure (and a saturation and contrast of its own) */
+  draw: (scene: THREE.Scene, camera: THREE.Camera, exposure: number, grade?: [number, number]) => void;
   /** a preset's render scale (1 = the player's own setting) */
   setRenderScale: (k: number) => void;
   /** a dive ended: back to the menus */
@@ -42,6 +43,14 @@ interface BenchRun {
   warmMax: number;
 }
 
+/** the menu's free look: how low and high it may look from (radians), how close and far (× 15 m) */
+const MENU_PITCH: [number, number] = [0.03, 1.2];
+const MENU_ZOOM: [number, number] = [0.45, 2.6];
+const clamp = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v);
+/** the menu's picture: a touch less exposure and a richer grade (saturation, contrast), like the space program's showcase */
+const MENU_EXPOSURE = 0.9;
+const MENU_GRADE: [number, number] = [1.32, 1.08];
+
 const heapMB = (): number | null => {
   const m = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
   return m ? Math.round((m.usedJSHeapSize / 1048576) * 10) / 10 : null;
@@ -52,15 +61,71 @@ export class OceanProgram {
   readonly dive: OceanDive;
   private menuT = 0;
   private bench: BenchRun | null = null;
+  /** the menu's free look round the boat: as set, as shown (eased), the spin left by a flick, and whether the player has taken it */
+  private look = { yaw: 2.2, pitch: 0.19, zoom: 1, yawS: 2.2, pitchS: 0.19, zoomS: 1, vYaw: 0, vPitch: 0, user: false, drag: null as { id: number; x: number; y: number } | null };
+  /** when the menu's backdrop was last drawn (the free look only works while it shows) */
+  private menuAt = -1e9;
 
   constructor(private host: OceanHost) {
     const s = loadOceanSettings();
-    this.world = new OceanWorld(host.renderer(), s.preset, s.weather);
+    this.world = new OceanWorld(host.renderer(), s.preset, weatherOf(s.weather));
     this.dive = new OceanDive(this.world, { draw: host.draw, setRenderScale: host.setRenderScale, canvas: () => host.renderer().domElement }, document.body);
     this.dive.onExit = () => host.onExit();
     this.world.sub.place(HARBOR.berth.x, -0.75, HARBOR.berth.z, HARBOR.berth.heading, 0, 0);
     this.world.fill(HARBOR.berth.x, HARBOR.berth.z);
     if (import.meta.env.DEV) Object.assign(window, { __ocean: this, __dive: this.dive });
+    this.bindLook();
+  }
+
+  /** a press on the harbor itself (not on the menu's panels) while the menu shows */
+  private onBackdrop(e: Event): boolean {
+    // (the backdrop counts as showing if it was drawn in the last second and a half: a slow machine draws it seldom)
+    if (this.active || performance.now() - this.menuAt > 1500) return false;
+    const t = e.target as HTMLElement | null;
+    if (!t || !t.classList) return false;
+    return t === this.host.renderer().domElement || t.classList.contains('ocx') || t.classList.contains('ocx-scrim') || t.classList.contains('sm');
+  }
+
+  /** drag to look round the harbor, scroll to come closer or stand back, double-click for the slow drift again */
+  private bindLook(): void {
+    const L = this.look;
+    window.addEventListener('pointerdown', (e) => {
+      if (!this.onBackdrop(e)) return;
+      L.drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+      L.user = true;
+      L.vYaw = L.vPitch = 0;
+    });
+    window.addEventListener('pointermove', (e) => {
+      if (!L.drag || L.drag.id !== e.pointerId) return;
+      const dx = e.clientX - L.drag.x, dy = e.clientY - L.drag.y;
+      L.drag.x = e.clientX;
+      L.drag.y = e.clientY;
+      // the view turns the way you drag: right looks right, up looks up
+      L.yaw -= dx * 0.005;
+      L.pitch = clamp(L.pitch + dy * 0.004, MENU_PITCH[0], MENU_PITCH[1]);
+      L.vYaw = -dx * 0.15;
+      L.vPitch = dy * 0.1;
+    });
+    const up = (e: PointerEvent) => {
+      if (L.drag?.id === e.pointerId) L.drag = null;
+    };
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+    window.addEventListener(
+      'wheel',
+      (e) => {
+        if (!this.onBackdrop(e)) return;
+        L.user = true;
+        L.zoom = clamp(L.zoom * Math.exp(clamp(e.deltaY, -120, 120) * 0.0015), MENU_ZOOM[0], MENU_ZOOM[1]);
+      },
+      { passive: true },
+    );
+    window.addEventListener('dblclick', (e) => {
+      if (!this.onBackdrop(e)) return;
+      L.user = false;
+      L.pitch = 0.19;
+      L.zoom = 1;
+    });
   }
 
   get active(): boolean {
@@ -86,7 +151,7 @@ export class OceanProgram {
   renderMenu(dt: number, w: number, h: number): void {
     const s = loadOceanSettings();
     if (this.world.preset.id !== s.preset) this.world.setPreset(s.preset);
-    if (this.world.weather.id !== s.weather) this.world.setWeather(s.weather);
+    if (this.world.weather.id !== weatherId(s.weather)) this.world.setWeather(weatherOf(s.weather));
     this.host.setRenderScale(PRESETS[s.preset].renderScale);
     this.menuT += dt;
     const b = HARBOR.berth;
@@ -94,17 +159,48 @@ export class OceanProgram {
     this.world.sub.place(b.x, -0.75 + bob * 0.8, b.z, b.heading, 0, 0);
     this.world.sub.setLights(true);
     this.world.sub.poseArm(0, 0.6);
-    const a = 2.2 + Math.sin(this.menuT * 0.05) * 0.7;
+    // the camera: drifting slowly round her, or where the player has turned it (and a flick keeps it turning a moment)
+    this.menuAt = performance.now();
+    const L = this.look;
+    const k = Math.min(dt, 0.1);
+    if (!L.user) L.yaw = 2.2 + Math.sin(this.menuT * 0.05) * 0.7;
+    else if (!L.drag) {
+      L.yaw += L.vYaw * k;
+      L.pitch = clamp(L.pitch + L.vPitch * k, MENU_PITCH[0], MENU_PITCH[1]);
+      const f = Math.exp(-k * 3);
+      L.vYaw *= f;
+      L.vPitch *= f;
+    }
+    const e = 1 - Math.exp(-k * 6);
+    L.yawS += (L.yaw - L.yawS) * e;
+    L.pitchS += (L.pitch - L.pitchS) * e;
+    L.zoomS += (L.zoom - L.zoomS) * e;
+    const d = 15 * L.zoomS, tx = b.x + 2, tz = b.z + 3;
+    const cp = Math.cos(L.pitchS);
     const cam = this.world.camera;
-    cam.position.set(b.x + Math.sin(a) * 15, 3.2 + Math.sin(this.menuT * 0.11) * 0.4, b.z + Math.cos(a) * 15);
+    const bobY = L.user ? 0 : Math.sin(this.menuT * 0.11) * 0.4;
+    cam.position.set(tx + Math.sin(L.yawS) * cp * d, 0.4 + Math.sin(L.pitchS) * d + bobY, tz + Math.cos(L.yawS) * cp * d);
+    // (kept clear of the water, the pier's deck and the survey vessel)
+    cam.position.y = Math.max(cam.position.y, this.clearance(cam.position.x, cam.position.z));
     cam.up.set(0, 1, 0);
-    cam.lookAt(b.x + 2, 0.4, b.z + 3);
+    cam.lookAt(tx, 0.4, tz);
     cam.fov = 50;
     cam.near = 0.08;
     cam.updateProjectionMatrix();
     this.world.resize(w, h);
     this.world.update(dt, h, { x: b.x, z: b.z }, { lamps: true, overlay: false, boat: null });
-    this.host.draw(this.world.scene, cam, this.world.exposureFor(true));
+    this.host.draw(this.world.scene, cam, this.world.exposureFor(true) * MENU_EXPOSURE, MENU_GRADE);
+  }
+
+  /** the lowest the menu's camera may be at x, z: above the swell, the pier's deck and its lamps, the vessel's masts */
+  private clearance(x: number, z: number): number {
+    let y = 1.2 + this.world.surfaceAt(x, z);
+    // the pier (its deck, lamps and bollards)
+    if (x < -18 && x > -34 && z > -200 && z < -100) y = Math.max(y, 6.5);
+    // the survey vessel alongside it, with its masts and radars
+    const v = HARBOR.vessel;
+    if (Math.abs(x - v.x) < v.halfBeam + 4 && Math.abs(z - v.z) < v.halfLength + 4) y = Math.max(y, 22);
+    return y;
   }
 
   /** release the GPU's memory for the ocean when another program takes over (kept: rebuilt is slower) */
@@ -135,7 +231,7 @@ export class OceanProgram {
 
   private enterSegment(i: number): void {
     const seg = BENCH_ROUTE[i];
-    if (this.world.weather.id !== seg.weather) this.world.setWeather(seg.weather);
+    if (this.world.weather.id !== seg.weather) this.world.setWeather(WEATHERS[seg.weather]);
     this.world.sub.setLights(seg.lamps);
     const p = seg.pose(0);
     // (the first frame of a segment is a jump: the streaming catches up as it would after a teleport)

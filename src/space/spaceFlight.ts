@@ -727,7 +727,8 @@ export class SpaceFlight {
     this.updateChutes();
     this.updatePlasma();
     this.updateBursts(dt);
-    this.sound.update(this.plumes.fireLevel + (sim.stage && sim.stage !== 'sic' ? sim.engines.reduce((s, e) => s + e.level, 0) * 0.08 : 0) + (sim.lesBurn > 0 ? 0.7 : 0), at.rho, this.camMode === 'ONBOARD' ? 1 : Math.min(1, 400 / Math.max(50, this.camDist)));
+    // (a frozen flight is a quiet one: the roar comes back with RESUME)
+    this.sound.update(this.paused ? 0 : this.plumes.fireLevel + (sim.stage && sim.stage !== 'sic' ? sim.engines.reduce((s, e) => s + e.level, 0) * 0.08 : 0) + (sim.lesBurn > 0 ? 0.7 : 0), at.rho, this.camMode === 'ONBOARD' ? 1 : Math.min(1, 400 / Math.max(50, this.camDist)));
 
     if (this.local) this.renderLocal(dt, w, h);
     else this.renderSpace(w, h);

@@ -11,7 +11,7 @@ import { WhatsNewModal } from './whatsNew';
 import { menuMusic } from '../../audio/menuMusic';
 import { menuStyle, setMenuStyle, renderSimple } from './simpleMenu';
 import { loadOceanSettings, saveOceanSettings, PRESETS, type OceanSettings, type OceanPreset } from '../../ocean/perf/presets';
-import { WEATHERS } from '../../ocean/world/waves';
+import { TIMES, SKIES, SEAS, weatherOf, type WeatherPick } from '../../ocean/world/waves';
 import { EchoAtlas } from '../../ocean/atlas/atlas';
 import { drawChart, fitView, type ChartView } from '../../ocean/ui/chart';
 import { parseCheckpoint, parseCareer, PROGRESS_KEY, CAREER_KEY, MISSION_ID, MISSION_TITLE, STAGES } from '../../ocean/mission/expedition';
@@ -40,14 +40,17 @@ const SECTIONS: [Section, string][] = [
 ];
 
 const CSS = `
-.ocx { --ink: #f3f7f9; --dim: rgba(243, 247, 249, 0.66); --faint: rgba(243, 247, 249, 0.42); --line: rgba(255, 255, 255, 0.1); --line2: rgba(255, 255, 255, 0.18); --glass: rgba(9, 17, 23, 0.56); --acc: #6fe3d0; --warn: #ffbf5e;
-  background: none; color: var(--ink); font-family: 'Inter', 'SF Pro Text', -apple-system, 'Segoe UI Variable Text', 'Segoe UI', Roboto, system-ui, sans-serif; font-size: 14px; letter-spacing: 0; -webkit-font-smoothing: antialiased; }
+.ocx { --ink: #f3f7f9; --dim: rgba(243, 247, 249, 0.66); --faint: rgba(243, 247, 249, 0.42); --line: rgba(255, 255, 255, 0.2); --line2: rgba(255, 255, 255, 0.32); --glass: rgba(16, 52, 72, 0.34); --glass2: rgba(16, 52, 72, 0.48); --acc: #5ff0dc; --warn: #ffc56b;
+  background: none; color: var(--ink); text-shadow: 0 1px 10px rgba(0, 24, 40, 0.35); font-family: 'Inter', 'SF Pro Text', -apple-system, 'Segoe UI Variable Text', 'Segoe UI', Roboto, system-ui, sans-serif; font-size: 14px; letter-spacing: 0; -webkit-font-smoothing: antialiased; }
 .ocx * { box-sizing: border-box; }
+.ocx { -webkit-user-select: none; user-select: none; }
+.ocx-hint { position: absolute; left: calc(50% + 80px); bottom: 30px; transform: translateX(-50%); font-size: 12px; color: var(--dim); letter-spacing: 0.02em; white-space: nowrap; pointer-events: none !important; }
+.ocx.atlas .ocx-hint { display: none; }
 .ocx .num { font-variant-numeric: tabular-nums; }
 .ocx-scrim { position: absolute; inset: 0; pointer-events: none !important; background:
-  linear-gradient(90deg, rgba(3, 9, 13, 0.86) 0%, rgba(3, 9, 13, 0.62) 30%, rgba(3, 9, 13, 0) 58%),
-  linear-gradient(180deg, rgba(3, 9, 13, 0.55) 0%, rgba(3, 9, 13, 0) 18%, rgba(3, 9, 13, 0) 70%, rgba(3, 9, 13, 0.6) 100%); }
-.ocx.atlas .ocx-scrim { background: rgba(3, 9, 13, 0.72); }
+  linear-gradient(90deg, rgba(4, 22, 34, 0.42) 0%, rgba(4, 22, 34, 0.2) 30%, rgba(4, 22, 34, 0) 50%),
+  linear-gradient(180deg, rgba(4, 22, 34, 0.3) 0%, rgba(4, 22, 34, 0) 15%, rgba(4, 22, 34, 0) 78%, rgba(4, 22, 34, 0.36) 100%); }
+.ocx.atlas .ocx-scrim { background: rgba(4, 18, 28, 0.55); }
 /* top bar */
 .ocx-top { position: absolute; left: 0; right: 0; top: 0; height: 72px; display: flex; align-items: center; gap: 36px; padding: 0 36px; }
 .ocx-brand .mm-logo { padding: 0; }
@@ -76,15 +79,15 @@ const CSS = `
 .ocx-lead { font-size: 14.5px; line-height: 1.55; color: var(--dim); margin: 0 0 22px; max-width: 440px; }
 .ocx-h2 { font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); margin: 26px 0 10px; }
 /* missions */
-.ocx-mis { position: relative; padding: 16px 18px; border-radius: 14px; background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(18px) saturate(140%); -webkit-backdrop-filter: blur(18px) saturate(140%); margin-bottom: 10px; cursor: pointer; transition: border-color 0.15s, background 0.15s, transform 0.15s; }
-.ocx-mis:hover { border-color: var(--line2); background: rgba(14, 24, 31, 0.66); }
-.ocx-mis.sel { border-color: rgba(111, 227, 208, 0.55); background: rgba(16, 32, 36, 0.66); }
+.ocx-mis { position: relative; padding: 16px 18px; border-radius: 14px; background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(20px) saturate(180%) brightness(1.06); -webkit-backdrop-filter: blur(20px) saturate(180%) brightness(1.06); margin-bottom: 10px; cursor: pointer; transition: border-color 0.15s, background 0.15s, transform 0.15s; }
+.ocx-mis:hover { border-color: var(--line2); background: var(--glass2); }
+.ocx-mis.sel { border-color: rgba(95, 240, 220, 0.75); background: rgba(20, 80, 92, 0.48); box-shadow: 0 0 0 1px rgba(95, 240, 220, 0.25), 0 10px 30px rgba(0, 40, 60, 0.25); }
 .ocx-mis.locked { cursor: default; opacity: 0.62; }
 .ocx-mis.locked:hover { border-color: var(--line); background: var(--glass); }
 .ocx-mis-top { display: flex; align-items: baseline; gap: 10px; }
 .ocx-mis-t { font-size: 16.5px; font-weight: 600; line-height: 1.3; }
 .ocx-chip { flex: none; font-size: 11px; font-weight: 600; color: var(--dim); padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line2); }
-.ocx-chip.done { color: #1d1500; background: var(--warn); border-color: var(--warn); }
+.ocx-chip.done { color: #1d1500; background: var(--warn); border-color: var(--warn); text-shadow: none; }
 .ocx-mis-s { font-size: 13.5px; line-height: 1.5; color: var(--dim); margin-top: 6px; }
 .ocx-prog { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 12.5px; color: var(--dim); }
 .ocx-prog .bar { flex: 1; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
@@ -92,38 +95,39 @@ const CSS = `
 .ocx-acts { display: flex; gap: 8px; margin-top: 14px; }
 .ocx-btn, .ocx .btn.ocx-btn { font: inherit; font-size: 13.5px; font-weight: 600; letter-spacing: 0; text-transform: none; padding: 9px 16px; border-radius: 999px; cursor: pointer; border: 1px solid var(--line2); background: rgba(255, 255, 255, 0.04); color: var(--ink); transition: background 0.15s, border-color 0.15s, color 0.15s; min-width: 0; box-shadow: none; }
 .ocx-btn:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.3); }
-.ocx-btn.pri { background: var(--ink); color: #0a1217; border-color: var(--ink); }
+.ocx-btn.pri { background: var(--ink); color: #0a1217; border-color: var(--ink); text-shadow: none; }
 .ocx-btn.pri:hover { background: #fff; }
 .ocx-btn.danger:hover { border-color: #ff8a7a; color: #ff8a7a; }
-.ocx-tip { margin-top: 18px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line); background: rgba(9, 17, 23, 0.4); font-size: 13px; line-height: 1.6; color: var(--dim); }
+.ocx-tip { margin-top: 18px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line); background: var(--glass); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); font-size: 13px; line-height: 1.6; color: var(--dim); }
 .ocx-tip kbd { display: inline-block; min-width: 20px; padding: 0 6px; margin: 0 2px; border-radius: 5px; border: 1px solid var(--line2); border-bottom-width: 2px; font: 600 11.5px/18px inherit; text-align: center; color: var(--ink); background: rgba(255, 255, 255, 0.06); }
 /* boat */
-.ocx-specs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: var(--line); }
-.ocx-spec { padding: 12px 14px; background: rgba(9, 17, 23, 0.72); }
+.ocx-specs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: var(--line); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); }
+.ocx-spec { padding: 12px 14px; background: var(--glass2); }
 .ocx-spec b { display: block; font-size: 16px; font-weight: 600; }
 .ocx-spec span { display: block; font-size: 12px; color: var(--faint); margin-top: 2px; }
 .ocx-presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.ocx-preset { font: inherit; text-align: left; padding: 12px; border-radius: 12px; cursor: pointer; border: 1px solid var(--line); background: var(--glass); color: var(--ink); }
+.ocx-preset { font: inherit; text-align: left; padding: 12px; border-radius: 12px; cursor: pointer; border: 1px solid var(--line); background: var(--glass); color: var(--ink); text-shadow: inherit; backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); }
 .ocx-preset:hover { border-color: var(--line2); }
 .ocx-preset b { display: block; font-size: 13.5px; font-weight: 600; }
 .ocx-preset span { display: block; font-size: 12px; line-height: 1.45; color: var(--faint); margin-top: 4px; }
-.ocx-preset.on { border-color: rgba(111, 227, 208, 0.6); background: rgba(16, 32, 36, 0.7); }
+.ocx-preset.on { border-color: rgba(95, 240, 220, 0.75); background: rgba(20, 80, 92, 0.5); }
 .ocx-preset.on b::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--acc); margin-right: 7px; vertical-align: 1px; }
-.ocx-rows { border-radius: 14px; border: 1px solid var(--line); background: var(--glass); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+.ocx-rows { border-radius: 14px; border: 1px solid var(--line); background: var(--glass); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); }
 .ocx-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 14px; border-top: 1px solid var(--line); }
 .ocx-row:first-child { border-top: none; }
+.ocx-row.wrap { flex-wrap: wrap; row-gap: 8px; }
 .ocx-row > span { font-size: 13.5px; color: var(--dim); }
 .ocx-seg { display: inline-flex; padding: 2px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line); flex: none; }
 .ocx-seg button { font: inherit; font-size: 12.5px; font-weight: 500; color: var(--dim); background: none; border: none; padding: 5px 11px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
 .ocx-seg button:hover { color: var(--ink); }
-.ocx-seg button.on { background: var(--ink); color: #0a1217; font-weight: 600; }
+.ocx-seg button.on { background: var(--ink); color: #0a1217; font-weight: 600; text-shadow: none; }
 .ocx-note { font-size: 13px; line-height: 1.55; color: var(--faint); margin: 8px 0 12px; }
 .ocx-bench { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; font-variant-numeric: tabular-nums; }
 .ocx-bench th, .ocx-bench td { text-align: right; padding: 5px 4px; border-bottom: 1px solid var(--line); }
 .ocx-bench th:first-child, .ocx-bench td:first-child { text-align: left; }
 .ocx-bench th { color: var(--faint); font-weight: 600; }
 /* atlas */
-.ocx-contact { padding: 14px 16px; margin-bottom: 10px; border-radius: 14px; background: var(--glass); border: 1px solid var(--line); }
+.ocx-contact { padding: 14px 16px; margin-bottom: 10px; border-radius: 14px; background: var(--glass2); border: 1px solid var(--line); backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%); }
 .ocx-contact-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .ocx-contact b { font-size: 15px; font-weight: 600; }
 .ocx-contact .st { font-size: 11.5px; font-weight: 600; color: var(--warn); }
@@ -142,18 +146,26 @@ const CSS = `
 .ocx:not(.atlas) .ocx-chart { display: none; }
 .ocx.atlas .ocx-cond, .ocx.atlas .ocx-go { display: none; }
 /* right: conditions and the DIVE button */
-.ocx-cond { position: absolute; right: 36px; top: 96px; width: 264px; padding: 14px 16px; border-radius: 14px; background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(18px) saturate(140%); -webkit-backdrop-filter: blur(18px) saturate(140%); }
+.ocx-cond { position: absolute; right: 36px; top: 96px; width: 300px; max-height: calc(100vh - 96px - 290px); overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.25) transparent; padding: 14px 16px; border-radius: 14px; background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(20px) saturate(180%) brightness(1.06); -webkit-backdrop-filter: blur(20px) saturate(180%) brightness(1.06); }
+.ocx-wx { margin: 4px 0 12px; }
+.ocx-wx-k { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; color: var(--dim); margin-bottom: 6px; }
+.ocx-wx-k b { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.ocx-wx-range { width: 100%; margin: 2px 0 0; accent-color: var(--acc); cursor: pointer; }
+.ocx-wx-ticks { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--faint); margin-top: 2px; }
+.ocx-wx-seg { display: flex; width: 100%; }
+.ocx-wx-seg button { flex: 1; padding: 5px 4px; }
+.ocx-wx-out { border-top: 1px solid var(--line); padding-top: 6px; }
 .ocx-cond h3 { margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); }
 .ocx-kv { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; font-size: 13.5px; }
 .ocx-kv span:first-child { color: var(--dim); }
 .ocx-kv span:last-child { font-weight: 500; font-variant-numeric: tabular-nums; text-align: right; }
 .ocx-kv .warm { color: var(--warn); }
-.ocx-go { position: absolute; right: 36px; bottom: 76px; width: 264px; padding: 16px; border-radius: 16px; background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(18px) saturate(140%); -webkit-backdrop-filter: blur(18px) saturate(140%); }
+.ocx-go { position: absolute; right: 36px; bottom: 76px; width: 300px; padding: 16px; border-radius: 16px; background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(20px) saturate(180%) brightness(1.06); -webkit-backdrop-filter: blur(20px) saturate(180%) brightness(1.06); }
 .ocx-ready { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
 .ocx-ready div { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--dim); }
 .ocx-ready div b { margin-left: auto; font-weight: 500; color: var(--ink); }
 .ocx-ready i { width: 7px; height: 7px; border-radius: 50%; background: #5fd38a; }
-.ocx-dive { width: 100%; font: inherit; cursor: pointer; border: none; border-radius: 12px; padding: 14px 16px; background: var(--ink); color: #0a1217; text-align: left; display: flex; align-items: center; justify-content: space-between; transition: transform 0.12s, background 0.15s; }
+.ocx-dive { width: 100%; font: inherit; text-shadow: none; cursor: pointer; border: none; border-radius: 12px; padding: 14px 16px; background: var(--ink); color: #0a1217; text-align: left; display: flex; align-items: center; justify-content: space-between; transition: transform 0.12s, background 0.15s; }
 .ocx-dive:hover { background: #fff; }
 .ocx-dive:active { transform: scale(0.985); }
 .ocx-dive b { display: block; font-size: 19px; font-weight: 700; }
@@ -169,6 +181,10 @@ const CSS = `
 .ocx.play .ocx-top, .ocx.play .ocx-main, .ocx.play .ocx-cond, .ocx.play .ocx-go, .ocx.play .ocx-foot { animation: ocx-in 0.5s ease both; }
 .ocx.play .ocx-main { animation-delay: 0.05s; } .ocx.play .ocx-cond { animation-delay: 0.1s; } .ocx.play .ocx-go { animation-delay: 0.15s; } .ocx.play .ocx-foot { animation-delay: 0.2s; }
 @media (max-width: 1100px) { .ocx-cond { display: none; } }
+@media (max-width: 1240px) { .ocx-hint { display: none; } }
+/* (a short window: the weather panel keeps its controls and the sun, the dive card its button) */
+@media (max-height: 820px) { .ocx-wx-out .ocx-kv:nth-child(n+2) { display: none; } .ocx-wx { margin-bottom: 8px; } }
+@media (max-height: 700px) { .ocx-ready { display: none; } }
 @media (max-width: 820px) {
   .ocx-top { padding: 0 16px; gap: 14px; height: 64px; } .ocx-top-r .clock, .ocx-top-r .sep { display: none; }
   .ocx-nav button { padding: 8px 9px; font-size: 13px; }
@@ -300,6 +316,7 @@ export class OceanMenu {
     this.diveS = el('span', '', dt, '');
     dive.insertAdjacentHTML('beforeend', DIVE_ICON);
     dive.addEventListener('click', () => this.startPicked());
+    el('div', 'ocx-hint', this.root, 'Drag to look around · scroll to zoom · double-click to reset');
     // --- footer
     const foot = el('div', 'ocx-foot', this.root);
     const link = (t: string, f: () => void) => {
@@ -404,7 +421,8 @@ export class OceanMenu {
     const d = new Date();
     const p = (n: number) => String(n).padStart(2, '0');
     this.clock.textContent = `${p(d.getHours())}:${p(d.getMinutes())}`;
-    this.sea.textContent = cap(WEATHERS[this.settings.weather].label.split(',')[0]);
+    const wp = this.settings.weather;
+    this.sea.textContent = `${TIMES.find(([k]) => k === wp.time)?.[1] ?? ''} · ${SKIES.find(([k]) => k === wp.sky)?.[1] ?? ''}`;
     // the big button says what a dive would be
     const s = readSaved();
     if (this.pick === 'pulse' && !s.unlocked) this.pick = 'expedition';
@@ -449,23 +467,71 @@ export class OceanMenu {
     el('p', 'ocx-lead', this.main, lead);
   }
 
+  /** the weather panel: time of day on a slider, the sky and the sea as buttons, and what they come to */
   private renderCond(): void {
     clearEl(this.cond);
-    el('h3', '', this.cond, 'Harbor conditions');
-    const w = WEATHERS[this.settings.weather];
+    el('h3', '', this.cond, 'Weather');
+    const pick = this.settings.weather;
+    // time of day: five stops through the day
+    const tr = el('div', 'ocx-wx', this.cond);
+    const tk = el('div', 'ocx-wx-k', tr);
+    el('span', '', tk, 'Time of day');
+    const tv = el('b', '', tk, TIMES.find(([k]) => k === pick.time)?.[1] ?? '');
+    const range = el('input', 'ocx-wx-range', tr) as HTMLInputElement;
+    range.type = 'range';
+    range.min = '0';
+    range.max = String(TIMES.length - 1);
+    range.step = '1';
+    range.value = String(Math.max(0, TIMES.findIndex(([k]) => k === pick.time)));
+    range.setAttribute('aria-label', 'Time of day');
+    range.addEventListener('input', () => {
+      const t = TIMES[+range.value];
+      if (!t) return;
+      tv.textContent = t[1];
+      this.setWeather({ ...this.settings.weather, time: t[0] }, false);
+    });
+    range.addEventListener('change', () => this.renderCond());
+    const ticks = el('div', 'ocx-wx-ticks', tr);
+    for (const [, t] of TIMES) el('span', '', ticks, t === 'Afternoon' ? 'Aft.' : t);
+    this.wxSeg(this.cond, 'Sky', 'sky', SKIES);
+    this.wxSeg(this.cond, 'Sea', 'sea', SEAS);
+    const w = weatherOf(pick);
     const rows: [string, string, string?][] = [
-      ['Sea', cap(w.label)],
-      ['Swell', `${(w.amp * 1.4).toFixed(1)} m`],
-      ['Wind', `${Math.round(6 + w.wind * 22)} kt`],
       ['Sun', `${w.sunEl}° above the horizon`, w.sunEl < 12 ? 'warm' : undefined],
+      ['Wind', `${Math.round(6 + w.wind * 22)} kt`],
+      ['Swell', `${(w.amp * 1.4).toFixed(1)} m`],
       ['Water', 'Clear coastal · 14 °C'],
-      ['Harbor gate', 'Open'],
     ];
+    const kv = el('div', 'ocx-wx-out', this.cond);
     for (const [k, v, c] of rows) {
-      const r = el('div', 'ocx-kv', this.cond);
+      const r = el('div', 'ocx-kv', kv);
       el('span', '', r, k);
       el('span', c ?? '', r, v);
     }
+  }
+
+  /** a row of weather buttons (the panel's and the boat page's are kept in step) */
+  private wxSeg<K extends 'sky' | 'sea'>(parent: HTMLElement, label: string, key: K, opts: [WeatherPick[K], string][]): void {
+    const g = el('div', 'ocx-wx', parent);
+    el('div', 'ocx-wx-k', g, label);
+    const seg = el('div', 'ocx-seg ocx-wx-seg', g);
+    for (const [v, t] of opts) {
+      const b = el('button', this.settings.weather[key] === v ? 'on' : '', seg, t) as HTMLButtonElement;
+      b.type = 'button';
+      b.dataset.wx = key;
+      b.dataset.v = v;
+      b.addEventListener('click', () => this.setWeather({ ...this.settings.weather, [key]: v }));
+    }
+  }
+
+  /** a new weather: saved, and the harbor behind the menu follows it at once */
+  private setWeather(p: WeatherPick, redraw = true): void {
+    this.settings = { ...this.settings, weather: p };
+    saveOceanSettings(this.settings);
+    if (redraw) this.renderCond();
+    this.root.querySelectorAll<HTMLButtonElement>('[data-wx]').forEach((b) => b.classList.toggle('on', this.settings.weather[b.dataset.wx as 'sky' | 'sea'] === b.dataset.v));
+    this.root.querySelectorAll<HTMLButtonElement>('[data-wxt]').forEach((b) => b.classList.toggle('on', this.settings.weather.time === b.dataset.wxt));
+    this.tick();
   }
 
   // ------------------------------------------------------------------ MISSIONS
@@ -553,7 +619,30 @@ export class OceanMenu {
         });
       }
     };
-    seg('Sea and light', 'weather', [['calm', 'Calm'], ['dawn', 'Dawn'], ['overcast', 'Overcast']]);
+    // the weather (the same as the panel at the right)
+    {
+      const r = el('div', 'ocx-row wrap', rows);
+      el('span', '', r, 'Time of day');
+      const g = el('div', 'ocx-seg', r);
+      for (const [v, t] of TIMES) {
+        const b = el('button', this.settings.weather.time === v ? 'on' : '', g, t) as HTMLButtonElement;
+        b.type = 'button';
+        b.dataset.wxt = v;
+        b.addEventListener('click', () => this.setWeather({ ...this.settings.weather, time: v }));
+      }
+      for (const [label, key, opts] of [['Sky', 'sky', SKIES], ['Sea', 'sea', SEAS]] as const) {
+        const rr = el('div', 'ocx-row', rows);
+        el('span', '', rr, label);
+        const gg = el('div', 'ocx-seg', rr);
+        for (const [v, t] of opts) {
+          const b = el('button', this.settings.weather[key] === v ? 'on' : '', gg, t) as HTMLButtonElement;
+          b.type = 'button';
+          b.dataset.wx = key;
+          b.dataset.v = v;
+          b.addEventListener('click', () => this.setWeather({ ...this.settings.weather, [key]: v }));
+        }
+      }
+    }
     seg('Guidance', 'guidance', [['markers', 'Markers'], ['bearing', 'Compass'], ['instruments', 'Instruments']]);
     seg('Battery', 'relaxed', [[false, 'Real drain'], [true, 'No drain']]);
     seg('Visibility aid', 'visibilityAid', [[false, 'Off'], [true, 'On']]);

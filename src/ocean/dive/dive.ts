@@ -21,7 +21,7 @@ import { EchoAtlas, TrackRecorder } from '../atlas/atlas';
 import { Expedition, STAGES, MISSION_ID, MISSION_TITLE, toolReady, CAREER_KEY, parseCheckpoint, parseCareer, type Checkpoint, type MissionRun, type Career } from '../mission/expedition';
 import { PulseMission, PULSE_ID, PULSE_TITLE, PULSE_STAGES, multibeamSees, type PulseCtx } from '../mission/followup';
 import { loadOceanSettings, saveOceanSettings, PRESETS, type OceanSettings } from '../perf/presets';
-import { WEATHERS } from '../world/waves';
+import { TIMES, SKIES, SEAS, weatherId, weatherOf, type WeatherPick } from '../world/waves';
 import { OCEAN_FX } from '../render/oceanMaterial';
 import { el } from '../../ui/dom';
 import { audio } from '../../audio/audio';
@@ -35,6 +35,8 @@ const WARP_MARKS = [1, 2, 5, 10, 25, 50, 100];
 const WARP_MAX = 100;
 /** while the scanning sonar turns (a ping every turn) */
 const WARP_SCANNING = 4;
+/** the most the time warp runs with the battery under 10 % */
+const WARP_LOW_BATTERY = 10;
 const PING_RAYS = 90;
 /** a full turn of the scanning sonar's head (s) */
 const SWEEP_S = 3;
@@ -418,7 +420,7 @@ export class OceanDive {
   private applySettings(): void {
     const s = this.settings;
     this.world.setPreset(s.preset);
-    if (this.world.weather.id !== s.weather) this.world.setWeather(s.weather);
+    if (this.world.weather.id !== weatherId(s.weather)) this.world.setWeather(weatherOf(s.weather));
     this.env.waveAmp = this.world.weather.amp;
     this.env.relaxed = s.relaxed;
     this.host.setRenderScale(PRESETS[s.preset].renderScale);
@@ -625,7 +627,10 @@ export class OceanDive {
   private warpLimit(): [number, string] {
     const why = this.timeBlocked();
     if (why) return [1, why];
+    if (this.batteryCard) return [1, 'BATTERY FLAT'];
     if (this.manip) return [1, 'ARM OUT'];
+    // (at 100× the last 10 % would go in seconds: time for the warning to be read and acted on)
+    if (this.sub.battery < 0.1 && !this.env.relaxed) return [WARP_LOW_BATTERY, 'BATTERY LOW'];
     if (this.scanning) return [WARP_SCANNING, 'SCANNING SONAR'];
     return [WARP_MAX, ''];
   }
@@ -673,7 +678,26 @@ export class OceanDive {
         });
       };
       sel('Graphics', 'preset', [['performance', 'Performance'], ['balanced', 'Balanced'], ['cinematic', 'Cinematic']]);
-      sel('Sea', 'weather', [['calm', 'Calm daylight'], ['dawn', 'Dawn swell'], ['overcast', 'Overcast, rough']]);
+      // the weather: time of day, sky and sea, each on its own
+      const wsel = <K extends keyof WeatherPick>(label: string, key: K, opts: [WeatherPick[K], string][]) => {
+        el('span', '', set, label);
+        const s = el('select', '', set) as HTMLSelectElement;
+        for (const [v, t] of opts) {
+          const o = el('option', '', s, t) as HTMLOptionElement;
+          o.value = v;
+          o.selected = this.settings.weather[key] === v;
+        }
+        s.addEventListener('change', () => {
+          const v = opts.find(([x]) => x === s.value)?.[0];
+          if (v === undefined) return;
+          this.settings = { ...this.settings, weather: { ...this.settings.weather, [key]: v } };
+          saveOceanSettings(this.settings);
+          this.applySettings();
+        });
+      };
+      wsel('Time of day', 'time', TIMES);
+      wsel('Sky', 'sky', SKIES);
+      wsel('Sea', 'sea', SEAS);
       sel('Guidance', 'guidance', [['markers', 'Markers in view'], ['bearing', 'Compass only'], ['instruments', 'Instruments only']]);
       sel('Battery', 'relaxed', [[false, 'Real drain'], [true, 'Relaxed (no drain)']]);
       sel('Visibility aid', 'visibilityAid', [[false, 'Off'], [true, 'On']]);

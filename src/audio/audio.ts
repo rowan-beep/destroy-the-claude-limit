@@ -756,10 +756,14 @@ export class AudioEngine {
     this.whine.setPeriodicWave(w.whine);
   }
 
+  /** a flight on hold: the master is held at zero until it goes on */
+  private paused = false;
+
   applyLevels(): void {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
-    this.master.gain.setTargetAtTime(this.muted ? 0 : this.levels.master, t, 0.05);
+    // (new levels from the settings must not bring the sound back while the game is paused)
+    this.master.gain.setTargetAtTime(this.muted || this.paused ? 0 : this.levels.master, t, 0.05);
     // blacked out: the jet drops to 10 % so the heartbeat comes through
     // (coming round it eases back up to exactly the set level, not with a jolt)
     const jet = this.levels.engine * (this.blackedOut ? 0.1 : 1);
@@ -785,7 +789,22 @@ export class AudioEngine {
     this.applyLevels();
   }
 
+  /** the tab put away: everything stops (the frames stop, so nothing would move the sound on) */
+  private hiddenStop = false;
+  setHidden(h: boolean): void {
+    const c = this.ctx as AudioContext | null;
+    if (!c || typeof c.suspend !== 'function') return;
+    if (h && c.state === 'running') {
+      this.hiddenStop = true;
+      void c.suspend().catch(() => undefined);
+    } else if (!h && this.hiddenStop) {
+      this.hiddenStop = false;
+      void c.resume().catch(() => undefined);
+    }
+  }
+
   setPaused(p: boolean): void {
+    this.paused = p;
     if (!this.ctx) return;
     this.master.gain.setTargetAtTime(p || this.muted ? 0 : this.levels.master, this.ctx.currentTime, 0.08);
   }

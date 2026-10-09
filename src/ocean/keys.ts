@@ -13,7 +13,7 @@ export const OCEAN_KEY_SECTIONS: [string, string][][] = [
     ['B', 'Emergency blow: straight to the surface'],
     ['T', 'Hold this depth'],
     ['G', 'Hold this position'],
-    [', / .', 'Time warp down / up: 1× to 100× (or drag the slider); open water only, held back near the bottom, the sites and the harbor'],
+    [', / .', 'Time warp down / up: 1× to 100× (or drag the slider); open water only, held back near the bottom, the sites, the harbor and on a low battery'],
   ],
   [
     ['#', 'SURVEY'],

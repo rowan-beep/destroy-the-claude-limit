@@ -17,7 +17,7 @@ const CSS = `
 .oc-hud.hidden { display: none; }
 .oc-hud .mono, .oc-hud .oc-v { font-variant-numeric: tabular-nums; }
 .oc-panel { position: absolute; background: var(--glass); border: 1px solid var(--line); border-radius: 14px; backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18); }
-.oc-obj { left: 20px; top: 18px; max-width: min(440px, 42vw); padding: 12px 16px 13px; }
+.oc-obj { left: 20px; top: 18px; max-width: min(440px, calc(33vw - 30px)); padding: 12px 16px 13px; }
 .oc-kick { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--a); }
 .oc-task { font-size: 16px; font-weight: 600; margin-top: 5px; line-height: 1.3; }
 .oc-hint { font-size: 12.5px; color: var(--dim); margin-top: 4px; line-height: 1.4; }
@@ -25,7 +25,7 @@ const CSS = `
 .oc-stages i { flex: 1; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.14); }
 .oc-stages i.d { background: var(--a); }
 .oc-stages i.c { background: var(--ink); }
-.oc-compass { left: 50%; top: 18px; transform: translateX(-50%); width: min(460px, 40vw); height: 44px; padding: 0; overflow: hidden; background: rgba(9, 17, 23, 0.42); -webkit-mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent); mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent); border: none; border-radius: 10px; box-shadow: none; }
+.oc-compass { left: 50%; top: 18px; transform: translateX(-50%); width: min(460px, 34vw); height: 44px; padding: 0; overflow: hidden; background: rgba(9, 17, 23, 0.42); -webkit-mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent); mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent); border: none; border-radius: 10px; box-shadow: none; }
 .oc-compass canvas { width: 100%; height: 100%; display: block; }
 .oc-left { left: 20px; top: 50%; transform: translateY(-50%); width: 128px; padding: 12px; }
 .oc-right { right: 20px; top: 50%; transform: translateY(-50%); width: 184px; padding: 12px 14px; }
@@ -47,7 +47,7 @@ const CSS = `
 .oc-tag.amber { color: #1d1500; background: var(--a2); border-color: var(--a2); font-weight: 600; }
 .oc-mini { right: 20px; bottom: 20px; width: 196px; height: 196px; padding: 0; overflow: hidden; border-radius: 16px; }
 .oc-mini canvas { width: 100%; height: 100%; display: block; }
-.oc-survey { left: 50%; bottom: 20px; transform: translateX(-50%); width: min(780px, 62vw); padding: 12px 14px; display: none; gap: 14px; }
+.oc-survey { left: 50%; bottom: 66px; transform: translateX(-50%); width: min(780px, 62vw); padding: 12px 14px; display: none; gap: 14px; }
 .oc-survey.show { display: flex; }
 .oc-btr { width: 260px; height: 120px; display: block; border-radius: 8px; background: #020a10; margin-top: 6px; }
 .oc-ppi { width: 120px; height: 120px; display: block; border-radius: 50%; background: #020a10; margin-top: 6px; }
@@ -70,7 +70,7 @@ const CSS = `
 .oc-gauge-t.block { color: var(--a2); }
 .oc-prompt { position: absolute; left: 50%; bottom: 170px; transform: translateX(-50%); padding: 9px 18px; font-size: 14px; font-weight: 600; border-radius: 999px; background: rgba(9, 17, 23, 0.72); border: 1px solid rgba(111, 227, 208, 0.6); color: var(--ink); display: none; white-space: nowrap; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
 .oc-prompt.show { display: block; }
-.oc-survey.show ~ .oc-prompt { bottom: 236px; }
+.oc-survey.show ~ .oc-prompt { bottom: 274px; }
 .oc-survey.show ~ .oc-warp { display: none; }
 .oc-prompt.block { border-color: rgba(255, 191, 94, 0.7); color: var(--a2); }
 .oc-warn { position: absolute; left: 50%; top: 74px; transform: translateX(-50%); font-size: 13px; font-weight: 700; letter-spacing: 0.12em; color: #ff8f7a; text-shadow: 0 1px 10px rgba(0, 0, 0, 0.8); text-align: center; }
@@ -127,6 +127,8 @@ const CSS = `
 .oc-hud.large .oc-big { font-size: 38px; }
 .oc-hud.large .oc-hint, .oc-hud.large .oc-row { font-size: 14.5px; }
 @media (max-width: 900px) { .oc-left, .oc-right { transform: translateY(-50%) scale(0.85); } .oc-survey { width: 92vw; } .oc-btr { width: 180px; } }
+/* (a phone held upright: the big messages sit under the compass, beside the objective panel and above the instruments) */
+@media (max-width: 600px) { .oc-flash { top: 74px; left: calc(33vw + 4px); right: 8px; transform: none; } .oc-flash-t { font-size: 18px; } }
 `;
 
 export interface HudState {

@@ -61,7 +61,10 @@ export function programLogo(parent: HTMLElement, current: Program, sub: string, 
     list.classList.toggle('open', open);
     btn.classList.toggle('open', open);
   });
-  document.addEventListener('click', (e) => {
-    if (!logo.contains(e.target as Node)) close();
-  });
+  // (menus redraw their logo: a logo that has gone takes its listener with it)
+  const outside = (e: MouseEvent) => {
+    if (!logo.isConnected) document.removeEventListener('click', outside);
+    else if (!logo.contains(e.target as Node)) close();
+  };
+  document.addEventListener('click', outside);
 }

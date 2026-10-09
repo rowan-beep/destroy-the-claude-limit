@@ -19,6 +19,21 @@ pages:
 - **CHART**: the Echo Atlas (chart, contacts with their bearings and story,
   evidence, expedition log).
 
+The menu is laid over the harbor: drag on it to look round PETREL, scroll to
+come closer or stand back, double-click to go back to the slow drift.
+
+### Weather
+
+The **Weather** panel at the menu's right (and the same three rows on the
+boat page and in a dive's pause card) sets the time of day (Dawn, Morning,
+Noon, Afternoon, Sunset: the sun 7°, 27°, 60°, 33° and 5° up), the sky (Clear,
+Fair, Cloudy, Overcast) and the sea (Calm, Moderate, Rough). The sun's height,
+colour and strength, the sky model's air, the cloud cover, the haze distance,
+the light under water, the wave height, the ripples and the wind noise all
+follow (`world/waves.ts`, `weatherOf`). A new player starts at Noon, Fair,
+Calm. The benchmark keeps its own three fixed weathers so its runs stay
+comparable.
+
 Keys (also on the CONTROLS page and in a dive with H, with the gamepad and
 touch controls):
 
@@ -67,7 +82,9 @@ or D-pad up on a gamepad) must be held for 2 s.
   and `.` to step it. Time speeds up smoothly to what is set and drops at once
   when it must: inside the harbor, near the wreck and K3, within 6 m of the
   bottom, while listening and during a task it stays at 1×; with the arm out
-  1×; with the scanning sonar turning at most 4×. The boat's physics take the
+  1×; with the scanning sonar turning at most 4×; with the battery under 10 %
+  at most 10× (at 100× the last 10 % would last seconds); behind the
+  flat-battery card 1×. The boat's physics take the
   same fixed steps however fast time runs (more of them per frame).
 
 ### The harbor above the water
