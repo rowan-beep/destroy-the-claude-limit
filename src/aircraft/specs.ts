@@ -343,7 +343,7 @@ const F15EX: AircraftSpec = {
   flares: 60,
   rcs: 10,
   irSignature: 1.15,
-  gear: { nose: -5.5, main: 1.2, track: 1.4, height: 2.05 },
+  gear: { nose: -4.25, main: 1.2, track: 1.4, height: 2.05 },
   hitRadius: 5.5,
   paint: { top: '#5d646a', bottom: '#737a80', accent: '#3e4448' },
 };

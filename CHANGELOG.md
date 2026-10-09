@@ -4,6 +4,17 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
+## v7.2.2 (2026-10-09)
+
+### Air Combat: The F-15EX gets its real front end
+
+- **Fixed: The F-15EX's nose, canopy and intakes**
+  - The whole front of the Eagle II has been rebuilt over the published F-15 three-view, in true scale, and now matches it from the side and from above. Before, the canopy sat about 0.3 m too low and stopped short, the spine behind it was up to 0.35 m too low, the belly and the intakes hung about 0.2 m low, the intakes stood about 0.3 m too far out and 0.8 m too far forward, and the radome was a thin straight cone with a kink where it met the body.
+  - The radome is long and drooped, round at its base and flatter toward the tip, and meets the forward fuselage at a joint 2.6 m behind the tip. Behind it the sides straighten into the Eagle's shoulder: a ledge at canopy-rail height that the intakes tuck in under, with the lower crease running back from the radome.
+  - The bubble canopy rises from a windscreen 3.3 m behind the tip to a crown about 1.8 m above it and runs 5 m back onto a raised spine, the rail climbing beside the rear cockpit. The windscreen sits on a closed coaming with a full-length glareshield and a HUD on top; the speedbrake lies on the new spine.
+  - The intakes are tall, raked boxes beside the rear cockpit, the top lip ahead of the bottom one, with thick rounded lips, the compression ramp under the top lip, white ducts and a boundary-layer gap to the fuselage. The outer walls flare into the wing glove, and the conformal tanks fair into them.
+  - The nose gear has moved 1.25 m aft to sit under the front seat, which gives the real 5.4 m wheelbase. The pitot probes, AoA vanes, formation lights, antennas and markings have moved onto the new shapes: the intake danger stripe follows the lip's rake, the insignia sits on the trunk's flat wall, the RESCUE arrow is under the canopy and the panel lines follow the shoulder and the crease. The cockpit view is unchanged.
+
 ## v7.2.1 (2026-10-09)
 
 ### Air Combat: A frame rate setting: 165 Hz where the browser holds the page at 60

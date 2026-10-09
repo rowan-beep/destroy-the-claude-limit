@@ -21,54 +21,73 @@ function circ(R: number, yc: number, sx = 1): P2[] {
   return ang.map((a) => [R * sx * Math.cos((a * Math.PI) / 180), yc + R * Math.sin((a * Math.PI) / 180)] as P2);
 }
 
-/** circ() with the upper half stretched by `up`: the forebody deepens toward the windscreen. */
-function egg(R: number, yc: number, up: number): P2[] {
-  return circ(R, yc).map(([x, y]) => [x, y > yc ? yc + (y - yc) * up : y] as P2);
+/**
+ * Radome section: a superellipse, `hw` across, `up` above and `dn` below its
+ * centre `yc`, flattening (n > 2) toward the base. Same 12 angles as circ().
+ */
+function oval(hw: number, yc: number, up: number, dn: number, nUp = 2, nDn = 2): P2[] {
+  const ang = [-90, -72, -52, -34, -16, -4, 4, 16, 34, 52, 72, 90];
+  return ang.map((a) => {
+    const t = (a * Math.PI) / 180;
+    const c = Math.cos(t), s = Math.sin(t);
+    const n = s < 0 ? nDn : nUp;
+    return [hw * Math.pow(c, 2 / n), yc + Math.sign(s) * Math.pow(Math.abs(s), 2 / n) * (s < 0 ? dn : up)] as P2;
+  });
 }
 
-// Main body: nose, cockpit well, dorsal hump, centre box between the trunks,
-// twin nacelles. Right half, 12 control points, bottom centre to top centre.
+// Main body, laid over the published three-view (side profile, plan width,
+// front view) in true scale: nose tip at z -9.86. Right half, 12 control
+// points from the belly centre round to the top centre:
+//   0-2 the flat belly and its corner, 3 the lower crease (the panel break
+//   along the lower side), 4-6 the lower side wall, 7 the shoulder (the
+//   widest point, at canopy-rail height: the intakes tuck in under it),
+//   8 the ledge on top of the shoulder, 9 the canopy rail, 10-11 the cockpit
+//   well floor under the glass (the closed top ahead of the windscreen and on
+//   the spine behind the canopy).
+// The radome is long and drooped: round at its base, flatter and wider than
+// tall toward the tip, the tip below the centre line of the base.
 const BODY = keyedProfile([
   { z: -9.86, pts: circ(0.012, -0.13) },
-  { z: -9.55, pts: circ(0.19, -0.12) },
-  { z: -9.0, pts: circ(0.35, -0.1) },
-  { z: -8.3, pts: egg(0.48, -0.08, 1.2) },
-  { z: -7.4, pts: egg(0.6, -0.05, 1.17) },
-  {
-    z: -6.75,
-    pts: [[0, -0.7], [0.36, -0.68], [0.59, -0.54], [0.69, -0.32], [0.715, -0.14], [0.725, -0.1], [0.715, -0.05], [0.68, 0.18], [0.62, 0.42], [0.5, 0.55], [0.26, 0.58], [0, 0.59]],
-  },
-  {
-    z: -6.0,
-    pts: [[0, -0.74], [0.38, -0.73], [0.62, -0.58], [0.73, -0.34], [0.76, -0.14], [0.775, -0.1], [0.765, -0.05], [0.72, 0.2], [0.64, 0.46], [0.58, 0.58], [0.42, 0.44], [0, 0.34]],
-  },
-  {
-    z: -5.1,
-    pts: [[0, -0.79], [0.41, -0.78], [0.67, -0.63], [0.78, -0.36], [0.8, -0.15], [0.815, -0.1], [0.805, -0.05], [0.76, 0.22], [0.66, 0.5], [0.6, 0.6], [0.5, 0.3], [0, 0.14]],
-  },
-  {
-    z: -4.0,
-    pts: [[0, -0.8], [0.43, -0.8], [0.7, -0.67], [0.83, -0.4], [0.87, -0.18], [0.88, -0.11], [0.875, -0.03], [0.83, 0.24], [0.7, 0.52], [0.6, 0.6], [0.5, 0.3], [0, 0.12]],
-  },
-  {
-    z: -3.0,
-    pts: [[0, -0.8], [0.47, -0.8], [0.76, -0.69], [0.9, -0.43], [0.94, -0.2], [0.95, -0.1], [0.945, 0.0], [0.9, 0.26], [0.76, 0.52], [0.58, 0.63], [0.44, 0.45], [0, 0.4]],
-  },
-  {
-    z: -2.5,
-    pts: [[0, -0.8], [0.5, -0.8], [0.8, -0.7], [0.95, -0.45], [0.99, -0.2], [1.0, -0.1], [0.995, 0.02], [0.95, 0.28], [0.8, 0.52], [0.6, 0.7], [0.3, 0.81], [0, 0.84]],
-  },
-  {
-    z: -1.4,
-    pts: [[0, -0.8], [0.62, -0.82], [1.02, -0.8], [1.3, -0.62], [1.4, -0.34], [1.43, -0.1], [1.43, 0.06], [1.4, 0.26], [1.26, 0.46], [0.92, 0.62], [0.42, 0.74], [0, 0.79]],
-  },
+  { z: -9.66, pts: oval(0.115, -0.112, 0.07, 0.07) },
+  { z: -9.36, pts: oval(0.26, -0.075, 0.18, 0.18) },
+  { z: -8.86, pts: oval(0.395, -0.04, 0.325, 0.325) },
+  { z: -8.36, pts: oval(0.48, -0.01, 0.445, 0.445, 2, 2.1) },
+  { z: -7.86, pts: oval(0.545, 0.0275, 0.5375, 0.5375, 2.05, 2.2) },
+  // radome joint: round
+  { z: -7.24, pts: oval(0.6, 0.075, 0.615, 0.615, 2.1, 2.35) },
+  // forebody: the sides straighten, the shoulder starts to form at rail height
+  { z: -6.86, pts: [[0, -0.545], [0.28, -0.543], [0.44, -0.51], [0.54, -0.4], [0.59, -0.18], [0.61, 0.1], [0.625, 0.36], [0.635, 0.56], [0.6, 0.68], [0.44, 0.74], [0.24, 0.768], [0, 0.775]] },
+  // the windscreen's base: the glass sits on the top here
+  { z: -6.56, pts: [[0, -0.548], [0.29, -0.546], [0.45, -0.513], [0.55, -0.4], [0.6, -0.17], [0.62, 0.11], [0.64, 0.38], [0.655, 0.59], [0.625, 0.69], [0.47, 0.765], [0.25, 0.8], [0, 0.81]] },
+  // the coaming under the windscreen (closed: the glareshield sits on it),
+  // then the front cockpit's well opens under the glass and the shoulder widens
+  { z: -6.2, pts: [[0, -0.55], [0.3, -0.548], [0.46, -0.515], [0.56, -0.4], [0.61, -0.165], [0.635, 0.12], [0.66, 0.4], [0.69, 0.61], [0.665, 0.7], [0.535, 0.735], [0.38, 0.79], [0, 0.81]] },
+  { z: -5.0, pts: [[0, -0.556], [0.3, -0.553], [0.46, -0.52], [0.55, -0.4], [0.595, -0.15], [0.61, 0.15], [0.66, 0.45], [0.725, 0.635], [0.705, 0.7], [0.595, 0.712], [0.48, 0.56], [0, 0.4]] },
+  { z: -4.35, pts: [[0, -0.56], [0.3, -0.557], [0.45, -0.525], [0.54, -0.405], [0.575, -0.14], [0.585, 0.16], [0.63, 0.45], [0.74, 0.645], [0.72, 0.705], [0.61, 0.73], [0.5, 0.58], [0, 0.42]] },
+  // between the intakes the lower fuselage tucks in (the boundary-layer gap),
+  // the shoulder overhangs the intake tops and the rear cockpit's walls rise
+  { z: -3.9, pts: [[0, -0.565], [0.28, -0.562], [0.42, -0.53], [0.49, -0.41], [0.5, -0.12], [0.5, 0.2], [0.515, 0.5], [0.745, 0.655], [0.73, 0.715], [0.61, 0.8], [0.5, 0.66], [0, 0.52]] },
+  { z: -3.0, pts: [[0, -0.58], [0.28, -0.577], [0.42, -0.545], [0.49, -0.42], [0.5, -0.12], [0.5, 0.2], [0.515, 0.5], [0.76, 0.665], [0.75, 0.72], [0.585, 0.95], [0.48, 0.8], [0, 0.6]] },
+  { z: -2.4, pts: [[0, -0.6], [0.28, -0.597], [0.42, -0.565], [0.49, -0.44], [0.5, -0.12], [0.5, 0.2], [0.525, 0.5], [0.78, 0.66], [0.77, 0.72], [0.525, 1.025], [0.42, 0.9], [0, 0.78]] },
+  // the canopy's tail closes onto the dorsal spine
+  { z: -1.6, pts: [[0, -0.62], [0.3, -0.62], [0.46, -0.59], [0.54, -0.46], [0.56, -0.12], [0.56, 0.2], [0.58, 0.5], [0.8, 0.65], [0.79, 0.72], [0.55, 1.0], [0.32, 1.17], [0, 1.22]] },
+  { z: -0.9, pts: [[0, -0.63], [0.32, -0.64], [0.5, -0.62], [0.58, -0.5], [0.6, -0.12], [0.6, 0.2], [0.62, 0.5], [0.82, 0.64], [0.8, 0.72], [0.62, 0.98], [0.36, 1.14], [0, 1.19]] },
+  // the body takes over the intake trunks; the spine falls away to the tail
   {
     z: 0.4,
-    pts: [[0, -0.64], [0.46, -0.66], [0.95, -0.84], [1.5, -0.87], [1.86, -0.74], [1.95, -0.44], [1.965, -0.1], [1.955, 0.1], [1.88, 0.3], [1.55, 0.46], [0.8, 0.61], [0, 0.69]],
+    pts: [[0, -0.64], [0.46, -0.66], [0.95, -0.84], [1.5, -0.87], [1.86, -0.74], [1.95, -0.44], [1.965, -0.1], [1.955, 0.1], [1.88, 0.3], [1.55, 0.5], [0.66, 0.9], [0, 1.0]],
+  },
+  {
+    z: 1.5,
+    pts: [[0, -0.625], [0.456, -0.645], [0.95, -0.817], [1.49, -0.843], [1.849, -0.717], [1.939, -0.432], [1.955, -0.108], [1.945, 0.092], [1.873, 0.285], [1.54, 0.45], [0.62, 0.78], [0, 0.84]],
+  },
+  {
+    z: 2.4,
+    pts: [[0, -0.612], [0.453, -0.632], [0.95, -0.799], [1.486, -0.821], [1.84, -0.697], [1.929, -0.428], [1.948, -0.114], [1.938, 0.086], [1.865, 0.272], [1.53, 0.42], [0.7, 0.62], [0, 0.68]],
   },
   {
     z: 3.3,
-    pts: [[0, -0.6], [0.45, -0.62], [0.95, -0.78], [1.48, -0.8], [1.83, -0.68], [1.92, -0.42], [1.94, -0.12], [1.93, 0.08], [1.86, 0.26], [1.52, 0.4], [0.8, 0.52], [0, 0.57]],
+    pts: [[0, -0.6], [0.45, -0.62], [0.95, -0.78], [1.48, -0.8], [1.83, -0.68], [1.92, -0.42], [1.94, -0.12], [1.93, 0.08], [1.86, 0.26], [1.52, 0.4], [0.8, 0.55], [0, 0.6]],
   },
   {
     z: 5.4,
@@ -83,20 +102,32 @@ const BODY = keyedProfile([
     pts: [[0, -0.28], [0.2, -0.5], [0.64, -0.655], [1.0, -0.54], [1.2, -0.3], [1.245, -0.07], [1.245, 0.0], [1.2, 0.2], [1.0, 0.44], [0.64, 0.555], [0.28, 0.44], [0, 0.26]],
   },
 ]);
-const BODY_SUB = [4, 3, 3, 3, 2, 1, 2, 3, 3, 3, 4];
+// (a crisp edge on the shoulder ledge, smooth everywhere else)
+const BODY_SUB = [4, 3, 3, 3, 2, 3, 2, 1, 2, 2, 4];
 
-const CANOPY: Section[] = [
-  { z: -6.6, w: 0.03, top: 0.02, bot: 0.02, y: 0.58, n: 2 },
-  { z: -6.15, w: 0.4, top: 0.42, bot: 0.03, y: 0.59, n: 2.2 },
-  { z: -5.65, w: 0.52, top: 0.68, bot: 0.03, y: 0.6, n: 2.2 },
-  { z: -4.95, w: 0.56, top: 0.8, bot: 0.03, y: 0.6, n: 2.2 },
-  { z: -4.0, w: 0.54, top: 0.78, bot: 0.03, y: 0.6, n: 2.2 },
-  { z: -3.05, w: 0.45, top: 0.52, bot: 0.03, y: 0.62, n: 2.2 },
-  { z: -2.45, w: 0.22, top: 0.12, bot: 0.03, y: 0.67, n: 2 },
-];
+// The two-seat bubble off the three-view: the windscreen rises from the
+// coaming 3.3 m behind the nose tip, the crown is 1.8 m above the tip over
+// the bow between the cockpits, and the glass runs 5 m back to the spine.
+// The rail sits on the shoulder ledge beside the front seat and climbs the
+// raised side walls of the rear cockpit.
+const CROWN = curve([[-6.56, 0.81], [-6.36, 0.995], [-5.86, 1.275], [-5.36, 1.455], [-4.86, 1.585], [-4.36, 1.645], [-3.86, 1.665], [-3.36, 1.625], [-2.86, 1.555], [-2.36, 1.425], [-1.86, 1.275], [-1.6, 1.225]]);
+const RAIL = curve([[-6.56, 0.77], [-6.2, 0.715], [-5.0, 0.71], [-4.35, 0.727], [-3.9, 0.8], [-3.4, 0.88], [-2.9, 0.95], [-2.4, 1.02], [-1.9, 1.12], [-1.6, 1.2]]);
+const CANOPY_W = curve([[-6.56, 0.45], [-6.2, 0.53], [-5.5, 0.575], [-4.5, 0.6], [-3.8, 0.6], [-3.0, 0.56], [-2.4, 0.48], [-1.9, 0.3], [-1.6, 0.04]]);
+const CANOPY: Section[] = [-6.56, -6.45, -6.3, -6.05, -5.75, -5.4, -5.0, -4.6, -4.2, -3.8, -3.4, -3.0, -2.6, -2.25, -1.95, -1.75, -1.6].map((z, i, all) => {
+  const y = RAIL(z) + 0.03;
+  const last = i === all.length - 1;
+  return { z, w: CANOPY_W(z), top: Math.max(0.01, CROWN(z) - y), bot: last ? 0.01 : 0.03, y, n: i === 0 ? 2.6 : 2.2 };
+});
+/** the windscreen's rear frame and the bow between the cockpits */
+const ARCH_Z = -5.05;
+const BOW_Z = -3.65;
+const EYE_FRONT = new THREE.Vector3(0, 1.18, -4.7);
+const EYE_REAR = new THREE.Vector3(0, 1.32, -3.25);
 
 // Planforms (body frame x, z)
 const WING: WingStation[] = [
+  // (the root carries on inside the intake trunk: no gap where the leading edge meets it)
+  { x: 1.45, le: -3.0, te: 4.36, y: 0.245, t: 0.066 },
   { x: 1.7, le: -2.75, te: 4.36, y: 0.24, t: 0.066 },
   { x: 2.0, le: -2.45, te: 4.36, y: 0.235, t: 0.064 },
   { x: 4.15, le: -0.3, te: 4.36, y: 0.2, t: 0.05 },
@@ -118,6 +149,9 @@ const FIN: WingStation[] = [
   { x: 3.18, le: 7.1, te: 8.3, t: 0.034 },
 ];
 const FIN_ROOT = { x: 1.62, y: 0.38, cant: 0 };
+// intake mouth: the lower lip's station and the rake that brings the top lip forward
+const INTAKE_MOUTH = -3.75;
+const INTAKE_RAKE = (y: number) => -0.3 * (y + 0.6);
 const RUDDER = { h0: 0.12, h1: 1.95, hinge: (h: number) => 7.62 + h * 0.02 };
 
 function livery(team: string, withCamo = true): Livery {
@@ -149,49 +183,61 @@ function livery(team: string, withCamo = true): Livery {
   // radome and anti-glare panel
   gt.fillStyle = 'rgba(112,118,122,0.85)';
   gt.beginPath();
-  gt.ellipse(...T(0, -8.6), 0.62 * pt, 1.3 * pt, 0, 0, Math.PI * 2);
+  gt.ellipse(...T(0, -8.55), 0.62 * pt, 1.31 * pt, 0, 0, Math.PI * 2);
   gt.fill();
   gs.fillStyle = 'rgba(112,118,122,0.85)';
   gs.beginPath();
-  gs.moveTo(...S(-9.9, -0.12));
-  gs.lineTo(...S(-7.36, 0.6));
-  gs.lineTo(...S(-7.36, -0.7));
+  gs.moveTo(...S(-9.9, -0.13));
+  gs.lineTo(...S(-7.24, 0.7));
+  gs.lineTo(...S(-7.24, -0.56));
   gs.closePath();
   gs.fill();
-  gt.fillStyle = 'rgba(38,41,45,0.8)';
+  gt.fillStyle = 'rgba(44,47,51,0.6)';
   gt.beginPath();
-  gt.moveTo(...T(-0.42, -6.7));
-  gt.lineTo(...T(0.42, -6.7));
-  gt.lineTo(...T(0.2, -7.6));
-  gt.lineTo(...T(-0.2, -7.6));
+  gt.moveTo(...T(-0.44, -6.5));
+  gt.lineTo(...T(0.44, -6.5));
+  gt.lineTo(...T(0.3, -7.05));
+  gt.lineTo(...T(0.14, -7.5));
+  gt.lineTo(...T(-0.14, -7.5));
+  gt.lineTo(...T(-0.3, -7.05));
   gt.closePath();
   gt.fill();
-  // cockpit well (seen through the canopy)
+  // cockpit well (seen through the canopy), following the glass in plan
   gt.fillStyle = 'rgba(40,43,46,1)';
-  gt.fillRect(...T(-0.52, -6.45), 1.04 * pt, 3.3 * pt);
+  gt.beginPath();
+  const wellZ = [-6.0, -5.5, -5.0, -4.5, -4.0, -3.5, -3.0, -2.6, -2.2, -1.9];
+  wellZ.forEach((z, i) => (i === 0 ? gt.moveTo(...T(CANOPY_W(z) - 0.07, z)) : gt.lineTo(...T(CANOPY_W(z) - 0.07, z))));
+  for (const z of [...wellZ].reverse()) gt.lineTo(...T(-(CANOPY_W(z) - 0.07), z));
+  gt.closePath();
+  gt.fill();
   // --- panel lines ----------------------------------------------------------
-  const frames = [-7.36, -6.4, -3.3, -1.9, -0.2, 1.4, 2.9, 4.4, 5.9, 7.3, 8.3];
+  const frames = [-7.24, -6.56, -3.3, -1.6, -0.2, 1.4, 2.9, 4.4, 5.9, 7.3, 8.3];
   for (const z of frames) {
-    line(gt, [T(-1.9, z), T(1.9, z)], 1.4, LINE_LIGHT);
+    // (no frame lines across the open cockpit under the glass)
+    if (z > -6.3 && z < -1.7) for (const sx of [-1, 1]) line(gt, [T(0.62 * sx, z), T(1.9 * sx, z)], 1.4, LINE_LIGHT);
+    else line(gt, [T(-1.9, z), T(1.9, z)], 1.4, LINE_LIGHT);
     line(gs, [S(z, -0.9), S(z, 0.75)], 1.6, LINE);
     line(gb, [B(-1.9, z), B(1.9, z)], 1.2, LINE_LIGHT);
   }
   // chine and longerons
-  line(gs, [S(-7.36, -0.1), S(-4.6, -0.1)], 1.6, LINE);
-  line(gs, [S(-4.9, 0.36), S(1.5, 0.3), S(5.6, 0.2), S(8.6, 0.2)], 1.4, LINE);
-  line(gs, [S(-4.4, -0.95), S(3.8, -0.86), S(7.8, -0.6)], 1.4, LINE);
+  // the lower crease and the shoulder ledge along the forebody, then the
+  // longerons down the trunks and the booms
+  line(gs, [S(-7.24, -0.26), S(-6.86, -0.38), S(-4.1, -0.4)], 1.6, LINE);
+  line(gs, [S(-6.86, 0.56), S(-6.2, 0.61), S(-4.2, 0.645)], 1.4, LINE);
+  line(gs, [S(-2.0, 0.5), S(1.5, 0.3), S(5.6, 0.2), S(8.6, 0.2)], 1.4, LINE);
+  line(gs, [S(-2.0, -0.62), S(3.8, -0.84), S(7.8, -0.6)], 1.4, LINE);
   for (const sx of [-1, 1]) {
-    line(gt, [T(0.62 * sx, -2.4), T(0.62 * sx, 0.3)], 1.4, LINE); // speedbrake
+    line(gt, [T(0.49 * sx, -1.45), T(0.49 * sx, 1.0)], 1.4, LINE); // speedbrake
     line(gt, [T(0.45 * sx, 0.6), T(0.4 * sx, 6.2)], 1.2, LINE_LIGHT);
     line(gt, [T(1.3 * sx, -4.6), T(1.4 * sx, 5.2)], 1.2, LINE_LIGHT);
     line(gt, [T(0.64 * sx, 5.8), T(0.64 * sx, 8.7)], 1.2, LINE_LIGHT);
   }
-  line(gt, [T(-0.62, -2.4), T(0.62, -2.4)], 1.4, LINE);
-  line(gt, [T(-0.62, 0.3), T(0.62, 0.3)], 1.4, LINE);
+  line(gt, [T(-0.49, -1.45), T(0.49, -1.45)], 1.4, LINE);
+  line(gt, [T(-0.49, 1.0), T(0.49, 1.0)], 1.4, LINE);
   // access panels (fuselage sides and top)
   const rect = (g: CanvasRenderingContext2D, a: P2, b: P2) => line(g, [a, [b[0], a[1]], b, [a[0], b[1]]], 1.3, LINE, true);
-  rect(gs, S(-6.1, -0.55), S(-5.3, -0.2));
-  rect(gs, S(-3.0, 0.1), S(-2.2, 0.45));
+  rect(gs, S(-6.2, -0.33), S(-5.4, 0.02));
+  rect(gs, S(-2.4, 0.12), S(-1.7, 0.45));
   rect(gs, S(1.8, -0.5), S(2.6, -0.1));
   rect(gs, S(4.9, -0.2), S(5.6, 0.15));
   rect(gs, S(6.6, -0.45), S(7.1, -0.05));
@@ -266,10 +312,11 @@ function livery(team: string, withCamo = true): Livery {
   L.sideText(team === 'blue' ? 'SK' : 'CP', 7.1, 2.35, 0.62 * ps, 'rgba(34,37,41,0.85)');
   L.sideText(team === 'blue' ? 'AF 20-0015' : 'AF 21-0302', 7.35, 1.55, 0.13 * ps, 'rgba(34,37,41,0.8)');
   L.sideText(team === 'blue' ? 'SKYE WING' : 'CAPRI WING', 7.25, 1.3, 0.1 * ps, 'rgba(34,37,41,0.7)');
-  L.sideDraw(-2.6, -0.1, (g, x, y) => roundel(g, team, x, y, 0.36 * ps));
-  L.sideText('EX', -2.6, -0.62, 0.12 * ps, 'rgba(34,37,41,0.7)');
+  // insignia on the trunk's flat outer wall, clear of the CFT's nose
+  L.sideDraw(-3.0, 0.06, (g, x, y) => roundel(g, team, x, y, 0.32 * ps));
+  L.sideText('EX', -3.0, -0.43, 0.11 * ps, 'rgba(34,37,41,0.7)');
   // canopy rescue and ejection-seat warnings
-  L.sideDraw(-5.8, 0.28, (g, x, y) => {
+  L.sideDraw(-5.3, 0.47, (g, x, y) => {
     g.fillStyle = '#c9402c';
     g.beginPath();
     g.moveTo(x, y - 0.12 * ps);
@@ -278,13 +325,21 @@ function livery(team: string, withCamo = true): Livery {
     g.closePath();
     g.fill();
   });
-  L.sideText('RESCUE', -4.95, 0.36, 0.07 * ps, '#c9402c');
-  // intake danger band
+  L.sideText('RESCUE', -4.75, 0.5, 0.07 * ps, '#c9402c');
+  // intake danger band: a raked stripe behind the trunk's lip (aft of where
+  // the painted skin rolls into the duct, so it only lands on the outer wall)
   for (const g of [L.gs, L.gr]) {
+    const lip = (y: number) => INTAKE_MOUTH + INTAKE_RAKE(y);
     g.fillStyle = 'rgba(190,48,40,0.8)';
-    g.fillRect(...S(-4.45, 0.3), 0.06 * ps, 1.1 * ps);
+    g.beginPath();
+    g.moveTo(...S(lip(0.52) + 0.42, 0.52));
+    g.lineTo(...S(lip(0.52) + 0.48, 0.52));
+    g.lineTo(...S(lip(-0.48) + 0.48, -0.48));
+    g.lineTo(...S(lip(-0.48) + 0.42, -0.48));
+    g.closePath();
+    g.fill();
   }
-  L.sideText('DANGER', -3.95, -0.55, 0.08 * ps, 'rgba(190,48,40,0.8)');
+  L.sideText('DANGER', -3.3, 0.5, 0.07 * ps, 'rgba(190,48,40,0.85)');
   return L;
 }
 
@@ -319,31 +374,86 @@ export function buildF15EX(v: AirframeVisual): void {
   skin(body);
   v.fuselageSections = sectionsFromProfile(BODY, -9.5, 8.5, 40);
 
-  // intake trunks: raked mouths, splitter gap to the fuselage, duct to the fan
-  const TRUNK_W = curve([[-4.8, 0.5], [-2.0, 0.52], [1.6, 0.5]]);
-  const TRUNK_H = curve([[-4.8, 0.66], [-2.0, 0.63], [1.6, 0.56]]);
-  const TRUNK_Y = curve([[-4.8, -0.3], [-2.0, -0.27], [1.6, -0.25]]);
-  const trunkLoop = (z: number) => rrect(1.43, TRUNK_Y(z), TRUNK_W(z), TRUNK_H(z), 0.16, 3);
-  const MOUTH = -4.72;
-  const rake = (_x: number, y: number) => -0.42 * (y + 0.3);
+  // intake trunks: big rectangular mouths beside the rear cockpit, tucked in
+  // under the shoulders with a boundary-layer gap to the fuselage. The mouth
+  // is raked, its top (the first compression ramp) forward of the lower lip;
+  // the lips are thick and rounded; the outer wall flares out going aft into
+  // the wing glove. Off the front view: openings 0.83 m wide and 1.1 m tall.
+  const T_IN = curve([[-4.1, 0.6], [-3.4, 0.585], [-2.75, 0.56], [-1.9, 0.56], [-0.9, 0.58], [0.4, 0.62], [1.6, 0.66]]);
+  const T_OUT = curve([[-4.1, 1.52], [-3.4, 1.565], [-2.75, 1.66], [-1.9, 1.76], [-0.9, 1.84], [0.4, 1.91], [1.6, 1.91]]);
+  const T_TOP = curve([[-4.1, 0.62], [-3.4, 0.64], [-2.75, 0.65], [-1.9, 0.64], [-0.9, 0.58], [0.4, 0.47], [1.6, 0.39]]);
+  const T_BOT = curve([[-4.1, -0.6], [-3.4, -0.605], [-2.75, -0.615], [-1.9, -0.64], [-0.9, -0.7], [0.4, -0.81], [1.6, -0.79]]);
+  const T_R = curve([[-4.1, 0.12], [-2.75, 0.15], [-0.9, 0.2], [1.6, 0.22]]);
+  const trunkLoop = (z: number) => {
+    const x0 = T_IN(z), x1 = T_OUT(z), y0 = T_BOT(z), y1 = T_TOP(z);
+    return rrect((x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) / 2, (y1 - y0) / 2, T_R(z), 4);
+  };
+  const MOUTH = INTAKE_MOUTH;
+  const rake = (_x: number, y: number) => INTAKE_RAKE(y);
+  const LIP = 0.075;
   const trunk = intake({
     loop: trunkLoop,
-    outer: stations(MOUTH, 1.6, 50, 0.3, 0),
-    lip: 0.055,
-    depth: 2.2,
-    n: 72,
+    outer: stations(MOUTH, 1.6, 56, 0.35, 0),
+    lip: LIP,
+    depth: 2.7,
+    n: 84,
     rake,
-    fan: { cx: 1.25, cy: -0.22, r: 0.44 },
+    rakeFade: 1.1,
+    fan: { cx: 1.0, cy: 0.0, r: 0.45 },
   });
   skin(both(trunk.skin));
   v.addMesh(both(trunk.duct), pm.duct);
+  // the compression ramp: a plate hanging from the top lip, angling down into
+  // the duct (it reads as the inlet's thick upper lip from the front)
+  {
+    const zt = MOUTH + rake(0, T_TOP(MOUTH) - LIP);
+    const x0 = T_IN(MOUTH) + LIP + 0.01, x1 = T_OUT(MOUTH) - LIP - 0.01;
+    const yTop = T_TOP(MOUTH) - LIP - 0.005;
+    const ramp: number[] = [];
+    const cols: number[] = [];
+    const idx: number[] = [];
+    const N = 6;
+    for (let i = 0; i <= N; i++) {
+      const u = i / N;
+      // first ramp shallow, second steeper, then the throat
+      const z = zt + 0.05 + u * 1.5;
+      const y = yTop - 0.03 - (u < 0.5 ? u * 0.12 : 0.06 + (u - 0.5) * 0.42);
+      const k = 0.55 * Math.pow(1 - u, 1.4) + 0.05;
+      for (const x of [x0, x1]) {
+        ramp.push(x, y, z);
+        cols.push(k, k, k * 1.02);
+      }
+    }
+    for (let i = 0; i < N; i++) {
+      const a = i * 2;
+      idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+    }
+    const rg = new THREE.BufferGeometry();
+    rg.setAttribute('position', new THREE.Float32BufferAttribute(ramp, 3));
+    rg.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+    rg.setIndex(idx);
+    rg.computeVertexNormals();
+    v.addMesh(both(rg), pm.duct);
+  }
 
-  // conformal fuel tanks on the outside of each trunk
+  // the boundary-layer gap between the trunk and the fuselage reads dark from
+  // ahead: a back wall a little way down the slot
+  {
+    const gapMat = new THREE.MeshStandardMaterial({ color: 0x17191b, roughness: 0.9, metalness: 0, side: THREE.DoubleSide });
+    const gz = MOUTH + 0.45;
+    const g = new THREE.PlaneGeometry(0.14, T_TOP(gz) - T_BOT(gz) - 0.04);
+    g.rotateY(Math.PI);
+    g.translate(0.53, (T_TOP(gz) + T_BOT(gz)) / 2, gz);
+    v.addMesh(both(g), gapMat);
+  }
+
+  // conformal fuel tanks on the outside of each trunk (their noses fair into the trunk side)
   const CFT_W = curve([[-2.9, 0.04], [-2.2, 0.22], [-1.2, 0.3], [3.2, 0.3], [4.3, 0.2], [4.9, 0.03]]);
   const CFT_H = curve([[-2.9, 0.05], [-2.2, 0.28], [-1.2, 0.36], [3.2, 0.35], [4.3, 0.24], [4.9, 0.04]]);
+  const CFT_X = curve([[-2.9, 1.66], [-2.2, 1.84], [-1.2, 1.93], [4.9, 1.93]]);
   const cft = loftProfile({
     stations: stations(-2.9, 4.9, 60, 0.2, 0.2),
-    profile: (z) => rrect(1.93, -0.44, CFT_W(z), CFT_H(z), Math.min(CFT_W(z), CFT_H(z)) * 0.7, 3),
+    profile: (z) => rrect(CFT_X(z), -0.44, CFT_W(z), CFT_H(z), Math.min(CFT_W(z), CFT_H(z)) * 0.7, 3),
     sub: 2,
     full: true,
     capStart: true,
@@ -368,35 +478,68 @@ export function buildF15EX(v: AirframeVisual): void {
   });
   skin(both(boom));
 
-  // dorsal hump / speedbrake: the hump is part of the body; the speedbrake is a shell on it
+  // dorsal spine / speedbrake: the spine is part of the body; the big
+  // speedbrake is a shell lying on it just behind the canopy
   const SB = keyedProfile([
-    { z: -2.35, pts: [[0, 0.83], [0.3, 0.81], [0.55, 0.715], [0.6, 0.69], [0.56, 0.73], [0.3, 0.845], [0, 0.865]] },
-    { z: -1.0, pts: [[0, 0.795], [0.35, 0.765], [0.6, 0.655], [0.64, 0.63], [0.6, 0.67], [0.35, 0.805], [0, 0.825]] },
-    { z: 0.3, pts: [[0, 0.7], [0.35, 0.67], [0.6, 0.585], [0.64, 0.565], [0.6, 0.605], [0.35, 0.705], [0, 0.728]] },
+    { z: -1.45, pts: [[0, 1.236], [0.25, 1.205], [0.42, 1.14], [0.45, 1.12], [0.42, 1.16], [0.25, 1.225], [0, 1.256]] },
+    { z: -0.5, pts: [[0, 1.152], [0.28, 1.12], [0.46, 1.05], [0.49, 1.03], [0.46, 1.07], [0.28, 1.14], [0, 1.172]] },
+    { z: 1.0, pts: [[0, 0.93], [0.28, 0.905], [0.46, 0.86], [0.49, 0.845], [0.46, 0.875], [0.28, 0.925], [0, 0.95]] },
   ]);
-  const sbGeo = stamp(loftProfile({ stations: stations(-2.35, 0.3, 24), profile: SB, sub: 4, capStart: true, capEnd: true }));
-  const sb = v.addSurface(sbGeo, paint, new THREE.Vector3(0, 0.83, -2.35), new THREE.Vector3(1, 0, 0), 'rudder', 0, 0);
+  const sbGeo = stamp(loftProfile({ stations: stations(-1.45, 1.0, 24), profile: SB, sub: 4, capStart: true, capEnd: true }));
+  const sb = v.addSurface(sbGeo, paint, new THREE.Vector3(0, 1.236, -1.45), new THREE.Vector3(1, 0, 0), 'rudder', 0, 0);
   v.surfaces.splice(v.surfaces.indexOf(sb), 1);
   v.speedbrake = { pivot: sb.pivot, axis: new THREE.Vector3(-1, 0, 0), maxDeg: 45 };
 
   // --- canopy, seats, pilots -------------------------------------------------------
-  v.cockpitEye.set(0, 0.95, -5.1);
-  buildCanopy(v, CANOPY, -5.6, [-4.15], paint);
-  for (const eye of [new THREE.Vector3(0, 0.95, -5.1), new THREE.Vector3(0, 1.0, -3.65)]) {
-    addPilot(v, eye, 0.2, { style: 'us', stick: 'center', martinBaker: false });
+  v.cockpitEye.copy(EYE_FRONT);
+  buildCanopy(v, CANOPY, ARCH_Z, [BOW_Z], paint);
+  for (const eye of [EYE_FRONT, EYE_REAR]) {
+    addPilot(v, eye.clone(), 0.2, { style: 'us', stick: 'center', martinBaker: false });
   }
-  // instrument panel shroud / glareshield at the front of the well
+  // instrument panel shroud / glareshield at the front of the well, under the windscreen
+  // (it runs forward to the windscreen's base on the closed coaming)
+  const SH0 = EYE_FRONT.z - 1.42, SH1 = EYE_FRONT.z - 0.62;
   const shroud = loftProfile({
-    stations: stations(-6.1, -5.65, 6),
+    stations: stations(SH0, SH1, 10),
     profile: (z) => {
-      const u = sstep(-6.1, -5.65, z);
-      return [[0, 0.18], [0.44, 0.2], [0.5, 0.52], [0.36, 0.62 - u * 0.06], [0, 0.64 - u * 0.06]] as P2[];
+      const u = sstep(SH0, SH1, z);
+      const top = EYE_FRONT.y - 0.2 - (1 - u) * 0.14;
+      const w = 0.4 + 0.12 * u;
+      return [[0, 0.42], [w - 0.06, 0.44], [w, top - 0.12], [w - 0.14, top], [0, top + 0.02]] as P2[];
     },
     sub: 3,
     capEnd: true,
   });
   const sh = v.addMesh(shroud, pm.seat);
   v.hideInCockpit.push(sh);
+  // the HUD on top of the glareshield: its body and the tilted combiner glass
+  {
+    const hy = EYE_FRONT.y - 0.2;
+    const hz = SH1 - 0.12;
+    const body = new THREE.BoxGeometry(0.2, 0.07, 0.22);
+    body.translate(0, hy + 0.035, hz - 0.05);
+    const posts = join([
+      ...[0.085, -0.085].map((x) => {
+        const p = new THREE.BoxGeometry(0.014, 0.17, 0.014);
+        p.rotateX(-0.3);
+        p.translate(x, hy + 0.15, hz + 0.02);
+        return p;
+      }),
+      (() => {
+        const t = new THREE.BoxGeometry(0.184, 0.012, 0.014);
+        t.translate(0, 0.08, 0);
+        t.rotateX(-0.3);
+        t.translate(0, hy + 0.15, hz + 0.02);
+        return t;
+      })(),
+    ]);
+    const hb = v.addMesh(join([body, posts]), pm.frame);
+    const glassGeo = new THREE.PlaneGeometry(0.17, 0.15);
+    glassGeo.rotateX(-0.3);
+    glassGeo.translate(0, hy + 0.15, hz + 0.02);
+    const hg = v.addMesh(glassGeo, pm.glass);
+    v.hideInCockpit.push(hb, hg);
+  }
 
   // --- wings --------------------------------------------------------------------------
   const panels = wingPanels(WING, [
@@ -468,23 +611,24 @@ export function buildF15EX(v: AirframeVisual): void {
   muzzle.position.set(1.98, 0.31, -1.3);
   muzzle.rotation.y = Math.PI;
   v.body.add(muzzle);
+  // pitot tubes on the fuselage sides just behind the radome joint, AoA vanes below them
   const probes = join([
-    probe(new THREE.Vector3(0.45, 0.12, -8.2), 0.5, 0.012, new THREE.Vector3(0.1, 0, -1).normalize()),
-    probe(new THREE.Vector3(-0.45, 0.12, -8.2), 0.5, 0.012, new THREE.Vector3(-0.1, 0, -1).normalize()),
-    probe(new THREE.Vector3(0.55, -0.2, -7.5), 0.18, 0.01, new THREE.Vector3(1, 0, -0.8).normalize()),
-    probe(new THREE.Vector3(-0.55, -0.2, -7.5), 0.18, 0.01, new THREE.Vector3(-1, 0, -0.8).normalize()),
+    probe(new THREE.Vector3(0.6, 0.26, -6.95), 0.46, 0.012, new THREE.Vector3(0.06, 0, -1).normalize()),
+    probe(new THREE.Vector3(-0.6, 0.26, -6.95), 0.46, 0.012, new THREE.Vector3(-0.06, 0, -1).normalize()),
+    probe(new THREE.Vector3(0.6, -0.12, -6.45), 0.16, 0.01, new THREE.Vector3(1, 0, -0.8).normalize()),
+    probe(new THREE.Vector3(-0.6, -0.12, -6.45), 0.16, 0.01, new THREE.Vector3(-1, 0, -0.8).normalize()),
   ]);
   v.addMesh(probes, pm.antenna);
   const ant = join([
-    blade(new THREE.Vector3(0, 0.66, 1.2), 0.22, 0.32),
+    blade(new THREE.Vector3(0, 0.95, 1.0), 0.22, 0.32),
     blade(new THREE.Vector3(0, 0.6, 3.6), 0.16, 0.26),
     blade(new THREE.Vector3(0, -0.62, 1.8), 0.22, 0.3, new THREE.Vector3(0, -1, 0)),
-    blade(new THREE.Vector3(0, -0.78, -3.2), 0.16, 0.24, new THREE.Vector3(0, -1, 0)),
+    blade(new THREE.Vector3(0, -0.575, -3.2), 0.16, 0.24, new THREE.Vector3(0, -1, 0)),
   ]);
   v.addMesh(ant, pm.antenna);
   const fl = join([
-    formationStrip(new THREE.Vector3(0.768, 0.2, -5.6), new THREE.Vector3(1, 0.2, 0), new THREE.Vector3(0, 0, 1), 0.5, 0.035),
-    formationStrip(new THREE.Vector3(-0.768, 0.2, -5.6), new THREE.Vector3(-1, 0.2, 0), new THREE.Vector3(0, 0, 1), 0.5, 0.035),
+    formationStrip(new THREE.Vector3(0.648, 0.25, -5.6), new THREE.Vector3(1, 0.15, 0), new THREE.Vector3(0, 0, 1), 0.5, 0.035),
+    formationStrip(new THREE.Vector3(-0.648, 0.25, -5.6), new THREE.Vector3(-1, 0.15, 0), new THREE.Vector3(0, 0, 1), 0.5, 0.035),
     formationStrip(new THREE.Vector3(2.23, -0.44, 3.0), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 1), 0.6, 0.035),
     formationStrip(new THREE.Vector3(-2.23, -0.44, 3.0), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 1), 0.6, 0.035),
   ]);
@@ -496,7 +640,7 @@ export function buildF15EX(v: AirframeVisual): void {
 
   // --- landing gear ----------------------------------------------------------------------
   buildGearSet(v, {
-    nose: { top: new THREE.Vector3(0, -0.66, -5.2), axle: new THREE.Vector3(0, -2.05 + 0.33, -5.55), r: 0.33, w: 0.19, twin: false, retract: 'forward' },
+    nose: { top: new THREE.Vector3(0, -0.56, -3.92), axle: new THREE.Vector3(0, -2.05 + 0.33, -4.25), r: 0.33, w: 0.19, twin: false, retract: 'forward' },
     mains: { top: new THREE.Vector3(1.3, -0.78, 0.8), axle: new THREE.Vector3(1.42, -2.05 + 0.43, 1.2), r: 0.43, w: 0.27, retract: 'forward', outboard: 0.12 },
     doorColor: '#6c7379',
   });
