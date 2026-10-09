@@ -13,7 +13,7 @@ export const OCEAN_KEY_SECTIONS: [string, string][][] = [
     ['B', 'Emergency blow: straight to the surface'],
     ['T', 'Hold this depth'],
     ['G', 'Hold this position'],
-    [', / .', 'Time warp down / up: 1× to 100× (or drag the slider); open water only, held back near the bottom, the sites, the harbor and on a low battery'],
+    [', / .', 'Time warp down / up: 1× to 100× (or drag the slider); 10× at most in the harbor, near the sites, while listening and on a low battery, 5× near the bottom, 1× during a task or with the arm out'],
   ],
   [
     ['#', 'SURVEY'],
@@ -54,13 +54,5 @@ export const OCEAN_KEY_SECTIONS: [string, string][][] = [
     ['Right stick', 'Look around · press: sonar overlay'],
     ['Left stick press', 'Camera'],
     ['View · Menu', 'Chart · pause'],
-  ],
-  [
-    ['#', 'TOUCH'],
-    ['Stick', 'Thrust ahead / astern, turn'],
-    ['Buttons', 'Up / down, flood / blow, side thrust, listen, ping, use, lamps, holds, transit time, arm, scanning sonar, floodlights'],
-    ['Arm out', 'The stick and up / down move the jaw; USE grips'],
-    ['Emergency blow', 'Hold the button 2 s'],
-    ['Drag · pinch', 'Look around · zoom'],
   ],
 ];

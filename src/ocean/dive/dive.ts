@@ -10,10 +10,9 @@ import type { OceanWorld } from '../render/oceanWorld';
 import { DiveHud, type HudState, type SurveyState, type ScopeView } from './hud';
 import { OceanAudio } from '../audio/oceanAudio';
 import { OCEAN_KEY_SECTIONS } from '../keys';
-import { DiveTouch, DiveGamepad, type ControlTarget } from './controls';
+import { DiveGamepad, type ControlTarget } from './controls';
 import { ARM_READY, moveArmTarget } from './manipulator';
 import { WarpBar, WarpFx } from '../../space/warp';
-import { isTouchDevice } from '../../ui/touchControls';
 import { SURVEY_SUB, NEUTRAL_BALLAST, newSubState, stepSub, FixedStepper, interpolate, rangeEstimate, speedOf, type SubState, type SubInput, type SubEnv } from '../sub/subPhysics';
 import { buildColliders, seabedHeight, groundAt, bearing, HARBOR, SITES, K3, DEPTH_BANDS, regionAt, type Collider } from '../world/geo';
 import { CONTACTS, listen, ambientNoise, selfNoise, addDb, pingMask, ListenGauge, bearingHalfWidth, measureBearing, sonarRays, HEAR_SNR, PING_MASK_S, SONAR_RANGE, type SonarReturn } from '../acoustics/acoustics';
@@ -37,6 +36,10 @@ const WARP_MAX = 100;
 const WARP_SCANNING = 4;
 /** the most the time warp runs with the battery under 10 % */
 const WARP_LOW_BATTERY = 10;
+/** in the harbor, near a site or listening: quick enough to get on, slow enough to see what is there */
+const WARP_SLOW = 10;
+/** within 6 m of the bottom */
+const WARP_NEAR = 5;
 const PING_RAYS = 90;
 /** a full turn of the scanning sonar's head (s) */
 const SWEEP_S = 3;
@@ -179,6 +182,8 @@ export class OceanDive {
   /** samples let go of, lying on the bottom */
   private dropped: THREE.Object3D[] = [];
   private docked = false;
+  /** has the boat been out of the berth this dive (a free survey docks only on coming back) */
+  private leftBerth = false;
   private photoPending = false;
   private photo: string | null = null;
   // the record of the dive
@@ -202,8 +207,7 @@ export class OceanDive {
   private tmp = new THREE.Vector3();
   private tmp2 = new THREE.Vector3();
   private tmp3 = new THREE.Vector3();
-  // touch and gamepad: held controls added to the keys, orders as key codes
-  private touch: DiveTouch;
+  // a gamepad: held controls added to the keys, orders as key codes
   private pad = new DiveGamepad();
   private ctl: ControlTarget;
 
@@ -231,7 +235,6 @@ export class OceanDive {
         return dive.emergency;
       },
     };
-    this.touch = new DiveTouch(parent, this.ctl);
     // the time warp: the same slider and look as the space missions'
     const wrap = el('div', 'oc-warp', this.hud.root);
     this.warpBar = new WarpBar(wrap, { max: WARP_MAX, marks: WARP_MARKS, compact: true, onPick: (w) => this.setWarp(w) });
@@ -242,7 +245,7 @@ export class OceanDive {
     window.addEventListener('pointerdown', (e) => {
       if (!this.active || this.paused || this.chartOpen) return;
       const t = e.target as HTMLElement | null;
-      if (t && t.closest && t.closest('button, .oc-panel, .oc-modal, select, .oct-stick, .oct-pad')) return;
+      if (t && t.closest && t.closest('button, .oc-panel, .oc-modal, select')) return;
       this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
     });
     window.addEventListener('pointermove', (e) => {
@@ -250,8 +253,7 @@ export class OceanDive {
       const dx = e.clientX - this.drag.x, dy = e.clientY - this.drag.y;
       this.drag.x = e.clientX;
       this.drag.y = e.clientY;
-      // (two fingers zoom: the camera does not turn meanwhile)
-      if (!this.touch.pinching) this.lookBy(dx, dy);
+      this.lookBy(dx, dy);
     });
     const up = (e: PointerEvent) => {
       if (this.drag?.id === e.pointerId) this.drag = null;
@@ -350,6 +352,7 @@ export class OceanDive {
     this.hydrophoneTaken = false;
     this.footPinged = false;
     this.docked = false;
+    this.leftBerth = false;
     this.photo = null;
     this.track = new TrackRecorder(25);
     this.elapsed = 0;
@@ -390,9 +393,6 @@ export class OceanDive {
     this.world.fill(this.sub.x, this.sub.z);
     this.hud.show(true);
     this.hud.setLarge(this.settings.largeHud);
-    const touch = isTouchDevice();
-    this.touch.show(touch);
-    this.hud.root.classList.toggle('touch', touch);
     this.hud.showCard(null);
     // (no music in a dive: the sea and the hydrophones are the soundtrack)
     this.sound.start();
@@ -406,7 +406,6 @@ export class OceanDive {
     if (this.exp && !this.ended) this.save();
     this.active = false;
     this.hud.show(false);
-    this.touch.show(false);
     this.sound.stop();
     this.host.setRenderScale(1);
     OCEAN_FX.uAid.value = 0;
@@ -541,7 +540,7 @@ export class OceanDive {
     }
   }
 
-  /** a one-shot order, from a key, a touch button or the gamepad; true if it meant something now */
+  /** a one-shot order, from a key or the gamepad; true if it meant something now */
   private command(c: string): boolean {
     let used = true;
     if (c === 'Escape') {
@@ -599,10 +598,7 @@ export class OceanDive {
     if (v && this.scanning) this.setScanning(false, true);
     this.quiet = v;
     this.gauge.reset();
-    if (v) {
-      this.warpBar.jump(1);
-      this.setWarp(1);
-    }
+    // (the warp set stays: listening holds it to 10× at most, and it comes back up after)
     this.hud.flash('QUIET SURVEY', v ? 'LISTENING' : 'OFF', 1.4);
     audio.click();
   }
@@ -619,32 +615,38 @@ export class OceanDive {
   /** the slider moved: the warp the player wants (it runs as fast as where the boat is allows) */
   private setWarp(w: number): void {
     this.warpSet = Math.max(1, Math.min(WARP_MAX, w));
-    const why = w > 1 ? this.timeBlocked() : '';
-    if (why) this.hud.flash('TIME WARP', why, 2);
+    const [lim, why] = this.warpLimit();
+    if (w > lim + 1e-6 && why) this.hud.flash('TIME WARP', why, 2);
   }
 
-  /** how fast time may run here and now, and why not faster */
+  /** how fast time may run here and now, and why not faster (the lowest of everything that holds it back) */
   private warpLimit(): [number, string] {
-    const why = this.timeBlocked();
-    if (why) return [1, why];
-    if (this.batteryCard) return [1, 'BATTERY FLAT'];
-    if (this.manip) return [1, 'ARM OUT'];
+    let lim = WARP_MAX, why = '';
+    const cap = (w: number, reason: string) => {
+      if (w < lim) {
+        lim = w;
+        why = reason;
+      }
+    };
+    // (the physics takes the same fixed steps at any speed, so nothing is skipped: these keep it playable)
+    if (this.arm || this.scanT >= 0) cap(1, 'NOT DURING A TASK');
+    if (this.batteryCard) cap(1, 'BATTERY FLAT');
+    if (this.manip) cap(1, 'ARM OUT');
+    if (this.scanning) cap(WARP_SCANNING, 'SCANNING SONAR: 4× AT MOST');
+    const alt = this.sub.y - 1.4 - seabedHeight(this.sub.x, this.sub.z);
+    if (alt < 6 && -this.sub.y > 2) cap(WARP_NEAR, 'NEAR THE BOTTOM: 5× AT MOST');
+    if (this.quiet) cap(WARP_SLOW, 'LISTENING: 10× AT MOST');
+    const nearWreck = Math.hypot(this.sub.x - SITES.wreck.x, this.sub.z - SITES.wreck.z) < 300;
+    const nearK3 = Math.hypot(this.sub.x - K3.x, this.sub.z - K3.z) < 300 && -this.sub.y > 150;
+    if (nearWreck || nearK3) cap(WARP_SLOW, 'NEAR THE SITE: 10× AT MOST');
+    if (this.inHarbor()) cap(WARP_SLOW, 'IN THE HARBOR: 10× AT MOST');
     // (at 100× the last 10 % would go in seconds: time for the warning to be read and acted on)
-    if (this.sub.battery < 0.1 && !this.env.relaxed) return [WARP_LOW_BATTERY, 'BATTERY LOW'];
-    if (this.scanning) return [WARP_SCANNING, 'SCANNING SONAR'];
-    return [WARP_MAX, ''];
+    if (this.sub.battery < 0.1 && !this.env.relaxed) cap(WARP_LOW_BATTERY, 'BATTERY LOW: 10× AT MOST');
+    return [lim, why];
   }
 
-  /** transit time runs faster only in open water, away from anything that needs care */
-  private timeBlocked(): string {
-    if (this.quiet) return 'NOT WHILE LISTENING';
-    if (this.arm || this.scanT >= 0) return 'NOT DURING A TASK';
-    const alt = this.sub.y - 1.4 - seabedHeight(this.sub.x, this.sub.z);
-    if (alt < 6 && -this.sub.y > 2) return 'TOO CLOSE TO THE BOTTOM';
-    if (Math.hypot(this.sub.x - SITES.wreck.x, this.sub.z - SITES.wreck.z) < 300) return 'NEAR THE SITE: ×1';
-    if (Math.hypot(this.sub.x - K3.x, this.sub.z - K3.z) < 300 && -this.sub.y > 150) return 'NEAR THE SITE: ×1';
-    if (this.sub.x > HARBOR.basin.minX && this.sub.x < HARBOR.basin.maxX && this.sub.z < HARBOR.basin.maxZ + 30) return 'INSIDE THE HARBOR: ×1';
-    return '';
+  private inHarbor(): boolean {
+    return this.sub.x > HARBOR.basin.minX && this.sub.x < HARBOR.basin.maxX && this.sub.z < HARBOR.basin.maxZ + 30;
   }
 
   private setPaused(p: boolean): void {
@@ -953,7 +955,7 @@ export class OceanDive {
     const depth = -s.y;
     // dock
     const db = Math.hypot(s.x - HARBOR.berth.x, s.z - HARBOR.berth.z);
-    if (db < 16 && depth < 1.6) {
+    if (db < 16 && depth < 1.6 && (this.exp || this.leftBerth)) {
       if (speed > 0.7) return this.hud.flash('DOCKING', 'SLOW DOWN', 1.5);
       if (!this.exp || this.exp.id === 'dock') return this.dock();
       return this.hud.flash('DOCKING', 'THE EXPEDITION IS NOT FINISHED', 2);
@@ -1471,9 +1473,9 @@ export class OceanDive {
   // ------------------------------------------------------------------ the frame
   private input(): SubInput {
     const k = (c: string) => (this.keys.has(c) ? 1 : 0);
-    // the keys, the touch controls and a gamepad together, each control within -1..1
-    const t = this.touch.analog, g = this.pad.analog;
-    const sum = (key: number, f: 'thrust' | 'yaw' | 'vertical' | 'lateral' | 'ballast') => Math.max(-1, Math.min(1, key + t[f] + g[f]));
+    // the keys and a gamepad together, each control within -1..1
+    const g = this.pad.analog;
+    const sum = (key: number, f: 'thrust' | 'yaw' | 'vertical' | 'lateral' | 'ballast') => Math.max(-1, Math.min(1, key + g[f]));
     const thrust = sum(Math.max(-1, Math.min(1, k('KeyW') + k('ArrowUp') - k('KeyS') - k('ArrowDown'))), 'thrust');
     const yaw = sum(k('KeyD') - k('KeyA'), 'yaw');
     const vertical = sum(k('KeyR') - k('KeyF'), 'vertical');
@@ -1607,6 +1609,7 @@ export class OceanDive {
       }
       // a flat battery
       if (s.battery <= 0 && !this.batteryCard && !this.env.relaxed) this.batteryFlat();
+      if (!this.leftBerth && Math.hypot(s.x - HARBOR.berth.x, s.z - HARBOR.berth.z) > 40) this.leftBerth = true;
     }
     // the boat between its last two steps
     const p = interpolate(this.stepper.prev, s, frozen ? 1 : alpha);
@@ -1878,8 +1881,6 @@ export class OceanDive {
     else if (this.warnT > 0) warn = this.warnText;
     else if (alt < 2.5 && s.vy < -0.15 && depth > 3) warn = 'BOTTOM CLOSE';
     this.warnT -= dt;
-    this.touch.setAway(this.paused || this.ended || this.chartOpen || this.batteryCard);
-    this.touch.sync({ quiet: this.quiet, lamps: s.lights, floods: s.floods, arm: !!this.manip, scan: this.scanning, holdDepth: s.holdDepth !== null, holdPos: !!s.holdPos, overlay: this.overlay, time: Math.round(this.warp), emergency: this.emergency });
     this.hud.update(
       {
         kicker,
@@ -1961,7 +1962,8 @@ export class OceanDive {
       return [a.jaw < 0.5 ? 'JAW CLOSED · E OPENS IT' : 'W/S REACH · A/D SWING · R/F UP / DOWN · E GRIP · V STOW', false];
     }
     if (Math.hypot(s.x - HARBOR.berth.x, s.z - HARBOR.berth.z) < 16 && -s.y < 1.6) {
-      if (this.exp && this.exp.id !== 'dock') return ['', false];
+      // (a free survey that has not left yet: nothing to dock from)
+      if ((this.exp && this.exp.id !== 'dock') || (!this.exp && !this.leftBerth)) return ['', false];
       return speed > 0.7 ? ['SLOW DOWN TO DOCK', true] : ['E · DOCK AT THE BERTH', false];
     }
     const pulse = this.exp?.missionId === PULSE_ID;

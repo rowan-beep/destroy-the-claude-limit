@@ -37,6 +37,23 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '6.4.2',
+    date: '2026-10-09',
+    ocean: {
+      title: 'Time warp that works',
+      notes: [
+        fixed("Time warp",
+          "It no longer sits at 1× in most of the places you use it. Set it and it runs: up to 100× in open water; at most 10× in the harbor, within 300 m of the wreck and K3, while listening and with the battery under 10 %; at most 5× within 6 m of the bottom; 1× only during a task, with the arm out or behind the Battery flat card.",
+          "Set to 100× at the berth, PETREL now covers about 77 m in 4 seconds of thrust; it used to be held at 1× until it had left the whole harbor.",
+          "Starting Quiet Survey no longer puts the slider back to 1×: the setting stays where you put it."),
+        fixed("A free survey no longer ends at the start",
+          "Pressing E at the berth before leaving docked straight away and ended the dive at 0 km. Docking, and its prompt, now only come once the boat has been more than 40 m out."),
+        note("No touch controls",
+          "The on-screen stick and button pad are gone from the dives: dives are played with the keyboard and mouse or a gamepad."),
+      ],
+    },
+  },
+  {
     version: '6.4.1',
     date: '2026-10-09',
     ocean: {

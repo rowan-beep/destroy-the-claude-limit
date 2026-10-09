@@ -56,7 +56,6 @@ const CSS = `
 .oc-scope canvas { width: 198px; height: 198px; display: block; margin-top: 6px; }
 .oc-hud.scoping .oc-mini { display: none; }
 .oc-hud.scoping .oc-survey { left: calc(50% - 125px); }
-.oc-hud.touch .oc-scope { display: none; }
 .oc-sv-mid { flex: 1; min-width: 0; font-size: 12.5px; }
 .oc-sv-h { font-size: 10.5px; font-weight: 600; letter-spacing: 0.1em; color: var(--faint); }
 .oc-noise { display: grid; grid-template-columns: 76px 1fr 48px; gap: 4px 8px; align-items: center; margin-top: 8px; font-size: 11.5px; color: var(--dim); }
@@ -85,7 +84,6 @@ const CSS = `
 .oc-label { position: absolute; transform: translate(-50%, -100%); font-size: 11px; font-weight: 600; color: var(--a2); text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9); white-space: nowrap; }
 .oc-bot { position: absolute; left: 20px; bottom: 20px; display: flex; gap: 6px; pointer-events: auto; }
 .oc-warp { position: absolute; left: 20px; bottom: 64px; pointer-events: auto; }
-.oc-hud.touch .oc-warp { left: 50%; bottom: auto; top: 70px; transform: translateX(-50%); }
 .oc-hud .wz { --wz-a: 111, 227, 208; --wz-b: 210, 255, 246; background: rgba(9, 17, 23, 0.6); border: 1px solid var(--line2); border-radius: 999px; padding: 4px 16px 4px 14px; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 0 calc(18px * var(--wz-k)) rgba(var(--wz-a), calc(0.3 * var(--wz-k))); }
 .oc-hud .wz-read b { font: 650 15px 'Inter', 'Segoe UI', system-ui, sans-serif; letter-spacing: 0; }
 .oc-hud .wz-read span { font: 600 9.5px 'Inter', 'Segoe UI', system-ui, sans-serif; letter-spacing: 0.08em; color: var(--faint); }
@@ -297,7 +295,7 @@ export class DiveHud {
     this.markEl = el('div', 'oc-mark', this.root);
     el('i', '', this.markEl);
     this.markLab = el('span', '', this.markEl);
-    // buttons (also for touch and mouse players)
+    // buttons (for mouse players)
     const bot = el('div', 'oc-bot', this.root);
     for (const [id, label] of [['chart', 'Chart · M'], ['camera', 'Camera · C'], ['help', 'Keys · ?'], ['pause', 'Menu']] as const) {
       const b = el('button', 'oc-btn', bot, label) as HTMLButtonElement;
@@ -604,8 +602,7 @@ export class DiveHud {
 
   /** the scanning sonar's display, while the head turns and a little after (null: the minimap again) */
   updateScope(v: ScopeView | null): void {
-    // (on a touch screen the panel's small display does instead: the corner is the controls')
-    const on = !!v && v.k > 0.01 && !this.root.classList.contains('touch');
+    const on = !!v && v.k > 0.01;
     this.scope.classList.toggle('show', on);
     this.root.classList.toggle('scoping', on);
     if (!on) return;

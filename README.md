@@ -29,8 +29,8 @@ survey submersible off Kestrel Harbor: listen with the hydrophones, take
 bearings from two places to triangulate a sound, ping with the sonar, find a
 wreck in your lamps and recover what is knocking, in a complete expedition
 (*Quiet Survey: The Silent Buoy*), its follow-up 282 m down in the deep basin
-(*The Slow Pulse*) or a free survey. Keyboard and mouse, a gamepad, or on-screen
-touch controls on phones and tablets. Everything you hear goes into
+(*The Slow Pulse*) or a free survey. Keyboard and mouse, or a gamepad.
+Everything you hear goes into
 a persistent Echo Atlas. The acoustics use real units (sonar equation, Thorp
 absorption, Knudsen sea noise) and the water absorbs light per colour with
 depth. The sea is alive: ripples and burrows on the sea bed, seagrass meadows,

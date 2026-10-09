@@ -34,8 +34,7 @@ follow (`world/waves.ts`, `weatherOf`). A new player starts at Noon, Fair,
 Calm. The benchmark keeps its own three fixed weathers so its runs stay
 comparable.
 
-Keys (also on the CONTROLS page and in a dive with H, with the gamepad and
-touch controls):
+Keys (also on the CONTROLS page and in a dive with H, with the gamepad):
 
 | | |
 |---|---|
@@ -55,9 +54,8 @@ touch controls):
 
 A standard gamepad drives too (left stick, triggers up / down, bumpers side
 thrust, D-pad tanks and holds, A use, B ping, X listen, Y lamps, right stick
-look; hold A for the arm, B for the scanning sonar, Y for the floodlights). On
-touch screens a stick and a button pad appear; the emergency blow (on the pad,
-or D-pad up on a gamepad) must be held for 2 s.
+look; hold A for the arm, B for the scanning sonar, Y for the floodlights). The
+emergency blow on the gamepad (D-pad up) must be held for 2 s.
 
 ### The sonar, the arm and the lights
 
@@ -80,12 +78,14 @@ or D-pad up on a gamepad) must be held for 2 s.
 
 - A slider like the space missions' (1×, 2×, 5×, 10×, 25×, 50×, 100×), or `,`
   and `.` to step it. Time speeds up smoothly to what is set and drops at once
-  when it must: inside the harbor, near the wreck and K3, within 6 m of the
-  bottom, while listening and during a task it stays at 1×; with the arm out
-  1×; with the scanning sonar turning at most 4×; with the battery under 10 %
-  at most 10× (at 100× the last 10 % would last seconds); behind the
-  flat-battery card 1×. The boat's physics take the
-  same fixed steps however fast time runs (more of them per frame).
+  where it must: at most 10× in the harbor, within 300 m of the wreck and K3,
+  while listening and with the battery under 10 % (at 100× the last 10 % would
+  last seconds); at most 5× within 6 m of the bottom; at most 4× with the
+  scanning sonar turning; 1× during a task, with the arm out and behind the
+  flat-battery card. The setting stays where it is put: it runs again as soon
+  as the boat leaves the place that held it back. The boat's physics take the
+  same fixed steps however fast time runs (more of them per frame), so nothing
+  is skipped.
 
 ### The harbor above the water
 
@@ -122,7 +122,7 @@ opened (`src/ocean/oceanProgram.ts`, a separate chunk); the menu
 | `mission/followup.ts` | The follow-up's nine stages, the second listening point and the multibeam's reach. Pure. |
 | `render/*` | Light in water (`oceanMaterial.ts`), sea surface and sky (`water.ts`), streamed sea bed (`seabed.ts`, its tiles built by `seabedArrays.ts` on a worker thread, `seabedWorker.ts`) and its close-up detail (`seabedDetail.ts`), harbor / reef / wreck / mooring (`props.ts`), the boat (`subModel.ts`), particles, shafts, lamp beams, sonar overlay and waterline (`fx.ts`), fish (`fish.ts`), sea-floor life (`seabedLife.ts`), jellyfish (`jellies.ts`), stirred-up silt (`silt.ts`), bioluminescence (`biolum.ts`), the sonar sweep's disc (`sonarSweep.ts`), and the scene (`oceanWorld.ts`). |
 | `dive/dive.ts`, `dive/hud.ts` | The dive: input, cameras, tools, saving, the instruments and the Quiet Survey panel. |
-| `dive/controls.ts` | Touch and gamepad controls, feeding the same orders as the keys. |
+| `dive/controls.ts` | Gamepad controls, feeding the same orders as the keys. |
 | `audio/oceanAudio.ts` | Sea, thrusters, pumps, hull, hydrophones and pings through the game's effects bus. |
 | `perf/presets.ts`, `perf/benchmark.ts` | The three presets and the benchmark route. |
 
