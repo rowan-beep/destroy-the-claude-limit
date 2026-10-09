@@ -784,19 +784,112 @@ export class Game implements ModeHost {
   // Main loop
   // ---------------------------------------------------------------------
 
+  /** what the browser's animation frames deliver (Hz), measured */
+  rafHz = 60;
+  /** who runs the frames: the browser's animation frames, or the game's own timer when they can't keep up with the chosen rate */
+  loopDriver: 'raf' | 'timer' = 'raf';
+  private rafTimes: number[] = [];
+  private lastRender = 0;
+  private timerDue = 0;
+  private timerArmed = false;
+  private pacer: MessageChannel | null = null;
+
   startLoop(): void {
     if (this.running) return;
     this.running = true;
     this.lastT = performance.now();
+    this.lastRender = this.lastT;
     const loop = (t: number) => {
       if (!this.running) return;
       requestAnimationFrame(loop);
-      const dt = Math.min(0.1, (t - this.lastT) / 1000);
-      this.lastT = t;
-      this.frame(dt);
+      this.noteRaf(t);
+      if (this.loopDriver === 'raf') this.tick(t);
     };
     requestAnimationFrame(loop);
   }
+
+  /** the chosen frame rate (frames per second), or 0 for the display's own */
+  private get wantHz(): number {
+    const f = this.settings.graphics.frameRate;
+    return f === 'display' || !f ? 0 : f;
+  }
+
+  /** measure the animation-frame cadence and pick the loop's driver */
+  private noteRaf(t: number): void {
+    const r = this.rafTimes;
+    r.push(t);
+    if (r.length > 40) r.shift();
+    if (r.length >= 12) {
+      const iv: number[] = [];
+      for (let i = 1; i < r.length; i++) iv.push(r[i] - r[i - 1]);
+      iv.sort((a, b) => a - b);
+      const med = iv[iv.length >> 1];
+      if (med > 1) this.rafHz = 1000 / med;
+    }
+    const want = this.wantHz;
+    // the game's own timer only when the browser's frames fall well short of the
+    // chosen rate (an embedded page held at 60 Hz); back to animation frames
+    // once they deliver it, with some slack so it never flaps
+    const timer = want > 0 && r.length >= 12 && (this.loopDriver === 'timer' ? want > this.rafHz * 1.03 : want > this.rafHz * 1.12);
+    if (timer && this.loopDriver !== 'timer') {
+      this.loopDriver = 'timer';
+      this.timerDue = performance.now();
+      this.armTimer(0);
+    } else if (!timer && this.loopDriver !== 'raf') this.loopDriver = 'raf';
+  }
+
+  /** one frame at time t (ms), honouring a cap below the display rate */
+  private tick(t: number): void {
+    const want = this.wantHz;
+    if (this.loopDriver === 'raf' && want > 0 && want < this.rafHz * 0.97) {
+      // capped under the display rate: draw only when a frame's worth has passed
+      if (t - this.lastRender < 1000 / want - 500 / this.rafHz) return;
+    }
+    const dt = Math.min(0.1, (t - this.lastT) / 1000);
+    this.lastT = t;
+    this.lastRender = t;
+    this.frame(dt);
+  }
+
+  /** the timer driver: frames on the game's own clock at the chosen rate */
+  private armTimer(ms: number): void {
+    if (this.timerArmed) return;
+    this.timerArmed = true;
+    if (ms >= 2) setTimeout(this.timerStep, Math.floor(ms) - 1);
+    else {
+      // the last fraction of a millisecond: a message round-trip, not a 4 ms timer clamp
+      if (!this.pacer) {
+        this.pacer = new MessageChannel();
+        this.pacer.port1.onmessage = this.timerStep;
+      }
+      this.pacer.port2.postMessage(0);
+    }
+  }
+
+  private timerStep = (): void => {
+    this.timerArmed = false;
+    if (!this.running || this.loopDriver !== 'timer') return;
+    const want = this.wantHz;
+    if (want <= 0) {
+      this.loopDriver = 'raf';
+      return;
+    }
+    const interval = 1000 / want;
+    const now = performance.now();
+    if (document.hidden) {
+      // nothing to show: idle, and start fresh when the page is back
+      this.timerDue = now + 250;
+      this.armTimer(250);
+      return;
+    }
+    if (now >= this.timerDue - 0.2) {
+      this.tick(now);
+      this.timerDue += interval;
+      // after a stall, don't try to catch up: resume the cadence from now
+      if (this.timerDue < now - interval) this.timerDue = now + interval;
+    }
+    this.armTimer(this.timerDue - performance.now());
+  };
 
   private frame(dt: number): void {
     this.interp.restore();

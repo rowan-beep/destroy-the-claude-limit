@@ -486,7 +486,8 @@ export class Hud {
       this.rearmFill.style.width = `${(1 - g.rearmTimer / 15) * 100}%`;
     } else this.rearmEl.classList.add('hidden');
 
-    setText(this.fpsEl, this.showFps ? `${Math.round(g.fps)} FPS` : '');
+    // (with the game on its own timer, say so, and what the browser's frames run at)
+    setText(this.fpsEl, this.showFps ? `${Math.round(g.fps)} FPS${g.loopDriver === 'timer' ? ` · TIMED (BROWSER ${Math.round(g.rafHz)} HZ)` : ''}` : '');
   }
 
   private grid(host: HTMLElement, rows: string[][], cls: Record<string, string>): void {

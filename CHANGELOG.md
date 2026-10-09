@@ -4,6 +4,15 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
+## v7.2.1 (2026-10-09)
+
+### Air Combat: A frame rate setting: 165 Hz where the browser holds the page at 60
+
+- **New: FRAME RATE in Graphics settings**
+  - DISPLAY (the default) draws every frame your screen refreshes, as before. Pick 60, 120, 144, 165 or 240 to cap the game at that rate.
+  - The game has never capped itself at 60: the cap comes from the browser when the page is embedded in another (the claude.ai artifact is one), which can hand it only 60 animation frames a second however fast the screen is. Choose a rate above what the browser delivers and the game times its own frames to it instead, measured against the clock, with the physics still at 120 Hz and every frame drawn part-way between steps.
+  - The FPS counter now shows when the game is on its own timer and what the browser's own frames run at, so you can see what you are getting. Whether those extra frames reach the screen is up to the browser: if it only composes the embedded page 60 times a second, the game runs smoother inside but the screen still shows 60.
+
 ## v7.2.0 (2026-10-09)
 
 ### Air Combat: Easy refuelling, a real KC-46, and three fixes you asked for

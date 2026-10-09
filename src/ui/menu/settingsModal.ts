@@ -245,6 +245,21 @@ export class SettingsModal {
       String(g.antialias) as '0' | '2' | '4' | '8',
       (v) => P('antialias')(+v as GraphicsOptions['antialias']),
     );
+    this.seg(
+      d,
+      'FRAME RATE',
+      "DISPLAY draws every frame your screen refreshes. A number caps the game at that rate; and when the browser hands this page fewer frames than that (a page embedded in another, as on claude.ai, is often held at 60 even on a 165 Hz screen), the game times its own frames to the chosen rate instead. The FPS counter shows what you are getting, and what the browser's own frames run at.",
+      [
+        ['display', 'DISPLAY'],
+        ['60', '60'],
+        ['120', '120'],
+        ['144', '144'],
+        ['165', '165'],
+        ['240', '240'],
+      ],
+      String(g.frameRate ?? 'display'),
+      (v) => (g.frameRate = v === 'display' ? 'display' : (+v as Exclude<GraphicsOptions['frameRate'], 'display'>)),
+    );
     this.slider(d, 'FIELD OF VIEW', 'Wider shows more around you; narrower magnifies distant jets.', 50, 100, 1, g.fov, (v) => (g.fov = v), (v) => `${v}°`, true);
 
     // ---- lighting

@@ -37,6 +37,19 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.2.1',
+    date: '2026-10-09',
+    air: {
+      title: 'A frame rate setting: 165 Hz where the browser holds the page at 60',
+      notes: [
+        added("FRAME RATE in Graphics settings",
+          "DISPLAY (the default) draws every frame your screen refreshes, as before. Pick 60, 120, 144, 165 or 240 to cap the game at that rate.",
+          "The game has never capped itself at 60: the cap comes from the browser when the page is embedded in another (the claude.ai artifact is one), which can hand it only 60 animation frames a second however fast the screen is. Choose a rate above what the browser delivers and the game times its own frames to it instead, measured against the clock, with the physics still at 120 Hz and every frame drawn part-way between steps.",
+          "The FPS counter now shows when the game is on its own timer and what the browser's own frames run at, so you can see what you are getting. Whether those extra frames reach the screen is up to the browser: if it only composes the embedded page 60 times a second, the game runs smoother inside but the screen still shows 60."),
+      ],
+    },
+  },
+  {
     version: '7.2.0',
     date: '2026-10-09',
     air: {

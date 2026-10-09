@@ -57,6 +57,13 @@ export interface GraphicsOptions {
   clouds: 'clear' | 'scattered' | 'broken' | 'overcast';
   cloudQuality: Tier;
   cloudShadows: boolean;
+  /**
+   * frames per second: 'display' draws every frame the screen refreshes (the
+   * browser's animation frames); a number caps the game at that rate, or, when
+   * the browser hands the page fewer animation frames than that (an embedded
+   * page held at 60), paces the game's own frames to it
+   */
+  frameRate: 'display' | 60 | 120 | 144 | 165 | 240;
   /** the starting preset has been chosen for this device */
   autoTier?: boolean;
 }
@@ -90,6 +97,7 @@ export function defaultGraphics(): GraphicsOptions {
     clouds: 'scattered',
     cloudQuality: 'high',
     cloudShadows: true,
+    frameRate: 'display',
     autoTier: false,
   };
 }
