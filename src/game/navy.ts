@@ -8,7 +8,7 @@ import { GroundUnit, AirDefense, DEFENSES } from './ground';
 import type { Sim } from './sim';
 import type { Difficulty } from '../ai/skill';
 
-const CREW: Record<Difficulty, number> = { EASY: 0.2, MEDIUM: 0.45, HARD: 0.7, EXTREME: 0.92 };
+const CREW: Record<Difficulty, number> = { EASY: 0.2, MEDIUM: 0.45, HARD: 0.7, EXTREME: 0.92, APEX: 1 };
 
 /** Man the guns of every RED carrier on the active map. */
 export function armCarriers(sim: Sim, difficulty: Difficulty): void {

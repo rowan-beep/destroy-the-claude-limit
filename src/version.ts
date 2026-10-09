@@ -37,6 +37,26 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '6.5.0',
+    date: '2026-10-09',
+    air: {
+      title: 'APEX: past Extreme',
+      notes: [
+        added("APEX difficulty",
+          "A fifth step on the AI DIFFICULTY slider, after EXTREME. It is used everywhere the slider is: Duel, Team Battle, Last Pilot Standing, Airstrike, the fighters in Recon and the carriers' gun crews. Campaign enemies also get one step harder than they do on EXTREME.",
+          "A battle commander re-reads the whole fight once a second. For each enemy it works out what they are doing: hunting with a lock on, shooting, defending a missile, running, dogfighting, flying slow, flying low or cruising. It learns which way they like to turn and from how far they shoot, and predicts where they will be over the next few seconds from the way they are turning. Every APEX jet is told where you are each second, even when its own radar has lost you.",
+          "With two or more APEX jets it hands out roles. The jet you have locked turns cold and drags you while the others come in on your beams. One stays high while another fights you low. Both run a pincer from either side when you cruise, and they chase you down when you run or are out of missiles.",
+          "Its pilots react in 0.04 s (EXTREME 0.12), aim the gun within 0.5 mil (1.2), need a 0.05 s lock for a Sidewinder (0.15), fire up to 80° off the nose (70), launch radar missiles from 92 % of maximum range (85 %), spot you from 12 NM (7) and fly down to 150 m (220).",
+          "It only fires a Sidewinder your flares will not take: at your hot tail or in afterburner, when you are out of flares, or from under 900 m. Then it fires a second one 0.8 s later.",
+          "The commander's calls come up on your screen in red, for example: \"He's locked on COBRA 2-2. COBRA 2-2, drag him. Everyone else, take his beam.\""),
+        note("How much harder",
+          "Measured in computer-against-computer F-15EX fights with a 7-minute limit, one APEX jet against one EXTREME jet. Over 64 fights APEX won 18, EXTREME won 15 and 31 ran out of time. Against the computer the gap is small, because EXTREME defends a missile perfectly within 0.12 s; against a person, the faster reactions, the steadier gun and the commander's picture of you count for more."),
+        added("APEX PREDATOR",
+          "A new medal for winning a duel on APEX. The Logbook keeps APEX duels in their own row."),
+      ],
+    },
+  },
+  {
     version: '6.4.2',
     date: '2026-10-09',
     ocean: {

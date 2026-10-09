@@ -389,7 +389,7 @@ export class ReconMode extends GameMode {
   }
 
   private skill(): number {
-    return { EASY: 0.25, MEDIUM: 0.45, HARD: 0.7, EXTREME: 0.92 }[this.host.config.difficulty];
+    return { EASY: 0.25, MEDIUM: 0.45, HARD: 0.7, EXTREME: 0.92, APEX: 1 }[this.host.config.difficulty];
   }
 
   private setup(): void {
@@ -434,7 +434,7 @@ export class ReconMode extends GameMode {
     this.over = false;
     this.outOfArea = 0;
     const diff = h.config.difficulty;
-    const lvl = { EASY: 0, MEDIUM: 1, HARD: 2, EXTREME: 3 }[diff];
+    const lvl = { EASY: 0, MEDIUM: 1, HARD: 2, EXTREME: 3, APEX: 3 }[diff];
 
     // --- the story ---
     this.theme = pick(THEMES);
@@ -866,7 +866,7 @@ export class ReconMode extends GameMode {
     const fields = airfieldsOf('red');
     if (!fields.length) return;
     this.scrambled = true;
-    const lvl = { EASY: 0, MEDIUM: 1, HARD: 2, EXTREME: 3 }[h.config.difficulty];
+    const lvl = { EASY: 0, MEDIUM: 1, HARD: 2, EXTREME: 3, APEX: 3 }[h.config.difficulty];
     const n = lvl >= 2 ? 2 : 1 + (Math.random() < 0.5 ? 1 : 0);
     const f = fields.reduce((a, b) => (Math.hypot(a.x - p.fm.pos.x, a.z - p.fm.pos.z) < Math.hypot(b.x - p.fm.pos.x, b.z - p.fm.pos.z) ? a : b));
     h.picture.gciEnabled.red = true;

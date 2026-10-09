@@ -30,6 +30,7 @@ const DIFF_TEXT: Record<Difficulty, string> = {
   MEDIUM: 'Breaks away from missile locks, manages speed near corner velocity, uses afterburner to recover energy in climbs, pulls up to ~6 G.',
   HARD: 'Fights for your six with high yo-yos and scissors, flares and chaff defensively, aggressive afterburner, dives behind mountain ridges to break your radar lock.',
   EXTREME: 'Operates at the absolute limits of the airframe: max-G snapshots, instant switching between gun and AIM-9X, perfect intercept geometry, and it punishes fuel or G-LOC mistakes.',
+  APEX: 'A battle commander re-reads the fight every second: it works out what you are doing, learns which way you like to turn, predicts where you will be and gives each jet a role (bait, flanker, high cover, press). Its pilots react in 0.04 s, see you from 12 NM and only fire Sidewinders your flares will not take.',
 };
 
 const MODES: ModeId[] = ['spotter', 'campaign', 'daily', 'recon', 'strike', 'tutorial', 'free', 'waves', 'duel', 'team', 'ffa'];

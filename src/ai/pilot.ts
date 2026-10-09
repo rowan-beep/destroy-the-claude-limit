@@ -28,10 +28,12 @@ import { terrainHeight } from '../world/terrain';
 import { MISSILES } from '../weapons/weaponSpecs';
 import { gunSolution, gunLine } from '../weapons/gunnery';
 import { hostile, RULES } from '../game/rules';
+import { commanderFor, type Commander, type Order } from './commander';
+import { irIntensity } from '../sensors/signatures';
 
 export type AIState = 'TAKEOFF' | 'PATROL' | 'FORMATION' | 'INTERCEPT' | 'ENGAGE' | 'DEFENSIVE' | 'MASKING' | 'RTB';
 
-type Maneuver = 'pursuit' | 'lead' | 'lag' | 'highYoyo' | 'lowYoyo' | 'scissors' | 'vertical' | 'extend' | 'crank' | 'gentle' | 'break' | 'beam' | 'jink';
+type Maneuver = 'pursuit' | 'lead' | 'lag' | 'highYoyo' | 'lowYoyo' | 'scissors' | 'vertical' | 'extend' | 'crank' | 'gentle' | 'break' | 'beam' | 'jink' | 'drag' | 'position';
 
 const _dir = new THREE.Vector3();
 const _tmp = new THREE.Vector3();
@@ -89,6 +91,11 @@ export class AIPilot {
   weaponsHold = false;
   /** a wingman told to stay on the leader's wing: defends itself but holds formation and fire */
   formationHold = false;
+  /** APEX: the battle commander's current order for this jet */
+  order: Order | null = null;
+  /** APEX: the second Sidewinder of a pair is still to go */
+  private ripple = 0;
+  private apexCmd: Commander | null = null;
 
   constructor(
     readonly ac: Aircraft,
@@ -113,6 +120,12 @@ export class AIPilot {
     const ac = this.ac;
     if (!ac.alive) return;
     this.weaveT += dt;
+    // APEX: the commander reads the fight once a second and hands out the orders
+    if (this.skill.commander && !this.passive) {
+      // (in a free-for-all every jet is on its own: its own commander, nobody to give orders to but itself)
+      this.apexCmd = commanderFor(sim, RULES.ffa ? `ffa-${ac.id}` : ac.team);
+      this.apexCmd.tick(sim, RULES.ffa ? [this] : sim.aircraft.filter((a) => a.ai && a.team === ac.team && a.ai.skill.commander).map((a) => a.ai!));
+    }
 
     this.perceiveTimer -= dt;
     if (this.passive) {
@@ -129,6 +142,16 @@ export class AIPilot {
       this.think(sim);
     }
     this.fly(dt, sim);
+  }
+
+  /** APEX: the commander's picture (once a second): where the enemy it is after is, whatever our own sensors see */
+  feedPicture(t: Aircraft, now: number): void {
+    if (this.target === t && this.knownSource === 'own') return;
+    this.target = t;
+    this.knownPos.copy(t.fm.pos);
+    this.knownVel.copy(t.fm.vel);
+    this.knownTime = now;
+    if (this.knownSource !== 'own') this.knownSource = 'team';
   }
 
   // -------------------------------------------------------------------------
@@ -357,6 +380,7 @@ export class AIPilot {
       return;
     }
 
+    if (sk.commander && this.order && this.order.target.alive && this.order.target !== this.target) this.target = this.order.target;
     if (!this.target) {
       this.state = this.leader && this.leader.ac.alive && this.leader.state !== 'DEFENSIVE' ? 'FORMATION' : 'PATROL';
       this.manageRadar(sim, null);
@@ -435,6 +459,7 @@ export class AIPilot {
     }
     const mw = ac.rwr.primaryMissile;
     this.maneuver = mw && mw.tti < 3.5 ? 'break' : kind === 'radar' ? 'beam' : 'break';
+    // (APEX outruns a long radar shot: the flyDefensive drag below)
     this.defenseTimer = Math.max(this.defenseTimer, 2.5);
     // terrain masking against radar missiles
     if (kind === 'radar' && sk.terrainMasking && mw && mw.tti > 10 && this.findMaskPoint(sim)) {
@@ -462,6 +487,22 @@ export class AIPilot {
     if (sk.level < 0.2) {
       this.maneuver = R < 3000 ? 'pursuit' : 'gentle';
       return;
+    }
+    // APEX: the commander's order comes before the dogfight
+    const o = sk.commander ? this.order : null;
+    if (o && o.target === t) {
+      // the bait: he has us locked and no missile yet -- turn cold and drag him into the flankers' shot
+      const held = sim.time - (o.since ?? sim.time);
+      if (o.role === 'BAIT' && t.radar.lock === ac && R > 5000 && held < 25) {
+        this.maneuver = 'drag';
+        return;
+      }
+      // flank and top cover: get to the place first, then fight
+      if ((o.role === 'FLANKER' || o.role === 'HIGH_COVER') && o.point && R > 8000 && fm.pos.distanceTo(o.point) > 3000 && held < 40) {
+        this.maneuver = 'position';
+        return;
+      }
+      if (this.maneuver === 'drag' || this.maneuver === 'position') this.maneuver = 'pursuit';
     }
     if (supporting && R > 8000) {
       this.maneuver = 'crank';
@@ -550,13 +591,19 @@ export class AIPilot {
       const sinceShot = now - this.lastShot;
       const alreadyInFlight = sim.missiles.some((m) => m.shooter === ac && m.target === t && m.alive && m.mode !== 'LOST' && m.mode !== 'DECOY');
       const teamStagger = sk.teamwork > 0.5 ? this.teamShotsInFlight(sim, t) < 2 : true;
+      let maxR = lz120.rmax * sk.missileRangeFrac;
+      const gap = 6;
+      const okInFlight = !alreadyInFlight || R < lz120.rne;
+      const o = sk.commander && this.order && this.order.target === t ? this.order : null;
+      // (the bait holds its fire while it drags him in)
+      if (o && o.hold && this.maneuver === 'drag') maxR = 0;
       if (
         tracked &&
         R > lz120.rmin * 1.4 &&
-        R < lz120.rmax * sk.missileRangeFrac &&
+        R < maxR &&
         ata < 40 * DEG &&
-        sinceShot > 6 &&
-        (!alreadyInFlight || R < lz120.rne) &&
+        sinceShot > gap &&
+        okInFlight &&
         teamStagger
       ) {
         // (an F-22 fires once its bay doors are open: the shot is logged then)
@@ -573,18 +620,28 @@ export class AIPilot {
       if (ac.seekerTarget === t) this.lockTime += sk.thinkInterval || 1 / 60;
       else this.lockTime = 0;
       const cone = sk.shotConeDeg * DEG;
+      let gap = sk.level < 0.2 ? 10 : 3;
+      let good = true;
+      if (sk.commander) {
+        // APEX: only a shot the flares will not take -- at his hot tail, when he is in burner, when he is out of flares, or point blank --
+        // and then two, close together
+        good = irIntensity(t, ac.fm.pos) >= t.spec.irSignature * 1.5 || t.flares <= 0 || R < 900;
+        gap = this.ripple > 0 ? 0.8 : 3;
+      }
       if (
+        good &&
         ac.seekerTarget === t &&
         this.lockTime >= sk.lockHold &&
         R > lz9.rmin &&
         R < lz9.rmax * sk.missileRangeFrac &&
         ata < cone &&
-        now - this.lastShot > (sk.level < 0.2 ? 10 : 3)
+        now - this.lastShot > gap
       ) {
         const shot = () => {
           this.lastShot = sim.time;
           this.lastShotAt = t;
           this.lockTime = 0;
+          if (sk.commander) this.ripple = this.ripple > 0 ? 0 : 1;
         };
         if (!ac.pendingShot) ac.fireMissile(sim, IR, t, shot);
       }
@@ -827,6 +884,9 @@ export class AIPilot {
       if (!isFinite(t)) t = 0;
     }
     t = clamp(t, 0, 120);
+    // APEX: where he will be, turning the way he is turning now (a fresh picture and a short look ahead only: a turn is not held for long)
+    const m = this.skill.commander && this.target && this.apexCmd ? this.apexCmd.models.get(this.target.id) : undefined;
+    if (m && t <= 12 && m.ac === this.target && p.distanceTo(m.ac.fm.pos) < 500) return m.predict(t, out);
     return out.set(p.x + v.x * t, p.y + v.y * t, p.z + v.z * t);
   }
 
@@ -849,6 +909,9 @@ export class AIPilot {
         _aim.addScaledVector(_tmp2, this.bracketSide * Math.min(d * 0.35, 25000) * sk.teamwork);
       }
     }
+    // APEX: a flank or top-cover point from the commander comes first
+    const op = sk.commander && this.order?.point && (this.order.role === 'FLANKER' || this.order.role === 'HIGH_COVER') ? this.order.point : null;
+    if (op && fm.pos.distanceTo(op) > 3000) _aim.copy(op);
     _tmp.subVectors(_aim, fm.pos);
     // altitude: hard+ climbs for an energy advantage, easy stays put
     const tgtAlt = sk.level > 0.5 ? Math.max(this.knownPos.y + 1500, 6000) : Math.max(this.knownPos.y, 3000);
@@ -890,7 +953,7 @@ export class AIPilot {
 
     const muzzle = ac.spec.gun.muzzleVelocity;
     // beyond the merge: fly the intercept, closing fast (running targets get full burner)
-    if (R > 5500 && this.maneuver !== 'crank' && this.maneuver !== 'extend' && this.maneuver !== 'gentle') {
+    if (R > 5500 && this.maneuver !== 'crank' && this.maneuver !== 'extend' && this.maneuver !== 'gentle' && this.maneuver !== 'drag' && this.maneuver !== 'position') {
       const keepKnown = this.knownPos.clone();
       const keepVel = this.knownVel.clone();
       this.knownPos.copy(tp);
@@ -909,6 +972,38 @@ export class AIPilot {
       return;
     }
     switch (this.maneuver) {
+      case 'drag': {
+        // cold, 60 deg off the line to him, a little lower, burner: he follows into the others' shot
+        _tmp.subVectors(fm.pos, tp).setY(0).normalize();
+        const a = Math.atan2(_tmp.x, -_tmp.z) + this.bracketSide * 60 * DEG;
+        _tmp.set(Math.sin(a), 0, -Math.cos(a));
+        const floor = Math.max(0, terrainHeight(fm.pos.x, fm.pos.z)) + 1500;
+        this.desired.copy(this.altitudeDir(Math.max(floor, fm.pos.y - 1500), _tmp, 10));
+        this.useAb = true;
+        this.desiredCas = corner * 1.5;
+        this.gCap = Math.min(this.gCap, 6);
+        // chaff makes his lock work for it
+        this.cmTimer -= dt;
+        if (this.cmTimer <= 0 && ac.rwr.level === 'lock') {
+          this.cmTimer = 4;
+          ac.dispense('chaff', 1);
+        }
+        break;
+      }
+      case 'position': {
+        // to the flank / the top cover the commander picked, fast
+        const pt = this.order?.point;
+        if (!pt) {
+          this.maneuver = 'pursuit';
+          this.desired.subVectors(tp, fm.pos).normalize();
+          break;
+        }
+        this.desired.subVectors(pt, fm.pos).normalize();
+        this.useAb = true;
+        this.desiredCas = 1.2 * fm.soundSpeed * Math.sqrt(fm.rho / 1.225);
+        this.gCap = Math.min(this.gCap, 6);
+        break;
+      }
       case 'gentle': {
         // easy AI: predictable constant-bank arcs toward the target
         this.maxBank = sk.gentleBank;

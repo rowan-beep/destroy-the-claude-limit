@@ -165,7 +165,7 @@ export class StrikeMode extends GameMode {
     const name = site === 'airbase' ? `${field!.name}` : `${place} ${SITE_TITLE[site]}`;
 
     // defences, scaled by the difficulty
-    const lvl = { EASY: 0, MEDIUM: 1, HARD: 2, EXTREME: 3 }[diff];
+    const lvl = { EASY: 0, MEDIUM: 1, HARD: 2, EXTREME: 3, APEX: 3 }[diff];
     const defenses: string[] = [];
     const aaa = [irnd(0, 1), irnd(1, 2), irnd(2, 3), irnd(3, 4)][lvl];
     for (let i = 0; i < aaa; i++) defenses.push(lvl >= 2 && Math.random() < 0.35 ? 'TUNGUSKA' : 'ZSU');
@@ -253,7 +253,7 @@ export class StrikeMode extends GameMode {
       }
       case 'sam': {
         // a medium-range battery: search radar, fire-control radar, three to four launchers around them
-        const heavy = this.host.config.difficulty === 'HARD' || this.host.config.difficulty === 'EXTREME';
+        const heavy = this.host.config.difficulty === 'HARD' || this.host.config.difficulty === 'EXTREME' || this.host.config.difficulty === 'APEX';
         const kind = heavy && Math.random() < 0.6 ? 'SA11' : 'SA15';
         const radar = this.unit('samRadar', 0, 0, 0, true, `${DEFENSES[kind].short} RADAR`);
         this.unit('ewr', -90 + j(), 50 + j(), 0.5, true, 'SEARCH RADAR');
@@ -327,7 +327,7 @@ export class StrikeMode extends GameMode {
   }
 
   private skill(): number {
-    return { EASY: 0.2, MEDIUM: 0.45, HARD: 0.7, EXTREME: 0.92 }[this.host.config.difficulty];
+    return { EASY: 0.2, MEDIUM: 0.45, HARD: 0.7, EXTREME: 0.92, APEX: 1 }[this.host.config.difficulty];
   }
 
   // -------------------------------------------------------------------------

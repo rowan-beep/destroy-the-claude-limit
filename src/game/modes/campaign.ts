@@ -123,7 +123,7 @@ export class CampaignMode extends GameMode {
   /** the mission's AI difficulty, shifted by the one picked in the menu */
   private diff(base: Difficulty, extra = 0): Difficulty {
     const shift = DIFFICULTIES.indexOf(this.host.config.difficulty) - 1;
-    return DIFFICULTIES[THREE.MathUtils.clamp(DIFFICULTIES.indexOf(base) + shift + extra, 0, 3)];
+    return DIFFICULTIES[THREE.MathUtils.clamp(DIFFICULTIES.indexOf(base) + shift + extra, 0, DIFFICULTIES.length - 1)];
   }
 
   /** an enemy type, the first of `pref` the rules allow (never the player's own type) */
@@ -250,7 +250,7 @@ export class CampaignMode extends GameMode {
   }
 
   private skill(): number {
-    return { EASY: 0.2, MEDIUM: 0.45, HARD: 0.7, EXTREME: 0.92 }[this.diff(this.M.difficulty)];
+    return { EASY: 0.2, MEDIUM: 0.45, HARD: 0.7, EXTREME: 0.92, APEX: 1 }[this.diff(this.M.difficulty)];
   }
 
   /** an air defence `r` metres out from the site, with its own radar if it needs one */

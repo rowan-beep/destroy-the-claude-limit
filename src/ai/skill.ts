@@ -1,12 +1,14 @@
 // AI difficulty. One continuous "level" (0 = green, 1 = elite) drives
-// reaction times, piloting precision and tactical choices; the four duel
+// reaction times, piloting precision and tactical choices; the duel
 // difficulties and the ten waves are points on that scale with some
-// explicit feature switches on top.
+// explicit feature switches on top. APEX goes past the end of the scale: a
+// battle commander (commander.ts) reads the fight once a second and gives the
+// pilots their orders, and the pilots themselves fly beyond Extreme.
 
 import { lerp, clamp01 } from '../core/math';
 
-export type Difficulty = 'EASY' | 'MEDIUM' | 'HARD' | 'EXTREME';
-export const DIFFICULTIES: Difficulty[] = ['EASY', 'MEDIUM', 'HARD', 'EXTREME'];
+export type Difficulty = 'EASY' | 'MEDIUM' | 'HARD' | 'EXTREME' | 'APEX';
+export const DIFFICULTIES: Difficulty[] = ['EASY', 'MEDIUM', 'HARD', 'EXTREME', 'APEX'];
 
 export interface AISkill {
   label: string;
@@ -60,6 +62,8 @@ export interface AISkill {
   visualRangeNm: number;
   /** switches guns/9X instantly by range */
   weaponAgility: boolean;
+  /** APEX: takes its orders from the battle commander (bait, flank, cover, press; when and how to shoot) */
+  commander: boolean;
 }
 
 export function skillFromLevel(level: number, label: string): AISkill {
@@ -93,7 +97,36 @@ export function skillFromLevel(level: number, label: string): AISkill {
     gentleBank: lerp(35, 80, l),
     visualRangeNm: lerp(3, 7, l),
     weaponAgility: l >= 0.85,
+    commander: false,
   };
+}
+
+/**
+ * APEX: everything Extreme has, pushed past what the scale goes to, and a
+ * commander behind it. Reactions in 0.04 s (Extreme 0.12), gun aim within
+ * 0.5 mil (1.2), a 0.05 s lock is enough for a Sidewinder (0.15), shots up to
+ * 80 deg off the nose (70), pulls to the airframe's override limit, sees 12 NM
+ * by eye (7), flies 150 m off the ground (220).
+ */
+export function apexSkill(): AISkill {
+  const s = skillFromLevel(1, 'APEX');
+  s.thinkInterval = 0;
+  s.reaction = 0.04;
+  s.maxG = 13;
+  s.useOverride = true;
+  s.defense = 1;
+  s.cmUse = 1;
+  s.aimError = 0.5;
+  s.gunRange = 1500;
+  s.lockHold = 0.05;
+  s.shotConeDeg = 80;
+  s.missileRangeFrac = 0.92;
+  s.minAgl = 150;
+  s.visualRangeNm = 12;
+  s.teamwork = 1;
+  s.exploit = true;
+  s.commander = true;
+  return s;
 }
 
 export function duelSkill(d: Difficulty): AISkill {
@@ -106,6 +139,8 @@ export function duelSkill(d: Difficulty): AISkill {
       return skillFromLevel(0.65, 'HARD');
     case 'EXTREME':
       return skillFromLevel(1.0, 'EXTREME');
+    case 'APEX':
+      return apexSkill();
   }
 }
 

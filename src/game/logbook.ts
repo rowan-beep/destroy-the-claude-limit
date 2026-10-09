@@ -83,6 +83,7 @@ export const MEDALS: MedalDef[] = [
   { id: 'wave10', name: 'THEATER SECURED', desc: 'Clear all ten waves.' },
   { id: 'duel-hard', name: 'TOP GUN', desc: 'Win a duel on HARD.' },
   { id: 'duel-extreme', name: 'GRANDMASTER', desc: 'Win a duel on EXTREME.' },
+  { id: 'duel-apex', name: 'APEX PREDATOR', desc: 'Win a duel on APEX.' },
   { id: 'team-win', name: 'SQUADRON LEADER', desc: 'Win a 5v5 Team Battle.' },
   { id: 'team-sweep', name: 'CLEAN SWEEP', desc: 'Win a 5v5 Team Battle without losing a round.' },
   { id: 'ffa-win', name: 'LAST PILOT STANDING', desc: 'Win a 12-jet free-for-all.' },
@@ -117,6 +118,7 @@ export function emptyLogbook(): LogbookData {
       MEDIUM: { wins: 0, losses: 0, draws: 0 },
       HARD: { wins: 0, losses: 0, draws: 0 },
       EXTREME: { wins: 0, losses: 0, draws: 0 },
+      APEX: { wins: 0, losses: 0, draws: 0 },
     },
     team: { wins: 0, losses: 0, roundsWon: 0, roundsLost: 0 },
     ffa: { matches: 0, wins: 0, podiums: 0, bestPlace: 0 },
@@ -388,6 +390,7 @@ export function commitSortie(book: LogbookData, s: SortieRecorder, outcome: Miss
   give('wave10', (outcome.wavesCleared ?? 0) >= 10 || book.wavesCleared >= 10);
   give('duel-hard', outcome.duel?.outcome === 'win' && outcome.duel.difficulty === 'HARD');
   give('duel-extreme', outcome.duel?.outcome === 'win' && outcome.duel.difficulty === 'EXTREME');
+  give('duel-apex', outcome.duel?.outcome === 'win' && outcome.duel.difficulty === 'APEX');
   give('team-win', !!outcome.team?.won);
   give('team-sweep', !!outcome.team?.won && outcome.team.roundsLost === 0);
   give('ffa-win', outcome.ffa?.place === 1);

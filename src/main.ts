@@ -11,6 +11,7 @@ import { Game } from './game/game';
 import { loadSettings, saveSettings } from './core/settings';
 import { defaultMission, MissionConfig } from './game/mission';
 import { Hud } from './ui/hud/hud';
+import { apexComms } from './ai/commander';
 import { WeatherWidget } from './ui/weatherWidget';
 import { MainMenu } from './ui/menu/mainMenu';
 import { PerfWatch } from './ui/perfWarning';
@@ -77,6 +78,7 @@ async function boot(): Promise<void> {
   });
   hud.setVisible(false);
   game.hud = hud;
+  apexComms.sink = (text) => hud.message(text, 'bad', 4);
   (window as unknown as { game: Game }).game = game;
 
   // the theater itself (terrain, digital map, ocean, trees) is generated on
