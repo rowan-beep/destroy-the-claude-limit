@@ -114,7 +114,7 @@ export function fitView(w: number, h: number, minX: number, maxX: number, minZ: 
   return { cx: (minX + maxX) / 2, cz: (minZ + maxZ) / 2, k };
 }
 
-const STATUS_COL: Record<string, string> = { heard: '#ffd27a', bearing: '#ffd27a', located: '#ff9f5a', confirmed: '#7cf0c8' };
+const STATUS_COL: Record<string, string> = { heard: '#ffbf5e', bearing: '#ffbf5e', located: '#ff9f5a', confirmed: '#6fe3d0' };
 
 /** draw the chart into a canvas (CSS pixels; the canvas is sized for the device) */
 export function drawChart(cv: HTMLCanvasElement, view: ChartView, atlas: AtlasData, o: ChartOverlay = {}): void {
@@ -166,7 +166,7 @@ export function drawChart(cv: HTMLCanvasElement, view: ChartView, atlas: AtlasDa
   g.moveTo(px(HARBOR.gate.x + HARBOR.gate.halfWidth), pz(HARBOR.gate.z));
   g.lineTo(px(HARBOR.gate.x + HARBOR.gate.halfWidth - 6), pz(HARBOR.gate.z));
   g.stroke();
-  g.font = '600 10px Consolas, Menlo, monospace';
+  g.font = '600 10.5px Inter, "Segoe UI", system-ui, sans-serif';
   g.textAlign = 'center';
   if (labels) {
     // regions: named once visited (the harbor always)
@@ -260,8 +260,8 @@ export function drawChart(cv: HTMLCanvasElement, view: ChartView, atlas: AtlasDa
   // the guide
   if (o.guide) {
     const gd = o.guide;
-    g.strokeStyle = '#7cf0c8';
-    g.fillStyle = '#7cf0c8';
+    g.strokeStyle = '#6fe3d0';
+    g.fillStyle = '#6fe3d0';
     if (gd.kind === 'area' && gd.r) {
       g.globalAlpha = 0.6;
       g.beginPath();

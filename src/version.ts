@@ -37,6 +37,33 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '6.4.0',
+    date: '2026-10-09',
+    ocean: {
+      title: 'A real harbor, a real sky, time warp and a new look',
+      notes: [
+        added("Kestrel Harbor, built like a working port",
+          "The quay is a cast concrete wall with a capping beam, rubber fenders, steel ladders, cast-iron bollards, crane rails and lamp masts. Behind it a levelled concrete yard: stacked shipping containers, a corrugated-steel shed, the Kestrel Marine Lab, a workshop with the harbor control tower and its turning radar, and two fuel tanks.",
+          "A quay crane with a lattice jib stands over the water. The pier stands on concrete piles with timber fendering; the berth has its launch and recovery crane, foam fenders and marker buoys.",
+          "The two breakwaters are armour rock round a concrete crown, out to the red and green lights at the gate.",
+          "Every surface has its real texture and relief: concrete with joints and stains, timber, ribbed cladding, granite, painted steel. Everything the tide reaches is wet, weeded and darker up to the high-water mark."),
+        added("The survey vessel",
+          "KESTREL SURVEYOR lies alongside the pier, held by mooring lines: a 34 m hull with red antifouling, a white boot-top and dark blue topsides, a bridge with raked wraparound windows, a mast with two turning radar scanners and satellite domes, the funnel, an A-frame over the stern, a winch, a deck crane, a lab container, liferafts and a rescue boat. PETREL can no longer pass through it."),
+        added("The land round the harbor",
+          "Wooded hills: 2,288 pines, 1,666 broadleaf trees and 167 bushes on the Balanced preset, moving in the wind, with open grass between. The town's 55 houses stand along the slopes either side of the yard.",
+          "The ground itself shows grass going from green to dry, scrub and heather, bare soil, rock where it is steep and wet sand at the shore."),
+        improved("A real sky",
+          "The sky is worked out from how sunlight scatters in the air: deep blue overhead, paler toward the horizon, a glow round the sun, and a red sky at dawn.",
+          "Cumulus clouds drift across it with the wind, lit on the side toward the sun; overcast is a grey deck. The haze over the land and the sea takes the sky's colour at the horizon."),
+        added("Time warp",
+          "The same slider as the space missions': 1× to 100× (or , and . to step it). Time speeds up smoothly and drops at once where it must: inside the harbor, near the wreck and K3, close to the bottom, while listening and during a task it stays at 1×; with the arm out 1×; with the scanning sonar turning at most 4×."),
+        improved("A new look for the menu and the dive",
+          "The menu is laid over the harbor on a clear glass column: plain readable text, three pages (Missions, The boat, Echo Atlas) and one big Dive button that always says what it will start. Pick a mission and press Dive, or Continue on one in progress.",
+          "The dive's instruments, the pause and debrief cards, the chart and the touch controls are restyled to match: clean glass panels, normal letter spacing, the same colours throughout."),
+      ],
+    },
+  },
+  {
     version: '6.3.1',
     date: '2026-10-08',
     air: {

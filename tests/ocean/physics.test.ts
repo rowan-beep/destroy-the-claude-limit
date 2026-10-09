@@ -110,3 +110,16 @@ test('the battery lasts well over an hour at full thrust and hours when idle', (
   for (let i = 0; i < 3 * 3600 * 10; i++) stepSub(idle, SURVEY_SUB, NO_INPUT, env, 0.1);
   assert.ok(idle.battery > 0.3, `after three idle hours ${idle.battery}`);
 });
+
+test('time warp: the stepper keeps up at 100×, one 1/60 s step at a time', () => {
+  const s = newSubState(0, 0, 0);
+  const st = new FixedStepper(8);
+  let steps = 0;
+  // a second of frames at 60 fps, 100× warp: 6000 steps, none dropped
+  for (let i = 0; i < 60; i++) st.advance((1 / 60) * 100, s, () => steps++, 100);
+  assert.ok(Math.abs(steps - 6000) <= 1, `${steps} steps`);
+  assert.equal(st.clipped, 0);
+  // at 1× it still drops a backlog it cannot catch up with (a long stall)
+  st.advance(5, s, () => steps++);
+  assert.equal(st.clipped, 1);
+});

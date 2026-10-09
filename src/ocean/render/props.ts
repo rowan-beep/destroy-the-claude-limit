@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { HARBOR, SITES, K3, seabedHeight, wreckLocal, buildColliders } from '../world/geo';
 import { patchOceanMaterial } from './oceanMaterial';
+import { buildHarbor, type HarborBuild } from './harbor';
 
 const srgb = (c: number) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
 
@@ -111,6 +112,12 @@ export class OceanProps {
   /** materials shared by everything here */
   readonly mats: { painted: THREE.MeshLambertMaterial; metal: THREE.MeshStandardMaterial; wreck: THREE.MeshStandardMaterial };
   private harbor: THREE.Group;
+  /** the harbor above the water (its own textured meshes, lights and radar scanners) */
+  private harborBuild: HarborBuild;
+  /** the harbor's surfaces (the land's houses use the facade too) */
+  get textures(): HarborBuild['textures'] {
+    return this.harborBuild.textures;
+  }
   private buoy: THREE.Group;
   private reef: THREE.Group | null = null;
   private kelp: THREE.InstancedMesh | null = null;
@@ -140,7 +147,9 @@ export class OceanProps {
       metal: patchOceanMaterial(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.4 }), 'metal'),
       wreck: patchOceanMaterial(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0.15 }), 'wreck'),
     };
-    this.harbor = this.buildHarbor();
+    this.harborBuild = buildHarbor(true, decor >= 0.5 ? 1 : 0.5);
+    this.harbor = this.harborBuild.group;
+    this.lights.push(...this.harborBuild.lights);
     this.buoy = this.buildBuoy();
     this.group.add(this.harbor, this.buoy);
     this.setDecor(decor);
@@ -165,101 +174,6 @@ export class OceanProps {
     this.k3Hydrophone = this.buildK3Hydrophone();
     this.k3HydrophoneHome = { position: this.k3Hydrophone.position.clone(), quaternion: this.k3Hydrophone.quaternion.clone() };
     this.group.add(this.k3Hydrophone);
-  }
-
-  // ---------------------------------------------------------------- harbor
-  private buildHarbor(): THREE.Group {
-    const g = new THREE.Group();
-    g.name = 'harbor';
-    const hb = HARBOR.basin;
-    const parts: THREE.BufferGeometry[] = [];
-    const conc: [number, number, number] = [0.62, 0.6, 0.56];
-    // the quay wall along the north of the basin
-    parts.push(paint(box(hb.maxX - hb.minX + 40, 14, 6, 0, -4.5, hb.minZ - 3), ...conc));
-    parts.push(paint(box(hb.maxX - hb.minX + 40, 0.6, 40, 0, 2.6, hb.minZ - 26), 0.5, 0.49, 0.46));
-    // the pier: deck on piles
-    parts.push(paint(box(12, 1.2, 96, -26, 2.2, -150), ...conc));
-    for (let i = 0; i < 16; i++) {
-      const z = -196 + i * 6.2;
-      for (const x of [-31, -21]) parts.push(paint(cyl(0.45, 0.5, 15, 8, x, -5.5, z), 0.34, 0.33, 0.3));
-      if (i % 3 === 0) parts.push(paint(cyl(0.25, 0.3, 0.7, 8, -20.6, 3.1, z), 0.15, 0.15, 0.16));
-    }
-    // fenders along the berth side
-    for (let i = 0; i < 8; i++) parts.push(paint(cyl(0.45, 0.45, 2.2, 10, -19.9, 0.8, -186 + i * 11, 0, 0), 0.08, 0.08, 0.08));
-    // the berth marks: yellow lines on the pier edge, and a floating marker each end
-    parts.push(paint(box(0.3, 0.05, 16, -20.3, 2.82, HARBOR.berth.z), 0.95, 0.78, 0.1));
-    for (const dz of [-9, 9]) parts.push(paint(cyl(0.5, 0.5, 1.4, 12, HARBOR.berth.x + 3.5, 0.2, HARBOR.berth.z + dz), 0.95, 0.55, 0.1));
-    // the breakwater: rubble mounds along two arms to the gate
-    const rock = new THREE.DodecahedronGeometry(1, 0);
-    const rub: THREE.BufferGeometry[] = [];
-    const arm = (x0: number, z0: number, x1: number, z1: number, seed: number) => {
-      const len = Math.hypot(x1 - x0, z1 - z0);
-      const n = Math.floor(len / 3.2);
-      for (let i = 0; i <= n; i++) {
-        const t = i / n;
-        for (let k = 0; k < 3; k++) {
-          const s = 2.2 + ((i * 7 + k * 13 + seed) % 5) * 0.45;
-          const off = (k - 1) * 4.2;
-          const nx = (z1 - z0) / len, nz = -(x1 - x0) / len;
-          const x = x0 + (x1 - x0) * t + nx * off, z = z0 + (z1 - z0) * t + nz * off;
-          const r = rock.clone();
-          r.scale(s, s * 0.8, s);
-          r.rotateY(i * 1.3 + k);
-          r.translate(x, k === 1 ? 1.2 : -1.2, z);
-          rub.push(r);
-        }
-      }
-    };
-    arm(-250, -190, -HARBOR.gate.halfWidth - 6, HARBOR.gate.z, 3);
-    arm(250, -190, HARBOR.gate.halfWidth + 6, HARBOR.gate.z, 9);
-    const rubble = paint(mergeGeometries(rub)!, 0.46, 0.45, 0.42, 0.12);
-    // sheds and a crane on the quay, a lighthouse at each gate head
-    parts.push(paint(box(30, 9, 18, -120, 7, hb.minZ - 34), 0.7, 0.66, 0.58));
-    parts.push(paint(box(22, 7, 14, 90, 6, hb.minZ - 30), 0.48, 0.55, 0.62));
-    parts.push(paint(box(16, 11, 12, 150, 8, hb.minZ - 44), 0.75, 0.73, 0.68));
-    parts.push(paint(cyl(0.6, 0.8, 18, 8, 40, 11.5, hb.minZ - 14), 0.92, 0.6, 0.12));
-    parts.push(paint(box(1.2, 1.2, 26, 40, 20.5, hb.minZ - 4, 0, 0.35), 0.92, 0.6, 0.12));
-    for (const [x, c] of [[-HARBOR.gate.halfWidth - 8, [0.8, 0.12, 0.1]], [HARBOR.gate.halfWidth + 8, [0.12, 0.6, 0.2]]] as [number, [number, number, number]][]) {
-      parts.push(paint(cyl(1.6, 2.2, 9, 12, x, 6, HARBOR.gate.z), 0.92, 0.92, 0.9));
-      parts.push(paint(cyl(1.2, 1.2, 1.6, 12, x, 11.3, HARBOR.gate.z), ...c));
-      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(c[0] * 1.5, c[1] * 1.5, c[2] * 1.5) }));
-      lamp.position.set(x, 12.4, HARBOR.gate.z);
-      g.add(lamp);
-      this.lights.push({ mesh: lamp, period: x < 0 ? 4 : 3, phase: x < 0 ? 0 : 1.3 });
-    }
-    const mesh = new THREE.Mesh(mergeGeometries(parts)!, this.mats.painted);
-    mesh.receiveShadow = true;
-    g.add(mesh, new THREE.Mesh(rubble, this.mats.painted));
-    // a support vessel moored at the end of the pier
-    const ship = this.buildSupportVessel();
-    ship.position.set(-46, 0, -120);
-    g.add(ship);
-    return g;
-  }
-
-  private buildSupportVessel(): THREE.Group {
-    const g = new THREE.Group();
-    const parts: THREE.BufferGeometry[] = [];
-    // hull: a box with a raked bow
-    const hull = new THREE.BoxGeometry(8, 4, 30, 1, 1, 6);
-    const p = hull.attributes.position;
-    for (let i = 0; i < p.count; i++) {
-      const z = p.getZ(i), y = p.getY(i);
-      if (z < -10) p.setX(i, p.getX(i) * (1 - (-10 - z) / 6.5));
-      if (y < 0) p.setX(i, p.getX(i) * 0.8);
-    }
-    hull.computeVertexNormals();
-    hull.translate(0, 0.3, 0);
-    parts.push(paint(hull, 0.12, 0.2, 0.32));
-    parts.push(paint(box(7.4, 0.4, 26, 0, 2.5, 1), 0.7, 0.68, 0.62));
-    parts.push(paint(box(6, 4, 7, 0, 4.6, -4), 0.94, 0.94, 0.92));
-    parts.push(paint(box(5, 1.6, 5, 0, 7.4, -5), 0.94, 0.94, 0.92));
-    parts.push(paint(box(5.2, 0.6, 1.2, 0, 7.6, -7.8), 0.12, 0.16, 0.2));
-    // the A-frame that launches the submarine over the stern
-    for (const x of [-2.6, 2.6]) parts.push(paint(cyl(0.22, 0.22, 7, 8, x, 5.8, 12.8, 0.4), 0.95, 0.55, 0.1));
-    parts.push(paint(box(5.6, 0.4, 0.4, 0, 9, 11.5), 0.95, 0.55, 0.1));
-    g.add(new THREE.Mesh(mergeGeometries(parts)!, this.mats.painted));
-    return g;
   }
 
   // ---------------------------------------------------------------- the training buoy
@@ -726,6 +640,7 @@ export class OceanProps {
     if (this.k3Hydrophone.parent === this.group) this.k3Hydrophone.visible = this.k3.visible && this.k3HydrophoneShown;
     this.kelpTime.value = t;
     for (const l of this.lights) l.mesh.visible = (t + l.phase) % l.period < 0.6;
+    for (const sp of this.harborBuild.spinners) sp.obj.rotation.y = t * sp.rate;
     void dt;
   }
 
@@ -743,6 +658,7 @@ export class OceanProps {
   }
 
   dispose(): void {
+    this.harborBuild.dispose();
     this.group.traverse((o) => {
       const m = o as THREE.Mesh;
       if (m.isMesh) m.geometry.dispose();

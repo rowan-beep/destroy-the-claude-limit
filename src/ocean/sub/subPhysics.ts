@@ -347,17 +347,21 @@ export class FixedStepper {
 
   constructor(private maxSteps = 6) {}
 
-  /** run the steps due; `alpha` (0..1) is how far between the last two states the display is */
-  advance(dt: number, s: SubState, run: () => void): number {
-    this.acc += Math.min(dt, 0.25);
+  /**
+   * Run the steps due; `alpha` (0..1) is how far between the last two states the display is.
+   * Under time warp dt is the warped time, and `warp` lets that many times more steps run.
+   */
+  advance(dt: number, s: SubState, run: () => void, warp = 1): number {
+    const maxSteps = Math.ceil(this.maxSteps * Math.max(1, warp));
+    this.acc += Math.min(dt, 0.25 * Math.max(1, warp));
     let n = 0;
-    while (this.acc >= this.step && n < this.maxSteps) {
+    while (this.acc >= this.step && n < maxSteps) {
       this.prev = { x: s.x, y: s.y, z: s.z, heading: s.heading, pitch: s.pitch, roll: s.roll };
       run();
       this.acc -= this.step;
       n++;
     }
-    if (n === this.maxSteps && this.acc >= this.step) {
+    if (n === maxSteps && this.acc >= this.step) {
       // too far behind: drop the backlog instead of spiralling
       this.acc = 0;
       this.clipped++;

@@ -63,6 +63,10 @@ export const HARBOR = {
   gate: { x: 0, z: 118, halfWidth: 46 },
   basin: { minX: -235, maxX: 235, minZ: -215, maxZ: 112 },
   depth: 9,
+  /** the levelled yard behind the quay (its surface y) */
+  yard: { minX: -255, maxX: 255, minZ: -300, y: 2.3 },
+  /** the survey vessel, alongside the pier's west face (bow to the north) */
+  vessel: { x: -37.7, z: -120, halfBeam: 4.3, halfLength: 17 },
 };
 
 /** the broken freighter, on the upper slope: centre and heading of its keel (degrees) */
@@ -158,6 +162,12 @@ export function seabedHeight(x: number, z: number): number {
   if (inB > 0) h = h + (-HARBOR.depth - 0.6 * fbm(x / 30, z / 30, 2, 3) - h) * inB;
   // the quay along the north side of the basin (where the berth is)
   if (z < hb.minZ + 30 && z > hb.minZ - 60 && x > hb.minX && x < hb.maxX) h = Math.max(h, z < hb.minZ - 6 ? 2.5 : h);
+  // the harbor yard behind the quay: levelled for the sheds, the lab and the stacks, banked up into the hills round it
+  const yard = HARBOR.yard;
+  if (z < hb.minZ - 6 && z > yard.minZ - 40 && x > yard.minX - 40 && x < yard.maxX + 40) {
+    const k = smooth(yard.minZ - 40, yard.minZ, z) * smooth(yard.minX - 40, yard.minX, x) * smooth(yard.maxX + 40, yard.maxX, x);
+    h = h + (yard.y - h) * k;
+  }
   return h;
 }
 
@@ -239,6 +249,9 @@ export function buildColliders(): Collider[] {
   // the pier running out from the quay, and its berth
   c.push({ kind: 'box', x: -26, y: 0.6, z: -150, hx: 6, hy: 2.2, hz: 48, yaw: 0, tag: 'pier' });
   for (let i = 0; i < 6; i++) c.push({ kind: 'cyl', x: -26 + (i % 2 ? 5 : -5), z: -186 + Math.floor(i / 2) * 30, y0: -12, y1: 1, r: 0.7, tag: 'pile' });
+  // the survey vessel alongside it
+  const v = HARBOR.vessel;
+  c.push({ kind: 'box', x: v.x, y: -0.3, z: v.z, hx: v.halfBeam, hy: 2.3, hz: v.halfLength, yaw: 0, tag: 'vessel' });
   // the training buoy and its mooring
   c.push({ kind: 'cyl', x: SITES.buoy.x, z: SITES.buoy.z, y0: -2.5, y1: 3.5, r: 1.4, tag: 'buoy' });
   // the wreck: stern section with the bridge, the broken-off bow, the crane, the boxes of cargo

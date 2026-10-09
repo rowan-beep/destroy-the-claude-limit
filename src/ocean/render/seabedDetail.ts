@@ -82,6 +82,23 @@ if ( uSbDetail > 0.0 && vOcWorld.y < 0.3 ) {
     k *= mix( vec3( 1.0 ), fine, sbFade );
   }
   diffuseColor.rgb *= k;
+} else if ( uSbDetail > 0.0 ) {
+  // the land: grass going from green to dry in broad patches, dark scrub and heather, bare soil, rock where it is steep, sand at the shore
+  float n1 = sbNoise( sbP * 0.011 ), n2 = sbNoise( sbP * 0.047 + 3.0 ), n3 = sbNoise( sbP * 0.21 + 7.0 ), n4 = sbNoise( sbP * 1.3 );
+  float lDist = length( vOcWorld - cameraPosition );
+  float lFade = 1.0 - smoothstep( 60.0, 400.0, lDist );
+  vec3 grass = mix( vec3( 0.105, 0.15, 0.034 ), vec3( 0.23, 0.21, 0.075 ), smoothstep( 0.32, 0.78, n1 ) );
+  grass = mix( grass, vec3( 0.04, 0.055, 0.018 ), smoothstep( 0.56, 0.78, n2 ) * 0.85 );
+  grass = mix( grass, vec3( 0.12, 0.075, 0.04 ), smoothstep( 0.74, 0.86, n3 ) * 0.55 );
+  grass *= 0.86 + 0.28 * mix( 0.5, n4, lFade );
+  float steep = 1.0 - smoothstep( 0.7, 0.86, vOcNormal.y );
+  float strata = 0.82 + 0.18 * sin( vOcWorld.y * 2.6 + sbNoise( sbP * 0.3 ) * 4.0 );
+  vec3 rockL = vec3( 0.19, 0.18, 0.16 ) * strata * ( 0.85 + 0.3 * n3 );
+  float shore = 1.0 - smoothstep( 1.6, 2.6, vOcWorld.y );
+  float wetSand = 1.0 - smoothstep( 0.4, 1.1, vOcWorld.y );
+  vec3 sandL = vec3( 0.5, 0.43, 0.29 ) * ( 0.9 + 0.2 * sbNoise( sbP * 6.0 ) ) * ( 1.0 - 0.38 * wetSand );
+  vec3 land = mix( mix( grass, rockL, steep ), sandL, shore );
+  diffuseColor.rgb = land;
 }
 `;
 
@@ -108,6 +125,6 @@ export function addSeabedDetail<T extends THREE.Material>(mat: T): T {
       .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n' + NORMALS);
   };
   const key = mat.customProgramCacheKey.bind(mat);
-  mat.customProgramCacheKey = () => key() + '-sbdetail2';
+  mat.customProgramCacheKey = () => key() + '-sbdetail3';
   return mat;
 }

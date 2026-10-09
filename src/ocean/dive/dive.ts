@@ -12,6 +12,7 @@ import { OceanAudio } from '../audio/oceanAudio';
 import { OCEAN_KEY_SECTIONS } from '../keys';
 import { DiveTouch, DiveGamepad, type ControlTarget } from './controls';
 import { ARM_READY, moveArmTarget } from './manipulator';
+import { WarpBar, WarpFx } from '../../space/warp';
 import { isTouchDevice } from '../../ui/touchControls';
 import { SURVEY_SUB, NEUTRAL_BALLAST, newSubState, stepSub, FixedStepper, interpolate, rangeEstimate, speedOf, type SubState, type SubInput, type SubEnv } from '../sub/subPhysics';
 import { buildColliders, seabedHeight, groundAt, bearing, HARBOR, SITES, K3, DEPTH_BANDS, regionAt, type Collider } from '../world/geo';
@@ -29,7 +30,11 @@ export type DiveMode = 'expedition' | 'free' | 'pulse';
 type CamMode = 'chase' | 'dome';
 
 const DEG = Math.PI / 180;
-const TIME_STEPS = [1, 2, 4];
+/** the time warp's marks (the slider runs smoothly between them) */
+const WARP_MARKS = [1, 2, 5, 10, 25, 50, 100];
+const WARP_MAX = 100;
+/** while the scanning sonar turns (a ping every turn) */
+const WARP_SCANNING = 4;
 const PING_RAYS = 90;
 /** a full turn of the scanning sonar's head (s) */
 const SWEEP_S = 3;
@@ -112,7 +117,12 @@ export class OceanDive {
   private gauge = new ListenGauge();
   private overlay = true;
   private emergency = false;
-  private timeIdx = 0;
+  /** the time warp: as set on the slider, and as running (held down by where the boat is and what it is doing) */
+  private warpSet = 1;
+  private warp = 1;
+  private warpNote = '';
+  private warpBar!: WarpBar;
+  private warpFx!: WarpFx;
   private paused = false;
   private chartOpen = false;
   private ended = false;
@@ -220,6 +230,10 @@ export class OceanDive {
       },
     };
     this.touch = new DiveTouch(parent, this.ctl);
+    // the time warp: the same slider and look as the space missions'
+    const wrap = el('div', 'oc-warp', this.hud.root);
+    this.warpBar = new WarpBar(wrap, { max: WARP_MAX, marks: WARP_MARKS, compact: true, onPick: (w) => this.setWarp(w) });
+    this.warpFx = new WarpFx(this.hud.root, WARP_MAX);
     window.addEventListener('keydown', (e) => this.onKey(e, true), { capture: true });
     window.addEventListener('keyup', (e) => this.onKey(e, false), { capture: true });
     window.addEventListener('blur', () => this.keys.clear());
@@ -303,7 +317,10 @@ export class OceanDive {
     this.quiet = false;
     this.gauge.reset();
     this.emergency = false;
-    this.timeIdx = 0;
+    this.warpSet = 1;
+    this.warp = 1;
+    this.warpBar.jump(1);
+    this.warpFx.reset(1);
     this.paused = false;
     this.chartOpen = false;
     this.ended = false;
@@ -569,8 +586,8 @@ export class OceanDive {
       else this.use();
     }
     else if (c === 'KeyC') this.cycleCam();
-    else if (c === 'Comma' || c === 'Period') this.stepTime(c === 'Period' ? 1 : -1);
-    else if (c === 'TimeCycle') this.stepTime(this.timeIdx >= TIME_STEPS.length - 1 ? -this.timeIdx : 1);
+    else if (c === 'Comma' || c === 'Period') this.warpBar.step(c === 'Period' ? 1 : -1);
+    else if (c === 'TimeCycle') this.warpBar.pick(this.warpSet >= WARP_MAX ? 1 : WARP_MARKS.find((m) => m > this.warpSet * 2.4) ?? WARP_MAX);
     else used = false;
     return used;
   }
@@ -580,7 +597,10 @@ export class OceanDive {
     if (v && this.scanning) this.setScanning(false, true);
     this.quiet = v;
     this.gauge.reset();
-    if (v && this.timeIdx) this.timeIdx = 0;
+    if (v) {
+      this.warpBar.jump(1);
+      this.setWarp(1);
+    }
     this.hud.flash('QUIET SURVEY', v ? 'LISTENING' : 'OFF', 1.4);
     audio.click();
   }
@@ -594,17 +614,20 @@ export class OceanDive {
     this.hud.flash('CAMERA', this.cam === 'dome' ? "PILOT'S DOME" : 'CHASE', 1.2);
   }
 
-  private stepTime(d: number): void {
-    const n = Math.max(0, Math.min(TIME_STEPS.length - 1, this.timeIdx + d));
-    if (n > 0) {
-      const why = this.timeBlocked();
-      if (why) {
-        this.hud.flash('TIME', why, 2);
-        return;
-      }
-    }
-    this.timeIdx = n;
-    this.hud.flash('TRANSIT TIME', `×${TIME_STEPS[n]}`, 1.2);
+  /** the slider moved: the warp the player wants (it runs as fast as where the boat is allows) */
+  private setWarp(w: number): void {
+    this.warpSet = Math.max(1, Math.min(WARP_MAX, w));
+    const why = w > 1 ? this.timeBlocked() : '';
+    if (why) this.hud.flash('TIME WARP', why, 2);
+  }
+
+  /** how fast time may run here and now, and why not faster */
+  private warpLimit(): [number, string] {
+    const why = this.timeBlocked();
+    if (why) return [1, why];
+    if (this.manip) return [1, 'ARM OUT'];
+    if (this.scanning) return [WARP_SCANNING, 'SCANNING SONAR'];
+    return [WARP_MAX, ''];
   }
 
   /** transit time runs faster only in open water, away from anything that needs care */
@@ -630,7 +653,7 @@ export class OceanDive {
 
   private pauseCard(): void {
     this.hud.showCard((c) => {
-      el('h2', '', c, 'PAUSED');
+      el('h2', '', c, 'Paused');
       el('div', 'sub', c, this.exp ? `${this.exp.title} · stage ${Math.min(this.exp.stage + 1, this.exp.stageCount)} of ${this.exp.stageCount}. Progress is saved at every stage.` : 'Free survey from Kestrel Harbor.');
       const set = el('div', 'oc-set', c);
       const sel = <K extends keyof OceanSettings>(label: string, key: K, opts: [OceanSettings[K], string][]) => {
@@ -649,13 +672,13 @@ export class OceanDive {
           this.applySettings();
         });
       };
-      sel('Graphics', 'preset', [['performance', 'PERFORMANCE'], ['balanced', 'BALANCED'], ['cinematic', 'CINEMATIC']]);
-      sel('Sea', 'weather', [['calm', WEATHERS.calm.label], ['dawn', WEATHERS.dawn.label], ['overcast', WEATHERS.overcast.label]]);
-      sel('Guidance', 'guidance', [['markers', 'MARKERS IN VIEW'], ['bearing', 'COMPASS ONLY'], ['instruments', 'INSTRUMENTS ONLY']]);
-      sel('Battery', 'relaxed', [[false, 'REAL DRAIN'], [true, 'RELAXED (NO DRAIN)']]);
-      sel('Visibility aid', 'visibilityAid', [[false, 'OFF'], [true, 'ON']]);
-      sel('Large HUD', 'largeHud', [[false, 'OFF'], [true, 'ON']]);
-      sel('Reduce motion', 'reduceMotion', [[false, 'OFF'], [true, 'ON']]);
+      sel('Graphics', 'preset', [['performance', 'Performance'], ['balanced', 'Balanced'], ['cinematic', 'Cinematic']]);
+      sel('Sea', 'weather', [['calm', 'Calm daylight'], ['dawn', 'Dawn swell'], ['overcast', 'Overcast, rough']]);
+      sel('Guidance', 'guidance', [['markers', 'Markers in view'], ['bearing', 'Compass only'], ['instruments', 'Instruments only']]);
+      sel('Battery', 'relaxed', [[false, 'Real drain'], [true, 'Relaxed (no drain)']]);
+      sel('Visibility aid', 'visibilityAid', [[false, 'Off'], [true, 'On']]);
+      sel('Large HUD', 'largeHud', [[false, 'Off'], [true, 'On']]);
+      sel('Reduce motion', 'reduceMotion', [[false, 'Off'], [true, 'On']]);
       const b = el('div', 'btns', c);
       const btn = (t: string, fn: () => void, primary = false) => {
         const x = el('button', 'oc-btn' + (primary ? ' primary' : ''), b, t) as HTMLButtonElement;
@@ -665,11 +688,11 @@ export class OceanDive {
           fn();
         });
       };
-      btn('RESUME', () => this.setPaused(false), true);
-      btn('CONTROLS', () => this.hud.help.classList.add('show'));
-      if (this.exp && this.safe) btn('RECOVER TO LAST SAFE POINT', () => this.recoverToSafe());
-      if (this.exp) btn('RESTART', () => this.start(this.mode, false));
-      btn(this.exp ? 'SAVE AND QUIT TO HARBOR' : 'QUIT TO HARBOR', () => this.exit());
+      btn('Resume', () => this.setPaused(false), true);
+      btn('Controls', () => this.hud.help.classList.add('show'));
+      if (this.exp && this.safe) btn('Back to the last safe point', () => this.recoverToSafe());
+      if (this.exp) btn('Restart', () => this.start(this.mode, false));
+      btn(this.exp ? 'Save and quit to the harbor' : 'Quit to the harbor', () => this.exit());
     });
   }
 
@@ -1317,7 +1340,7 @@ export class OceanDive {
     }
     const mm = (x: number) => `${Math.floor(x / 60)} min ${String(Math.round(x % 60)).padStart(2, '0')} s`;
     this.hud.showCard((c) => {
-      el('h2', '', c, 'DEBRIEF');
+      el('h2', '', c, 'Debrief');
       el('div', 'sub', c, MISSION_TITLE);
       const g = el('div', 'oc-deb', c);
       const l = el('div', '', g);
@@ -1344,7 +1367,7 @@ export class OceanDive {
       row('Battery used', `${Math.round((this.battery0 - this.sub.battery) * 100)} %`);
       row('Bumps', String(this.bumps));
       const b = el('div', 'btns', c);
-      const x = el('button', 'oc-btn primary', b, 'BACK TO THE HARBOR') as HTMLButtonElement;
+      const x = el('button', 'oc-btn primary', b, 'Back to the harbor') as HTMLButtonElement;
       x.type = 'button';
       x.addEventListener('click', () => {
         audio.click();
@@ -1371,7 +1394,7 @@ export class OceanDive {
     }
     const mm = (x: number) => `${Math.floor(x / 60)} min ${String(Math.round(x % 60)).padStart(2, '0')} s`;
     this.hud.showCard((c) => {
-      el('h2', '', c, 'DEBRIEF');
+      el('h2', '', c, 'Debrief');
       el('div', 'sub', c, PULSE_TITLE);
       const g = el('div', 'oc-deb', c);
       const l = el('div', '', g);
@@ -1398,7 +1421,7 @@ export class OceanDive {
       row('Battery used', `${Math.round((this.battery0 - this.sub.battery) * 100)} %`);
       row('Bumps', String(this.bumps));
       const b = el('div', 'btns', c);
-      const x = el('button', 'oc-btn primary', b, 'BACK TO THE HARBOR') as HTMLButtonElement;
+      const x = el('button', 'oc-btn primary', b, 'Back to the harbor') as HTMLButtonElement;
       x.type = 'button';
       x.addEventListener('click', () => {
         audio.click();
@@ -1412,10 +1435,10 @@ export class OceanDive {
     this.track.add(this.sub.x, this.sub.z, Math.max(0, -this.sub.y));
     this.atlas.addTrack({ mission: 'free', t: Date.now(), points: this.track.points });
     this.hud.showCard((c) => {
-      el('h2', '', c, 'BACK AT THE BERTH');
+      el('h2', '', c, 'Back at the berth');
       el('div', 'sub', c, `${(this.track.distance / 1000).toFixed(2)} km covered, deepest ${Math.round(this.maxDepth)} m. Your route is on the chart.`);
       const b = el('div', 'btns', c);
-      const x = el('button', 'oc-btn primary', b, 'BACK TO THE HARBOR') as HTMLButtonElement;
+      const x = el('button', 'oc-btn primary', b, 'Back to the harbor') as HTMLButtonElement;
       x.type = 'button';
       x.addEventListener('click', () => this.exit());
     });
@@ -1486,11 +1509,12 @@ export class OceanDive {
     this.pad.poll(dt, this.ctl, !frozen && !this.batteryCard);
     let alpha = 1;
     if (!frozen) {
-      if (this.timeIdx && this.timeBlocked()) {
-        this.timeIdx = 0;
-        this.hud.flash('TRANSIT TIME', '×1', 1.2);
-      }
-      const scale = TIME_STEPS[this.timeIdx];
+      // the time warp: up smoothly to what was set (as far as here allows), down at once
+      const [lim, why] = this.warpLimit();
+      const want = Math.min(this.warpSet, lim);
+      this.warpNote = this.warpSet > lim + 1e-6 ? why : '';
+      this.warp = want < this.warp ? want : Math.min(want, this.warp * Math.exp(dt * 2.2) + dt);
+      const scale = this.warp;
       const inp = this.input();
       // pushing down at the surface with light tanks does nothing: say why
       this.lightHintT -= dt;
@@ -1503,7 +1527,7 @@ export class OceanDive {
         const b = stepSub(s, SURVEY_SUB, inp, this.env, this.stepper.step);
         if (b && (!bump || b.speed > bump.speed)) bump = b;
         this.simT += this.stepper.step;
-      });
+      }, scale);
       const sdt = dt * scale;
       this.elapsed += sdt;
       if (bump) this.onBump(bump);
@@ -1590,6 +1614,9 @@ export class OceanDive {
     this.host.draw(this.world.scene, cam, this.exposure);
     if (this.photoPending) this.takePhoto();
     this.updateHud(dt, w, h);
+    const held = this.paused || this.ended || this.chartOpen;
+    this.warpBar.update(dt, held ? 0 : this.warp, { paused: held, note: this.warpNote || undefined });
+    this.warpFx.update(dt, held ? 0 : this.warp, window.innerWidth, window.innerHeight);
     this.sound.update({ depth: -s.y, surfaced: -s.y < 1.2, thrust: s.out.thrust, vertical: s.out.vertical, lateral: s.out.lateral, pumping: s.out.pumping, quiet: this.quiet, listening: this.quiet, paused: this.paused || this.ended });
   }
 
@@ -1680,7 +1707,7 @@ export class OceanDive {
   private batteryFlat(): void {
     this.batteryCard = true;
     this.hud.showCard((c) => {
-      el('h2', '', c, 'BATTERY FLAT');
+      el('h2', '', c, 'Battery flat');
       el('div', 'sub', c, 'PETREL has no power for the thrusters. The support vessel can come out and tow you home, or you can go back to the last safe point.');
       const b = el('div', 'btns', c);
       const btn = (t: string, fn: () => void, primary = false) => {
@@ -1693,7 +1720,7 @@ export class OceanDive {
           fn();
         });
       };
-      btn('CALL A TOW', () => {
+      btn('Call a tow', () => {
         const s = this.sub;
         s.x = HARBOR.gate.x;
         s.z = HARBOR.gate.z - 40;
@@ -1708,7 +1735,7 @@ export class OceanDive {
         this.world.fill(s.x, s.z);
         this.hud.flash('TOWED IN', 'BATTERY CHARGED TO 35 %', 3);
       }, true);
-      if (this.safe) btn('LAST SAFE POINT', () => this.recoverToSafe());
+      if (this.safe) btn('Last safe point', () => this.recoverToSafe());
     });
   }
 
@@ -1817,7 +1844,7 @@ export class OceanDive {
     if (this.manip) tags.push(['ARM', 'on']);
     if (this.samples.length) tags.push([`SAMPLES ${this.samples.length}`, '']);
     if (this.overlay) tags.push(['OVERLAY', '']);
-    if (this.timeIdx) tags.push([`TIME ×${TIME_STEPS[this.timeIdx]}`, 'amber']);
+    if (this.warp > 1.05) tags.push([`TIME ×${this.warp < 10 ? this.warp.toFixed(1) : Math.round(this.warp)}`, 'amber']);
     if (this.emergency) tags.push(['EMERG BLOW', 'amber']);
     if (this.env.relaxed) tags.push(['RELAXED', '']);
     // warnings
@@ -1828,7 +1855,7 @@ export class OceanDive {
     else if (alt < 2.5 && s.vy < -0.15 && depth > 3) warn = 'BOTTOM CLOSE';
     this.warnT -= dt;
     this.touch.setAway(this.paused || this.ended || this.chartOpen || this.batteryCard);
-    this.touch.sync({ quiet: this.quiet, lamps: s.lights, floods: s.floods, arm: !!this.manip, scan: this.scanning, holdDepth: s.holdDepth !== null, holdPos: !!s.holdPos, overlay: this.overlay, time: TIME_STEPS[this.timeIdx], emergency: this.emergency });
+    this.touch.sync({ quiet: this.quiet, lamps: s.lights, floods: s.floods, arm: !!this.manip, scan: this.scanning, holdDepth: s.holdDepth !== null, holdPos: !!s.holdPos, overlay: this.overlay, time: Math.round(this.warp), emergency: this.emergency });
     this.hud.update(
       {
         kicker,

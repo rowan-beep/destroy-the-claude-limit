@@ -5,7 +5,7 @@
 
 import * as THREE from 'three';
 import { SeabedStreamer } from './seabed';
-import { OceanSurface, SKY } from './water';
+import { OceanSurface, SKY, setSkyAtmosphere, hazeColor } from './water';
 import { OceanProps } from './props';
 import { OceanFx, LAMPS } from './fx';
 import { SubModel } from './subModel';
@@ -16,6 +16,7 @@ import { SiltClouds } from './silt';
 import { Jellies } from './jellies';
 import { Bioluminescence } from './biolum';
 import { SweepDisc } from './sonarSweep';
+import { buildLandscape, type Landscape } from './landscape';
 import { OCEAN_FX, daylightAt } from './oceanMaterial';
 import { WEATHERS, Weather, WeatherDef, surfaceHeight } from '../world/waves';
 import { PRESETS, OceanPreset, PresetDef } from '../perf/presets';
@@ -58,6 +59,8 @@ export class OceanWorld {
   biolum: Bioluminescence;
   /** the scanning sonar's sweep in the open water (the overlay) */
   readonly sweep = new SweepDisc();
+  /** the woods and the town on the land */
+  land: Landscape;
   readonly seabed = new SeabedStreamer();
   readonly surface: OceanSurface;
   readonly props: OceanProps;
@@ -97,6 +100,9 @@ export class OceanWorld {
     this.biolum = new Bioluminescence(this.preset.sparks, this.fx.dot);
     this.scene.add(this.biolum.points);
     this.scene.add(this.sweep.mesh);
+    // the land's woods and the town (above the water only)
+    this.land = buildLandscape(this.props.textures, Math.max(0.35, this.preset.decor));
+    this.scene.add(this.land.group);
     // sea-bed tiles are built on a worker thread where there is one
     this.seabed.useWorker();
     this.scene.add(this.seabed.group, this.surface.mesh, this.surface.sky, this.props.group, this.fx.group, this.sub.root, this.sun, this.sun.target, this.hemi);
@@ -117,12 +123,12 @@ export class OceanWorld {
     const h = new THREE.Vector2(-this.sunDir.x, -this.sunDir.z);
     if (h.lengthSq() > 1e-6) h.normalize();
     this.sunRay.set(h.x * st, -Math.sqrt(1 - st * st), h.y * st);
-    SKY.uSunDir.value.copy(this.sunDir);
-    SKY.uZenith.value.setRGB(...d.zenith);
-    SKY.uHorizon.value.setRGB(...d.horizon);
+    setSkyAtmosphere(this.sunDir, d.air[0], d.air[1], d.air[2], 0.8);
     SKY.uSunColor.value.setRGB(...d.sun);
-    // (the sky's brightness in the picture's light units: full sun is 3)
+    // (the sun on the clouds in the picture's light units: full sun is 3)
     SKY.uSunI.value = d.sunI * 0.33;
+    SKY.uCloud.value.x = d.clouds[0];
+    SKY.uCloud.value.y = d.clouds[1];
     this.sun.color.setRGB(...d.sun);
     this.sun.intensity = d.sunI;
     this.hemi.color.setRGB(d.zenith[0] * 0.6 + 0.4, d.zenith[1] * 0.6 + 0.4, d.zenith[2] * 0.6 + 0.4);
@@ -134,8 +140,9 @@ export class OceanWorld {
     const direct = this.lightK * (w === 'overcast' ? 0.35 : 1) * Math.sin(Math.max(el, 2 * DEG)) * 2;
     OCEAN_FX.uSunCol.value.setRGB(d.sun[0] * direct, d.sun[1] * direct, d.sun[2] * direct);
     OCEAN_FX.uScatter.value.copy(SCATTER0).multiplyScalar(this.lightK);
+    // the haze over the land and the sea: the sky's colour just above the horizon
     const fog = this.scene.fog as THREE.FogExp2;
-    fog.color.setRGB(...d.horizon);
+    hazeColor(fog.color);
     fog.density = 1 / d.haze;
     const u = this.surface.material.uniforms;
     u.waveAmp.value = d.amp;
@@ -211,6 +218,10 @@ export class OceanWorld {
     // (in a dive the sea keeps the simulation's time, so the hull rides the waves that are drawn)
     this.t = opts.time ?? this.t + dt;
     OCEAN_FX.uTime.value = this.t;
+    // the clouds go by with the wind (km; the layer is 1.5 km up)
+    const drift = this.t * (0.003 + 0.012 * this.weather.wind);
+    SKY.uCloud.value.z = drift * 0.8;
+    SKY.uCloud.value.w = drift * -0.6;
     const cam = this.camera;
     const cp = cam.position;
     const wl = this.surfaceAt(cp.x, cp.z);
@@ -229,6 +240,7 @@ export class OceanWorld {
     this.jellies.update(cp.x, cp.y, cp.z, this.t);
     this.biolum.update(this.t, viewH / (2 * Math.tan((cam.fov * Math.PI) / 360)), this.under);
     this.sweep.update();
+    this.land.update(cp.y, performance.now() / 1000);
     this.fish?.update(cp);
     // the sun's shadow box follows the camera
     this.sun.position.set(cp.x + this.sunDir.x * 200, cp.y + this.sunDir.y * 200, cp.z + this.sunDir.z * 200);
@@ -326,6 +338,7 @@ export class OceanWorld {
   dispose(): void {
     this.seabed.dispose();
     this.surface.dispose();
+    this.land.dispose();
     this.props.dispose();
     this.life.dispose();
     this.silt.dispose();

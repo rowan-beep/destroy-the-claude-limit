@@ -61,6 +61,33 @@ or D-pad up on a gamepad) must be held for 2 s.
   boat that stands for them (cheaper than seven); the marine snow and the silt
   are lit by it too.
 
+### Time warp
+
+- A slider like the space missions' (1×, 2×, 5×, 10×, 25×, 50×, 100×), or `,`
+  and `.` to step it. Time speeds up smoothly to what is set and drops at once
+  when it must: inside the harbor, near the wreck and K3, within 6 m of the
+  bottom, while listening and during a task it stays at 1×; with the arm out
+  1×; with the scanning sonar turning at most 4×. The boat's physics take the
+  same fixed steps however fast time runs (more of them per frame).
+
+### The harbor above the water
+
+- The sky is the analytic daylight model of Preetham et al. (Rayleigh and Mie
+  scattering along a path that thickens toward the horizon), held to a
+  realistic range so the horizon does not burn out, with a layer of drifting
+  cumulus about 1.5 km up or, overcast, a grey deck; the haze over the land and
+  the sea takes the sky's colour at the horizon.
+- The harbor (`render/harbor.ts`) is built of real parts and textured by world
+  position from surfaces painted once on canvases (`render/harborTex.ts`):
+  concrete, asphalt, timber, corrugated cladding, granite, a facade bay,
+  painted steel and ship's plating, each with a normal map. Everything the tide
+  reaches is wet, weeded and darker up to the high-water mark (in the shader,
+  by height). The survey vessel (`render/vessel.ts`) is lofted from sections.
+- The yard behind the quay is levelled in the height function; the land beyond
+  is shaded per pixel (grass, scrub, soil, rock on the steep, sand at the
+  shore), and `render/landscape.ts` places the woods and the town's houses by a
+  hash of their place, shown only from above the water.
+
 ## How it is built
 
 Everything lives in `src/ocean/` and is loaded only when the program is first

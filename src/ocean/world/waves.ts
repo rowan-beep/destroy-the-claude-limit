@@ -17,9 +17,13 @@ export interface WeatherDef {
   /** sun elevation (degrees) and azimuth (degrees, clockwise from north) */
   sunEl: number;
   sunAz: number;
-  /** sky colours (linear-ish sRGB triplets 0..1): zenith, horizon */
+  /** sky colours (linear-ish sRGB triplets 0..1): zenith, horizon (the light the sky throws down) */
   zenith: [number, number, number];
   horizon: [number, number, number];
+  /** the air the sky is drawn through: turbidity (haze), Rayleigh scale, Mie coefficient */
+  air: [number, number, number];
+  /** clouds: cumulus cover 0..1, and 1 for an overcast deck instead */
+  clouds: [number, number];
   /** sunlight colour and strength */
   sun: [number, number, number];
   sunI: number;
@@ -30,9 +34,9 @@ export interface WeatherDef {
 }
 
 export const WEATHERS: Record<Weather, WeatherDef> = {
-  calm: { id: 'calm', label: 'CALM DAYLIGHT', amp: 0.55, chop: 0.6, sunEl: 52, sunAz: 160, zenith: [0.2, 0.42, 0.78], horizon: [0.72, 0.84, 0.94], sun: [1, 0.96, 0.9], sunI: 3.0, haze: 5200, wind: 0.25 },
-  dawn: { id: 'dawn', label: 'DAWN SWELL', amp: 1.0, chop: 0.8, sunEl: 7, sunAz: 100, zenith: [0.16, 0.22, 0.46], horizon: [0.98, 0.66, 0.46], sun: [1, 0.72, 0.48], sunI: 2.2, haze: 3800, wind: 0.4 },
-  overcast: { id: 'overcast', label: 'OVERCAST, ROUGH', amp: 1.9, chop: 1.4, sunEl: 34, sunAz: 210, zenith: [0.62, 0.65, 0.7], horizon: [0.86, 0.88, 0.9], sun: [0.86, 0.88, 0.9], sunI: 1.3, haze: 2400, wind: 0.85 },
+  calm: { id: 'calm', label: 'CALM DAYLIGHT', amp: 0.55, chop: 0.6, sunEl: 52, sunAz: 160, zenith: [0.2, 0.42, 0.78], horizon: [0.72, 0.84, 0.94], air: [2.2, 1.5, 0.003], clouds: [0.32, 0], sun: [1, 0.96, 0.9], sunI: 3.0, haze: 5200, wind: 0.25 },
+  dawn: { id: 'dawn', label: 'DAWN SWELL', amp: 1.0, chop: 0.8, sunEl: 7, sunAz: 100, zenith: [0.16, 0.22, 0.46], horizon: [0.98, 0.66, 0.46], air: [3.2, 2.0, 0.005], clouds: [0.42, 0], sun: [1, 0.72, 0.48], sunI: 2.2, haze: 3800, wind: 0.4 },
+  overcast: { id: 'overcast', label: 'OVERCAST, ROUGH', amp: 1.9, chop: 1.4, sunEl: 34, sunAz: 210, zenith: [0.62, 0.65, 0.7], horizon: [0.86, 0.88, 0.9], air: [8, 1.0, 0.01], clouds: [1, 1], sun: [0.86, 0.88, 0.9], sunI: 1.3, haze: 2400, wind: 0.85 },
 };
 
 /** direction (deg, clockwise from north, the way the wave travels), wavelength (m), amplitude (m), phase */

@@ -13,37 +13,154 @@ import { wavesGlsl } from '../world/waves';
 import { seabedHeight, WORLD } from '../world/geo';
 import { OCEAN_FX } from './oceanMaterial';
 
-/** the shared sky: uniforms and the GLSL function both the dome and the water use */
+/**
+ * The shared sky: uniforms and the GLSL function both the dome and the water's
+ * reflections use. The sky is the analytic daylight model of Preetham et al.
+ * (Rayleigh scattering by the air and Mie scattering by haze along a path that
+ * thickens toward the horizon; the form three.js's Sky uses): a deep blue
+ * overhead, a pale bright band at the horizon, a glow round the sun, and a red
+ * sky at dawn from the long path through the air. Clouds are a layer of
+ * drifting cumulus (or an overcast deck) about 1.5 km up, lit by the sun on
+ * the side toward it, thinning into the haze toward the horizon.
+ */
 export const SKY = {
   uSunDir: { value: new THREE.Vector3(0, 1, 0) },
-  uZenith: { value: new THREE.Color() },
-  uHorizon: { value: new THREE.Color() },
   uSunColor: { value: new THREE.Color() },
   uSunI: { value: 1 },
+  /** the air's and the haze's scattering coefficients (1/m), and the sun's strength at the top of the air */
+  uBetaR: { value: new THREE.Vector3() },
+  uBetaM: { value: new THREE.Vector3() },
+  uSunE: { value: 1000 },
+  /** the haze's forward scattering (Henyey-Greenstein g) */
+  uMieG: { value: 0.8 },
+  /** clouds: cumulus cover 0..1, 1 for an overcast deck instead, drift (km, x and z) */
+  uCloud: { value: new THREE.Vector4(0.3, 0, 0, 0) },
 };
+
+/** the model's constants (three.js Sky / Preetham) */
+const TOTAL_RAYLEIGH = [5.804542996261093e-6, 1.3562911419845635e-5, 3.0265902468824876e-5];
+const MIE_CONST = [1.8399918514433978e14, 2.7798023919660528e14, 4.0790479543861094e14];
+/** the sky's radiance to the picture's light units (calibrated: the zenith of a clear midday as before) */
+const SKY_K = 0.4;
+/**
+ * the brightest the clear sky gets (luminance): the model's horizon is far
+ * brighter than a real one against the blue overhead, and would burn out
+ */
+const SKY_MAX = 1.4;
+
+/** set the sky for a sun direction and an atmosphere (turbidity, Rayleigh scale, Mie coefficient) */
+export function setSkyAtmosphere(sunDir: THREE.Vector3, turbidity: number, rayleigh: number, mie: number, g: number): void {
+  SKY.uSunDir.value.copy(sunDir);
+  SKY.uSunE.value = 1000 * Math.max(0, 1 - Math.exp(-((1.6110731556870734 - Math.acos(Math.max(-1, Math.min(1, sunDir.y)))) / 1.5)));
+  SKY.uBetaR.value.set(TOTAL_RAYLEIGH[0] * rayleigh, TOTAL_RAYLEIGH[1] * rayleigh, TOTAL_RAYLEIGH[2] * rayleigh);
+  const c = 0.2 * turbidity * 10e-18;
+  SKY.uBetaM.value.set(0.434 * c * MIE_CONST[0] * mie, 0.434 * c * MIE_CONST[1] * mie, 0.434 * c * MIE_CONST[2] * mie);
+  SKY.uMieG.value = g;
+}
+
+/** the clear sky's colour in a direction, on the CPU (the same as the shader's, without the clouds) */
+export function skyRadiance(d: THREE.Vector3, out = new THREE.Color()): THREE.Color {
+  const sun = SKY.uSunDir.value, bR = SKY.uBetaR.value, bM = SKY.uBetaM.value, sunE = SKY.uSunE.value, g = SKY.uMieG.value;
+  const zen = Math.acos(Math.max(0, d.y));
+  const inv = 1 / (Math.cos(zen) + 0.15 * Math.pow(93.885 - (zen * 180) / Math.PI, -1.253));
+  const sR = 8.4e3 * inv, sM = 1.25e3 * inv;
+  const cosT = d.x * sun.x + d.y * sun.y + d.z * sun.z;
+  const rPh = 0.05968310365946075 * (1 + Math.pow(cosT * 0.5 + 0.5, 2));
+  const mPh = 0.07957747154594767 * ((1 - g * g) / Math.pow(1 - 2 * g * cosT + g * g, 1.5));
+  const k = Math.min(1, Math.max(0, Math.pow(1 - sun.y, 5)));
+  const ch = (r: number, m: number) => {
+    const fex = Math.exp(-(r * sR + m * sM));
+    const bt = (r * rPh + m * mPh) / (r + m);
+    let lin = Math.pow(sunE * bt * (1 - fex), 1.5);
+    lin *= 1 + (Math.pow(sunE * bt * fex, 0.5) - 1) * k;
+    return (lin + 0.1 * fex) * 0.04 * SKY_K;
+  };
+  out.setRGB(ch(bR.x, bM.x), ch(bR.y, bM.y), ch(bR.z, bM.z));
+  const L = 0.2126 * out.r + 0.7152 * out.g + 0.0722 * out.b;
+  return out.multiplyScalar((SKY_MAX * (1 - Math.exp(-L / SKY_MAX))) / Math.max(L, 1e-5));
+}
+
+/**
+ * The haze over the land and the sea: the sky just above the horizon, all
+ * round (the clear sky's pale band, or the underside of an overcast deck).
+ */
+export function hazeColor(out = new THREE.Color()): THREE.Color {
+  const d = new THREE.Vector3(), c = new THREE.Color();
+  out.setRGB(0, 0, 0);
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    out.add(skyRadiance(d.set(Math.sin(a), 0.03, Math.cos(a)).normalize(), c));
+  }
+  out.multiplyScalar(1 / 8);
+  // (the deck as the shader draws it low down)
+  const deck = SKY.uSunI.value * 0.95 * (0.7 + 0.3 * 0.03) * 1.03;
+  const t = Math.max(0, Math.min(1, (SKY.uCloud.value.y - 0.5) / 0.5));
+  return out.lerp(c.setRGB(0.93 * deck, 0.96 * deck, deck), t * t * (3 - 2 * t));
+}
 
 const SKY_GLSL = /* glsl */ `
 uniform vec3 uSunDir;
-uniform vec3 uZenith;
-uniform vec3 uHorizon;
 uniform vec3 uSunColor;
 uniform float uSunI;
+uniform vec3 uBetaR;
+uniform vec3 uBetaM;
+uniform float uSunE;
+uniform float uMieG;
+uniform vec4 uCloud;
+float skyH( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }
+float skyN( vec2 p ) {
+  vec2 i = floor( p ), f = fract( p );
+  vec2 u = f * f * ( 3.0 - 2.0 * f );
+  return mix( mix( skyH( i ), skyH( i + vec2( 1.0, 0.0 ) ), u.x ), mix( skyH( i + vec2( 0.0, 1.0 ) ), skyH( i + vec2( 1.0, 1.0 ) ), u.x ), u.y );
+}
+float skyFbm( vec2 p ) {
+  float a = 0.5, s = 0.0;
+  for ( int i = 0; i < 5; i++ ) {
+    s += a * skyN( p );
+    p = mat2( 1.6, 1.2, -1.2, 1.6 ) * p;
+    a *= 0.5;
+  }
+  return s;
+}
 vec3 skyColor( vec3 d, bool disc ) {
-  float y = max( d.y, 0.0 );
-  // with the sun low the horizon glows on its side only; the far side stays a pale blue-grey
-  vec2 hd = d.xz / max( length( d.xz ), 1e-4 );
-  vec2 hs = uSunDir.xz / max( length( uSunDir.xz ), 1e-4 );
-  float side = dot( hd, hs ) * 0.5 + 0.5;
-  float lowSun = 1.0 - smoothstep( 0.15, 0.7, uSunDir.y );
-  vec3 hor = mix( uHorizon, uZenith * 0.95 + vec3( 0.04 ), lowSun * ( 1.0 - side * side ) * 0.9 );
-  vec3 c = mix( hor, uZenith, pow( y, 0.45 ) );
-  float mu = max( dot( d, uSunDir ), 0.0 );
-  // forward scattering round the sun
-  c += uSunColor * ( pow( mu, 6.0 ) * 0.22 + pow( mu, 48.0 ) * 0.45 );
-  if ( disc ) c += uSunColor * smoothstep( 0.99955, 0.9998, mu ) * 40.0;
-  // below the horizon (the far sea seen in reflections)
-  if ( d.y < 0.0 ) c = mix( hor * 0.55, hor, exp( d.y * 10.0 ) );
-  return c * uSunI;
+  vec3 dd = normalize( vec3( d.x, max( d.y, 0.0 ), d.z ) );
+  // the clear sky: scattered sunlight along a path through the air that thickens toward the horizon
+  float zen = acos( dd.y );
+  float inv = 1.0 / ( cos( zen ) + 0.15 * pow( 93.885 - zen * 57.29578, -1.253 ) );
+  vec3 fex = exp( -( uBetaR * 8.4e3 * inv + uBetaM * 1.25e3 * inv ) );
+  float cosT = dot( dd, uSunDir );
+  float rPh = 0.0596831 * ( 1.0 + pow( cosT * 0.5 + 0.5, 2.0 ) );
+  float g2 = uMieG * uMieG;
+  float mPh = 0.0795775 * ( ( 1.0 - g2 ) / pow( 1.0 - 2.0 * uMieG * cosT + g2, 1.5 ) );
+  vec3 bt = ( uBetaR * rPh + uBetaM * mPh ) / ( uBetaR + uBetaM );
+  vec3 lin = pow( uSunE * bt * ( 1.0 - fex ), vec3( 1.5 ) );
+  lin *= mix( vec3( 1.0 ), pow( uSunE * bt * fex, vec3( 0.5 ) ), clamp( pow( 1.0 - uSunDir.y, 5.0 ), 0.0, 1.0 ) );
+  vec3 c = ( lin + 0.1 * fex ) * 0.04 * ${SKY_K.toFixed(3)};
+  float L = dot( c, vec3( 0.2126, 0.7152, 0.0722 ) );
+  c *= ${SKY_MAX.toFixed(3)} * ( 1.0 - exp( -L / ${SKY_MAX.toFixed(3)} ) ) / max( L, 1e-5 );
+  float sunDisc = smoothstep( 0.99995, 0.99998, cosT );
+  // the clouds: a layer about 1.5 km up, drifting with the wind
+  if ( d.y > 0.0 && uCloud.x > 0.0 ) {
+    vec2 cp = d.xz / max( d.y, 0.03 ) * 1.5 + uCloud.zw;
+    float n = skyFbm( cp * 0.42 );
+    float mu = max( cosT, 0.0 );
+    // cumulus: tops lit by the sun, grey undersides, bright edges toward it
+    float dens = smoothstep( 1.0 - uCloud.x, 1.3 - uCloud.x, n );
+    float toward = skyFbm( cp * 0.42 + uSunDir.xz * 0.12 );
+    float lit = clamp( 0.55 + ( n - toward ) * 3.0, 0.15, 1.0 );
+    vec3 cu = uSunColor * uSunI * ( 0.25 + 0.95 * lit + 0.9 * pow( mu, 6.0 ) ) + vec3( 0.12, 0.14, 0.18 ) * uSunI;
+    // an overcast deck: grey, lighter overhead and where the sun is behind it, darker where it is thick
+    vec3 deck = vec3( 0.93, 0.96, 1.0 ) * uSunI * 0.95 * ( 0.7 + 0.3 * dd.y ) * ( 1.0 + 0.25 * pow( mu, 3.0 ) ) * ( 0.8 + 0.4 * n );
+    float over = smoothstep( 0.5, 1.0, uCloud.y );
+    // (cumulus thin out into the haze toward the horizon; a deck goes all the way down)
+    float a = mix( dens * smoothstep( 0.0, 0.14, d.y ), 1.0, over );
+    c = mix( c, mix( cu, deck, over ), a );
+    sunDisc *= 1.0 - smoothstep( 0.05, 0.5, a );
+  }
+  if ( disc ) c += uSunColor * uSunE * fex * sunDisc * 0.035;
+  // below the horizon (the far sea seen in reflections): the horizon, darkening
+  if ( d.y < 0.0 ) c *= mix( 0.55, 1.0, exp( d.y * 10.0 ) );
+  return c;
 }
 `;
 

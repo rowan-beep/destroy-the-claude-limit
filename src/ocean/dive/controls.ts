@@ -155,16 +155,16 @@ export class DiveGamepad {
 
 // ---------------------------------------------------------------- touch
 const CSS = `
-.oct { position: fixed; inset: 0; z-index: 31; pointer-events: none; font-family: 'Segoe UI', system-ui, sans-serif; color: #e6fbff; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.oct { position: fixed; inset: 0; z-index: 31; pointer-events: none; font-family: 'Inter', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif; color: #f3f7f9; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .oct.hidden, .oct.away { display: none; }
-.oct-stick { position: absolute; left: calc(20px + env(safe-area-inset-left, 0px)); bottom: calc(60px + env(safe-area-inset-bottom, 0px)); width: 140px; height: 140px; border-radius: 50%; border: 2px solid rgba(124, 240, 200, 0.35); background: rgba(3, 16, 24, 0.38); pointer-events: auto; touch-action: none; display: flex; align-items: center; justify-content: center; }
-.oct-stick .knob { width: 56px; height: 56px; border-radius: 50%; background: rgba(124, 240, 200, 0.28); border: 2px solid rgba(124, 240, 200, 0.75); pointer-events: none; }
+.oct-stick { position: absolute; left: calc(20px + env(safe-area-inset-left, 0px)); bottom: calc(60px + env(safe-area-inset-bottom, 0px)); width: 140px; height: 140px; border-radius: 50%; border: 2px solid rgba(111, 227, 208, 0.35); background: rgba(3, 16, 24, 0.38); pointer-events: auto; touch-action: none; display: flex; align-items: center; justify-content: center; }
+.oct-stick .knob { width: 56px; height: 56px; border-radius: 50%; background: rgba(111, 227, 208, 0.28); border: 2px solid rgba(111, 227, 208, 0.75); pointer-events: none; }
 .oct-stick .l { position: absolute; font-size: 9px; letter-spacing: 0.14em; color: #8fb3bf; pointer-events: none; }
 .oct-stick .l.t { top: 8px; } .oct-stick .l.b { bottom: 8px; }
 .oct-pad { position: absolute; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); display: grid; grid-template-columns: repeat(4, 58px); gap: 6px; pointer-events: auto; }
-.oct-b { position: relative; overflow: hidden; height: 44px; border-radius: 8px; border: 1px solid rgba(124, 240, 200, 0.35); background: rgba(3, 16, 24, 0.6); display: flex; align-items: center; justify-content: center; text-align: center; font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; line-height: 1.1; touch-action: none; }
-.oct-b.on { background: rgba(124, 240, 200, 0.32); border-color: rgba(124, 240, 200, 0.8); }
-.oct-b.down { background: rgba(124, 240, 200, 0.45); }
+.oct-b { position: relative; overflow: hidden; height: 44px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.16); background: rgba(9, 17, 23, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: center; text-align: center; font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; line-height: 1.1; touch-action: none; }
+.oct-b.on { background: rgba(111, 227, 208, 0.32); border-color: rgba(111, 227, 208, 0.8); }
+.oct-b.down { background: rgba(111, 227, 208, 0.45); }
 .oct-b.wide { grid-column: span 2; }
 .oct-b.warn { border-color: rgba(255, 120, 90, 0.6); color: #ffc4b3; }
 .oct-b.warn.on { background: rgba(255, 98, 98, 0.4); }
