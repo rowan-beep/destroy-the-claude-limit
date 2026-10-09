@@ -4,6 +4,13 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
+## v6.5.1 (2026-10-09)
+
+### Air Combat: APEX on the slider
+
+- **Fixed: APEX can be picked**
+  - The AI DIFFICULTY slider stopped at EXTREME, so APEX could not be chosen. It now goes one step further, to APEX, in every mode that has the slider. The Duel's description also lists APEX now.
+
 ## v6.5.0 (2026-10-09)
 
 ### Air Combat: APEX: past Extreme

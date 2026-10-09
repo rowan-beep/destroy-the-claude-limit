@@ -426,7 +426,7 @@ export class MainMenu {
       p,
       (v) => `AI DIFFICULTY · ${DIFFICULTIES[v]}`,
       0,
-      3,
+      DIFFICULTIES.length - 1,
       DIFFICULTIES.indexOf(cfg.difficulty),
       (v) => (cfg.difficulty = DIFFICULTIES[v]),
       (v) => DIFF_TEXT[DIFFICULTIES[v]],

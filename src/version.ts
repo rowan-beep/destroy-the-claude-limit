@@ -37,6 +37,17 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '6.5.1',
+    date: '2026-10-09',
+    air: {
+      title: 'APEX on the slider',
+      notes: [
+        fixed("APEX can be picked",
+          "The AI DIFFICULTY slider stopped at EXTREME, so APEX could not be chosen. It now goes one step further, to APEX, in every mode that has the slider. The Duel's description also lists APEX now."),
+      ],
+    },
+  },
+  {
     version: '6.5.0',
     date: '2026-10-09',
     air: {

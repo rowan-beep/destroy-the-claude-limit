@@ -126,6 +126,6 @@ export const MODE_INFO: Record<ModeId, { title: string; subtitle: string; descri
     title: '1v1 DUEL',
     subtitle: 'Custom dogfight',
     description:
-      'Pick your jet, the enemy jet (any type but yours) and the AI difficulty: Easy, Medium, Hard or Extreme. Start head-on in the air or on opposite runways of the contested island with the mountains between you.',
+      'Pick your jet, the enemy jet (any type but yours) and the AI difficulty: Easy, Medium, Hard, Extreme or APEX. Start head-on in the air or on opposite runways of the contested island with the mountains between you.',
   },
 };
