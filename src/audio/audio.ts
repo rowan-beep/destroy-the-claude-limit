@@ -21,7 +21,17 @@
 //     G-suit inflating and the oxygen regulator;
 //   * ground: tyre rumble, runway seams, the chirp and thump of touchdown;
 //   * guns rendered shot by shot, rocket motors, explosions with echoes, hits
-//     on the airframe, flares and chaff, hydraulics.
+//     on the airframe, flares and chaff, hydraulics;
+//   * in three dimensions: every jet and missile around the listener sits in
+//     an HRTF panner at its true direction (left / right, ahead / behind, above /
+//     below), as do explosions and launches; their guns fire where they are,
+//     rounds aimed your way crack past, and a supersonic jet's shock cone
+//     arrives as a sonic boom when it sweeps over you;
+//   * the airframe: the vortex howl off the strakes at high angle of attack,
+//     the creaks under G, the zone of silence ahead of your own jet past Mach 1,
+//     and the body's low resonance felt through the seat;
+//   * the mix: warnings and the voice duck the engine, the outdoor reverb grows
+//     toward the ground.
 // The warning tones and speech are unchanged.
 
 import { Biquad, brown, crackleInto, hash, mixInto, modulate, normalize, normRms, nwave, onePole, pink, rng, Rng, seamless, slow, white } from './dsp';
@@ -48,6 +58,23 @@ export interface OtherJetSound {
   ab: number;
   rpm: number;
   type: string;
+  /** position relative to the listener (m): +x right, +y up, +z behind (the WebAudio listener frame) */
+  rel?: [number, number, number];
+  mach?: number;
+  /** its gun is firing (at `gunRpm`) */
+  firing?: boolean;
+  gunRpm?: number;
+}
+
+/** A missile in flight near the listener. */
+export interface MissileSound {
+  id: number;
+  dist: number;
+  closing: number;
+  rel: [number, number, number];
+  /** the motor is burning */
+  motor: boolean;
+  mach: number;
 }
 
 /** Continuous state for the player's jet, sent every frame. */
@@ -85,6 +112,10 @@ export interface FlightSound {
   flybyAb?: number;
   /** the jets nearest the listener */
   others?: OtherJetSound[];
+  /** the missiles nearest the listener */
+  missiles?: MissileSound[];
+  /** height above the ground (m): the reverb grows toward it */
+  agl?: number;
   /** on the ground, ground speed (m/s), vertical speed (m/s, + up) */
   onGround?: boolean;
   gs?: number;
@@ -314,6 +345,48 @@ function renderBoom(n: number, sr: number, r: Rng): Float32Array {
 }
 
 /**
+ * A sonic boom heard from the ground or another jet: the nose and tail shocks
+ * as a double N-wave crack, the rumble under them and the echoes.
+ */
+function renderSonicBoom(n: number, sr: number, r: Rng): Float32Array {
+  const d = new Float32Array(n);
+  nwave(d, Math.floor(sr * 0.005), 1, sr * 0.004);
+  nwave(d, Math.floor(sr * 0.125), 0.85, sr * 0.0045);
+  const roll = brown(n, r);
+  Biquad.lp(sr, 140, 0.8).apply(roll);
+  const rk = 0.5 / Math.max(1e-9, rms(roll.subarray(0, sr)));
+  const air = pink(n, r);
+  Biquad.bp(sr, 900, 0.5).apply(air);
+  const ak = 0.25 / Math.max(1e-9, rms(air.subarray(0, sr)));
+  for (let i = 0; i < n; i++) {
+    const t = i / sr;
+    d[i] += roll[i] * rk * Math.min(1, t / 0.02) * Math.exp(-t / 0.55);
+    d[i] += air[i] * ak * Math.min(1, t / 0.01) * Math.exp(-t / 0.12);
+  }
+  const src = d.slice(0, Math.floor(sr * 0.6));
+  onePole(src, sr, 1500);
+  for (const [delay, g] of [
+    [0.09, 0.3],
+    [0.23, 0.2],
+    [0.5, 0.12],
+  ]) {
+    const o = Math.floor(sr * delay);
+    for (let i = 0; i < src.length && i + o < n; i++) d[i + o] += src[i] * g;
+  }
+  return normalize(d, 0.95);
+}
+
+/** A round passing close: the supersonic crack of the bullet's own shock. */
+function renderCrack(n: number, sr: number, r: Rng): Float32Array {
+  const d = new Float32Array(n);
+  nwave(d, 2, 1, sr * 0.00035);
+  const h = white(n, r);
+  Biquad.hp(sr, 2500, 0.7).apply(h);
+  for (let i = 0; i < n; i++) d[i] += h[i] * 0.3 * Math.exp(-i / (sr * 0.004));
+  return normalize(d, 0.9);
+}
+
+/**
  * One loop of gunfire at `rpm`, shot by shot: the muzzle blast's N-wave, the
  * mechanism and airframe thump, a panel ringing, and the feed clattering
  * between rounds. At 6000 rpm the shots merge into the M61's growl.
@@ -419,15 +492,32 @@ interface Loop {
   gain: GainNode;
 }
 
-interface Slot {
+/** a sound at a place around the listener: an HRTF panner for its direction (the level is ours) */
+interface Spot {
+  pan: PannerNode;
+  /** the slot's own bus into the panner */
+  bus: GainNode;
+}
+
+interface Slot extends Spot {
   id: number;
   roar: Loop;
   crack: Loop;
   ab: Loop;
   fan: OscillatorNode;
   fanGain: GainNode;
-  pan: StereoPannerNode;
   type: string;
+  /** its gun, fired where it is */
+  gun: { src: AudioBufferSourceNode | null; gain: GainNode; filter: BiquadFilterNode; rpm: number; firing: boolean };
+  lastClosing: number;
+  boomAt: number;
+  crackAt: number;
+}
+
+interface MissileSlot extends Spot {
+  id: number;
+  motor: Loop;
+  coast: Loop;
 }
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
@@ -491,8 +581,17 @@ export class AudioEngine {
   private ecs!: Loop;
   private gsuit!: Loop;
   private roll!: Loop;
-  // other jets
+  // other jets and missiles, in three dimensions
   private slots: Slot[] = [];
+  private mslots: MissileSlot[] = [];
+  private sonicB!: AudioBuffer;
+  private crackSB!: AudioBuffer;
+  private boomBufs: AudioBuffer[] = [];
+  // the cockpit: the airframe's low resonance, the warning duck
+  private cabinRes!: BiquadFilterNode;
+  private duck!: GainNode;
+  private howl!: Loop;
+  private creakT = 0;
   // gun
   private gun: { src: AudioBufferSourceNode | null; gain: GainNode; filter: BiquadFilterNode; rpm: number; firing: boolean };
   // warning tones (unchanged)
@@ -556,11 +655,19 @@ export class AudioEngine {
     this.abB = stereo(ctx, 6.2, 13, renderAb);
     this.windB = stereo(ctx, 5.1, 14, renderWind, 0.6);
     this.rocketB = stereo(ctx, 3.1, 15, renderRocket, 0.5);
+    for (const [sec, seed] of [
+      [4.5, 16],
+      [3.6, 21],
+      [5.2, 27],
+    ]) {
+      const n = Math.floor(sr * sec);
+      this.boomBufs.push(buf2(ctx, renderBoom(n, sr, rng(seed)), renderBoom(n, sr, rng(seed + 1))));
+    }
+    this.boomB = this.boomBufs[0];
     {
-      const n = Math.floor(sr * 4.5);
-      const a = renderBoom(n, sr, rng(16));
-      const b = renderBoom(n, sr, rng(17));
-      this.boomB = buf2(ctx, a, b);
+      const n = Math.floor(sr * 2.4);
+      this.sonicB = buf2(ctx, renderSonicBoom(n, sr, rng(31)), renderSonicBoom(n, sr, rng(32)));
+      this.crackSB = buf1(ctx, renderCrack(Math.floor(sr * 0.06), sr, rng(33)));
     }
 
     // --- buses ---
@@ -578,11 +685,19 @@ export class AudioEngine {
     this.cabin.type = 'lowpass';
     this.cabin.frequency.value = 20000;
     this.cabin.Q.value = 0.5;
-    this.cabin.connect(this.master);
+    // the airframe's own resonance: the roar felt through the seat and the floor
+    this.cabinRes = ctx.createBiquadFilter();
+    this.cabinRes.type = 'peaking';
+    this.cabinRes.frequency.value = 85;
+    this.cabinRes.Q.value = 1.1;
+    this.cabinRes.gain.value = 0;
+    // warnings and the voice duck the jet
+    this.duck = ctx.createGain();
+    this.cabin.connect(this.cabinRes).connect(this.duck).connect(this.master);
     this.engineBus = ctx.createGain();
     this.engineBus.connect(this.cabin);
     this.cabinBus = ctx.createGain();
-    this.cabinBus.connect(this.master);
+    this.cabinBus.connect(this.duck);
     this.fxBus = ctx.createGain();
     this.fxBus.connect(this.master);
     this.warnBus = ctx.createGain();
@@ -677,24 +792,39 @@ export class AudioEngine {
     this.ecs = loop(this.whiteB, [['bandpass', 5200, 0.9]], this.cabinBus, 0.8);
     this.gsuit = loop(this.whiteB, [['bandpass', 2600, 0.6]], this.cabinBus, 0.7);
     this.roll = loop(this.brown2B, [['bandpass', 95, 0.9]], this.engineBus, 1.2);
+    // the vortices off the strakes and leading edges howling at high angle of attack
+    this.howl = loop(this.whiteB, [['bandpass', 1500, 14], ['bandpass', 1500, 6]], this.engineBus, 0.97);
+    modulate(this.turbFast, this.howl.f[0].frequency, 60, 1.6);
 
-    // --- the jets around you: three voices ---
-    for (let i = 0; i < 3; i++) {
-      const pan = ctx.createStereoPanner();
-      pan.connect(this.fxBus);
-      const roar = loop(this.jetB, [['lowpass', 6000, 0.6]], pan);
-      const crack = loop(this.crackB, [['highpass', 300, 0.7], ['lowpass', 9000, 0.5]], pan);
-      const ab = loop(this.abB, [['lowpass', 1200, 0.6]], pan);
+    // --- the jets around you: four voices, each at its place in space ---
+    for (let i = 0; i < 4; i++) {
+      const sp = this.spot();
+      const roar = loop(this.jetB, [['lowpass', 6000, 0.6]], sp.bus);
+      const crack = loop(this.crackB, [['highpass', 300, 0.7], ['lowpass', 9000, 0.5]], sp.bus);
+      const ab = loop(this.abB, [['lowpass', 1200, 0.6]], sp.bus);
       const fan = ctx.createOscillator();
       const fanGain = ctx.createGain();
       fanGain.gain.value = 0;
       const fhp = ctx.createBiquadFilter();
       fhp.type = 'highpass';
       fhp.frequency.value = 300;
-      fan.connect(fhp).connect(fanGain).connect(pan);
+      fan.connect(fhp).connect(fanGain).connect(sp.bus);
       fan.setPeriodicWave(this.wavesFor('F15EX').buzz);
       fan.start();
-      this.slots.push({ id: -1, roar, crack, ab, fan, fanGain, pan, type: 'F15EX' });
+      const gg = ctx.createGain();
+      gg.gain.value = 0;
+      const gf = ctx.createBiquadFilter();
+      gf.type = 'lowpass';
+      gf.frequency.value = 6000;
+      gg.connect(gf).connect(sp.bus);
+      this.slots.push({ ...sp, id: -1, roar, crack, ab, fan, fanGain, type: 'F15EX', gun: { src: null, gain: gg, filter: gf, rpm: 0, firing: false }, lastClosing: 0, boomAt: -10, crackAt: 0 });
+    }
+    // --- the missiles around you ---
+    for (let i = 0; i < 4; i++) {
+      const sp = this.spot();
+      const motor = loop(this.rocketB, [['lowpass', 8000, 0.6]], sp.bus);
+      const coast = loop(this.whiteB, [['bandpass', 2600, 4]], sp.bus, 0.95);
+      this.mslots.push({ ...sp, id: -1, motor, coast });
     }
 
     // --- gun ---
@@ -736,6 +866,33 @@ export class AudioEngine {
     this.rwr = { osc: ro, filter: rf, gain: rg };
 
     this.applyLevels();
+  }
+
+  /** An HRTF panner for a sound at a place around the listener; the level and the air are handled by hand. */
+  private spot(): Spot {
+    const ctx = this.ctx!;
+    const pan = ctx.createPanner();
+    pan.panningModel = 'HRTF';
+    pan.distanceModel = 'inverse';
+    pan.refDistance = 1;
+    pan.rolloffFactor = 0;
+    pan.positionX.value = 0;
+    pan.positionY.value = 0;
+    pan.positionZ.value = -50;
+    pan.connect(this.fxBus);
+    const bus = ctx.createGain();
+    bus.connect(pan);
+    return { pan, bus };
+  }
+
+  /** Move a spot to a listener-frame position (smoothly). */
+  private place(sp: Spot, rel: [number, number, number], t: number, tc = 0.05): void {
+    // the panner only needs the direction: keep it at a steady radius so the HRTF stays stable
+    const d = Math.max(1, Math.hypot(rel[0], rel[1], rel[2]));
+    const k = 50 / d;
+    sp.pan.positionX.setTargetAtTime(rel[0] * k, t, tc);
+    sp.pan.positionY.setTargetAtTime(rel[1] * k, t, tc);
+    sp.pan.positionZ.setTargetAtTime(rel[2] * k, t, tc);
   }
 
   private wavesFor(type: string): ReturnType<typeof spoolWaves> {
@@ -840,8 +997,14 @@ export class AudioEngine {
     const mach = s.mach ?? s.tas / 300;
     const r2 = rpm * rpm;
 
-    // the canopy
+    // the canopy, and the airframe's resonance felt through the seat
     P(this.cabin.frequency, cockpit ? 2600 : 20000, 0.12);
+    P(this.cabinRes.gain, cockpit ? 7 : 0, 0.12);
+    // past Mach 1 a camera ahead of the shock cone hears nothing of the jet
+    const cone = mach > 1 ? Math.sqrt(1 - 1 / (mach * mach)) : 2;
+    const zone = cockpit || aspect < cone + 0.03 ? 1 : 0;
+    // the outdoor reverb grows toward the ground
+    P(this.reverbSend.gain, 0.3 + 0.45 * clamp01(1 - (s.agl ?? 1000) / 500), 0.3);
 
     // --- exhaust ---
     const rate = v.roar * (0.82 + 0.26 * rpm) * (1 - 0.08 * ab);
@@ -856,20 +1019,20 @@ export class AudioEngine {
       P(this.crack.gain.gain, on * v.crackle * CRACKLE * 0.05 * ab);
       P(this.crack.f[1].frequency, 1400, 0.2);
     } else {
-      const roarG = on * (0.05 + 0.55 * r2) * (0.25 + 0.75 * rear) * dk * (1 + 0.3 * ab);
+      const roarG = on * zone * (0.05 + 0.55 * r2) * (0.25 + 0.75 * rear) * dk * (1 + 0.3 * ab);
       P(this.roar.gain.gain, roarG);
       P(this.roar.f[0].frequency, Math.min(absorb, 1300 + 7000 * Math.pow(rpm, 1.5) + 3000 * ab), 0.2);
-      P(this.body.gain.gain, on * (0.08 + 0.35 * r2) * (0.5 + 0.5 * rear) * dk);
+      P(this.body.gain.gain, on * zone * (0.08 + 0.35 * r2) * (0.5 + 0.5 * rear) * dk);
       // crackle: only near full power, violently in reheat, beamed aft
-      P(this.crack.gain.gain, on * v.crackle * CRACKLE * (0.35 * Math.pow(rpm, 4) + 0.8 * ab) * Math.pow(0.15 + 0.85 * rear, 1.3) * dk);
+      P(this.crack.gain.gain, on * zone * v.crackle * CRACKLE * (0.35 * Math.pow(rpm, 4) + 0.8 * ab) * Math.pow(0.15 + 0.85 * rear, 1.3) * dk);
       P(this.crack.f[1].frequency, Math.min(absorb, 12000), 0.2);
     }
 
     // --- afterburner ---
     const abW = on * ab * v.ab;
-    P(this.abRoar.gain.gain, abW * (cockpit ? 0.42 : 0.9 * (0.5 + 0.5 * rear) * dk), 0.12);
+    P(this.abRoar.gain.gain, abW * (cockpit ? 0.42 : 0.9 * zone * (0.5 + 0.5 * rear) * dk), 0.12);
     P(this.abRoar.f[0].frequency, cockpit ? 340 : Math.min(absorb, 900 + 900 * ab), 0.2);
-    P(this.abSub.gain.gain, abW * (cockpit ? 0.6 : 0.6 * dk), 0.12);
+    P(this.abSub.gain.gain, abW * (cockpit ? 0.6 : 0.6 * zone * dk), 0.12);
     if (on && ab > 0.08 && this.lastAb <= 0.08) this.abLight(cockpit ? 0.45 : dk * (0.5 + 0.5 * rear));
     if (on && ab <= 0.04 && this.lastAb > 0.04) this.abOff(cockpit ? 0.4 : dk * (0.4 + 0.6 * rear));
     this.lastAb = ab;
@@ -894,12 +1057,12 @@ export class AudioEngine {
       P(this.whineLp.frequency, 6000, 0.2);
       P(this.intake.gain.gain, on * 0.02 * r2, 0.2);
     } else {
-      P(this.fanGain.gain, on * v.whine * (0.02 + 0.05 * n1) * (0.15 + 0.85 * front) * dk, 0.2);
+      P(this.fanGain.gain, on * zone * v.whine * (0.02 + 0.05 * n1) * (0.15 + 0.85 * front) * dk, 0.2);
       P(this.fanLp.frequency, Math.min(absorb, 11000), 0.2);
       // the compressor whine stands out at idle, drowned by the roar at power
-      P(this.whineGain.gain, on * v.whine * 0.02 * (0.2 + 0.8 * front) * dk * (1.25 - 0.55 * rpm), 0.2);
+      P(this.whineGain.gain, on * zone * v.whine * 0.02 * (0.2 + 0.8 * front) * dk * (1.25 - 0.55 * rpm), 0.2);
       P(this.whineLp.frequency, Math.min(absorb, 16000), 0.2);
-      P(this.intake.gain.gain, on * 0.07 * r2 * front * dk, 0.2);
+      P(this.intake.gain.gain, on * zone * 0.07 * r2 * front * dk, 0.2);
     }
     // spool-up swell of the roar
     if (on && rpm - this.lastRpm > 0.012) this.roar.gain.gain.setTargetAtTime((0.05 + 0.55 * r2) * (cockpit ? 0.25 : dk), t, 0.05);
@@ -925,6 +1088,21 @@ export class AudioEngine {
     P(this.buffetMod.gain, buffG * 0.55, 0.08);
     P(this.gearRumble.gain.gain, on * (s.gear ?? 0) * Math.min(1, q * 3) * (cockpit ? 0.32 : 0.14), 0.2);
     P(this.ecs.gain.gain, cockpit && on ? 0.007 : 0, 0.3);
+    // the vortex howl: the strakes' and leading edges' vortices sing above ~14 deg, rising with speed
+    const strakes = type === 'F16C' || type === 'FA18EF' || type === 'TYPHOON' || type === 'SU35' || type === 'SU57' || type === 'MIG31' || type === 'RAFALE' ? 1 : 0.55;
+    const howlK = on * strakes * clamp01((aoaDeg - 13) / 9) * Math.min(1, q * 1.4) * (cockpit ? 0.045 : 0.02 * (0.3 + 0.7 * front) * dk * zone);
+    P(this.howl.gain.gain, howlK, 0.12);
+    const howlF = 900 + Math.min(2200, s.tas * 3.2) + aoaDeg * 25;
+    P(this.howl.f[0].frequency, howlF, 0.15);
+    P(this.howl.f[1].frequency, howlF, 0.15);
+    // the airframe creaking under G
+    if (cockpit && on && g > 5) {
+      this.creakT -= dt * (g - 4.5) * 0.9;
+      if (this.creakT <= 0) {
+        this.creakT = 0.3 + Math.random() * 1.1;
+        this.creak(clamp01((g - 5) / 4));
+      }
+    }
 
     // --- G-suit: the bladders inflate as the G comes on, then meter a steady hiss ---
     const rise = Math.max(0, (g - this.lastG) / dt);
@@ -962,8 +1140,9 @@ export class AudioEngine {
     if (on && ground && !this.wasOnGround && gsp > 25) this.touchdown(Math.min(1, Math.max(0, -this.lastVs) / 4), Math.min(1, gsp / 80), cockpit);
     this.wasOnGround = ground;
 
-    // --- the jets around you ---
+    // --- the jets and missiles around you ---
     this.updateOthers(s);
+    this.updateMissiles(s);
 
     // --- gun ---
     this.updateGun(s.gunFiring && s.alive, s.gunRpm, cockpit);
@@ -998,11 +1177,29 @@ export class AudioEngine {
     }
     this.rwr.osc.frequency.setTargetAtTime(rf, t, 0.004);
     this.rwr.gain.gain.setTargetAtTime(rOn ? 0.045 : 0, t, 0.006);
+
+    // --- the warnings and the voice take the jet down while they speak ---
+    let speaking = false;
+    try {
+      speaking = !!window.speechSynthesis?.speaking;
+    } catch {
+      speaking = false;
+    }
+    const duck = rOn || s.tone === 'lock' || s.rwr === 'missile' || speaking ? 0.55 : 1;
+    this.duck.gain.setTargetAtTime(duck, t, duck < 1 ? 0.05 : 0.25);
   }
 
-  /** Up to three jets near the listener, each with its own Doppler-shifted, panned, beamed sound. */
+  /** A creak of the airframe under G: a thin groan of metal and a tick of a panel. */
+  private creak(k: number): void {
+    const f = 380 + Math.random() * 500;
+    this.tone(f, f * (0.75 + Math.random() * 0.4), 0.05 + Math.random() * 0.09, 0.006 + 0.012 * k, 'sawtooth', 0, this.cabinBus, 2200);
+    this.burst(this.whiteB, { type: 'bandpass', f0: 1600 + Math.random() * 1500, f1: 1200, q: 7, dur: 0.03, vol: 0.02 + 0.03 * k, bus: this.cabinBus });
+  }
+
+  /** Up to four jets near the listener, each at its place in space with its own Doppler-shifted, beamed sound, its gun and its sonic boom. */
   private updateOthers(s: FlightSound): void {
-    const t = this.ctx!.currentTime;
+    const ctx = this.ctx!;
+    const t = ctx.currentTime;
     let list = s.others;
     if (!list && s.flybyDist !== undefined && s.flybyDist < 3500)
       list = [{ id: 0, dist: s.flybyDist, closing: s.flybyClosing ?? 0, pan: 0, aspect: (s.flybyClosing ?? 0) > 0 ? 0.8 : -0.8, ab: s.flybyAb ?? 0, rpm: 0.9, type: 'F15EX' }];
@@ -1011,40 +1208,140 @@ export class AudioEngine {
     const free = this.slots.filter((sl) => !list!.some((o) => o.id === sl.id));
     for (const o of list) {
       let sl = this.slots.find((x) => x.id === o.id);
+      let fresh = false;
       if (!sl) {
         sl = free.shift();
         if (!sl) continue;
         sl.id = o.id;
+        sl.lastClosing = o.closing;
+        sl.boomAt = t;
+        fresh = true;
       }
       if (sl.type !== o.type && VOICES[o.type]) {
         sl.type = o.type;
         sl.fan.setPeriodicWave(this.wavesFor(o.type).buzz);
       }
       const v = VOICES[sl.type] ?? VOICES.F15EX;
+      const rel = o.rel ?? ([o.pan * o.dist, 0, -Math.sqrt(Math.max(0, 1 - o.pan * o.pan)) * o.dist] as [number, number, number]);
+      this.place(sl, rel, t, fresh ? 0.001 : 0.05);
       const dop = Math.max(0.5, Math.min(2, 343 / Math.max(120, 343 - o.closing)));
       const rear = clamp01((0.25 - o.aspect) / 1.1);
       const front = clamp01((o.aspect + 0.2) / 1.0);
       const dk = (1 / (1 + o.dist / 40)) * clamp01((3500 - o.dist) / 800);
       const absorb = Math.max(250, 16000 / (1 + o.dist / 300));
       const rpm = clamp01(o.rpm);
+      const mach = o.mach ?? 0;
+      // ahead of a supersonic jet's shock cone there is nothing to hear yet
+      const cone = mach > 1 ? Math.sqrt(1 - 1 / (mach * mach)) : 2;
+      const zone = o.aspect > cone + 0.03 ? 0 : 1;
       const rate = v.roar * (0.84 + 0.22 * rpm) * dop;
       sl.roar.src.playbackRate.setTargetAtTime(rate, t, 0.06);
       sl.crack.src.playbackRate.setTargetAtTime(dop, t, 0.06);
       sl.ab.src.playbackRate.setTargetAtTime(dop, t, 0.06);
-      sl.roar.gain.gain.setTargetAtTime(dk * (0.1 + 0.6 * rpm * rpm) * (0.3 + 0.7 * rear) * (1 + 0.4 * o.ab), t, 0.06);
+      sl.roar.gain.gain.setTargetAtTime(zone * dk * (0.1 + 0.6 * rpm * rpm) * (0.3 + 0.7 * rear) * (1 + 0.4 * o.ab), t, 0.06);
       sl.roar.f[0].frequency.setTargetAtTime(absorb, t, 0.08);
-      sl.crack.gain.gain.setTargetAtTime(dk * v.crackle * CRACKLE * (0.3 * Math.pow(rpm, 4) + 0.9 * o.ab) * Math.pow(0.1 + 0.9 * rear, 1.3), t, 0.06);
+      sl.crack.gain.gain.setTargetAtTime(zone * dk * v.crackle * CRACKLE * (0.3 * Math.pow(rpm, 4) + 0.9 * o.ab) * Math.pow(0.1 + 0.9 * rear, 1.3), t, 0.06);
       sl.crack.f[1].frequency.setTargetAtTime(Math.min(absorb, 10000), t, 0.08);
-      sl.ab.gain.gain.setTargetAtTime(dk * o.ab * v.ab * 0.8 * (0.5 + 0.5 * rear), t, 0.06);
+      sl.ab.gain.gain.setTargetAtTime(zone * dk * o.ab * v.ab * 0.8 * (0.5 + 0.5 * rear), t, 0.06);
       sl.ab.f[0].frequency.setTargetAtTime(Math.min(absorb, 1400), t, 0.08);
       sl.fan.frequency.setTargetAtTime(v.n1 * (0.3 + 0.7 * rpm) * dop, t, 0.06);
-      sl.fanGain.gain.setTargetAtTime(dk * v.whine * 0.05 * front * (0.3 + 0.7 * rpm) * clamp01(absorb / 3000), t, 0.06);
-      sl.pan.pan.setTargetAtTime(Math.max(-1, Math.min(1, o.pan)) * 0.85, t, 0.05);
+      sl.fanGain.gain.setTargetAtTime(zone * dk * v.whine * 0.05 * front * (0.3 + 0.7 * rpm) * clamp01(absorb / 3000), t, 0.06);
+      // the sonic boom: the shock cone sweeps over the listener as the jet passes
+      if (!fresh && mach > 1.02 && sl.lastClosing > 0 && o.closing <= 0 && o.dist < 3000 && t - sl.boomAt > 3) {
+        sl.boomAt = t;
+        this.sonicBoom(o.dist, rel, mach);
+      }
+      sl.lastClosing = o.closing;
+      // its gun, and the rounds that come past when it is aimed this way
+      this.slotGun(sl, !!o.firing, o.gunRpm ?? 6000, dk, absorb);
+      if (o.firing && o.aspect > 0.965 && o.dist < 900 && t > sl.crackAt) {
+        sl.crackAt = t + 0.08 + Math.random() * 0.25;
+        this.roundCrack(o.dist);
+      }
     }
     for (const sl of free) {
       sl.id = -1;
       for (const l of [sl.roar, sl.crack, sl.ab]) l.gain.gain.setTargetAtTime(0, t, 0.15);
       sl.fanGain.gain.setTargetAtTime(0, t, 0.15);
+      this.slotGun(sl, false, 6000, 0, 1000);
+    }
+  }
+
+  /** Another jet's gun, heard from where it is. */
+  private slotGun(sl: Slot, firing: boolean, rpm: number, dk: number, absorb: number): void {
+    const ctx = this.ctx!;
+    const t = ctx.currentTime;
+    const g = sl.gun;
+    g.filter.frequency.setTargetAtTime(Math.min(absorb, 7000), t, 0.05);
+    if (firing) g.gain.gain.setTargetAtTime(0.9 * dk, t, 0.03);
+    if (firing && (!g.firing || g.rpm !== rpm)) {
+      const key = Math.round(rpm / 50) * 50;
+      let buf = this.gunBufs.get(key);
+      if (!buf) {
+        buf = gunLoop(ctx, key);
+        this.gunBufs.set(key, buf);
+      }
+      g.src?.stop();
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+      src.connect(g.gain);
+      src.start(t, Math.random() * buf.duration * 0.9);
+      g.src = src;
+      g.rpm = rpm;
+    } else if (!firing && g.firing) {
+      g.gain.gain.setTargetAtTime(0, t, 0.03);
+      g.src?.stop(t + 0.2);
+      g.src = null;
+    }
+    g.firing = firing;
+  }
+
+  /** A round aimed this way snapping past: a supersonic crack, somewhere close by. */
+  private roundCrack(dist: number): void {
+    const v = 0.35 / (1 + dist / 400);
+    const rel: [number, number, number] = [(Math.random() - 0.5) * 6, (Math.random() - 0.5) * 4, (Math.random() - 0.5) * 6];
+    this.play(this.crackSB, { vol: v, rate: 0.9 + Math.random() * 0.25, rel, reverb: 0.2 });
+  }
+
+  /** The shock cone of a supersonic jet passing: the double crack, deepened and muffled with distance. */
+  sonicBoom(dist: number, rel?: [number, number, number], mach = 1.3): void {
+    if (!this.ctx) return;
+    const v = Math.min(1, 1.6 / (1 + dist / 300)) * Math.min(1, 0.7 + 0.3 * (mach - 1));
+    if (v < 0.01) return;
+    const lp = Math.max(200, 12000 / (1 + dist / 300));
+    this.play(this.sonicB, { vol: v, delay: Math.min(4, dist / 343), rate: Math.max(0.7, 1.05 - dist / 6000), lp, rel, reverb: 0.5 });
+  }
+
+  /** Up to four missiles near the listener: the motor tearing past, then the coasting airframe's whistle. */
+  private updateMissiles(s: FlightSound): void {
+    const t = this.ctx!.currentTime;
+    const list = (s.missiles ?? []).filter((m) => m.dist < 2500).slice(0, this.mslots.length);
+    const free = this.mslots.filter((sl) => !list.some((m) => m.id === sl.id));
+    for (const m of list) {
+      let sl = this.mslots.find((x) => x.id === m.id);
+      let fresh = false;
+      if (!sl) {
+        sl = free.shift();
+        if (!sl) continue;
+        sl.id = m.id;
+        fresh = true;
+      }
+      this.place(sl, m.rel, t, fresh ? 0.001 : 0.04);
+      const dop = Math.max(0.4, Math.min(2.5, 343 / Math.max(100, 343 - m.closing)));
+      const dk = (1 / (1 + m.dist / 25)) * clamp01((2500 - m.dist) / 600);
+      const absorb = Math.max(300, 14000 / (1 + m.dist / 250));
+      sl.motor.src.playbackRate.setTargetAtTime(dop * 1.05, t, 0.04);
+      sl.motor.gain.gain.setTargetAtTime(m.motor ? dk * 0.9 : 0, t, m.motor ? 0.04 : 0.12);
+      sl.motor.f[0].frequency.setTargetAtTime(absorb, t, 0.06);
+      // the coasting missile: a thin shriek of its fins and body at Mach 2 and more
+      sl.coast.gain.gain.setTargetAtTime(dk * 0.12 * clamp01((m.mach - 0.8) / 1.5), t, 0.05);
+      sl.coast.f[0].frequency.setTargetAtTime(Math.min(absorb, 2000 + 900 * m.mach) * dop, t, 0.05);
+    }
+    for (const sl of free) {
+      sl.id = -1;
+      sl.motor.gain.gain.setTargetAtTime(0, t, 0.1);
+      sl.coast.gain.gain.setTargetAtTime(0, t, 0.1);
     }
   }
 
@@ -1132,7 +1429,7 @@ export class AudioEngine {
   /** Play a rendered one-shot buffer: rate glide, lowpass glide, fade-out, stereo position, reverb. */
   private play(
     buf: AudioBuffer,
-    o: { vol: number; delay?: number; rate?: number; rate1?: number; lp?: number; lp1?: number; dur?: number; fade?: number; pan?: number; reverb?: number; bus?: AudioNode; offset?: number },
+    o: { vol: number; delay?: number; rate?: number; rate1?: number; lp?: number; lp1?: number; dur?: number; fade?: number; pan?: number; rel?: [number, number, number]; reverb?: number; bus?: AudioNode; offset?: number },
   ): void {
     if (!this.ctx) return;
     const ctx = this.ctx;
@@ -1155,7 +1452,20 @@ export class AudioEngine {
       g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     }
     let node: AudioNode = src.connect(f).connect(g);
-    if (o.pan !== undefined && o.pan !== 0) {
+    if (o.rel) {
+      // at its place around the listener (the direction only: the level is in `vol`)
+      const p = ctx.createPanner();
+      p.panningModel = 'HRTF';
+      p.distanceModel = 'inverse';
+      p.refDistance = 1;
+      p.rolloffFactor = 0;
+      const d = Math.max(1, Math.hypot(o.rel[0], o.rel[1], o.rel[2]));
+      const k = 50 / d;
+      p.positionX.value = o.rel[0] * k;
+      p.positionY.value = o.rel[1] * k;
+      p.positionZ.value = o.rel[2] * k;
+      node = node.connect(p);
+    } else if (o.pan !== undefined && o.pan !== 0) {
       const p = ctx.createStereoPanner();
       p.pan.value = Math.max(-1, Math.min(1, o.pan));
       node = node.connect(p);
@@ -1268,7 +1578,7 @@ export class AudioEngine {
   }
 
   /** Missile off the rail: the launcher's clunk, the motor lighting with a crack, then the rocket tearing away. */
-  missileLaunch(own: boolean, distance: number): void {
+  missileLaunch(own: boolean, distance: number, rel?: [number, number, number]): void {
     if (!this.ctx) return;
     const v = own ? 1 : Math.max(0.02, 0.7 / (1 + distance / 250));
     const d = own ? 0 : Math.min(3, distance / 343);
@@ -1281,20 +1591,27 @@ export class AudioEngine {
     this.burst(this.whiteB, { type: 'highpass', f0: 1500, f1: 700, q: 0.7, dur: 0.07, vol: 0.5 * v * Math.min(1, absorb / 4000), delay: d + 0.03 });
     this.burst(this.brownB, { type: 'lowpass', f0: 500, f1: 70, dur: 0.5, vol: 0.5 * v, attack: 0.01, delay: d + 0.03 });
     // the motor: a harsh crackling roar, pitch and brightness falling away as it pulls away
-    this.play(this.rocketB, { vol: 0.85 * v, delay: d + 0.03, rate: 1.1, rate1: 0.72, lp: Math.min(absorb, 11000), lp1: Math.min(absorb, 2200), dur: 3.2, fade: 2.2, reverb: 0.35, offset: Math.random() * 1.5 });
+    this.play(this.rocketB, { vol: 0.85 * v, delay: d + 0.03, rate: 1.1, rate1: 0.72, lp: Math.min(absorb, 11000), lp1: Math.min(absorb, 2200), dur: 3.2, fade: 2.2, reverb: 0.35, offset: Math.random() * 1.5, rel: own ? undefined : rel });
   }
 
   /** Explosion: blast wave, fireball, rolling rumble, debris and echoes -- delayed, deepened and muffled with distance. */
-  explosion(distance: number, size = 1): void {
+  explosion(distance: number, size = 1, rel?: [number, number, number]): void {
     if (!this.ctx) return;
     const d = Math.min(5, distance / 343);
     const v = Math.min(1, (size * 1.6) / (1 + distance / 350));
     if (v < 0.008) return;
     const lp = Math.max(160, 14000 / (1 + distance / 250));
     const rate = Math.max(0.6, 1.05 - size * 0.08 - Math.min(0.3, distance / 8000)) * (0.95 + Math.random() * 0.1);
-    this.play(this.boomB, { vol: v, delay: d, rate, lp, reverb: 0.55 });
-    // a close one cracks as well as booms
+    const buf = this.boomBufs[Math.floor(Math.random() * this.boomBufs.length)] ?? this.boomB;
+    this.play(buf, { vol: v, delay: d, rate, lp, reverb: 0.55, rel });
+    // a close one cracks as well as booms, and its shrapnel whizzes past
     if (distance < 600) this.burst(this.whiteB, { type: 'highpass', f0: 1600, f1: 700, dur: 0.05, vol: 0.5 * v * (1 - distance / 600), delay: d });
+    if (distance < 250) {
+      for (let i = 0; i < 3; i++) {
+        const whiz: [number, number, number] = [(Math.random() - 0.5) * 8, (Math.random() - 0.5) * 4, (Math.random() - 0.5) * 8];
+        this.play(this.crackSB, { vol: 0.2 * v, delay: d + 0.05 + Math.random() * 0.4, rate: 0.6 + Math.random() * 0.3, rel: whiz });
+      }
+    }
   }
 
   /** Something struck the airframe: a sharp metallic bang, the skin ringing, a thump and rattling debris. */
@@ -1441,14 +1758,21 @@ export class AudioEngine {
     this.setBlackedOut(false);
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
-    const loops = [this.roar, this.body, this.crack, this.abRoar, this.abSub, this.intake, this.wind, this.whistle, this.buffet, this.gearRumble, this.ecs, this.gsuit, this.roll];
+    const loops = [this.roar, this.body, this.crack, this.abRoar, this.abSub, this.intake, this.wind, this.whistle, this.buffet, this.gearRumble, this.ecs, this.gsuit, this.roll, this.howl];
     for (const l of loops) l.gain.gain.setTargetAtTime(0, t, 0.05);
     for (const g of [this.buffetMod, this.fanGain, this.whineGain, this.growl.gain, this.rwr.gain, this.gun.gain]) g.gain.setTargetAtTime(0, t, 0.05);
     for (const sl of this.slots) {
       sl.id = -1;
       for (const l of [sl.roar, sl.crack, sl.ab]) l.gain.gain.setTargetAtTime(0, t, 0.05);
       sl.fanGain.gain.setTargetAtTime(0, t, 0.05);
+      this.slotGun(sl, false, 6000, 0, 1000);
     }
+    for (const sl of this.mslots) {
+      sl.id = -1;
+      sl.motor.gain.gain.setTargetAtTime(0, t, 0.05);
+      sl.coast.gain.gain.setTargetAtTime(0, t, 0.05);
+    }
+    this.duck.gain.setTargetAtTime(1, t, 0.05);
     this.gun.src?.stop(t + 0.1);
     this.gun.src = null;
     this.gun.firing = false;

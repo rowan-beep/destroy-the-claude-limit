@@ -16,7 +16,7 @@ import { CombatRenderer } from '../render/combatRenderer';
 import { CameraRig } from '../render/cameraRig';
 import { Input, withGamepad } from '../core/input';
 import { GameSettings, saveSettings } from '../core/settings';
-import { audio, OtherJetSound } from '../audio/audio';
+import { audio, OtherJetSound, MissileSound } from '../audio/audio';
 import { Aircraft } from '../aircraft/aircraft';
 import { MissionConfig } from './mission';
 import { GameMode, ModeHost, MissionResult, MsgKind, Briefing } from './modes/mode';
@@ -64,6 +64,9 @@ import { armCarriers } from './navy';
 import { NIGHT } from '../render/night';
 import { SpotterMode } from './modes/spotter';
 import { SpotterUi } from '../ui/spotterUi';
+
+const _rel = new THREE.Vector3();
+const _camInv = new THREE.Quaternion();
 
 export type GameState = 'menu' | 'loading' | 'playing' | 'paused' | 'map' | 'results' | 'replay' | 'briefing';
 
@@ -265,7 +268,7 @@ export class Game implements ModeHost {
     this.ground = new GroundRenderer(this.renderer.scene, this.sim, this.combat);
     this.combat.onExplosion = (pos, size) => {
       const d = pos.distanceTo(this.renderer.camera.position);
-      audio.explosion(d, size);
+      audio.explosion(d, size, this.relToCamera(pos));
       if (d < 1500) this.cam.addShake(Math.min(1.2, (size * 400) / Math.max(d, 50)));
     };
     this.world.env.setTimeOfDay(cfg.timeOfDay);
@@ -441,7 +444,7 @@ export class Game implements ModeHost {
     const ev = this.sim.events;
     ev.on('launch', (e) => {
       const d = this.player ? e.missile.pos.distanceTo(this.player.fm.pos) : 1e6;
-      audio.missileLaunch(e.shooter === this.player, d);
+      audio.missileLaunch(e.shooter === this.player, d, this.relToCamera(e.missile.pos));
       if (e.shooter === this.player) {
         // NATO brevity (FOX 3 / FOX 2) for the Western jets, "Пуск!" for the Su-35S
         const call = launchCall(e.missile.spec.type);
@@ -1698,6 +1701,16 @@ export class Game implements ModeHost {
     void dt;
   }
 
+  /** A world position in the listener's (camera's) frame for the sound: +x right, +y up, +z behind. */
+  relToCamera(pos: THREE.Vector3): [number, number, number] {
+    const cam = this.renderer.camera;
+    const r = _rel.copy(pos).sub(cam.position).applyQuaternion(_camInv.copy(cam.quaternion).invert());
+    return [r.x, r.y, r.z];
+  }
+
+  private missileIds = new WeakMap<object, number>();
+  private nextMissileId = 1;
+
   private updateAudio(p: Aircraft): void {
     let rpm = 0;
     for (const r of p.fm.rpm) rpm += r;
@@ -1726,8 +1739,12 @@ export class Game implements ModeHost {
     const camDist = Math.hypot(dx, dy, dz);
     const f = p.fm.fwd;
     const camAspect = camDist > 1 ? (f.x * dx + f.y * dy + f.z * dz) / camDist : 0;
-    // the jets nearest the listener, each with its own sound
-    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.renderer.camera.quaternion);
+    // the jets nearest the listener, each with its own sound at its place in space
+    const camQ = this.renderer.camera.quaternion;
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camQ);
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camQ);
+    const back = new THREE.Vector3(0, 0, 1).applyQuaternion(camQ);
+    const rel = (rx: number, ry: number, rz: number): [number, number, number] => [right.x * rx + right.y * ry + right.z * rz, up.x * rx + up.y * ry + up.z * rz, back.x * rx + back.y * ry + back.z * rz];
     const others: OtherJetSound[] = [];
     for (const a of this.sim.aircraft) {
       if (a === p || !a.alive) continue;
@@ -1748,12 +1765,32 @@ export class Game implements ModeHost {
         ab: a.fm.afterburner,
         rpm: arpm / a.fm.rpm.length,
         type: a.type,
+        rel: rel(rx, ry, rz),
+        mach: a.fm.mach,
+        firing: a.gunFiring && a.alive,
+        gunRpm: a.spec.gun.rpm,
       });
     }
     others.sort((a, b) => a.dist - b.dist);
+    // the missiles nearest the listener
+    const missiles: MissileSound[] = [];
+    for (const m of this.sim.missiles) {
+      if (!m.alive) continue;
+      const rx = m.pos.x - cp.x, ry = m.pos.y - cp.y, rz = m.pos.z - cp.z;
+      const d = Math.hypot(rx, ry, rz);
+      if (d > 2500) continue;
+      const rl = Math.max(1, d);
+      let id = this.missileIds.get(m);
+      if (!id) this.missileIds.set(m, (id = this.nextMissileId++));
+      const vx = m.vel.x - p.fm.vel.x, vy = m.vel.y - p.fm.vel.y, vz = m.vel.z - p.fm.vel.z;
+      missiles.push({ id, dist: d, closing: -(vx * rx + vy * ry + vz * rz) / rl, rel: rel(rx, ry, rz), motor: m.motorOn, mach: m.vel.length() / 320 });
+    }
+    missiles.sort((a, b) => a.dist - b.dist);
     const lvl = p.rwr.level;
     audio.updateFlight({
-      others: others.slice(0, 3),
+      others: others.slice(0, 4),
+      missiles: missiles.slice(0, 4),
+      agl: p.fm.agl,
       onGround: p.fm.onGround,
       gs: p.fm.gs,
       vs: p.fm.vs,

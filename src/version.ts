@@ -37,6 +37,26 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.1.0',
+    date: '2026-10-09',
+    air: {
+      title: 'Audio rework: the fight in three dimensions',
+      notes: [
+        added("Everything around you has a place",
+          "Every jet and missile near you now sits in a head-related (HRTF) 3D panner at its true direction: left and right, ahead and behind, above and below, not just panned across the stereo. Up to four jets and four missiles at once, each with its own Doppler, air absorption and beaming. Explosions, launches and passing rounds are placed the same way.",
+          "Missiles are heard: the motor tearing past with the Doppler drop, then the thin shriek of the coasting airframe at Mach 2."),
+        added("Sonic booms",
+          "When a supersonic jet passes you, its shock cone arrives as a sonic boom: the double crack of the nose and tail shocks, the rumble under them and the echoes, delayed, deepened and muffled by the distance. Ahead of the cone, yours or theirs, there is nothing to hear yet: a camera out in front of your own jet past Mach 1 sits in the zone of silence."),
+        added("Their guns",
+          "Other jets' guns fire where they are, with their own rate (the GSh-30's slow hammer, the M61's buzz) and the air between. When a jet behind you is firing with its nose on you, the rounds crack past your canopy."),
+        added("The airframe",
+          "The vortices off the strakes and leading edges howl above about 13° of angle of attack, rising with speed (loudest on the F-16, Hornet, Typhoon, Rafale, the Flankers and the MiG-31). The structure creaks under G above 5. In the cockpit the jet's roar also comes through the seat and the floor as a low body resonance."),
+        improved("The mix",
+          "Warning tones, the lock tone and the voice take the jet down by half while they speak, so nothing important is lost under the engine. The outdoor reverb grows toward the ground and dries out high up. Explosions come in three renderings instead of one, and a close one sends shrapnel whizzing past."),
+      ],
+    },
+  },
+  {
     version: '7.0.0',
     date: '2026-10-09',
     air: {

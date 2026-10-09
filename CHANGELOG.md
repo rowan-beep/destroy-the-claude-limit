@@ -4,6 +4,22 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
+## v7.1.0 (2026-10-09)
+
+### Air Combat: Audio rework: the fight in three dimensions
+
+- **New: Everything around you has a place**
+  - Every jet and missile near you now sits in a head-related (HRTF) 3D panner at its true direction: left and right, ahead and behind, above and below, not just panned across the stereo. Up to four jets and four missiles at once, each with its own Doppler, air absorption and beaming. Explosions, launches and passing rounds are placed the same way.
+  - Missiles are heard: the motor tearing past with the Doppler drop, then the thin shriek of the coasting airframe at Mach 2.
+- **New: Sonic booms**
+  - When a supersonic jet passes you, its shock cone arrives as a sonic boom: the double crack of the nose and tail shocks, the rumble under them and the echoes, delayed, deepened and muffled by the distance. Ahead of the cone, yours or theirs, there is nothing to hear yet: a camera out in front of your own jet past Mach 1 sits in the zone of silence.
+- **New: Their guns**
+  - Other jets' guns fire where they are, with their own rate (the GSh-30's slow hammer, the M61's buzz) and the air between. When a jet behind you is firing with its nose on you, the rounds crack past your canopy.
+- **New: The airframe**
+  - The vortices off the strakes and leading edges howl above about 13° of angle of attack, rising with speed (loudest on the F-16, Hornet, Typhoon, Rafale, the Flankers and the MiG-31). The structure creaks under G above 5. In the cockpit the jet's roar also comes through the seat and the floor as a low body resonance.
+- **Improved: The mix**
+  - Warning tones, the lock tone and the voice take the jet down by half while they speak, so nothing important is lost under the engine. The outdoor reverb grows toward the ground and dries out high up. Explosions come in three renderings instead of one, and a close one sends shrapnel whizzing past.
+
 ## v7.0.0 (2026-10-09)
 
 ### Air Combat: Ranked, APEX toned down, every jet rebuilt, real pilots
@@ -14,6 +30,8 @@ updates, the space menu the space updates and the ocean menu the ocean updates.
   - A hidden skill rating with an uncertainty, like Siege's MMR, is kept from week to week. It chooses the AI you fly against and pulls your rank toward it: when you are ranked well below your skill, wins pay up to +80 and losses cost as little as −9.
   - Ranks reset every Monday at 8:00 a.m. Washington State time (Pacific, daylight saving included). Each week opens with 5 placement matches: your rank is hidden until the fifth, each one is worth about +100 for a win and −50 for a loss, and you start 300 RP under your hidden skill (at most Diamond V; a brand-new pilot starts at 1,667, Bronze IV). Placements never put you straight into Champion.
   - Two playlists count: RANKED in the AI menu (a duel against an AI picked for your skill) and ONLINE free-for-all with 4 or more pilots, where your placing is scored as a win or loss against every other pilot. Leaving a match counts as a loss and keeps you out of ranked for 5, 15, 45 then 120 minutes.
+- **New: Rank emblems**
+  - Each rank has its own emblem, painted like the real thing: a dark bevelled shield round a field of cut crystal in the tier's colour, with facets, light streaks and sparkle, a dark chevron across it, a gem at the crown and at the point. Division I of a tier wears a white star, the other divisions their numeral; Champion wears its crown over the star and glows.
 - **New: RANKED tab**
   - A new tab in the air menu (04 RANKED) with your rank emblem, RP, the division bar, the five placement slots, the week's record and match history with the RP of each result, the countdown to Monday's reset, the full ladder and the rules. A result card after every ranked match shows what moved and why.
 - **Improved: APEX: top, but beatable**

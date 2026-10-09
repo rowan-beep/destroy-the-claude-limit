@@ -579,6 +579,56 @@ if (q.get('test') === 'world') {
   import('./testWorld').then((m) => m.runWorldTest(document.getElementById('app')!));
 } else if (q.get('test') === 'ocean') {
   import('./ocean/testOcean').then((m) => m.runOceanTest(document.getElementById('app')!));
+} else if (q.get('test') === 'audio') {
+  // render the sound engine offline through a scripted fight and report what came out
+  import('./audio/audio').then(({ AudioEngine }) => {
+    const sr = 48000, secs = 9;
+    const ctx = new OfflineAudioContext(2, sr * secs, sr);
+    const eng = new AudioEngine();
+    eng.initWith(ctx);
+    const steps = Math.floor(secs * 30);
+    const marks: Record<string, number> = {};
+    for (let i = 0; i < steps; i++) {
+      const tm = i / 30;
+      const t0 = ctx.currentTime;
+      // (the offline clock does not move until rendering: stamp the schedule by hand)
+      (ctx as unknown as { __t: number }).__t = tm;
+      void t0;
+      const cockpit = tm < 3;
+      // a bandit crossing from the left to the right, supersonic, firing in the middle of its pass
+      const x = -1200 + tm * 300;
+      const closing = x < 0 ? 300 : -300;
+      const dist = Math.hypot(x, 60, 200);
+      const others = [{ id: 7, dist, closing, pan: x / dist, aspect: x < 0 ? 0.9 : -0.9, ab: 1, rpm: 1, type: 'SU35', rel: [x, 60, 200] as [number, number, number], mach: 1.3, firing: tm > 3.5 && tm < 4.5, gunRpm: 1700 }];
+      const missiles = tm > 5 ? [{ id: 3, dist: Math.max(10, 900 - (tm - 5) * 400), closing: 400, rel: [50, -20, -(900 - (tm - 5) * 400)] as [number, number, number], motor: tm < 6.5, mach: 2.4 }] : [];
+      eng.updateFlight({ rpm: 0.95, ab: tm > 1 ? 1 : 0, qbar: 30000, tas: 260, inCockpit: cockpit, alive: true, gunFiring: tm > 7 && tm < 7.6, gunRpm: 6000, tone: tm > 6 ? 'lock' : 'off', rwr: tm > 8 ? 'missile' : 'none', nearbyJet: 0, stall: false, type: 'F16C', camAspect: -0.7, camDist: 30, g: tm > 2 && tm < 3 ? 7 : 1.2, aoa: tm > 2 && tm < 3 ? 0.35 : 0.05, buffet: 0, gear: 0, mach: 0.85, others, missiles, agl: 200, onGround: false, gs: 0, vs: 0 });
+      if (i === 30 * 4) eng.explosion(300, 1.5, [-100, 40, -270]);
+      if (i === 30 * 6) eng.missileLaunch(false, 400, [300, 0, -260]);
+      if (i === 30 * 8) eng.sonicBoom(400, [0, 200, 350], 1.4);
+    }
+    marks.scheduled = steps;
+    ctx.startRendering().then((buf) => {
+      const L = buf.getChannelData(0), R = buf.getChannelData(1);
+      const seg = (a: Float32Array, s0: number, s1: number) => {
+        let sum = 0, peak = 0, nan = 0;
+        for (let i = Math.floor(s0 * sr); i < Math.min(a.length, Math.floor(s1 * sr)); i++) {
+          const v = a[i];
+          if (Number.isNaN(v)) nan++;
+          else {
+            sum += v * v;
+            peak = Math.max(peak, Math.abs(v));
+          }
+        }
+        return { rms: Math.sqrt(sum / Math.max(1, (s1 - s0) * sr)), peak, nan };
+      };
+      const out: Record<string, unknown> = { marks };
+      for (const [name, s0, s1] of [['cockpit', 0.5, 2.5], ['outside', 3.0, 3.5], ['guns', 3.6, 4.4], ['boom', 4.0, 4.6], ['missile', 5.2, 6.4], ['own-gun', 7.05, 7.5], ['rwr', 8.1, 8.9]] as const) {
+        out[name] = { L: seg(L, s0, s1), R: seg(R, s0, s1) };
+      }
+      (window as unknown as { __audioResult: unknown }).__audioResult = out;
+      document.body.textContent = JSON.stringify(out, null, 1);
+    });
+  });
 } else if (q.get('test') === 'ranks') {
   // every rank emblem on one page, to look at
   Promise.all([import('./ui/rankEmblem'), import('./game/ranked')]).then(([e, r]) => {

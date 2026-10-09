@@ -684,6 +684,8 @@ export class SpotterMode extends GameMode {
   /** the sound of the show, heard from the crowd line */
   sound(cam: THREE.Camera): void {
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion);
+    const back = new THREE.Vector3(0, 0, 1).applyQuaternion(cam.quaternion);
     const others: OtherJetSound[] = [];
     for (const a of this.host.sim.aircraft) {
       // (only the jet flying its display: the static display is silent)
@@ -702,6 +704,8 @@ export class SpotterMode extends GameMode {
         ab: a.fm.afterburner,
         rpm: rpm / a.fm.rpm.length,
         type: a.type,
+        rel: [right.dot(r), up.dot(r), back.dot(r)],
+        mach: a.fm.mach,
       });
     }
     audio.updateFlight({ others, onGround: true, gs: 0, vs: 0, rpm: 0, ab: 0, qbar: 0, tas: 0, inCockpit: false, alive: false, gunFiring: false, gunRpm: 0, tone: 'off', rwr: 'none', nearbyJet: 0, stall: false });
