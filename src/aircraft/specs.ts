@@ -156,6 +156,10 @@ export interface AircraftSpec {
   gOverride: number; // with G-limiter override (paddle switch)
   gStructural: number; // structural failure
   gNeg: number;
+  /** how fast the fly-by-wire lets the G build (G/s; default 12) */
+  gOnset?: number;
+  /** APEX: the lift is whatever G the stick asks for, at once (up to the G its speed allows) */
+  directLift?: boolean;
   rollRate: number; // deg/s max
   pitchRate: number; // deg/s max
   cornerKts: number; // best sustained / instantaneous turn speed (AI)

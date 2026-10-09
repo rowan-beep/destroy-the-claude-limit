@@ -35,6 +35,9 @@ const _aimVel = new THREE.Vector3();
 const _tmp = new THREE.Vector3();
 const _prevT = new THREE.Vector3();
 
+/** missile autopilot time constant (s): how long the airframe takes to answer a new turn command */
+export const AUTOPILOT_TAU = 0.2;
+
 let nextMissileId = 1;
 
 export class Missile {
@@ -67,6 +70,8 @@ export class Missile {
   closestMiss = Infinity;
   warnedTarget = false;
   gLoad = 0;
+  /** the turn the fins are actually making (lags the guidance command) */
+  readonly latAcc = new THREE.Vector3();
   mach = 0;
   /** multiplayer: another player's missile, moved by their updates (never guides or fuses here) */
   remote = false;
@@ -181,9 +186,13 @@ export class Missile {
       const aMax = gAvail * G0;
       const aL = _acc.length();
       if (aL > aMax) _acc.multiplyScalar(aMax / aL);
+      // the autopilot and the fins take a moment to turn a command into a turn (first-order lag)
+      this.latAcc.lerp(_acc, 1 - Math.exp(-dt / AUTOPILOT_TAU));
+      this.latAcc.addScaledVector(_vhat, -this.latAcc.dot(_vhat));
+      _acc.copy(this.latAcc);
       latG = _acc.length() / G0;
       this.timeToImpact = R / Math.max(50, -_rv.dot(_los) / R);
-    }
+    } else this.latAcc.set(0, 0, 0);
     this.gLoad = latG;
 
     // --- forces ---

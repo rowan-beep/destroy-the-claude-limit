@@ -4,28 +4,31 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
-## v6.5.1 (2026-10-09)
+## v6.6.0 (2026-10-09)
 
-### Air Combat: APEX on the slider
-
-- **Fixed: APEX can be picked**
-  - The AI DIFFICULTY slider stopped at EXTREME, so APEX could not be chosen. It now goes one step further, to APEX, in every mode that has the slider. The Duel's description also lists APEX now.
-
-## v6.5.0 (2026-10-09)
-
-### Air Combat: APEX: past Extreme
+### Air Combat: APEX: one against five
 
 - **New: APEX difficulty**
-  - A fifth step on the AI DIFFICULTY slider, after EXTREME. It is used everywhere the slider is: Duel, Team Battle, Last Pilot Standing, Airstrike, the fighters in Recon and the carriers' gun crews. Campaign enemies also get one step harder than they do on EXTREME.
+  - A fifth step on the AI DIFFICULTY slider, after EXTREME, in every mode that has the slider: Duel, Team Battle, Last Pilot Standing, Airstrike, the fighters in Recon and the carriers' gun crews. The Duel's description lists it too. Campaign enemies also get one step harder than they do on EXTREME.
   - A battle commander re-reads the whole fight once a second. For each enemy it works out what they are doing: hunting with a lock on, shooting, defending a missile, running, dogfighting, flying slow, flying low or cruising. It learns which way they like to turn and from how far they shoot, and predicts where they will be over the next few seconds from the way they are turning. Every APEX jet is told where you are each second, even when its own radar has lost you.
   - With two or more APEX jets it hands out roles. The jet you have locked turns cold and drags you while the others come in on your beams. One stays high while another fights you low. Both run a pincer from either side when you cruise, and they chase you down when you run or are out of missiles.
-  - Its pilots react in 0.04 s (EXTREME 0.12), aim the gun within 0.5 mil (1.2), need a 0.05 s lock for a Sidewinder (0.15), fire up to 80° off the nose (70), launch radar missiles from 92 % of maximum range (85 %), spot you from 12 NM (7) and fly down to 150 m (220).
-  - It only fires a Sidewinder your flares will not take: at your hot tail or in afterburner, when you are out of flares, or from under 900 m. Then it fires a second one 0.8 s later.
+  - Its pilots react in 0.04 s (EXTREME 0.12), aim the gun within 0.5 mil (1.2), need a 0.05 s lock for a Sidewinder (0.15), fire up to 80° off the nose (70), spot you from 12 NM (7) and fly down to 150 m (220). They only fire a Sidewinder your flares will not take: at your hot tail or in afterburner, when you are out of flares, or from under 900 m, then a second one 0.8 s later.
   - The commander's calls come up on your screen in red, for example: "He's locked on COBRA 2-2. COBRA 2-2, drag him. Everyone else, take his beam."
+- **New: An airframe like nothing else**
+  - APEX jets have their own airframe: 45 G, there the instant it is wanted, and the jet goes exactly where its pilot points it with no lag, no stall and no over-G, from about 80 kt up to past Mach 2. The pilot never blacks out. They carry 3x the gun rounds (1,530 in the F-15EX).
+  - They never drop chaff or flares and do not need them: they beat missiles by flying. Until a missile is about to arrive they keep it on the beam at full speed; in its last 2.5 s they pull 45 G square to its line of sight (square to both lines of sight when two arrive together), and in the last half second they work out where the missile will be and pull whichever way opens the gap. They also step out of the path of missiles that have stopped guiding. In tests with no countermeasures at all, none of 180 missiles hit: 12 Sidewinders each from 1 and 2 NM, 12 AMRAAMs each from 5, 6 and 10 NM, 24 pairs of Sidewinders from two jets at once and 24 ripples of three.
+- **New: APEX sits on your tail**
+  - Once it is close it holds a spot behind you on your own flight path: 200 m while it has shells, 500 m with only Sidewinders left. It flies your velocity, swung by your turn, plus a pull onto the spot that it can always stop from. Measured with APEX unarmed (so it holds 500 m) following an EXTREME jet that fought back and fired at it, nine 200-second runs: half the time it was within 2-3 m of the 500 m mark and 88-90 % of the time within 50 m. The bigger gaps come when it closes back in after breaking away from a missile.
+  - From there it guns your cockpit. It jinks out of your gun line whenever your nose comes within 10° of it inside 1,800 m.
 - **How much harder**
-  - Measured in computer-against-computer F-15EX fights with a 7-minute limit, one APEX jet against one EXTREME jet. Over 64 fights APEX won 18, EXTREME won 15 and 31 ran out of time. Against the computer the gap is small, because EXTREME defends a missile perfectly within 0.12 s; against a person, the faster reactions, the steadier gun and the commander's picture of you count for more.
+  - One APEX F-15EX against five EXTREME F-15EX jets, computer against computer with a 10-minute limit: APEX won 200 games out of 200, all in a row (mean 3 min 19 s). The five fired 7,245 missiles at it and none brought it down; it took any damage at all in 7 games. 947 of the 1,000 jets it shot down fell to its gun.
+  - One against one it beat EXTREME 20 times out of 20 (mean 1 min 41 s), and no EXTREME missile hit it.
 - **New: APEX PREDATOR**
   - A new medal for winning a duel on APEX. The Logbook keeps APEX duels in their own row.
+- **Improved: Missiles answer like real ones**
+  - For every jet: a missile now takes 0.2 s to turn a steering command into a turn (it used to answer instantly). Against ordinary jets they stay deadly: fired at jets that drop no countermeasures, 12 of 12 Sidewinders and 6 of 12 AMRAAMs still hit.
+- **Fixed: AI gun trigger during a break**
+  - Computer pilots no longer keep the trigger held while they break from a missile, which used to empty their gun at nothing.
 
 ## v6.4.2 (2026-10-09)
 

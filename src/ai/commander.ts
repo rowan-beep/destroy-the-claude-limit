@@ -168,6 +168,8 @@ export class Commander {
   private lastPlan = '';
   /** for tests: the last plan */
   plan = '';
+  /** the enemy it is after */
+  private main: Aircraft | null = null;
 
   constructor(readonly team: string) {}
 
@@ -194,7 +196,11 @@ export class Commander {
     for (const o of ours) centre.add(o.fm.pos);
     centre.divideScalar(ours.length);
     const player = RULES.ffa ? undefined : enemies.find((e) => e.isPlayer);
-    const main = player ?? enemies.reduce((a, b) => (a.fm.pos.distanceTo(centre) < b.fm.pos.distanceTo(centre) ? a : b));
+    const nearest = enemies.reduce((a, b) => (a.fm.pos.distanceTo(centre) < b.fm.pos.distanceTo(centre) ? a : b));
+    // (finish the one it is on: it only switches for one much closer)
+    const keep = this.main && this.main.alive && enemies.includes(this.main) && this.main.fm.pos.distanceTo(centre) < nearest.fm.pos.distanceTo(centre) * 2 + 1500;
+    const main = player ?? (keep ? this.main! : nearest);
+    this.main = main;
     const hm = this.model(main);
     // every jet knows where the main enemy is (the picture refreshed once a second)
     for (const p of pilots) if (p.ac.alive) p.feedPicture(main, sim.time);

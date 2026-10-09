@@ -17,6 +17,7 @@
 import type { WeaponSelect } from '../weapons/weaponSpecs';
 import * as THREE from 'three';
 import type { Aircraft } from '../aircraft/aircraft';
+import type { Missile } from '../weapons/missile';
 import type { Sim } from '../game/sim';
 import type { TeamPicture } from '../game/teamPicture';
 import { AISkill } from './skill';
@@ -31,14 +32,23 @@ import { hostile, RULES } from '../game/rules';
 import { commanderFor, type Commander, type Order } from './commander';
 import { irIntensity } from '../sensors/signatures';
 
+/** APEX: how far behind its target it sits once it is on its tail (m) */
+export const SHADOW_M = 500;
+/** seconds ahead the exact terrain probes look (APEX pulls out at 45 G, so it looks less far) */
+const TERRAIN_PROBES = [1, 2, 3.5, 5];
+const APEX_PROBES = [0.5, 1, 1.5];
+/** APEX missile dodge: when the spiral starts (s before impact), how hard it rolls, the G on the beam before that */
+export const APEX_TUNE = { breakTti: 2.5, spiral: 0, beamG: 9, lead: 0.5, shadowFrom: 9000, amraamR: 6000, amraamAa: 70, gunBreakR: 900, gunDist: 200, gunTol: 0.6, wingAim: 0, noseAim: 0.36, gunMaxR: 450, passWide: 1500, jinkR: 1800, jinkCone: 10, holdK: 1.5, holdDec: 40, endgame: 0.5, breakR: 900 };
+
 export type AIState = 'TAKEOFF' | 'PATROL' | 'FORMATION' | 'INTERCEPT' | 'ENGAGE' | 'DEFENSIVE' | 'MASKING' | 'RTB';
 
-type Maneuver = 'pursuit' | 'lead' | 'lag' | 'highYoyo' | 'lowYoyo' | 'scissors' | 'vertical' | 'extend' | 'crank' | 'gentle' | 'break' | 'beam' | 'jink' | 'drag' | 'position';
+type Maneuver = 'pursuit' | 'lead' | 'lag' | 'highYoyo' | 'lowYoyo' | 'scissors' | 'vertical' | 'extend' | 'crank' | 'gentle' | 'break' | 'beam' | 'jink' | 'drag' | 'position' | 'shadow';
 
 const _dir = new THREE.Vector3();
 const _tmp = new THREE.Vector3();
 const _tmp2 = new THREE.Vector3();
 const _aim = new THREE.Vector3();
+const _dz = new THREE.Vector3();
 
 export class AIPilot {
   state: AIState = 'PATROL';
@@ -95,6 +105,13 @@ export class AIPilot {
   order: Order | null = null;
   /** APEX: the second Sidewinder of a pair is still to go */
   private ripple = 0;
+  /** APEX: the flight path handed to the airframe each frame */
+  private readonly kinCmd = { dir: new THREE.Vector3(), speed: 0, g: 0 };
+  /** APEX shadow: the target's velocity last frame and his filtered turn acceleration */
+  private readonly shadowV = new THREE.Vector3();
+  private readonly shadowA = new THREE.Vector3();
+  private shadowOf: Aircraft | null = null;
+  private shadowAt = -1;
   private apexCmd: Commander | null = null;
 
   constructor(
@@ -104,6 +121,7 @@ export class AIPilot {
   ) {
     this.patrolAlt = rand(5500, 8500);
     this.bracketSide = chance(0.5) ? 1 : -1;
+    if (skill.commander) ac.apexAirframe();
   }
 
   setRoute(points: THREE.Vector3[], alt?: number): void {
@@ -323,23 +341,32 @@ export class AIPilot {
     if (mw) {
       if (this.threatSeenAt < 0) this.threatSeenAt = sim.time;
     } else this.threatSeenAt = -1;
-    const reacted = mw && sim.time - this.threatSeenAt >= sk.reaction;
+    // (APEX lets a missile come: it keeps fighting until the last moment, then breaks -- apexDodge)
+    // (a slow one closing from behind counts by its range: its time to go can hang at 3 s all the way in)
+    const reacted =
+      mw &&
+      sim.time - this.threatSeenAt >= sk.reaction &&
+      (!sk.commander || mw.tti < APEX_TUNE.breakTti + APEX_TUNE.lead || ac.fm.pos.distanceTo(mw.missile.pos) < APEX_TUNE.breakR + 300);
     const gunThreat = this.gunThreat(sim);
 
     if ((reacted && chance(sk.defense + 0.1)) || (reacted && this.state === 'DEFENSIVE')) {
       this.enterDefensive(sim, mw!.kind === 'ir' ? 'ir' : 'radar');
       return;
     }
-    if (gunThreat && chance(sk.defense)) {
+    // (APEX only breaks from a gun when it is really close: further out it just keeps attacking)
+    const gunClose = gunThreat && (!sk.commander || ac.distanceTo(gunThreat) < APEX_TUNE.gunBreakR);
+    if (gunClose && chance(sk.defense)) {
       this.state = 'DEFENSIVE';
       this.maneuver = 'break';
-      this.defenseTimer = rand(2, 4);
+      this.defenseTimer = sk.commander ? 0.8 : rand(2, 4);
       if (sk.cmUse > 0.3) ac.dispense('flare', 2);
       return;
     }
     if (this.state === 'DEFENSIVE') {
       this.defenseTimer -= sk.thinkInterval || 0.016;
-      if (this.defenseTimer > 0 && (mw || gunThreat)) return;
+      // APEX: back on the attack the moment nothing is about to arrive
+      const apexClear = sk.commander && !reacted && !gunClose;
+      if (!apexClear && this.defenseTimer > 0 && (mw || gunThreat)) return;
       // missile defeated or gone: consider masking before re-engaging
       if (sk.terrainMasking && ac.rwr.level === 'lock' && this.findMaskPoint(sim)) {
         this.state = 'MASKING';
@@ -508,6 +535,24 @@ export class AIPilot {
       this.maneuver = 'crank';
       return;
     }
+    // APEX with only AMRAAMs left: too close to shoot -> open out to 2.5 km, then turn back in
+    if (sk.commander && ac.gunAmmo <= 0 && ac.countOf(ac.irMissile) <= 0 && ac.countOf(ac.radarMissile) > 0) {
+      const tooClose = R < MISSILES[ac.radarMissile].minRange * 1.6;
+      if (tooClose || (this.maneuver === 'extend' && R < 2500)) {
+        this.maneuver = 'extend';
+        this.maneuverTimer = 1;
+        return;
+      }
+      this.maneuver = 'pursuit';
+      return;
+    }
+    // APEX: inside 9 km, straight for the spot 500 m behind him, and stay there -- the airframe holds it through
+    // anything he does
+    if (sk.commander && R < APEX_TUNE.shadowFrom) {
+      this.maneuver = 'shadow';
+      return;
+    }
+    if (this.maneuver === 'shadow') this.maneuver = 'pursuit';
     if (this.maneuverTimer > 0 && (this.maneuver === 'highYoyo' || this.maneuver === 'lowYoyo' || this.maneuver === 'scissors' || this.maneuver === 'vertical' || this.maneuver === 'extend')) return;
 
     if (R > 6000) {
@@ -592,11 +637,20 @@ export class AIPilot {
       const alreadyInFlight = sim.missiles.some((m) => m.shooter === ac && m.target === t && m.alive && m.mode !== 'LOST' && m.mode !== 'DECOY');
       const teamStagger = sk.teamwork > 0.5 ? this.teamShotsInFlight(sim, t) < 2 : true;
       let maxR = lz120.rmax * sk.missileRangeFrac;
-      const gap = 6;
-      const okInFlight = !alreadyInFlight || R < lz120.rne;
+      let gap = 6;
+      let okInFlight = !alreadyInFlight || R < lz120.rne;
       const o = sk.commander && this.order && this.order.target === t ? this.order : null;
       // (the bait holds its fire while it drags him in)
       if (o && o.hold && this.maneuver === 'drag') maxR = 0;
+      // APEX: no long shots he will notch; only from behind him, close (his notch and his chaff work worst there) --
+      // or, once only AMRAAMs are left, any time he is in reach (two at a time)
+      const onlyAmraams = sk.commander && ac.gunAmmo <= 0 && ac.countOf(ac.irMissile) <= 0;
+      if (sk.commander && !onlyAmraams && (R > APEX_TUNE.amraamR || this.targetAspect() > APEX_TUNE.amraamAa * DEG)) maxR = 0;
+      if (onlyAmraams && R > APEX_TUNE.amraamR) maxR = 0;
+      if (onlyAmraams) {
+        gap = 1.2;
+        okInFlight = sim.missiles.filter((m) => m.shooter === ac && m.target === t && m.alive && m.mode !== 'LOST' && m.mode !== 'DECOY').length < 2;
+      }
       if (
         tracked &&
         R > lz120.rmin * 1.4 &&
@@ -707,6 +761,10 @@ export class AIPilot {
     const sk = this.skill;
     const c = ac.controls;
     c.wheelBrake = 0;
+    fm.kin = null;
+    // (the gun only fires on a solution worked out this frame in the fight: a trigger left held from before kept
+    // firing all through a missile break)
+    if (this.state !== 'ENGAGE') this.triggerWanted = false;
     this.rudder = 0;
     this.maxBank = undefined;
     this.tau = lerp(2.2, 0.6, sk.level);
@@ -751,26 +809,39 @@ export class AIPilot {
         break;
     }
 
+    if (ac.apex && this.state !== 'DEFENSIVE') this.apexGunJink(sim);
+    if (ac.apex) this.apexStray(sim);
+
     // --- safety overrides ---------------------------------------------------
     this.separation(sim);
     this.zoneSafety();
     this.terrainSafety(dt, sim);
     this.boundarySafety();
-    // G-LOC awareness: ease off before blacking out
+    // G-LOC awareness: ease off before blacking out (the APEX pilots never black out)
     const gl = ac.pilot.gSmooth;
-    if (gl > 9.4) this.gCap = Math.min(this.gCap, gl > 10.1 ? 8 : 9.2);
+    if (gl > 9.4 && !ac.pilot.gImmune) this.gCap = Math.min(this.gCap, gl > 10.1 ? 8 : 9.2);
     // fuel awareness: stop burning afterburner when fuel is low
     if (fm.fuelTotal < ac.spec.internalFuel * 0.2 && this.state !== 'DEFENSIVE') this.useAb = false;
     if (sk.abUse <= 0) this.useAb = false;
 
-    const res = steerToward(ac, this.desired, {
-      gCap: this.gCap,
-      tau: this.tau,
-      maxBank: this.maxBank,
-      override: sk.useOverride && this.gCap > ac.spec.gLimit,
-      rudder: this.rudder,
-    });
-    void res;
+    if (ac.apex) {
+      // APEX: the airframe flies the commanded flight path exactly (FlightModel.flyKinematic)
+      this.kinCmd.dir.copy(this.desired).normalize();
+      this.kinCmd.speed = Math.max(this.desiredCas, 0) / Math.sqrt(Math.max(fm.rho, 0.05) / 1.225);
+      this.kinCmd.g = this.gCap;
+      fm.kin = this.kinCmd;
+      c.pitch = 0;
+      c.roll = 0;
+      c.yaw = 0;
+    } else {
+      steerToward(ac, this.desired, {
+        gCap: this.gCap,
+        tau: this.tau,
+        maxBank: this.maxBank,
+        override: sk.useOverride && this.gCap > ac.spec.gLimit,
+        rudder: this.rudder,
+      });
+    }
     holdSpeed(ac, this.desiredCas, this.useAb, dt);
     if (this.triggerWanted && ac.selectedWeapon === 'GUN' && !this.weaponsHold) ac.trigger = true;
     this.debugText = `${this.state}/${this.maneuver}`;
@@ -953,7 +1024,7 @@ export class AIPilot {
 
     const muzzle = ac.spec.gun.muzzleVelocity;
     // beyond the merge: fly the intercept, closing fast (running targets get full burner)
-    if (R > 5500 && this.maneuver !== 'crank' && this.maneuver !== 'extend' && this.maneuver !== 'gentle' && this.maneuver !== 'drag' && this.maneuver !== 'position') {
+    if (R > 5500 && this.maneuver !== 'crank' && this.maneuver !== 'extend' && this.maneuver !== 'gentle' && this.maneuver !== 'drag' && this.maneuver !== 'position' && this.maneuver !== 'shadow') {
       const keepKnown = this.knownPos.clone();
       const keepVel = this.knownVel.clone();
       this.knownPos.copy(tp);
@@ -982,12 +1053,54 @@ export class AIPilot {
         this.useAb = true;
         this.desiredCas = corner * 1.5;
         this.gCap = Math.min(this.gCap, 6);
-        // chaff makes his lock work for it
-        this.cmTimer -= dt;
-        if (this.cmTimer <= 0 && ac.rwr.level === 'lock') {
-          this.cmTimer = 4;
-          ac.dispense('chaff', 1);
+        break;
+      }
+      case 'shadow': {
+        // APEX: the spot 500 m behind him on his own flight path; fly his velocity plus a correction toward the spot,
+        // and his speed plus a correction for the distance
+        _tmp.copy(tv).normalize();
+        _aim.copy(tp).addScaledVector(_tmp, -this.shadowDistance());
+        _tmp2.subVectors(_aim, fm.pos);
+        const toSpot = _tmp2.length();
+        // his turn acceleration (across his flight path), from his velocity a frame ago, lightly filtered
+        if (this.shadowOf !== t || sim.time - this.shadowAt > 0.1) this.shadowA.set(0, 0, 0);
+        else {
+          _dir.subVectors(tv, this.shadowV).divideScalar(Math.max(dt, 1e-3));
+          _dir.addScaledVector(_tmp, -_dir.dot(_tmp)).clampLength(0, 15 * G0);
+          this.shadowA.lerp(_dir, 1 - Math.exp(-dt / 0.05));
         }
+        this.shadowV.copy(tv);
+        this.shadowOf = t;
+        this.shadowAt = sim.time;
+        const ahead = _dir.subVectors(fm.pos, tp).dot(_tmp) > -Math.min(100, 0.25 * this.shadowDistance());
+        if (toSpot > 2500 || ahead) {
+          // not behind him yet: round to the spot (slower if he still has to pass us, flat out if we are chasing);
+          // in front of him, wide of his nose, never down it
+          this.desired.copy(_tmp2).normalize();
+          if (ahead && R > 2000 && this.targetAspect() > 120 * DEG) {
+            _dir.subVectors(fm.pos, tp);
+            _dir.addScaledVector(_tmp, -_dir.dot(_tmp));
+            if (_dir.lengthSq() < 1) _dir.set(-_tmp.z, 0, _tmp.x);
+            _dir.normalize();
+            this.desired.subVectors(_dir.multiplyScalar(APEX_TUNE.passWide).add(tp), fm.pos).normalize();
+          }
+          this.desiredCas = ahead ? Math.max(t.fm.cas - 60, 140) : Math.max(t.fm.cas + 90, 270);
+        } else {
+          // on his path: fly the spot's own velocity (his velocity, swung by his turn) plus a pull onto the spot,
+          // no faster than it can still stop from (the airframe sheds 6 G of speed, gains 3)
+          const V = Math.max(tv.length(), 50);
+          this.desired.copy(tv).addScaledVector(this.shadowA, -this.shadowDistance() / V);
+          const e = toSpot;
+          _tmp2.multiplyScalar(e > 1e-3 ? Math.min(APEX_TUNE.holdK * e, Math.sqrt(2 * APEX_TUNE.holdDec * e), 400) / e : 0);
+          const back = _tmp2.dot(_tmp);
+          if (back < -0.7 * V) _tmp2.addScaledVector(_tmp, -0.7 * V - back);
+          this.desired.add(_tmp2);
+          this.desiredCas = Math.max(30, this.desired.length() * Math.sqrt(Math.max(fm.rho, 0.05) / 1.225));
+          this.desired.normalize();
+        }
+        this.useAb = this.desiredCas > fm.cas + 8;
+        this.gCap = Math.min(sk.maxG, ac.spec.gOverride);
+        this.tau = 0.15;
         break;
       }
       case 'position': {
@@ -1092,9 +1205,9 @@ export class AIPilot {
       }
     }
 
-    // energy discipline: below corner speed, don't bleed more with max-G pulls
+    // energy discipline: below corner speed, don't bleed more with max-G pulls (the APEX airframe has the energy to spare)
     const aimOff = noseAngleTo(ac, tp);
-    if (sk.energy > 0.3 && fm.cas < corner * 0.82 && aimOff > 12 * DEG && this.maneuver !== 'scissors') {
+    if (sk.energy > 0.3 && !sk.commander && fm.cas < corner * 0.82 && aimOff > 12 * DEG && this.maneuver !== 'scissors') {
       this.gCap = Math.min(this.gCap, lerp(6, 4.2, sk.energy));
       this.useAb = sk.abUse > 0;
     }
@@ -1103,6 +1216,12 @@ export class AIPilot {
     // aim error scales with skill)
     if (ac.selectedWeapon === 'GUN' && R < sk.gunRange && ac.gunAmmo > 0) {
       gunSolution(ac, t, _aim);
+      // APEX: every shell into one place -- the cockpit (seven hits) or one wing (ten); spread over the airframe it
+      // takes three times as many
+      if (sk.commander) {
+        _aim.addScaledVector(t.fm.right, t.spec.span * APEX_TUNE.wingAim);
+        _aim.addScaledVector(t.fm.fwd, t.spec.length * APEX_TUNE.noseAim);
+      }
       const err = sk.aimError / 1000;
       this.aimNoiseTimer -= dt;
       if (this.aimNoiseTimer <= 0) {
@@ -1125,12 +1244,152 @@ export class AIPilot {
         this.gCap = Math.min(sk.maxG, ac.spec.gOverride);
       }
       // fire when the predicted miss distance is inside the target's size
-      const tol = Math.atan2(ac.spec.span * 0.6 * lerp(0.8, 1.2, sk.level), Math.max(R, 50));
-      this.triggerWanted = aimAngle < tol;
+      const tol = Math.atan2(ac.spec.span * 0.6 * lerp(0.8, 1.2, sk.level), Math.max(R, 50)) * (sk.commander ? APEX_TUNE.gunTol : 1);
+      this.triggerWanted = aimAngle < tol && (!sk.commander || R < APEX_TUNE.gunMaxR);
     }
 
     // easy AI never pulls hard
     if (sk.level < 0.2) this.gCap = Math.min(this.gCap, sk.maxG);
+  }
+
+  /**
+   * APEX: anyone close with his nose on us -- from any side, head-on too -- and it slides out of his gun line at full G
+   * (a gun needs a second of steady aim; it never gets it)
+   */
+  private apexGunJink(sim: Sim): void {
+    const ac = this.ac;
+    const fm = ac.fm;
+    for (const e of sim.aircraft) {
+      if (!e.alive || !hostile(e, ac)) continue;
+      const d = ac.distanceTo(e);
+      if (d > APEX_TUNE.jinkR || d < 1) continue;
+      _tmp.subVectors(fm.pos, e.fm.pos).divideScalar(d);
+      if (_tmp.dot(e.fm.fwd) < Math.cos(APEX_TUNE.jinkCone * DEG)) continue;
+      // across his gun line: away from it, sideways to our own flight path
+      _dir.copy(_tmp).addScaledVector(e.fm.fwd, -_tmp.dot(e.fm.fwd));
+      if (_dir.lengthSq() < 1e-4) _dir.copy(fm.up);
+      _dir.normalize();
+      this.desired.copy(fm.vel).normalize().addScaledVector(_dir, 1.5).normalize();
+      this.gCap = Math.min(this.skill.maxG, ac.spec.gOverride);
+      this.triggerWanted = false;
+      return;
+    }
+  }
+
+  /** APEX: a missile that has stopped guiding (or is after someone else) still goes off when it passes close -- step out of its path */
+  private apexStray(sim: Sim): void {
+    const ac = this.ac;
+    const fm = ac.fm;
+    let best: Missile | null = null;
+    let bestT = 1.2;
+    for (const o of sim.missiles) {
+      if (!o.alive || o.shooter === ac || (o.target === ac && o.mode !== 'LOST' && o.mode !== 'DECOY')) continue;
+      _dz.subVectors(fm.pos, o.pos);
+      if (_dz.lengthSq() > 1500 * 1500) continue;
+      _aim.subVectors(fm.vel, o.vel);
+      const vv = _aim.lengthSq();
+      if (vv < 1) continue;
+      const tca = -_dz.dot(_aim) / vv;
+      if (tca <= 0 || tca >= bestT) continue;
+      if (_dz.addScaledVector(_aim, tca).lengthSq() > 80 * 80) continue;
+      best = o;
+      bestT = tca;
+    }
+    if (!best) return;
+    // where it passes against where we will be: open that gap, at full G
+    _tmp.subVectors(fm.pos, best.pos).normalize();
+    _dz.subVectors(fm.pos, best.pos).addScaledVector(_aim.subVectors(fm.vel, best.vel), bestT);
+    _dz.addScaledVector(_tmp, -_dz.dot(_tmp));
+    if (_dz.lengthSq() < 1) _dz.copy(fm.up).addScaledVector(_tmp, -fm.up.dot(_tmp));
+    this.desired.copy(_dz.normalize());
+    this.gCap = Math.min(this.skill.maxG, ac.spec.gOverride);
+    this.triggerWanted = false;
+  }
+
+  /** APEX: how far behind its target it sits -- gun range while it has shells, AMRAAM range once only those are left */
+  private shadowDistance(): number {
+    const ac = this.ac;
+    if (ac.gunAmmo > 0) return APEX_TUNE.gunDist;
+    if (ac.countOf(ac.irMissile) > 0) return SHADOW_M;
+    if (ac.countOf(ac.radarMissile) > 0) return Math.max(1800, MISSILES[ac.radarMissile].minRange * 2);
+    return SHADOW_M;
+  }
+
+  /**
+   * APEX: no chaff, no flares. Until the missile is about to arrive: fast, with it on the beam (and low against a radar
+   * missile, for the notch). Then full G square to its line of sight (to both, when a second one arrives with it), and in
+   * the endgame whichever way opens the gap from where it will be.
+   */
+  private apexDodge(dt: number, m: Missile, tti: number, kind: string, sim: Sim): void {
+    const ac = this.ac;
+    const fm = ac.fm;
+    const sk = this.skill;
+    // line of sight, missile to us
+    _tmp.subVectors(fm.pos, m.pos);
+    const R = _tmp.length();
+    _tmp.divideScalar(Math.max(R, 1e-3));
+    if (tti < APEX_TUNE.breakTti || R < APEX_TUNE.breakR) {
+      // full G square to the line of sight, along the lift as it is now: every moment the pull carries on from where it
+      // is, so it never stops and never reverses
+      _dir.copy(fm.up).addScaledVector(_tmp, -fm.up.dot(_tmp));
+      _tmp2.copy(fm.right).addScaledVector(_tmp, -fm.right.dot(_tmp));
+      _dir.addScaledVector(_tmp2, APEX_TUNE.spiral);
+      if (_dir.lengthSq() < 1e-6) _dir.copy(fm.up);
+      _dir.normalize();
+      // a second missile arriving at the same time from another side: square to both lines of sight, so neither
+      // can follow it either
+      let m2: Missile | null = null;
+      let t2: number = APEX_TUNE.breakTti;
+      for (const o of sim.missiles) {
+        if (o === m || !o.alive || o.target !== ac || o.mode === 'LOST' || o.mode === 'DECOY' || o.mode === 'EJECT') continue;
+        if (o.timeToImpact < t2) {
+          m2 = o;
+          t2 = o.timeToImpact;
+        }
+      }
+      if (m2) {
+        _aim.subVectors(fm.pos, m2.pos).normalize();
+        _tmp2.crossVectors(_tmp, _aim);
+        if (_tmp2.lengthSq() > 0.04) {
+          _tmp2.normalize();
+          if (_tmp2.dot(_dir) < 0) _tmp2.negate();
+          _dir.copy(_tmp2);
+        }
+      }
+      // the endgame: where it will be when it gets here (its own turn included -- it answers 0.2 s late) against
+      // where we will be; pull the way that opens that gap
+      if (tti < APEX_TUNE.endgame || R < 150) {
+        const tg = Math.max(tti, 0.05);
+        _dz.subVectors(fm.vel, m.vel).multiplyScalar(tg).add(fm.pos).sub(m.pos).addScaledVector(m.latAcc, -0.5 * tg * tg);
+        _dz.addScaledVector(_tmp, -_dz.dot(_tmp));
+        if (_dz.lengthSq() > 1) _dir.copy(_dz).normalize();
+      }
+      // near the ground the break never goes down: 45 G drops 200 m in the first second
+      if (fm.agl < 3500 && _dir.y < 0.15) {
+        _dir.y = 0.15 + (fm.agl < 1200 ? 0.5 : 0);
+        _dir.addScaledVector(_tmp, -_dir.dot(_tmp));
+        if (_dir.lengthSq() < 1e-6) _dir.set(0, 1, 0);
+        _dir.normalize();
+      }
+      this.desired.copy(_dir);
+      this.gCap = Math.min(sk.maxG, ac.spec.gOverride);
+      this.tau = 0.08;
+      this.useAb = true;
+      this.desiredCas = 2 * fm.soundSpeed;
+      return;
+    }
+    // the beam: the missile at 3 or 9 o'clock, wings level-ish, burner, keep the speed
+    _tmp.setY(0).normalize();
+    const right = _tmp2.set(-_tmp.z, 0, _tmp.x);
+    const side = right.dot(fm.fwd) >= 0 ? 1 : -1;
+    _dir.copy(right).multiplyScalar(side);
+    const floor = Math.max(terrainHeight(fm.pos.x, fm.pos.z), 0);
+    const alt = kind === 'radar' ? floor + Math.max(sk.minAgl, 400) : Math.max(fm.pos.y, floor + 600);
+    this.desired.copy(this.altitudeDir(alt, _dir, 25));
+    this.gCap = Math.min(sk.maxG, ac.spec.gOverride, APEX_TUNE.beamG);
+    this.tau = 0.3;
+    this.useAb = true;
+    this.desiredCas = 2 * fm.soundSpeed;
   }
 
   private flyDefensive(dt: number, sim: Sim): void {
@@ -1144,6 +1403,10 @@ export class AIPilot {
     this.desiredCas = ac.spec.cornerKts * KT * 1.1;
     this.cmTimer -= dt;
 
+    if (mw && sk.commander) {
+      this.apexDodge(dt, mw.missile, mw.tti, mw.kind, sim);
+      return;
+    }
     if (mw) {
       const m = mw.missile;
       _tmp.subVectors(m.pos, fm.pos).setY(0).normalize(); // toward missile (horizontal)
@@ -1168,7 +1431,7 @@ export class AIPilot {
         this.cmTimer = lerp(1.6, 0.5, sk.cmUse);
         if (chance(sk.cmUse)) ac.dispense(mw.kind === 'ir' ? 'flare' : 'chaff', mw.tti < 4 ? 3 : 1);
       }
-      if (mw.kind === 'ir' && sk.throttleCut) {
+      if (mw.kind === 'ir' && sk.throttleCut && !sk.commander) {
         this.useAb = false;
         this.desiredCas = 0; // idle
       }
@@ -1275,7 +1538,9 @@ export class AIPilot {
     const V = fm.vel.length();
     if (V < 30) return;
     const vhat = _tmp.copy(fm.vel).divideScalar(V);
-    const look = V * sk.terrainLookahead;
+    // the APEX airframe pulls out at 45 G (a quarter of the turn radius of 9 G): it can leave it much later
+    const apex = ac.apex;
+    const look = apex ? Math.max(V * 1.2, (4 * V * V) / (ac.spec.gOverride * G0)) : V * sk.terrainLookahead;
     const clearance = Math.max(110, sk.minAgl * 0.5);
     let hit = sim.grid.raycast(fm.pos.x, fm.pos.y, fm.pos.z, vhat.x, vhat.y, vhat.z, look, clearance);
     // also probe along the desired direction
@@ -1286,7 +1551,7 @@ export class AIPilot {
     }
     // exact terrain probes along the predicted path (the coarse grid can miss cliffs)
     if (!isFinite(hit) && fm.pos.y < 6500) {
-      for (const tAhead of [1, 2, 3.5, 5]) {
+      for (const tAhead of apex ? APEX_PROBES : TERRAIN_PROBES) {
         const px = fm.pos.x + fm.vel.x * tAhead, pz = fm.pos.z + fm.vel.z * tAhead;
         const py = fm.pos.y + fm.vel.y * tAhead;
         const gh = Math.max(0, terrainHeight(px, pz));
@@ -1298,12 +1563,24 @@ export class AIPilot {
     }
     const low = fm.agl < clearance && vhat.y < 0.05;
     const sea = fm.pos.y < 80 && vhat.y < 0;
-    if (isFinite(hit) || low || sea) this.terrainRecovery = Math.max(this.terrainRecovery, 1.2);
+    if (isFinite(hit) || low || sea) this.terrainRecovery = Math.max(this.terrainRecovery, apex ? 0.3 : 1.2);
     if (this.terrainRecovery > 0) {
       this.terrainRecovery -= dt;
+      const urgency = isFinite(hit) ? clamp(1 - hit / look, 0.2, 1) : 0.8;
+      if (apex) {
+        // APEX keeps the heading it wants and only stops going down (climbing harder the closer the ground):
+        // its flight path answers at once, and it needs no speed to pull
+        const h = Math.hypot(this.desired.x, this.desired.z);
+        if (h > 1e-3) _dir.set(this.desired.x / h, 0, this.desired.z / h);
+        else _dir.set(fm.fwd.x, 0, fm.fwd.z).normalize();
+        _dir.y = Math.max(h > 1e-3 ? this.desired.y / h : -1, lerp(0.1, 1.2, urgency));
+        this.desired.copy(_dir.normalize());
+        this.gCap = ac.spec.gOverride;
+        this.triggerWanted = false;
+        return;
+      }
       // wings level-ish and pull toward the sky
       _dir.set(fm.fwd.x, 0, fm.fwd.z).normalize();
-      const urgency = isFinite(hit) ? clamp(1 - hit / look, 0.2, 1) : 0.8;
       _dir.y = lerp(0.35, 1.2, urgency);
       this.desired.copy(_dir.normalize());
       this.gCap = Math.max(this.gCap, Math.min(ac.spec.gLimit, 5 + urgency * 4));

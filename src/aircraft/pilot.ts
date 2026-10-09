@@ -45,6 +45,8 @@ export class PilotPhysiology {
   strain = 0;
   /** the FBW G limiter is on (G-LOC impossible): blur instead */
   limiter = false;
+  /** never blacks out, whatever the G (the APEX pilots) */
+  gImmune = false;
   /** heartbeats so far (each lub and dub), for the sound */
   beatCount = 0;
   lastBeatStrong = false;
@@ -114,7 +116,7 @@ export class PilotPhysiology {
       }
       return;
     }
-    if (g >= GLOC_THRESHOLD) {
+    if (g >= GLOC_THRESHOLD && !this.gImmune) {
       this.glocTimer = GLOC_DURATION;
       this.glocCount++;
       this.justBlackedOut = true;
