@@ -21,45 +21,50 @@ function circ(R: number, yc: number, sx = 1): P2[] {
   return ang.map((a) => [R * sx * Math.cos((a * Math.PI) / 180), yc + R * Math.sin((a * Math.PI) / 180)] as P2);
 }
 
+/** circ() with the upper half stretched by `up`: the forebody deepens toward the windscreen. */
+function egg(R: number, yc: number, up: number): P2[] {
+  return circ(R, yc).map(([x, y]) => [x, y > yc ? yc + (y - yc) * up : y] as P2);
+}
+
 // Main body: nose, cockpit well, dorsal hump, centre box between the trunks,
 // twin nacelles. Right half, 12 control points, bottom centre to top centre.
 const BODY = keyedProfile([
   { z: -9.86, pts: circ(0.012, -0.13) },
   { z: -9.55, pts: circ(0.19, -0.12) },
   { z: -9.0, pts: circ(0.35, -0.1) },
-  { z: -8.3, pts: circ(0.48, -0.08) },
-  { z: -7.4, pts: circ(0.6, -0.05) },
+  { z: -8.3, pts: egg(0.48, -0.08, 1.2) },
+  { z: -7.4, pts: egg(0.6, -0.05, 1.17) },
   {
     z: -6.75,
     pts: [[0, -0.7], [0.36, -0.68], [0.59, -0.54], [0.69, -0.32], [0.715, -0.14], [0.725, -0.1], [0.715, -0.05], [0.68, 0.18], [0.62, 0.42], [0.5, 0.55], [0.26, 0.58], [0, 0.59]],
   },
   {
-    z: -6.35,
+    z: -6.0,
     pts: [[0, -0.74], [0.38, -0.73], [0.62, -0.58], [0.73, -0.34], [0.76, -0.14], [0.775, -0.1], [0.765, -0.05], [0.72, 0.2], [0.64, 0.46], [0.58, 0.58], [0.42, 0.44], [0, 0.34]],
   },
   {
-    z: -5.5,
+    z: -5.1,
     pts: [[0, -0.79], [0.41, -0.78], [0.67, -0.63], [0.78, -0.36], [0.8, -0.15], [0.815, -0.1], [0.805, -0.05], [0.76, 0.22], [0.66, 0.5], [0.6, 0.6], [0.5, 0.3], [0, 0.14]],
   },
   {
-    z: -4.4,
+    z: -4.0,
     pts: [[0, -0.8], [0.43, -0.8], [0.7, -0.67], [0.83, -0.4], [0.87, -0.18], [0.88, -0.11], [0.875, -0.03], [0.83, 0.24], [0.7, 0.52], [0.6, 0.6], [0.5, 0.3], [0, 0.12]],
   },
   {
-    z: -3.45,
+    z: -3.0,
     pts: [[0, -0.8], [0.47, -0.8], [0.76, -0.69], [0.9, -0.43], [0.94, -0.2], [0.95, -0.1], [0.945, 0.0], [0.9, 0.26], [0.76, 0.52], [0.58, 0.63], [0.44, 0.45], [0, 0.4]],
   },
   {
-    z: -2.75,
-    pts: [[0, -0.8], [0.5, -0.8], [0.8, -0.7], [0.95, -0.45], [0.99, -0.2], [1.0, -0.1], [0.995, 0.02], [0.95, 0.28], [0.8, 0.5], [0.6, 0.64], [0.3, 0.73], [0, 0.75]],
+    z: -2.5,
+    pts: [[0, -0.8], [0.5, -0.8], [0.8, -0.7], [0.95, -0.45], [0.99, -0.2], [1.0, -0.1], [0.995, 0.02], [0.95, 0.28], [0.8, 0.52], [0.6, 0.7], [0.3, 0.81], [0, 0.84]],
   },
   {
     z: -1.4,
-    pts: [[0, -0.8], [0.62, -0.82], [1.02, -0.8], [1.3, -0.62], [1.4, -0.34], [1.43, -0.1], [1.43, 0.06], [1.4, 0.26], [1.26, 0.44], [0.92, 0.56], [0.42, 0.66], [0, 0.7]],
+    pts: [[0, -0.8], [0.62, -0.82], [1.02, -0.8], [1.3, -0.62], [1.4, -0.34], [1.43, -0.1], [1.43, 0.06], [1.4, 0.26], [1.26, 0.46], [0.92, 0.62], [0.42, 0.74], [0, 0.79]],
   },
   {
     z: 0.4,
-    pts: [[0, -0.64], [0.46, -0.66], [0.95, -0.84], [1.5, -0.87], [1.86, -0.74], [1.95, -0.44], [1.965, -0.1], [1.955, 0.1], [1.88, 0.3], [1.55, 0.44], [0.8, 0.56], [0, 0.63]],
+    pts: [[0, -0.64], [0.46, -0.66], [0.95, -0.84], [1.5, -0.87], [1.86, -0.74], [1.95, -0.44], [1.965, -0.1], [1.955, 0.1], [1.88, 0.3], [1.55, 0.46], [0.8, 0.61], [0, 0.69]],
   },
   {
     z: 3.3,
@@ -81,13 +86,13 @@ const BODY = keyedProfile([
 const BODY_SUB = [4, 3, 3, 3, 2, 1, 2, 3, 3, 3, 4];
 
 const CANOPY: Section[] = [
-  { z: -7.15, w: 0.03, top: 0.02, bot: 0.02, y: 0.56, n: 2 },
-  { z: -6.6, w: 0.4, top: 0.36, bot: 0.03, y: 0.58, n: 2.2 },
-  { z: -6.0, w: 0.52, top: 0.56, bot: 0.03, y: 0.58, n: 2.2 },
-  { z: -5.3, w: 0.56, top: 0.62, bot: 0.03, y: 0.6, n: 2.2 },
-  { z: -4.2, w: 0.54, top: 0.6, bot: 0.03, y: 0.6, n: 2.2 },
-  { z: -3.1, w: 0.44, top: 0.38, bot: 0.03, y: 0.62, n: 2.2 },
-  { z: -2.5, w: 0.22, top: 0.1, bot: 0.03, y: 0.66, n: 2 },
+  { z: -6.6, w: 0.03, top: 0.02, bot: 0.02, y: 0.58, n: 2 },
+  { z: -6.15, w: 0.4, top: 0.42, bot: 0.03, y: 0.59, n: 2.2 },
+  { z: -5.65, w: 0.52, top: 0.68, bot: 0.03, y: 0.6, n: 2.2 },
+  { z: -4.95, w: 0.56, top: 0.8, bot: 0.03, y: 0.6, n: 2.2 },
+  { z: -4.0, w: 0.54, top: 0.78, bot: 0.03, y: 0.6, n: 2.2 },
+  { z: -3.05, w: 0.45, top: 0.52, bot: 0.03, y: 0.62, n: 2.2 },
+  { z: -2.45, w: 0.22, top: 0.12, bot: 0.03, y: 0.67, n: 2 },
 ];
 
 // Planforms (body frame x, z)
@@ -264,7 +269,7 @@ function livery(team: string, withCamo = true): Livery {
   L.sideDraw(-2.6, -0.1, (g, x, y) => roundel(g, team, x, y, 0.36 * ps));
   L.sideText('EX', -2.6, -0.62, 0.12 * ps, 'rgba(34,37,41,0.7)');
   // canopy rescue and ejection-seat warnings
-  L.sideDraw(-6.25, 0.28, (g, x, y) => {
+  L.sideDraw(-5.8, 0.28, (g, x, y) => {
     g.fillStyle = '#c9402c';
     g.beginPath();
     g.moveTo(x, y - 0.12 * ps);
@@ -273,7 +278,7 @@ function livery(team: string, withCamo = true): Livery {
     g.closePath();
     g.fill();
   });
-  L.sideText('RESCUE', -5.4, 0.36, 0.07 * ps, '#c9402c');
+  L.sideText('RESCUE', -4.95, 0.36, 0.07 * ps, '#c9402c');
   // intake danger band
   for (const g of [L.gs, L.gr]) {
     g.fillStyle = 'rgba(190,48,40,0.8)';
@@ -365,26 +370,26 @@ export function buildF15EX(v: AirframeVisual): void {
 
   // dorsal hump / speedbrake: the hump is part of the body; the speedbrake is a shell on it
   const SB = keyedProfile([
-    { z: -2.35, pts: [[0, 0.745], [0.3, 0.73], [0.55, 0.66], [0.6, 0.64], [0.56, 0.68], [0.3, 0.765], [0, 0.78]] },
-    { z: -1.0, pts: [[0, 0.715], [0.35, 0.69], [0.6, 0.6], [0.64, 0.58], [0.6, 0.62], [0.35, 0.73], [0, 0.745]] },
-    { z: 0.3, pts: [[0, 0.64], [0.35, 0.615], [0.6, 0.545], [0.64, 0.53], [0.6, 0.565], [0.35, 0.65], [0, 0.668]] },
+    { z: -2.35, pts: [[0, 0.83], [0.3, 0.81], [0.55, 0.715], [0.6, 0.69], [0.56, 0.73], [0.3, 0.845], [0, 0.865]] },
+    { z: -1.0, pts: [[0, 0.795], [0.35, 0.765], [0.6, 0.655], [0.64, 0.63], [0.6, 0.67], [0.35, 0.805], [0, 0.825]] },
+    { z: 0.3, pts: [[0, 0.7], [0.35, 0.67], [0.6, 0.585], [0.64, 0.565], [0.6, 0.605], [0.35, 0.705], [0, 0.728]] },
   ]);
   const sbGeo = stamp(loftProfile({ stations: stations(-2.35, 0.3, 24), profile: SB, sub: 4, capStart: true, capEnd: true }));
-  const sb = v.addSurface(sbGeo, paint, new THREE.Vector3(0, 0.74, -2.35), new THREE.Vector3(1, 0, 0), 'rudder', 0, 0);
+  const sb = v.addSurface(sbGeo, paint, new THREE.Vector3(0, 0.83, -2.35), new THREE.Vector3(1, 0, 0), 'rudder', 0, 0);
   v.surfaces.splice(v.surfaces.indexOf(sb), 1);
   v.speedbrake = { pivot: sb.pivot, axis: new THREE.Vector3(-1, 0, 0), maxDeg: 45 };
 
   // --- canopy, seats, pilots -------------------------------------------------------
-  v.cockpitEye.set(0, 0.95, -5.55);
-  buildCanopy(v, CANOPY, -6.05, [-4.75], paint);
-  for (const eye of [new THREE.Vector3(0, 0.95, -5.55), new THREE.Vector3(0, 1.0, -4.1)]) {
+  v.cockpitEye.set(0, 0.95, -5.1);
+  buildCanopy(v, CANOPY, -5.6, [-4.15], paint);
+  for (const eye of [new THREE.Vector3(0, 0.95, -5.1), new THREE.Vector3(0, 1.0, -3.65)]) {
     addPilot(v, eye, 0.2, { style: 'us', stick: 'center', martinBaker: false });
   }
   // instrument panel shroud / glareshield at the front of the well
   const shroud = loftProfile({
-    stations: stations(-6.55, -6.1, 6),
+    stations: stations(-6.1, -5.65, 6),
     profile: (z) => {
-      const u = sstep(-6.55, -6.1, z);
+      const u = sstep(-6.1, -5.65, z);
       return [[0, 0.18], [0.44, 0.2], [0.5, 0.52], [0.36, 0.62 - u * 0.06], [0, 0.64 - u * 0.06]] as P2[];
     },
     sub: 3,

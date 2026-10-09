@@ -381,6 +381,12 @@ export interface IntakeSpec {
   n?: number;
   /** tilt of the mouth: z offset per metre of y (raked mouths) */
   rake?: (x: number, y: number) => number;
+  /**
+   * how far behind the lip the rake fades out of the skin and the duct
+   * (default 0.6 m; a mouth raked further than that needs a longer fade or
+   * the rings behind the lip would cross it)
+   */
+  rakeFade?: number;
   /** compressor face / fan radius and centre (in the duct end plane) */
   fan?: { cx: number; cy: number; r: number };
 }
@@ -389,9 +395,10 @@ export function intake(s: IntakeSpec): { skin: THREE.BufferGeometry; duct: THREE
   const n = dense(s.n ?? 64);
   const rake = s.rake ?? (() => 0);
   const zl = s.outer[0];
+  const fade = s.rakeFade ?? 0.6;
   const at = (z: number) => resample(s.loop(z), n);
   const mouth = at(zl);
-  const toP3 = (loop: P2[], z: number, raked = true): P3[] => loop.map(([x, y]) => [x, y, z + (raked ? rake(x, y) : 0)]);
+  const toP3 = (loop: P2[], z: number, raked: number | boolean = true): P3[] => loop.map(([x, y]) => [x, y, z + (raked ? rake(x, y) * +raked : 0)]);
   // lip roll: from the outside at the mouth over the lip into the duct
   const lipRings: P3[][] = [];
   const LIP = 6;
@@ -419,12 +426,13 @@ export function intake(s: IntakeSpec): { skin: THREE.BufferGeometry; duct: THREE
       const m = u * u * (3 - 2 * u);
       loop = inner0.map((p, i) => [p[0] + (circ[i][0] - p[0]) * m, p[1] + (circ[i][1] - p[1]) * m] as P2);
     }
-    ductRings.push(toP3(loop, z, k < 2));
+    // (a long fade is shared by the duct, so its rings never cross the lip)
+    ductRings.push(toP3(loop, z, s.rakeFade ? Math.max(0, 1 - (z - zl) / fade) : k < 2));
   }
   // outer skin rings (start at the mouth)
-  const outerRings: P3[][] = s.outer.map((z, i) => toP3(at(z), z, i === 0 || z - zl < 0.6).map(([x, y, zz]) => {
-    // the rake fades out over the first 0.6 m
-    const f = Math.max(0, 1 - (z - zl) / 0.6);
+  const outerRings: P3[][] = s.outer.map((z, i) => toP3(at(z), z, i === 0 || z - zl < fade).map(([x, y, zz]) => {
+    // the rake fades out over the first `fade` metres
+    const f = Math.max(0, 1 - (z - zl) / fade);
     return [x, y, z + (zz - z) * f] as P3;
   }));
   // one continuous sheet: deep duct -> lip -> outside

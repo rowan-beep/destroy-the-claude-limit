@@ -104,32 +104,30 @@ export function skillFromLevel(level: number, label: string): AISkill {
 /**
  * APEX: everything Extreme has, pushed past what the scale goes to, and a
  * commander behind it. Reactions in 0.04 s (Extreme 0.12), gun aim within
- * 0.5 mil (1.2), a 0.05 s lock is enough for a Sidewinder (0.15), shots up to
- * 80 deg off the nose (70), pulls to the airframe's override limit (the APEX
- * airframe's 45 G), sees 12 NM by eye (7), flies 150 m off the ground (220).
- * No chaff or flares and no hiding behind hills: it beats missiles by flying.
+ * 0.5 mil (1.2) and the discipline to open fire only inside 800 m (1300), a
+ * 0.05 s lock is enough for a Sidewinder (0.15), shots up to 80 deg off the
+ * nose (70), pulls to the airframe's override limit, sees 12 NM by eye (7),
+ * keeps 300 m off the ground (220).
  */
 export function apexSkill(): AISkill {
   const s = skillFromLevel(1, 'APEX');
   s.thinkInterval = 0;
   s.reaction = 0.04;
-  s.maxG = 45;
+  s.maxG = 13;
   s.useOverride = true;
   s.defense = 1;
-  // (no chaff, no flares: the APEX airframe beats missiles by flying)
-  s.cmUse = 0;
+  s.cmUse = 1;
   s.aimError = 0.5;
-  s.gunRange = 1500;
+  // (rounds fired from further out mostly miss, and the gun runs dry before the merge that matters)
+  s.gunRange = 800;
   s.lockHold = 0.05;
   s.shotConeDeg = 80;
   s.missileRangeFrac = 0.92;
-  s.minAgl = 150;
+  s.minAgl = 300;
   s.visualRangeNm = 12;
   s.teamwork = 1;
   s.exploit = true;
   s.commander = true;
-  // (it never hides behind a hill: it keeps fighting and beats the missiles in the air)
-  s.terrainMasking = false;
   return s;
 }
 

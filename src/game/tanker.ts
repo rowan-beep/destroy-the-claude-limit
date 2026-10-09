@@ -88,21 +88,22 @@ const HOSE_ROOT = new THREE.Vector3(0, -2.7, 16.5);
 /** where the basket trails, untouched */
 const BASKET_REST = new THREE.Vector3(0, -9.5, 43);
 
-function buildKC46(): TankerModel {
+export function buildKC46(): TankerModel {
   const grey = new THREE.MeshStandardMaterial({ color: '#aeb4b9', roughness: 0.6, metalness: 0.1 });
   const dark = new THREE.MeshStandardMaterial({ color: '#2d3135', roughness: 0.6, metalness: 0.4 });
   const glass = new THREE.MeshStandardMaterial({ color: '#0d1218', roughness: 0.1, metalness: 0.7 });
   const metal = new THREE.MeshStandardMaterial({ color: '#b6babd', roughness: 0.3, metalness: 0.9 });
   const g = new THREE.Group();
-  // the fuselage: 47.5 m of 5 m tube with the 767's rounded nose and upswept tail cone
+  // the fuselage: 50.5 m of 5 m tube with the 767's rounded nose and upswept
+  // tail cone (the taper starts two thirds of the way back, as on the three-view)
   const prof: [number, number][] = [];
-  const L = 48.5;
+  const L = 50.5;
   for (let i = 0; i <= 40; i++) {
     const t = i / 40;
     const z = -L / 2 + t * L;
     let r = 2.5;
-    if (t < 0.12) r = 2.5 * Math.sqrt(1 - Math.pow((0.12 - t) / 0.12, 2) * 0.96);
-    if (t > 0.72) r = 2.5 * (1 - Math.pow((t - 0.72) / 0.28, 1.4) * 0.84);
+    if (t < 0.11) r = 2.5 * Math.sqrt(1 - Math.pow((0.11 - t) / 0.11, 2) * 0.96);
+    if (t > 0.68) r = 2.5 * (1 - Math.pow((t - 0.68) / 0.32, 1.4) * 0.84);
     prof.push([Math.max(0.08, r), z]);
   }
   const body = new THREE.LatheGeometry(prof.map(([r, z]) => new THREE.Vector2(r, z)), 40);
@@ -111,26 +112,27 @@ function buildKC46(): TankerModel {
   const pos = body.attributes.position as THREE.BufferAttribute;
   for (let i = 0; i < pos.count; i++) {
     const z = pos.getZ(i);
-    if (z > L * 0.22) pos.setY(i, pos.getY(i) + Math.pow((z - L * 0.22) / (L * 0.28), 2) * 1.6);
+    if (z > L * 0.18) pos.setY(i, pos.getY(i) + Math.pow((z - L * 0.18) / (L * 0.32), 2) * 1.7);
   }
   body.computeVertexNormals();
   const parts: THREE.BufferGeometry[] = [body];
-  // wings: 48 m span, 31.5 degree sweep, a low wing with dihedral
+  // wings: 48 m span, 31.5 degree sweep, a low wing with dihedral, the root
+  // leading edge 40% of the way back
   for (const s of [-1, 1]) {
-    const w = surface(21.5, 8.2, 2.2, (31.5 * Math.PI) / 180, 0.55, s, 2.3);
+    const w = surface(21.5, 8.4, 2.2, (31.5 * Math.PI) / 180, 0.55, s, 2.3);
     w.rotateZ(s * 0.1);
-    w.translate(0, -1.4, -4.5);
+    w.translate(0, -1.4, -5.0);
     parts.push(w);
-    // tailplane
-    const hs = surface(7.6, 4.6, 1.6, (37 * Math.PI) / 180, 0.3, s, 0.6);
+    // tailplane: 18.6 m across
+    const hs = surface(8.7, 4.6, 1.6, (37 * Math.PI) / 180, 0.3, s, 0.6);
     hs.rotateZ(s * 0.12);
-    hs.translate(0, 0.9, 17.5);
+    hs.translate(0, 1.0, 18.0);
     parts.push(hs);
   }
-  // the fin
-  const fin = surface(9.2, 7.4, 2.4, (42 * Math.PI) / 180, 0.35, 1, 0);
+  // the fin: 8.5 m up off the spine, its root chord 8.5 m
+  const fin = surface(8.5, 8.5, 2.4, (42 * Math.PI) / 180, 0.35, 1, 0);
   fin.rotateZ(Math.PI / 2);
-  fin.translate(0.17, 1.6, 15.2);
+  fin.translate(0.17, 1.7, 15.0);
   parts.push(fin);
   // wing-body fairing and the belly
   parts.push(new THREE.BoxGeometry(5.4, 1.4, 11).translate(0, -2.2, -1.5));

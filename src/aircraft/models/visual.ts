@@ -16,7 +16,7 @@ import { makeInsignia } from './decals';
 import { Cockpit } from './cockpit';
 import { customSkinMaterial, Livery } from './kit';
 import { burnerMaterial, partMaterials } from './parts';
-import { PilotRig, updatePilot } from './pilot';
+import { PilotRig, updatePilot, rigFrames, cloneSuit } from './pilot';
 import { PaintConfig, WRAPS, wrapMask } from './paint';
 import type { AoVolume } from './ao';
 import type { HazeSource } from '../../render/heatHaze';
@@ -507,7 +507,7 @@ export class AirframeVisual {
         m.material = orig;
         return;
       }
-      if (!this.suitMat) this.suitMat = (orig as THREE.MeshStandardMaterial).clone();
+      if (!this.suitMat) this.suitMat = cloneSuit(orig as THREE.MeshStandardMaterial);
       this.suitMat.color.set(hex);
       m.material = this.suitMat;
     });
@@ -585,7 +585,7 @@ export class AirframeVisual {
     // parts with a life of their own stay separate meshes
     const keep = new Set<THREE.Object3D>([...this.insignia, ...this.navLights.map((l) => l.mesh)]);
     for (const g of this.gear) g.hideWhenUp.forEach((o) => keep.add(o));
-    for (const r of this.pilots) [r.stick, r.upper, r.fore].forEach((o) => rigid.add(o));
+    for (const r of this.pilots) rigFrames(r).forEach((o) => rigid.add(o));
     for (const n of this.nozzleMorphs) keep.add(n.mesh);
     for (const c of this.bayCavities) keep.add(c.mesh);
     if (this.canopy) keep.add(this.canopy);
@@ -833,7 +833,7 @@ export class AirframeVisual {
     v.hideInCockpit = this.hideInCockpit.map(M);
     v.detail = this.detail.map(M);
     v.lodMeshes = this.lodMeshes.map(M);
-    v.pilots = this.pilots.map((r) => ({ ...r, stick: M(r.stick), upper: M(r.upper), fore: M(r.fore), p: 0, r: 0 }));
+    v.pilots = this.pilots.map((r) => ({ ...r, stick: M(r.stick), upper: M(r.upper), fore: M(r.fore), head: M(r.head), throttle: M(r.throttle), lUpper: M(r.lUpper), lFore: M(r.lFore), p: 0, r: 0, hy: 0, hp: 0, t: 0.75, time: 0 }));
     v.farLod = this.farLod;
     if (this.farLod) {
       const L = this.farLod;

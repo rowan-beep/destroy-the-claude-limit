@@ -54,18 +54,6 @@ const _atm: AtmoState = { T: 0, p: 0, rho: 0, a: 0, sigma: 0, delta: 0 };
 const _vb = new THREE.Vector3();
 const _vhat = new THREE.Vector3();
 const _lift = new THREE.Vector3();
-// (the APEX flight path)
-const _kp0 = new THREE.Vector3();
-const _kv0 = new THREE.Vector3();
-const _kh = new THREE.Vector3();
-const _kax = new THREE.Vector3();
-const _kacc = new THREE.Vector3();
-const _kfeel = new THREE.Vector3();
-const _kold = new THREE.Vector3();
-const _kup = new THREE.Vector3();
-const _kright = new THREE.Vector3();
-const _kback = new THREE.Vector3();
-const _kmat = new THREE.Matrix4();
 const _side = new THREE.Vector3();
 const _acc = new THREE.Vector3();
 const _tmp = new THREE.Vector3();
@@ -320,8 +308,6 @@ export class FlightModel {
   touchdowns = 0;
   lastTouchdown = { sink: 0, tas: 0, bank: 0, pitch: 0, x: 0, z: 0, heading: 0 };
   overG = 0;
-  /** APEX: the flight path its pilot commands this frame (direction, true airspeed m/s, G), flown exactly; null = normal flight */
-  kin: { dir: THREE.Vector3; speed: number; g: number } | null = null;
   structuralFailure = false;
   stallWarning = false;
   readonly damage: FmDamage = { thrust: [1, 1], lift: 1, rollBias: 0, control: 1, drag: 0, pitchBias: 0 };
@@ -758,23 +744,13 @@ export class FlightModel {
     const cdi = this.cdOf(cl, M) - this.cdOf(0, M);
     // flying sideways costs energy: sideslip drag grows with the square of beta
     const cd = this.cdOf(0, M) + cdi * (1 - 0.45 * ge) + 0.35 * Math.abs(Math.sin(alpha)) * smoothstep(0.35, 0.9, Math.abs(alpha)) + 0.55 * beta * beta;
-    let L = qS * cl;
-    let cdL = cd;
-    // APEX: the lift answers the stick at once, up to its G limit (fading out below about 110 m/s);
-    // the drag is the drag of that lift
-    if (s.directLift && !this.onGround && this.nCmdF > 1) {
-      const Ld = Math.min(this.nCmdF, s.gOverride * smoothstep(40, 110, this.cas)) * m * G0;
-      if (Ld > L) {
-        cdL = cd + this.cdOf(Ld / Math.max(qS, 1), M) - this.cdOf(cl, M);
-        L = Ld;
-      }
-    }
-    this.cl = L / Math.max(qS, 1);
-    this.cd = cdL;
+    this.cl = cl;
+    this.cd = cd;
+    const L = qS * cl;
     // the speed-limit drag brakes hard but never more than a few G: diving fast from
     // high up into thick air used to stop the jet so violently it broke up
     const cdB = this.barrierCd(M);
-    const D = qS * (cdL - cdB) + Math.min(qS * cdB, m * 3.5 * G0);
+    const D = qS * (cd - cdB) + Math.min(qS * cdB, m * 3.5 * G0);
     const Y = qS * A.cyB * beta;
 
     _acc.set(0, 0, 0);
@@ -877,7 +853,7 @@ export class FlightModel {
     let nCmd = stick >= 0 ? lerp(nNeutral, gMax, stick) : lerp(nNeutral, s.gNeg, -stick);
     nCmd = clamp(nCmd, s.gNeg, gMax);
     // G onset is rate-limited by the control laws (about 12 G/s pulling)
-    const onset = nCmd > this.nCmdF ? (s.gOnset ?? 12) * (1 - 0.8 * this.gearLawFade) : Math.max(20, s.gOnset ?? 0);
+    const onset = nCmd > this.nCmdF ? 12 * (1 - 0.8 * this.gearLawFade) : 20;
     this.nCmdF += clamp(nCmd - this.nCmdF, -onset * dt, onset * dt);
     const clReq = (this.nCmdF * W) / Math.max(qS, 1);
     // TVC jets: the paddle switch opens the post-stall manoeuvring envelope
@@ -982,8 +958,6 @@ export class FlightModel {
     this.rRate = clamp(this.rRate, -3, 3);
 
     // integrate translation
-    _kp0.copy(this.pos);
-    _kv0.copy(this.vel);
     this.vel.addScaledVector(_acc, dt);
     this.pos.addScaledVector(this.vel, dt);
 
@@ -998,7 +972,6 @@ export class FlightModel {
       this.quat.premultiply(_dq).normalize();
     }
     this.updateAxes();
-    if (this.kin && s.directLift) this.flyKinematic(dt, _kp0, _kv0);
 
     this.pitchRate = this.qRate / DEG;
     this.yawRate = this.rRate / DEG;
@@ -1012,13 +985,10 @@ export class FlightModel {
     // over-stress both ways: past the override limit pulling, or well past the
     // negative limit pushing (the structure is much weaker in negative G)
     const nz = nzWing;
-    // (the APEX airframe never breaks)
-    if (!s.directLift) {
-      if (nz > s.gOverride + 0.4) this.overG += (nz - s.gOverride) * dt;
-      const negLim = s.gNeg - 1.5;
-      if (nz < negLim) this.overG += (negLim - nz) * dt;
-      if (nz > s.gStructural || nz < s.gNeg * 2) this.structuralFailure = true;
-    }
+    if (nz > s.gOverride + 0.4) this.overG += (nz - s.gOverride) * dt;
+    const negLim = s.gNeg - 1.5;
+    if (nz < negLim) this.overG += (negLim - nz) * dt;
+    if (nz > s.gStructural || nz < s.gNeg * 2) this.structuralFailure = true;
 
     // --- ground contact ---
     groundSurface(this.pos.x, this.pos.z, _surf);
@@ -1027,61 +997,6 @@ export class FlightModel {
     this.surfaceField = _surf.field;
     this.agl = this.pos.y - _surf.h;
     this.checkContact(c);
-  }
-
-  /**
-   * APEX: the flight path its pilot commands, flown exactly. The velocity turns toward the commanded direction at up to
-   * the commanded G, the speed changes at up to 3 G (6 G slowing), the nose stays on the flight path and the jet rolls
-   * (up to 400 deg/s) so its lift points into the turn.
-   */
-  private flyKinematic(dt: number, p0: THREE.Vector3, v0: THREE.Vector3): void {
-    const k = this.kin!;
-    const V0 = Math.max(v0.length(), 60);
-    _kh.copy(v0).divideScalar(V0);
-    // turn
-    const ang = Math.acos(clamp(_kh.dot(k.dir), -1, 1));
-    if (ang > 1e-6) {
-      _kax.crossVectors(_kh, k.dir);
-      // (straight behind: turn through the lift)
-      if (_kax.lengthSq() < 1e-10) _kax.crossVectors(_kh, this.up);
-      _kax.normalize();
-      _kh.applyAxisAngle(_kax, Math.min(ang, ((k.g * G0) / V0) * dt));
-    }
-    // speed
-    const V1 = clamp(V0 + clamp(k.speed - V0, -6 * G0 * dt, 3 * G0 * dt), 40, 900);
-    this.vel.copy(_kh).multiplyScalar(V1);
-    this.pos.copy(p0).addScaledVector(this.vel, dt);
-    // what the pilot feels: the turn, plus holding the jet up against gravity
-    _kacc.subVectors(this.vel, v0).divideScalar(dt);
-    _kfeel.copy(_kacc);
-    _kfeel.y += G0;
-    // the lift has to point along the felt load across the flight path: roll toward it (fast, not instantly)
-    _kold.copy(this.up).addScaledVector(_kh, -this.up.dot(_kh));
-    if (_kold.lengthSq() < 1e-6) _kold.set(0, 1, 0).addScaledVector(_kh, -_kh.y);
-    _kold.normalize();
-    _kup.copy(_kfeel).addScaledVector(_kh, -_kfeel.dot(_kh));
-    if (_kup.lengthSq() < 4) _kup.copy(_kold);
-    _kup.normalize();
-    const roll = Math.acos(clamp(_kold.dot(_kup), -1, 1));
-    const maxRoll = 7 * dt;
-    if (roll > maxRoll) {
-      _kax.crossVectors(_kold, _kup);
-      if (_kax.lengthSq() < 1e-10) _kax.copy(_kh);
-      _kax.normalize();
-      _kup.copy(_kold).applyAxisAngle(_kax, maxRoll);
-    }
-    _kright.crossVectors(_kh, _kup).normalize();
-    _kup.crossVectors(_kright, _kh).normalize();
-    _kback.copy(_kh).negate();
-    _kmat.makeBasis(_kright, _kup, _kback);
-    this.quat.setFromRotationMatrix(_kmat);
-    this.updateAxes();
-    this.accel.copy(_kacc);
-    this.nz = _kfeel.dot(this.up) / G0;
-    this.ny = _kfeel.dot(this.right) / G0;
-    this.pRate = this.qRate = this.rRate = 0;
-    this.departed = false;
-    this.stallWarning = false;
   }
 
   private checkContact(c: FlightControls): void {

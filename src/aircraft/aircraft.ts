@@ -63,8 +63,6 @@ export class Aircraft {
   killCredited = false;
   ai: AIPilot | null = null;
   isPlayer = false;
-  /** flies the APEX airframe (apexAirframe()) */
-  apex = false;
   trigger = false;
   gunFiring = false;
   private gunAccum = 0;
@@ -347,7 +345,6 @@ export class Aircraft {
       }
     } else {
       // uncontrolled wreck
-      fm.kin = null;
       const c = this.controls;
       c.throttle = 0;
       c.pitch = 0.3;
@@ -753,38 +750,6 @@ export class Aircraft {
 
   dispense(kind: 'flare' | 'chaff', count = 2): void {
     for (let i = 0; i < count; i++) this.cmQueue.push({ kind, t: i * 0.12 });
-  }
-
-  /**
-   * APEX: an airframe past anything real. 45 G (7x the wing's lift, direct lift up to the limit), flown along the
-   * commanded flight path exactly (FlightModel.flyKinematic), 1.5x the thrust, 3x the gun rounds; the structure never
-   * breaks and the pilot never blacks out. It carries no countermeasure program: it beats missiles by flying.
-   */
-  apexAirframe(): void {
-    if (this.apex) return;
-    this.apex = true;
-    const s = this.spec;
-    const b: AircraftSpec = {
-      ...s,
-      gLimit: 45,
-      gOverride: 45,
-      gStructural: 150,
-      gOnset: 150,
-      directLift: true,
-      clMax: s.clMax * 7,
-      clAlpha: s.clAlpha * 7,
-      kInduced: s.kInduced / 49,
-      rollRate: s.rollRate * 2.5,
-      pitchRate: s.pitchRate * 3,
-      thrustMil: s.thrustMil * 1.5,
-      thrustAb: s.thrustAb * 1.5,
-      ew: { ...s.ew, autoDispense: false },
-      gun: { ...s.gun, rounds: s.gun.rounds * 3 },
-    };
-    (this as unknown as { spec: AircraftSpec }).spec = b;
-    (this.fm as unknown as { spec: AircraftSpec }).spec = b;
-    this.gunAmmo = b.gun.rounds;
-    this.pilot.gImmune = true;
   }
 
   private updateCountermeasures(dt: number, sim: Sim): void {

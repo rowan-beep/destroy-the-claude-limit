@@ -2,6 +2,7 @@
 
 import { OCEAN_KEY_SECTIONS } from '../../ocean/keys';
 import { renderDebrief } from './debrief';
+import { renderRankedResult } from './rankedResult';
 import type { MapData } from '../../world/mapData';
 import { el, clearEl, button } from '../dom';
 import type { MissionResult, Briefing } from '../../game/modes/mode';
@@ -127,6 +128,7 @@ export class ResultsScreen {
     this.box.classList.toggle('wide', !!r.debrief);
     el('h1', r.good ? 'good' : 'bad', this.box, r.title);
     el('div', 'rs', this.box, r.subtitle);
+    if (r.ranked) renderRankedResult(this.box, r.ranked);
     const t = el('table', 'specs', this.box);
     for (const [k, v] of r.stats) {
       const tr = el('tr', '', t);
@@ -138,6 +140,8 @@ export class ResultsScreen {
     for (const btn of r.buttons) {
       button(btn.label, btn.action === 'menu' ? '' : 'primary', b, () => this.onAction(btn.action));
     }
+    // (a tall debrief scrolls: always open at the top, where the result is)
+    this.box.scrollTop = 0;
   }
 }
 

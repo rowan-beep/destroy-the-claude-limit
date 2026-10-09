@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import { GameMode, ModeStatus, ResultButton, statsFor } from './mode';
 import { Aircraft } from '../../aircraft/aircraft';
 import { AIPilot } from '../../ai/pilot';
-import { duelSkill } from '../../ai/skill';
+import { duelSkill, type AISkill } from '../../ai/skill';
 import { ROLES, mapAlt } from '../../world/islands';
 import { spawnInAir, aiStores, pickEnemyType } from '../spawn';
 import { COMBAT_TYPES, AircraftType } from '../../aircraft/specs';
@@ -30,13 +30,17 @@ export class TeamBattleMode extends GameMode {
   phase: Phase = 'brief';
   blue: Aircraft[] = [];
   red: Aircraft[] = [];
-  private timer = 0;
+  protected timer = 0;
   private roundTime = 0;
   /** player kills summed over the match (the player jet is new each round) */
-  private matchKills = 0;
-  private matchShots = 0;
-  private roundWinner: Team | 'both' | null = null;
+  protected matchKills = 0;
+  protected matchShots = 0;
+  /** rounds in which the player was shot down */
+  protected matchDeaths = 0;
+  protected roundWinner: Team | 'both' | null = null;
   private combatTime = 0;
+  /** combat time before a round is called (s) */
+  protected roundLimit = ROUND_LIMIT;
   /** each AI pilot keeps its random paint job (per jet type) for the whole match */
   private paints = new Map<string, PaintConfig>();
 
@@ -54,10 +58,20 @@ export class TeamBattleMode extends GameMode {
     return Math.max(1, Math.min(5, this.host.config.teamWins || 3));
   }
 
+  /** the AI pilots of both teams */
+  protected skillFor(): AISkill {
+    return duelSkill(this.host.config.difficulty);
+  }
+
+  /** what the round briefing calls the AI ("EXTREME", "GOLD III") */
+  protected skillLabel(): string {
+    return this.host.config.difficulty;
+  }
+
   start(): void {
     this.score.blue = this.score.red = 0;
     this.round = 0;
-    this.matchKills = this.matchShots = 0;
+    this.matchKills = this.matchShots = this.matchDeaths = 0;
     this.startRound();
   }
 
@@ -88,7 +102,7 @@ export class TeamBattleMode extends GameMode {
     this.roundWinner = null;
     const samos = ROLES.arena;
     const sep = 14 * NM;
-    const skill = duelSkill(cfg.difficulty);
+    const skill = this.skillFor();
 
     const p = h.createPlayer();
     this.loadout(p, true);
@@ -146,7 +160,7 @@ export class TeamBattleMode extends GameMode {
     const need = this.winsNeeded;
     h.order(
       `ROUND ${this.round} — BLUE ${this.score.blue} : ${this.score.red} RED`,
-      `First to ${need}. Your flight: ${this.blue.map((a) => a.spec.shortName).join(', ')}. Bandits: ${this.red.map((a) => a.spec.shortName).join(', ')} (${cfg.difficulty}). ${
+      `First to ${need}. Your flight: ${this.blue.map((a) => a.spec.shortName).join(', ')}. Bandits: ${this.red.map((a) => a.spec.shortName).join(', ')} (${this.skillLabel()}). ${
         cfg.duelRules === 'guns' ? 'GUNS ONLY.' : cfg.duelRules === 'ir' ? 'SIDEWINDERS AND GUNS ONLY.' : 'ALL WEAPONS FREE.'
       } Merge over ${ROLES.arena.name[0] + ROLES.arena.name.slice(1).toLowerCase()} in about a minute.`,
       9,
@@ -189,7 +203,7 @@ export class TeamBattleMode extends GameMode {
         if (blueAlive === 0 && redAlive === 0) winner = 'draw';
         else if (redAlive === 0) winner = 'blue';
         else if (blueAlive === 0) winner = 'red';
-        else if (this.combatTime > ROUND_LIMIT) winner = 'both';
+        else if (this.combatTime > this.roundLimit) winner = this.timeoutWinner(blueAlive, redAlive);
         if (winner) this.endRound(winner);
         break;
       }
@@ -203,12 +217,18 @@ export class TeamBattleMode extends GameMode {
     }
   }
 
-  private endRound(winner: Team | 'draw' | 'both'): void {
+  /** who takes a round that runs out of time (team battle: both teams score) */
+  protected timeoutWinner(_blue: number, _red: number): Team | 'draw' | 'both' {
+    return 'both';
+  }
+
+  protected endRound(winner: Team | 'draw' | 'both'): void {
     const h = this.host;
     const p = h.player;
     if (p) {
       this.matchKills += p.kills;
       this.matchShots += p.shotsFired;
+      if (!p.alive) this.matchDeaths++;
     }
     this.phase = 'roundEnd';
     this.timer = 7;
@@ -234,7 +254,7 @@ export class TeamBattleMode extends GameMode {
     h.voice(won ? 'Round won' : 'Round lost');
   }
 
-  private finish(): void {
+  protected finish(): void {
     const h = this.host;
     this.phase = 'over';
     this.over = true;
@@ -271,7 +291,7 @@ export class TeamBattleMode extends GameMode {
     let objective = '';
     if (this.phase === 'brief') objective = `ROUND ${this.round} — MERGE IN ${Math.ceil(this.timer)} S`;
     else if (this.phase === 'combat') {
-      const left = Math.max(0, ROUND_LIMIT - this.combatTime);
+      const left = Math.max(0, this.roundLimit - this.combatTime);
       objective = `DESTROY ALL ${redAlive} BANDIT${redAlive === 1 ? '' : 'S'}${left < 60 ? ` · ${Math.ceil(left)} S LEFT` : ''} · FIRST TO ${this.winsNeeded}`;
     }
     else if (this.phase === 'roundEnd') objective = this.roundWinner === 'both' ? `TIME — BOTH TEAMS SCORE — NEXT ROUND IN ${Math.ceil(this.timer)} S` : this.roundWinner ? `${this.roundWinner === 'blue' ? 'BLUE' : 'RED'} TAKES ROUND ${this.round} — NEXT ROUND IN ${Math.ceil(this.timer)} S` : `NEXT ROUND IN ${Math.ceil(this.timer)} S`;
@@ -280,7 +300,7 @@ export class TeamBattleMode extends GameMode {
       blue: blueAlive,
       red: redAlive,
       // counts down from 5:00 once the fight is on (the round limit)
-      timer: this.phase === 'combat' ? Math.max(0, ROUND_LIMIT - this.combatTime) : this.phase === 'brief' ? ROUND_LIMIT : 0,
+      timer: this.phase === 'combat' ? Math.max(0, this.roundLimit - this.combatTime) : this.phase === 'brief' ? this.roundLimit : 0,
       objective,
     };
   }

@@ -33,6 +33,7 @@ import { WavesMode } from './modes/waves';
 import { DuelMode } from './modes/duel';
 import { TutorialMode } from './modes/tutorial';
 import { TeamBattleMode } from './modes/team';
+import { RankedMode } from './modes/ranked';
 import { FreeForAllMode } from './modes/ffa';
 import { OnlineMode } from './modes/online';
 import type { NetLink } from '../net/link';
@@ -282,7 +283,7 @@ export class Game implements ModeHost {
     const pre = [new Aircraft(cfg.aircraft, 'blue', 'PRE')];
     if (cfg.mode === 'online') for (const t of AIRCRAFT_TYPES) pre.push(new Aircraft(t, 'red', 'PRE'));
     else if (cfg.mode !== 'free' && cfg.mode !== 'spotter') for (const t of enemyTypesFor(cfg.aircraft)) pre.push(new Aircraft(t, 'red', 'PRE'));
-    if (cfg.mode === 'team' || cfg.mode === 'recon' || cfg.mode === 'campaign') for (const t of enemyTypesFor(cfg.aircraft)) pre.push(new Aircraft(t, 'blue', 'PRE'));
+    if (cfg.mode === 'team' || cfg.mode === 'ranked' || cfg.mode === 'recon' || cfg.mode === 'campaign') for (const t of enemyTypesFor(cfg.aircraft)) pre.push(new Aircraft(t, 'blue', 'PRE'));
     if (cfg.mode === 'ffa') pre.push(new Aircraft(cfg.aircraft, 'red', 'PRE'));
     if (cfg.mode === 'daily') pre.push(new Aircraft(todaysMission().enemy.type, 'red', 'PRE'));
     // (the airshow builds each act's jet as it rolls out of the hangar, not every jet up front)
@@ -300,6 +301,8 @@ export class Game implements ModeHost {
           ? new WavesMode(this)
           : cfg.mode === 'team'
             ? new TeamBattleMode(this)
+            : cfg.mode === 'ranked'
+            ? new RankedMode(this)
             : cfg.mode === 'ffa'
               ? new FreeForAllMode(this)
               : cfg.mode === 'tutorial'

@@ -4,7 +4,7 @@ import type { AircraftType } from '../aircraft/specs';
 import type { Difficulty } from '../ai/skill';
 import type { TimeOfDay } from '../render/environment';
 
-export type ModeId = 'free' | 'waves' | 'duel' | 'team' | 'ffa' | 'online' | 'tutorial' | 'daily' | 'strike' | 'recon' | 'campaign' | 'spotter';
+export type ModeId = 'free' | 'waves' | 'duel' | 'team' | 'ffa' | 'online' | 'tutorial' | 'daily' | 'strike' | 'recon' | 'campaign' | 'spotter' | 'ranked';
 
 export interface MissionConfig {
   mode: ModeId;
@@ -109,6 +109,12 @@ export const MODE_INFO: Record<ModeId, { title: string; subtitle: string; descri
     subtitle: '10 escalating waves',
     description:
       'Waves 1-3: three basic bandits. Waves 4-6: six tactical bandits that defend, dispense and terrain-mask. Waves 7-9: six aggressive bandits with afterburner discipline and long radar-missile shots. Wave 10: nine elite bandits with multi-ship tactics.',
+  },
+  ranked: {
+    title: 'RANKED',
+    subtitle: '5v5 · your rank on the line',
+    description:
+      'The ranked playlist, built like Rainbow Six Siege\'s: 36 ranks from Copper V to Diamond I, then Champion with your place on the leaderboard. You and four wingmen against five bandits, first to 4 rounds (overtime at 3-3, first to 5), and every AI pilot in the match flies at your rank: Copper about Easy, Diamond about Extreme, Champion APEX. Wins and kills earn RP, losses cost it. Your first 5 matches each week are placements: your rank stays hidden until the fifth. Ranks reset every Monday at 8:00 a.m. Pacific. Leaving a match counts as a loss. See the RANKED tab for your rank, the ladder and the leaderboard.',
   },
   team: {
     title: '5v5 TEAM BATTLE',

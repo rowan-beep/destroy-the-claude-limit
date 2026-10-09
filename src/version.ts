@@ -37,6 +37,39 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.0.0',
+    date: '2026-10-09',
+    air: {
+      title: 'Ranked, APEX toned down, every jet rebuilt, real pilots',
+      notes: [
+        added("RANKED: a Rainbow Six Siege ladder for the air game",
+          "36 ranks, exactly Siege's: Copper, Bronze, Silver, Gold, Platinum, Emerald and Diamond, five divisions each (V up to I), 100 RP a division, Copper V from 1,000 RP and Diamond I from 4,400. Champion sits above them all from 4,500 RP (and 8 ranked matches in the week) with no divisions: it shows your place in the world, #1, #2 and so on.",
+          "Matches you win and lose move your RP Elo-style against the other side: about ±30 at par, more when you beat someone ranked above you. Every kill adds 5 RP (at most 15 a match, and never more than half a loss back). A win is always worth at least 10. The demotion shield: the first loss that would drop you a division leaves you at its 0 RP; the next one drops you.",
+          "A hidden skill rating with an uncertainty, like Siege's MMR, is kept from week to week. It chooses the AI you fly against and pulls your rank toward it: when you are ranked well below your skill, wins pay up to +80 and losses cost as little as −9.",
+          "Ranks reset every Monday at 8:00 a.m. Washington State time (Pacific, daylight saving included). Each week opens with 5 placement matches: your rank is hidden until the fifth, each one is worth about +100 for a win and −50 for a loss, and you start 300 RP under your hidden skill (at most Diamond V; a brand-new pilot starts at 1,667, Bronze IV). Placements never put you straight into Champion.",
+          "Two playlists count: RANKED in the AI menu (a duel against an AI picked for your skill) and ONLINE free-for-all with 4 or more pilots, where your placing is scored as a win or loss against every other pilot. Leaving a match counts as a loss and keeps you out of ranked for 5, 15, 45 then 120 minutes."),
+        added("Rank emblems",
+          "Each rank has its own emblem, painted like the real thing: a dark bevelled shield round a field of cut crystal in the tier's colour, with facets, light streaks and sparkle, a dark chevron across it, a gem at the crown and at the point. Division I of a tier wears a white star, the other divisions their numeral; Champion wears its crown over the star and glows."),
+        added("RANKED tab",
+          "A new tab in the air menu (04 RANKED) with your rank emblem, RP, the division bar, the five placement slots, the week's record and match history with the RP of each result, the countdown to Monday's reset, the full ladder and the rules. A result card after every ranked match shows what moved and why."),
+        improved("APEX: top, but beatable",
+          "The 45 G airframe is gone. APEX now flies the same jet you do, pulling at most to its over-G limit (13 G), and its missile-dodging at 45 G and the tail-shadow that held a spot 200 m behind you went with it. It drops chaff and flares like everyone else and moves like a real jet: no more instant, jagged snaps.",
+          "What stays: reactions in 0.04 s, gun aim within 0.5 mil, the 0.05 s Sidewinder lock, shots up to 80° off the nose, 12 NM eyes and the commander calling the fight. It never blacks out, and it only opens fire with the gun inside 800 m.",
+          "Measured, computer against computer, 60 one-on-one fights of EXTREME against APEX: APEX won 31, EXTREME 26, 3 draws. Decisively the best AI in the game, and a fight you can win."),
+        improved("Every jet rebuilt to its three-view",
+          "All 13 airframes were laid over published three-view drawings in true scale and reshaped, silhouette by silhouette, until they match: the outlines, the sweep and chord of every wing, canard, fin and tailplane, where the canopy sits and how tall it is, the intakes, the nozzles. Nothing was simplified: every rivet line, light and antenna is still there, just in the right place.",
+          "Gripen E: the canopy sits further back and only just bulges above the high flat spine, the nose droops, the intakes are wider and start further aft, the canards are the real close-coupled ones (2.3 m root chord, tips 2.5 m out), the delta wing is swept 51° with its trailing edge running back to the nozzle, the fin tip is narrow with the EW pod poking ahead of it.",
+          "SR-71: the nacelles were 3 m too far forward and 2.5 m too long; the spikes, inlets, fins and ejector nozzles are now where the drawing puts them, with the wide outboard nacelle chines and a straight trailing edge.",
+          "F-22: blunter radome, deeper belly, wider body, the correct wing and tail planform. Rafale: drooped radome, the real canard and fin, actuator fairings, probe and gun. MiG-31: the long boom-tipped nose, chined forebody, high flat spine, LERX, tip pods, ventral fins and the big trunk intakes. X-15: the real 37° leading edge, the stubby tail surfaces and dorsal spine. F-35: the DSI bumps, the blended body sections, the correct wing and stabilators. Su-57: the faceted nose, LEVCONs on their real line, the wide flat body, the widely spaced fins and the nacelles. Typhoon, Su-35S, F-15EX, F/A-18E/F and F-16C had their spines, canopies and planforms corrected too.",
+          "The KC-46 tanker was corrected as well: a 50.5 m fuselage, the wing and tail where they belong."),
+        added("Real pilots in the cockpits",
+          "Every jet's pilot was rebuilt: a Nomex flight suit with its woven weave, folds and wear, a survival vest with its pockets, the full torso harness (shoulder straps, lap belt, chest strap, Koch fittings, leg straps), anti-G chaps with their lacing, leather gloves, laced boots, a kneeboard, watch, name tag, flag and squadron patches.",
+          "The helmet is clear-coated paint with the reflective tape and markings of its air arm: the HGU-55 with the JHMCS mount in US jets, the Striker II in the Typhoon, Rafale and Gripen, the white ZSh-7 in the Russian jets. The visor is a dark mirror, the oxygen mask has its seal, valve, microphone, bayonet straps and ribbed hose down to the chest regulator. The seats are the real ones: ACES II with its side handles, Martin-Baker with the loop between the knees, the K-36 with its arm paddles and headbox.",
+          "They fly the jet: the stick follows your pitch and roll and the right arm follows it, the throttle slides with your throttle and the left hand goes with it, and the pilot's head turns into every turn and scans the sky."),
+      ],
+    },
+  },
+  {
     version: '6.6.0',
     date: '2026-10-09',
     air: {

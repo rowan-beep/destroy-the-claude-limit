@@ -27,23 +27,28 @@ const BODY = keyedProfile([
   { z: -5.0, pts: [[0, -0.62], [0.32, -0.61], [0.53, -0.49], [0.6, -0.24], [0.62, 0.0], [0.625, 0.06], [0.625, 0.12], [0.6, 0.28], [0.55, 0.46], [0.5, 0.56], [0.4, 0.36], [0, 0.3]] },
   { z: -4.4, pts: [[0, -0.66], [0.33, -0.66], [0.55, -0.53], [0.63, -0.26], [0.65, 0.0], [0.66, 0.06], [0.66, 0.12], [0.63, 0.3], [0.56, 0.5], [0.5, 0.58], [0.42, 0.3], [0, 0.14]] },
   { z: -3.55, pts: [[0, -0.68], [0.34, -0.68], [0.56, -0.56], [0.66, -0.28], [0.69, 0.0], [0.7, 0.06], [0.7, 0.12], [0.67, 0.3], [0.58, 0.5], [0.49, 0.6], [0.4, 0.4], [0, 0.36]] },
-  { z: -2.6, pts: [[0, -0.68], [0.36, -0.68], [0.6, -0.58], [0.72, -0.3], [0.76, 0.0], [0.77, 0.06], [0.77, 0.12], [0.74, 0.32], [0.64, 0.5], [0.48, 0.6], [0.25, 0.65], [0, 0.67]] },
-  { z: -1.0, pts: [[0, -0.7], [0.45, -0.72], [0.78, -0.72], [0.88, -0.45], [0.9, -0.2], [0.9, -0.1], [0.9, 0.0], [0.86, 0.25], [0.72, 0.46], [0.5, 0.58], [0.26, 0.63], [0, 0.65]] },
-  { z: 1.5, pts: [[0, -1.0], [0.5, -1.0], [0.84, -0.92], [0.95, -0.6], [0.96, -0.3], [0.96, -0.2], [0.96, -0.1], [0.93, 0.2], [0.78, 0.44], [0.52, 0.56], [0.26, 0.61], [0, 0.63]] },
-  { z: 4.0, pts: [[0, -0.8], [0.45, -0.82], [0.82, -0.72], [0.94, -0.45], [0.95, -0.25], [0.95, -0.18], [0.95, -0.1], [0.92, 0.15], [0.76, 0.38], [0.52, 0.5], [0.26, 0.55], [0, 0.58]] },
+  // behind the canopy the spine stands high (the canopy's aft glazing fairs into it) and
+  // slopes down to the fin
+  { z: -2.6, pts: [[0, -0.68], [0.36, -0.68], [0.6, -0.58], [0.72, -0.3], [0.76, 0.0], [0.77, 0.06], [0.77, 0.12], [0.74, 0.32], [0.64, 0.52], [0.5, 0.64], [0.28, 0.78], [0, 0.84]] },
+  { z: -1.6, pts: [[0, -0.69], [0.42, -0.705], [0.71, -0.67], [0.82, -0.39], [0.85, -0.125], [0.855, -0.04], [0.855, 0.045], [0.82, 0.3], [0.7, 0.55], [0.5, 0.8], [0.28, 0.94], [0, 0.98]] },
+  { z: -1.0, pts: [[0, -0.7], [0.45, -0.72], [0.78, -0.72], [0.88, -0.45], [0.9, -0.2], [0.9, -0.1], [0.9, 0.0], [0.86, 0.25], [0.74, 0.52], [0.54, 0.78], [0.3, 0.93], [0, 0.97]] },
+  { z: 1.5, pts: [[0, -1.0], [0.5, -1.0], [0.84, -0.92], [0.95, -0.6], [0.96, -0.3], [0.96, -0.2], [0.96, -0.1], [0.93, 0.2], [0.8, 0.46], [0.56, 0.64], [0.3, 0.73], [0, 0.76]] },
+  { z: 4.0, pts: [[0, -0.8], [0.45, -0.82], [0.82, -0.72], [0.94, -0.45], [0.95, -0.25], [0.95, -0.18], [0.95, -0.1], [0.92, 0.15], [0.76, 0.4], [0.52, 0.53], [0.26, 0.58], [0, 0.61]] },
   { z: 6.0, pts: [[0, -0.5], [0.25, -0.6], [0.5, -0.62], [0.78, -0.52], [0.95, -0.3], [0.98, -0.15], [0.98, -0.08], [0.95, 0.12], [0.78, 0.32], [0.5, 0.42], [0.25, 0.46], [0, 0.5]] },
   { z: 7.35, pts: [[0, -0.3], [0.2, -0.52], [0.5, -0.57], [0.8, -0.46], [0.95, -0.26], [0.97, -0.12], [0.97, -0.08], [0.94, 0.08], [0.8, 0.28], [0.5, 0.37], [0.24, 0.36], [0, 0.36]] },
 ]);
 const BODY_SUB = [4, 3, 3, 3, 2, 1, 2, 3, 3, 3, 4];
 
 const CANOPY: Section[] = [
-  { z: -5.95, w: 0.03, top: 0.02, bot: 0.02, y: 0.52, n: 2 },
-  { z: -5.45, w: 0.37, top: 0.34, bot: 0.03, y: 0.54, n: 2.2 },
-  { z: -4.95, w: 0.47, top: 0.52, bot: 0.03, y: 0.56, n: 2.2 },
-  { z: -4.2, w: 0.49, top: 0.58, bot: 0.03, y: 0.56, n: 2.2 },
-  { z: -3.3, w: 0.45, top: 0.46, bot: 0.03, y: 0.58, n: 2.2 },
-  { z: -2.6, w: 0.3, top: 0.2, bot: 0.03, y: 0.6, n: 2.2 },
-  { z: -2.1, w: 0.14, top: 0.05, bot: 0.03, y: 0.63, n: 2 },
+  { z: -5.75, w: 0.03, top: 0.02, bot: 0.02, y: 0.52, n: 2 },
+  { z: -5.25, w: 0.38, top: 0.34, bot: 0.03, y: 0.54, n: 2.2 },
+  { z: -4.7, w: 0.48, top: 0.56, bot: 0.03, y: 0.56, n: 2.2 },
+  { z: -4.0, w: 0.51, top: 0.73, bot: 0.03, y: 0.57, n: 2.2 },
+  { z: -3.35, w: 0.5, top: 0.78, bot: 0.03, y: 0.58, n: 2.2 },
+  { z: -2.7, w: 0.46, top: 0.66, bot: 0.03, y: 0.6, n: 2.2 },
+  { z: -2.1, w: 0.36, top: 0.5, bot: 0.03, y: 0.62, n: 2.2 },
+  { z: -1.7, w: 0.2, top: 0.3, bot: 0.03, y: 0.66, n: 2.1 },
+  { z: -1.5, w: 0.05, top: 0.05, bot: 0.02, y: 0.8, n: 2 },
 ];
 
 const WING: WingStation[] = [
@@ -54,15 +59,15 @@ const WING: WingStation[] = [
 const wle = (x: number) => -2.0 + (x - 0.95) * 1.3267;
 const wte = (x: number) => 5.25 - (x - 0.95) * 0.0556;
 const CANARD: WingStation[] = [
-  { x: 0.5, le: -5.4, te: -3.62, y: 0.1, t: 0.05 },
-  { x: 2.12, le: -3.47, te: -2.98, y: 0.18, t: 0.04 },
+  { x: 0.5, le: -5.55, te: -3.77, y: 0.1, t: 0.05 },
+  { x: 2.12, le: -3.62, te: -3.13, y: 0.18, t: 0.04 },
 ];
-const CANARD_PIVOT = -4.25;
+const CANARD_PIVOT = -4.4;
 const FIN: WingStation[] = [
-  { x: 0, le: 2.75, te: 6.7, t: 0.05 },
-  { x: 2.9, le: 6.0, te: 7.15, t: 0.034 },
+  { x: 0, le: 3.25, te: 7.25, t: 0.05 },
+  { x: 2.85, le: 7.24, te: 7.94, t: 0.034 },
 ];
-const RUDDER = { h0: 0.25, h1: 2.3, hinge: (h: number) => 6.02 + h * 0.13 };
+const RUDDER = { h0: 0.25, h1: 2.3, hinge: (h: number) => 6.63 + h * 0.242 };
 
 function livery(team: string): Livery {
   const L = new Livery({ half: 9.0, z0: -9.0, len: 18, y0: -2.2, height: 5.8 });
@@ -100,7 +105,7 @@ function livery(team: string): Livery {
     line(gb, [B(-1.0, z), B(1.0, z)], 1.2, LINE_LIGHT);
   }
   for (const sx of [-1, 1]) {
-    line(gt, [T(0.35 * sx, -1.9), T(0.35 * sx, -0.5)], 1.5, LINE); // airbrake
+    line(gt, [T(0.35 * sx, -1.35), T(0.35 * sx, 0.05)], 1.5, LINE); // airbrake
     line(gt, [T(0.55 * sx, -0.4), T(0.55 * sx, 6.4)], 1.2, LINE_LIGHT);
     const W = (x: number, z: number) => T(x * sx, z);
     const Wb = (x: number, z: number) => B(x * sx, z);
@@ -141,7 +146,7 @@ function livery(team: string): Livery {
   const teamCol = team === 'blue' ? '#2d4d8e' : '#9a2521';
   // fin flash, squadron badge, serial
   for (const g of [L.gs, L.gr]) {
-    const [x0, y0] = S(5.6, 2.55);
+    const [x0, y0] = S(6.6, 2.55);
     const w = 0.45 * ps, h = 0.55 * ps;
     g.fillStyle = teamCol;
     g.fillRect(x0, y0, w / 3, h);
@@ -150,7 +155,7 @@ function livery(team: string): Livery {
     g.fillStyle = teamCol;
     g.fillRect(x0 + (2 * w) / 3, y0, w / 3, h);
   }
-  L.sideDraw(5.0, 1.4, (g, x, y) => {
+  L.sideDraw(5.7, 1.4, (g, x, y) => {
     g.fillStyle = 'rgba(232,233,228,0.85)';
     g.beginPath();
     g.arc(x, y, 0.26 * ps, 0, Math.PI * 2);
@@ -160,7 +165,7 @@ function livery(team: string): Livery {
     g.arc(x, y, 0.2 * ps, 0, Math.PI * 2);
     g.fill();
   });
-  L.sideText(team === 'blue' ? 'SK' : 'CP', 5.0, 1.4, 0.2 * ps, 'rgba(232,233,228,0.95)');
+  L.sideText(team === 'blue' ? 'SK' : 'CP', 5.7, 1.4, 0.2 * ps, 'rgba(232,233,228,0.95)');
   L.sideText(team === 'blue' ? 'ZK 355' : 'MM 7340', 6.6, 0.25, 0.14 * ps, 'rgba(40,44,48,0.8)');
   L.sideDraw(-1.4, -0.45, (g, x, y) => roundel(g, team, x, y, 0.27 * ps));
   L.sideDraw(-5.2, 0.33, (g, x, y) => {
@@ -288,16 +293,16 @@ export function buildTyphoon(v: AirframeVisual): void {
   const f = finPanels(FIN, RUDDER, m, { chordPts: 30 });
   skin(f.fixed);
   v.addSurface(stamp(f.rudder.geo), paint, f.rudder.hinge, f.rudder.axis, 'rudder', 0, 25);
-  const tip = lathe([[0.004, 5.85], [0.05, 6.05], [0.075, 6.5], [0.07, 7.1], [0.004, 7.35]], 14, 0, 3.4);
+  const tip = lathe([[0.004, 6.95], [0.05, 7.12], [0.075, 7.45], [0.07, 7.88], [0.004, 8.04]], 14, 0, 3.38);
   skin(tip);
-  v.addNavLight(new THREE.Vector3(0, 3.42, 7.3), 'strobe');
+  v.addNavLight(new THREE.Vector3(0, 3.41, 7.98), 'strobe');
   // dorsal fin fillet
   const fillet = loftProfile({
-    stations: stations(1.2, 3.2, 12),
+    stations: stations(2.0, 4.1, 12),
     profile: (z) => {
-      const h = sstep(1.2, 3.1, z) * 0.35;
-      const w = 0.16 - sstep(1.2, 3.2, z) * 0.1;
-      return [[0, 0.45], [w, 0.5], [w * 0.4, 0.55 + h], [0, 0.56 + h]] as P2[];
+      const top = 0.7 + (z - 2.0) * 0.135;
+      const w = 0.15 - sstep(2.0, 4.1, z) * 0.09;
+      return [[0, 0.45], [w, 0.5], [w * 0.4, top - 0.01], [0, top]] as P2[];
     },
     sub: 3,
     capStart: true,
@@ -320,10 +325,10 @@ export function buildTyphoon(v: AirframeVisual): void {
 
   // --- dorsal airbrake
   const AB = keyedProfile([
-    { z: -1.9, pts: [[0, 0.655], [0.2, 0.645], [0.34, 0.615], [0.36, 0.605], [0.34, 0.63], [0.2, 0.672], [0, 0.683]] },
-    { z: -0.5, pts: [[0, 0.65], [0.2, 0.642], [0.34, 0.614], [0.36, 0.604], [0.34, 0.628], [0.2, 0.668], [0, 0.678]] },
+    { z: -1.35, pts: [[0, 0.975], [0.2, 0.948], [0.34, 0.888], [0.36, 0.876], [0.34, 0.905], [0.2, 0.972], [0, 1.0]] },
+    { z: 0.05, pts: [[0, 0.9], [0.2, 0.872], [0.34, 0.81], [0.36, 0.798], [0.34, 0.826], [0.2, 0.895], [0, 0.924]] },
   ]);
-  const ab = v.addSurface(stamp(loftProfile({ stations: stations(-1.9, -0.5, 10), profile: AB, sub: 4, capStart: true, capEnd: true })), paint, new THREE.Vector3(0, 0.66, -1.9), new THREE.Vector3(1, 0, 0), 'rudder', 0, 0);
+  const ab = v.addSurface(stamp(loftProfile({ stations: stations(-1.35, 0.05, 10), profile: AB, sub: 4, capStart: true, capEnd: true })), paint, new THREE.Vector3(0, 0.98, -1.35), new THREE.Vector3(1, 0, 0), 'rudder', 0, 0);
   v.surfaces.splice(v.surfaces.indexOf(ab), 1);
   v.speedbrake = { pivot: ab.pivot, axis: new THREE.Vector3(-1, 0, 0), maxDeg: 55 };
 
@@ -352,7 +357,7 @@ export function buildTyphoon(v: AirframeVisual): void {
     probe(new THREE.Vector3(0, -0.4, -7.1), 0.16, 0.009, new THREE.Vector3(0, -0.4, -1).normalize()),
   ]), pm.antenna);
   v.addMesh(join([
-    blade(new THREE.Vector3(0, 0.66, 0.4), 0.2, 0.3),
+    blade(new THREE.Vector3(0, 0.85, 0.6), 0.2, 0.3),
     blade(new THREE.Vector3(0, -1.2, 0.2), 0.18, 0.26, new THREE.Vector3(0, -1, 0)),
   ]), pm.antenna);
   v.addMesh(join([

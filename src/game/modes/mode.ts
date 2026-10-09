@@ -6,6 +6,7 @@ import type { TeamPicture } from '../teamPicture';
 import type { MissionConfig } from '../mission';
 import type { Aircraft } from '../../aircraft/aircraft';
 import type { SortieRecorder } from '../logbook';
+import type { MatchOutcome } from '../ranked';
 import { NM, FT } from '../../core/constants';
 import { bearingXZ } from '../../core/math';
 
@@ -24,6 +25,8 @@ export interface MissionResult {
   buttons: ResultButton[];
   /** filled in by the game shell: the sortie record and decorations earned */
   debrief?: { sortie: SortieRecorder; earned: string[] };
+  /** a ranked match: what it did to the rank */
+  ranked?: MatchOutcome;
 }
 
 /** Centre-screen mission briefing: the sim holds until the player presses OKAY. */

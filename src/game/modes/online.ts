@@ -28,6 +28,11 @@ import { RULES } from '../rules';
 import { NetPlayer, ServerMsg, MatchMsg, ZoneMsg, MatchResult } from '../../net/client';
 import type { NetLink } from '../../net/link';
 import type { Game } from '../game';
+import {
+  loadRanked, saveRanked, beginMatch, settleMatch, cooldownLeft, untilText, placing, ONLINE_MIN_PILOTS, PLACEMENTS,
+  type RankedState, type MatchOutcome,
+} from '../ranked';
+import { publishRank } from '../../net/rankBoard';
 
 const SEND_HZ = 20;
 const MISSILE_HZ = 10;
@@ -83,6 +88,10 @@ export class OnlineMode extends GameMode {
   private place = 0;
   private myKills = 0;
   private lastResults: MatchResult[] | null = null;
+  /** this match counts for rank (4+ pilots started it): the state, and how many pilots */
+  private ranked: { rs: RankedState; of: number; opp: number } | null = null;
+  /** what the last ranked match did, for the end-of-match order */
+  private rankNote = '';
   private unsub: (() => void)[] = [];
   private lost = false;
   /** the local missiles we are announcing */
@@ -149,6 +158,8 @@ export class OnlineMode extends GameMode {
   }
 
   override dispose(): void {
+    // leaving a ranked match you are still flying in counts as last place (and the leave cooldown)
+    if (this.ranked) this.rankedSettle(this.ranked.of, true);
     for (const u of this.unsub) u();
     this.unsub = [];
     this.net.onMessage = null;
@@ -164,7 +175,64 @@ export class OnlineMode extends GameMode {
   private connectionLost(reason: string): void {
     if (this.lost) return;
     this.lost = true;
+    // a dropped connection counts as being the next one out (no leave cooldown)
+    if (this.ranked) this.rankedSettle(Math.max(1, this.aliveCount()), false);
     this.onLost?.(reason);
+  }
+
+  // ------------------------------------------------------------ ranked
+
+  /** A match starts with us in it: does it count? (4+ pilots, not in a leave cooldown) Returns a line for the briefing. */
+  private rankedStart(n: number): string {
+    this.ranked = null;
+    if (n < ONLINE_MIN_PILOTS) return ` Unranked: rank counts with ${ONLINE_MIN_PILOTS}+ pilots.`;
+    const rs = loadRanked();
+    const cd = cooldownLeft(rs);
+    if (cd > 0) return ` Ranked cooldown (${untilText(cd)}): this one doesn't count.`;
+    // other pilots' ratings aren't shared, so the lobby is scored as an even one
+    const opp = rs.mmr;
+    beginMatch(rs, 'online', 'ffa', n, opp);
+    this.ranked = { rs, of: n, opp };
+    return placing(rs) ? ` Ranked: placement match ${rs.placed + 1} of ${PLACEMENTS}.` : ` Ranked: ${rs.rp.toLocaleString()} RP on the line.`;
+  }
+
+  /** Our place is known (out, last one flying, or leaving): settle the ranked match once. */
+  private rankedSettle(place: number, abandon: boolean): MatchOutcome | null {
+    const r = this.ranked;
+    if (!r) return null;
+    this.ranked = null;
+    const res = settleMatch(r.rs, {
+      playlist: 'online',
+      kind: 'ffa',
+      place: abandon ? r.of : place,
+      of: r.of,
+      kills: this.myKills,
+      deaths: place === 1 && !abandon ? 0 : 1,
+      oppRating: r.opp,
+      abandon,
+      score: abandon ? 'LEFT THE MATCH' : `#${place} of ${r.of}`,
+    });
+    saveRanked(r.rs);
+    void publishRank(r.rs);
+    const m = res.record;
+    if (!m) return res;
+    const d = m.rpAfter - m.rpBefore;
+    const sign = d > 0 ? `+${d}` : d < 0 ? `−${-d}` : '±0';
+    this.rankNote = res.revealed && res.after
+      ? `RANK REVEALED: ${res.after.name} · ${m.rpAfter.toLocaleString()} RP`
+      : m.placement
+        ? `PLACEMENT ${m.placement}/${PLACEMENTS} DONE (${sign} RP, HIDDEN)`
+        : `RANKED ${sign} RP · ${res.after ? res.after.name : ''} · ${m.rpAfter.toLocaleString()} RP${res.promoted ? ' · PROMOTED' : res.demoted ? ' · DEMOTED' : m.shield ? ' · SHIELD HELD' : ''}`;
+    if (!abandon) this.game.message(this.rankNote, d >= 0 ? 'good' : 'bad', 8);
+    return res;
+  }
+
+  private aliveCount(): number {
+    let alive = 0;
+    for (const r of this.remotes.values()) if (r.ac && r.ac.alive) alive++;
+    const me = this.game.player;
+    if (me && me.alive) alive++;
+    return alive;
   }
 
   // ------------------------------------------------------------ spawning
@@ -292,7 +360,11 @@ export class OnlineMode extends GameMode {
       if (slot) {
         this.spawnSlot(slot);
         const n = Object.keys(m.slots ?? {}).length;
-        h.order('LAST PILOT STANDING', `${n} pilots. Weapons free in ${Math.ceil(this.dropin)} s. Stay inside the zone — the storm outside takes you down. Kills rearm you. Last jet flying wins.`, 8);
+        // (a match we were still in when the next one started: settle it at the last place it could be)
+        if (this.ranked) this.rankedSettle(this.ranked.of, false);
+        this.rankNote = '';
+        const rankLine = this.rankedStart(n);
+        h.order('LAST PILOT STANDING', `${n} pilots. Weapons free in ${Math.ceil(this.dropin)} s. Stay inside the zone — the storm outside takes you down. Kills rearm you. Last jet flying wins.${rankLine}`, 8);
         h.voice('Last pilot standing');
       } else {
         // joined mid-match: watch this one, fly the next
@@ -312,10 +384,12 @@ export class OnlineMode extends GameMode {
       this.lastResults = m.results ?? [];
       const me = this.lastResults.find((r) => r.id === this.net.id);
       const win = this.lastResults[0];
+      // still flying at the end: our place comes with the results
+      if (this.ranked) this.rankedSettle(me ? me.place : this.ranked.of, false);
       const board = this.lastResults.slice(0, 6).map((r) => `#${r.place} ${r.id === this.net.id ? 'YOU' : r.name} (${r.kills})`).join(' · ');
       h.order(
         win ? (win.id === this.net.id ? 'YOU ARE THE LAST PILOT STANDING' : `${win.name} WINS`) : 'MATCH OVER',
-        `${me ? `You placed #${me.place} with ${me.kills} kill${me.kills === 1 ? '' : 's'}. ` : ''}${board}. Next match soon.`,
+        `${me ? `You placed #${me.place} with ${me.kills} kill${me.kills === 1 ? '' : 's'}. ` : ''}${board}.${this.rankNote ? ` ${this.rankNote}.` : ''} Next match soon.`,
         12,
       );
       h.voice(win && win.id === this.net.id ? 'Victory' : 'Match over');
@@ -545,6 +619,8 @@ export class OnlineMode extends GameMode {
     if (m.id === this.net.id) {
       this.place = m.place;
       h.message(`ELIMINATED — #${m.place}. ${m.left} LEFT · SPECTATING UNTIL THE NEXT MATCH`, 'bad', 8);
+      // our place is final: settle the rank now (leaving to the menu after this is fine)
+      if (this.ranked) this.rankedSettle(m.place, false);
       return;
     }
     const r = this.remotes.get(m.id);

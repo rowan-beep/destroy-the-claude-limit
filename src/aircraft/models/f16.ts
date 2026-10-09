@@ -105,64 +105,74 @@ function fwd(w: number, bot: number, top: number, cy: number): P2[] {
 const BODY = keyedProfile([
   // the radome droops: its underside runs nearly straight back to the intake
   // while the top climbs to the windscreen
-  { z: -7.1, pts: round(0.012, -0.2) },
-  { z: -6.85, pts: sec(0.15, -0.17, 0.15, 0.15, 2) },
-  { z: -6.45, pts: sec(0.26, -0.13, 0.26, 0.26, 2) },
-  { z: -5.95, pts: sec(0.35, -0.09, 0.36, 0.35, 2.05) },
-  { z: -5.4, pts: sec(0.43, -0.06, 0.45, 0.42, 2.15) },
+  { z: -7.1, pts: round(0.012, -0.26) },
+  { z: -6.85, pts: sec(0.15, -0.22, 0.12, 0.12, 2) },
+  { z: -6.45, pts: sec(0.27, -0.17, 0.24, 0.22, 2) },
+  { z: -5.95, pts: sec(0.36, -0.12, 0.34, 0.3, 2.05) },
+  { z: -5.4, pts: sec(0.44, -0.08, 0.44, 0.38, 2.15) },
   { z: -5.0, pts: fwd(0.47, -0.5, 0.4, 0.0) },
   { z: -4.5, pts: fwd(0.51, -0.54, 0.43, 0.07) },
   { z: -3.9, pts: fwd(0.55, -0.56, 0.44, 0.11) },
   { z: -3.3, pts: fwd(0.57, -0.56, 0.45, 0.13) },
   // inside the intake's outer skin: the belly drops to the trunk here
-  { z: -2.6, pts: trunk(-0.98, 0.42, 0.6, 0.5, 0.42) },
-  { z: -2.0, pts: trunk(-1.2, 0.5, 0.64, 0.6, 0.45) },
-  { z: -1.0, pts: trunk(-1.25, 0.57, 0.7, 0.65, 0.48) },
-  { z: 0.5, pts: trunk(-1.24, 0.6, 0.78, 0.67, 0.52) },
-  { z: 2.0, pts: trunk(-1.1, 0.58, 0.8, 0.65, 0.53) },
-  { z: 3.4, pts: trunk(-0.8, 0.56, 0.76, 0.61, 0.52) },
-  { z: 4.4, pts: sec(0.7, 0.0, 0.6, 0.58, 2.5, { cw: 0.84, cy: -0.08 }) },
-  { z: 5.8, pts: sec(0.64, 0.0, 0.56, 0.56, 2.3, { cw: 0.88, cy: -0.08 }) },
-  { z: 6.6, pts: sec(0.59, 0.0, 0.55, 0.55, 2.1, { cw: 0.72, cy: -0.08 }) },
+  { z: -2.6, pts: trunk(-0.9, 0.42, 0.62, 0.5, 0.42) },
+  { z: -2.0, pts: trunk(-1.05, 0.5, 0.66, 0.58, 0.45) },
+  { z: -1.5, pts: trunk(-1.08, 0.55, 0.7, 0.68, 0.47) },
+  { z: -1.0, pts: trunk(-1.08, 0.57, 0.72, 0.78, 0.48) },
+  { z: -0.4, pts: trunk(-1.07, 0.59, 0.76, 0.77, 0.5) },
+  { z: 0.5, pts: trunk(-1.06, 0.6, 0.8, 0.7, 0.52) },
+  { z: 2.0, pts: trunk(-0.95, 0.58, 0.84, 0.63, 0.53) },
+  { z: 3.4, pts: trunk(-0.7, 0.56, 0.95, 0.61, 0.52) },
+  { z: 4.4, pts: sec(0.7, 0.0, 0.6, 0.58, 2.5, { cw: 1.1, cy: -0.08 }) },
+  { z: 5.8, pts: sec(0.64, 0.0, 0.56, 0.56, 2.3, { cw: 1.15, cy: -0.08 }) },
+  { z: 6.6, pts: sec(0.59, 0.0, 0.55, 0.55, 2.1, { cw: 0.95, cy: -0.08 }) },
 ]);
 const BODY_SUB = [4, 3, 3, 3, 2, 1, 2, 3, 3, 3, 4];
 
+// the bubble runs well aft of the seat, its fairing rising into the spine
 const CANOPY: Section[] = [
   { z: -4.78, w: 0.03, top: 0.02, bot: 0.02, y: 0.44, n: 2 },
   { z: -4.55, w: 0.3, top: 0.22, bot: 0.03, y: 0.44, n: 2.2 },
-  { z: -4.2, w: 0.42, top: 0.45, bot: 0.03, y: 0.44, n: 2.2 },
-  { z: -3.8, w: 0.48, top: 0.6, bot: 0.03, y: 0.44, n: 2.2 },
-  { z: -3.3, w: 0.5, top: 0.64, bot: 0.03, y: 0.44, n: 2.2 },
-  { z: -2.8, w: 0.47, top: 0.56, bot: 0.03, y: 0.44, n: 2.2 },
-  { z: -2.45, w: 0.38, top: 0.38, bot: 0.03, y: 0.46, n: 2.2 },
-  { z: -2.2, w: 0.22, top: 0.18, bot: 0.03, y: 0.5, n: 2.1 },
-  { z: -2.05, w: 0.05, top: 0.04, bot: 0.02, y: 0.56, n: 2 },
+  { z: -4.2, w: 0.42, top: 0.46, bot: 0.03, y: 0.44, n: 2.2 },
+  { z: -3.8, w: 0.48, top: 0.62, bot: 0.03, y: 0.44, n: 2.2 },
+  { z: -3.3, w: 0.5, top: 0.68, bot: 0.03, y: 0.44, n: 2.2 },
+  { z: -2.7, w: 0.48, top: 0.66, bot: 0.03, y: 0.44, n: 2.2 },
+  { z: -2.0, w: 0.44, top: 0.4, bot: 0.03, y: 0.6, n: 2.2 },
+  { z: -1.6, w: 0.34, top: 0.22, bot: 0.03, y: 0.68, n: 2.1 },
+  { z: -1.2, w: 0.18, top: 0.08, bot: 0.03, y: 0.74, n: 2 },
+  { z: -1.0, w: 0.04, top: 0.02, bot: 0.02, y: 0.78, n: 2 },
 ];
 
 // wing: the strake runs forward from the root, curving into the cockpit side
 const WING: WingStation[] = [
-  { x: 0.45, le: -4.6, te: 3.5, y: 0.07, t: 0.01 },
-  { x: 0.62, le: -3.6, te: 3.48, y: 0.12, t: 0.014 },
-  { x: 0.78, le: -2.45, te: 3.47, y: 0.11, t: 0.022 },
-  { x: 0.92, le: -1.45, te: 3.46, y: 0.07, t: 0.032 },
-  { x: 1.02, le: -0.95, te: 3.45, y: 0.05, t: 0.04 },
-  { x: 4.72, le: 2.17, te: 3.25, y: 0.0, t: 0.04 },
+  { x: 0.52, le: -5.9, te: 3.72, y: 0.07, t: 0.008 },
+  { x: 0.6, le: -5.3, te: 3.71, y: 0.1, t: 0.01 },
+  { x: 0.69, le: -4.8, te: 3.71, y: 0.12, t: 0.012 },
+  { x: 0.77, le: -4.3, te: 3.7, y: 0.12, t: 0.014 },
+  { x: 0.83, le: -3.8, te: 3.7, y: 0.12, t: 0.018 },
+  { x: 0.89, le: -3.3, te: 3.7, y: 0.11, t: 0.022 },
+  { x: 0.95, le: -2.8, te: 3.69, y: 0.1, t: 0.026 },
+  { x: 1.1, le: -2.3, te: 3.69, y: 0.08, t: 0.03 },
+  { x: 1.22, le: -1.8, te: 3.69, y: 0.06, t: 0.036 },
+  { x: 1.36, le: -1.3, te: 3.68, y: 0.05, t: 0.04 },
+  { x: 1.45, le: -0.68, te: 3.68, y: 0.05, t: 0.04 },
+  { x: 4.72, le: 2.08, te: 3.5, y: 0.0, t: 0.04 },
 ];
-const wle = (x: number) => -0.95 + (x - 1.02) * 0.843;
-const wte = (x: number) => 3.45 - (x - 1.02) * 0.054;
+const wle = (x: number) => -0.68 + (x - 1.45) * 0.843;
+const wte = (x: number) => 3.68 - (x - 1.5) * 0.056;
 const STAB: WingStation[] = [
-  { x: 0.8, le: 4.58, te: 6.95, y: -0.11, t: 0.04 },
-  { x: 2.79, le: 6.2, te: 6.95, y: -0.47, t: 0.03 },
+  { x: 1.05, le: 4.78, te: 7.3, y: -0.11, t: 0.04 },
+  { x: 2.79, le: 6.3, te: 7.4, y: -0.41, t: 0.03 },
 ];
-const STAB_PIVOT = 5.75;
+const STAB_PIVOT = 5.95;
 const FIN: WingStation[] = [
-  { x: 0, le: 2.45, te: 6.55, t: 0.045 },
-  { x: 2.25, le: 4.88, te: 6.0, t: 0.035 },
+  { x: 0, le: 2.95, te: 7.0, t: 0.045 },
+  { x: 2.25, le: 5.75, te: 6.95, t: 0.035 },
 ];
-const RUDDER = { h0: 0.22, h1: 2.0, hinge: (h: number) => 5.95 - h * 0.244 };
+const RUDDER = { h0: 0.22, h1: 2.0, hinge: (h: number) => 6.45 - h * 0.09 };
 const VENTRAL: WingStation[] = [
-  { x: 0, le: 3.3, te: 4.85, t: 0.05 },
-  { x: 0.58, le: 4.05, te: 4.78, t: 0.04 },
+  { x: 0, le: 3.2, te: 4.8, t: 0.05 },
+  { x: 0.85, le: 4.1, te: 4.72, t: 0.04 },
 ];
 
 function livery(team: string): Livery {
@@ -201,7 +211,7 @@ function livery(team: string): Livery {
     line(gt, [T(0.62 * sx, -0.6), T(0.62 * sx, 5.8)], 1.1, LINE_LIGHT);
     rivets(gt, T(0.32 * sx, -2.0), T(0.32 * sx, 4.4), 6, 0.9);
     // strake edge
-    line(gt, [T(0.5 * sx, -4.4), T(0.68 * sx, -3.2), T(0.86 * sx, -2.0), T(1.02 * sx, -0.95)], 1.8, 'rgba(30,34,38,0.45)');
+    line(gt, [T(0.56 * sx, -5.8), T(0.69 * sx, -4.8), T(0.83 * sx, -3.8), T(0.95 * sx, -2.8), T(1.22 * sx, -1.8), T(1.45 * sx, -0.7)], 1.8, 'rgba(30,34,38,0.45)');
     const W = (x: number, z: number) => T(x * sx, z);
     const Wb = (x: number, z: number) => B(x * sx, z);
     for (const [g, M] of [[gt, W], [gb, Wb]] as const) {
@@ -235,7 +245,7 @@ function livery(team: string): Livery {
     gb.fillRect(...B(0.42 * sx - 0.09, 5.0), 0.18 * L.pb, 0.42 * L.pb);
   }
   // side: canopy rail, gun panel, intake trunk seams and access doors
-  line(gs, [S(-4.8, 0.36), S(-2.3, 0.4)], 1.3, LINE_LIGHT);
+  line(gs, [S(-4.8, 0.36), S(-1.2, 0.62)], 1.3, LINE_LIGHT);
   line(gs, [S(-3.3, -0.62), S(3.0, -0.6)], 1.4, LINE);
   const rect = (g: CanvasRenderingContext2D, a: P2, b: P2) => line(g, [a, [b[0], a[1]], b, [a[0], b[1]]], 1.3, LINE, true);
   rect(gs, S(-4.1, -0.3), S(-3.4, 0.05));
@@ -259,12 +269,12 @@ function livery(team: string): Livery {
   // fin-tip stripe, tail code, serial (both sides read the right way round)
   for (const g of [L.gs, L.gr]) {
     g.fillStyle = teamCol;
-    const [x0, y0] = S(4.85, 2.78);
+    const [x0, y0] = S(5.7, 2.78);
     g.fillRect(x0, y0, 1.15 * ps, 0.16 * ps);
   }
-  L.sideText(team === 'blue' ? 'SK' : 'CP', 5.15, 1.75, 0.32 * ps, 'rgba(40,44,48,0.85)');
-  L.sideText(team === 'blue' ? 'AF 91 416' : 'RF 47 216', 5.3, 1.12, 0.1 * ps, 'rgba(40,44,48,0.8)');
-  L.sideDraw(5.4, 2.35, (g, x, y) => {
+  L.sideText(team === 'blue' ? 'SK' : 'CP', 5.85, 1.75, 0.32 * ps, 'rgba(40,44,48,0.85)');
+  L.sideText(team === 'blue' ? 'AF 91 416' : 'RF 47 216', 5.95, 1.12, 0.1 * ps, 'rgba(40,44,48,0.8)');
+  L.sideDraw(6.15, 2.35, (g, x, y) => {
     g.fillStyle = 'rgba(232,233,228,0.85)';
     g.beginPath();
     g.arc(x, y, 0.14 * ps, 0, Math.PI * 2);
@@ -342,26 +352,26 @@ export function buildF16(v: AirframeVisual): void {
   v.fuselageSections = sectionsFromProfile(BODY, -6.9, 6.5, 40);
 
   // --- the ventral intake: splitter gap ahead, merging into the belly aft
-  const IW = curve([[-3.35, 0.53], [-2.4, 0.58], [-1.5, 0.6]]);
-  const IT = curve([[-3.35, -0.62], [-2.5, -0.55], [-1.5, -0.5]]);
-  const IB = curve([[-3.35, -1.28], [-2.4, -1.29], [-1.5, -1.26]]);
+  const IW = curve([[-2.95, 0.53], [-2.2, 0.58], [-1.5, 0.6]]);
+  const IT = curve([[-2.95, -0.62], [-2.3, -0.55], [-1.5, -0.5]]);
+  const IB = curve([[-2.95, -1.12], [-2.2, -1.13], [-1.5, -1.1]]);
   const loop = (z: number) => ring(mirrorHalf(IHALF(IW(z), IT(z), IB(z))), [3, 3, 3, 2, 2, 3, 3, 3, 3, 2, 2, 3, 3, 3]);
   const ci = intake({
     loop,
-    outer: stations(-3.35, -1.5, 24, 0.3, 0),
+    outer: stations(-2.95, -1.5, 24, 0.3, 0),
     lip: 0.045,
     depth: 2.4,
     n: 96,
     // the mouth is steeply raked: the upper lip juts forward like a hood and
     // the sides sweep back to a lower lip half a metre further aft
     rake: (_x, y) => -0.78 * (y + 0.6),
-    fan: { cx: 0, cy: -0.6, r: 0.45 },
+    fan: { cx: 0, cy: -0.58, r: 0.44 },
   });
   skin(ci.skin);
   v.addMesh(ci.duct, pm.duct);
   // --- canopy (frameless, gold tinted), seat and pilot
   v.cockpitEye.set(0, 0.86, -3.6);
-  buildCanopy(v, CANOPY, -2.45, []);
+  buildCanopy(v, CANOPY, -1.6, []);
   if (v.canopy) {
     const gm = (v.canopy.material as THREE.MeshStandardMaterial).clone();
     // the gold of the canopy's radar-reflective coating, lighter than the F-22's
@@ -415,7 +425,7 @@ export function buildF16(v: AirframeVisual): void {
   for (const side of [1, -1] as const) {
     const g = stamp(side > 0 ? stab.clone() : mirror(stab));
     const axis = new THREE.Vector3(1, -0.176 * side, 0).normalize();
-    v.addSurface(g, paint, new THREE.Vector3(0.86 * side, -0.12, STAB_PIVOT), axis, 'stab', side, 25);
+    v.addSurface(g, paint, new THREE.Vector3(1.1 * side, -0.12, STAB_PIVOT), axis, 'stab', side, 25);
   }
 
   // --- fin with rudder; ventral fins canted out
@@ -423,22 +433,22 @@ export function buildF16(v: AirframeVisual): void {
   skin(f.fixed);
   v.addSurface(stamp(f.rudder.geo), paint, f.rudder.hinge, f.rudder.axis, 'rudder', 0, 30);
   // the fin-tip fairing (antennas and the anti-collision light)
-  skin(lathe([[0.004, 4.85], [0.04, 5.0], [0.05, 5.6], [0.045, 6.05], [0.004, 6.2]], 14, 0, 2.86));
-  v.addNavLight(new THREE.Vector3(0, 2.86, 6.15), 'strobe');
+  skin(lathe([[0.004, 5.7], [0.04, 5.85], [0.05, 6.4], [0.045, 6.85], [0.004, 7.0]], 14, 0, 2.86));
+  v.addNavLight(new THREE.Vector3(0, 2.86, 6.95), 'strobe');
   // the fin root fairing and heat-exchanger scoop ahead of it
   const fillet = loftProfile({
-    stations: stations(1.4, 3.0, 12),
+    stations: stations(1.9, 3.5, 12),
     profile: (z) => {
-      const h = sstep(1.4, 2.9, z) * 0.2;
-      const w = 0.14 - sstep(1.4, 3.0, z) * 0.08;
-      return [[0, 0.58], [w, 0.62], [w * 0.4, 0.67 + h], [0, 0.68 + h]] as P2[];
+      const h = sstep(1.9, 3.4, z) * 0.2;
+      const w = 0.14 - sstep(1.9, 3.5, z) * 0.08;
+      return [[0, 0.52], [w, 0.56], [w * 0.4, 0.61 + h], [0, 0.62 + h]] as P2[];
     },
     sub: 3,
     capStart: true,
     capEnd: true,
   });
   skin(fillet);
-  skin(lathe([[0.004, 1.6], [0.05, 1.68], [0.06, 1.85], [0.05, 2.1], [0.004, 2.2]], 12, 0, 0.7));
+  skin(lathe([[0.004, 2.1], [0.05, 2.18], [0.06, 2.35], [0.05, 2.6], [0.004, 2.7]], 12, 0, 0.66));
   const vm = new THREE.Matrix4().makeRotationZ(-(Math.PI / 2 - (15 * Math.PI) / 180));
   vm.premultiply(new THREE.Matrix4().makeTranslation(0.5, -0.5, 0));
   const ventral = wing({ sections: VENTRAL, chordPts: 18, spanSub: 4, tip: 'round', thickPos: 0.45, matrix: vm });
@@ -509,15 +519,15 @@ export function buildF16(v: AirframeVisual): void {
 
   // --- probes, antennas, lights, hook
   v.addMesh(join([
-    probe(new THREE.Vector3(0, -0.2, -7.08), 0.68, 0.013),
+    probe(new THREE.Vector3(0, -0.26, -7.08), 0.68, 0.013),
     probe(new THREE.Vector3(0.3, -0.12, -6.15), 0.17, 0.009, new THREE.Vector3(0.45, 0, -1).normalize()),
     probe(new THREE.Vector3(-0.3, -0.12, -6.15), 0.17, 0.009, new THREE.Vector3(-0.45, 0, -1).normalize()),
   ]), pm.antenna);
   v.addMesh(join([
     // the IFF interrogator's "bird slicer" blades ahead of the windscreen
     ...[-5.6, -5.35, -5.1].map((z) => blade(new THREE.Vector3(0, 0.39, z), 0.07, 0.1)),
-    blade(new THREE.Vector3(0, 0.66, 0.6), 0.16, 0.24),
-    blade(new THREE.Vector3(0, -1.27, -0.6), 0.14, 0.22, new THREE.Vector3(0, -1, 0)),
+    blade(new THREE.Vector3(0, 0.66, 1.2), 0.16, 0.24),
+    blade(new THREE.Vector3(0, -1.1, -0.6), 0.14, 0.22, new THREE.Vector3(0, -1, 0)),
   ]), pm.antenna);
   v.addMesh(join([
     formationStrip(new THREE.Vector3(0.53, 0.18, -4.0), new THREE.Vector3(1, 0.2, 0), new THREE.Vector3(0, 0, 1), 0.4, 0.035),
@@ -527,7 +537,7 @@ export function buildF16(v: AirframeVisual): void {
   ]), pm.formation, v.body, false);
   v.addNavLight(new THREE.Vector3(-0.56, -0.85, -2.9), 'red');
   v.addNavLight(new THREE.Vector3(0.56, -0.85, -2.9), 'green');
-  v.addNavLight(new THREE.Vector3(0, -1.3, 0.8), 'strobe');
+  v.addNavLight(new THREE.Vector3(0, -1.1, 0.8), 'strobe');
   const hook = roundBox(0.06, 0.06, 1.0, 0.02);
   hook.translate(0, -0.56, 5.6);
   v.addMesh(hook, pm.darkMetal);
@@ -535,8 +545,8 @@ export function buildF16(v: AirframeVisual): void {
   // --- landing gear: the nose leg just behind the intake lip folds aft, the
   // mains fold forward into the fuselage under the wing roots
   buildGearSet(v, {
-    nose: { top: new THREE.Vector3(0, -1.2, -2.4), axle: new THREE.Vector3(0, -2.0 + 0.23, -2.55), r: 0.23, w: 0.15, twin: false, retract: 'aft', doors: false },
-    mains: { top: new THREE.Vector3(0.6, -0.95, 0.85), axle: new THREE.Vector3(1.18, -2.0 + 0.36, 1.0), r: 0.36, w: 0.22, retract: 'forward', outboard: 0.08 },
+    nose: { top: new THREE.Vector3(0, -1.05, -2.1), axle: new THREE.Vector3(0, -2.0 + 0.23, -2.25), r: 0.23, w: 0.15, twin: false, retract: 'aft', doors: false },
+    mains: { top: new THREE.Vector3(0.6, -0.95, 0.95), axle: new THREE.Vector3(1.18, -2.0 + 0.36, 1.1), r: 0.36, w: 0.22, retract: 'forward', outboard: 0.08 },
     doorColor: '#8e9499',
   });
 }

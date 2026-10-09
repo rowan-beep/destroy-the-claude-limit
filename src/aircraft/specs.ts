@@ -156,10 +156,6 @@ export interface AircraftSpec {
   gOverride: number; // with G-limiter override (paddle switch)
   gStructural: number; // structural failure
   gNeg: number;
-  /** how fast the fly-by-wire lets the G build (G/s; default 12) */
-  gOnset?: number;
-  /** APEX: the lift is whatever G the stick asks for, at once (up to the G its speed allows) */
-  directLift?: boolean;
   rollRate: number; // deg/s max
   pitchRate: number; // deg/s max
   cornerKts: number; // best sustained / instantaneous turn speed (AI)
@@ -469,7 +465,7 @@ const FA18: AircraftSpec = {
   flares: 60,
   rcs: 3.5,
   irSignature: 1.0,
-  gear: { nose: -5.6, main: 1.0, track: 1.6, height: 1.95 },
+  gear: { nose: -3.9, main: 2.1, track: 1.6, height: 1.95 },
   hitRadius: 5.4,
   paint: { top: '#8a9197', bottom: '#a4aaae', accent: '#5f666b' },
 };
@@ -712,7 +708,7 @@ const SU35: AircraftSpec = {
   flares: 64,
   rcs: 8,
   irSignature: 1.2,
-  gear: { nose: -6.9, main: 1.5, track: 2.2, height: 2.3 },
+  gear: { nose: -4.15, main: 1.5, track: 2.2, height: 2.3 },
   hitRadius: 6,
   paint: { top: '#6f8ea6', bottom: '#b7cad6', accent: '#40566a' },
 };
@@ -836,7 +832,7 @@ const RAFALE: AircraftSpec = {
   flares: 32,
   rcs: 1.0,
   irSignature: 0.85,
-  gear: { nose: -4.7, main: 1.1, track: 1.35, height: 1.75 },
+  gear: { nose: -4.05, main: 1.1, track: 1.35, height: 1.75 },
   hitRadius: 4.6,
   paint: { top: '#7b8388', bottom: '#949ca1', accent: '#4f575c' },
 };
@@ -955,7 +951,7 @@ const F22: AircraftSpec = {
   // a conventional signature (no stealth advantage in the game)
   rcs: 8,
   irSignature: 1.05,
-  gear: { nose: -6.1, main: 0.95, track: 1.55, height: 2.05 },
+  gear: { nose: -5.5, main: 0.95, track: 1.55, height: 2.05 },
   hitRadius: 5.8,
   paint: { top: '#8b9196', bottom: '#9ba1a5', accent: '#6b7176' },
 };
@@ -1190,7 +1186,7 @@ const X15: AircraftSpec = {
   lengthFt: 50.25,
   wingspanFt: 22.33,
   heightFt: 13,
-  length: 15.32,
+  length: 15.45,
   span: 6.81,
   height: 4.0,
   emptyMass: 6350,
@@ -1397,7 +1393,7 @@ const F16: AircraftSpec = {
   flares: 60,
   rcs: 1.2,
   irSignature: 0.85,
-  gear: { nose: -2.55, main: 1.0, track: 1.18, height: 2.0 },
+  gear: { nose: -2.25, main: 1.1, track: 2.36, height: 2.0 },
   hitRadius: 4.3,
   paint: { top: '#80868c', bottom: '#90969b', accent: '#5a6066' },
   tank: { fuel: 1124, mass: 150, dropWhenEmpty: false },
@@ -1768,7 +1764,7 @@ const GRIPEN: AircraftSpec = {
   flares: 40,
   rcs: 1.2,
   irSignature: 0.75,
-  gear: { nose: -4.55, main: 0.9, track: 1.2, height: 1.6 },
+  gear: { nose: -4.55, main: 2.0, track: 1.25, height: 1.6 },
   hitRadius: 4.1,
   paint: { top: '#848c92', bottom: '#9aa1a6', accent: '#5d656b' },
 };

@@ -24,16 +24,19 @@ import { programLogo, Program } from './program';
 import { menuMusic } from '../../audio/menuMusic';
 import type { TimeOfDay } from '../../render/environment';
 import { menuStyle, setMenuStyle, renderSimple, picture } from './simpleMenu';
+import { renderRankCard, renderRankTabs } from './rankedScreen';
+import { loadRanked, cooldownLeft, visibleRank, untilText, PLACEMENTS } from '../../game/ranked';
+import { rankEmblemSvg } from '../rankEmblem';
 
 const DIFF_TEXT: Record<Difficulty, string> = {
   EASY: 'Conservative, rarely uses afterburner, flies predictable straight lines and gentle arcs. Only shoots with a perfect sustained lock. Never hides behind terrain.',
   MEDIUM: 'Breaks away from missile locks, manages speed near corner velocity, uses afterburner to recover energy in climbs, pulls up to ~6 G.',
   HARD: 'Fights for your six with high yo-yos and scissors, flares and chaff defensively, aggressive afterburner, dives behind mountain ridges to break your radar lock.',
   EXTREME: 'Operates at the absolute limits of the airframe: max-G snapshots, instant switching between gun and AIM-9X, perfect intercept geometry, and it punishes fuel or G-LOC mistakes.',
-  APEX: 'A battle commander re-reads the fight every second: it works out what you are doing, learns which way you like to turn, predicts where you will be and gives each jet a role (bait, flanker, high cover, press). Its jets pull 45 G the instant they want it, never black out and never use flares or chaff: they beat missiles by flying, then sit on your tail and gun your cockpit.',
+  APEX: 'A battle commander re-reads the fight every second: it works out what you are doing, learns which way you like to turn, predicts where you will be and gives each jet a role (bait, flanker, high cover, press). Its pilots fly the jet like anyone else, smooth and at its real limits, but react in 0.04 s, never black out, fire their AMRAAMs in pairs, hold the gun until they are inside 800 m and time chaff and flares to the moment they work best.',
 };
 
-const MODES: ModeId[] = ['spotter', 'campaign', 'daily', 'recon', 'strike', 'tutorial', 'free', 'waves', 'duel', 'team', 'ffa'];
+const MODES: ModeId[] = ['spotter', 'campaign', 'daily', 'recon', 'strike', 'tutorial', 'free', 'waves', 'duel', 'ranked', 'team', 'ffa'];
 /** modes that need land (targets, sites, the lesson course) */
 const OCEAN_OFF: ModeId[] = ['spotter', 'campaign', 'daily', 'recon', 'strike', 'tutorial'];
 
@@ -55,7 +58,7 @@ const RANKS: [number, string][] = [
   [420, 'COLONEL'],
 ];
 
-type Section = 'play' | 'hangar' | 'theater';
+type Section = 'play' | 'hangar' | 'theater' | 'ranked';
 
 export interface MainMenuCallbacks {
   onFly: (cfg: MissionConfig) => void;
@@ -118,6 +121,7 @@ export class MainMenu {
     sec('play', '01', 'PLAY', 'Modes & mission setup');
     sec('hangar', '02', 'HANGAR', 'Aircraft & loadout');
     sec('theater', '03', 'THEATER', 'Map & time of day');
+    sec('ranked', '04', 'RANKED', 'Your rank & the ladder');
     el('div', 'mm-nav-div', nav);
     const act = (label: string, sub: string, fn: () => void, cls = '') => {
       const b = el('button', 'mm-nav-item mm-nav-act ' + cls, nav);
@@ -158,7 +162,7 @@ export class MainMenu {
     const lb = el('button', 'mm-launch-btn', launch);
     el('span', 'mm-launch-l', lb, 'LAUNCH');
     el('span', 'mm-launch-a', lb, '▸');
-    lb.addEventListener('click', () => this.cb.onFly({ ...this.cfg }));
+    lb.addEventListener('click', () => this.launch());
     el('div', 'hangar-hint mm-hint', this.root, 'DRAG TO LOOK AROUND · SCROLL TO ZOOM · DOUBLE-CLICK TO RESET');
 
     this.simpleEl = el('div', 'sm', this.root);
@@ -166,6 +170,32 @@ export class MainMenu {
 
     this.selectJet(cfg.aircraft);
     this.go('play');
+  }
+
+  /** LAUNCH: ranked waits out a cooldown after leaving a match early (the RANKED tab says why) */
+  private launch(): void {
+    if (this.cfg.mode === 'ranked' && cooldownLeft(loadRanked()) > 0) {
+      if (this.root.classList.contains('simple')) this.setStyle('current');
+      this.go('ranked');
+      return;
+    }
+    this.cb.onFly({ ...this.cfg });
+  }
+
+  /** the SIMPLE menu's RANKED tile: where you stand */
+  private rankedLine(): string {
+    const rs = loadRanked();
+    const cd = cooldownLeft(rs);
+    if (cd > 0) return `Locked · ${untilText(cd)}`;
+    const r = visibleRank(rs);
+    return r ? `${r.name} · ${rs.rp.toLocaleString()} RP` : `Placement ${rs.placed + 1} of ${PLACEMENTS}`;
+  }
+
+  /** PLAY RANKED from the RANKED tab: a fighter, then straight in */
+  private playRanked(): void {
+    this.cfg.mode = 'ranked';
+    if (!jetAllowedIn(this.cfg.aircraft, 'ranked')) this.selectJet(this.lastFighter);
+    this.launch();
   }
 
   private setStyle(v: 'current' | 'simple'): void {
@@ -183,6 +213,7 @@ export class MainMenu {
     ['spotter', 'AIRSHOW', '16'],
     ['campaign', 'CAMPAIGN', '13'],
     ['duel', 'DOGFIGHT', '14'],
+    ['ranked', 'RANKED', '15'],
     ['waves', 'WAVE COMBAT', '12'],
     ['daily', 'DAILY MISSION', '10'],
   ];
@@ -200,7 +231,12 @@ export class MainMenu {
       heading: 'WHAT DO YOU WANT TO FLY?',
       tiles: modes.map(([m, title, pic]) => ({
         title,
-        sub: m === 'campaign' ? `Mission ${(m === this.cfg.mode ? this.cfg.campaignMission : nextCampaignMission()) + 1} of ${CAMPAIGN.length}` : MODE_INFO[m].subtitle,
+        sub:
+          m === 'campaign'
+            ? `Mission ${(m === this.cfg.mode ? this.cfg.campaignMission : nextCampaignMission()) + 1} of ${CAMPAIGN.length}`
+            : m === 'ranked'
+              ? this.rankedLine()
+              : MODE_INFO[m].subtitle,
         img: picture('air', pic),
         tag: m === 'tutorial' ? 'NEW? START HERE' : undefined,
         on: m === this.cfg.mode,
@@ -229,7 +265,7 @@ export class MainMenu {
         next.title = 'Next jet';
         next.addEventListener('click', () => step(1));
       },
-      go: { label: 'FLY', sub: `${MainMenu.SIMPLE_MODES.find(([m]) => m === this.cfg.mode)?.[1] ?? MODE_INFO[this.cfg.mode].title} · ${s.shortName.toUpperCase()}`, click: () => this.cb.onFly({ ...this.cfg }) },
+      go: { label: 'FLY', sub: `${MainMenu.SIMPLE_MODES.find(([m]) => m === this.cfg.mode)?.[1] ?? MODE_INFO[this.cfg.mode].title} · ${s.shortName.toUpperCase()}`, click: () => this.launch() },
       links: [
         ['PHOTO ALBUM', () => this.cb.onAlbum?.()],
         ['SETTINGS', () => this.cb.onSettings()],
@@ -262,6 +298,7 @@ export class MainMenu {
       play: ['01', 'PLAY', 'Pick a mode, set up the mission, launch.'],
       hangar: ['02', 'HANGAR', 'Choose your aircraft and what it carries.'],
       theater: ['03', 'THEATER', 'Where and when you fly.'],
+      ranked: ['04', 'RANKED', 'Siege-style ranks · reset every Monday 8:00 a.m. Pacific.'],
     };
     const [n, t, sub] = titles[this.section];
     clearEl(this.titleEl);
@@ -277,6 +314,9 @@ export class MainMenu {
     } else if (this.section === 'hangar') {
       this.renderJets(this.left);
       this.renderJetDetail(this.right);
+    } else if (this.section === 'ranked') {
+      renderRankCard(this.left, () => this.playRanked());
+      renderRankTabs(this.right, () => this.render());
     } else {
       this.renderTheater(this.left);
       this.renderTime(this.right);
@@ -459,6 +499,18 @@ export class MainMenu {
       this.slider(c, (v) => `STARTING WAVE · ${v}`, 1, 10, cfg.startWave, (v) => (cfg.startWave = v));
       this.pills(c, 'BETWEEN WAVES', [['on', 'AUTO REARM'], ['off', 'LAND TO REARM']], cfg.autoRearm ? 'on' : 'off', (v) => (cfg.autoRearm = v === 'on'));
       el('div', 'mm-note', c, 'Enemies fly the jets you did not pick. BLUE ground radars (GCI) call bandits, unless they hide low behind terrain.');
+    } else if (cfg.mode === 'ranked') {
+      const rs = loadRanked();
+      const r = visibleRank(rs);
+      const row = el('div', 'rk-setup', c);
+      el('div', 'rk-emblem', row).innerHTML = rankEmblemSvg(r, 58, { glow: r?.tier === 'CHAMPION' });
+      const t = el('div', '', row);
+      el('div', 'rk-setup-n', t, r ? r.name : `UNRANKED · PLACEMENT ${Math.min(rs.placed + 1, PLACEMENTS)}/${PLACEMENTS}`);
+      el('div', 'rk-setup-s', t, r ? `${rs.rp.toLocaleString()} RP` : 'Your rank shows after the fifth match');
+      el('div', 'mm-note', c, 'Ranked has fixed rules: 5v5, first to 4 rounds (overtime at 3-3), all weapons, mixed wingmen, and every AI pilot flies at your skill. Pick your jet and loadout in the HANGAR. Leaving early counts as a loss.');
+      const cd = cooldownLeft(rs);
+      if (cd > 0) el('div', 'mm-note rk-warn', c, `Ranked is closed for ${untilText(cd)} after leaving a match early.`);
+      button('OPEN THE RANKED TAB', 'mm-pill', c, () => this.go('ranked')).type = 'button';
     } else if (cfg.mode === 'team') {
       this.pills(c, 'YOUR WINGMEN', [['mixed', 'MIXED JETS'], ['same', `ALL ${SPECS[cfg.aircraft].shortName.toUpperCase()}`]], cfg.teamAllies, (v) => (cfg.teamAllies = v));
       this.difficulty(c);

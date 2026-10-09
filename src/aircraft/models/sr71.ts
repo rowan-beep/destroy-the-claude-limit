@@ -49,15 +49,15 @@ function chined(R: number, xc: number, cy: number): P2[] {
 const BODY_KEYS: [number, number, number, number][] = [
   // a long, slim forebody: the nose tapers over its first six metres, then the
   // body and its chines run parallel back to the wing (as in the three-view)
-  [-18.6, 0.012, 0.016, 0.0],
-  [-17.8, 0.14, 0.24, 0.0],
-  [-16.5, 0.38, 0.72, 0.05],
-  [-15.0, 0.56, 1.16, 0.1],
-  [-13.5, 0.68, 1.48, 0.13],
-  [-12.0, 0.74, 1.62, 0.15],
-  [-9.0, 0.78, 1.65, 0.15],
-  [-6.0, 0.78, 1.67, 0.15],
-  [-4.0, 0.78, 1.72, 0.14],
+  [-18.6, 0.012, 0.016, -0.1],
+  [-17.8, 0.14, 0.24, -0.1],
+  [-16.5, 0.38, 0.72, -0.05],
+  [-15.0, 0.56, 1.16, 0.0],
+  [-13.5, 0.68, 1.48, 0.03],
+  [-12.0, 0.74, 1.62, 0.05],
+  [-9.0, 0.78, 1.65, 0.08],
+  [-6.0, 0.78, 1.67, 0.08],
+  [-4.0, 0.78, 1.72, 0.1],
   [-2.0, 0.78, 1.3, 0.14],
   [0.0, 0.78, 0.86, 0.13],
   [4.0, 0.74, 0.79, 0.11],
@@ -74,33 +74,35 @@ const BODY_SUB = [3, 3, 3, 2, 1, 1, 2, 3, 3, 3, 3];
 const chineAt = (z: number): number => BODY(z)[5][0];
 
 // tandem cockpits: the pilot's canopy, then the RSO's hump behind it
+// (the RSO's hood sits a quarter of a metre lower than the pilot's canopy)
 const CANOPY: Section[] = [
-  { z: -13.1, w: 0.03, top: 0.02, bot: 0.02, y: 0.77, n: 2 },
-  { z: -12.7, w: 0.34, top: 0.21, bot: 0.03, y: 0.79, n: 2.6 },
-  { z: -12.2, w: 0.42, top: 0.35, bot: 0.03, y: 0.81, n: 3 },
-  { z: -11.4, w: 0.45, top: 0.42, bot: 0.03, y: 0.82, n: 3.2 },
-  { z: -10.5, w: 0.45, top: 0.42, bot: 0.03, y: 0.83, n: 3.2 },
-  { z: -9.8, w: 0.45, top: 0.40, bot: 0.03, y: 0.84, n: 3.2 },
-  { z: -9.0, w: 0.44, top: 0.38, bot: 0.03, y: 0.85, n: 3.1 },
-  { z: -8.1, w: 0.4, top: 0.30, bot: 0.03, y: 0.86, n: 3 },
-  { z: -7.3, w: 0.3, top: 0.16, bot: 0.03, y: 0.86, n: 2.6 },
+  { z: -13.5, w: 0.03, top: 0.02, bot: 0.02, y: 0.75, n: 2 },
+  { z: -13.0, w: 0.34, top: 0.25, bot: 0.03, y: 0.78, n: 2.6 },
+  { z: -12.4, w: 0.42, top: 0.38, bot: 0.03, y: 0.8, n: 3 },
+  { z: -11.6, w: 0.45, top: 0.42, bot: 0.03, y: 0.82, n: 3.2 },
+  { z: -10.8, w: 0.45, top: 0.4, bot: 0.03, y: 0.83, n: 3.2 },
+  { z: -10.2, w: 0.44, top: 0.22, bot: 0.03, y: 0.84, n: 3.2 },
+  { z: -9.6, w: 0.42, top: 0.15, bot: 0.03, y: 0.84, n: 3.1 },
+  { z: -9.0, w: 0.4, top: 0.12, bot: 0.03, y: 0.85, n: 3.1 },
+  { z: -8.1, w: 0.36, top: 0.1, bot: 0.03, y: 0.86, n: 3 },
+  { z: -7.3, w: 0.28, top: 0.06, bot: 0.03, y: 0.86, n: 2.6 },
   { z: -6.6, w: 0.06, top: 0.02, bot: 0.03, y: 0.86, n: 2 },
 ];
-const PILOT_EYE = new THREE.Vector3(0, 1.09, -11.5);
-const RSO_EYE = new THREE.Vector3(0, 1.11, -9.35);
+const PILOT_EYE = new THREE.Vector3(0, 1.05, -11.6);
+const RSO_EYE = new THREE.Vector3(0, 0.95, -9.3);
 
 // cranked delta wing: the chine is the leading edge inboard, then the outer
 // panel past the nacelle; conical camber droops the outer leading edge
-const NAC_X = 4.0;
+const NAC_X = 4.4;
 const NAC_Y = -0.02;
 const WING: WingStation[] = [
-  { x: 0.7, le: -3.9, te: 10.7, y: -0.01, t: 0.024 },
-  { x: 1.75, le: -3.4, te: 10.6, y: -0.01, t: 0.024 },
-  { x: 3.25, le: -1.4, te: 10.3, y: -0.02, t: 0.026 },
-  { x: 4.7, le: 1.2, te: 9.9, y: -0.05, t: 0.03 },
-  { x: 5.6, le: 2.6, te: 9.6, y: -0.08, t: 0.032 },
-  { x: 7.4, le: 6.1, te: 9.0, y: -0.12, t: 0.034 },
-  { x: 8.47, le: 8.1, te: 8.6, y: -0.15, t: 0.04 },
+  { x: 0.7, le: -4.7, te: 10.0, y: -0.01, t: 0.024 },
+  { x: 1.75, le: -4.5, te: 10.0, y: -0.01, t: 0.024 },
+  { x: 3.25, le: -2.4, te: 9.9, y: -0.02, t: 0.026 },
+  { x: 4.7, le: 0.8, te: 9.6, y: -0.05, t: 0.03 },
+  { x: 5.6, le: 2.65, te: 9.5, y: -0.08, t: 0.032 },
+  { x: 7.4, le: 6.15, te: 9.4, y: -0.12, t: 0.034 },
+  { x: 8.47, le: 8.2, te: 8.8, y: -0.15, t: 0.04 },
 ];
 const wingLe = (x: number): number => {
   for (let i = 0; i < WING.length - 1; i++) {
@@ -117,37 +119,39 @@ const wingTe = (x: number): number => {
   return WING[WING.length - 1].te;
 };
 
-// all-moving fins on the nacelles, canted 15 degrees inward; in their own frame x = height
+// all-moving fins on the nacelles, canted 15 degrees inward; in their own
+// frame x = height: a 45 deg leading edge, the tip from z 7.8 to 10.2, the
+// trailing edge raked back to the root at the nacelle's trailing edge
 const FIN: WingStation[] = [
-  { x: 0, le: 7.2, te: 11.9, t: 0.04 },
-  { x: 0.4, le: 7.9, te: 11.95, t: 0.038 },
-  { x: 2.55, le: 10.25, te: 12.0, t: 0.032 },
+  { x: 0, le: 5.5, te: 10.6, t: 0.04 },
+  { x: 0.4, le: 5.9, te: 10.55, t: 0.038 },
+  { x: 2.65, le: 7.8, te: 10.45, t: 0.032 },
 ];
-const FIN_PIVOT_Z = 10.0;
+const FIN_PIVOT_Z = 8.5;
 
 // nacelle outer cowl, [radius, z]: lip, swelling over the J58, then the ejector
 const COWL: P2[] = [
-  [0.71, -5.0],
-  [0.76, -4.75],
-  [0.84, -4.2],
-  [0.93, -3.0],
-  [0.97, -1.2],
-  [0.98, 3.0],
-  [0.97, 8.0],
-  [0.95, 11.0],
-  [0.92, 12.45],
+  [0.76, -1.9],
+  [0.8, -1.65],
+  [0.88, -1.1],
+  [0.95, 0.0],
+  [0.98, 1.5],
+  [0.98, 5.0],
+  [0.96, 8.0],
+  [0.93, 9.5],
+  [0.9, 10.0],
 ];
 // the inlet spike: a long cone ahead of the lip (moves aft in flight on the real jet)
 const SPIKE: P2[] = [
-  [0.004, -7.45],
-  [0.08, -7.2],
-  [0.2, -6.7],
-  [0.32, -6.0],
-  [0.42, -5.2],
-  [0.48, -4.5],
-  [0.5, -3.6],
+  [0.004, -3.9],
+  [0.08, -3.65],
+  [0.2, -3.2],
+  [0.32, -2.65],
+  [0.42, -2.15],
+  [0.48, -1.85],
+  [0.5, -1.4],
 ];
-const NOZZLE_Z = 12.45;
+const NOZZLE_Z = 10.0;
 
 const RED = 'rgba(205,34,28,1)';
 
@@ -323,20 +327,20 @@ export function buildSr71(v: AirframeVisual): void {
     const cx = NAC_X * sx;
     skin(lathe(COWL, 48, cx, NAC_Y));
     // inside the lip: the duct turns dark at once
-    const duct = lathe([[0.62, -3.6], [0.66, -4.4], [0.7, -4.9], [0.71, -5.0]], 40, cx, NAC_Y);
+    const duct = lathe([[0.62, -0.5], [0.66, -1.3], [0.7, -1.8], [0.76, -1.9]], 40, cx, NAC_Y);
     v.addMesh(duct, pm.duct);
     const face = new THREE.Mesh(new THREE.CircleGeometry(0.64, 32), pm.duct);
-    face.position.set(cx, NAC_Y, -3.62);
+    face.position.set(cx, NAC_Y, -0.52);
     face.rotation.y = Math.PI;
     v.body.add(face);
     skin(lathe(SPIKE, 40, cx, NAC_Y));
     // the nacelle chine: a sharp lip along the outboard side, carrying the wing chine round
     const nch = loftProfile({
-      stations: stations(-4.4, 9.5, 30),
+      stations: stations(-1.6, 9.5, 30),
       profile: (z) => {
-        const u = sstep(-4.4, -2.0, z) * (1 - sstep(8.0, 9.5, z));
-        const r = 0.93 + 0.05 * sstep(-4.4, -1.2, z);
-        const w = 0.32 * u + 0.01;
+        const u = sstep(-1.6, 1.2, z) * (1 - sstep(7.5, 9.5, z));
+        const r = 0.9 + 0.08 * sstep(-1.6, 0.5, z);
+        const w = 0.75 * u + 0.01;
         return [[r * 0.9, -0.2], [r + w * 0.6, -0.03], [r + w, 0], [r + w * 0.6, 0.04], [r * 0.9, 0.22]] as P2[];
       },
       sub: 1,
@@ -355,7 +359,7 @@ export function buildSr71(v: AirframeVisual): void {
     // bypass doors and louvres on the nacelle sides
     for (let i = 0; i < 3; i++) {
       const louvre = new THREE.BoxGeometry(0.02, 0.18, 0.5);
-      louvre.translate(cx + sx * 0.975, NAC_Y + 0.25 - i * 0.24, -1.6);
+      louvre.translate(cx + sx * 0.975, NAC_Y + 0.25 - i * 0.24, 2.0);
       v.addMesh(louvre, pm.darkMetal);
     }
   }
@@ -368,14 +372,14 @@ export function buildSr71(v: AirframeVisual): void {
     const axis = new THREE.Vector3(1, 0, 0).transformDirection(m);
     v.addSurface(stamp(fin), paint, hinge, axis, 'rudder', side, 20);
     // fin root fairing on the nacelle
-    skin(lathe([[0.004, 6.9], [0.1, 7.6], [0.13, 10.5], [0.08, 11.9], [0.004, 12.1]], 12, NAC_X * side, NAC_Y + 0.92));
-    const top = new THREE.Vector3(2.55, 0, 11.1).applyMatrix4(m);
+    skin(lathe([[0.004, 5.2], [0.1, 5.9], [0.13, 9.6], [0.08, 10.6], [0.004, 10.8]], 12, NAC_X * side, NAC_Y + 0.92));
+    const top = new THREE.Vector3(2.65, 0, 9.2).applyMatrix4(m);
     v.addNavLight(new THREE.Vector3(top.x, top.y + 0.03, top.z), 'formation');
   }
 
   // --- canopies: the pilot's, then the RSO's hood with its small windows --------------------------
   v.cockpitEye.copy(PILOT_EYE);
-  buildCanopy(v, CANOPY, -12.65, [-12.15, -10.1, -9.95], paint);
+  buildCanopy(v, CANOPY, -13.05, [-12.5, -10.2, -10.05], paint);
   if (v.canopy) {
     // small, heavily framed windows: from outside the canopy reads as dark smoked glass
     const gm = (v.canopy.material as THREE.MeshStandardMaterial).clone();
@@ -405,20 +409,20 @@ export function buildSr71(v: AirframeVisual): void {
       capStart: true,
       capEnd: true,
     });
-  skin(hood(-9.95, -6.6, 0.62));
+  skin(hood(-10.05, -6.6, 0.62));
   skin(hood(-8.7, -6.6, 0.05));
   // the pilot's windscreen: flat panels with a heavy centre post
   {
     const post = new THREE.BoxGeometry(0.035, 0.36, 0.05);
     post.rotateX(-0.95);
-    post.translate(0, 0.86, -12.45);
+    post.translate(0, 0.86, -12.85);
     v.hideInCockpit.push(v.addMesh(post, pm.frame));
   }
   // instrument shroud ahead of the pilot
   const shroud = loftProfile({
-    stations: stations(-12.55, -12.15, 6),
+    stations: stations(-12.95, -12.55, 6),
     profile: (z) => {
-      const u = sstep(-12.55, -12.15, z);
+      const u = sstep(-12.95, -12.55, z);
       return [[0, 0.32], [0.38, 0.34], [0.42, 0.62], [0.3, 0.72 - u * 0.05], [0, 0.74 - u * 0.05]] as P2[];
     },
     sub: 3,
@@ -428,12 +432,12 @@ export function buildSr71(v: AirframeVisual): void {
 
   // --- engines: two J58 ejector nozzles --------------------------------------------------------
   for (const sx of [-1, 1] as const) {
-    const nz = nozzle({ cx: NAC_X * sx, cy: NAC_Y, z0: NOZZLE_Z, z1: 13.85, r0: 0.9, r1: 0.86, petals: 26, saw: 0.04, floor: NOZZLE_Z + 0.15 });
+    const nz = nozzle({ cx: NAC_X * sx, cy: NAC_Y, z0: NOZZLE_Z, z1: 10.85, r0: 0.9, r1: 0.86, petals: 26, saw: 0.04, floor: NOZZLE_Z + 0.15 });
     const nzOut = v.addMesh(nz.outer, pm.nozzle);
     const nzIn = v.addMesh(nz.inner, pm.nozzleIn);
     nzIn.userData.detail = true;
     v.morphNozzle(nzOut, nzIn);
-    v.nozzles.push({ pos: new THREE.Vector3(NAC_X * sx, NAC_Y, 13.7), radius: 0.8, depth: 1.0, area: nz.area });
+    v.nozzles.push({ pos: new THREE.Vector3(NAC_X * sx, NAC_Y, 10.7), radius: 0.8, depth: 1.0, area: nz.area });
   }
   v.buildFlames(10);
 
@@ -451,8 +455,8 @@ export function buildSr71(v: AirframeVisual): void {
     formationStrip(new THREE.Vector3(1.2, 0.25, -12.0), new THREE.Vector3(1, 0.5, 0), new THREE.Vector3(0, 0, 1), 0.5, 0.035),
     formationStrip(new THREE.Vector3(-1.2, 0.25, -12.0), new THREE.Vector3(-1, 0.5, 0), new THREE.Vector3(0, 0, 1), 0.5, 0.035),
   ]), pm.formation, v.body, false);
-  v.addNavLight(new THREE.Vector3(-8.48, WING[5].y ?? 0, 7.4), 'red');
-  v.addNavLight(new THREE.Vector3(8.48, WING[5].y ?? 0, 7.4), 'green');
+  v.addNavLight(new THREE.Vector3(-8.48, WING[5].y ?? 0, 8.3), 'red');
+  v.addNavLight(new THREE.Vector3(8.48, WING[5].y ?? 0, 8.3), 'green');
   v.addNavLight(new THREE.Vector3(0, 0.88, 1.0), 'strobe');
   v.addNavLight(new THREE.Vector3(0, -0.56, 2.0), 'strobe');
 

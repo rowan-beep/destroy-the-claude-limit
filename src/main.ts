@@ -579,6 +579,20 @@ if (q.get('test') === 'world') {
   import('./testWorld').then((m) => m.runWorldTest(document.getElementById('app')!));
 } else if (q.get('test') === 'ocean') {
   import('./ocean/testOcean').then((m) => m.runOceanTest(document.getElementById('app')!));
+} else if (q.get('test') === 'ranks') {
+  // every rank emblem on one page, to look at
+  Promise.all([import('./ui/rankEmblem'), import('./game/ranked')]).then(([e, r]) => {
+    const app = document.getElementById('app')!;
+    app.style.cssText = 'background:#2a2d31;padding:24px;display:grid;grid-template-columns:repeat(6,140px);gap:18px;font:600 13px Rajdhani,sans-serif;color:#dde';
+    for (const rank of [null, ...r.RANKS]) {
+      const cell = document.createElement('div');
+      cell.style.textAlign = 'center';
+      cell.innerHTML = e.rankEmblemSvg(rank, 112, { glow: rank?.tier === 'CHAMPION' }) + `<div>${rank ? rank.name : 'UNRANKED'}</div>`;
+      (cell.firstElementChild as HTMLElement).style.margin = '0 auto';
+      app.appendChild(cell);
+    }
+    (window as unknown as { __ready: boolean }).__ready = true;
+  });
 } else if (q.get('test') === 'models') {
   import('./testModels').then((m) => m.runModelTest(document.getElementById('app')!));
 } else {
