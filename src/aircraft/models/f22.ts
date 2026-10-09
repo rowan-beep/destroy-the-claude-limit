@@ -79,8 +79,15 @@ const BODY = keyedProfile([
   { z: 3.0, pts: S(-0.82, 1.8, 1.92, -0.45, 2.08, -0.02, 1.42, 0.32, 0.5, 0.38, 0.2) },
   { z: 5.3, pts: S(-0.58, 1.62, 1.72, -0.38, 1.82, -0.06, 1.34, 0.26, 0.45, 0.3, 0.08) },
   { z: 6.4, pts: S(-0.42, 1.14, 1.24, -0.3, 1.36, -0.1, 1.16, 0.18, 0.42, 0.22, 0.03) },
-  { z: 7.0, pts: S(-0.32, 1.02, 1.1, -0.26, 1.2, -0.11, 1.06, 0.14, 0.4, 0.18, 0.02) },
+  // the aft end wraps the two nozzle boxes: a flat bottom and deck and near-vertical
+  // walls round them, ending in a flat face the nozzle flaps grow out of
+  { z: 7.0, pts: S(-0.35, 1.02, 1.1, -0.3, 1.19, -0.1, 1.08, 0.165, 0.42, 0.19, 0.02) },
+  { z: 7.45, pts: S(-0.35, 1.0, 1.09, -0.31, 1.11, -0.1, 1.09, 0.17, 0.5, 0.19, 0.0) },
 ]);
+/** where the fuselage ends and the nozzle flaps begin */
+const NOZZLE_END = 7.45;
+/** the nozzle boxes: centre, half-width and half-height (the body's end face has these cut out) */
+const NOZZLE_X = 0.6, NOZZLE_Y = -0.07, NOZZLE_HW = 0.44, NOZZLE_HH = 0.24, NOZZLE_Z = 6.95;
 // the body's cross-section where the intake skins end (outer part, from the
 // intake's inner wall round the belly edge, up the wall and over the deck)
 const INTAKE_END_Z = -1.78;
@@ -481,9 +488,28 @@ export function buildF22(v: AirframeVisual): void {
   v.paintMat = paint;
   const skin = (g: THREE.BufferGeometry) => v.addMesh(stamp(g), paint);
 
-  const zs = mergeStations(stations(-9.46, -6.2, 36, 0.6, 0), stations(-6.2, -1.8, 56), stations(-1.8, 7.0, 84));
-  skin(loftProfile({ stations: zs, profile: BODY, sub: BODY_SUB, capEnd: true }));
+  const zs = mergeStations(stations(-9.46, -6.2, 36, 0.6, 0), stations(-6.2, -1.8, 56), stations(-1.8, NOZZLE_END, 88));
+  skin(loftProfile({ stations: zs, profile: BODY, sub: BODY_SUB }));
   v.fuselageSections = sectionsFromProfile(BODY, -9.2, 6.9, 40);
+  // the flat end face the body stops at, with the two nozzle exits cut out of it
+  {
+    const half = BODY(NOZZLE_END);
+    const outline: P2[] = [...half, ...half.slice(1, -1).reverse().map(([x, y]) => [-x, y] as P2)];
+    const sh = new THREE.Shape(outline.map(([x, y]) => new THREE.Vector2(x, y)));
+    for (const sx of [-1, 1]) {
+      const hole = new THREE.Path();
+      const x0 = sx * NOZZLE_X - NOZZLE_HW, x1 = sx * NOZZLE_X + NOZZLE_HW;
+      hole.moveTo(x0, NOZZLE_Y - NOZZLE_HH);
+      hole.lineTo(x1, NOZZLE_Y - NOZZLE_HH);
+      hole.lineTo(x1, NOZZLE_Y + NOZZLE_HH);
+      hole.lineTo(x0, NOZZLE_Y + NOZZLE_HH);
+      hole.closePath();
+      sh.holes.push(hole);
+    }
+    const face = new THREE.ShapeGeometry(sh, 1);
+    face.translate(0, 0, NOZZLE_END);
+    skin(face);
+  }
 
   // --- caret intakes: parallelogram mouths raked in two planes (the upper
   // inboard corner leads: the lip is swept back 42 deg in plan like the wing
@@ -604,15 +630,17 @@ export function buildF22(v: AirframeVisual): void {
     }
   }
 
-  // --- tail booms outboard of the engines carry the tailplanes
+  // --- tail booms outboard of the engines carry the tailplanes: flat slabs
+  // flush with the belly, growing out of the body beside the wing's trailing
+  // edge and tapering to a wedge past the nozzles
   const boom = loftProfile({
-    stations: stations(4.6, 9.0, 24),
+    stations: stations(4.4, 9.1, 28),
     profile: (z) => {
-      const u = sstep(4.6, 5.4, z);
-      const e = sstep(8.4, 9.0, z);
-      const hw = 0.3 * u * (1 - 0.6 * e) + 0.02;
-      const hh = 0.1 * (1 - 0.5 * e) + 0.02;
-      return rrect(1.52, -0.1, hw, hh, Math.min(hw, hh) * 0.6, 3);
+      const u = sstep(4.4, 5.6, z);
+      const e = sstep(7.6, 9.1, z);
+      const hw = 0.42 * u * (1 - 0.55 * e) + 0.02;
+      const hh = 0.125 * (1 - 0.7 * e) + 0.015;
+      return rrect(1.56, -0.17, hw, hh, Math.min(hw, hh) * 0.4, 3);
     },
     sub: 1,
     full: true,
@@ -638,13 +666,13 @@ export function buildF22(v: AirframeVisual): void {
     v.addNavLight(new THREE.Vector3(top.x, top.y, 5.1), 'formation');
   }
 
-  // --- flat "beaver tail" between the engines
+  // --- flat "beaver tail" between the nozzles, growing out of the end face
   const tail = loftProfile({
-    stations: stations(6.6, 8.1, 10),
+    stations: stations(7.2, 8.2, 10),
     profile: (z) => {
-      const u = sstep(6.6, 8.1, z);
-      const w = 0.2 - u * 0.1;
-      return [[0, -0.14], [w, -0.13], [w + 0.03, -0.07], [w, -0.01], [0, 0.0]] as P2[];
+      const u = sstep(7.3, 8.2, z);
+      const w = 0.15 - u * 0.08;
+      return [[0, -0.16 + 0.07 * u], [w, -0.15 + 0.07 * u], [w + 0.02, -0.07], [w, 0.01 - 0.05 * u], [0, 0.02 - 0.05 * u]] as P2[];
     },
     sub: 2,
     capStart: true,
@@ -652,75 +680,95 @@ export function buildF22(v: AirframeVisual): void {
   });
   skin(tail);
 
-  // --- 2D thrust-vectoring nozzles: square convergent section, flat upper
-  // and lower flaps with sawtooth edges that swing together up and down
+  // --- 2D thrust-vectoring nozzles. The boxes are buried in the aft body and
+  // only their business end shows past the end face: fixed sidewalls in the
+  // airframe's paint, and the flat upper and lower flaps, dark heat-stained
+  // metal with sawtooth trailing edges, hinged on the end face and swinging
+  // together up and down. The flaps carry on the deck and the belly: no step.
+  const FLAP_Z = NOZZLE_END - NOZZLE_Z;
+  const FLAP_L = 0.56;
   const flap = (): THREE.BufferGeometry => {
     const sh = new THREE.Shape();
-    sh.moveTo(-0.44, 0.45);
-    sh.lineTo(0.44, 0.45);
-    sh.lineTo(0.44, 0.92);
-    sh.lineTo(0.22, 1.06);
-    sh.lineTo(0, 0.92);
-    sh.lineTo(-0.22, 1.06);
-    sh.lineTo(-0.44, 0.92);
+    const w = NOZZLE_HW - 0.012, l0 = FLAP_L - 0.13;
+    sh.moveTo(-w, 0);
+    sh.lineTo(w, 0);
+    sh.lineTo(w, l0);
+    sh.lineTo(w * 0.667, FLAP_L);
+    sh.lineTo(w * 0.333, l0);
+    sh.lineTo(0, FLAP_L);
+    sh.lineTo(-w * 0.333, l0);
+    sh.lineTo(-w * 0.667, FLAP_L);
+    sh.lineTo(-w, l0);
     sh.closePath();
-    const g = new THREE.ExtrudeGeometry(sh, { depth: 0.03, bevelEnabled: true, bevelSize: 0.008, bevelThickness: 0.008, bevelSegments: 1 });
+    const g = new THREE.ExtrudeGeometry(sh, { depth: 0.028, bevelEnabled: true, bevelSize: 0.006, bevelThickness: 0.006, bevelSegments: 1 });
+    // shape y -> aft (+z); the plate's thickness hangs below y 0
     g.rotateX(Math.PI / 2);
     return g;
   };
-  const nozzleGrey = new THREE.MeshStandardMaterial({ color: '#80868b', roughness: 0.5, metalness: 0.35 });
-  const flapMetal = new THREE.MeshStandardMaterial({ color: '#555a5f', roughness: 0.42, metalness: 0.6 });
+  const wall = (): THREE.BufferGeometry => {
+    // shape x -> aft (+z), shape y -> up; the plate is extruded toward -x
+    const sh = new THREE.Shape();
+    sh.moveTo(FLAP_Z - 0.03, -NOZZLE_HH - 0.012);
+    sh.lineTo(FLAP_Z + FLAP_L - 0.03, -NOZZLE_HH + 0.05);
+    sh.lineTo(FLAP_Z + FLAP_L - 0.03, NOZZLE_HH - 0.05);
+    sh.lineTo(FLAP_Z - 0.03, NOZZLE_HH + 0.012);
+    sh.closePath();
+    const g = new THREE.ExtrudeGeometry(sh, { depth: 0.03, bevelEnabled: false });
+    g.rotateY(-Math.PI / 2);
+    return g;
+  };
+  const flapMetal = new THREE.MeshStandardMaterial({ color: '#4e5357', roughness: 0.45, metalness: 0.6 });
   for (const sx of [-1, 1] as const) {
     const pivot = new THREE.Group();
-    pivot.position.set(0.6 * sx, -0.07, 6.95);
+    pivot.position.set(NOZZLE_X * sx, NOZZLE_Y, NOZZLE_Z);
     v.body.add(pivot);
-    const shell = loftProfile({
-      stations: stations(-0.05, 0.9, 12),
-      profile: (z) => {
-        const u = sstep(-0.05, 0.9, z);
-        return rrect(0, 0, 0.46 - u * 0.03, 0.26 - u * 0.06, 0.1 - u * 0.06, 4);
-      },
-      sub: 1,
-      full: true,
-    });
-    // the nozzle boxes are painted Raptor grey; the flaps are darker, heat-stained metal
-    v.addMesh(shell, nozzleGrey, pivot);
-    // the flaps hinge at their leading edge: converged at military power,
+    // the fixed sidewalls, just inside the exit's rim
+    const outer = wall();
+    outer.translate(NOZZLE_HW, 0, 0);
+    const inner = wall();
+    inner.translate(-NOZZLE_HW + 0.03, 0, 0);
+    const walls = join([outer, inner]);
+    // (the paint is projected by body position: give the walls their place on the body, not the pivot's)
+    const wp = walls.attributes.position as THREE.BufferAttribute;
+    const wskin = wp.clone();
+    for (let i = 0; i < wskin.count; i++) wskin.setXYZ(i, wp.getX(i) + NOZZLE_X * sx, wp.getY(i) + NOZZLE_Y, wp.getZ(i) + NOZZLE_Z);
+    walls.setAttribute('skin', wskin);
+    v.addMesh(walls, paint, pivot);
+    // the flaps hinge on the end face: converged at military power,
     // swung apart at idle and in the burner (the nozzle's area)
     const flaps: THREE.Mesh[] = [];
     for (const up of [1, -1]) {
       const at = (deg: number) => {
         const f = flap();
-        f.translate(0, 0, -0.45);
         f.rotateX(-up * deg * DEG);
-        f.translate(0, up > 0 ? 0.24 : -0.21, 0.45);
+        f.translate(0, up > 0 ? NOZZLE_HH : -NOZZLE_HH + 0.028, FLAP_Z);
         return f;
       };
-      flaps.push(v.addMesh(withMorph(at(-3), at(5.5)), flapMetal, pivot));
+      flaps.push(v.addMesh(withMorph(at(-4), at(6)), flapMetal, pivot));
     }
     const throat = loftProfile({
-      stations: stations(0.2, 0.88, 6),
+      stations: stations(0.26, FLAP_Z + FLAP_L - 0.05, 8),
       profile: (z) => {
-        const u = sstep(0.2, 0.88, z);
-        return rrect(0, 0, 0.41 - u * 0.02, 0.24 - u * 0.06, 0.05, 3).reverse();
+        const u = sstep(FLAP_Z, FLAP_Z + FLAP_L, z);
+        return rrect(0, 0, NOZZLE_HW - 0.03, NOZZLE_HH - 0.02 - u * 0.05, 0.04, 3).reverse();
       },
       sub: 1,
       full: true,
     });
     // sooty liner, heat-stained toward the exit (linear values, as the round nozzles)
     colorize(throat, (p, c) => {
-      const k = 0.012 + 0.07 * Math.exp(-((0.95 - p.z) / 0.7) * 4);
+      const k = 0.012 + 0.07 * Math.exp(-((FLAP_Z + FLAP_L - p.z) / 0.7) * 4);
       c.setRGB(k, k * 0.94, k * 0.86);
     });
     const throatMesh = v.addMesh(throat, pm.nozzleIn, pivot);
     throatMesh.userData.detail = true;
     v.morphNozzle(...flaps);
-    const faceGeo = colorize(new THREE.PlaneGeometry(0.8, 0.46), (_p, c) => c.setRGB(0.01, 0.01, 0.01));
+    const faceGeo = colorize(new THREE.PlaneGeometry(0.8, 0.42), (_p, c) => c.setRGB(0.01, 0.01, 0.01));
     const face = new THREE.Mesh(faceGeo, pm.nozzleIn);
-    face.position.set(0, 0, 0.25);
+    face.position.set(0, 0, 0.36);
     // (a plane faces +z: aft, out of the nozzle)
     pivot.add(face);
-    v.nozzles.push({ pos: new THREE.Vector3(0, 0, 0.95), radius: 0.28, parent: pivot, depth: 0.7, aspect: 1.55, area: [0.9, 1.12] });
+    v.nozzles.push({ pos: new THREE.Vector3(0, 0, FLAP_Z + FLAP_L - 0.02), radius: 0.26, parent: pivot, depth: 0.7, aspect: 1.6, area: [0.9, 1.12] });
     v.vectoring.push({ pivot, side: sx });
   }
   v.buildFlames(6.0);

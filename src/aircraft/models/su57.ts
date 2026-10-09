@@ -389,7 +389,8 @@ export function buildSu57(v: AirframeVisual): void {
   // --- small all-moving fins canted out 26 deg ------------------------------------------
   for (const side of [1, -1] as const) {
     const m = finMatrix(BOOM_X * side, 0.12, 26, side);
-    const f = finPanels(FIN, RUDDER, m, { chordPts: 30 });
+    // (the booms are thin: a shallower root sink than the other jets)
+    const f = finPanels(FIN, RUDDER, m, { chordPts: 30, sink: 0.3 });
     skin(f.fixed);
     v.addSurface(stamp(f.rudder.geo), paint, f.rudder.hinge, f.rudder.axis, 'rudder', side, 25);
     const top = new THREE.Vector3(2.45, 0, 0).applyMatrix4(m);

@@ -58,6 +58,8 @@ import { prewarmAirframes, setHeroDetail } from '../aircraft/models';
 import { randomizeWind, wind } from '../core/weather';
 import { AutoFly, topSpeedKts } from './autoFly';
 import type { AutoFlyPanel, AutoFlyChoice } from '../ui/autoFlyPanel';
+import type { Tanker } from './tanker';
+import type { Steerpoint } from '../avionics/nav';
 import { enemyTypesFor, AIRCRAFT_TYPES, getSpec, AircraftType } from '../aircraft/specs';
 import { CARRIERS, carrierOf, clearCatapults, nearestCarrier, updateCarriers } from '../world/carriers';
 import { armCarriers } from './navy';
@@ -1361,8 +1363,10 @@ export class Game implements ModeHost {
       audio.mechanical();
     }
     if (inp.pressed('rearm')) {
-      // in the air near carriers the same key works the tailhook
-      if (!p.fm.onGround && CARRIERS.length) {
+      const tk = this.tanker;
+      // hooked up to the tanker, the same key disconnects; in the air near carriers it works the tailhook
+      if (tk?.held) tk.release('pilot');
+      else if (!p.fm.onGround && CARRIERS.length) {
         p.fm.hookDown = !p.fm.hookDown;
         this.message(p.fm.hookDown ? 'HOOK DOWN' : 'HOOK UP', 'info', 2);
       } else this.tryRearm();
@@ -1412,7 +1416,16 @@ export class Game implements ModeHost {
     this.input.exitPointerLock();
     const af = this.autoFly;
     const p = this.player;
-    panel.show(this.avionics.nav.points, af.engaged, { dest: af.dest, speedKts: af.speedKts, altFt: af.altFt, autoLand: af.autoLand, ab: af.abMode }, { maxKts: topSpeedKts(p.spec.maxMach), ceilingFt: p.spec.ceilingFt, onGround: p.fm.onGround });
+    // the tanker, when there is one, heads the list: AUTO-FLY flies the whole join and hook-up
+    const tk = this.tanker;
+    const tankerPoint: Steerpoint | null = tk ? { num: 0, id: 'tanker', name: 'KC-46 TANKER · REFUEL (FLIES THE JOIN AND CONNECTS)', short: 'KC-46', kind: 'tanker', x: tk.pos.x, z: tk.pos.z, elev: tk.alt, field: null, tacan: '', friendly: true } : null;
+    const points = tankerPoint ? [tankerPoint, ...this.avionics.nav.points] : this.avionics.nav.points;
+    panel.show(points, af.engaged, { dest: af.tanker && tankerPoint ? tankerPoint : af.dest, speedKts: af.speedKts, altFt: af.altFt, autoLand: af.autoLand, ab: af.abMode }, { maxKts: topSpeedKts(p.spec.maxMach), ceilingFt: p.spec.ceilingFt, onGround: p.fm.onGround });
+  }
+
+  /** the KC-46, when the mode flies one (free flight) */
+  get tanker(): Tanker | null {
+    return this.mode instanceof FreeFlightMode ? this.mode.tanker : null;
   }
 
   engageAutoFly(ch: AutoFlyChoice): void {
@@ -1420,6 +1433,13 @@ export class Game implements ModeHost {
     this.autoFlyPanel?.hide();
     if (!p || !p.alive) return;
     this.autoFly.onCall = (t, k) => this.message(`AUTO-FLY: ${t}`, k, 3.5);
+    const tk = this.tanker;
+    if (ch.dest?.id === 'tanker' && tk) {
+      this.autoFly.engageTanker(p, tk);
+      this.gearDown = p.fm.onGround;
+      this.message('AUTO-FLY ENGAGED → KC-46 TANKER · IT FLIES THE JOIN, AND THE JET CONNECTS BY ITSELF. HANDS OFF.', 'good', 5);
+      return;
+    }
     this.autoFly.engage(p, ch.dest, ch.speedKts, ch.altFt, ch.autoLand, ch.ab);
     if (ch.dest && this.avionics) this.avionics.nav.select(ch.dest.id);
     this.gearDown = p.fm.onGround;
@@ -1617,6 +1637,22 @@ export class Game implements ModeHost {
     if (p.fm.onGround) this.gearDown = true;
     c.gearDown = this.gearDown;
     c.wheelBrake = inp.held('wheelBrake') || (p.fm.onGround && this.speedbrake) ? 1 : 0;
+
+    const tk = this.tanker;
+    if (tk?.held) {
+      // the tanker's auto-connect has the jet: the stick is parked, a firm input breaks away
+      const firm =
+        Math.abs(pitch) > 0.5 ||
+        Math.abs(roll) > 0.5 ||
+        (ms === 'joystick' && Math.abs(inp.joyX) + Math.abs(inp.joyY) > 0.6) ||
+        (ms === 'mouseaim' && inp.pointerLocked && Math.abs(inp.mouseDX) + Math.abs(inp.mouseDY) > 60);
+      tk.pilotInput(firm, dt);
+      if (this.autoFly.engaged) this.autoFly.disengage();
+      c.pitch = c.roll = c.yaw = 0;
+      c.gOverride = false;
+      this.aimDir.copy(p.fm.fwd);
+      return;
+    }
 
     if (this.autoFly.engaged) {
       const af = this.autoFly;

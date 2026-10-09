@@ -37,6 +37,7 @@ import { wind } from '../core/weather';
 import { GLIDESLOPE_DEG, GS_AIMPOINT, runwayDesignator } from '../avionics/nav';
 import { Carrier, carrierOf } from '../world/carriers';
 import { DECK_HEIGHT, LANDING_AREA } from '../world/islands';
+import { Tanker, aarKind, contactTarget, receiverPoint } from './tanker';
 
 /** Carrier approach: final starts this far astern of the touchdown point (m). */
 const CV_GATE = 5500;
@@ -55,7 +56,7 @@ export function topSpeedKts(maxMach: number): number {
 /** Afterburner use: never, only when the chosen speed needs it, or lit the whole way. */
 export type AbMode = 'off' | 'auto' | 'max';
 
-export type AfPhase = 'takeoff' | 'climb' | 'cruise' | 'descent' | 'approach' | 'final' | 'flare' | 'rollout' | 'stopped' | 'orbit';
+export type AfPhase = 'takeoff' | 'climb' | 'cruise' | 'descent' | 'approach' | 'final' | 'flare' | 'rollout' | 'stopped' | 'orbit' | 'tanker';
 
 const ORBIT_MIN = 3 * NM;
 /** approach gate: this far before the touchdown aim point, on the centreline */
@@ -65,6 +66,7 @@ const TAN_GS = Math.tan(GLIDESLOPE_DEG * DEG);
 const _dir = new THREE.Vector3();
 const _rad = new THREE.Vector3();
 const _p = new THREE.Vector3();
+const _vt = new THREE.Vector3();
 
 interface Runway {
   f: AirfieldDef;
@@ -128,10 +130,22 @@ export class AutoFly {
   private eDotF = 0;
   /** why the last wave-off happened (diagnostics) */
   woWhy = '';
+  /** the TANKER program: the KC-46 to join, and how far it is */
+  tanker: Tanker | null = null;
+  tankerDist = 0;
   /** the touchdown point and landing direction where the ship will be at touchdown */
   private cv = { x: 0, z: 0, y: 0, ux: 0, uz: -1, d: 0, e: 0 };
 
+  /** Fly to the KC-46 and into its auto-connect envelope (from the runway too: it takes off first). */
+  engageTanker(p: Aircraft, tanker: Tanker): void {
+    this.engage(p, null, Math.round(tanker.speed / KT) + 40, Math.round(tanker.alt / FT), false, 'auto');
+    this.tanker = tanker;
+    this.tankerDist = p.fm.pos.distanceTo(tanker.pos);
+    if (this.phase !== 'takeoff') this.phase = 'tanker';
+  }
+
   engage(p: Aircraft, dest: Steerpoint | null, speedKts: number, altFt: number, autoLand = true, abMode: AbMode = 'auto'): void {
+    this.tanker = null;
     this.abMode = abMode;
     this.thrI = clamp(p.controls.throttle, 0.4, 1);
     this.abOn = abMode === 'max' || p.fm.throttleLever > 1.001;
@@ -220,6 +234,8 @@ export class AutoFly {
         return 'AUTO-LAND STOPPED';
       case 'orbit':
         return `AUTO-FLY → ${where} ORBIT · ${spd}`;
+      case 'tanker':
+        return `AUTO-FLY → KC-46 TANKER · ${this.tankerDist < 1000 ? `${Math.round(this.tankerDist)} M` : `${(this.tankerDist / NM).toFixed(1)} NM`} · HANDS OFF, IT CONNECTS BY ITSELF`;
     }
   }
 
@@ -389,6 +405,8 @@ export class AutoFly {
 
     // --- on the ground ---------------------------------------------------------
     if (this.phase === 'takeoff') return this.takeoff(p, dt);
+    // --- the tanker join -------------------------------------------------------
+    if (this.phase === 'tanker' && this.tanker) return this.flyTanker(p, dt);
     if (this.carrier && this.phase !== 'climb') {
       if (this.phase === 'rollout' || this.phase === 'stopped' || fm.trap) return this.carrierRollout(p);
       const dShip = Math.hypot(fm.pos.x - this.carrier.x, fm.pos.z - this.carrier.z);
@@ -423,7 +441,7 @@ export class AutoFly {
         this.abOn = this.abMode === 'max';
         c.gearDown = false;
         this.origin.copy(fm.pos);
-        this.set('cruise', 'CLIMB-OUT COMPLETE — ON COURSE');
+        this.set(this.tanker ? 'tanker' : 'cruise', this.tanker ? 'CLIMB-OUT COMPLETE — JOINING THE TANKER' : 'CLIMB-OUT COMPLETE — ON COURSE');
       }
       return;
     }
@@ -506,6 +524,44 @@ export class AutoFly {
     steerToward(p, _dir, { gCap: 4.5, tau: 0.9, maxBank: 70 });
     if (descentCas > 0) this.thrust(p, Math.min(descentCas, this.casFor(p, wantKts)), dt, 0.3, false);
     else this.thrust(p, this.casFor(p, wantKts), dt, 0.45);
+  }
+
+  /**
+   * The TANKER program: a rendezvous with the KC-46. The jet flies at the
+   * pre-contact point a little behind and below the boom's nozzle (or the
+   * basket), closing briskly from far out and at a walking pace at the end;
+   * inside the tanker's capture envelope the auto-connect takes it from there.
+   */
+  private flyTanker(p: Aircraft, dt: number): void {
+    const tk = this.tanker!;
+    const fm = p.fm;
+    const c = p.controls;
+    c.gearDown = false;
+    const kind = aarKind(p.spec.type) === 'probe' ? 'probe' : 'boom';
+    const goal = tk.toWorld(contactTarget(kind).add(new THREE.Vector3(0, -1.5, 12)));
+    // (the goal is for the receptacle / probe: offset it to the jet's own reference point)
+    _p.copy(receiverPoint(p, kind)).applyQuaternion(fm.quat);
+    goal.sub(_p);
+    _rad.copy(goal).sub(fm.pos);
+    const dist = _rad.length();
+    this.tankerDist = dist;
+    const closure = clamp(dist * 0.1, 1.5, 55);
+    _dir.copy(_rad).divideScalar(Math.max(dist, 1e-3));
+    // far out, no steep climbs or dives: the height comes off over the distance
+    if (dist > 1500) {
+      const lim = Math.sin(14 * DEG);
+      if (Math.abs(_dir.y) > lim) {
+        const h = Math.hypot(_dir.x, _dir.z);
+        const s = Math.sqrt(1 - lim * lim) / Math.max(h, 1e-6);
+        _dir.set(_dir.x * s, Math.sign(_dir.y) * lim, _dir.z * s);
+      }
+    }
+    _vt.copy(tk.vel).addScaledVector(_dir, closure);
+    const want = _vt.length();
+    _dir.copy(_vt).normalize();
+    const close = dist < 400;
+    steerToward(p, _dir, { gCap: close ? 2.0 : 4, tau: close ? 1.6 : 0.9, maxBank: close ? 20 : 60, allowPush: false });
+    this.thrust(p, this.casFor(p, want / KT), dt, 0.3, dist > 4000);
   }
 
   /**

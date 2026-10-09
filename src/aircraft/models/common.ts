@@ -103,9 +103,14 @@ export function finPanels(
   secs: WingStation[],
   rud: { h0: number; h1: number; hinge: (h: number) => number },
   m: THREE.Matrix4,
-  opt: Partial<WingSpec> = {},
+  opt: Partial<WingSpec> & { sink?: number } = {},
 ): { fixed: THREE.BufferGeometry; rudder: MovingPart } {
-  const p = wingPanels(secs, [{ x0: rud.h0, x1: rud.h1, hinge: rud.hinge, kind: 'rudder', maxDeg: 25 }], opt);
+  // the root is carried on down into the body (`sink` metres along the fin's own
+  // axis): the spine slopes and curves under a straight root chord, and a canted
+  // fin's root sits off the skin, so without it the fin floats on a sliver of sky
+  const { sink = 0.5, ...wopt } = opt;
+  const sunk = sink > 0 ? [{ ...secs[0], x: secs[0].x - sink }, ...secs] : secs;
+  const p = wingPanels(sunk, [{ x0: rud.h0, x1: rud.h1, hinge: rud.hinge, kind: 'rudder', maxDeg: 25 }], wopt);
   p.fixed.applyMatrix4(m);
   if (m.determinant() < 0) flipIdx(p.fixed);
   const r = p.moving[0];

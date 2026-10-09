@@ -9,7 +9,7 @@ import { AIRFIELDS, AirfieldDef, toRunwayLocal } from '../world/islands';
 import { NM, LB, DEG, Team } from '../core/constants';
 import { bearingXZ, clamp, wrap360 } from '../core/math';
 
-export type SteerKind = 'airfield' | 'bullseye' | 'objective';
+export type SteerKind = 'airfield' | 'bullseye' | 'objective' | 'tanker';
 
 /** A mission objective the mode wants as steerpoint 1 (daily mission), or null. */
 let objective: { name: string; short: string; x: number; z: number; /** a point in the air (else on the ground) */ y?: number; /** the line over the marker (else GO HERE) */ hint?: string } | null = null;

@@ -4,6 +4,23 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
+## v7.2.0 (2026-10-09)
+
+### Air Combat: Easy refuelling, a real KC-46, and three fixes you asked for
+
+- **New: Refuelling that connects itself**
+  - Get within 45 m of the boom's nozzle (or the basket) behind and below the tanker, roughly matched in speed, and the jet takes over: it stabilises at pre-contact, creeps in, the boom operator flies the boom down onto your receptacle, the nozzle slides out and latches with a clunk, and the jet is held on the boom while the fuel flows. Probe jets are pushed into the basket and the hose takes up. Hands off: nothing you do with the stick is needed, and the HUD counts the metres.
+  - You stay connected until the tanks are full, when the jet slides down and back off the boom by itself and hands control back. A firm stick input, or H, disconnects early. The director lights under the tanker's belly show up / down and forward / aft while you close.
+  - AUTO-FLY (U) now lists KC-46 TANKER first: pick it and the jet flies the whole join from wherever you are, from the runway if need be, closes at a walking pace and connects. The free-flight briefing and the HUD cue tell you where the auto-connect starts.
+- **Improved: The KC-46 Pegasus**
+  - The tanker is a proper 767-2C now: a lofted round fuselage with the drooped nose, the lifting tail cone and the six cockpit panes, a wing-body fairing, a wing with 6 degrees of dihedral, 35 degrees of sweep and the straight inboard trailing edge, flap-track fairings, PW4062 engines with dark ducts, fan faces and spinners on proper pylons, wing refuelling pods on pylons, the tailplane and fin with its dorsal fillet, the APU exhaust, antennas and the operator's camera fairing. The boom is a tapered tube with a hinge fairing, V ruddevators that flex with it and a telescoping nozzle; the centreline drogue has its fairing and a coupling in the basket. Painted in AMC grey with panel lines, doors, the U.S. AIR FORCE title, the roundels, the tail flash and the serial.
+- **Fixed: The F-22's engines meet the body**
+  - The two-dimensional nozzles were boxes stuck on behind the fuselage, their flaps three light grey plates stacked with gaps. The aft body now wraps the nozzle boxes and ends in a flat face the exits are cut out of; the painted sidewalls and the dark sawtooth flaps carry straight on from the deck and the belly, and the tail booms beside them are flat slabs flush with the belly instead of round pods.
+- **Fixed: Fins that floated**
+  - On most jets the fin's straight root chord sat on a sliver of sky where the spine slopes away or a canted fin's root left the skin (worst on the F-22, F-35, Su-57 and the Super Hornet, seen from below). Every fin and ventral fin now carries its root on down into the body, so they stand on the metal from any angle.
+- **Improved: Vapour that lies on the wing**
+  - The wing vapour was three flat sheets hovering over an estimated wing. It is now fitted to each jet's own airframe (the planform and the upper surface are read off the mesh), so in a hard pull a clumpy, streaky sheet of condensation lies on the wing and the strake and tears off the trailing edge, with a thinner layer just above it; the wingtip and strake vortices spin into thin twisting ropes of cloud trailing behind the jet, leaning with the angle of attack. The transonic cone is unchanged.
+
 ## v7.1.0 (2026-10-09)
 
 ### Air Combat: Audio rework: the fight in three dimensions

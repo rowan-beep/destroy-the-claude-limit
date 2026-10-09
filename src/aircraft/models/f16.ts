@@ -171,6 +171,7 @@ const FIN: WingStation[] = [
 ];
 const RUDDER = { h0: 0.22, h1: 2.0, hinge: (h: number) => 6.45 - h * 0.09 };
 const VENTRAL: WingStation[] = [
+  { x: -0.25, le: 3.2, te: 4.8, t: 0.05 },
   { x: 0, le: 3.2, te: 4.8, t: 0.05 },
   { x: 0.85, le: 4.1, te: 4.72, t: 0.04 },
 ];

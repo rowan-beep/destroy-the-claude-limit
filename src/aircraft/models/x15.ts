@@ -124,11 +124,14 @@ const STAB_PIVOT_Z = 6.1;
 // wedge fins: thick at the trailing edge (in their own frame x = height), the
 // leading edges swept about 45 degrees, the trailing edges at the base
 const UPPER_FIN: WingStation[] = [
+  // (the roots carry on into the body, so the wedges sit on the round fuselage without a gap)
+  { x: -0.3, le: 3.6, te: TAIL_Z, t: 0.11 },
   { x: 0, le: 3.6, te: TAIL_Z, t: 0.11 },
   { x: 0.5, le: 4.1, te: TAIL_Z, t: 0.1 },
   { x: 1.75, le: 5.3, te: TAIL_Z - 0.05, t: 0.075 },
 ];
 const LOWER_FIN: WingStation[] = [
+  { x: -0.3, le: 3.95, te: TAIL_Z, t: 0.1 },
   { x: 0, le: 3.95, te: TAIL_Z, t: 0.1 },
   { x: 0.4, le: 4.35, te: TAIL_Z, t: 0.09 },
   { x: 1.05, le: 5.0, te: TAIL_Z - 0.05, t: 0.07 },

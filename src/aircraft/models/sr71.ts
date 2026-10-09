@@ -123,6 +123,8 @@ const wingTe = (x: number): number => {
 // frame x = height: a 45 deg leading edge, the tip from z 7.8 to 10.2, the
 // trailing edge raked back to the root at the nacelle's trailing edge
 const FIN: WingStation[] = [
+  // (the root carries on down into the nacelle, so the fin never floats off its curve)
+  { x: -0.35, le: 5.5, te: 10.6, t: 0.04 },
   { x: 0, le: 5.5, te: 10.6, t: 0.04 },
   { x: 0.4, le: 5.9, te: 10.55, t: 0.038 },
   { x: 2.65, le: 7.8, te: 10.45, t: 0.032 },

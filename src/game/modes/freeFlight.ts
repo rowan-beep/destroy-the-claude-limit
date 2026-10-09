@@ -12,7 +12,7 @@ export class FreeFlightMode extends GameMode {
   private deadTimer = 0;
   private landedAnnounced = false;
   /** the KC-46 on its racetrack off the base */
-  private tanker: Tanker | null = null;
+  tanker: Tanker | null = null;
 
   start(): void {
     const h = this.host;
@@ -36,7 +36,7 @@ export class FreeFlightMode extends GameMode {
     }
     h.order(
       'FREE FLIGHT',
-      `${p.spec.name} at ${f.name}. The whole ${activeMap.sizeNm} x ${activeMap.sizeNm} NM theater of ${activeMap.name} is yours. Watch the afterburner fuel burn. Land on any BLUE runway and press [H] to rearm & refuel, or join the KC-46 tanker orbiting 15 NM out at 22,000 ft and take fuel in the air.`,
+      `${p.spec.name} at ${f.name}. The whole ${activeMap.sizeNm} x ${activeMap.sizeNm} NM theater of ${activeMap.name} is yours. Watch the afterburner fuel burn. Land on any BLUE runway and press [H] to rearm & refuel, or take fuel in the air from the KC-46 tanker orbiting 15 NM out at 22,000 ft: get within 45 m of its boom (or the basket) and the jet connects itself and holds there while you relax. AUTO-FLY (U) → KC-46 TANKER flies the whole join for you.`,
       12,
     );
   }

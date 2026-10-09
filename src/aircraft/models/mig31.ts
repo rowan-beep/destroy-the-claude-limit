@@ -116,6 +116,7 @@ const FIN_X = 1.45;
 const FIN_Y = 0.3;
 // the shallow ventral fins hang under the nacelles ahead of the nozzles
 const VENTRAL: WingStation[] = [
+  { x: -0.25, le: 4.75, te: 6.75, t: 0.05 },
   { x: 0, le: 4.75, te: 6.75, t: 0.05 },
   { x: 0.3, le: 5.4, te: 6.65, t: 0.04 },
 ];

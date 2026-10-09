@@ -4,7 +4,7 @@
 
 import type { HazeSource } from './heatHaze';
 import * as THREE from 'three';
-import { VaporFx } from './vapor';
+import { VaporFx, probeFromParts } from './vapor';
 import { ROUND_LIFE } from '../weapons/gun';
 import type { Sim } from '../game/sim';
 import type { Aircraft } from '../aircraft/aircraft';
@@ -520,9 +520,10 @@ export class CombatRenderer {
     let vf = this.vapors.get(a);
     if (!vf) {
       // (only made once a jet gets anywhere near: most never do)
-      const near = fm.mach > 0.9 || fm.nz > 4.8 || fm.alpha > 0.28;
+      const near = fm.mach > 0.9 || fm.nz > 3.6 || fm.alpha > 0.22;
       if (!near || fm.onGround || fm.pos.y > 8000) return;
-      vf = new VaporFx(a);
+      // (the sheets are fitted to the jet's own airframe: the far mesh is a cheap copy to probe)
+      vf = new VaporFx(a, v.farLod ? probeFromParts(v.farLod.parts) : null);
       this.vapors.set(a, vf);
       this.scene.add(vf.group);
     }
