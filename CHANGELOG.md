@@ -4,6 +4,14 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
+## v7.2.7 (2026-10-10)
+
+### Air Combat: F-15EX: the hump behind the radome
+
+- **Fixed: A hump on the F-15EX's nose, just behind the radome**
+  - Within 40 cm of the radome joint the forebody's upper corners swelled out to their full squared-off size and then stopped, so a hood stood up over the round radome, with a bulge at each corner. The corners now fill out steadily all the way from the joint to the glareshield, as on the real jet, and the windscreen is rounded at the front in plan instead of starting as a blunt, full-width edge.
+  - The outline is unchanged: still laid over the published three-view.
+
 ## v7.2.6 (2026-10-10)
 
 ### Air Combat: F-15EX: nose and back cleaned up
