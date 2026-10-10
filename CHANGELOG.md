@@ -4,6 +4,23 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
+## v7.2.9 (2026-10-10)
+
+### Air Combat: F-15EX: round nose, real intakes, metallic paint
+
+- **Fixed: The F-15EX's nose still looked like a box from the front**
+  - Behind the radome the forebody had flat, upright sides and a flat belly with rounded corners. It is now egg-shaped in section: widest at the radome's centre, round underneath, and leaning in above to meet the canopy, so from the front the body and canopy make one smooth outline.
+  - Over the intakes the shoulder now sweeps down from the canopy onto the intake tops.
+- **Improved: F-15EX intakes to the real jet's proportions**
+  - Measured off a head-on photo of the jet: the mouths are now narrower and taller (0.8 m by 1.36 m), with their inner walls in line with the radome's edge and their tops level with the shoulder beside the cockpit. Before, they were squat boxes, 0.92 m by 1.22 m.
+  - Thin, sharp lips instead of a thick rolled rim; nearly square top corners and rounded bottom ones.
+  - The duct runs deep and goes dark toward the engine, so the fan is only just made out.
+- **Improved: Metallic factory paint on the F-15EX**
+  - The same two greys, now as a metallic finish with a sheen and reflections, matched to the old shade. The radome stays plain paint, as it is a composite shell.
+- **Improved: A more realistic F-15EX nose up close**
+  - The radome has its own finish, a darker rain-erosion cap at the tip and rows of lightning diverter strips, with a ring of latches behind its joint.
+  - On the sides: the forward avionics bay doors with their screws, the pitot and angle-of-attack base plates, static ports, stencils and a little fluid staining. The shape is unchanged.
+
 ## v7.2.8 (2026-10-10)
 
 ### Air Combat: F-15EX: a round nose, no corners

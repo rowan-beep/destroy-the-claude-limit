@@ -735,6 +735,15 @@ export interface SkinParams {
   metalness?: number;
   /** body z of the radome's joint: no fasteners ahead of it (a radome is one composite shell) */
   radomeZ?: number;
+  /** body z of the radome's tip (its rain-erosion cap and lightning diverter strips are drawn from here to the joint) */
+  radomeTip?: number;
+  /** the radome's axis height at the tip and at the joint (a drooped radome) */
+  radomeAxis?: [number, number];
+  /**
+   * shade lift for a metallic factory finish (metal loses its diffuse colour: this
+   * keeps the jet's normal shade); not applied to the radome, which is plain paint
+   */
+  paintLift?: number;
 }
 
 const SKIN_VERT_PARS = /* glsl */ `
@@ -758,7 +767,10 @@ uniform vec3 customB;
 uniform sampler2D customTex;
 uniform float customScale;  // metres per wrap tile
 uniform float brightness;
+uniform float paintLift;
 uniform float radomeZ;
+uniform float radomeTip;
+uniform vec2 radomeAxis;
 uniform sampler3D aoTex;
 uniform vec3 aoMin;
 uniform vec3 aoSize;
@@ -797,6 +809,8 @@ const SKIN_FRAG = /* glsl */ `
   // engraved seam depth (m) and paint roughness offset, used by the lighting stages
   float skinDepth = 0.0;
   float skinRough = 0.0;
+  // metalness override where the skin is not the painted metal (the radome); < 0 = the material's own
+  float skinMetal = -1.0;
   {
     vec3 sn = normalize( vSkinN );
     vec3 aw = pow( abs( sn ), vec3( 5.0 ) );
@@ -970,8 +984,53 @@ const SKIN_FRAG = /* glsl */ `
       float chipN = skinNoise( vSkin * 9.0 + 17.0 ) * 0.75 + skinNoise( vSkin * 31.0 - 4.0 ) * 0.25;
       chipAmt = smoothstep( 0.74, 0.79, chipN ) * clamp( lead * 1.4 + dark * 0.6 + under * 0.15, 0.0, 1.0 ) * ( 1.0 - smoothstep( 0.03, 0.07, skinPx ) );
       skinRough += chipAmt * 0.18;
+      // the radome's latches: a ring of bigger screw heads just behind the joint, 7 cm apart
+      if ( radomeZ > -1000.0 ) {
+        float jr = max( 0.0035, skinPx * 0.5 );
+        float jd = length( vec2( vSkin.z - ( radomeZ + 0.035 ), ( fract( sAcross / 0.07 + 0.5 ) - 0.5 ) * 0.07 ) );
+        float latch = ( 1.0 - smoothstep( jr * 0.8, jr * 1.25, jd ) ) * pow( 0.0035 / jr, 0.2 ) * skinMid;
+        skinDepth -= latch * 0.0005 * skinNear;
+        wear *= 1.0 - latch * 0.32;
+        skinRough += latch * 0.1;
+      }
     }
-    diffuseColor.rgb *= ( base * ( 1.0 - m.a ) + m.rgb ) * brightness * wear;
+    // --- the radome: a composite shell, painted, not metal ----------------------
+    // (only on a jet that has one: radomeZ is far ahead of the airframe otherwise)
+    if ( vSkin.z < radomeZ ) {
+      float len = max( 0.1, radomeZ - radomeTip );
+      float along = clamp( ( vSkin.z - radomeTip ) / len, 0.0, 1.0 ); // 0 tip, 1 joint
+      float ay = mix( radomeAxis.x, radomeAxis.y, along );
+      vec2 rq = vec2( vSkin.x, vSkin.y - ay );
+      float rr2 = length( rq );
+      skinMetal = 0.02;
+      // a plain satin paint over the composite (not the metallic finish of the
+      // metal panels), with faint patchy touch-ups and grime toward the joint and underneath
+      skinRough = skinRough * 0.5 + 0.16;
+      float patchN = skinNoise( vSkin * vec3( 2.2, 2.2, 0.9 ) + 31.0 );
+      wear *= 1.0 - 0.05 * smoothstep( 0.55, 0.8, patchN ) - 0.04 * smoothstep( 0.2, -0.6, sn.y ) * along;
+      // rain-erosion cap at the tip: a darker, harder coat over the last 14 cm
+      float cap = 1.0 - smoothstep( 0.12, 0.16, vSkin.z - radomeTip );
+      wear *= mix( 1.0, 0.62, cap );
+      skinRough -= cap * 0.12;
+      // lightning diverter strips: eight rows of small metal buttons from the joint
+      // most of the way to the tip (they fade out with distance before they could shimmer)
+      float skinClose = 1.0 - smoothstep( 0.004, 0.012, skinPx );
+      if ( skinClose > 0.001 ) {
+        float ang = atan( rq.y, rq.x );
+        float sector = 6.2831853 / 8.0;
+        float da = abs( fract( ang / sector - 0.5 ) - 0.5 ) * sector * rr2;
+        float sw = max( 0.0028, skinPx * 0.6 );
+        float onRow = ( 1.0 - smoothstep( sw * 0.6, sw * 1.2, da ) ) * smoothstep( 0.2, 0.3, along ) * ( 1.0 - smoothstep( 0.97, 1.0, along ) );
+        float btn = smoothstep( 0.15, 0.25, fract( vSkin.z / 0.022 ) ) * ( 1.0 - smoothstep( 0.65, 0.75, fract( vSkin.z / 0.022 ) ) );
+        float strip = onRow * mix( 1.0, btn, skinNear ) * skinClose * pow( 0.0028 / sw, 0.3 );
+        wear = mix( wear, wear * vec3( 1.18, 1.2, 1.22 ), strip * 0.7 );
+        skinMetal = mix( skinMetal, 0.85, strip );
+        skinRough -= strip * 0.15;
+        skinDepth -= strip * 0.0004 * skinNear;
+      }
+    }
+    float lift = vSkin.z < radomeZ ? 1.0 : paintLift;
+    diffuseColor.rgb *= ( base * ( 1.0 - m.a ) + m.rgb ) * brightness * wear * lift;
     // (the primer is a colour of its own, so it shows on light and dark jets alike)
     diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.25, 0.26, 0.24 ), chipAmt * 0.75 );
   }
@@ -1062,7 +1121,10 @@ export function skinMaterial(p: SkinParams): THREE.MeshStandardMaterial {
     customTex: { value: blankTex() },
     customScale: { value: 4 },
     brightness: { value: 1 },
+    paintLift: { value: p.paintLift ?? 1 },
     radomeZ: { value: p.radomeZ ?? -1e4 },
+    radomeTip: { value: p.radomeTip ?? -1e4 - 1 },
+    radomeAxis: { value: new THREE.Vector2(...(p.radomeAxis ?? [0, 0])) },
     aoTex: { value: blankAo() },
     aoMin: { value: new THREE.Vector3() },
     aoSize: { value: new THREE.Vector3(1, 1, 1) },
@@ -1085,12 +1147,13 @@ function applySkin(mat: THREE.MeshStandardMaterial, uniforms: Record<string, THR
       .replace('#include <common>', '#include <common>\n' + SKIN_FRAG_PARS)
       .replace('#include <map_fragment>', '#include <map_fragment>\n' + SKIN_FRAG)
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = clamp( roughnessFactor + skinRough, 0.05, 1.0 );')
+      .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nif ( skinMetal >= 0.0 ) metalnessFactor = skinMetal;')
       .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n' + SKIN_NORMAL)
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += skinGlow;')
       .replace('#include <aomap_fragment>', '#include <aomap_fragment>\n' + SKIN_AO)
       .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n' + SKIN_BOUNCE);
   };
-  mat.customProgramCacheKey = () => 'skin-v15';
+  mat.customProgramCacheKey = () => 'skin-v16';
   void id;
 }
 

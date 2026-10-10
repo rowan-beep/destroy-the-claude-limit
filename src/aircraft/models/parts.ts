@@ -389,6 +389,20 @@ export interface IntakeSpec {
   rakeFade?: number;
   /** compressor face / fan radius and centre (in the duct end plane) */
   fan?: { cx: number; cy: number; r: number };
+  /**
+   * duct wall shade from the lip to the fan: `k0 * (1 - depth)^fall + floor`
+   * (default 0.42, 1.8, 0.03), and the fan's own shade as a multiplier (default 1)
+   */
+  ductShade?: { k0: number; fall: number; floor: number; fan?: number };
+  /** fraction of the duct that keeps the mouth's shape before it turns round toward the fan (default 0) */
+  ductStraight?: number;
+  /**
+   * the duct follows the outer loop inward (offset by the lip) instead of keeping
+   * the mouth's shape (for a mouth that differs from the trunk behind it)
+   */
+  ductFollow?: boolean;
+  /** with ductFollow: how much further the duct draws in from the outer loop per metre going back (default 0) */
+  ductInset?: number;
 }
 
 export function intake(s: IntakeSpec): { skin: THREE.BufferGeometry; duct: THREE.BufferGeometry } {
@@ -411,20 +425,23 @@ export function intake(s: IntakeSpec): { skin: THREE.BufferGeometry; duct: THREE
   // duct: inner loop shrinks slightly and fades toward the fan
   const inner0 = offsetLoop(mouth, -s.lip);
   const ductRings: P3[][] = [];
-  const DN = 10;
+  const DN = s.ductStraight ? 16 : 10;
   const fan = s.fan;
   for (let k = 0; k <= DN; k++) {
     const u = k / DN;
     const z = zl + 0.02 + u * s.depth;
-    let loop = inner0;
+    const base = s.ductFollow ? offsetLoop(at(z), -(s.lip + (s.ductInset ?? 0) * (z - zl))) : inner0;
+    let loop = base;
     if (fan) {
       // morph toward a circle round the fan
-      const circ: P2[] = inner0.map((_p, i) => {
-        const a = Math.atan2(inner0[i][1] - fan.cy, inner0[i][0] - fan.cx);
+      const circ: P2[] = base.map((_p, i) => {
+        const a = Math.atan2(base[i][1] - fan.cy, base[i][0] - fan.cx);
         return [fan.cx + Math.cos(a) * fan.r, fan.cy + Math.sin(a) * fan.r];
       });
-      const m = u * u * (3 - 2 * u);
-      loop = inner0.map((p, i) => [p[0] + (circ[i][0] - p[0]) * m, p[1] + (circ[i][1] - p[1]) * m] as P2);
+      const st = s.ductStraight ?? 0;
+      const v = Math.min(1, Math.max(0, (u - st) / (1 - st)));
+      const m = v * v * (3 - 2 * v);
+      loop = base.map((p, i) => [p[0] + (circ[i][0] - p[0]) * m, p[1] + (circ[i][1] - p[1]) * m] as P2);
     }
     // (a long fade is shared by the duct, so its rings never cross the lip)
     ductRings.push(toP3(loop, z, s.rakeFade ? Math.max(0, 1 - (z - zl) / fade) : k < 2));
@@ -440,7 +457,8 @@ export function intake(s: IntakeSpec): { skin: THREE.BufferGeometry; duct: THREE
   const skinSheet = skinRings([ductRev[ductRev.length - 2], ductRev[ductRev.length - 1], ...lipRings, ...outerRings]);
   const duct = colorize(skinRings(ductRev.slice(0, ductRev.length - 1), true, true, false), (p, c) => {
     const d = Math.min(1, Math.max(0, (p.z - zl) / s.depth));
-    const k = 0.42 * Math.pow(1 - d, 1.8) + 0.03;
+    const sh = s.ductShade ?? { k0: 0.42, fall: 1.8, floor: 0.03 };
+    const k = sh.k0 * Math.pow(1 - d, sh.fall) + sh.floor;
     c.setRGB(k, k, k * 1.02);
   });
   if (fan) {
@@ -454,7 +472,8 @@ export function intake(s: IntakeSpec): { skin: THREE.BufferGeometry; duct: THREE
       fan.cx,
       fan.cy,
     );
-    const blades: THREE.BufferGeometry[] = [colorize(hub, (_p, c) => c.setRGB(0.18, 0.18, 0.2))];
+    const fk = s.ductShade?.fan ?? 1;
+    const blades: THREE.BufferGeometry[] = [colorize(hub, (_p, c) => c.setRGB(0.18 * fk, 0.18 * fk, 0.2 * fk))];
     for (let k = 0; k < 18; k++) {
       const a = (k / 18) * Math.PI * 2;
       const b = new THREE.BoxGeometry(fan.r * 0.66, 0.012, 0.09);
@@ -462,7 +481,7 @@ export function intake(s: IntakeSpec): { skin: THREE.BufferGeometry; duct: THREE
       b.translate(fan.r * 0.64, 0, 0);
       b.rotateZ(a);
       b.translate(fan.cx, fan.cy, zl + s.depth - 0.03);
-      blades.push(colorize(strip(b), (_p, c) => c.setRGB(0.12, 0.12, 0.13)));
+      blades.push(colorize(strip(b), (_p, c) => c.setRGB(0.12 * fk, 0.12 * fk, 0.13 * fk)));
     }
     return { skin: skinSheet, duct: join([duct, ...blades]) };
   }

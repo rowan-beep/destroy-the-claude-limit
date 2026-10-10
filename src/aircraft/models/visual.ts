@@ -480,6 +480,9 @@ export class AirframeVisual {
       u.customTex.value = wrapMask(w.id);
       u.customScale.value = w.tileM;
       u.brightness.value = c.brightness;
+      // (satin is the factory finish: it keeps the jet's own shade lift, e.g. the F-15's metallic paint)
+      const baseLift = ((base.userData.skinUniforms as Record<string, THREE.IUniform>).paintLift?.value as number) ?? 1;
+      if (u.paintLift) u.paintLift.value = c.finish === 'satin' ? baseLift : 1;
       const f = { matte: [0.85, 0.05], satin: [base.roughness, base.metalness], gloss: [0.22, 0.25], metallic: [0.28, 0.85] }[c.finish];
       m.roughness = f[0];
       m.metalness = f[1];
