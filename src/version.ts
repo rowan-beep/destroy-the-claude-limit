@@ -37,6 +37,18 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.2.8',
+    date: '2026-10-10',
+    air: {
+      title: 'F-15EX: a round nose, no corners',
+      notes: [
+        fixed("Square corners on the F-15EX's nose, seen from the front",
+          "Behind the radome the forebody was a rounded box: its sides ran straight up to a flat ledge 73 cm out from the centre line, beside the canopy, and turned a tight corner there, so from the front it stood out round the radome with a corner on each side. The forebody is now round from the radome joint back, close to an ellipse in section, and beside the front cockpit its sides curve straight up into the canopy rail, so from the front the body and the canopy make one smooth outline.",
+          "Over the intakes the shoulder now slopes down from the canopy onto the intake tops instead of ending in an upright edge."),
+      ],
+    },
+  },
+  {
     version: '7.2.7',
     date: '2026-10-10',
     air: {

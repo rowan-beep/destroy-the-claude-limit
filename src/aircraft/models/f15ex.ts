@@ -82,8 +82,9 @@ function wrap(z: number, foot: P2): P2[] {
 // front view) in true scale: nose tip at z -9.86. Right half, 15 control
 // points from the belly centre round to the top centre:
 //   0-2 the flat belly and its corner, 3 the lower crease (the panel break
-//   along the lower side), 4-6 the lower side wall, 7 the shoulder (the
-//   widest point, at canopy-rail height: the intakes tuck in under it),
+//   along the lower side), 4-6 the lower side wall, 7 the shoulder (ahead of
+//   the intakes just a point on the side's curve up into the rail; over them
+//   the widest point, at rail height, the intakes tucked in under it),
 //   8 the ledge on top of the shoulder, 9-11 just behind the ledge (where the
 //   deck and the spine's foot will spread from), 12 the canopy rail, 13-14
 //   the cockpit well floor under the glass (the
@@ -106,27 +107,29 @@ const BODY = keyedProfile([
   { z: -7.86, pts: fwd(oval(0.545, 0.0275, 0.5375, 0.5375, 2.05, 2.2)) },
   // radome joint: round
   { z: -7.24, pts: fwd(oval(0.6, 0.075, 0.615, 0.615, 2.1, 2.35)) },
-  // forebody, from the radome joint to the glareshield: the upper corners fill out gradually
-  // over the whole stretch (sampled from a superellipse whose centre rises and whose corners
-  // square up as it goes aft), as on the real jet; the shoulder starts to form at rail height.
-  // (A full rounded-square section 40 cm behind the joint stood up as a hood over the round
-  // radome.) The windscreen is rounded in plan at the front, so the coaming it sits on only
-  // needs its full width by the glareshield.
-  { z: -7.1, pts: fwd([[0, -0.543], [0.242, -0.526], [0.413, -0.457], [0.523, -0.334], [0.585, -0.146], [0.604, 0.043], [0.612, 0.172], [0.592, 0.309], [0.52, 0.478], [0.4, 0.606], [0.218, 0.695], [0, 0.721]]) },
-  { z: -6.95, pts: fwd([[0, -0.544], [0.268, -0.538], [0.431, -0.498], [0.534, -0.386], [0.588, -0.173], [0.608, 0.084], [0.625, 0.237], [0.607, 0.377], [0.54, 0.537], [0.426, 0.653], [0.246, 0.732], [0, 0.755]]) },
-  { z: -6.8, pts: fwd([[0, -0.546], [0.285, -0.545], [0.443, -0.512], [0.543, -0.4], [0.592, -0.179], [0.612, 0.105], [0.638, 0.308], [0.621, 0.446], [0.558, 0.592], [0.451, 0.694], [0.274, 0.762], [0, 0.782]]) },
-  { z: -6.65, pts: fwd([[0, -0.547], [0.289, -0.545], [0.448, -0.513], [0.548, -0.4], [0.597, -0.173], [0.617, 0.109], [0.648, 0.38], [0.632, 0.51], [0.574, 0.639], [0.473, 0.726], [0.301, 0.783], [0, 0.799]]) },
-  { z: -6.5, pts: fwd([[0, -0.548], [0.292, -0.546], [0.452, -0.513], [0.552, -0.4], [0.602, -0.169], [0.623, 0.111], [0.66, 0.45], [0.645, 0.568], [0.591, 0.678], [0.495, 0.75], [0.329, 0.797], [0, 0.81]]) },
-  { z: -6.35, pts: fwd([[0, -0.549], [0.297, -0.547], [0.457, -0.514], [0.557, -0.4], [0.607, -0.167], [0.631, 0.116], [0.675, 0.517], [0.661, 0.617], [0.61, 0.706], [0.519, 0.764], [0.357, 0.8], [0, 0.81]]) },
+  // forebody, from the radome joint to the glareshield: round all the way. The upper half of each
+  // section lies on a superellipse close to an ellipse (exponent 2.1 at the joint, 2.6 at the
+  // coaming), its centre rising from the radome's (0.075) to 0.4 and its half-width from 0.6 to
+  // 0.64; behind the coaming the sides run up the same curve straight into the canopy rail, so
+  // head-on body and canopy make one outline. (A squarer section, exponent 4, widest up at a
+  // 0.73 m shoulder ledge beside the canopy, read head-on as a box with rounded corners.)
+  { z: -7.1, pts: fwd([[0, -0.543], [0.242, -0.526], [0.413, -0.457], [0.523, -0.334], [0.585, -0.146], [0.604, 0.043], [0.607, 0.142], [0.587, 0.278], [0.51, 0.456], [0.386, 0.595], [0.202, 0.692], [0, 0.721]]) },
+  { z: -6.95, pts: fwd([[0, -0.544], [0.268, -0.538], [0.431, -0.498], [0.534, -0.386], [0.588, -0.173], [0.608, 0.084], [0.617, 0.191], [0.596, 0.328], [0.521, 0.501], [0.397, 0.634], [0.212, 0.727], [0, 0.755]]) },
+  { z: -6.8, pts: fwd([[0, -0.546], [0.285, -0.545], [0.443, -0.512], [0.543, -0.4], [0.592, -0.179], [0.612, 0.105], [0.625, 0.257], [0.605, 0.389], [0.532, 0.551], [0.41, 0.673], [0.225, 0.757], [0, 0.782]]) },
+  { z: -6.65, pts: fwd([[0, -0.547], [0.289, -0.545], [0.448, -0.513], [0.548, -0.4], [0.597, -0.173], [0.617, 0.109], [0.631, 0.328], [0.612, 0.451], [0.541, 0.596], [0.422, 0.704], [0.238, 0.778], [0, 0.8]]) },
+  { z: -6.5, pts: fwd([[0, -0.548], [0.292, -0.546], [0.452, -0.513], [0.552, -0.4], [0.602, -0.169], [0.623, 0.111], [0.635, 0.391], [0.617, 0.504], [0.548, 0.633], [0.432, 0.727], [0.249, 0.791], [0, 0.81]]) },
+  { z: -6.35, pts: fwd([[0, -0.549], [0.297, -0.547], [0.457, -0.514], [0.557, -0.4], [0.607, -0.167], [0.631, 0.116], [0.637, 0.436], [0.619, 0.539], [0.552, 0.654], [0.438, 0.738], [0.256, 0.794], [0, 0.81]]) },
   // the coaming under the windscreen (closed: the glareshield sits on it),
-  // then the front cockpit's well opens under the glass and the shoulder widens
-  { z: -6.2, pts: fwd([[0, -0.55], [0.3, -0.548], [0.46, -0.515], [0.56, -0.4], [0.61, -0.165], [0.635, 0.12], [0.66, 0.4], [0.69, 0.61], [0.665, 0.7], [0.535, 0.735], [0.38, 0.79], [0, 0.81]]) },
-  { z: -5.0, pts: fwd([[0, -0.556], [0.3, -0.553], [0.46, -0.52], [0.55, -0.4], [0.595, -0.15], [0.61, 0.15], [0.66, 0.45], [0.725, 0.635], [0.705, 0.7], [0.595, 0.712], [0.48, 0.56], [0, 0.4]]) },
-  { z: -4.35, pts: fwd([[0, -0.56], [0.3, -0.557], [0.45, -0.525], [0.54, -0.405], [0.575, -0.14], [0.585, 0.16], [0.63, 0.45], [0.74, 0.645], [0.72, 0.705], [0.61, 0.73], [0.5, 0.58], [0, 0.42]]) },
+  // then the front cockpit's well opens under the glass
+  { z: -6.2, pts: fwd([[0, -0.55], [0.3, -0.548], [0.46, -0.515], [0.56, -0.4], [0.61, -0.165], [0.635, 0.12], [0.639, 0.453], [0.621, 0.552], [0.554, 0.662], [0.5, 0.708], [0.259, 0.794], [0, 0.81]]) },
+  // the sides run straight up into the canopy rail, which follows the glass edge as it widens
+  { z: -5.75, pts: fwd([[0, -0.552], [0.3, -0.55], [0.46, -0.517], [0.558, -0.4], [0.607, -0.159], [0.63, 0.132], [0.639, 0.463], [0.626, 0.565], [0.599, 0.647], [0.562, 0.711], [0.329, 0.72], [0, 0.68]]) },
+  { z: -5.0, pts: fwd([[0, -0.556], [0.3, -0.553], [0.46, -0.52], [0.55, -0.4], [0.595, -0.15], [0.61, 0.15], [0.639, 0.462], [0.633, 0.562], [0.619, 0.643], [0.6, 0.71], [0.48, 0.56], [0, 0.4]]) },
+  { z: -4.35, pts: fwd([[0, -0.56], [0.3, -0.557], [0.45, -0.525], [0.54, -0.405], [0.575, -0.14], [0.585, 0.16], [0.639, 0.465], [0.634, 0.57], [0.622, 0.656], [0.605, 0.727], [0.5, 0.58], [0, 0.42]]) },
   // between the intakes the lower fuselage tucks in (the boundary-layer gap),
   // the shoulder overhangs the intake tops and the rear cockpit's walls rise
-  { z: -3.9, pts: fwd([[0, -0.565], [0.28, -0.562], [0.42, -0.53], [0.49, -0.41], [0.5, -0.12], [0.5, 0.2], [0.515, 0.5], [0.745, 0.655], [0.73, 0.715], [0.61, 0.8], [0.5, 0.66], [0, 0.52]]) },
-  { z: -3.0, pts: fwd([[0, -0.58], [0.28, -0.577], [0.42, -0.545], [0.49, -0.42], [0.5, -0.12], [0.5, 0.2], [0.515, 0.5], [0.765, 0.65], [0.755, 0.698], [0.585, 0.95], [0.48, 0.8], [0, 0.6]]) },
+  { z: -3.9, pts: fwd([[0, -0.565], [0.28, -0.562], [0.42, -0.53], [0.49, -0.41], [0.5, -0.12], [0.5, 0.2], [0.515, 0.5], [0.74, 0.645], [0.705, 0.69], [0.61, 0.8], [0.5, 0.66], [0, 0.52]]) },
+  { z: -3.0, pts: fwd([[0, -0.58], [0.28, -0.577], [0.42, -0.545], [0.49, -0.42], [0.5, -0.12], [0.5, 0.2], [0.515, 0.5], [0.765, 0.652], [0.735, 0.69], [0.585, 0.95], [0.48, 0.8], [0, 0.6]]) },
   // the shoulder ledge comes down level with the trunk tops first, gently from
   // the rear cockpit on, so the deck spreads out of it flush (a ledge still 5 cm
   // up here dropped onto the deck in an S: a bump behind the canopy)

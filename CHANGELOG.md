@@ -4,6 +4,14 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
+## v7.2.8 (2026-10-10)
+
+### Air Combat: F-15EX: a round nose, no corners
+
+- **Fixed: Square corners on the F-15EX's nose, seen from the front**
+  - Behind the radome the forebody was a rounded box: its sides ran straight up to a flat ledge 73 cm out from the centre line, beside the canopy, and turned a tight corner there, so from the front it stood out round the radome with a corner on each side. The forebody is now round from the radome joint back, close to an ellipse in section, and beside the front cockpit its sides curve straight up into the canopy rail, so from the front the body and the canopy make one smooth outline.
+  - Over the intakes the shoulder now slopes down from the canopy onto the intake tops instead of ending in an upright edge.
+
 ## v7.2.7 (2026-10-10)
 
 ### Air Combat: F-15EX: the hump behind the radome
