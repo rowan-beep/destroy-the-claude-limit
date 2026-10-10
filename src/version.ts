@@ -37,6 +37,27 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.2.3',
+    date: '2026-10-10',
+    air: {
+      title: 'Bug fixes',
+      notes: [
+        fixed("AUTO-FLY to the tanker flew into hills",
+          "The KC-46 TANKER program steered straight at the tanker from wherever you engaged it, and from low level behind high ground that line went through the hill. The join now climbs to clear the terrain ahead, like every other AUTO-FLY leg."),
+        fixed("The X-15 was offered a tanker it can't use",
+          "AUTO-FLY listed KC-46 TANKER for the X-15, which has no receptacle or probe: it would chase the tanker for ever. The entry is only offered to jets that can take fuel in the air."),
+        fixed("Waves: TOTAL KILLS forgot the earlier waves after RETRY WAVE",
+          "A retried wave puts you in a fresh jet, and the results screen counted only that jet's kills. The total now carries the kills from the waves before the retry (a full RESTART still starts from zero), and the THEATER SECURED screen shows it too. The wave decorations count only the waves you flew: starting on wave 10 and clearing it is not ten waves."),
+        fixed("KILL / SHOT could read more than 100 %",
+          "The results screen and the logbook divided every kill, gun kills included, by the missiles fired. Both now count missile kills only, so the figure is a real hit rate."),
+        fixed("FUEL 0 MIN AT THIS POWER with the engine off",
+          "The free-flight objective line showed 0 minutes of fuel whenever nothing was burning (engine off, or the X-15 gliding). It now shows the fuel on board in pounds instead."),
+        fixed("Shooting down a teammate counted as a kill",
+          "A wingman or team-mate hit by your missile went down to a SPLASH! call and a kill on your tally, in the results and in the logbook (towards decorations too). A friendly kill is now called out as FRIENDLY FIRE and counts for nothing; in free-for-all everyone is still fair game."),
+      ],
+    },
+  },
+  {
     version: '7.2.2',
     date: '2026-10-09',
     air: {

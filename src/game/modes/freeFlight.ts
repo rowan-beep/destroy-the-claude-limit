@@ -124,7 +124,7 @@ export class FreeFlightMode extends GameMode {
       blue: 1,
       red: 0,
       timer: this.elapsed,
-      objective: !p ? '' : this.tanker?.cue ? this.tanker.cue : `ALT ${Math.round(p.fm.pos.y / FT)} FT · FUEL ${Math.round(fuelMin)} MIN AT THIS POWER${this.tanker && this.tanker.kind !== 'none' ? ` · TANKER ${Math.round(p.fm.pos.distanceTo(this.tanker.pos) / NM)} NM` : ''}`,
+      objective: !p ? '' : this.tanker?.cue ? this.tanker.cue : `ALT ${Math.round(p.fm.pos.y / FT)} FT · ${p.fm.fuelFlow > 0 ? `FUEL ${Math.round(fuelMin)} MIN AT THIS POWER` : `FUEL ${Math.round(p.fm.fuelTotal / 0.4536).toLocaleString('en-US')} LB`}${this.tanker && this.tanker.kind !== 'none' ? ` · TANKER ${Math.round(p.fm.pos.distanceTo(this.tanker.pos) / NM)} NM` : ''}`,
     };
   }
 

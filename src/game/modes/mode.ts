@@ -123,7 +123,8 @@ export function braa(from: THREE.Vector3, target: Aircraft): string {
 
 export function statsFor(p: Aircraft | null, extra: [string, string][] = []): [string, string][] {
   if (!p) return extra;
-  const acc = p.shotsFired > 0 ? Math.round((p.kills / p.shotsFired) * 100) : 0;
+  // (missile kills only: gun kills over missiles fired could read more than 100%)
+  const acc = p.shotsFired > 0 ? Math.round((Math.min(p.missileKills, p.shotsFired) / p.shotsFired) * 100) : 0;
   return [
     ['AIRCRAFT', p.spec.name],
     ['KILLS', String(p.kills)],

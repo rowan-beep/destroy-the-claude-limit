@@ -41,7 +41,8 @@ export class LogbookModal {
     clearEl(this.body);
     const t = b.totals;
     const kd = t.losses > 0 ? (t.kills / t.losses).toFixed(2) : t.kills > 0 ? `${t.kills}.00` : '—';
-    const acc = t.shots > 0 ? `${Math.round((t.kills / t.shots) * 100)} %` : '—';
+    // (missile kills over missiles fired: gun kills would push it past 100 %)
+    const acc = t.shots > 0 ? `${Math.round((Math.min(t.missileKills ?? 0, t.shots) / t.shots) * 100)} %` : '—';
 
     // headline tiles
     const tiles = el('div', 'lb-tiles', this.body);

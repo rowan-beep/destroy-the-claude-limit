@@ -27,10 +27,14 @@ export class WavesMode extends GameMode {
   private gciTimer = 20;
   private waveTime = 0;
   private totalKills = 0;
+  /** kills from before a RETRY WAVE (the retried jet is a fresh one, its own count starts at 0) */
+  private killBase = 0;
+  /** the total when the current wave began */
+  private killsAtWave = 0;
   private deadTimer = 0;
 
   /** the wave picked in the menu */
-  private get firstWave(): number {
+  get firstWave(): number {
     return Math.max(1, Math.min(10, this.host.config.startWave));
   }
 
@@ -69,6 +73,7 @@ export class WavesMode extends GameMode {
   private beginWave(): void {
     const h = this.host;
     this.def = waveDef(this.wave);
+    this.killsAtWave = this.totalKills;
     this.phase = 'brief';
     this.timer = 6;
     this.waveTime = 0;
@@ -182,7 +187,7 @@ export class WavesMode extends GameMode {
       case 'combat': {
         this.waveTime += dt;
         const alive = this.enemies.filter((e) => e.alive);
-        this.totalKills = p.kills;
+        this.totalKills = this.killBase + p.kills;
         this.gciTimer -= dt;
         if (this.gciTimer <= 0 && alive.length > 0) {
           this.gciTimer = 45;
@@ -212,6 +217,7 @@ export class WavesMode extends GameMode {
               good: true,
               stats: statsFor(p, [
                 ['WAVES', '10 / 10'],
+                ['TOTAL KILLS', String(this.totalKills)],
                 ['TIME', `${Math.floor(this.elapsed / 60)}:${String(Math.floor(this.elapsed % 60)).padStart(2, '0')}`],
               ]),
               buttons: [
@@ -266,8 +272,11 @@ export class WavesMode extends GameMode {
       this.over = false;
       this.deadTimer = 0;
       this.gciTimer = 20;
-      // a full restart starts the clock again
+      // a full restart starts the clock (and the kill count) again; a retried wave keeps
+      // the kills from the waves before it, not the ones from the failed attempt
       if (action === 'retry') this.elapsed = 0;
+      this.killBase = action === 'retry' ? 0 : this.killsAtWave;
+      this.totalKills = this.killBase;
       const p = h.createPlayer();
       this.placePlayer();
       h.sim.add(p);

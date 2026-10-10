@@ -37,7 +37,7 @@ import { RankedMode } from './modes/ranked';
 import { FreeForAllMode } from './modes/ffa';
 import { OnlineMode } from './modes/online';
 import type { NetLink } from '../net/link';
-import { resetRules, RULES } from './rules';
+import { hostile, resetRules, RULES } from './rules';
 import { ZoneWall } from '../render/zoneWall';
 import { Spectator } from './spectator';
 import type { SpectatorUi } from '../ui/spectatorUi';
@@ -58,7 +58,7 @@ import { prewarmAirframes, setHeroDetail } from '../aircraft/models';
 import { randomizeWind, wind } from '../core/weather';
 import { AutoFly, topSpeedKts } from './autoFly';
 import type { AutoFlyPanel, AutoFlyChoice } from '../ui/autoFlyPanel';
-import type { Tanker } from './tanker';
+import { aarKind, type Tanker } from './tanker';
 import type { Steerpoint } from '../avionics/nav';
 import { enemyTypesFor, AIRCRAFT_TYPES, getSpec, AircraftType } from '../aircraft/specs';
 import { CARRIERS, carrierOf, clearCatapults, nearestCarrier, updateCarriers } from '../world/carriers';
@@ -249,7 +249,9 @@ export class Game implements ModeHost {
     let onProgress = progress;
     // a campaign mission sets its own time of day
     if (cfg.mode === 'campaign') cfg = { ...cfg, timeOfDay: CAMPAIGN[Math.max(0, Math.min(CAMPAIGN.length - 1, cfg.campaignMission ?? 0))].time };
-    this.config = cfg;
+    // the game's own copy: a mode that fixes its rules (ranked plays ALL WEAPONS with
+    // MIXED wingmen) must not rewrite the menu's settings for the next duel or team battle
+    this.config = { ...cfg };
     this.briefing = null;
     setMissionObjective(null);
     this.setState('loading');
@@ -457,9 +459,11 @@ export class Game implements ModeHost {
       const v = e.victim;
       const k = e.killer;
       this.hud.feed(k ? `${k.groundLabel ? k.callsign : `${k.callsign} [${k.spec.shortName}]`} >> ${e.weapon} >> ${v.callsign} [${v.spec.shortName}]` : `${v.callsign} [${v.spec.shortName}] — ${e.cause}`, RULES.ffa ? (k === this.player ? 'blue' : 'red') : v.team === 'red' ? 'blue' : 'red');
-      if (k === this.player && v !== this.player) {
-        this.message(`SPLASH! ${v.spec.shortName} DESTROYED (${e.weapon})`, 'good', 4);
-        this.voice('Splash one');
+      if (k && k === this.player && v !== this.player) {
+        if (hostile(k, v)) {
+          this.message(`SPLASH! ${v.spec.shortName} DESTROYED (${e.weapon})`, 'good', 4);
+          this.voice('Splash one');
+        } else this.message(`FRIENDLY FIRE: YOU SHOT DOWN ${v.callsign} [${v.spec.shortName}] (${e.weapon})`, 'warn', 6);
       }
       if (v === this.player) this.playerKilledBy(k, e.cause);
     });
@@ -536,7 +540,9 @@ export class Game implements ModeHost {
     const outcome: MissionOutcome = {};
     if (this.mode instanceof WavesMode) {
       outcome.wave = this.mode.wave;
-      outcome.wavesCleared = this.mode.phase === 'victory' ? 10 : this.mode.wave - 1;
+      // only the waves flown count (from the start wave picked in the menu, not wave 1):
+      // starting on wave 10 and clearing it is not "all ten waves"
+      outcome.wavesCleared = Math.max(0, (this.mode.phase === 'victory' ? 10 : this.mode.wave - 1) - (this.mode.firstWave - 1));
     } else if (this.mode instanceof TeamBattleMode) {
       outcome.team = { won: this.mode.score.blue > this.mode.score.red, drawn: this.mode.score.blue === this.mode.score.red, roundsWon: this.mode.score.blue, roundsLost: this.mode.score.red };
     } else if (this.mode instanceof FreeForAllMode) {
@@ -1510,7 +1516,8 @@ export class Game implements ModeHost {
     const af = this.autoFly;
     const p = this.player;
     // the tanker, when there is one, heads the list: AUTO-FLY flies the whole join and hook-up
-    const tk = this.tanker;
+    // (not for a jet that can't take fuel in the air: it would chase the tanker for ever)
+    const tk = this.tanker && aarKind(p.spec.type) !== 'none' ? this.tanker : null;
     const tankerPoint: Steerpoint | null = tk ? { num: 0, id: 'tanker', name: 'KC-46 TANKER · REFUEL (FLIES THE JOIN AND CONNECTS)', short: 'KC-46', kind: 'tanker', x: tk.pos.x, z: tk.pos.z, elev: tk.alt, field: null, tacan: '', friendly: true } : null;
     const points = tankerPoint ? [tankerPoint, ...this.avionics.nav.points] : this.avionics.nav.points;
     panel.show(points, af.engaged, { dest: af.tanker && tankerPoint ? tankerPoint : af.dest, speedKts: af.speedKts, altFt: af.altFt, autoLand: af.autoLand, ab: af.abMode }, { maxKts: topSpeedKts(p.spec.maxMach), ceilingFt: p.spec.ceilingFt, onGround: p.fm.onGround });
@@ -1527,7 +1534,7 @@ export class Game implements ModeHost {
     if (!p || !p.alive) return;
     this.autoFly.onCall = (t, k) => this.message(`AUTO-FLY: ${t}`, k, 3.5);
     const tk = this.tanker;
-    if (ch.dest?.id === 'tanker' && tk) {
+    if (ch.dest?.id === 'tanker' && tk && aarKind(p.spec.type) !== 'none') {
       this.autoFly.engageTanker(p, tk);
       this.gearDown = p.fm.onGround;
       this.message('AUTO-FLY ENGAGED → KC-46 TANKER · IT FLIES THE JOIN, AND THE JET CONNECTS BY ITSELF. HANDS OFF.', 'good', 5);

@@ -8,9 +8,11 @@
 // for the session.
 
 import type { Aircraft } from '../aircraft/aircraft';
+import { MISSILES } from '../weapons/weaponSpecs';
 import { AIRCRAFT_TYPES, COMBAT_TYPES, AircraftType } from '../aircraft/specs';
 import type { Difficulty } from '../ai/skill';
 import type { Sim } from './sim';
+import { hostile } from './rules';
 import type { ModeId } from './mission';
 import type { LandingGrade } from '../avionics/nav';
 import { NM, FT } from '../core/constants';
@@ -21,6 +23,8 @@ export interface JetRecord {
   sorties: number;
   flightSec: number;
   kills: number;
+  /** kills made with a missile: the accuracy figure is these over missiles fired */
+  missileKills: number;
   losses: number;
   ejections: number;
   shots: number;
@@ -93,7 +97,7 @@ export const MEDALS: MedalDef[] = [
 ];
 
 function emptyJet(): JetRecord {
-  return { sorties: 0, flightSec: 0, kills: 0, losses: 0, ejections: 0, shots: 0, landings: 0, greasers: 0 };
+  return { sorties: 0, flightSec: 0, kills: 0, missileKills: 0, losses: 0, ejections: 0, shots: 0, landings: 0, greasers: 0 };
 }
 
 function perJet<T>(make: () => T): Record<AircraftType, T> {
@@ -229,8 +233,10 @@ export class SortieRecorder {
       ev.on('destroyed', (e) => {
         if (e.killer === player && e.victim !== player) {
           const rng = player.fm.pos.distanceTo(e.victim.fm.pos);
-          this.kills.push({ victim: e.victim.type, weapon: e.weapon, rangeNm: rng / NM, x: e.victim.fm.pos.x, z: e.victim.fm.pos.z, t: T() });
-          this.events.push({ t: T(), text: `SPLASH ${e.victim.spec.shortName.toUpperCase()} — ${e.weapon} @ ${(rng / NM).toFixed(1)} NM`, kind: 'kill' });
+          if (hostile(player, e.victim)) {
+            this.kills.push({ victim: e.victim.type, weapon: e.weapon, rangeNm: rng / NM, x: e.victim.fm.pos.x, z: e.victim.fm.pos.z, t: T() });
+            this.events.push({ t: T(), text: `SPLASH ${e.victim.spec.shortName.toUpperCase()} — ${e.weapon} @ ${(rng / NM).toFixed(1)} NM`, kind: 'kill' });
+          } else this.events.push({ t: T(), text: `FRIENDLY FIRE: ${e.victim.callsign.toUpperCase()} SHOT DOWN — ${e.weapon}`, kind: 'loss' });
         }
         if (e.victim === player) {
           this.events.push({ t: T(), text: e.killer ? `SHOT DOWN BY ${(e.killer.groundLabel ?? e.killer.spec.shortName).toUpperCase()} (${e.weapon})` : `LOST: ${e.cause}`, kind: 'loss' });
@@ -320,6 +326,7 @@ export function commitSortie(book: LogbookData, s: SortieRecorder, outcome: Miss
     r.sorties++;
     r.flightSec += s.flightSec;
     r.kills += s.kills.length;
+    r.missileKills += s.kills.filter((k) => MISSILE_SHORTS.has(k.weapon)).length;
     r.shots += s.shots;
     r.landings += s.landings.length;
     r.greasers += s.landings.filter((l) => l.grade === 'GREASER').length;
@@ -414,6 +421,9 @@ export function commitSortie(book: LogbookData, s: SortieRecorder, outcome: Miss
 }
 
 /** gun kills, whatever the cannon (the Su-35S's GSh-30 included) */
+/** the names a missile kill is recorded under */
+const MISSILE_SHORTS = new Set(Object.values(MISSILES).map((m) => m.short));
+
 function isGun(weapon: string): boolean {
   return weapon === 'M61' || weapon === 'BK-27' || weapon === 'GSh-30' || weapon === '30M791' || weapon === 'GUN';
 }

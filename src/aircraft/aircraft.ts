@@ -23,6 +23,9 @@ import { storeCenterY, storeCenterX } from './models/stores';
 import { hostile, RULES } from '../game/rules';
 import { clamp } from '../core/math';
 
+/** the names a missile hit is recorded under (lastHitBy.weapon) */
+const MISSILE_SHORTS = new Set(Object.values(MISSILES).map((m) => m.short));
+
 export interface StationState {
   def: StationDef;
   store: StoreType | null;
@@ -77,6 +80,8 @@ export class Aircraft {
   private seekerTimer = 0;
   missileCooldown = 0;
   kills = 0;
+  /** kills made with a missile (the gun and bombs aside): KILL / SHOT is these over missiles fired */
+  missileKills = 0;
   deaths = 0;
   shotsFired = 0;
   onRunwayStopped = false;
@@ -416,7 +421,11 @@ export class Aircraft {
     this.radar.lock = null;
     if (this.irst) this.irst.lock = null;
     const weapon = this.lastHitBy && killer === this.lastHitBy.shooter ? this.lastHitBy.weapon : 'CRASH';
-    if (killer && killer !== this) killer.kills++;
+    // (a teammate shot down by mistake is not a kill)
+    if (killer && killer !== this && hostile(killer, this)) {
+      killer.kills++;
+      if (MISSILE_SHORTS.has(weapon)) killer.missileKills++;
+    }
     sim.events.emit('destroyed', { victim: this, killer, weapon, cause });
   }
 

@@ -559,6 +559,23 @@ export class AutoFly {
     _vt.copy(tk.vel).addScaledVector(_dir, closure);
     const want = _vt.length();
     _dir.copy(_vt).normalize();
+    // the straight line up to the tanker can run into high ground (a join from
+    // low level near the hills): keep clear of the terrain ahead, as every other leg does
+    if (dist > 400) {
+      const hl = Math.hypot(_dir.x, _dir.z);
+      if (hl > 1e-3) {
+        const hx = _dir.x / hl, hz = _dir.z / hl;
+        const ground = this.groundAhead(p, hx, hz, Math.max(5000, fm.tas * 45));
+        const short = ground + 450 - fm.pos.y;
+        if (short > 0) {
+          const minClimb = Math.sin(Math.min(1, short / 800) * 20 * DEG);
+          if (_dir.y < minClimb) {
+            const k = Math.sqrt(1 - minClimb * minClimb);
+            _dir.set(hx * k, minClimb, hz * k);
+          }
+        }
+      }
+    }
     const close = dist < 400;
     steerToward(p, _dir, { gCap: close ? 2.0 : 4, tau: close ? 1.6 : 0.9, maxBank: close ? 20 : 60, allowPush: false });
     this.thrust(p, this.casFor(p, want / KT), dt, 0.3, dist > 4000);
