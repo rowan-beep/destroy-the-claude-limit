@@ -127,7 +127,7 @@ export function mergeStations(...lists: number[][]): number[] {
 // Closed Catmull-Rom rings
 // ---------------------------------------------------------------------------
 
-function crSeg(p0: P2, p1: P2, p2: P2, p3: P2, t: number, out: P2): P2 {
+export function crSeg(p0: P2, p1: P2, p2: P2, p3: P2, t: number, out: P2): P2 {
   // centripetal Catmull-Rom (Barry-Goldman)
   const d01 = Math.max(1e-5, Math.pow(Math.hypot(p1[0] - p0[0], p1[1] - p0[1]), 0.5));
   const d12 = Math.max(1e-5, Math.pow(Math.hypot(p2[0] - p1[0], p2[1] - p1[1]), 0.5));

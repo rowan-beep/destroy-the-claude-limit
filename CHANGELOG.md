@@ -4,6 +4,14 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
+## v7.2.5 (2026-10-10)
+
+### Air Combat: F-15EX: the back rebuilt
+
+- **Improved: The F-15EX's upper fuselage behind the canopy**
+  - Behind the canopy the body stayed a narrow neck sitting on the intake trunks, then ballooned out to full width at the wing root, leaving a diagonal fold and a ledge sticking out over a dark slot. Like the real jet, it is now one wide deck right across the intake tops from the end of the ramps back, with the dorsal spine and its speedbrake narrowing down the middle.
+  - The outline is unchanged: still laid over the published three-view.
+
 ## v7.2.4 (2026-10-10)
 
 ### Air Combat: Bug fixes
