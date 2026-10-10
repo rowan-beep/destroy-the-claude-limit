@@ -12,6 +12,7 @@ import { audio } from '../../audio/audio';
 import { AIR_FACTS, SPACE_FACTS, OCEAN_FACTS } from './facts';
 import { SHOTS, Shot, shotUrl } from './shots';
 import { markPicked } from './introSkip';
+import { hasUnseenNotes } from '../menu/whatsNew';
 
 /** from the click to the menu on screen (s) */
 const TOTAL = 22;
@@ -51,6 +52,8 @@ const CSS = /* css */ `
 .tl-card .k{font-size:clamp(11px,1.3vh,15px);letter-spacing:.5em;color:#ffb35c;font-weight:700}
 .tl-side.space .tl-card .k{color:#8fc4ff}
 .tl-side.ocean .tl-card .k{color:#7cf0c8}
+.tl-card .new{display:inline-block;margin-left:1.2em;padding:.2em .7em;border-radius:999px;background:#ff3d3d;color:#fff;font-size:clamp(10px,1.15vh,13px);letter-spacing:.25em;font-weight:800;vertical-align:middle;box-shadow:0 0 14px #ff3d3d99;animation:tl-new 1.8s ease-in-out infinite}
+@keyframes tl-new{0%,100%{transform:scale(1);box-shadow:0 0 10px #ff3d3d88}50%{transform:scale(1.08);box-shadow:0 0 20px #ff3d3dcc}}
 .tl-card .t{font-size:clamp(34px,7vh,92px);font-weight:800;letter-spacing:.05em;line-height:.95;margin:.25em 0 .2em;text-shadow:0 4px 30px #000a}
 .tl-card .d{font-size:clamp(13px,1.8vh,19px);letter-spacing:.12em;color:#d7dde6;opacity:.85;max-width:34em}
 .tl-card .go{display:inline-block;margin-top:2.2vh;padding:.7em 1.6em;border:1px solid #fff6;border-radius:999px;font-size:clamp(12px,1.5vh,16px);letter-spacing:.3em;font-weight:700;background:#ffffff10;backdrop-filter:blur(6px);transition:background .3s,border-color .3s,letter-spacing .4s}
@@ -185,7 +188,9 @@ export class Launcher {
         requestAnimationFrame(() => bg.classList.add('in'));
       });
       const c = el('div', 'tl-card', s);
-      el('div', 'k', c, kicker);
+      const k = el('div', 'k', c, kicker);
+      // a NEW pill when this game's release notes have something the player hasn't opened yet
+      if (hasUnseenNotes(p)) el('span', 'new', k, 'NEW');
       el('div', 't', c, title);
       el('div', 'd', c, desc);
       el('div', 'go', c, 'ENTER');

@@ -52,9 +52,10 @@ const T_OUT = curve([[-4.2, 1.49], [-1.95, 1.49], [-1.5, 1.755], [-1.2, 1.819], 
 const T_TOP = curve([[-4.2, 0.71], [-4.0, 0.7], [-3.6, 0.672], [-3.2, 0.656], [-2.75, 0.65], [-1.9, 0.64], [-0.9, 0.58], [0.4, 0.47], [1.6, 0.39]]);
 const T_BOT = curve([[-1.9, -0.65], [-1.4, -0.665], [-0.9, -0.7], [0.4, -0.81], [1.6, -0.79]]);
 const T_R = curve([[-4.1, 0.12], [-2.75, 0.15], [-0.9, 0.2], [1.6, 0.22]]);
-// the trunk's own corner radii: crisp along the capsule's top, the mouth's rounded lower corners
-// at the cowl lip, both growing into the trunk's rounded corners behind
-const T_RT = curve([[-4.2, 0.03], [-2.7, 0.035], [-1.9, 0.11], [-0.9, 0.2], [1.6, 0.22]]);
+// the trunk's own corner radii: the top corner a crisp chine from the capsule's top all the way back to
+// the wing root (the glove's edge; it only rounds off under the wing, where the body wraps it), the
+// mouth's rounded lower corners at the cowl lip growing into the trunk's rounded corners behind
+const T_RT = curve([[-4.2, 0.03], [-2.7, 0.035], [-1.9, 0.045], [-0.9, 0.06], [-0.3, 0.09], [0.4, 0.2], [1.6, 0.22]]);
 const T_RB = curve([[-1.9, 0.11], [-1.2, 0.17], [-0.9, 0.2], [1.6, 0.22]]);
 
 /** A rounded rectangle with its own corner radius on top and underneath (from the bottom-right corner, CCW). */
@@ -87,9 +88,12 @@ function rrect2(cx: number, cy: number, hw: number, hh: number, rTop: number, rB
  * the foot of the spine at `xFoot`, the deck rising a little to it.
  */
 function deck(z: number, xFoot: number): P2[] {
-  const xo = T_OUT(z) - T_R(z), top = T_TOP(z);
-  const edge: P2 = [xo - 0.09, top + 0.008], foot: P2 = [xFoot, top + 0.03];
-  return [[xo - 0.03, top - 0.02], [xo - 0.06, top - 0.006], edge, [edge[0] + (foot[0] - edge[0]) * 0.7, edge[1] + (foot[1] - edge[1]) * 0.7 + -0.002], foot];
+  // the body's shoulder shelf ends at the fuselage-to-trunk joint (x 0.8), dipping under the trunk's top
+  // there: outboard of it the trunk's own flat top is the surface, right out to its chine. (A shelf that
+  // spread across the trunk top behind the canopy drew a soft diagonal fold on the deck.)
+  const top = T_TOP(z);
+  const edge: P2 = [0.8, top + 0.004], foot: P2 = [xFoot, top + 0.03];
+  return [[0.87, top - 0.03], [0.83, top - 0.012], edge, [edge[0] + (foot[0] - edge[0]) * 0.7, edge[1] + (foot[1] - edge[1]) * 0.7 - 0.002], foot];
 }
 
 /**
@@ -276,47 +280,67 @@ const CFT_X = curve([[-2.0, 2.05], [-1.0, 2.1], [2.8, 2.12], [3.6, 2.06], [4.4, 
 const CFT_WALL = (z: number) => (z < 0.4 ? T_OUT(z) : curve([[0.4, 1.9], [2.4, 1.92], [3.3, 1.92], [4.4, 1.77], [5.5, 1.6]])(z)) - 0.035;
 /** a quarter superellipse closing toward an end: 0 at the end, 1 a length `len` away */
 const closeEnd = (d: number, len: number, p: number) => (d <= 0 ? 0 : d >= len ? 1 : Math.pow(1 - Math.pow(1 - d / len, p), 1 / p));
+/**
+ * The tank's top at z: `wall`, where it tucks under the trunk's rounded top corner (at `xTop`, inside it),
+ * and `shoulder`, the crease along its upper outer edge (the tank's top line seen from the side). Ahead of
+ * the wing the top runs just under the trunk's top and the crease ~0.5 m up (the side photos), the top
+ * sloping down outboard as the glove does; toward the wing the crease comes down onto the wing's leading
+ * edge where it meets the tank's side, and the top at the trunk sinks into the wing behind the root, so the
+ * tank fairs into the wing (its top inside the wing from there back: on its chord plane, read off WING).
+ */
+function cftTop(z: number): { wall: number; shoulder: number; xTop: number } {
+  const xw = CFT_WALL(z);
+  const root = wingAt(xw + 0.035), tip = wingAt(CFT_X(z));
+  const yUnder = Math.min(root.y, tip.y) - 0.012;
+  const top = T_TOP(z), rt = z < 0.4 ? T_RT(z) : T_R(z);
+  const yGl = top - 0.03 - 0.09 * (1 - sstep(CFT_TIP, CFT_TIP + 0.8, z));
+  const wall = yGl + (yUnder + 0.03 - yGl) * sstep(root.le - 0.15, root.le + 2.2, z);
+  const crease = Math.max(0.46, top - 0.14);
+  const shoulder = Math.min(wall - 0.03, crease + (yUnder - crease) * sstep(tip.le - 0.9, tip.le + 0.05, z));
+  // (inside the trunk's corner: its centre is rt in from the wall and down from the top)
+  const xTop = Math.min(xw, (z < 0.4 ? T_OUT(z) : xw + 0.035) - 0.75 * rt);
+  return { wall, shoulder, xTop };
+}
+/** the tank's top line seen from the side (its upper outer crease) */
+const CFT_TOP = (z: number) => cftTop(z).shoulder;
 /** the tank's section at z: a closed loop (CCW), from its foot on the wall round the bottom, up the outer side, over the top back to the wall, then down inside the wall */
 function cftSection(z: number): P2[] {
   const xw = CFT_WALL(z);
-  // the top: up at the glove line ahead of the wing, on the wing's chord plane beneath it
-  const root = wingAt(xw + 0.04), tip = wingAt(CFT_X(z));
-  const yUnder = Math.min(root.y, tip.y) - 0.012;
-  // ahead of the wing the top rises to the glove line, a little under the trunk's top corner (deeper at the
-  // tip), sloping down gently toward the wing's root, which it meets on the wing's chord plane
-  const glove = T_TOP(z) - 0.13 + 0.07 * sstep(CFT_TIP, CFT_TIP + 0.7, z);
-  const yt = yUnder + (glove - yUnder) * (1 - sstep(root.le - 1.7, root.le - 0.02, z));
-  // the outer shoulder, lower: the top slopes down outboard, onto the wing's leading edge at the root
-  const ytOut = Math.min(yt - 0.1, yUnder + (glove - 0.13 - yUnder) * (1 - sstep(tip.le - 1.5, tip.le - 0.02, z)));
+  const { wall: yt, shoulder: ytOut, xTop } = cftTop(z);
   // nose and tail: the depth closes up toward the top (the nose's front edge raked back from the tip at the
   // top) and the bulge in toward the wall, about as fast as the depth near the tip (sections there as wide
   // as deep: a rounded wedge, no blade and no overhanging brow), the tail long and tapering
-  const kn = closeEnd(z - CFT_TIP, 0.9, 1.12);
+  // (the nose a wedge with straight edges: its depth and its width both close linearly toward the tip,
+  // so its front and sides are flat raked faces, not a rounded blob)
+  const kn = closeEnd(z - CFT_TIP, 0.9, 1.0);
   const kh = kn * closeEnd(CFT_END - z, 1.6, 1.5);
-  const kw = Math.min(1, closeEnd(z - CFT_TIP, 0.55, 1.3) * 0.75 + kn * 0.25 + 0.0) * closeEnd(CFT_END - z, 0.7, 1.8);
+  const kw = closeEnd(z - CFT_TIP, 1.3, 1.0) * closeEnd(CFT_END - z, 0.7, 1.8);
   const yb = yt - (yt - CFT_BOT(z)) * Math.max(kh, 0.004);
   const w = (CFT_X(z) - xw) * Math.max(kw, 0.004);
   const h = yt - yb;
-  const yo = Math.min(ytOut, yt - 0.04 * kh);
+  const yo = Math.min(ytOut, yt - 0.03 * kh);
   const X = (f: number) => xw + w * f;
+  // round underneath and up the outer side, then a crisp crease along the upper outer edge (the tank's
+  // top line in the side photos) and a flat top running in to the trunk wall
   const pts: P2[] = [
     [X(0), yb + h * 0.03],
     [X(0.45), yb],
     [X(0.86), yb + h * 0.035],
     [X(1), yb + h * 0.2],
-    [X(1.02), yb + (yo - yb) * 0.62],
-    [X(0.97), yb + (yo - yb) * 0.94],
-    [X(0.72), yo + (yt - yo) * 0.55],
-    [X(0.3), yt - h * 0.012],
-    [X(0), yt],
+    [X(1.02), yb + (yo - yb) * 0.6],
+    [X(1.0), yb + (yo - yb) * 0.9],
+    [X(0.965), yo],
+    [X(0.5), yo + (yt - yo) * 0.5],
+    [xTop, yt],
     // down inside the trunk wall
-    [xw - 0.03, yt - h * 0.35],
+    [Math.min(xTop, xw - 0.03), yt - h * 0.35],
     [xw - 0.03, yb + h * 0.3],
   ];
   return pts;
 }
-/** samples per segment of cftSection's loop (the inside of the wall a plain crease) */
-const CFT_SUB = [3, 3, 3, 3, 3, 3, 3, 3, 1, 1, 1];
+/** samples per segment of cftSection's loop: smooth round the bottom and up the side, straight into and
+ * out of the crease, the flat top and the inside of the wall plain creases */
+const CFT_SUB = [3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 1];
 
 /**
  * A pod under an intake (hero detail): body of revolution along z from z0 (nose) to z0 + len, radius r,
@@ -417,10 +441,11 @@ const BODY = keyedProfile([
   // the shoulder overhangs the intake tops and the rear cockpit's walls rise
   { z: -3.9, pts: fwd([[0, -0.565], [0.28, -0.562], [0.42, -0.53], [0.49, -0.41], [0.5, -0.12], [0.5, 0.2], [0.515, 0.5], [0.7, 0.713], [0.63, 0.79], [0.513, 0.929], [0.411, 0.7], [0, 0.52]]) },
   { z: -3.0, pts: fwd([[0, -0.58], [0.28, -0.577], [0.42, -0.545], [0.49, -0.42], [0.5, -0.12], [0.5, 0.2], [0.515, 0.5], [0.77, 0.652], [0.66, 0.72], [0.532, 0.989], [0.45, 0.8], [0, 0.6]]) },
-  // the shoulder ledge comes down level with the trunk tops first, gently from
-  // the rear cockpit on, so the deck spreads out of it flush (a ledge still 5 cm
-  // up here dropped onto the deck in an S: a bump behind the canopy)
-  { z: -2.6, pts: [[0, -0.593], [0.28, -0.59], [0.42, -0.558], [0.49, -0.433], [0.5, -0.12], [0.5, 0.2], [0.519, 0.5], [0.79, 0.635], [0.78, 0.672], [0.765, 0.678], [0.75, 0.69], [0.735, 0.705], [0.538, 1.012], [0.443, 0.859], [0, 0.704]] },
+  // the rear cockpit's side comes down smoothly onto the trunk tops, meeting them in a soft valley at
+  // x ~0.75, y ~0.68 (user3), the deck then spreading out of it flush (a ledge still 5 cm up here dropped
+  // onto the deck in an S: a bump behind the canopy; a ledge pushed out to 0.78 here, from 0.66 at z -3,
+  // read as an S-shaped ridge behind the rear cockpit)
+  { z: -2.6, pts: [[0, -0.593], [0.28, -0.59], [0.42, -0.558], [0.49, -0.433], [0.5, -0.12], [0.5, 0.2], [0.519, 0.5], [0.79, 0.635], [0.715, 0.683], [0.69, 0.703], [0.668, 0.73], [0.635, 0.775], [0.538, 1.012], [0.443, 0.859], [0, 0.704]] },
   // the end of the ramps: the deck spreads across the trunk tops in a few
   // centimetres, beside the rear cockpit's raised walls
   { z: -2.15, pts: [[0, -0.607], [0.283, -0.604], [0.427, -0.573], [0.5, -0.446], [0.513, -0.12], [0.513, 0.2], [0.542, 0.5], ...deck(-2.15, 0.74), [0.528, 1.02], [0.384, 0.992], [0, 0.932]] },
@@ -428,6 +453,9 @@ const BODY = keyedProfile([
   // with the speedbrake lying on its top
   { z: -1.6, pts: [[0, -0.62], [0.3, -0.62], [0.46, -0.59], [0.54, -0.46], [0.56, -0.12], [0.56, 0.2], [0.58, 0.5], ...deck(-1.6, 0.73), [0.55, 1.0], [0.32, 1.17], [0, 1.22]] },
   { z: -0.9, pts: [[0, -0.63], [0.32, -0.64], [0.5, -0.62], [0.58, -0.5], [0.6, -0.12], [0.6, 0.2], [0.62, 0.46], ...deck(-0.9, 0.69), [0.6, 0.95], [0.36, 1.14], [0, 1.19]] },
+  // (the deck stays flat beside the trunk's chine right up to the wing root; the lower points are inside
+  // the trunk, on their way out to the nacelle)
+  { z: -0.3, pts: [[0, -0.635], [0.384, -0.649], [0.707, -0.721], [1.003, -0.67], [1.18, -0.405], [1.221, -0.094], [1.223, 0.202], ...deck(-0.3, 0.675), [0.63, 0.78], [0.36, 1.06], [0, 1.11]] },
   // the body takes over the intake trunks (wrapping their top corner clear of
   // it); the deck runs on to the engine bays and the spine falls away to the tail
   { z: 0.4, pts: [[0, -0.64], [0.46, -0.66], [0.95, -0.84], [1.5, -0.87], [1.86, -0.74], [1.95, -0.44], [1.93, -0.1], ...wrap(0.4, [0.68, 0.56]), [0.68, 0.56], [0.53, 0.86], [0.36, 0.96], [0, 1.0]] },

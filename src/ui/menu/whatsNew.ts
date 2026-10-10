@@ -56,6 +56,17 @@ function renderNote(n: Note, parent: HTMLElement): void {
   }
 }
 
+/** Are there release notes for this game the player has not opened yet? (the menu's NEW badges) */
+export function hasUnseenNotes(game: Game): boolean {
+  let seen: string | null = null;
+  try {
+    seen = localStorage.getItem(SEEN_KEY[game]);
+  } catch {
+    return false;
+  }
+  return seen === null || compareVersions(seen, latestFor(game)) < 0;
+}
+
 export class WhatsNewModal {
   readonly root: HTMLDivElement;
   private body: HTMLElement;
