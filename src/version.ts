@@ -37,6 +37,19 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.2.6',
+    date: '2026-10-10',
+    air: {
+      title: 'F-15EX: nose and back cleaned up',
+      notes: [
+        fixed("A bump behind the F-15EX's rear canopy",
+          "Where the new deck starts behind the canopy, the shoulder beside the rear cockpit dropped onto it in an S and left a lump. The shoulder now comes down level first and the deck runs out of it flush; the deck itself is flat across the intakes, without the ridge along its outer edge."),
+        fixed("The F-15EX's nose up close",
+          "Zoomed in, the radome had a hole at its very tip, a straight crease running down its side, a paint edge that cut across it diagonally, rivet rows printed on what is a one-piece composite shell, and an anti-glare panel with a stepped edge. The tip is closed, the radome is smooth all round with one clean joint ring, it carries no fasteners, and the anti-glare panel has a soft edge."),
+      ],
+    },
+  },
+  {
     version: '7.2.5',
     date: '2026-10-10',
     air: {

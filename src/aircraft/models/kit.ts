@@ -733,6 +733,8 @@ export interface SkinParams {
   livery: Livery;
   roughness?: number;
   metalness?: number;
+  /** body z of the radome's joint: no fasteners ahead of it (a radome is one composite shell) */
+  radomeZ?: number;
 }
 
 const SKIN_VERT_PARS = /* glsl */ `
@@ -756,6 +758,7 @@ uniform vec3 customB;
 uniform sampler2D customTex;
 uniform float customScale;  // metres per wrap tile
 uniform float brightness;
+uniform float radomeZ;
 uniform sampler3D aoTex;
 uniform vec3 aoMin;
 uniform vec3 aoSize;
@@ -955,7 +958,7 @@ const SKIN_FRAG = /* glsl */ `
       // screws round the access panels: along the drawn seams, every 6 cm
       float sr = max( 0.003, skinPx * 0.5 );
       float sc = ( 1.0 - smoothstep( sr * 0.8, sr * 1.2, length( vec2( ( fract( vSkin.z / 0.06 + 0.5 ) - 0.5 ) * 0.06, ( fract( sAcross / 0.06 + 0.5 ) - 0.5 ) * 0.06 ) ) ) ) * smoothstep( 0.15, 0.5, dark ) * pow( 0.003 / sr, 0.2 );
-      float fast = max( max( rivA, rivB ) * 0.8 * rk, sc * skinMid );
+      float fast = max( max( rivA, rivB ) * 0.8 * rk, sc * skinMid ) * step( radomeZ, vSkin.z );
       // heads sit a hair proud of the paint, a little darker and duller where it is thin
       skinDepth -= fast * 0.00045 * skinNear;
       wear *= 1.0 - fast * 0.28;
@@ -1059,6 +1062,7 @@ export function skinMaterial(p: SkinParams): THREE.MeshStandardMaterial {
     customTex: { value: blankTex() },
     customScale: { value: 4 },
     brightness: { value: 1 },
+    radomeZ: { value: p.radomeZ ?? -1e4 },
     aoTex: { value: blankAo() },
     aoMin: { value: new THREE.Vector3() },
     aoSize: { value: new THREE.Vector3(1, 1, 1) },
@@ -1086,7 +1090,7 @@ function applySkin(mat: THREE.MeshStandardMaterial, uniforms: Record<string, THR
       .replace('#include <aomap_fragment>', '#include <aomap_fragment>\n' + SKIN_AO)
       .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n' + SKIN_BOUNCE);
   };
-  mat.customProgramCacheKey = () => 'skin-v14';
+  mat.customProgramCacheKey = () => 'skin-v15';
   void id;
 }
 
