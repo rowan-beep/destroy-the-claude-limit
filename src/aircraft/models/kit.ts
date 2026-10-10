@@ -284,6 +284,15 @@ export interface WingSpec {
   root?: 'round' | 'flat';
   /** chord-plane camber as a fraction of chord (positive = arched up) */
   camber?: number;
+  /**
+   * Leading-edge droop (conical camber) in metres at span x: the camber line's
+   * front `droopChord` of the chord bends smoothly down to it at the leading edge.
+   */
+  droop?: (x: number) => number;
+  /** chord fraction the leading-edge droop runs back over (default 0.3) */
+  droopChord?: number;
+  /** close a `back` cut with a rounded edge instead of a flat hinge face (a raked wingtip cap) */
+  backRound?: boolean;
   /** position of max thickness (0.3 NACA 4-digit, 0.4..0.5 for thin supersonic sections) */
   thickPos?: number;
   /** transform from the build frame (x span, y up, z aft) into the body */
@@ -362,14 +371,24 @@ export function wing(spec: WingSpec): THREE.BufferGeometry {
     const f0 = Math.min(0.98, Math.max(0, (zf - w.le) / chord));
     const f1 = Math.max(f0 + 0.01, Math.min(1, (zb - w.le) / chord));
     const ht = (c: number) => halfThick(c, tp) * w.t * chord * 0.5 * s.ts;
-    const cam = (c: number) => camber * chord * 4 * c * (1 - c);
+    const dr = spec.droop ? spec.droop(s.x) : 0;
+    const dc = spec.droopChord ?? 0.3;
+    const cam = (c: number) => camber * chord * 4 * c * (1 - c) - (c < dc ? dr * (1 - c / dc) * (1 - c / dc) : 0);
     const pts: P2[] = [];
     // upper surface front -> back (cosine spacing)
     const cs: number[] = [];
     for (let i = 0; i <= N; i++) cs.push(f0 + ((f1 - f0) * (1 - Math.cos((Math.PI * i) / N))) / 2);
     const start = bluntF ? 0 : 0;
     for (let i = start; i <= N; i++) pts.push([w.le + cs[i] * chord, (w.y ?? 0) + cam(cs[i]) + ht(cs[i])]);
-    if (bluntB) {
+    if (bluntB && spec.backRound) {
+      // rounded edge: a half round from the upper surface back and down to the lower one
+      const c = cs[N];
+      const yt = ht(c);
+      for (let k = 1; k < 6; k++) {
+        const th = (Math.PI * k) / 6;
+        pts.push([w.le + c * chord + yt * Math.sin(th), (w.y ?? 0) + cam(c) + yt * Math.cos(th)]);
+      }
+    } else if (bluntB) {
       // flat hinge face
       const c = cs[N];
       const yt = ht(c);
@@ -739,11 +758,24 @@ export interface SkinParams {
   radomeTip?: number;
   /** the radome's axis height at the tip and at the joint (a drooped radome) */
   radomeAxis?: [number, number];
+  /** the radome's paint relative to the body's (a composite shell, painted separately): RGB factors, default 1 */
+  radomeTint?: [number, number, number];
   /**
    * shade lift for a metallic factory finish (metal loses its diffuse colour: this
    * keeps the jet's normal shade); not applied to the radome, which is plain paint
    */
   paintLift?: number;
+  /**
+   * A dark finish's seams: > 0 finds the livery's thin dark strokes by their contrast
+   * relative to the paint around them (times this gain) instead of in absolute terms,
+   * which on a near-black paint finds almost nothing. 0 (default) = absolute.
+   */
+  seamRel?: number;
+  /**
+   * 0..1: opaque livery markings (stencils, codes, bands) are plain paint over the
+   * metallic finish: no shade lift, little metalness, the near-black ones flat. 0 (default) = off.
+   */
+  markPaint?: number;
 }
 
 const SKIN_VERT_PARS = /* glsl */ `
@@ -768,9 +800,12 @@ uniform sampler2D customTex;
 uniform float customScale;  // metres per wrap tile
 uniform float brightness;
 uniform float paintLift;
+uniform float seamRel;
+uniform float markPaint;
 uniform float radomeZ;
 uniform float radomeTip;
 uniform vec2 radomeAxis;
+uniform vec3 radomeTint;
 uniform sampler3D aoTex;
 uniform vec3 aoMin;
 uniform vec3 aoSize;
@@ -908,6 +943,15 @@ const SKIN_FRAG = /* glsl */ `
     float lumA = dot( base * ( 1.0 - m.a ) + m.rgb, vec3( 0.3333 ) );
     float lumB = dot( base * ( 1.0 - mb.a ) + mb.rgb, vec3( 0.3333 ) );
     float dark = clamp( ( lumB - lumA ) * 3.0, 0.0, 1.0 );
+    if ( seamRel > 0.0 ) dark = clamp( ( lumB - lumA ) / max( lumB, 0.004 ) * seamRel, 0.0, 1.0 );
+    // painted markings over a metallic finish (see markPaint)
+    float markA = 0.0;
+    float markFlat = 0.0;
+    if ( markPaint > 0.0 ) {
+      markA = smoothstep( 0.45, 0.9, m.a ) * markPaint;
+      markFlat = markA * ( 1.0 - smoothstep( 0.008, 0.04, dot( m.rgb / max( m.a, 0.001 ), vec3( 0.3333 ) ) ) );
+      dark *= 1.0 - markA;
+    }
     skinDepth = dark * 0.0065;
     // weathering is kept apart from the paint colour and applied over the finished
     // livery, so it shows on jets painted all over (camouflage) as well as plain ones
@@ -994,6 +1038,10 @@ const SKIN_FRAG = /* glsl */ `
         skinRough += latch * 0.1;
       }
     }
+    if ( markA > 0.0 ) {
+      skinMetal = mix( metalness, 0.05, markA );
+      skinRough += markFlat * 0.32;
+    }
     // --- the radome: a composite shell, painted, not metal ----------------------
     // (only on a jet that has one: radomeZ is far ahead of the airframe otherwise)
     if ( vSkin.z < radomeZ ) {
@@ -1003,6 +1051,7 @@ const SKIN_FRAG = /* glsl */ `
       vec2 rq = vec2( vSkin.x, vSkin.y - ay );
       float rr2 = length( rq );
       skinMetal = 0.02;
+      wear *= radomeTint;
       // a plain satin paint over the composite (not the metallic finish of the
       // metal panels), with faint patchy touch-ups and grime toward the joint and underneath
       skinRough = skinRough * 0.5 + 0.16;
@@ -1030,6 +1079,7 @@ const SKIN_FRAG = /* glsl */ `
       }
     }
     float lift = vSkin.z < radomeZ ? 1.0 : paintLift;
+    if ( markA > 0.0 ) lift = mix( lift, 1.0, markA );
     diffuseColor.rgb *= ( base * ( 1.0 - m.a ) + m.rgb ) * brightness * wear * lift;
     // (the primer is a colour of its own, so it shows on light and dark jets alike)
     diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.25, 0.26, 0.24 ), chipAmt * 0.75 );
@@ -1122,9 +1172,12 @@ export function skinMaterial(p: SkinParams): THREE.MeshStandardMaterial {
     customScale: { value: 4 },
     brightness: { value: 1 },
     paintLift: { value: p.paintLift ?? 1 },
+    seamRel: { value: p.seamRel ?? 0 },
+    markPaint: { value: p.markPaint ?? 0 },
     radomeZ: { value: p.radomeZ ?? -1e4 },
     radomeTip: { value: p.radomeTip ?? -1e4 - 1 },
     radomeAxis: { value: new THREE.Vector2(...(p.radomeAxis ?? [0, 0])) },
+    radomeTint: { value: new THREE.Vector3(...(p.radomeTint ?? [1, 1, 1])) },
     aoTex: { value: blankAo() },
     aoMin: { value: new THREE.Vector3() },
     aoSize: { value: new THREE.Vector3(1, 1, 1) },

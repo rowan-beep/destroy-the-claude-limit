@@ -171,6 +171,13 @@ export interface NozzleSpec {
    * the nacelle end): the burner can is then built short, aft of it
    */
   floor?: number;
+  /**
+   * A bare nozzle without external flaps (the F-15's, its 'turkey feathers' taken
+   * off): a smooth metal shroud from the nacelle over the first `shroud` of the
+   * length, then a ring of ribbed outer flaps with gaps between them closing to the
+   * exit, and the light seal tiles of the divergent flaps showing inside the lip.
+   */
+  bare?: { shroud: number };
 }
 
 /**
@@ -207,6 +214,7 @@ export function withMorph(base: THREE.BufferGeometry, target: THREE.BufferGeomet
 }
 
 function nozzleShape(s: NozzleSpec): { outer: THREE.BufferGeometry; inner: THREE.BufferGeometry } {
+  if (s.bare) return bareNozzleShape(s, s.bare.shroud);
   const per = dense(6);
   const seg = s.petals * per;
   const rings: P3[][] = [];
@@ -364,6 +372,87 @@ function nozzleShape(s: NozzleSpec): { outer: THREE.BufferGeometry; inner: THREE
   return { outer: outerAll, inner: join(parts.map((g) => g)) };
 }
 
+/**
+ * The bare nozzle (see NozzleSpec.bare): the outer shell is its own; the burner
+ * can inside is the standard one.
+ */
+function bareNozzleShape(s: NozzleSpec, shroud: number): { outer: THREE.BufferGeometry; inner: THREE.BufferGeometry } {
+  const per = dense(8);
+  const seg = s.petals * per;
+  const L = s.z1 - s.z0;
+  const zs = s.z0 + L * shroud;
+  // the flaps' root radius, just inside the shroud's trailing edge
+  const rF = s.r0 * 0.94;
+  const flap = (u: number) => {
+    const t = (u - shroud) / (1 - shroud);
+    return rF + (s.r1 - rF) * (t * 0.55 + t * t * 0.45);
+  };
+  const hash = (n: number) => {
+    const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+    return x - Math.floor(x);
+  };
+  const v = (j: number) => 0.92 + 0.16 * hash(Math.floor(j / per) + s.petals * 7);
+  const rib = (f: number) => Math.exp(-Math.pow((f - 0.14) / 0.07, 2)) + Math.exp(-Math.pow((f - 0.86) / 0.07, 2));
+  const rings: P3[][] = [];
+  const cols: number[] = [];
+  // the shroud: dull sooty metal (dark in the photos), straw-tinted toward its edge, a darker joint band a third of the way back
+  const nS = dense(6);
+  const shroudRing = (z: number, r: number, k: number, heat: number) => {
+    const ring: P3[] = [];
+    for (let j = 0; j < seg; j++) {
+      const a = (j / seg) * Math.PI * 2;
+      ring.push([s.cx + Math.cos(a) * r, s.cy + Math.sin(a) * r, z]);
+      cols.push((0.25 + 0.02 * heat) * k, (0.255 + 0.01 * heat) * k, (0.27 - 0.03 * heat) * k);
+    }
+    rings.push(ring);
+  };
+  for (let i = 0; i <= nS; i++) {
+    const u = i / nS;
+    const bandK = Math.exp(-Math.pow((u - 0.36) / 0.06, 2));
+    shroudRing(s.z0 + L * shroud * u, s.r0 * (1 - 0.025 * u) * (1 + 0.009 * bandK), 0.98 - 0.25 * bandK, Math.max(0, (u - 0.5) / 0.5));
+  }
+  // its trailing edge: a small step down onto the flaps (a dark face)
+  shroudRing(zs + 0.004, s.r0 * 0.966, 0.35, 1);
+  // the flaps: recessed black gaps at the seams, raised lighter ribs along both edges, pointed tips
+  const nF = dense(8);
+  for (let i = 0; i <= nF; i++) {
+    const u = shroud + ((1 - shroud) * i) / nF;
+    const r = flap(u), z = i === 0 ? zs + 0.008 : s.z0 + L * u;
+    const soot = 1 - 0.35 * Math.max(0, (i / nF - 0.75) / 0.25);
+    const ring: P3[] = [];
+    for (let j = 0; j < seg; j++) {
+      const a = (j / seg) * Math.PI * 2;
+      const k = j % per, f = k / per;
+      const rr = r * (1 - (k === 0 ? 0.03 : 0) + 0.012 * rib(f));
+      const zz = i === nF ? z - s.saw * Math.abs(f * 2 - 1) : z;
+      ring.push([s.cx + Math.cos(a) * rr, s.cy + Math.sin(a) * rr, zz]);
+      const base = k === 0 ? 0.03 : 0.12 + 0.07 * rib(f);
+      const kk = v(j) * soot;
+      cols.push(base * kk * 1.05, base * kk, base * kk * 0.94);
+    }
+    rings.push(ring);
+  }
+  // the lip rolls inside: the divergent flaps' liners (light, heat-bleached seal tiles with dark seams),
+  // forward from the exit, darkening going in
+  const last = rings[rings.length - 1];
+  for (const [kr, dz, lit] of [[0.975, 0.006, 0.5], [0.95, -0.006, 0.95], [0.9, -0.1, 1], [0.84, -0.2, 0.8], [0.79, -0.3, 0.35]] as [number, number, number][]) {
+    rings.push(last.map(([x, y, z]) => [s.cx + (x - s.cx) * kr, s.cy + (y - s.cy) * kr, z + dz] as P3));
+    for (let j = 0; j < seg; j++) {
+      const k = j % per, f = k / per;
+      const seam = Math.min(f, 1 - f) < 0.07 ? 0.22 : 1;
+      const t = lit * seam * v(j);
+      cols.push(0.42 * t, 0.38 * t, 0.3 * t);
+    }
+  }
+  const outer = skinRings(rings);
+  outer.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  // the burner can: the standard one, in deeper shadow (seen through the tiles it reads black, as in photos)
+  const inner = nozzleShape({ ...s, bare: undefined }).inner;
+  const ic = inner.attributes.color as THREE.BufferAttribute | undefined;
+  if (ic) for (let i = 0; i < ic.count; i++) ic.setXYZ(i, ic.getX(i) * 0.45, ic.getY(i) * 0.45, ic.getZ(i) * 0.45);
+  return { outer, inner };
+}
+
 // ---------------------------------------------------------------------------
 // Intake: outer cowl + rounded lip + duct fading to the compressor face.
 // ---------------------------------------------------------------------------
@@ -403,14 +492,27 @@ export interface IntakeSpec {
   ductFollow?: boolean;
   /** with ductFollow: how much further the duct draws in from the outer loop per metre going back (default 0) */
   ductInset?: number;
+  /**
+   * measure the duct shade's depth from the raked mouth (z of the lip at that height) instead of from
+   * the first station (default false): a hard-raked mouth then darkens evenly into the duct
+   */
+  ductShadeRaked?: boolean;
+  /**
+   * use the loop's own points as the rings (every station must return the same count, `n` is then
+   * ignored) instead of resampling each by arc length: a loop built with its points at fixed places
+   * (corners, walls) keeps them there from station to station (default false)
+   */
+  exactLoop?: boolean;
+  /** rings along the duct (scaled by the mesh density; default 16 with ductStraight, else 10, not scaled) */
+  ductRings?: number;
 }
 
 export function intake(s: IntakeSpec): { skin: THREE.BufferGeometry; duct: THREE.BufferGeometry } {
-  const n = dense(s.n ?? 64);
+  const n = s.exactLoop ? s.loop(s.outer[0]).length : dense(s.n ?? 64);
   const rake = s.rake ?? (() => 0);
   const zl = s.outer[0];
   const fade = s.rakeFade ?? 0.6;
-  const at = (z: number) => resample(s.loop(z), n);
+  const at = (z: number) => (s.exactLoop ? s.loop(z) : resample(s.loop(z), n));
   const mouth = at(zl);
   const toP3 = (loop: P2[], z: number, raked: number | boolean = true): P3[] => loop.map(([x, y]) => [x, y, z + (raked ? rake(x, y) * +raked : 0)]);
   // lip roll: from the outside at the mouth over the lip into the duct
@@ -425,7 +527,7 @@ export function intake(s: IntakeSpec): { skin: THREE.BufferGeometry; duct: THREE
   // duct: inner loop shrinks slightly and fades toward the fan
   const inner0 = offsetLoop(mouth, -s.lip);
   const ductRings: P3[][] = [];
-  const DN = s.ductStraight ? 16 : 10;
+  const DN = s.ductRings ? dense(s.ductRings) : s.ductStraight ? 16 : 10;
   const fan = s.fan;
   for (let k = 0; k <= DN; k++) {
     const u = k / DN;
@@ -456,7 +558,7 @@ export function intake(s: IntakeSpec): { skin: THREE.BufferGeometry; duct: THREE
   const ductRev = ductRings.slice().reverse();
   const skinSheet = skinRings([ductRev[ductRev.length - 2], ductRev[ductRev.length - 1], ...lipRings, ...outerRings]);
   const duct = colorize(skinRings(ductRev.slice(0, ductRev.length - 1), true, true, false), (p, c) => {
-    const d = Math.min(1, Math.max(0, (p.z - zl) / s.depth));
+    const d = Math.min(1, Math.max(0, (p.z - zl - (s.ductShadeRaked ? rake(p.x, p.y) : 0)) / s.depth));
     const sh = s.ductShade ?? { k0: 0.42, fall: 1.8, floor: 0.03 };
     const k = sh.k0 * Math.pow(1 - d, sh.fall) + sh.floor;
     c.setRGB(k, k, k * 1.02);

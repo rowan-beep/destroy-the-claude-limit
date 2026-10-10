@@ -37,6 +37,27 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.3.0',
+    date: '2026-10-10',
+    air: {
+      title: 'F-15EX rebuilt to match the real jet',
+      notes: [
+        improved('The whole F-15EX model reworked against photos and the three-view drawing',
+          'Wings: the planform is now the real one. The leading edge meets the body 2 m further back, behind the canopy, the flaps run straight across, the ailerons sweep back to a clipped, raked tip, and the sections are the real thickness with a drooped leading edge. The wing is one surface with the deck between the tails.',
+          'Intakes: raked scoop mouths with the top lip as the front and the side plates sweeping back to the cowl lip, a full-height splitter plate, a dark duct and ramp. The nacelles are straight boxes that flare into the body.',
+          'Conformal fuel tanks rebuilt as the big fairings over the nacelle sides with a raked, rounded nose; a targeting pod and a navigation pod under the intakes.',
+          'Nose and canopy: the forebody is an egg section fitted to a head-on photo, the radome is fuller in plan, the canopy is narrower with a pointed windscreen on a higher sill and solid frames, the glass sits on the body everywhere, and the speedbrake lies flush on the spine.',
+          'Tail: the fins moved 1 m aft with long tip pods, the stabilators have the dogtooth and raked tips of the drawing, the booms are the real width and rise out of the nacelle tops without a bump, and the aft body ends in round nacelles about the nozzles.',
+          'Nozzles: bare F110 nozzles without the outer feathers, with ribbed flaps, seal tiles inside the lip and a sooty shroud, in the real position between the booms.'),
+        improved('Near-black factory paint and a new livery',
+          'The factory finish is now a very dark gunship grey metallic, as on the photos, with the radome a satin dark grey.',
+          'Panel lines, screws and access doors over the whole airframe, drawn from the geometry so they follow the shape. Low-visibility insignia, an ET tail code with the 256 serial, a white tip band with maroon diamonds, light-grey stencils, lit lime formation strips, fuel stains, heat-faded engine-bay doors and soot.'),
+        improved('F-15EX weapon stations follow the new wing and tanks',
+          'The wing racks sit at 40% chord of the swept wing, so the inboard and outboard missiles stagger like the real load. The pylons meet the thicker wing with no gap. The conformal-tank stations hang from the tank undersides, and the gun muzzle is on the nacelle wall above the wing root.'),
+      ],
+    },
+  },
+  {
     version: '7.2.9',
     date: '2026-10-10',
     air: {

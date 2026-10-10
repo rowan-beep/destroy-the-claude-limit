@@ -73,7 +73,9 @@ export function wingPanels(secs: WingStation[], cuts: CutDef[], opt: Partial<Win
         sections: s,
         back: trail ? trail.hinge : undefined,
         front: lead ? lead.hinge : undefined,
-        tip: last ? 'round' : 'flat',
+        // (opt.tip: how the outermost fixed panel ends, round unless the caller closes it flat
+        // against a separate tip piece)
+        tip: last ? opt.tip ?? 'round' : 'flat',
         root: 'flat',
       }),
     );
