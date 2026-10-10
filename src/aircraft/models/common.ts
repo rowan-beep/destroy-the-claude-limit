@@ -156,7 +156,10 @@ export function sectionsFromProfile(profile: (z: number) => P2[], z0: number, z1
 export function buildCanopy(v: AirframeVisual, can: Section[], archZ: number, bows: number[], frameMat?: THREE.Material): void {
   const pm = partMaterials();
   const glass = v.addMesh(loft(can, 64, 10), pm.glass, v.body, false);
-  glass.renderOrder = 5;
+  // after the water (1) and every cloud layer (world/clouds.ts: 8-10): transparent things draw in
+  // renderOrder, and the clouds write no depth, so a canopy drawn before them vanished behind any
+  // cloud it was silhouetted against (the cloud painted over the glass where only sky was behind it)
+  glass.renderOrder = 11;
   v.canopy = glass;
   v.canopySections = can;
   v.windscreenArchZ = archZ;

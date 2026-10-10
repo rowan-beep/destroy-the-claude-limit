@@ -18,7 +18,7 @@
 import * as THREE from 'three';
 import type { Aircraft } from '../aircraft/aircraft';
 import type { AircraftType } from '../aircraft/specs';
-import { FT, KT, NM, DEG } from '../core/constants';
+import { FT, KT, NM, DEG, PHYSICS_DT } from '../core/constants';
 import { audio } from '../audio/audio';
 import { P2, loftProfile, stations, wing, WingStation, lathe, rrect, Livery, skinMaterial, join, both, stamp, sstep, finMatrix, line, rivets, roundel, LINE, prng, weather, colorize } from '../aircraft/models/kit';
 import { partMaterials } from '../aircraft/models/parts';
@@ -440,6 +440,10 @@ export class Tanker {
   private bank = 0;
   private quat = new THREE.Quaternion();
   private inv = new THREE.Matrix4();
+  /** the pose before the last move and how much time that move covered: drawAt() blends from it */
+  private prevPos = new THREE.Vector3();
+  private prevQuat = new THREE.Quaternion();
+  private movedDt = 0;
   // the receiver
   state: AarState = 'off';
   kind: AarKind = 'none';
@@ -522,6 +526,11 @@ export class Tanker {
   }
 
   private place(dt: number): void {
+    if (dt > 0) {
+      this.prevPos.copy(this.pos);
+      this.prevQuat.copy(this.quat);
+      this.movedDt = dt;
+    }
     this.s += this.speed * dt;
     const p = new THREE.Vector3(), q = new THREE.Vector3();
     const turning = this.at(this.s, p);
@@ -540,6 +549,23 @@ export class Tanker {
     g.quaternion.copy(this.quat);
     g.updateMatrixWorld(true);
     this.inv.copy(g.matrixWorld).invert();
+  }
+
+  /**
+   * Draw the tanker part-way to the next physics step, the way RenderInterp draws
+   * the jets (`alpha` 0..1 from the last step). The tanker moves once a frame by
+   * the steps taken, so without this it sat at its latest state while the jet
+   * on its boom was drawn up to a step behind: a 1.4 m stutter at the nozzle on
+   * every frame that took no step. The logic keeps the true pose: place() puts
+   * it back at the start of the next update.
+   */
+  drawAt(alpha: number): void {
+    if (this.movedDt <= 0) return;
+    const k = Math.min(1, Math.max(0, 1 - ((1 - Math.min(1, Math.max(0, alpha || 0))) * PHYSICS_DT) / this.movedDt));
+    const g = this.model.group;
+    g.position.lerpVectors(this.prevPos, this.pos, k);
+    g.quaternion.slerpQuaternions(this.prevQuat, this.quat, k);
+    g.updateMatrixWorld(true);
   }
 
   /** a world point in the tanker's frame */

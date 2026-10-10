@@ -4,6 +4,15 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
+## v7.2.4 (2026-10-10)
+
+### Air Combat: Bug fixes
+
+- **Fixed: The canopy vanished in front of a cloud**
+  - Turn the camera so the cockpit sat against a cloud and the glass disappeared: the clouds were painted after the canopy and, writing no depth, covered it wherever only sky was behind the glass. The canopy is now drawn after every cloud layer, so it reads the same against cloud as against sky.
+- **Fixed: Hooked up to the tanker, the KC-46 juddered against your jet**
+  - On the boom (or in the basket) the tanker stuttered back and forth a metre or so every frame. The jets are drawn part-way between physics steps for smooth motion on fast displays, but the tanker was drawn at its latest step, so the two were never at the same moment. The tanker is now drawn the same way, and the boom stays planted in the receptacle.
+
 ## v7.2.3 (2026-10-10)
 
 ### Air Combat: Bug fixes

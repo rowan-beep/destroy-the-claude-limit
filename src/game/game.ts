@@ -955,7 +955,11 @@ export class Game implements ModeHost {
     // night-vision goggles: the round tube view only from the cockpit
     NIGHT.tube = this.cam.mode === 'cockpit';
     // high-refresh displays: draw everything part-way to the next physics step
-    if (this.player) this.interp.apply(this.sim, this.accumulator / PHYSICS_DT);
+    if (this.player) {
+      this.interp.apply(this.sim, this.accumulator / PHYSICS_DT);
+      // (the tanker is not a sim body: drawn the same way, or the jet on its boom judders)
+      this.tanker?.drawAt(this.accumulator / PHYSICS_DT);
+    }
     const p = this.player;
     // the airshow: the spotter's camera on the crowd line
     if (p && this.mode instanceof SpotterMode) {
