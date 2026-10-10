@@ -320,16 +320,18 @@ function cftSection(z: number): P2[] {
   const h = yt - yb;
   const yo = Math.min(ytOut, yt - 0.03 * kh);
   const X = (f: number) => xw + w * f;
-  // round underneath and up the outer side, then a crisp crease along the upper outer edge (the tank's
-  // top line in the side photos) and a flat top running in to the trunk wall
+  // a slab: a flat bottom, one tight rounded corner, a straight (barely leaning) outer face, a crisp
+  // crease along the upper outer edge (the tank's top line in the side photos) and a flat top running
+  // in to the trunk wall
   const pts: P2[] = [
-    [X(0), yb + h * 0.03],
-    [X(0.45), yb],
-    [X(0.86), yb + h * 0.035],
-    [X(1), yb + h * 0.2],
-    [X(1.02), yb + (yo - yb) * 0.6],
-    [X(1.0), yb + (yo - yb) * 0.9],
-    [X(0.965), yo],
+    [X(0), yb + h * 0.02],
+    [X(0.12), yb],
+    [X(0.8), yb],
+    [X(0.96), yb + h * 0.04],
+    [X(1.0), yb + h * 0.14],
+    [X(1.012), yb + (yo - yb) * 0.55],
+    [X(1.0), yo - h * 0.03],
+    [X(0.975), yo],
     [X(0.5), yo + (yt - yo) * 0.5],
     [xTop, yt],
     // down inside the trunk wall
@@ -338,9 +340,9 @@ function cftSection(z: number): P2[] {
   ];
   return pts;
 }
-/** samples per segment of cftSection's loop: smooth round the bottom and up the side, straight into and
- * out of the crease, the flat top and the inside of the wall plain creases */
-const CFT_SUB = [3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 1];
+/** samples per segment of cftSection's loop: everything a plain straight run except the two short arcs
+ * of the lower outer corner */
+const CFT_SUB = [1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1];
 
 /**
  * A pod under an intake (hero detail): body of revolution along z from z0 (nose) to z0 + len, radius r,
