@@ -16,13 +16,18 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { lathe, wing, roundBox, loftProfile, stations, modelDensity, setModelDensity, type P2 } from './kit';
+import { lathe, wing, loftProfile, stations, modelDensity, setModelDensity, type P2 } from './kit';
 
 type C = THREE.Color;
 const hex = (h: string): C => new THREE.Color(h);
 
 const METAL = 0.5;
 const GLASS = 1;
+/** sides round the body (24 keeps the outline round at any distance a round is seen from) */
+const SIDES = 24;
+
+/** a plain box: the small fittings are a few centimetres across, too small for rounded corners to show */
+const box = (w: number, h: number, d: number): THREE.BufferGeometry => new THREE.BoxGeometry(w, h, d);
 
 const JOINT = hex('#62676d');
 const TIP = hex('#474b51');
@@ -103,14 +108,14 @@ function body(b: Body): THREE.BufferGeometry[] {
   if (b.nose.kind === 'radome') {
     const n = b.nose.len;
     const rho = (r * r + n * n) / (2 * r);
-    for (let i = 0; i <= 26; i++) {
-      const x = n * (1 - Math.cos(((i / 26) * Math.PI) / 2));
+    for (let i = 0; i <= 16; i++) {
+      const x = n * (1 - Math.cos(((i / 16) * Math.PI) / 2));
       nose.push([Math.max(0.0015, Math.sqrt(Math.max(0, rho * rho - (n - x) * (n - x))) + r - rho), x]);
     }
   } else {
     const d = b.nose.dome;
-    for (let i = 0; i <= 14; i++) {
-      const a = ((i / 14) * Math.PI) / 2;
+    for (let i = 0; i <= 10; i++) {
+      const a = ((i / 10) * Math.PI) / 2;
       nose.push([Math.max(0.0015, d * Math.sin(a)), d * (1 - Math.cos(a))]);
     }
     // the retaining ring, standing a little proud of the glass, then the shoulder out to the body
@@ -139,7 +144,7 @@ function body(b: Body): THREE.BufferGeometry[] {
   prof.push([br * 0.97, L - 0.004], [br * 0.9, L], [b.exit * 1.14, L], [b.exit * 1.03, L - 0.005]);
   const g = lathe(
     prof.map(([rr, s]) => [rr, z(s)] as P2),
-    40,
+    SIDES,
   );
   tint(g, (p, c) => {
     const s = p.z + L / 2;
@@ -167,7 +172,7 @@ function body(b: Body): THREE.BufferGeometry[] {
   const ex = b.exit;
   const nz = lathe(
     ([[ex * 1.03, L - 0.005], [ex, L - 0.03], [ex * 0.8, L - 0.11], [ex * 0.56, L - 0.17], [ex * 0.5, L - 0.2], [0.002, L - 0.22]] as P2[]).map(([rr, s]) => [rr, z(s)] as P2),
-    32,
+    20,
   );
   tint(nz, (p, c) => {
     c.copy(NOZZLE).lerp(SOOT, p.z + L / 2 > L - 0.05 ? 0.7 : 0);
@@ -218,11 +223,11 @@ function hooks(L: number, r: number, at: number[]): THREE.BufferGeometry[] {
   const out: THREE.BufferGeometry[] = [];
   for (const s of at) {
     const z = -L / 2 + s;
-    const base = roundBox(Math.max(0.03, r * 0.6), 0.012, 0.07, 0.004);
+    const base = box(Math.max(0.03, r * 0.6), 0.012, 0.07);
     base.translate(0, r + 0.002, z);
-    const neck = roundBox(0.014, 0.024, 0.04, 0.003);
+    const neck = box(0.014, 0.024, 0.04);
     neck.translate(0, r + 0.018, z);
-    const bar = roundBox(0.042, 0.009, 0.05, 0.003);
+    const bar = box(0.042, 0.009, 0.05);
     bar.translate(0, r + 0.033, z);
     out.push(solid(base, HOOK, METAL), solid(neck, HOOK, METAL), solid(bar, HOOK, METAL));
   }
@@ -260,7 +265,7 @@ function raceway(L: number, r: number, s0: number, s1: number, w: number, h: num
 
 /** The umbilical connector's cover on the raceway. */
 function umbilical(L: number, r: number, s: number, h: number, col: C): THREE.BufferGeometry {
-  const g = roundBox(0.036, 0.022, 0.05, 0.005);
+  const g = box(0.036, 0.022, 0.05);
   g.translate(0, r + h + 0.006, -L / 2 + s);
   return solid(g, col);
 }
@@ -270,7 +275,7 @@ function stencil(L: number, r: number, s: number, ang: number, lines: number[]):
   const out: THREE.BufferGeometry[] = [];
   lines.forEach((len, i) => {
     const a = Math.PI / 2 - ang - i * (0.0105 / r);
-    const g = roundBox(0.0022, 0.0062, len, 0.0008, 1);
+    const g = box(0.0022, 0.0062, len);
     g.rotateZ(a);
     g.translate(Math.cos(a) * (r + 0.0004), Math.sin(a) * (r + 0.0004), -L / 2 + s + len / 2);
     out.push(solid(g, STENCIL));
@@ -285,7 +290,7 @@ const stencils = (L: number, r: number, s: number, lines: number[]) => [...stenc
 function vanes(L: number, exit: number): THREE.BufferGeometry[] {
   const out: THREE.BufferGeometry[] = [];
   for (let k = 0; k < 4; k++) {
-    const g = roundBox(0.006, exit * 0.62, 0.075, 0.002, 1);
+    const g = box(0.006, exit * 0.62, 0.075);
     g.translate(0, exit * 0.31 + 0.004, L / 2 - 0.03);
     g.rotateZ(Math.PI / 4 + (k * Math.PI) / 2);
     out.push(solid(g, NOZZLE, METAL));

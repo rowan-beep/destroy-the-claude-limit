@@ -42,6 +42,17 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.8.2',
+    date: '2026-10-11',
+    air: {
+      title: 'Lighter missiles, smoother frames',
+      notes: [
+        improved('The detailed missiles are much lighter to draw',
+          'Same look, about 60% fewer triangles: the hooks, connectors and stencils are simple shapes now and the bodies use fewer sides. The hangar and flights with a full load run smoother.'),
+      ],
+    },
+  },
+  {
     version: '7.8.1',
     date: '2026-10-11',
     air: {

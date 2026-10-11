@@ -4,6 +4,13 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
+## v7.8.2 (2026-10-11)
+
+### Air Combat: Lighter missiles, smoother frames
+
+- **Improved: The detailed missiles are much lighter to draw**
+  - Same look, about 60% fewer triangles: the hooks, connectors and stencils are simple shapes now and the bodies use fewer sides. The hangar and flights with a full load run smoother.
+
 ## v7.8.1 (2026-10-11)
 
 ### Air Combat: SIGN IN is in the menu
