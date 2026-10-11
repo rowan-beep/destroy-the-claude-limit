@@ -16,6 +16,17 @@ const KINDS = 6;
 const NEAR_CAP = 60000;
 const FAR_CAP = 60000;
 const FAR_FRACTION = 0.4;
+/**
+ * Only the trees within this share of the near range get the full-detail shape; beyond it (where a tree
+ * is a few pixels tall) the simple far shape, with no trees left out until the far ring.
+ */
+const DETAIL_SHARE = 0.35;
+/** trees this close are always drawn, whichever way the camera looks (m) */
+const KEEP_ALL = 600;
+/** extra angle drawn beyond each edge of the view, so turning never shows a gap before the next rebuild (rad) */
+const VIEW_MARGIN = 0.45;
+/** rebuild once the view has turned this far since the last one (rad) */
+const TURN_REBUILD = 0.2;
 
 interface Cell {
   i: number;
@@ -159,6 +170,9 @@ export class TreeSystem {
   private lastBuildTime = 0;
   private frame = 0;
   private pendingCount = 0;
+  /** the view the visible set was built for: horizontal heading, pitch, and the half-width it covers (rad) */
+  private view = { heading: 0, pitch: 0, half: Math.PI, cull: false };
+  private built = { heading: 1e9, pitch: 1e9 };
   private readonly m = new THREE.Matrix4();
   enabled = true;
 
@@ -195,7 +209,12 @@ export class TreeSystem {
     return this.pendingCount === 0;
   }
 
-  update(cam: THREE.Vector3): void {
+  /**
+   * `look` (the camera's forward direction) and `halfWidth` (half its horizontal field of view, rad):
+   * only the trees in front of the camera are drawn (they are half the scene's triangles). Without
+   * them every tree in range is drawn (loading screens).
+   */
+  update(cam: THREE.Vector3, look?: THREE.Vector3, halfWidth = Math.PI): void {
     this.frame++;
     const high = cam.y > 12000;
     for (const im of [...this.near, ...this.far]) im.visible = this.enabled && !high;
@@ -248,9 +267,21 @@ export class TreeSystem {
       }
     }
 
+    // which way the camera looks: level-ish views only draw the trees in front; looking steeply down
+    // (or up) the ground in view spreads all round, so everything in range is drawn
+    const v = this.view;
+    if (look) {
+      v.heading = Math.atan2(look.x, look.z);
+      v.pitch = Math.asin(THREE.MathUtils.clamp(look.y, -1, 1));
+      v.half = Math.min(Math.PI, halfWidth + VIEW_MARGIN);
+      v.cull = Math.abs(v.pitch) < 0.6 && v.half < Math.PI * 0.95;
+    } else v.cull = false;
+    let turn = Math.abs(v.heading - this.built.heading);
+    if (turn > Math.PI) turn = Math.PI * 2 - turn;
+    const turned = v.cull !== (this.built.heading < 1e8) || (v.cull && (turn > TURN_REBUILD || Math.abs(v.pitch - this.built.pitch) > TURN_REBUILD));
     const moved = cam.distanceTo(this.lastBuildPos);
     const now = performance.now();
-    if ((this.dirty && now - this.lastBuildTime > 250) || moved > 220) {
+    if ((this.dirty && now - this.lastBuildTime > 250) || moved > 220 || turned) {
       this.rebuild(cam);
       this.lastBuildTime = now;
     }
@@ -264,12 +295,26 @@ export class TreeSystem {
     const fCount = new Array(KINDS).fill(0);
     const near2 = this.nearR * this.nearR;
     const far2 = this.farR * this.farR;
+    const detail2 = near2 * DETAIL_SHARE * DETAIL_SHARE;
     const e = this.m.elements;
+    const v = this.view;
+    const cull = v.cull;
+    this.built.heading = cull ? v.heading : 1e9;
+    this.built.pitch = v.pitch;
+    const fx = Math.sin(v.heading), fz = Math.cos(v.heading);
+    const cosHalf = Math.cos(v.half);
+    const keep2 = KEEP_ALL * KEEP_ALL;
     for (const c of this.cells.values()) {
       if (c.state !== 'ready' || !c.data || c.count === 0) continue;
       const dx = Math.max(0, Math.abs(cam.x - c.cx) - CELL / 2);
       const dz = Math.max(0, Math.abs(cam.z - c.cz) - CELL / 2);
       if (dx * dx + dz * dz > far2) continue;
+      // a whole cell well behind the view: skip it without looking at its trees
+      if (cull) {
+        const ccx = c.cx - cam.x, ccz = c.cz - cam.z;
+        const cl = Math.hypot(ccx, ccz);
+        if (cl > CELL * 0.75 + KEEP_ALL && (ccx * fx + ccz * fz) / cl < Math.cos(Math.min(Math.PI, v.half + Math.asin(Math.min(1, (CELL * 0.75) / cl))))) continue;
+      }
       const d = c.data;
       const ox = c.cx - this.origin.x;
       const oz = c.cz - this.origin.z;
@@ -279,15 +324,16 @@ export class TreeSystem {
         const ddx = x - cam.x, ddz = z - cam.z;
         const dd = ddx * ddx + ddz * ddz;
         if (dd > far2) continue;
+        if (cull && dd > keep2 && ddx * fx + ddz * fz < cosHalf * Math.sqrt(dd)) continue;
         const kind = d[b + 5] | 0;
-        const isNear = dd < near2;
-        if (!isNear && d[b + 6] > FAR_FRACTION) continue;
+        const isNear = dd < detail2;
+        if (dd >= near2 && d[b + 6] > FAR_FRACTION) continue;
         const im = isNear ? this.near[kind] : this.far[kind];
         const counts = isNear ? nCount : fCount;
         const idx = counts[kind];
         if (idx >= (isNear ? NEAR_CAP : FAR_CAP)) continue;
         counts[kind]++;
-        const s = d[b + 3] * (isNear ? 1 : 1.15);
+        const s = d[b + 3] * (isNear ? 1 : dd < near2 ? 1.05 : 1.15);
         const rot = d[b + 4];
         const cs = Math.cos(rot) * s, sn = Math.sin(rot) * s;
         e[0] = cs; e[1] = 0; e[2] = -sn; e[3] = 0;

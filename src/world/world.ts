@@ -41,6 +41,8 @@ export class World {
   mapData!: MapData;
   terrain!: TerrainLOD;
   ocean!: Ocean;
+  /** the camera's forward direction (scratch) */
+  private readonly look = new THREE.Vector3();
   env!: Environment;
   trees!: TreeSystem;
   clouds!: CloudSystem;
@@ -128,7 +130,9 @@ export class World {
     this.precip.update(dt, camera, this.env.daylight * (1 - 0.45 * this.env.underDeck) + this.precip.flash);
     this.ocean.update(dt, cp);
     this.terrain.update(cp);
-    this.trees.update(cp);
+    camera.getWorldDirection(this.look);
+    const pc = camera as THREE.PerspectiveCamera;
+    this.trees.update(cp, this.look, pc.isPerspectiveCamera ? Math.atan(Math.tan(THREE.MathUtils.degToRad(pc.fov) / 2) * pc.aspect) : Math.PI);
     this.clouds.update(dt, camera);
     this.airfields.update(cp);
     this.carriers.update(camera, this.ocean.time);

@@ -4,6 +4,14 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
+## v7.9.0 (2026-10-11)
+
+### Air Combat: Smoother flying
+
+- **Improved: Flights draw about a third less every frame**
+  - Trees were the biggest cost in a flight: every tree within 7 km was drawn, even the ones behind you. Now only the trees you can see are drawn, and trees more than about a kilometre away (a few pixels tall) use a simpler shape. The trees cost about two thirds less, and they look the same.
+  - Together with the lighter missiles in 7.8.2, a normal flight draws about 1.4 million triangles a frame instead of 2.1 million.
+
 ## v7.8.3 (2026-10-11)
 
 ### Air Combat: A simpler sign-in window
