@@ -49,7 +49,9 @@ function split(pts: P2[], i: number, ts: number[]): P2[] {
 // side (the boundary-layer gap ends just behind the cowl lip) and the bottom starts at the cowl lip.
 const T_IN = curve([[-4.2, 0.69], [-1.95, 0.69], [-1.5, 0.535], [-0.9, 0.58], [0.4, 0.62], [1.6, 0.66]]);
 const T_OUT = curve([[-4.2, 1.49], [-1.95, 1.49], [-1.5, 1.755], [-1.2, 1.819], [-0.9, 1.84], [0.4, 1.91], [1.6, 1.91]]);
-const T_TOP = curve([[-4.2, 0.71], [-4.0, 0.7], [-3.6, 0.672], [-3.2, 0.656], [-2.75, 0.65], [-1.9, 0.64], [-0.9, 0.58], [0.4, 0.47], [1.6, 0.39]]);
+// (behind the cowl the top stays up near the capsule's height back to the wing root: falling away to
+// 0.39 m there sank the deck beside the spine into a trough)
+const T_TOP = curve([[-4.2, 0.71], [-4.0, 0.7], [-3.6, 0.672], [-3.2, 0.656], [-2.75, 0.65], [-1.9, 0.64], [-0.9, 0.612], [0.4, 0.532], [1.6, 0.46]]);
 const T_BOT = curve([[-1.9, -0.65], [-1.4, -0.665], [-0.9, -0.7], [0.4, -0.81], [1.6, -0.79]]);
 const T_R = curve([[-4.1, 0.12], [-2.75, 0.15], [-0.9, 0.2], [1.6, 0.22]]);
 // the trunk's own corner radii: the top corner a crisp chine along the intake capsule, rounding off
@@ -655,7 +657,7 @@ const BODY = keyedProfile([
   // it); the deck runs on to the engine bays and the spine falls away to the tail
   { z: 0.4, pts: [[0, -0.64], [0.46, -0.66], [0.95, -0.84], [1.5, -0.87], [1.86, -0.74], [1.95, -0.44], [1.93, -0.1], ...wrap(0.4, [0.68, 0.56]), [0.68, 0.56], [0.58, 0.675], [0.4, 0.738], [0, 0.78]] },
   { z: 1.5, pts: [[0, -0.625], [0.456, -0.645], [0.95, -0.817], [1.49, -0.843], [1.849, -0.717], [1.939, -0.432], [1.93, -0.108], ...wrap(1.5, [0.72, 0.5]), [0.72, 0.5], [0.56, 0.626], [0.36, 0.673], [0, 0.7]] },
-  { z: 2.4, pts: [[0, -0.612], [0.453, -0.632], [0.95, -0.799], [1.486, -0.821], [1.84, -0.697], [1.929, -0.428], [1.948, -0.114], [1.938, 0.086], [1.865, 0.272], [1.53, 0.42], [1.19, 0.464], [0.85, 0.5], [0.55, 0.618], [0.3, 0.645], [0, 0.655]] },
+  { z: 2.4, pts: [[0, -0.612], [0.453, -0.632], [0.95, -0.799], [1.486, -0.821], [1.84, -0.697], [1.929, -0.428], [1.948, -0.114], [1.938, 0.086], [1.865, 0.29], [1.53, 0.452], [1.19, 0.5], [0.85, 0.53], [0.55, 0.625], [0.3, 0.648], [0, 0.656]] },
   { z: 3.3, pts: aft([[0, -0.6], [0.45, -0.62], [0.95, -0.78], [1.48, -0.8], [1.83, -0.68], [1.92, -0.42], [1.94, -0.12], [1.93, 0.08], [1.86, 0.26], [1.52, 0.4], [0.8, 0.55], [0, 0.6]]) },
   // the engine bays: two nacelles (round, on the nozzle axes), their outer sides inside the tail booms,
   // the conformal tanks' tails on them till 4.9, a shallow valley between them on top and a keel
@@ -1851,6 +1853,34 @@ export function buildF15EX(v: AirframeVisual): void {
     v.nozzles.push({ pos: new THREE.Vector3(NOZ.x * sx, NOZ.y, NOZ.z1 - 0.1), radius: 0.44, depth: NOZ.z1 - 0.1 - AFT_END, area: nz.area });
   }
   v.buildFlames(6.2);
+
+  // the keel between the nozzles (the rear-view photos): a slim, painted web running on from the aft
+  // body between the engines, its top line falling away aft, rounded off just short of the exits, with
+  // the arresting hook stowed under it, its shank along the keel and its point just behind
+  const KEEL_Z0 = 7.15, KEEL_Z1 = 7.98;
+  const keel = loftProfile({
+    stations: stations(KEEL_Z0, KEEL_Z1, 18, 0, 0.35),
+    profile: (z) => {
+      const u = (z - KEEL_Z0) / (KEEL_Z1 - KEEL_Z0);
+      // (the last few centimetres round the end off instead of a flat cut)
+      const end = Math.sqrt(Math.max(0.0004, 1 - Math.pow(Math.max(0, (u - 0.8) / 0.2), 2)));
+      const top = 0.31 - 0.16 * u * u, bot = -0.43 + 0.08 * u;
+      const hh = ((top - bot) / 2) * (0.35 + 0.65 * end), cy = bot + (top - bot) / 2 + ((top - bot) / 2 - hh) * 0.6;
+      const hw = (0.1 - 0.02 * u) * end;
+      return rrect2(0, cy, Math.max(0.004, hw), Math.max(0.004, hh), Math.min(hw * 0.9, 0.06), Math.min(hw * 0.9, 0.05), 3);
+    },
+    sub: 1,
+    full: true,
+    capStart: true,
+    capEnd: true,
+  });
+  skin(keel);
+  const HOOK = { y: -0.39, z0: 7.5, z1: 8.12 };
+  const hook = lathe([[0.004, HOOK.z0 - 0.02], [0.034, HOOK.z0], [0.036, HOOK.z0 + 0.1], [0.034, HOOK.z1 - 0.08], [0.028, HOOK.z1 - 0.02], [0.004, HOOK.z1]], 10, 0, HOOK.y);
+  const hookPoint = new THREE.BoxGeometry(0.1, 0.07, 0.11);
+  hookPoint.translate(0, HOOK.y - 0.02, HOOK.z1 - 0.03);
+  const hookMesh = v.addMesh(join([hook, hookPoint]), pm.darkMetal);
+  hookMesh.userData.detail = true;
 
   // --- gun, probes, antennas, lights ----------------------------------------------------
   // M61 port on the right wing root: the muzzle opens in the front of a blister on the trunk's wall just above
