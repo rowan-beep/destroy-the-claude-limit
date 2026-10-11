@@ -492,27 +492,33 @@ function cftSection(z: number): P2[] {
   // as deep: a rounded wedge, no blade and no overhanging brow), the tail long and tapering
   // (the nose a wedge with straight edges: its depth and its width both close linearly toward the tip,
   // so its front and sides are flat raked faces, not a rounded blob)
-  const kn = closeEnd(z - CFT_TIP, 0.9, 1.0);
+  // (the nose grows out of the trunk side tangentially and reaches its full width with no edge where the
+  // flat side begins: a linear wedge left a vertical crease there, and a crisp upper edge stood out
+  // over the trunk side like a shelf)
+  const kn = sstep(0, 1.1, z - CFT_TIP);
   const kh = kn * closeEnd(CFT_END - z, 1.6, 1.5);
-  const kw = closeEnd(z - CFT_TIP, 1.3, 1.0) * closeEnd(CFT_END - z, 0.7, 1.8);
+  const kw = sstep(0, 1.9, z - CFT_TIP) * closeEnd(CFT_END - z, 0.7, 1.8);
   const yb = yt - (yt - CFT_BOT(z)) * Math.max(kh, 0.004);
-  const w = (CFT_X(z) - xw) * Math.max(kw, 0.004);
+  // the outer face is laid out from the intake capsule's side, so it runs on smoothly where the trunk
+  // wall under the tank steps out behind the capsule
+  const outer = CFT_XW0 + (CFT_X(z) - CFT_XW0) * Math.max(kw, 0.004);
+  const w = Math.max(0.004, outer - xw);
   const h = yt - yb;
   const yo = Math.min(ytOut, yt - 0.03 * kh);
   const X = (f: number) => xw + w * f;
-  // a slab: a flat bottom, one tight rounded corner, a straight (barely leaning) outer face, a crisp
-  // crease along the upper outer edge (the tank's top line in the side photos) and a flat top running
-  // in to the trunk wall
+  // a flat bottom with a rounded corner, a straight (barely leaning) outer face, a well rounded upper
+  // edge (the tank's top line in the side photos) and the top running in to the trunk wall
+  const rc = Math.max(0.004, Math.min(0.11, w * 0.35, (yo - yb) * 0.3));
+  const cx = X(1.0) - rc, cy = yo - rc;
+  const arc = [0, 30, 60, 90].map((d) => [cx + rc * Math.cos((d * Math.PI) / 180), cy + rc * Math.sin((d * Math.PI) / 180)] as P2);
   const pts: P2[] = [
     [X(0), yb + h * 0.02],
     [X(0.12), yb],
     [X(0.8), yb],
     [X(0.96), yb + h * 0.04],
     [X(1.0), yb + h * 0.14],
-    [X(1.012), yb + (yo - yb) * 0.55],
-    [X(1.0), yo - h * 0.03],
-    [X(0.975), yo],
-    [X(0.5), yo + (yt - yo) * 0.5],
+    [X(1.006), yb + (cy - yb) * 0.6],
+    ...arc,
     [xTop, yt],
     // down inside the trunk wall
     [Math.min(xTop, xw - 0.03), yt - h * 0.35],
@@ -520,9 +526,11 @@ function cftSection(z: number): P2[] {
   ];
   return pts;
 }
-/** samples per segment of cftSection's loop: everything a plain straight run except the two short arcs
- * of the lower outer corner */
-const CFT_SUB = [1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1];
+/** the intake capsule's side, where the tank's nose starts */
+const CFT_XW0 = T_OUT(CFT_TIP) - 0.035;
+/** samples per segment of cftSection's loop: plain straight runs, the arcs of the lower corner and the
+ * rounded upper edge sampled more finely */
+const CFT_SUB = [1, 1, 2, 2, 1, 1, 2, 2, 2, 2, 1, 1, 1];
 
 /**
  * A pod under an intake (hero detail): body of revolution along z from z0 (nose) to z0 + len, radius r,
@@ -665,26 +673,27 @@ const BODY_SUB = [4, 3, 3, 3, 2, 3, 2, 3, 2, 2, 2, 2, 2, 4];
 
 // The two-seat bubble off the three-view: the windscreen rises from the
 // coaming 3.3 m behind the nose tip, the crown is 1.8 m above the tip over
-// the bow between the cockpits, and the glass runs 6 m back, its tail tapering
-// down over the turtle deck and lying flush on the spine (a tail that stopped
-// short stood the turtle deck up behind it as a square hump).
+// the bow between the cockpits, and the glass ends a metre and a half behind
+// the rear seat where the turtle deck rises under it, closing in plan to a
+// rounded point that tucks into the deck (as in photos from above; a long thin
+// tail lying on the spine behind that read as a strange sliver).
 // The rail sits on the shoulder ledge beside the front seat and climbs the
 // raised side walls of the rear cockpit.
-const CROWN = curve([[-6.56, 0.81], [-6.36, 0.995], [-5.86, 1.275], [-5.36, 1.455], [-4.86, 1.585], [-4.36, 1.645], [-3.86, 1.665], [-3.36, 1.625], [-2.86, 1.555], [-2.36, 1.425], [-2.0, 1.31], [-1.8, 1.26], [-1.6, 1.21], [-1.4, 1.16], [-1.2, 1.105], [-1.0, 1.045], [-0.8, 0.985], [-0.6, 0.935]]);
-const RAIL = curve([[-6.56, 0.775], [-6.2, 0.795], [-5.75, 0.815], [-5, 0.84], [-4.35, 0.86], [-3.9, 0.895], [-3.4, 0.93], [-3, 0.955], [-2.6, 0.963], [-2.4, 0.969], [-2.2, 0.978], [-2, 1.02], [-1.8, 1.06], [-1.6, 1.09], [-1.4, 1.09], [-1.2, 1.06], [-1.0, 1.0], [-0.8, 0.958], [-0.6, 0.92]]);
+const CROWN = curve([[-6.56, 0.81], [-6.36, 0.995], [-5.86, 1.275], [-5.36, 1.455], [-4.86, 1.585], [-4.36, 1.645], [-3.86, 1.665], [-3.36, 1.625], [-2.86, 1.555], [-2.36, 1.425], [-2.0, 1.31], [-1.8, 1.26], [-1.6, 1.205], [-1.5, 1.17], [-1.42, 1.13]]);
+const RAIL = curve([[-6.56, 0.775], [-6.2, 0.795], [-5.75, 0.815], [-5, 0.84], [-4.35, 0.86], [-3.9, 0.895], [-3.4, 0.93], [-3, 0.955], [-2.6, 0.963], [-2.4, 0.969], [-2.2, 0.978], [-2, 1.02], [-1.8, 1.06], [-1.6, 1.09], [-1.42, 1.09]]);
 // (the windscreen rounded in plan at the front, as on the jet: a blunt 0.9 m front edge forced the
 // forebody's upper corners to flare out into a hood right behind the radome)
-const CANOPY_W = curve([[-6.56, 0.2], [-6.42, 0.31], [-6.2, 0.39], [-5.85, 0.44], [-5.5, 0.465], [-5.15, 0.478], [-4.6, 0.49], [-4.1, 0.505], [-3.6, 0.52], [-3.1, 0.53], [-2.6, 0.528], [-2.3, 0.5], [-2, 0.46], [-1.8, 0.43], [-1.6, 0.39], [-1.4, 0.34], [-1.2, 0.28], [-1.0, 0.21], [-0.8, 0.13], [-0.7, 0.085], [-0.6, 0.04]]);
+const CANOPY_W = curve([[-6.56, 0.2], [-6.42, 0.31], [-6.2, 0.39], [-5.85, 0.44], [-5.5, 0.465], [-5.15, 0.478], [-4.6, 0.49], [-4.1, 0.505], [-3.6, 0.52], [-3.1, 0.53], [-2.6, 0.528], [-2.3, 0.5], [-2, 0.46], [-1.8, 0.42], [-1.65, 0.36], [-1.55, 0.28], [-1.47, 0.17], [-1.42, 0.08]]);
 // the glass's section: an arch, not a box -- head-on the windscreen's sides lean in from the sill
 // and curve over into a rounded top, the bubble behind it a little fuller, rounder still at the tail
-const CANOPY_N = curve([[-6.56, 2.0], [-6.2, 2.1], [-5.6, 2.2], [-5.15, 2.35], [-4.2, 2.45], [-3, 2.4], [-2.2, 2.3], [-1.6, 2.2], [-1.0, 2.1], [-0.6, 2.0]]);
+const CANOPY_N = curve([[-6.56, 2.0], [-6.2, 2.1], [-5.6, 2.2], [-5.15, 2.35], [-4.2, 2.45], [-3, 2.4], [-2.2, 2.3], [-1.6, 2.2], [-1.42, 2.1]]);
 /**
  * The windscreen's rear frame and the bow between the cockpits, where the three-view has them (the
  * photos agree to within the accuracy of cameras fitted to them, about 0.3 m along the canopy).
  */
 const ARCH_Z = -5.2;
 const BOW_Z = -3.8;
-const CANOPY: Section[] = [-6.56, -6.45, -6.3, -6.05, -5.75, -5.4, ARCH_Z, -5.0, -4.6, -4.2, BOW_Z, -3.6, -3.3, -3.0, -2.6, -2.25, -1.95, -1.8, -1.6, -1.4, -1.2, -1.0, -0.85, -0.72, -0.6].map((z, i, all) => {
+const CANOPY: Section[] = [-6.56, -6.45, -6.3, -6.05, -5.75, -5.4, ARCH_Z, -5.0, -4.6, -4.2, BOW_Z, -3.6, -3.3, -3.0, -2.6, -2.25, -1.95, -1.8, -1.68, -1.58, -1.5, -1.42].map((z, i, all) => {
   const y = RAIL(z) + 0.03;
   const last = i === all.length - 1;
   return { z, w: CANOPY_W(z), top: Math.max(0.01, CROWN(z) - y), bot: last ? 0.01 : 0.03, y, n: CANOPY_N(z) };
@@ -1597,8 +1606,8 @@ export function buildF15EX(v: AirframeVisual): void {
   v.cockpitEye.copy(EYE_FRONT);
   // (the frames in the dark frame grey, as on the jet: in the photos they read darker than the paint)
   // (the sill rails thin away over the glass's long tail)
-  // (and the glass's own tail fades into the spine it lies on over its last 0.55 m)
-  buildCanopy(v, CANOPY, ARCH_Z, [BOW_Z], pm.frame, 0.3, [-1.15, -0.6]);
+  // (and the very tip of the glass fades out where it tucks into the turtle deck)
+  buildCanopy(v, CANOPY, ARCH_Z, [BOW_Z], pm.frame, 0.3, [-1.62, -1.45]);
   // the windscreen's thick rear frame and the thin bow between the cockpits, as bands hugging the
   // glass (the canopy builder's round tubes alone read as wire hoops beside the photos' frames)
   const glassSec = (z: number) => {
