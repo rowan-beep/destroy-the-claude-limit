@@ -75,6 +75,11 @@ export class Missile {
   /** the turn the fins are actually making (lags the guidance command) */
   readonly latAcc = new THREE.Vector3();
   mach = 0;
+  /**
+   * flies a look-up profile: no loft, and in midcourse it aims under the target, so its seeker looks up at
+   * him against the sky (no ground clutter: no Doppler notch)
+   */
+  lookUp = false;
   /** multiplayer: another player's missile, moved by their updates (never guides or fuses here) */
   remote = false;
   /** the shooting client's own id for it */
@@ -285,6 +290,11 @@ export class Missile {
       }
       _aim.copy(this.estPos);
       _aimVel.copy(this.estVel);
+      if (this.lookUp) {
+        this.lofting = false;
+        // come in from below: aim up to 400 m under him, closing to his level in the last 3 km
+        _aim.y -= clamp((estRange - 3000) * 0.04, 0, 400);
+      }
       if (this.lofting) {
         const rem = estRange;
         const loftH = clamp((rem - 14000) * 0.28, 0, 9000);

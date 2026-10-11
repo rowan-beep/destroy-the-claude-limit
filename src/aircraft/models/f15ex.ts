@@ -213,7 +213,8 @@ function trunkGeometry(): { skin: THREE.BufferGeometry; duct: THREE.BufferGeomet
     rakeFade: INTAKE_FADE,
     exactLoop: true,
     ductRings: 40,
-    ductShade: { k0: 0.11, fall: 1.5, floor: 0.01 },
+    // (the F-15's intakes are painted white inside: light at the lips, the shade closing in deeper down)
+    ductShade: { k0: 0.6, fall: 2.3, floor: 0.012 },
     ductShadeRaked: true,
     ductRing,
   });
@@ -415,7 +416,7 @@ function rampGeometry(): THREE.BufferGeometry {
     const Z = z0 + u * 2.7;
     const y = MW.y1 - INTAKE_LIP - 0.012 - (u < 0.4 ? u * 0.16 : 0.064 + (u - 0.4) * 0.53);
     const [xi, xo] = ductWallsAt(ductLoopAt(stationAt(Z, y)), y);
-    const k = 0.13 * Math.pow(1 - u, 1.3) + 0.015;
+    const k = 0.5 * Math.pow(1 - u, 1.7) + 0.02;
     for (const x of [xi + 0.006, xo - 0.006]) {
       ramp.push(x, y, Z);
       cols.push(k, k, k * 1.02);
@@ -459,7 +460,9 @@ function splitterGeometry(): { plate: THREE.BufferGeometry; lining: THREE.Buffer
   lining.rotateY(-Math.PI / 2);
   lining.translate(x0 + t + 0.003, 0, 0);
   // (deep in the mouth's shadow: dark, as the photos show it)
-  const k = 0.035;
+  // (white inside, as the jet's intakes are painted: through the scoop's swept side the inner plate
+  // showed as a black triangle)
+  const k = 0.58;
   const n = lining.attributes.position.count;
   lining.setAttribute('color', new THREE.Float32BufferAttribute(new Array(n * 3).fill(0).map((_v, i) => (i % 3 === 2 ? k * 1.02 : k)), 3));
   return { plate: join([plate]), lining: join([lining]) };
@@ -578,8 +581,9 @@ function podGeometry(cx: number, cy: number, z0: number, len: number, r: number,
 }
 
 /**
- * The intake ducts' lining: a deep tunnel the sun hardly reaches (most direct light cut, as in the
- * nozzles), so the mouth reads dark beyond its light-grey lips. One per page, its own shader key.
+ * The intake ducts' lining: painted white as on the jet, but a deep tunnel the sun hardly reaches (most
+ * direct light cut, as in the nozzles), so it greys and darkens toward the fan. One per page, its own
+ * shader key.
  */
 let DUCT_MAT: THREE.MeshStandardMaterial | null = null;
 function intakeDuctMaterial(): THREE.MeshStandardMaterial {

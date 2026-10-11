@@ -4,6 +4,17 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
+## v7.4.1 (2026-10-11)
+
+### Air Combat: APEX much harder
+
+- **Improved: APEX survives your missiles and finishes its kills**
+  - Against a heat-seeker fired close in it breaks at once, harder, drops flares from five seconds out and, in the last second, reverses out of the plane of its turn so the missile flies past. In a scissors it no longer slows right down, and close in it fires a second heat-seeker a second behind the first.
+  - Its radar missiles fly a look-up profile against a jet high off the ground: no loft, in from below, the seeker looking up at him against the sky, where beaming him into the Doppler notch does not work.
+  - Measured in the default duel (your F-15EX against its Typhoon), APEX now loses about one fight in ten to an EXTREME pilot (it was one in four) and one in twenty to a HARD one (one in five).
+- **Fixed: The F-15EX intakes are white inside**
+  - As on the real jet: the inner plate you see through the scoop's swept side was a black triangle; it and the duct are now white, greying toward the fan.
+
 ## v7.4.0 (2026-10-11)
 
 ### Air Combat: Realistic weapons and a harder APEX

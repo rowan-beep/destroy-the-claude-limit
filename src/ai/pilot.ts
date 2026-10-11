@@ -624,9 +624,14 @@ export class AIPilot {
         teamStagger
       ) {
         // (an F-22 fires once its bay doors are open: the shot is logged then)
-        const shot = () => {
+        // APEX shoots from below a jet that is high off the ground and flies its missile in under him: a seeker
+        // looking up sees him against the empty sky, where the Doppler notch does not work (a lofted
+        // missile dives on him from above, into the ground clutter, and a beam turn loses it)
+        const lookUp = sk.commander && t.fm.agl > 2500 && R < lz120.rne * 1.6;
+        const shot = (m?: Missile) => {
           this.lastShot = sim.time;
           this.lastShotAt = t;
+          if (m && lookUp) m.lookUp = true;
         };
         if (!ac.pendingShot) ac.fireMissile(sim, RDR, t, shot);
       }
@@ -637,7 +642,13 @@ export class AIPilot {
       if (ac.seekerTarget === t) this.lockTime += sk.thinkInterval || 1 / 60;
       else this.lockTime = 0;
       const cone = sk.shotConeDeg * DEG;
-      const gap = sk.level < 0.2 ? 10 : 3;
+      let gap = sk.level < 0.2 ? 10 : 3;
+      // APEX: close in, a second heat-seeker a second behind the first (a break or a flare that beats
+      // one rarely beats both)
+      if (sk.commander && R < lz9.rmax * 0.6) {
+        const irInFlight = sim.missiles.some((m) => m.shooter === ac && m.target === t && m.alive && m.mode === 'IR');
+        if (irInFlight) gap = 1.0;
+      }
       if (
         ac.seekerTarget === t &&
         this.lockTime >= sk.lockHold &&
@@ -1081,7 +1092,8 @@ export class AIPilot {
         _tmp.subVectors(tp, fm.pos).normalize();
         _tmp2.crossVectors(fm.fwd, new THREE.Vector3(0, 1, 0)).normalize();
         this.desired.copy(_tmp).addScaledVector(_tmp2, this.scissorSign * 0.9).normalize();
-        this.desiredCas = corner * 0.55;
+        // (APEX keeps its speed: a slow jet in a merge is a dead one against a heat-seeker)
+        this.desiredCas = corner * (sk.commander ? 0.85 : 0.55);
         this.useAb = false;
         this.rudder = this.scissorSign * 0.3;
         break;
@@ -1197,9 +1209,25 @@ export class AIPilot {
         // last-ditch: hard turn across the missile's path
         _dir.addScaledVector(_tmp, 0.35).normalize();
         this.gCap = Math.min(sk.maxG, ac.spec.gOverride);
-        this.tau = 0.25;
+        this.tau = sk.commander ? 0.18 : 0.25;
       } else {
         this.gCap = Math.min(this.gCap, 7);
+      }
+      // APEX against a heat-seeker: in the last second a hard reversal out of the plane of the break (the
+      // missile, already pulling its hardest one way, cannot follow the jet the other way in time and
+      // flies past). Up, unless there is room below and it is coming from above.
+      if (sk.commander && mw.kind === 'ir' && mw.tti < 0.75) {
+        const below = m.pos.y < fm.pos.y || fm.agl < 2500;
+        this.desired.copy(fm.fwd).multiplyScalar(0.35).add(_tmp2.set(0, below ? 1 : -1, 0)).normalize();
+        this.gCap = Math.min(sk.maxG, ac.spec.gOverride);
+        this.tau = 0.15;
+        this.useAb = false;
+        this.desiredCas = ac.spec.cornerKts * KT;
+        if (this.cmTimer <= 0) {
+          ac.dispense('flare', 2);
+          this.cmTimer = 0.2;
+        }
+        return;
       }
       // dive into the clutter for the notch (radar) / keep energy (IR)
       let targetAlt = fm.pos.y;
@@ -1215,9 +1243,9 @@ export class AIPilot {
               ac.dispense('chaff', beaming ? 2 : 1);
               this.cmTimer = 0.35;
             }
-          } else if (mw.tti < 3.5) {
+          } else if (mw.tti < 5) {
             ac.dispense('flare', 2);
-            this.cmTimer = 0.3;
+            this.cmTimer = 0.25;
           }
         }
       } else if (this.cmTimer <= 0) {
