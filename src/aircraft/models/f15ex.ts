@@ -1593,7 +1593,8 @@ export function buildF15EX(v: AirframeVisual): void {
   // --- canopy, seats, pilots -------------------------------------------------------
   v.cockpitEye.copy(EYE_FRONT);
   // (the frames in the dark frame grey, as on the jet: in the photos they read darker than the paint)
-  buildCanopy(v, CANOPY, ARCH_Z, [BOW_Z], pm.frame);
+  // (the sill rails thin away over the glass's long tail)
+  buildCanopy(v, CANOPY, ARCH_Z, [BOW_Z], pm.frame, 0.3);
   // the windscreen's thick rear frame and the thin bow between the cockpits, as bands hugging the
   // glass (the canopy builder's round tubes alone read as wire hoops beside the photos' frames)
   const glassSec = (z: number) => {

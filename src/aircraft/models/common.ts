@@ -155,7 +155,7 @@ export function sectionsFromProfile(profile: (z: number) => P2[], z0: number, z1
 }
 
 /** Bubble canopy (glass), windscreen arch, bows and sill rails. */
-export function buildCanopy(v: AirframeVisual, can: Section[], archZ: number, bows: number[], frameMat?: THREE.Material): void {
+export function buildCanopy(v: AirframeVisual, can: Section[], archZ: number, bows: number[], frameMat?: THREE.Material, taperTail = 0): void {
   const pm = partMaterials();
   const glass = v.addMesh(loft(can, 64, 10), pm.glass, v.body, false);
   // after the water (1) and every cloud layer (world/clouds.ts: 8-10): transparent things draw in
@@ -179,7 +179,22 @@ export function buildCanopy(v: AirframeVisual, can: Section[], archZ: number, bo
       pts.push(new THREE.Vector3(sx * s.w * 0.99, (s.y ?? 0) + 0.015, z));
     }
     const c = new THREE.CatmullRomCurve3(pts);
-    frame.push(strip(new THREE.TubeGeometry(c, 40, 0.028, 6, false)));
+    const tube = new THREE.TubeGeometry(c, 40, 0.028, 6, false);
+    if (taperTail > 0) {
+      // the rails thin away to nothing over the last `taperTail` of their length, fading into the
+      // glass's tail instead of stopping there as two blunt dark sticks
+      const pos = tube.getAttribute('position') as THREE.BufferAttribute;
+      const ctr = new THREE.Vector3();
+      for (let i = 0; i < pos.count; i++) {
+        const t = Math.floor(i / 7) / 40;
+        const u = Math.min(1, Math.max(0, (t - (1 - taperTail)) / taperTail));
+        const k = 1 - u * u * (3 - 2 * u) * 0.97;
+        c.getPointAt(t, ctr);
+        pos.setXYZ(i, ctr.x + (pos.getX(i) - ctr.x) * k, ctr.y + (pos.getY(i) - ctr.y) * k, ctr.z + (pos.getZ(i) - ctr.z) * k);
+      }
+      tube.computeVertexNormals();
+    }
+    frame.push(strip(tube));
   }
   const fm = v.addMesh(join(frame), frameMat ?? pm.frame);
   v.hideInCockpit.push(fm);
