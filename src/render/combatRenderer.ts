@@ -255,10 +255,13 @@ export class CombatRenderer {
     const mesh = new THREE.Mesh(storeGeometry(m.spec.type), this.missileMat);
     mesh.castShadow = true;
     this.scene.add(mesh);
+    // a reduced-smoke motor (AIM-120, AIM-9X, IRIS-T, MICA, Meteor) leaves a thin trail that soon
+    // thins out; a classic aluminised motor (the Russian missiles) a thick white one that hangs
+    const k = m.spec.smoke;
     const style: TrailStyle =
       m.spec.seeker === 'ARH'
-        ? { width0: 0.8, width1: 7, life: 16, color: WHITE_SMOKE, alpha: 0.55, spacing: 18 }
-        : { width0: 0.6, width1: 5, life: 11, color: WHITE_SMOKE, alpha: 0.6, spacing: 14 };
+        ? { width0: 0.5 + 0.4 * k, width1: 3 + 5 * k, life: 7 + 11 * k, color: WHITE_SMOKE, alpha: 0.3 + 0.3 * k, spacing: 18 }
+        : { width0: 0.4 + 0.3 * k, width1: 2.4 + 3.4 * k, life: 5 + 8 * k, color: WHITE_SMOKE, alpha: 0.32 + 0.32 * k, spacing: 14 };
     const trail = this.trails.create(style);
     trail.emitting = false; // starts at motor ignition
     this.missileVis.set(m, { mesh, trail, lastPuff: 0 });
@@ -453,14 +456,20 @@ export class CombatRenderer {
       const vl = m.vel.length();
       if (vl > 1) mv.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), m.vel.clone().divideScalar(vl));
       if (m.motorOn) {
-        mv.trail.emitting = true;
-        mv.trail.add(m.pos, this.time);
+        // (a ramjet sustainer burns clean: a small flame and hardly any smoke after the booster;
+        // a rocket sustainer burns on smaller and smokes a little less than the boost)
+        const sus = !m.boosting;
+        const ram = sus && !!m.spec.sustain?.ramjet;
+        const k = m.spec.smoke * (ram ? 0.15 : sus ? 0.75 : 1);
+        mv.trail.emitting = !ram;
+        if (mv.trail.emitting) mv.trail.add(m.pos, this.time);
         // motor plume
         const back = m.vel.clone().normalize().multiplyScalar(-m.spec.length * 0.55);
-        this.fire.spawn({ x: m.pos.x + back.x, y: m.pos.y + back.y, z: m.pos.z + back.z, life: 0.06, size0: 2.2, size1: 1.2, c0: FIRE_HOT, c1: FIRE_ORANGE, a0: 1, a1: 0.3 });
-        if (this.time - mv.lastPuff > 0.05) {
+        const fl = sus ? 0.55 : 1;
+        this.fire.spawn({ x: m.pos.x + back.x, y: m.pos.y + back.y, z: m.pos.z + back.z, life: 0.06, size0: 2.2 * fl, size1: 1.2 * fl, c0: FIRE_HOT, c1: FIRE_ORANGE, a0: 1, a1: 0.3 });
+        if (this.time - mv.lastPuff > 0.05 && Math.random() < 0.25 + 0.75 * k) {
           mv.lastPuff = this.time;
-          this.smoke.spawn({ x: m.pos.x + back.x, y: m.pos.y + back.y, z: m.pos.z + back.z, vx: randGauss() * 2, vy: randGauss() * 2, vz: randGauss() * 2, life: rand(4, 7), size0: 1.2, size1: 8, c0: WHITE_SMOKE, c1: GREY_SMOKE, a0: 0.45, a1: 0, drag: 1 });
+          this.smoke.spawn({ x: m.pos.x + back.x, y: m.pos.y + back.y, z: m.pos.z + back.z, vx: randGauss() * 2, vy: randGauss() * 2, vz: randGauss() * 2, life: rand(2.5, 4) + 3 * k, size0: 0.8 + 0.5 * k, size1: 4 + 5 * k, c0: WHITE_SMOKE, c1: GREY_SMOKE, a0: 0.2 + 0.3 * k, a1: 0, drag: 1 });
         }
       } else if (mv.trail.emitting && mv.trail.xs.length > 0) {
         mv.trail.emitting = false;

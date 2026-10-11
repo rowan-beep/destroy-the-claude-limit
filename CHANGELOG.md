@@ -4,6 +4,22 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
+## v7.4.0 (2026-10-11)
+
+### Air Combat: Realistic weapons and a harder APEX
+
+- **Improved: Missiles are as hard to fool as the real ones**
+  - Imaging-infrared seekers (AIM-9X, IRIS-T, MICA IR) see the jet's shape and let almost every flare go; the R-74M falls for a few more. A radar missile (AIM-120D, R-77M, Meteor, R-37M) tracks your Doppler and only loses you to chaff while you beam it.
+  - Turning is what beats a missile now, and decoys help: put a radar missile on your wing line and hold it there; break hard into a heat-seeker, throttle back and drop flares as you turn. The missile warning on the HUD and the Flight School say so.
+- **Improved: Each missile leaves its own smoke**
+  - The reduced-smoke motors of the AIM-120D, AIM-9X, IRIS-T, MICA and Meteor leave a thin trail that soon thins out; the R-77M, R-74M and R-37M a thick white one that hangs. The Meteor's ramjet burns almost clean once the booster is done, with a smaller flame.
+  - The R-37M's sustainer is a rocket, not a ramjet: it now keeps its full thrust high up.
+- **Improved: Rotary cannons spin up**
+  - The M61 Vulcan takes about half a second to reach 6,000 rounds a minute, the GAU-22 and the GSh-6-23 a little less. The revolver cannons (BK-27, 30M791) and the GSh-30-1 fire at full rate from the first round.
+- **Fixed: APEX is the hardest again**
+  - Flares and chaff used to save almost every jet from almost every missile, so fights came down to luck and a beginner could beat APEX. With real seekers APEX's missiles count, and it shoots smarter: a long shot only at a jet flying at it, everything else (and the second missile) inside the no-escape zone.
+  - Measured in the default duel (your F-15EX against its Typhoon), against AI pilots flying your jet: APEX won 10 of 10 against EASY, 8 of 10 against MEDIUM and 8 of 10 against HARD.
+
 ## v7.3.1 (2026-10-11)
 
 ### Air Combat: F-15EX intakes and tail booms fixed

@@ -518,7 +518,8 @@ export class Hud {
     else if (p.pilot.unconscious) text = '';
     else {
       const mw = p.rwr.primaryMissile;
-      if (mw) text = mw.kind === 'ir' ? `IR MISSILE ${mw.tti.toFixed(0)}s — FLARES [C] AND BREAK` : `RADAR MISSILE ${mw.tti.toFixed(0)}s — CHAFF [V] AND BREAK`;
+      // (a modern seeker shrugs off decoys alone: the turn does the work, the decoys help it)
+      if (mw) text = mw.kind === 'ir' ? `IR MISSILE ${mw.tti.toFixed(0)}s — BREAK HARD, THROTTLE BACK, FLARES [C]` : `RADAR MISSILE ${mw.tti.toFixed(0)}s — BEAM IT (90° OFF), CHAFF [V]`;
       else if (p.rwr.level === 'lock') {
         text = 'RADAR LOCK — BEAM, NOTCH OR TERRAIN MASK';
         amber = true;

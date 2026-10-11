@@ -69,6 +69,8 @@ export class Aircraft {
   trigger = false;
   gunFiring = false;
   private gunAccum = 0;
+  /** how far a rotary cannon's barrels have spun up (0 still .. 1 full rate) */
+  private gunSpin = 0;
   private roundCounter = 0;
   private cmQueue: { kind: 'flare' | 'chaff'; t: number }[] = [];
   private cmTimer = 0;
@@ -493,7 +495,11 @@ export class Aircraft {
       this.gunFiring = firing;
       sim.events.emit('gunfire', { shooter: this, firing });
     }
-    const rate = (this.spec.gun.rpm * (this.gunRateLow ? 0.66 : 1)) / 60;
+    // a rotary cannon's barrels take a moment to spin up to full rate (and coast down once the trigger
+    // is let go, so a quick second burst starts fast); a revolver cannon fires at once
+    const spinUp = gunSpinUp(this.spec.gun.name);
+    this.gunSpin = firing ? Math.min(1, this.gunSpin + dt / spinUp) : Math.max(0, this.gunSpin - dt / 0.8);
+    const rate = ((this.spec.gun.rpm * (this.gunRateLow ? 0.66 : 1)) / 60) * (firing ? Math.max(0.15, this.gunSpin) : 1);
     // recoil: the momentum of the rounds (plus the propellant gas) shoved
     // back through the airframe, a few percent of the engines' thrust
     const cal = this.spec.gun.caliberMm;
@@ -803,4 +809,16 @@ export class Aircraft {
   get rangeNmTo(): (o: Aircraft) => number {
     return (o) => this.distanceTo(o) / NM;
   }
+}
+
+/**
+ * Seconds a gun takes to reach its full rate of fire: the rotary cannons' barrel clusters spin up (the
+ * M61's in about 0.45 s, the four-barrel GAU-22 a little quicker, the gas-driven GSh-6-23 quicker
+ * still); a revolver or single-barrel cannon fires at its full rate from the first round.
+ */
+export function gunSpinUp(name: string): number {
+  if (/M61/.test(name)) return 0.45;
+  if (/GAU-22/.test(name)) return 0.35;
+  if (/GSh-6/.test(name)) return 0.25;
+  return 0.02;
 }

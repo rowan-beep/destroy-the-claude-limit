@@ -31,16 +31,23 @@ export interface MissileSpec {
   minRange: number;
   navConstant: number;
   loft: boolean;
-  /** counter-countermeasure resistance 0..1 */
+  /**
+   * counter-countermeasure resistance 0..1: how rarely a flare (IR) or chaff (radar) seduces the
+   * seeker. Imaging-IR seekers (AIM-9X, IRIS-T, MICA IR) see the jet's shape and ignore most flares; a
+   * modern active-radar seeker tracks the target's Doppler and only loses it to chaff in the notch.
+   */
   ccm: number;
+  /** how much smoke the motor leaves: 1 a classic smoky motor, ~0.4 a reduced-smoke one */
+  smoke: number;
   length: number;
   diameter: number;
   description: string;
   /**
-   * Air-breathing sustainer after the boost (Meteor's throttleable ramjet):
-   * thrust (N) for this many seconds after the booster burns out.
+   * Sustainer after the boost: thrust (N) for this many seconds after the booster burns out. A ramjet
+   * (Meteor's throttleable ducted rocket) breathes air: it needs speed and thick air and burns clean; a
+   * rocket sustainer (the R-37M's dual-thrust motor) works anywhere and smokes like the booster.
    */
-  sustain?: { thrust: number; time: number };
+  sustain?: { thrust: number; time: number; ramjet?: boolean };
 }
 
 export const MISSILES: Record<MissileType, MissileSpec> = {
@@ -65,7 +72,8 @@ export const MISSILES: Record<MissileType, MissileSpec> = {
     minRange: 900,
     navConstant: 4,
     loft: true,
-    ccm: 0.35,
+    ccm: 0.75,
+    smoke: 0.45,
     length: 3.66,
     diameter: 0.178,
     description: 'Active-radar beyond-visual-range missile. Datalink midcourse updates, lofted trajectory, goes active (PITBULL) at ~10 NM.',
@@ -91,7 +99,8 @@ export const MISSILES: Record<MissileType, MissileSpec> = {
     minRange: 300,
     navConstant: 4.5,
     loft: false,
-    ccm: 0.55,
+    ccm: 0.92,
+    smoke: 0.4,
     length: 3.02,
     diameter: 0.127,
     description: 'Imaging-infrared, thrust-vectored, high off-boresight dogfight missile. Lock-on before launch; strong flare rejection.',
@@ -117,7 +126,8 @@ export const MISSILES: Record<MissileType, MissileSpec> = {
     minRange: 1000,
     navConstant: 4,
     loft: true,
-    ccm: 0.3,
+    ccm: 0.7,
+    smoke: 1.0,
     length: 3.71,
     diameter: 0.2,
     description: 'Active-radar long-range missile with a dual-pulse motor and a conventional tail (no lattice fins). Longest reach in the theater, a little easier to decoy than the AIM-120D.',
@@ -143,7 +153,8 @@ export const MISSILES: Record<MissileType, MissileSpec> = {
     minRange: 300,
     navConstant: 4.3,
     loft: false,
-    ccm: 0.5,
+    ccm: 0.85,
+    smoke: 0.95,
     length: 2.92,
     diameter: 0.17,
     description: 'Infrared dogfight missile with canards and gas-dynamic thrust vectoring. High off-boresight through the helmet sight, slightly longer range than the AIM-9X.',
@@ -158,7 +169,7 @@ export const MISSILES: Record<MissileType, MissileSpec> = {
     // solid booster, then the throttleable ducted rocket (ramjet) cruises for most of the flight
     burnTime: 3.2,
     thrust: 17000,
-    sustain: { thrust: 2500, time: 85 },
+    sustain: { thrust: 2500, time: 85, ramjet: true },
     refArea: 0.0249,
     maxG: 38,
     qFullG: 90000,
@@ -171,7 +182,8 @@ export const MISSILES: Record<MissileType, MissileSpec> = {
     minRange: 1200,
     navConstant: 4,
     loft: true,
-    ccm: 0.4,
+    ccm: 0.78,
+    smoke: 0.5,
     length: 3.65,
     diameter: 0.178,
     description: 'Ramjet-powered beyond-visual-range missile: a short rocket boost, then an air-breathing ducted rocket that keeps it powered and fast to the end. Reaches about 92 NM from 40,000 ft at Mach 1.3 (about 52 NM at 20,000 ft) with a no-escape zone of about 34 NM, the biggest in the theater. Rafale and Gripen E.',
@@ -197,7 +209,8 @@ export const MISSILES: Record<MissileType, MissileSpec> = {
     minRange: 300,
     navConstant: 4.4,
     loft: false,
-    ccm: 0.55,
+    ccm: 0.88,
+    smoke: 0.5,
     length: 3.1,
     diameter: 0.16,
     description: 'Imaging-infrared missile with thrust vectoring and long body strakes. Reaches about 27 NM from 40,000 ft and 18 NM at 20,000 ft, longer than the other heat-seekers (it doubles as a medium-range missile), launched from the Rafale\'s wingtips and pylons. Rafale only.',
@@ -226,7 +239,8 @@ export const MISSILES: Record<MissileType, MissileSpec> = {
     minRange: 3000,
     navConstant: 3.6,
     loft: true,
-    ccm: 0.32,
+    ccm: 0.5,
+    smoke: 1.0,
     length: 4.2,
     diameter: 0.38,
     description: 'Very-long-range active-radar missile of the MiG-31BM: a 510 kg round that climbs high and dives on its target at up to Mach 6, reaching 100 NM and more from high and fast (the longest reach in the theater). Built to kill bombers, tankers and AWACS: a fighter that turns hard at the end can still beat it. MiG-31 only.',
@@ -253,7 +267,8 @@ export const MISSILES: Record<MissileType, MissileSpec> = {
     minRange: 250,
     navConstant: 4.6,
     loft: false,
-    ccm: 0.6,
+    ccm: 0.93,
+    smoke: 0.4,
     length: 2.94,
     diameter: 0.127,
     description: 'Imaging-infrared dogfight missile with thrust vectoring: it can lock and turn on a target 90 degrees off the nose, even behind the wing line, and its seeker is among the hardest to decoy. Gripen E.',

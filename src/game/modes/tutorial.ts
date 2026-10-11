@@ -309,7 +309,7 @@ export class TutorialMode extends GameMode {
       {
         title: 'COUNTERMEASURES',
         text: () =>
-          `When a missile is coming, the warning sounds and the RWR shows where from. <b>Flares</b> (${this.key('flare')}) decoy heat-seekers; <b>chaff</b> (${this.key('chaff')}) decoys radar missiles. Drop both now.<br><br>Countermeasures work best with a hard turn: put the missile on your wing line and pull.`,
+          `When a missile is coming, the warning sounds and the RWR shows where from. <b>Flares</b> (${this.key('flare')}) decoy heat-seekers; <b>chaff</b> (${this.key('chaff')}) decoys radar missiles. Drop both now.<br><br>Modern missiles are hard to fool with decoys alone: the turn is what beats them. Put the missile on your wing line and pull (against a radar missile, hold it there: that is the beam), and drop decoys as you turn.`,
         setup: () => {
           this.clearDrones();
           this.cm0 = { flares: P().flares, chaff: P().chaff };

@@ -41,6 +41,7 @@ const _tmp = new THREE.Vector3();
 const _tmp2 = new THREE.Vector3();
 const _aim = new THREE.Vector3();
 const _dz = new THREE.Vector3();
+const _toUs = new THREE.Vector3();
 
 export class AIPilot {
   state: AIState = 'PATROL';
@@ -604,6 +605,14 @@ export class AIPilot {
         const inFlight = sim.missiles.filter((m) => m.shooter === ac && m.target === t && m.alive && m.mode !== 'LOST' && m.mode !== 'DECOY').length;
         okInFlight = inFlight < 2;
         if (inFlight === 1) gap = 1.5;
+        // the shot doctrine: a long shot only at a jet coming at us (hot, not beaming: it cannot turn
+        // away and run in time), anything else waits for the no-escape zone, and so does the second
+        // missile (a long shot at a jet that is turning, beaming or running is a wasted missile)
+        const toUs = _toUs.subVectors(ac.fm.pos, t.fm.pos).normalize();
+        const tv = t.fm.vel.length();
+        const hot = tv > 1 && t.fm.vel.dot(toUs) / tv > 0.75;
+        const nez = lz120.rne * 1.05;
+        if (!hot || inFlight > 0) maxR = Math.min(maxR, nez);
       }
       if (
         tracked &&

@@ -14,7 +14,7 @@ It has three programs, chosen on the launcher screen:
 | **SPACE EXPLORATION** | Fly the Saturn V to the Moon, Starship to Mars, Falcon 9, Falcon Heavy and SLS missions, drive Perseverance and Curiosity, and tour the whole Solar System at real scale. |
 | **OCEAN** | Pilot a one-person survey submersible off Kestrel Harbor, listen with hydrophones, triangulate a sound and recover what is knocking in the dark. |
 
-Current version: **7.3.1**. Full history in [CHANGELOG.md](CHANGELOG.md).
+Current version: **7.4.0**. Full history in [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -186,16 +186,23 @@ strike, long-range with tanks), chosen in the hangar.
 | R-37M | very long range, active radar | MiG-31 |
 
 Missiles fly their own physics: motor burn and coast, drag, proportional navigation,
-seeker field of view, gimbal limits and line of sight. Radar missiles can be beamed
-(notched) and chaffed; IR missiles can be flared; terrain between the missile and its
-target breaks the lock.
+seeker field of view, gimbal limits and line of sight. Decoys work the way they do on
+modern seekers: imaging-IR missiles (AIM-9X, IRIS-T, MICA IR) ignore most flares, the
+R-74M a few more, and a radar missile only loses you to chaff while you beam it (turn
+to put it 90 degrees off your nose), which on its own can also notch it. Turning is what
+beats a missile; decoys help. Terrain between the missile and its target breaks the
+lock. Each motor leaves its own smoke: thin trails from the reduced-smoke AIM-120,
+AIM-9X, IRIS-T and MICA, thick white ones from the Russian missiles, and almost none
+from the Meteor once its ramjet takes over from the booster.
 
 **Guided bombs** (strike loadouts): GBU-31 JDAM (2,000 lb), GBU-32 JDAM (1,000 lb),
 GBU-39 Small Diameter Bomb, Paveway IV, AASM Hammer and KAB-500S. A bombing computer
 counts down to the release point.
 
 **Guns**: each jet's real cannon, its rate of fire, muzzle velocity, dispersion and
-round count, with a lead-computing gunsight.
+round count, with a lead-computing gunsight. The rotary cannons (M61, GAU-22, GSh-6-23)
+take a moment to spin up to full rate; the revolver and single-barrel cannons fire at
+once.
 
 **Countermeasures**: flares and chaff, with a dispensing program on the EW page.
 
@@ -251,7 +258,7 @@ masking, notching, dispensing, afterburner discipline, multi-ship targeting.
 | Medium | defends missiles, uses the vertical |
 | Hard | terrain-masks, notches, shoots at long range |
 | Extreme | aggressive energy fighting, coordinated with its flight |
-| **APEX** | everything Extreme has, pushed further, and orders from a battle commander that tells each pilot when to bait, flank, cover, press and shoot |
+| **APEX** | everything Extreme has, pushed further, and orders from a battle commander that tells each pilot when to bait, flank, cover, press and shoot. It takes a long missile shot only at a jet flying at it and holds every other shot for the no-escape zone |
 
 The AI flies the same flight model and sensors you do; it does not cheat on line of
 sight.

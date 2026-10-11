@@ -7,8 +7,8 @@
 // (beaming a look-down missile) and chaff.
 //
 // AIM-9X: imaging IR, locked before launch, 90 degree gimbal, thrust
-// vectoring. Can be decoyed by flares (strong IRCCM), throttling back,
-// the sun, or terrain.
+// vectoring. Hard to decoy with flares (it sees the jet's shape), but
+// throttling back, the sun and terrain still work.
 
 import * as THREE from 'three';
 import type { Sim } from '../game/sim';
@@ -59,6 +59,8 @@ export class Missile {
   losClear = true;
   datalink = true;
   motorOn = false;
+  /** the booster is burning (a ramjet sustainer after it burns cleaner and dimmer) */
+  boosting = false;
   launchRange: number;
   lofting = false;
   timeToImpact = 0;
@@ -127,7 +129,9 @@ export class Missile {
       // coast on the last update; the shooter's client says when it goes off
       this.prevPos.copy(this.pos);
       this.pos.addScaledVector(this.vel, dt);
-      this.motorOn = this.age < s.burnTime + (s.sustain?.time ?? 0) + (s.seeker === 'ARH' ? 0.45 : 0);
+      const ign = s.seeker === 'ARH' ? 0.45 : 0;
+      this.motorOn = this.age < s.burnTime + (s.sustain?.time ?? 0) + ign;
+      this.boosting = this.age >= ign && this.age < ign + s.burnTime;
       this.mach = this.vel.length() / 330;
       if (this.age > s.maxTime + 6) this.alive = false;
       return;
@@ -145,6 +149,7 @@ export class Missile {
     const boosting = this.age >= ignite && this.age < ignite + s.burnTime;
     const sustaining = !!sus && !boosting && this.age >= ignite && this.age < ignite + s.burnTime + sus.time;
     this.motorOn = boosting || sustaining;
+    this.boosting = boosting;
     let thrust = 0;
     // the booster burns most of the propellant; a ramjet sustainer burns the rest slowly
     const burnMass = s.mass0 - s.massBurnout;
@@ -155,9 +160,11 @@ export class Missile {
       thrust = s.thrust * (1 + 0.09 * (1 - _atm.delta));
       this.mass -= ((burnMass * boostShare) / s.burnTime) * dt;
     } else if (sustaining && sus) {
-      // an air-breathing ramjet needs speed and air: it loses thrust in thin air and when slow
-      const ram = Math.min(1, Math.max(0, (M - 0.8) / 1.2));
-      thrust = sus.thrust * ram * (0.35 + 0.65 * Math.sqrt(_atm.sigma));
+      if (sus.ramjet) {
+        // an air-breathing ramjet needs speed and air: it loses thrust in thin air and when slow
+        const ram = Math.min(1, Math.max(0, (M - 0.8) / 1.2));
+        thrust = sus.thrust * ram * (0.35 + 0.65 * Math.sqrt(_atm.sigma));
+      } else thrust = sus.thrust * (1 + 0.09 * (1 - _atm.delta));
       this.mass -= ((burnMass * (1 - boostShare)) / sus.time) * dt;
     }
     if (this.mode === 'EJECT' && this.age >= ignite) this.mode = this.target ? 'MIDCOURSE' : 'LOST';
@@ -309,8 +316,10 @@ export class Missile {
         const dr = Math.abs(d.pos.distanceTo(this.pos) - range);
         if (angle < 7 * DEG && dr < 450) {
           d.judged.add(this.id);
+          // (a Doppler seeker sees the chaff stop dead in the air while the jet flies on: it only
+          // loses the jet to the cloud when the jet is beaming it, its closing speed near the chaff's)
           const beaming = Math.abs(radialVelocity(t, this.pos)) < 90;
-          const p = (beaming ? 0.3 : 0.05) * d.strength * (1 - s.ccm) * (1 + (t.jammerOn ? t.spec.ew.jamming : 0));
+          const p = (beaming ? 0.3 : 0.015) * d.strength * (1 - s.ccm) * (1 + (t.jammerOn ? t.spec.ew.jamming : 0));
           if (Math.random() < p) {
             this.mode = 'DECOY';
             this.decoy = d;
@@ -344,8 +353,10 @@ export class Missile {
         const angle = this.angleBetweenFromHere(d.pos, tPos);
         if (angle < 5 * DEG) {
           d.judged.add(this.id);
+          // (a flare outshines a jet at idle far more than one in burner; an imaging seeker sees
+          // the flare is a point and the jet a shape, and lets most of them go)
           const rel = d.strength / Math.max(0.3, intensity);
-          const p = clamp(0.32 * rel * (1 - s.ccm), 0.03, 0.6);
+          const p = clamp(0.32 * rel * (1 - s.ccm), 0.005, 0.6);
           if (Math.random() < p) {
             this.mode = 'DECOY';
             this.decoy = d;
