@@ -1,7 +1,8 @@
 // Accounts and cloud saves (Supabase) for the website and the Windows app.
 //
-// Sign-in is by email: Supabase sends a short code and the player types it in.
-// The first time a player signs in, everything this device has saved is copied to
+// Sign-in is an email and a password. No email is ever sent: the project
+// confirms new accounts by itself (mailer_autoconfirm), so an account works the
+// moment it is made, and the email is only the name it goes by. The first time a player signs in, everything this device has saved is copied to
 // the account (the browser copy stays exactly as it is). After that the save
 // follows the account: changes go up every 20 s and when the game is hidden, and
 // another device that signs in gets them. When a device and the account have both
@@ -312,25 +313,45 @@ export async function startCloud(): Promise<void> {
   });
 }
 
-/** Email the player a sign-in code (creates the account the first time). */
-export async function sendCode(email: string): Promise<void> {
-  const c = await client();
-  if (!c) throw new Error('Accounts are not available in this version of the game.');
-  const { error } = await c.auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: true } });
-  if (error) {
-    if (/not authori[sz]ed/i.test(error.message)) throw new Error('Sign-in emails cannot be sent to this address yet. Please try again later.');
-    if (/rate limit|too many/i.test(error.message)) throw new Error('Too many sign-in emails were sent. Please wait a while and try again.');
-    throw new Error(error.message);
-  }
+/** the shortest password the project accepts */
+export const PASSWORD_MIN = 6;
+
+function authError(e: { message: string; code?: string }): Error {
+  const m = e.message;
+  if (e.code === 'invalid_credentials' || /invalid login credentials/i.test(m)) return new Error('That email and password do not match an account.');
+  if (e.code === 'user_already_exists' || /already registered|already exists/i.test(m)) return new Error('That email already has an account. Sign in instead.');
+  if (e.code === 'weak_password' || /password should be/i.test(m)) return new Error(`Choose a password of at least ${PASSWORD_MIN} characters.`);
+  if (/rate limit|too many/i.test(m)) return new Error('Too many tries. Please wait a few minutes and try again.');
+  if (/fetch|network|failed to load/i.test(m)) return new Error('Could not reach the server.');
+  return new Error(m);
 }
 
-/** Finish signing in with the code from the email. */
-export async function verifyCode(email: string, code: string): Promise<void> {
+/** Sign in to an existing account. */
+export async function signIn(email: string, password: string): Promise<void> {
   const c = await client();
   if (!c) throw new Error('Accounts are not available in this version of the game.');
-  const { data, error } = await c.auth.verifyOtp({ email: email.trim(), token: code.replace(/\s+/g, ''), type: 'email' });
-  if (error) throw new Error(error.message);
+  const { data, error } = await c.auth.signInWithPassword({ email: email.trim(), password });
+  if (error) throw authError(error);
   await onSession(data.session);
+}
+
+/** Make a new account and sign in to it (no email is sent). */
+export async function createAccount(email: string, password: string): Promise<void> {
+  const c = await client();
+  if (!c) throw new Error('Accounts are not available in this version of the game.');
+  const { data, error } = await c.auth.signUp({ email: email.trim(), password });
+  if (error) throw authError(error);
+  // (no session: the project still wants new accounts confirmed by email, which it cannot send)
+  if (!data.session) throw new Error('New accounts cannot be made right now. Please try again later.');
+  await onSession(data.session);
+}
+
+/** Change the signed-in account's password. */
+export async function changePassword(password: string): Promise<void> {
+  const c = await client();
+  if (!c) throw new Error('Accounts are not available in this version of the game.');
+  const { error } = await c.auth.updateUser({ password });
+  if (error) throw authError(error);
 }
 
 /** Sign out. This device keeps everything it has saved. */

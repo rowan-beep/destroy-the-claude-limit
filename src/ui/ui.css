@@ -1406,7 +1406,8 @@ body:has(#hud.cockpit-clean) .wx-widget { opacity: 0; pointer-events: none; }
 .acct-h { margin: 0; letter-spacing: 3px; font-size: 15px; }
 .acct-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .acct-in { flex: 1 1 220px; width: auto; }
-.acct-code { letter-spacing: 0.4em; font-size: 18px; text-align: center; }
+.acct-form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.acct-form .acct-in { flex: none; width: 100%; box-sizing: border-box; }
 .acct-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .acct-card { display: flex; flex-direction: column; gap: 6px; padding: 12px; border: 1px solid var(--menu-line); background: rgba(255, 255, 255, 0.03); }
 .acct-card-t { letter-spacing: 3px; font-weight: 700; }

@@ -37,6 +37,22 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.8.0',
+    date: '2026-10-11',
+    air: {
+      title: 'Accounts: your progress saved online',
+      notes: [
+        added('Make an account with an email and a password',
+          'SIGN IN in the menu, then CREATE AN ACCOUNT: you are signed in straight away. No email is sent and there is no code to type; the email is only your account\'s name.',
+          'Everything this device has saved is copied to the account the first time, and it stays on this device too. After that your progress saves itself and follows you to any other browser or the Windows app you sign in on.',
+          'There is no password reset, so keep your password somewhere safe. You can change it while signed in.',
+          'On triad.church and the Windows app (the claude.ai version keeps saving in your browser as before).'),
+        added('The ranked leaderboard is online',
+          'Signed-in pilots who have finished their placement matches show on the week\'s board for everyone to see.'),
+      ],
+    },
+  },
+  {
     version: '7.7.0',
     date: '2026-10-11',
     air: {

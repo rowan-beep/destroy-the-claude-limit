@@ -1,9 +1,10 @@
-// The ACCOUNT window (website and Windows app): sign in with a code sent by email,
+// The ACCOUNT window (website and Windows app): sign in with an email and a password
+// (nothing is ever emailed), make an account, change the password,
 // see whether the save is up to date, and choose between two saves when this
 // device and the account have both moved on. Opens by itself for that choice.
 
 import { el, clearEl, button } from '../dom';
-import { cloudEnabled, cloudState, onCloud, resolveConflict, sendCode, signOut, syncNow, verifyCode, type CloudState } from '../../net/cloud';
+import { changePassword, cloudEnabled, cloudState, createAccount, onCloud, PASSWORD_MIN, resolveConflict, signIn, signOut, syncNow, type CloudState } from '../../net/cloud';
 import type { SaveSummary } from '../../net/cloudSave';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -12,8 +13,10 @@ class AccountModal {
   private root: HTMLElement;
   private body: HTMLElement;
   private open = false;
-  private step: 'email' | 'code' = 'email';
+  private mode: 'signin' | 'create' = 'signin';
   private email = '';
+  private changing = false;
+  private notice = '';
   private working = false;
   private error = '';
 
@@ -40,6 +43,8 @@ class AccountModal {
     this.root.classList.toggle('hidden', !on);
     if (on) {
       this.error = '';
+      this.notice = '';
+      this.changing = false;
       this.render(cloudState());
     }
   }
@@ -48,6 +53,7 @@ class AccountModal {
     if (this.working) return;
     this.working = true;
     this.error = '';
+    this.notice = '';
     this.render(cloudState());
     try {
       await fn();
@@ -73,74 +79,59 @@ class AccountModal {
     } else {
       this.signedIn(b, s);
     }
+    if (this.notice) el('p', 'acct-p acct-ok', b, this.notice);
     if (this.error) el('p', 'acct-err', b, this.error);
   }
 
   private signIn(b: HTMLElement): void {
-    if (this.step === 'email') {
-      el('p', 'acct-p', b, 'Sign in with your email to keep your progress safe online, carry it to other devices and put your rank on the leaderboard.');
-      el('p', 'acct-p acct-dim', b, 'No password: we email you a sign-in code. The first time you sign in, everything saved on this device is copied to your account, and it stays on this device too.');
-      const row = el('div', 'acct-row', b);
-      const input = el('input', 'mp-input acct-in', row);
-      input.type = 'email';
-      input.placeholder = 'you@example.com';
-      input.autocomplete = 'email';
-      input.value = this.email;
-      const go = (): void => {
-        const v = input.value.trim();
-        if (!EMAIL.test(v)) {
-          this.error = 'Enter your email address.';
-          this.render(cloudState());
-          return;
-        }
-        this.email = v;
-        void this.run(async () => {
-          await sendCode(v);
-          this.step = 'code';
-        });
-      };
-      const send = button(this.working ? 'SENDING…' : 'EMAIL ME A CODE', 'primary', row, go);
-      send.disabled = this.working;
-      input.addEventListener('keydown', (e) => {
+    const create = this.mode === 'create';
+    el('p', 'acct-p', b, 'Sign in to keep your progress safe online, carry it to other devices and put your rank on the leaderboard.');
+    el('p', 'acct-p acct-dim', b, create
+      ? 'Your email is just the name your account goes by: nothing is sent to it. There is no password reset, so keep your password somewhere safe. Everything saved on this device is copied to the new account, and it stays on this device too.'
+      : 'Use the email and password you made your account with. Everything saved on this device stays here too.');
+    const form = el('div', 'acct-form', b);
+    const field = (type: string, ph: string, ac: AutoFill, v = ''): HTMLInputElement => {
+      const i = el('input', 'mp-input acct-in', form);
+      i.type = type;
+      i.placeholder = ph;
+      i.autocomplete = ac;
+      i.value = v;
+      i.addEventListener('keydown', (e) => {
         e.stopPropagation();
         if (e.key === 'Enter') go();
       });
-      if (!this.working) setTimeout(() => input.focus(), 0);
-      return;
-    }
-    el('p', 'acct-p', b, `We sent a code to ${this.email}. It can take a minute to arrive; check your spam folder too.`);
-    const row = el('div', 'acct-row', b);
-    const input = el('input', 'mp-input acct-in acct-code', row);
-    input.inputMode = 'numeric';
-    input.autocomplete = 'one-time-code';
-    input.maxLength = 10;
-    input.placeholder = 'CODE';
+      return i;
+    };
+    const email = field('email', 'Email', 'username', this.email);
+    const pass = field('password', create ? `Password (${PASSWORD_MIN}+ characters)` : 'Password', create ? 'new-password' : 'current-password');
+    const again = create ? field('password', 'Password again', 'new-password') : null;
     const go = (): void => {
-      const code = input.value.replace(/\s+/g, '');
-      if (!/^\d{6,10}$/.test(code)) {
-        this.error = 'Enter the code from the email.';
+      const v = email.value.trim();
+      this.email = v;
+      const bad = !EMAIL.test(v)
+        ? 'Enter your email address.'
+        : pass.value.length < (create ? PASSWORD_MIN : 1)
+          ? create ? `Choose a password of at least ${PASSWORD_MIN} characters.` : 'Enter your password.'
+          : again && again.value !== pass.value
+            ? 'The two passwords are different.'
+            : '';
+      if (bad) {
+        this.error = bad;
         this.render(cloudState());
         return;
       }
-      void this.run(async () => {
-        await verifyCode(this.email, code);
-        this.step = 'email';
-      });
+      const pw = pass.value;
+      void this.run(() => (create ? createAccount(v, pw) : signIn(v, pw)));
     };
-    const ok = button(this.working ? 'SIGNING IN…' : 'SIGN IN', 'primary', row, go);
+    const row = el('div', 'acct-row', b);
+    const ok = button(this.working ? (create ? 'CREATING…' : 'SIGNING IN…') : create ? 'CREATE ACCOUNT' : 'SIGN IN', 'primary', row, go);
     ok.disabled = this.working;
-    input.addEventListener('keydown', (e) => {
-      e.stopPropagation();
-      if (e.key === 'Enter') go();
-    });
-    const more = el('div', 'acct-row', b);
-    button('SEND A NEW CODE', 'small', more, () => void this.run(() => sendCode(this.email)));
-    button('USE ANOTHER EMAIL', 'small', more, () => {
-      this.step = 'email';
+    button(create ? 'I HAVE AN ACCOUNT' : 'CREATE AN ACCOUNT', 'small', row, () => {
+      this.mode = create ? 'signin' : 'create';
       this.error = '';
       this.render(cloudState());
     });
-    if (!this.working) setTimeout(() => input.focus(), 0);
+    if (!this.working) setTimeout(() => (this.email ? pass : email).focus(), 0);
   }
 
   private signedIn(b: HTMLElement, s: CloudState): void {
@@ -154,6 +145,51 @@ class AccountModal {
     save.disabled = this.working || s.status === 'syncing';
     button('SIGN OUT', '', row, () => void this.run(signOut));
     el('p', 'acct-p acct-dim', b, 'Signing out keeps everything on this device.');
+    if (!this.changing) {
+      button('CHANGE PASSWORD', 'small', el('div', 'acct-row', b), () => {
+        this.changing = true;
+        this.error = '';
+        this.render(cloudState());
+      });
+      return;
+    }
+    const form = el('div', 'acct-form', b);
+    const pass = el('input', 'mp-input acct-in', form);
+    pass.type = 'password';
+    pass.placeholder = `New password (${PASSWORD_MIN}+ characters)`;
+    pass.autocomplete = 'new-password';
+    const again = el('input', 'mp-input acct-in', form);
+    again.type = 'password';
+    again.placeholder = 'New password again';
+    again.autocomplete = 'new-password';
+    const go = (): void => {
+      const bad = pass.value.length < PASSWORD_MIN ? `Choose a password of at least ${PASSWORD_MIN} characters.` : again.value !== pass.value ? 'The two passwords are different.' : '';
+      if (bad) {
+        this.error = bad;
+        this.render(cloudState());
+        return;
+      }
+      const pw = pass.value;
+      void this.run(async () => {
+        await changePassword(pw);
+        this.changing = false;
+        this.notice = 'Password changed.';
+      });
+    };
+    for (const i of [pass, again])
+      i.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') go();
+      });
+    const prow = el('div', 'acct-row', b);
+    const savePw = button(this.working ? 'SAVING…' : 'SAVE PASSWORD', 'primary', prow, go);
+    savePw.disabled = this.working;
+    button('CANCEL', 'small', prow, () => {
+      this.changing = false;
+      this.error = '';
+      this.render(cloudState());
+    });
+    if (!this.working) setTimeout(() => pass.focus(), 0);
   }
 
   private conflict(b: HTMLElement, s: CloudState): void {

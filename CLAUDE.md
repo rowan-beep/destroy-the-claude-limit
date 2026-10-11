@@ -44,11 +44,15 @@ equivalent or degrades gracefully:
 | --- | --- | --- |
 | Multiplayer | game servers (Render, `server/`) | the page's live room |
 | Ranked leaderboard | Supabase (`src/net/cloud.ts`) | the artifact's database |
-| Accounts, cloud saves | Supabase email sign-in | none (saved in the browser) |
+| Accounts, cloud saves | Supabase email + password | none (saved in the browser) |
 
 New features must work in both, or switch themselves off cleanly in one.
 
 ## Don'ts
+
+- Don't build anything that needs to send email (sign-in codes, confirmation or
+  reset links): the project cannot send mail. Accounts are email + password and
+  Supabase confirms them by itself.
 
 - Don't remove features or player data without asking.
 - Don't put secrets in the game: only `VITE_` variables reach the build, and

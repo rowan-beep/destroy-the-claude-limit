@@ -14,7 +14,7 @@ It has three programs, chosen on the launcher screen:
 | **SPACE EXPLORATION** | Fly the Saturn V to the Moon, Starship to Mars, Falcon 9, Falcon Heavy and SLS missions, drive Perseverance and Curiosity, and tour the whole Solar System at real scale. |
 | **OCEAN** | Pilot a one-person survey submersible off Kestrel Harbor, listen with hydrophones, triangulate a sound and recover what is knocking in the dark. |
 
-Current version: **7.7.0**. Full history in [CHANGELOG.md](CHANGELOG.md).
+Current version: **7.8.0**. Full history in [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -637,8 +637,11 @@ database.
 The website and the Windows app have accounts (ACCOUNT / SIGN IN at the bottom of the
 menu rail, or at the top of the simple menu), backed by a Supabase project:
 
-- **Sign-in by email.** No password: the player types their email, Supabase emails a
-  short code, the player types the code in.
+- **Email and password, no emails sent.** CREATE AN ACCOUNT takes an email and a
+  password and signs the player in at once; the Supabase project confirms new accounts
+  by itself (Authentication → Email → "Confirm email" off, `mailer_autoconfirm`), so
+  the game never needs to send mail. The email is only the account's name. There is no
+  password reset by email; a signed-in player can change their password.
 - **Nothing is lost.** The first time a player signs in, everything the game has saved
   in that browser (settings, ranked, logbook, campaign, paint, ocean and space
   progress) is copied to the account, and the browser copy stays as it is. After that
