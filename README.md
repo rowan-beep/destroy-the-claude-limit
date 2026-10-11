@@ -14,7 +14,7 @@ It has three programs, chosen on the launcher screen:
 | **SPACE EXPLORATION** | Fly the Saturn V to the Moon, Starship to Mars, Falcon 9, Falcon Heavy and SLS missions, drive Perseverance and Curiosity, and tour the whole Solar System at real scale. |
 | **OCEAN** | Pilot a one-person survey submersible off Kestrel Harbor, listen with hydrophones, triangulate a sound and recover what is knocking in the dark. |
 
-Current version: **7.5.0**. Full history in [CHANGELOG.md](CHANGELOG.md).
+Current version: **7.6.0**. Full history in [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -400,6 +400,14 @@ gloss or metallic) and a brightness for each jet. The F-15EX's
 factory scheme is a near-black gunship-grey metallic with a satin radome. The F-22A wears
 its real two-grey camouflage: soft-edged darker patches laid out in 3D by the skin shader,
 so they run on unbroken over every surface (the Raptor Camo wrap puts it on any jet).
+
+Landing gear (every jet, `src/aircraft/models/gear.ts`) is built like the real thing: trunnion,
+shock strut with a chrome oleo, torque links, folding drag brace and retraction jack, brake lines,
+treaded tyres on spoked hubs with brake stacks, doors and wheel wells, and on the nose leg the
+steering collar and lights. It moves in sequence (doors open, legs swing on eased hydraulics while
+the brace folds and the jack telescopes, the legs tuck into their bays, the doors shut), the oleos
+compress on the ground and extend off it, the wheels roll with ground speed and are braked as the
+gear comes up, and the nose wheel steers with the pedals at taxi speed.
 
 Canopies are shaded as stretched acrylic: nearly clear looking straight in, a mirror of
 the sky across the curve (Fresnel), the far wall seen through the near one, and faint

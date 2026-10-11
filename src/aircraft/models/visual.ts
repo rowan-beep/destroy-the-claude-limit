@@ -18,6 +18,7 @@ import { customSkinMaterial, Livery } from './kit';
 import { burnerMaterial, partMaterials } from './parts';
 import { PilotRig, updatePilot, rigFrames, cloneSuit } from './pilot';
 import { PaintConfig, WRAPS, wrapMask } from './paint';
+import { updateGear, type LegRig, type GearMotion } from './gear';
 import type { AoVolume } from './ao';
 import type { HazeSource } from '../../render/heatHaze';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -80,6 +81,10 @@ export interface GearLeg {
   hideWhenUp: THREE.Object3D[];
   /** where the leg hangs from (body frame), for legs that stroke on their oleos */
   base?: THREE.Vector3;
+  /** a bay door: opens before the legs move and shuts after them (see gear.ts) */
+  door?: boolean;
+  /** the leg's moving parts: oleo, wheels, steering, links, braces (see gear.ts) */
+  rig?: LegRig;
 }
 
 export interface Nozzle {
@@ -577,7 +582,15 @@ export class AirframeVisual {
     // rigid frames: everything fixed inside one of these moves together
     const rigid = new Set<THREE.Object3D>([this.body]);
     for (const s of this.surfaces) rigid.add(s.pivot);
-    for (const g of this.gear) rigid.add(g.pivot);
+    for (const g of this.gear) {
+      rigid.add(g.pivot);
+      const r = g.rig;
+      if (!r) continue;
+      // (the oleo, the steering and each wheel move on their own; the links are laid out every frame)
+      rigid.add(r.lower);
+      if (r.steer) rigid.add(r.steer);
+      for (const w of r.wheels) rigid.add(w);
+    }
     if (this.speedbrake) {
       rigid.add(this.speedbrake.pivot);
       for (const p of this.speedbrake.more ?? []) rigid.add(p.pivot);
@@ -587,7 +600,10 @@ export class AirframeVisual {
     for (const n of this.nozzles) if (n.parent) rigid.add(n.parent);
     // parts with a life of their own stay separate meshes
     const keep = new Set<THREE.Object3D>([...this.insignia, ...this.navLights.map((l) => l.mesh)]);
-    for (const g of this.gear) g.hideWhenUp.forEach((o) => keep.add(o));
+    for (const g of this.gear) {
+      g.hideWhenUp.forEach((o) => keep.add(o));
+      if (g.rig?.links) keep.add(g.rig.links.upper).add(g.rig.links.lower);
+    }
     for (const r of this.pilots) rigFrames(r).forEach((o) => rigid.add(o));
     for (const n of this.nozzleMorphs) keep.add(n.mesh);
     for (const c of this.bayCavities) keep.add(c.mesh);
@@ -818,7 +834,20 @@ export class AirframeVisual {
     map.set(this.body, v.body);
     const M = <T extends THREE.Object3D>(o: T): T => (map.get(o) as T) ?? o;
     v.surfaces = this.surfaces.map((s) => ({ ...s, pivot: M(s.pivot), axis: s.axis.clone(), current: 0 }));
-    v.gear = this.gear.map((g) => ({ ...g, pivot: M(g.pivot), axis: g.axis.clone(), hideWhenUp: g.hideWhenUp.map(M) }));
+    v.gear = this.gear.map((g) => {
+      const r = g.rig;
+      const rig: LegRig | undefined = r && {
+        ...r,
+        lower: M(r.lower),
+        steer: r.steer ? M(r.steer) : null,
+        wheels: r.wheels.map(M),
+        ext: 0,
+        hinge: r.hinge.clone(),
+        links: r.links ? { ...r.links, upper: M(r.links.upper), lower: M(r.links.lower) } : null,
+        braces: r.braces.map((b) => ({ ...b, m1: M(b.m1), m2: M(b.m2) })),
+      };
+      return { ...g, pivot: M(g.pivot), axis: g.axis.clone(), hideWhenUp: g.hideWhenUp.map(M), rig };
+    });
     v.speedbrake = this.speedbrake ? { ...this.speedbrake, pivot: M(this.speedbrake.pivot), more: this.speedbrake.more?.map((p) => ({ pivot: M(p.pivot), axis: p.axis.clone() })) } : null;
     v.rudderBrake = this.rudderBrake;
     v.nozzles = this.nozzles.map((n) => ({ ...n, pos: n.pos.clone(), parent: n.parent ? M(n.parent) : undefined }));
@@ -1001,6 +1030,8 @@ export class AirframeVisual {
 
   cockpit: Cockpit | null = null;
   private insideView = false;
+  /** the wheels' roll and the nose wheel's steering */
+  private gearMo: GearMotion = { roll: 0, rate: 0, steer: 0 };
 
   /** Hide the parts of the exterior model the first-person camera sits inside. */
   setCockpitView(inside: boolean): void {
@@ -1071,18 +1102,21 @@ export class AirframeVisual {
     // the pilots' hands on the stick (only worth it when they can be seen)
     if (this.detailOn && !this.far && !this.insideView) for (const r of this.pilots) updatePilot(r, ac, dt);
 
-    // landing gear
+    // landing gear: sequenced doors and legs, oleos stroking on the ground (the wheels stay on the
+    // runway while the jet squats, dips and leans on its struts), wheels rolling, nose wheel steering
     const gp = fm.gearPos;
-    // on the ground the oleos stroke: the wheels stay on the runway while the jet
-    // squats, dips and leans on its struts
     const su = fm.onGround && gp > 0.98 ? fm.sus : null;
-    const sp = su ? Math.sin(su.p * DEG) : 0, sr = su ? Math.sin(su.r * DEG) : 0;
-    for (const g of this.gear) {
-      g.pivot.quaternion.setFromAxisAngle(g.axis, (1 - gp) * g.retractDeg * DEG);
-      const vis = gp > 0.02;
-      g.pivot.visible = vis;
-      if (g.base) g.pivot.position.set(g.base.x, g.base.y + (su ? su.h + g.base.z * sp + g.base.x * sr : 0), g.base.z);
-    }
+    updateGear(this.gear, {
+      gearPos: gp,
+      onGround: fm.onGround,
+      gs: fm.gs,
+      yaw: alive ? c.yaw : 0,
+      squat: su ? su.h : 0,
+      sp: su ? Math.sin(su.p * DEG) : 0,
+      sr: su ? Math.sin(su.r * DEG) : 0,
+      dt,
+      detail: this.detailOn && !this.far,
+    }, this.gearMo);
     if (this.speedbrake) {
       this.speedbrake.pivot.quaternion.setFromAxisAngle(this.speedbrake.axis, fm.speedbrakePos * this.speedbrake.maxDeg * DEG);
       for (const p of this.speedbrake.more ?? []) p.pivot.quaternion.setFromAxisAngle(p.axis, fm.speedbrakePos * this.speedbrake.maxDeg * DEG);

@@ -1930,52 +1930,29 @@ export function buildF15EX(v: AirframeVisual): void {
 
   // --- landing gear ----------------------------------------------------------------------
   const noseTop = new THREE.Vector3(0, -0.56, -3.92);
-  const legs0 = v.gear.length;
+  // the gear doors are white inside; the nose gear's doors carry the jet's last four digits in black
+  // (the ground photos)
+  const c = document.createElement('canvas');
+  c.width = 512;
+  c.height = 160;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#e4e5e2';
+  g.fillRect(0, 0, c.width, c.height);
+  g.fillStyle = '#17181b';
+  g.font = 'bold 96px "Arial Narrow", Arial, sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(team === 'blue' ? '0256' : '1315', c.width / 2, c.height / 2 + 6);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  const white = new THREE.MeshStandardMaterial({ color: 0xdfe0dd, roughness: 0.6, metalness: 0.05 });
   buildGearSet(v, {
     nose: { top: noseTop, axle: new THREE.Vector3(0, -2.05 + 0.33, -4.25), r: 0.33, w: 0.19, twin: false, retract: 'forward' },
     mains: { top: new THREE.Vector3(1.3, -0.78, 0.8), axle: new THREE.Vector3(1.42, -2.05 + 0.43, 1.2), r: 0.43, w: 0.27, retract: 'forward', outboard: 0.12 },
     doorColor: '#41464b',
+    inner: { noseDoor: new THREE.MeshStandardMaterial({ map: tex, roughness: 0.62, metalness: 0.05 }), mainDoor: white, legDoor: white },
   });
-  // the nose gear doors' inner faces are white, with the jet's last four digits in black (the
-  // ground photos); thin panels on the inside of buildGearSet's two doors (0.34 x 0.9 m, 1.4 cm
-  // thick, 0.19 m either side of the strut), on the nose leg so they fold away with it
-  {
-    const leg = v.gear[legs0];
-    const c = document.createElement('canvas');
-    c.width = 512;
-    c.height = 160;
-    const g = c.getContext('2d')!;
-    g.fillStyle = '#e4e5e2';
-    g.fillRect(0, 0, c.width, c.height);
-    g.fillStyle = '#17181b';
-    g.font = 'bold 96px "Arial Narrow", Arial, sans-serif';
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.fillText(team === 'blue' ? '0256' : '1315', c.width / 2, c.height / 2 + 6);
-    const tex = new THREE.CanvasTexture(c);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    tex.anisotropy = 4;
-    const faceMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.62, metalness: 0.05 });
-    /** a panel (body frame: centre, size along z and y, facing +x or -x) on a gear leg's pivot */
-    const face = (pivot: THREE.Object3D, c: THREE.Vector3, lz: number, ly: number, facing: number, mat: THREE.Material) => {
-      const pl = new THREE.PlaneGeometry(lz, ly);
-      pl.rotateY((facing * Math.PI) / 2);
-      pl.translate(c.x, c.y, c.z);
-      const m = new THREE.Mesh(pl, mat);
-      // (placed as addGearLeg places its parts: geometry in the body frame, the mesh offset by the hinge)
-      m.position.sub(pivot.position);
-      pivot.add(m);
-    };
-    for (const sx of [-1, 1]) face(leg.pivot, new THREE.Vector3(sx * (0.19 - 0.0085), noseTop.y - 0.16, noseTop.z - 0.15), 0.86, 0.3, -sx, faceMat);
-    // the main gear: the door on each leg (outboard of the strut, its inside facing it) and the bay
-    // door beside the bay (its inside facing outboard while open), white inside as well
-    const white = new THREE.MeshStandardMaterial({ color: 0xdfe0dd, roughness: 0.6, metalness: 0.05 });
-    for (const [k, sx] of [[1, -1], [3, 1]] as const) {
-      const mainLeg = v.gear[legs0 + k], bayDoor = v.gear[legs0 + k + 1];
-      if (mainLeg) face(mainLeg.pivot, new THREE.Vector3(sx * (1.46 - 0.0095), -1.14, 0.95), 0.76, 0.58, -sx, white);
-      if (bayDoor) face(bayDoor.pivot, new THREE.Vector3(sx * (0.9 + 0.0095), -0.99, 0.9), 1.06, 0.38, sx, white);
-    }
-  }
 
   // nothing but the duct between an intake's mouth and its fan
   clearDucts(v.body, ductParts);

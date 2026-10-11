@@ -49,6 +49,9 @@ export function runModelTest(container: HTMLElement): void {
     const ac = new Aircraft(t, i === 1 ? 'red' : 'blue', 'T' + i);
     ac.fm.pos.set((i - (types.length - 1) / 2) * 24, ac.spec.gear.height, 0);
     ac.fm.gearPos = gearUp ? 0 : 1;
+    // parked on its wheels (the oleos compressed); gp=0..1 poses the gear part way through its travel
+    ac.fm.onGround = !gearUp && !q.get('gp');
+    if (q.get('gp')) ac.fm.gearPos = +q.get('gp')!;
     ac.fm.rpm.fill(q.get('rpm') ? +q.get('rpm')! : 1);
     ac.fm.ab.fill(q.get('ab') ? 1 : 0);
     if (gearUp) ac.fm.pos.y += 3;

@@ -4,6 +4,16 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
+## v7.6.0 (2026-10-11)
+
+### Air Combat: Real landing gear on every jet
+
+- **Improved: Every jet's landing gear is built like the real thing**
+  - Each leg: the trunnion it swings on, the shock strut with its polished chrome oleo, the torque links, a folding drag brace and a retraction jack to the airframe, brake lines, treaded tyres on spoked hubs with their brake stacks, the doors and the dark wheel wells behind them. The nose leg has its steering collar and its landing and taxi lights.
+- **Improved: The gear moves like the real thing**
+  - Up and down in sequence: the bay doors open, the legs swing (eased like hydraulics, not at a constant rate) while the brace folds at its knee and the jack telescopes, each leg tucks up into its bay, then the doors shut behind it.
+  - On the ground the oleos compress under the jet's weight and stroke over bumps; off the ground they extend. The wheels roll with your speed, keep spinning after lift-off and are braked to a stop as the gear comes up, and the nose wheel steers with the rudder pedals at taxi speeds.
+
 ## v7.5.0 (2026-10-11)
 
 ### Air Combat: The Raptor in its real colours

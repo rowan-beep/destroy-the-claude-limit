@@ -37,6 +37,20 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.6.0',
+    date: '2026-10-11',
+    air: {
+      title: 'Real landing gear on every jet',
+      notes: [
+        improved('Every jet\'s landing gear is built like the real thing',
+          'Each leg: the trunnion it swings on, the shock strut with its polished chrome oleo, the torque links, a folding drag brace and a retraction jack to the airframe, brake lines, treaded tyres on spoked hubs with their brake stacks, the doors and the dark wheel wells behind them. The nose leg has its steering collar and its landing and taxi lights.'),
+        improved('The gear moves like the real thing',
+          'Up and down in sequence: the bay doors open, the legs swing (eased like hydraulics, not at a constant rate) while the brace folds at its knee and the jack telescopes, each leg tucks up into its bay, then the doors shut behind it.',
+          'On the ground the oleos compress under the jet\'s weight and stroke over bumps; off the ground they extend. The wheels roll with your speed, keep spinning after lift-off and are braked to a stop as the gear comes up, and the nose wheel steers with the rudder pedals at taxi speeds.'),
+      ],
+    },
+  },
+  {
     version: '7.5.0',
     date: '2026-10-11',
     air: {
