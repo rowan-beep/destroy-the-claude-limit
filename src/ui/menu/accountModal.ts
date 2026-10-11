@@ -16,6 +16,8 @@ class AccountModal {
   private mode: 'signin' | 'create' = 'signin';
   private email = '';
   private changing = false;
+  /** what is typed in the password boxes, kept across redraws (an error message redraws the window) */
+  private pw = ['', ''];
   private notice = '';
   private working = false;
   private error = '';
@@ -41,6 +43,7 @@ class AccountModal {
     if (!on && cloudState().status === 'conflict') return;
     this.open = on;
     this.root.classList.toggle('hidden', !on);
+    if (!on) this.pw = ['', ''];
     if (on) {
       this.error = '';
       this.notice = '';
@@ -85,15 +88,26 @@ class AccountModal {
 
   private signIn(b: HTMLElement): void {
     const create = this.mode === 'create';
-    el('p', 'acct-p', b, 'Sign in to keep your progress safe online, carry it to other devices and put your rank on the leaderboard.');
-    el('p', 'acct-p acct-dim', b, create
-      ? 'Your email is just the name your account goes by: nothing is sent to it. There is no password reset, so keep your password somewhere safe. Everything saved on this device is copied to the new account, and it stays on this device too.'
-      : 'Use the email and password you made your account with. Everything saved on this device stays here too.');
+    // two plain tabs: SIGN IN (have an account) / NEW ACCOUNT
+    const tabs = el('div', 'acct-tabs', b);
+    const tab = (label: string, m: 'signin' | 'create'): void => {
+      const t = button(label, 'acct-tab' + (this.mode === m ? ' on' : ''), tabs, () => {
+        if (this.mode === m) return;
+        this.mode = m;
+        this.pw = ['', ''];
+        this.error = '';
+        this.render(cloudState());
+      });
+      t.disabled = this.working;
+    };
+    tab('SIGN IN', 'signin');
+    tab('NEW ACCOUNT', 'create');
+    el('p', 'acct-p', b, create ? 'Make an account to save your progress online.' : 'Sign in to save your progress online and play on any device.');
     const form = el('div', 'acct-form', b);
-    const field = (type: string, ph: string, ac: AutoFill, v = ''): HTMLInputElement => {
-      const i = el('input', 'mp-input acct-in', form);
+    const field = (label: string, type: string, ac: AutoFill, v = ''): HTMLInputElement => {
+      const l = el('label', 'acct-label', form, label);
+      const i = el('input', 'mp-input acct-in', l);
       i.type = type;
-      i.placeholder = ph;
       i.autocomplete = ac;
       i.value = v;
       i.addEventListener('keydown', (e) => {
@@ -102,18 +116,20 @@ class AccountModal {
       });
       return i;
     };
-    const email = field('email', 'Email', 'username', this.email);
-    const pass = field('password', create ? `Password (${PASSWORD_MIN}+ characters)` : 'Password', create ? 'new-password' : 'current-password');
-    const again = create ? field('password', 'Password again', 'new-password') : null;
+    const email = field('Email', 'email', 'username', this.email);
+    const pass = field(create ? `Password (at least ${PASSWORD_MIN} characters)` : 'Password', 'password', create ? 'new-password' : 'current-password', this.pw[0]);
+    const again = create ? field('Type the password again', 'password', 'new-password', this.pw[1]) : null;
+    pass.addEventListener('input', () => (this.pw[0] = pass.value));
+    again?.addEventListener('input', () => (this.pw[1] = again.value));
     const go = (): void => {
       const v = email.value.trim();
       this.email = v;
       const bad = !EMAIL.test(v)
-        ? 'Enter your email address.'
+        ? 'Type your email address.'
         : pass.value.length < (create ? PASSWORD_MIN : 1)
-          ? create ? `Choose a password of at least ${PASSWORD_MIN} characters.` : 'Enter your password.'
+          ? create ? `The password needs at least ${PASSWORD_MIN} characters.` : 'Type your password.'
           : again && again.value !== pass.value
-            ? 'The two passwords are different.'
+            ? 'The two passwords are not the same.'
             : '';
       if (bad) {
         this.error = bad;
@@ -121,49 +137,54 @@ class AccountModal {
         return;
       }
       const pw = pass.value;
-      void this.run(() => (create ? createAccount(v, pw) : signIn(v, pw)));
+      void this.run(async () => {
+        await (create ? createAccount(v, pw) : signIn(v, pw));
+        this.pw = ['', ''];
+      });
     };
-    const row = el('div', 'acct-row', b);
-    const ok = button(this.working ? (create ? 'CREATING…' : 'SIGNING IN…') : create ? 'CREATE ACCOUNT' : 'SIGN IN', 'primary', row, go);
+    const ok = button(this.working ? 'ONE MOMENT…' : create ? 'CREATE ACCOUNT' : 'SIGN IN', 'primary acct-go', b, go);
     ok.disabled = this.working;
-    button(create ? 'I HAVE AN ACCOUNT' : 'CREATE AN ACCOUNT', 'small', row, () => {
-      this.mode = create ? 'signin' : 'create';
-      this.error = '';
-      this.render(cloudState());
-    });
+    if (create) el('p', 'acct-p acct-dim', b, 'No email is sent. Write your password down: it cannot be reset.');
     if (!this.working) setTimeout(() => (this.email ? pass : email).focus(), 0);
   }
 
   private signedIn(b: HTMLElement, s: CloudState): void {
-    el('p', 'acct-p', b, `Signed in as ${s.email ?? 'your account'}.`);
-    if (s.status === 'syncing') el('p', 'acct-p acct-dim', b, 'Saving your progress…');
-    else if (s.status === 'synced')
-      el('p', 'acct-p acct-ok', b, `✓ Your progress is saved to your account${s.lastSync ? ` (last saved ${new Date(s.lastSync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : ''}. Changes are saved automatically.`);
-    else el('p', 'acct-err', b, `${s.status === 'offline' ? 'You are offline.' : s.message || 'Saving failed.'} Your progress is safe on this device and will be saved when the connection is back.`);
-    const row = el('div', 'acct-row', b);
-    const save = button(s.status === 'synced' ? 'SAVE NOW' : 'TRY AGAIN', '', row, () => void this.run(syncNow));
-    save.disabled = this.working || s.status === 'syncing';
-    button('SIGN OUT', '', row, () => void this.run(signOut));
-    el('p', 'acct-p acct-dim', b, 'Signing out keeps everything on this device.');
+    const who = el('div', 'acct-who', b);
+    el('div', 'acct-who-t', who, 'SIGNED IN');
+    el('div', 'acct-who-e', who, s.email ?? 'your account');
+    if (s.status === 'synced' || s.status === 'syncing') el('p', 'acct-p acct-ok', b, '✓ Your progress saves by itself.');
+    else {
+      el('p', 'acct-err', b, s.status === 'offline' ? 'You are offline. Your progress is safe here and saves when you are back online.' : 'Could not save just now. Your progress is safe here.');
+      const retry = button('TRY AGAIN', '', el('div', 'acct-row', b), () => void this.run(syncNow));
+      retry.disabled = this.working;
+    }
     if (!this.changing) {
-      button('CHANGE PASSWORD', 'small', el('div', 'acct-row', b), () => {
+      const so = button('SIGN OUT', 'acct-go', b, () => void this.run(signOut));
+      so.disabled = this.working;
+      button('Change password', 'acct-link', b, () => {
         this.changing = true;
         this.error = '';
         this.render(cloudState());
       });
       return;
     }
+    el('p', 'acct-p', b, 'Choose a new password.');
     const form = el('div', 'acct-form', b);
-    const pass = el('input', 'mp-input acct-in', form);
-    pass.type = 'password';
-    pass.placeholder = `New password (${PASSWORD_MIN}+ characters)`;
-    pass.autocomplete = 'new-password';
-    const again = el('input', 'mp-input acct-in', form);
-    again.type = 'password';
-    again.placeholder = 'New password again';
-    again.autocomplete = 'new-password';
+    const field = (label: string): HTMLInputElement => {
+      const l = el('label', 'acct-label', form, label);
+      const i = el('input', 'mp-input acct-in', l);
+      i.type = 'password';
+      i.autocomplete = 'new-password';
+      i.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') go();
+      });
+      return i;
+    };
+    const pass = field(`New password (at least ${PASSWORD_MIN} characters)`);
+    const again = field('Type it again');
     const go = (): void => {
-      const bad = pass.value.length < PASSWORD_MIN ? `Choose a password of at least ${PASSWORD_MIN} characters.` : again.value !== pass.value ? 'The two passwords are different.' : '';
+      const bad = pass.value.length < PASSWORD_MIN ? `The password needs at least ${PASSWORD_MIN} characters.` : again.value !== pass.value ? 'The two passwords are not the same.' : '';
       if (bad) {
         this.error = bad;
         this.render(cloudState());
@@ -173,18 +194,12 @@ class AccountModal {
       void this.run(async () => {
         await changePassword(pw);
         this.changing = false;
-        this.notice = 'Password changed.';
+        this.notice = '✓ Password changed.';
       });
     };
-    for (const i of [pass, again])
-      i.addEventListener('keydown', (e) => {
-        e.stopPropagation();
-        if (e.key === 'Enter') go();
-      });
-    const prow = el('div', 'acct-row', b);
-    const savePw = button(this.working ? 'SAVING…' : 'SAVE PASSWORD', 'primary', prow, go);
+    const savePw = button(this.working ? 'ONE MOMENT…' : 'SAVE PASSWORD', 'primary acct-go', b, go);
     savePw.disabled = this.working;
-    button('CANCEL', 'small', prow, () => {
+    button('Cancel', 'acct-link', b, () => {
       this.changing = false;
       this.error = '';
       this.render(cloudState());
@@ -194,8 +209,8 @@ class AccountModal {
 
   private conflict(b: HTMLElement, s: CloudState): void {
     const c = s.conflict!;
-    el('h3', 'acct-h', b, 'TWO DIFFERENT SAVES');
-    el('p', 'acct-p', b, 'This device and your account both have progress the other one does not. Choose which to keep. The other one is stored as a backup in your account, so nothing is deleted.');
+    el('h3', 'acct-h', b, 'WHICH SAVE DO YOU WANT?');
+    el('p', 'acct-p', b, 'This device and your account have different progress. Pick one. The other is kept as a backup, so nothing is lost.');
     const cards = el('div', 'acct-cards', b);
     const card = (title: string, sub: string, x: SaveSummary, keep: 'device' | 'account', label: string): void => {
       const k = el('div', 'acct-card', cards);
@@ -208,9 +223,9 @@ class AccountModal {
       const btn = button(label, 'primary', k, () => void this.run(() => resolveConflict(keep)));
       btn.disabled = this.working;
     };
-    card('THIS DEVICE', 'What this browser has saved now', c.device, 'device', 'KEEP THIS DEVICE’S');
+    card('THIS DEVICE', 'Saved in this browser', c.device, 'device', 'USE THIS ONE');
     const when = new Date(c.account.savedAt);
-    card('YOUR ACCOUNT', `Saved ${isNaN(when.getTime()) ? '' : when.toLocaleString()}${c.account.on ? ` from the ${c.account.on.toLowerCase()}` : ''}`, c.account, 'account', 'USE MY ACCOUNT’S');
+    card('YOUR ACCOUNT', `Saved online${isNaN(when.getTime()) ? '' : ' ' + when.toLocaleString()}`, c.account, 'account', 'USE THIS ONE');
     if (s.message) el('p', 'acct-err', b, s.message);
   }
 }

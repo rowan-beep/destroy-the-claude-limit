@@ -42,6 +42,20 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.8.3',
+    date: '2026-10-11',
+    air: {
+      title: 'A simpler sign-in window',
+      accounts: true,
+      notes: [
+        improved('SIGN IN is easier to use',
+          'Two tabs at the top: SIGN IN if you have an account, NEW ACCOUNT to make one. Each box is labelled, there is one big button, and much less text.',
+          'Signed in, the window just shows your email and that your progress saves by itself, with SIGN OUT and Change password.',
+          'If something is wrong (a short password, a typo), the passwords you typed stay in their boxes.'),
+      ],
+    },
+  },
+  {
     version: '7.8.2',
     date: '2026-10-11',
     air: {
