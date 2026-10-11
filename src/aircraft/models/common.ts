@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import type { AirframeVisual, ControlSurface } from './visual';
 import { loft, Section, sectionArch, sectionAt } from './builder';
 import { wing, WingStation, WingSpec, join, P2, strip, roundBox, rod, lathe } from './kit';
-import { partMaterials, strutLeg, wheel } from './parts';
+import { partMaterials, canopyGlass, strutLeg, wheel } from './parts';
 
 function stationAt(secs: WingStation[], x: number): WingStation {
   if (x <= secs[0].x) return { ...secs[0], x };
@@ -155,16 +155,18 @@ export function sectionsFromProfile(profile: (z: number) => P2[], z0: number, z1
 }
 
 /** Bubble canopy (glass), windscreen arch, bows and sill rails. */
-export function buildCanopy(v: AirframeVisual, can: Section[], archZ: number, bows: number[], frameMat?: THREE.Material, taperTail = 0): void {
+export function buildCanopy(v: AirframeVisual, can: Section[], archZ: number, bows: number[], frameMat?: THREE.Material, taperTail = 0, fadeTail?: [number, number]): void {
   const pm = partMaterials();
-  const glass = v.addMesh(loft(can, 64, 10), pm.glass, v.body, false);
+  // (a glass tail lying flush on the spine fades into the skin instead of ending in a hard bright point)
+  const [glassMat, glassBack] = fadeTail ? canopyGlass(fadeTail) : [pm.glass, pm.glassBack];
+  const glass = v.addMesh(loft(can, 64, 10), glassMat, v.body, false);
   // after the water (1) and every cloud layer (world/clouds.ts: 8-10): transparent things draw in
   // renderOrder, and the clouds write no depth, so a canopy drawn before them vanished behind any
   // cloud it was silhouetted against (the cloud painted over the glass where only sky was behind it)
   glass.renderOrder = 11;
   // the far wall, seen through the near one (its own back-face mesh, drawn first; the cockpit view,
   // inside the bubble, hides it)
-  const far = new THREE.Mesh(glass.geometry, pm.glassBack);
+  const far = new THREE.Mesh(glass.geometry, glassBack);
   far.renderOrder = 10.99;
   glass.add(far);
   v.hideInCockpit.push(far);

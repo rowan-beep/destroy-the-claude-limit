@@ -978,9 +978,10 @@ function livery(team: string, withCamo = true): Livery {
   // frames across the top (not across the open cockpit, nor out onto the wings)
   const topHalf = (z: number) => (z < topLip ? 0.62 : Math.min(T_OUT(Math.min(z, 1.6)) - 0.05, 1.9));
   const rootTE = wingAt(WROOT).te;
-  for (const z of [RADOME_Z + 0.32, windscreen - 0.12, canopyTail + 0.02, -0.2, 1.4, 2.4, 3.0, 4.4, 5.6, 6.8, 7.8]) {
+  // (no frame line right at the glass's tail: it cut a step across the point where the glass runs out)
+  for (const z of [RADOME_Z + 0.32, windscreen - 0.12, -0.2, 1.4, 2.4, 3.0, 4.4, 5.6, 6.8, 7.8]) {
     const h = z > rootTE + 0.1 ? 1.85 : z > 2.4 ? 1.15 : topHalf(z);
-    line(gt, [T(-h, z), T(h, z)], 1.2, z === canopyTail + 0.02 || z === RADOME_Z + 0.32 ? SEAM : SEAM_L);
+    line(gt, [T(-h, z), T(h, z)], 1.2, z === RADOME_Z + 0.32 ? SEAM : SEAM_L);
     line(gb, [B(-h, z), B(h, z)], 1.1, SEAM_L);
   }
   // the deck over the trunks: its edges, the spine's foot, the engine bays
@@ -1574,11 +1575,13 @@ export function buildF15EX(v: AirframeVisual): void {
     }
     return best;
   };
-  const SB_Z0 = -0.5, SB_Z1 = 1.0, SB_W = 0.49;
+  // (its front edge clear of the glass's tail, and sinking into the skin over 12 cm, not 4: a crisp
+  // edge right behind the glass read as a step across the spine)
+  const SB_Z0 = -0.3, SB_Z1 = 1.0, SB_W = 0.49;
   const sbXs = [0, 0.08, 0.16, 0.24, 0.31, 0.37, 0.42, 0.455, 0.475];
   const sbProfile = (z: number): P2[] => {
     // (the ends sink into the skin like the sides)
-    const endK = Math.min(1, (z - SB_Z0) / 0.04, (SB_Z1 - z) / 0.04);
+    const endK = Math.min(1, (z - SB_Z0) / 0.12, (SB_Z1 - z) / 0.04);
     const w = SB_W;
     const lift = (x: number) => -0.002 + 0.008 * endK * Math.min(1, (w - x) / 0.035);
     const under = sbXs.map((x) => [x, skinTop(z, x) - 0.014] as P2);
@@ -1594,7 +1597,8 @@ export function buildF15EX(v: AirframeVisual): void {
   v.cockpitEye.copy(EYE_FRONT);
   // (the frames in the dark frame grey, as on the jet: in the photos they read darker than the paint)
   // (the sill rails thin away over the glass's long tail)
-  buildCanopy(v, CANOPY, ARCH_Z, [BOW_Z], pm.frame, 0.3);
+  // (and the glass's own tail fades into the spine it lies on over its last 0.55 m)
+  buildCanopy(v, CANOPY, ARCH_Z, [BOW_Z], pm.frame, 0.3, [-1.15, -0.6]);
   // the windscreen's thick rear frame and the thin bow between the cockpits, as bands hugging the
   // glass (the canopy builder's round tubes alone read as wire hoops beside the photos' frames)
   const glassSec = (z: number) => {

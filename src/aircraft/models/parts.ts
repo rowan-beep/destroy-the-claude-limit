@@ -133,6 +133,8 @@ export interface AcrylicOptions {
   haze: number;
   /** smudges, wipe swirls and dust that light up when the sun is on them */
   smudge: number;
+  /** body z over which the glass's tail dissolves into the skin under it (none if unset) */
+  fade?: [number, number];
 }
 
 /**
@@ -154,7 +156,10 @@ export function acrylic<T extends THREE.MeshStandardMaterial>(m: T, o: AcrylicOp
   m.transparent = true;
   m.depthWrite = false;
   m.userData.acrylic = o;
-  const u = { glassAcr: { value: new THREE.Vector3(o.absorb, o.haze, o.smudge) } };
+  const u = {
+    glassAcr: { value: new THREE.Vector3(o.absorb, o.haze, o.smudge) },
+    glassFade: { value: new THREE.Vector2(...(o.fade ?? [1e6, 1e6 + 1])) },
+  };
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, u);
     sh.vertexShader = sh.vertexShader
@@ -166,6 +171,7 @@ export function acrylic<T extends THREE.MeshStandardMaterial>(m: T, o: AcrylicOp
         `#include <common>
         varying vec3 vAcrP;
         uniform vec3 glassAcr;
+        uniform vec2 glassFade;
         float acrHash( vec3 p ) { return fract( sin( dot( p, vec3( 127.1, 311.7, 74.7 ) ) ) * 43758.5453 ); }
         float acrNoise( vec3 p ) {
           vec3 i = floor( p ); vec3 f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );
@@ -203,6 +209,8 @@ export function acrylic<T extends THREE.MeshStandardMaterial>(m: T, o: AcrylicOp
           vec3 rgb = totalSpecular * wall * ( 1.0 + 0.7 * ( 1.0 - Fs ) ) * ( 1.0 + acrS * 0.6 ) + haze;
           float a = 1.0 - trans;
           a = clamp( max( a, max( rgb.r, max( rgb.g, rgb.b ) ) ), 0.0, 1.0 ) * opacity;
+          // the tail running out flush onto the skin: the glass thins away to nothing
+          a *= 1.0 - smoothstep( glassFade.x, glassFade.y, vAcrP.z );
           gl_FragColor = vec4( rgb / max( a, 1e-3 ) * opacity, a );
         }`,
       );
@@ -212,6 +220,13 @@ export function acrylic<T extends THREE.MeshStandardMaterial>(m: T, o: AcrylicOp
 }
 
 const CANOPY_ACRYLIC: AcrylicOptions = { absorb: 0.12, haze: 0.05, smudge: 1 };
+
+/** Canopy glass (near wall, far wall) whose tail fades out over body z `fade`. */
+export function canopyGlass(fade: [number, number]): [THREE.MeshStandardMaterial, THREE.MeshStandardMaterial] {
+  const o = { ...CANOPY_ACRYLIC, fade };
+  const p = { color: 0x9fb6b4, roughness: 0.02, metalness: 0.0, envMapIntensity: 2.8 };
+  return [acrylic(new THREE.MeshStandardMaterial(p), o), acrylic(new THREE.MeshStandardMaterial({ ...p, side: THREE.BackSide }), o)];
+}
 
 export function partMaterials(): PartMaterials {
   if (PM) return PM;
