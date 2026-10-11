@@ -626,6 +626,32 @@ and messages, there is a lobby and room list, one copy hosts and directs each ma
 the owner gets a control panel. The ranked leaderboard is kept in the artifact's shared
 database.
 
+### Accounts, cloud saves and the online leaderboard
+
+The website and the Windows app have accounts (ACCOUNT / SIGN IN at the bottom of the
+menu rail, or at the top of the simple menu), backed by a Supabase project:
+
+- **Sign-in by email.** No password: the player types their email, Supabase emails a
+  short code, the player types the code in.
+- **Nothing is lost.** The first time a player signs in, everything the game has saved
+  in that browser (settings, ranked, logbook, campaign, paint, ocean and space
+  progress) is copied to the account, and the browser copy stays as it is. After that
+  changes are saved every 20 s and when the game is closed or hidden, and another
+  device that signs in gets them. If a device and the account have both moved on, the
+  player picks which to keep and the other copy goes to the account's backups first;
+  the database also keeps a daily backup of every save. Signing out keeps everything on
+  the device. Airshow photos stay on the device that took them.
+- **Online leaderboard.** Anyone can read the week's ranked board; signed-in pilots who
+  have finished their placements appear on it.
+
+The code is in `src/net/cloud.ts` (sign-in, sync, leaderboard), `src/net/cloudSave.ts`
+(what counts as the save and how a device and an account agree, unit-tested) and
+`src/ui/menu/accountModal.ts`. The tables and their row level security are in
+`supabase/migrations/` (run once in the SQL Editor). Builds need `VITE_SUPABASE_URL`
+and `VITE_SUPABASE_PUBLISHABLE_KEY` (in `.env` locally, in `deploy.yml` for GitHub
+Pages, in the project settings on Vercel); without them the game simply has no
+accounts. The claude.ai artifact keeps its own storage and board.
+
 ---
 
 ## Building and development

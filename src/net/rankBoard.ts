@@ -1,10 +1,12 @@
 // The RANKED leaderboard. Inside the claude.ai artifact every pilot's rank for the
 // week is a document in the artifact's shared database (`ranked/<their id>`): everyone
 // reads the board, each pilot writes only their own row (the artifact's db rules say
-// so). Champion shows its place on it (#1, #2, ...). Anywhere else (the web build, the
-// Windows app) there is no shared board and these calls quietly return null.
+// so). Champion shows its place on it (#1, #2, ...). The website and the Windows app
+// use the online board instead (cloud.ts): anyone can read it, signed-in pilots
+// appear on it. Where neither exists these calls quietly return null.
 
 import { inArtifact } from './artifact';
+import { cloudBoard, cloudEnabled, cloudPublishRank, cloudUserId } from './cloud';
 import { loadNetPrefs } from './servers';
 import { placing, weekId, CHAMPION_RP, type RankedState } from '../game/ranked';
 
@@ -67,12 +69,25 @@ function myId(): Promise<string | null> {
 
 /** Is there a shared leaderboard in this copy of the game? */
 export async function boardAvailable(): Promise<boolean> {
+  if (!inArtifact()) return cloudEnabled();
   return !!(await db()) && !!(await myId());
 }
 
 /** Write this pilot's row for the week (after each ranked match). */
 export async function publishRank(s: RankedState): Promise<boolean> {
   try {
+    if (!inArtifact()) {
+      if (!cloudEnabled() || placing(s)) return false;
+      return await cloudPublishRank({
+        week: weekId(s.week),
+        callsign: (loadNetPrefs().callsign || 'PILOT').toUpperCase().slice(0, 16),
+        rp: s.rp,
+        maxRp: s.maxRp,
+        wins: s.wins,
+        losses: s.losses,
+        kills: s.kills,
+      });
+    }
     const [d, id] = await Promise.all([db(), myId()]);
     if (!d || !id || placing(s)) return false;
     await d.collection(COLLECTION).doc(id).set({
@@ -94,6 +109,12 @@ export async function publishRank(s: RankedState): Promise<boolean> {
 /** This week's board, best first (null: no shared board here). */
 export async function loadBoard(s: RankedState, limit = 100): Promise<BoardRow[] | null> {
   try {
+    if (!inArtifact()) {
+      const rows = cloudEnabled() ? await cloudBoard(weekId(s.week), limit) : null;
+      if (!rows) return null;
+      const me = cloudUserId();
+      return rows.map((r) => ({ id: r.user_id, callsign: r.callsign.slice(0, 16), rp: r.rp, wins: r.wins, losses: r.losses, kills: r.kills, me: r.user_id === me }));
+    }
     const [d, id] = await Promise.all([db(), myId()]);
     if (!d) return null;
     const snap = await d.collection(COLLECTION).where('week', '==', weekId(s.week)).orderBy('rp', 'desc').limit(limit).get();

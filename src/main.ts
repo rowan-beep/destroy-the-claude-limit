@@ -47,8 +47,13 @@ import { Launcher } from './ui/launcher/launcher';
 import { takeIntroSkip, markPicked } from './ui/launcher/introSkip';
 import { hiresImage } from './render/hires';
 import type { MapId } from './world/islands';
+import { startCloud } from './net/cloud';
+import { initAccount } from './ui/menu/accountModal';
 
 wakeOfficialServers();
+// accounts and cloud saves (website and Windows app): restore the session, sync
+void startCloud();
+initAccount();
 
 async function boot(): Promise<void> {
   // the theater must be chosen before anything about the world is built

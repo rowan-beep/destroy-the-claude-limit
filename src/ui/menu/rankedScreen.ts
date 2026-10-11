@@ -11,6 +11,7 @@ import {
 } from '../../game/ranked';
 import { rankEmblemSvg, rankColor } from '../rankEmblem';
 import { loadBoard, championPlace, boardAvailable } from '../../net/rankBoard';
+import { cloudEnabled, cloudUserId } from '../../net/cloud';
 
 type RankTab = 'ladder' | 'matches' | 'board' | 'how';
 let tab: RankTab = 'ladder';
@@ -218,11 +219,17 @@ function board(p: HTMLElement, s: RankedState): void {
       return;
     }
     const rows = await loadBoard(s, 100);
-    if (!rows || !rows.length) {
-      status.textContent = 'Nobody has finished their placements this week yet. Be the first on the board.';
+    // (website and Windows app: only signed-in pilots are put on the board)
+    const signIn = cloudEnabled() && !cloudUserId() ? ' Sign in from ACCOUNT in the menu to put your rank on it.' : '';
+    if (!rows) {
+      status.textContent = 'The leaderboard could not be loaded. Check your connection and open this tab again.';
       return;
     }
-    status.textContent = `This week · ${rows.length} pilot${rows.length === 1 ? '' : 's'} placed · Champions are numbered.`;
+    if (!rows.length) {
+      status.textContent = 'Nobody has finished their placements this week yet. Be the first on the board.' + signIn;
+      return;
+    }
+    status.textContent = `This week · ${rows.length} pilot${rows.length === 1 ? '' : 's'} placed · Champions are numbered.` + signIn;
     const tbl = el('div', 'rk-board', p);
     let champ = 0;
     rows.forEach((r, i) => {

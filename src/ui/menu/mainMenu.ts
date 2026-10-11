@@ -27,6 +27,8 @@ import { menuStyle, setMenuStyle, renderSimple, picture } from './simpleMenu';
 import { renderRankCard, renderRankTabs } from './rankedScreen';
 import { loadRanked, cooldownLeft, visibleRank, untilText, PLACEMENTS } from '../../game/ranked';
 import { rankEmblemSvg } from '../rankEmblem';
+import { openAccount, accountLabel } from './accountModal';
+import { onCloud } from '../../net/cloud';
 
 const DIFF_TEXT: Record<Difficulty, string> = {
   EASY: 'Conservative, rarely uses afterburner, flies predictable straight lines and gentle arcs. Only shoots with a perfect sustained lock. Never hides behind terrain.',
@@ -139,6 +141,14 @@ export class MainMenu {
     const wn = new WhatsNewModal(document.body, 'air');
     const small = (label: string, fn: () => void) => button(label, 'mm-foot-btn', foot, fn);
     small('LOGBOOK', () => cb.onLogbook());
+    // ACCOUNT: email sign-in and cloud saves (website and Windows app only)
+    const acct = small('SIGN IN', () => openAccount());
+    onCloud((st) => {
+      const l = accountLabel(st);
+      acct.classList.toggle('hidden', !l);
+      acct.classList.toggle('mm-acct-in', st.status === 'signed-out');
+      if (l && acct.textContent !== l) acct.textContent = l;
+    });
     small('SETTINGS', () => cb.onSettings());
     small('CONTROLS', () => cb.onControls());
     small(`v${wn.latest} NOTES`, () => wn.show(true));

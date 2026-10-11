@@ -6,6 +6,8 @@ import { el, clearEl } from '../dom';
 import type { Program } from './program';
 import { programLogo } from './program';
 import { SHOTS, shotUrl } from '../launcher/shots';
+import { openAccount, accountLabel } from './accountModal';
+import { cloudState } from '../../net/cloud';
 
 export type MenuStyle = 'current' | 'simple';
 
@@ -140,6 +142,14 @@ export function renderSimple(host: HTMLElement, v: SimpleView): void {
   full.type = 'button';
   full.title = 'Back to the full (CURRENT) menu';
   full.addEventListener('click', () => v.onFull());
+  // ACCOUNT: email sign-in and cloud saves (website and Windows app only)
+  const al = accountLabel(cloudState());
+  if (al) {
+    const acct = el('button', 'sm-full', tr, al) as HTMLButtonElement;
+    acct.type = 'button';
+    acct.title = 'Save your progress online and appear on the leaderboard';
+    acct.addEventListener('click', () => openAccount());
+  }
   el('div', 'sm-spacer', host);
   el('div', 'sm-hint', host, 'DRAG TO LOOK AROUND · SCROLL TO ZOOM');
   el('div', 'sm-h', host, v.heading);

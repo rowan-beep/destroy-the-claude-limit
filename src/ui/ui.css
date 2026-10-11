@@ -1395,3 +1395,21 @@ body:has(#hud.cockpit-clean) .wx-widget { opacity: 0; pointer-events: none; }
 @keyframes rk-pop { from { transform: scale(0.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes rk-reveal { 0% { transform: scale(0.2) rotate(-25deg); opacity: 0; filter: brightness(3); } 60% { transform: scale(1.15) rotate(4deg); opacity: 1; } 100% { transform: scale(1) rotate(0); filter: none; } }
 @keyframes rk-pulse { 0%, 100% { letter-spacing: 0.32em; opacity: 1; } 50% { letter-spacing: 0.4em; opacity: 0.7; } }
+
+/* ---- ACCOUNT window (accountModal.ts) ---- */
+.modal.acct { max-width: 560px; }
+.acct .modal-body { display: flex; flex-direction: column; gap: 10px; }
+.acct-p { margin: 0; line-height: 1.45; }
+.acct-dim { color: var(--menu-dim); font-size: 13px; }
+.acct-ok { color: var(--accent); }
+.acct-err { margin: 0; color: #ffb3a8; line-height: 1.4; }
+.acct-h { margin: 0; letter-spacing: 3px; font-size: 15px; }
+.acct-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.acct-in { flex: 1 1 220px; width: auto; }
+.acct-code { letter-spacing: 0.4em; font-size: 18px; text-align: center; }
+.acct-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.acct-card { display: flex; flex-direction: column; gap: 6px; padding: 12px; border: 1px solid var(--menu-line); background: rgba(255, 255, 255, 0.03); }
+.acct-card-t { letter-spacing: 3px; font-weight: 700; }
+.acct-list { margin: 0; padding-left: 18px; line-height: 1.5; }
+.acct-card .btn { margin-top: auto; }
+.mm-foot-btn.mm-acct-in { color: #d6ffe9; border-color: rgba(71, 209, 140, 0.55); }
