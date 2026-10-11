@@ -20,7 +20,12 @@ export type Note = string | { k?: NoteKind; h: string; d?: string[] };
 export interface Notes {
   title: string;
   notes: Note[];
+  /** about accounts / sign-in: left out of copies built without them (the claude.ai artifact) */
+  accounts?: boolean;
 }
+
+/** this copy has accounts (triad.church and the Windows app; the artifact is built without the Supabase settings) */
+const ACCOUNTS = !!import.meta.env?.VITE_SUPABASE_URL;
 
 export interface Release {
   version: string;
@@ -41,6 +46,7 @@ export const RELEASES: Release[] = [
     date: '2026-10-11',
     air: {
       title: 'SIGN IN is in the menu',
+      accounts: true,
       notes: [
         fixed('The SIGN IN button now shows on triad.church and the Windows app',
           'It sits at the bottom of the menu rail, next to LOGBOOK (at the top in the simple menu). 7.8.0 left it out by mistake.'),
@@ -52,6 +58,7 @@ export const RELEASES: Release[] = [
     date: '2026-10-11',
     air: {
       title: 'Accounts: your progress saved online',
+      accounts: true,
       notes: [
         added('Make an account with an email and a password',
           'SIGN IN in the menu, then CREATE AN ACCOUNT: you are signed in straight away. No email is sent and there is no code to type; the email is only your account\'s name.',
@@ -3381,7 +3388,7 @@ export function releasesFor(g: Game): GameRelease[] {
   const out: GameRelease[] = [];
   for (const r of RELEASES) {
     const n = r[g];
-    if (n) out.push({ version: r.version, date: r.date, title: n.title, notes: n.notes });
+    if (n && (!n.accounts || ACCOUNTS)) out.push({ version: r.version, date: r.date, title: n.title, notes: n.notes });
   }
   return out;
 }

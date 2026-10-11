@@ -33,6 +33,8 @@ one they haven't seen). Small fixes included (model shape fixes too).
   it belongs to (`air`, `space` or `ocean`), with added()/improved()/fixed().
 - Bump `package.json` and the "Current version" line in README.md to match, and
   run `npm run changelog`.
+- Notes about accounts or sign-in get `accounts: true`: the artifact has no
+  sign-in, so it leaves them out.
 
 ## One game, two runtimes
 
