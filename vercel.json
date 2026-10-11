@@ -4,7 +4,7 @@
     "app": {
       "root": ".",
       "framework": "vite",
-      "buildCommand": "VITE_TRIAD_SERVER=/api npm run build",
+      "buildCommand": "VITE_TRIAD_SERVER=/api VITE_SUPABASE_URL=https://tvyztadurvkofztmxpmd.supabase.co VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_fC7Y__Pz13lzDy5JE4dlIQ_rh_oicj- npm run build",
       "outputDirectory": "dist"
     },
     "server": {

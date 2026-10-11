@@ -1,26 +1,21 @@
 # TRIAD: notes for Claude
 
-## Shipping: every game change goes to both places
+## Shipping: only the website
 
-What the owner calls them: **"the website"** is triad.church (GitHub Pages, and the
-Windows app that loads it); **"the artifact"** is the claude.ai artifact below.
-"Update both" means ship the change to both.
+**"The website"** is triad.church (and the Windows app, which loads it). Every
+game change ships there and nowhere else:
 
-The game is one codebase with two homes, and every change ships to both:
+- Before shipping: `npx tsc --noEmit` and `npm test`.
+- Commit, then push `main` and the release branch `claude/bold-darwin-occlgg`.
+- triad.church is built and served by **Vercel** from `vercel.json` (its
+  `buildCommand` passes the build settings: the Supabase URL and publishable
+  key, the multiplayer server). `.github/workflows/deploy.yml` also builds the
+  GitHub Pages copy. A setting the game needs must be in both.
+- After a push, check the live site (https://www.triad.church) shows the change.
 
-1. **The website** (triad.church, GitHub Pages; the Windows app loads it).
-   Commit, then push `main` and the release branch `claude/bold-darwin-occlgg`.
-   `.github/workflows/deploy.yml` builds and deploys it on the branch push.
-2. **The claude.ai artifact**: https://claude.ai/artifact/QSftNhcw3JkQfNKzsLVaHM
-   - `npm run build:artifact` builds `dist-artifact/index.html` and checks it
-     (no Supabase settings or tokens, under 16 MB, nothing Claude Code mistakes
-     for a PR-review page).
-   - Publish that file to the URL above (never to a new link) with these
-     capabilities:
-     `{"room": {}, "user": {}, "downloads": {}, "db": {"rules": [{"path": "ranked", "read": "view", "write": "owner"}, {"path": "ranked/{self}", "write": "interact"}]}}`
-
-A change is not shipped until both are updated. Before shipping: `npx tsc --noEmit`
-and `npm test`.
+**Leave the claude.ai artifact alone** (https://claude.ai/artifact/QSftNhcw3JkQfNKzsLVaHM):
+the owner said not to update it any more. Don't build or publish it unless the
+owner asks again.
 
 ## Release notes with every update
 
@@ -33,8 +28,8 @@ one they haven't seen). Small fixes included (model shape fixes too).
   it belongs to (`air`, `space` or `ocean`), with added()/improved()/fixed().
 - Bump `package.json` and the "Current version" line in README.md to match, and
   run `npm run changelog`.
-- Notes about accounts or sign-in get `accounts: true`: the artifact has no
-  sign-in, so it leaves them out.
+- Notes about accounts or sign-in get `accounts: true`: they only show in a
+  build that has the Supabase settings (so check the website build has them).
 
 ## One game, two runtimes
 
