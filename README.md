@@ -690,6 +690,9 @@ and sea-bed streaming.
   Enable Pages with source "GitHub Actions" in the repository settings.
 - **Windows app**: `.github/workflows/desktop.yml` builds the portable `.exe` and
   publishes it as the `desktop` release. It runs by hand only (Actions → Run workflow).
+- **claude.ai artifact**: `npm run build:artifact` builds and checks
+  `dist-artifact/index.html`, which is published to the game's artifact. Every change
+  ships to both the website and the artifact (see `CLAUDE.md`).
 - **Servers**: `render.yaml` as described in [Multiplayer](#multiplayer).
 - **Vercel** (optional): `vercel.json` deploys the site and the game server as one
   project with two services: `app` (the Vite site, at `/`) and `server`

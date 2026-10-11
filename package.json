@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "build:single": "tsc --noEmit && vite build --mode single",
+    "build:artifact": "tsc --noEmit && node scripts/build-artifact.mjs",
     "typecheck": "tsc --noEmit",
     "changelog": "node scripts/changelog.mjs",
     "preview": "vite preview",
