@@ -2,6 +2,10 @@
 
 ## Shipping: every game change goes to both places
 
+What the owner calls them: **"the website"** is triad.church (GitHub Pages, and the
+Windows app that loads it); **"the artifact"** is the claude.ai artifact below.
+"Update both" means ship the change to both.
+
 The game is one codebase with two homes, and every change ships to both:
 
 1. **The website** (triad.church, GitHub Pages; the Windows app loads it).

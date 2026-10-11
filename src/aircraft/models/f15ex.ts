@@ -50,8 +50,8 @@ function split(pts: P2[], i: number, ts: number[]): P2[] {
 const T_IN = curve([[-4.2, 0.69], [-1.95, 0.69], [-1.5, 0.535], [-0.9, 0.58], [0.4, 0.62], [1.6, 0.66]]);
 const T_OUT = curve([[-4.2, 1.49], [-1.95, 1.49], [-1.5, 1.755], [-1.2, 1.819], [-0.9, 1.84], [0.4, 1.91], [1.6, 1.91]]);
 // (behind the cowl the top stays up near the capsule's height back to the wing root: falling away to
-// 0.39 m there sank the deck beside the spine into a trough)
-const T_TOP = curve([[-4.2, 0.71], [-4.0, 0.7], [-3.6, 0.672], [-3.2, 0.656], [-2.75, 0.65], [-1.9, 0.64], [-0.9, 0.612], [0.4, 0.532], [1.6, 0.46]]);
+// 0.39 m there sank the deck beside the spine into a trough, 10 cm below the engine bays behind it)
+const T_TOP = curve([[-4.2, 0.71], [-4.0, 0.7], [-3.6, 0.672], [-3.2, 0.656], [-2.75, 0.65], [-1.9, 0.64], [-0.9, 0.622], [0.4, 0.578], [1.6, 0.53]]);
 const T_BOT = curve([[-1.9, -0.65], [-1.4, -0.665], [-0.9, -0.7], [0.4, -0.81], [1.6, -0.79]]);
 const T_R = curve([[-4.1, 0.12], [-2.75, 0.15], [-0.9, 0.2], [1.6, 0.22]]);
 // the trunk's own corner radii: the top corner a crisp chine along the intake capsule, rounding off
@@ -109,7 +109,9 @@ function wrap(z: number, foot: P2): P2[] {
   const r = T_R(z), cx = T_OUT(z) - r, cy = T_TOP(z) - r, o = r + 0.012;
   const at = (deg: number): P2 => [cx + o * Math.cos((deg * Math.PI) / 180), cy + o * Math.sin((deg * Math.PI) / 180)];
   const edge: P2 = [cx - 0.08, T_TOP(z) + 0.012];
-  return [at(15), at(60), edge, [(edge[0] + foot[0]) / 2, (edge[1] + foot[1]) / 2 + 0.004]];
+  // (the deck crowned a little between the trunk's edge and the spine: a straight line between them read
+  // as a hollow next to the round spine)
+  return [at(15), at(60), edge, [(edge[0] + foot[0]) / 2, (edge[1] + foot[1]) / 2 + 0.014]];
 }
 
 /**
@@ -655,10 +657,10 @@ const BODY = keyedProfile([
   { z: -0.3, pts: [[0, -0.635], [0.384, -0.649], [0.707, -0.721], [1.003, -0.67], [1.18, -0.405], [1.221, -0.094], [1.223, 0.202], ...deck(-0.3, 0.675), [0.6, 0.702], [0.42, 0.803], [0, 0.87]] },
   // the body takes over the intake trunks (wrapping their top corner clear of
   // it); the deck runs on to the engine bays and the spine falls away to the tail
-  { z: 0.4, pts: [[0, -0.64], [0.46, -0.66], [0.95, -0.84], [1.5, -0.87], [1.86, -0.74], [1.95, -0.44], [1.93, -0.1], ...wrap(0.4, [0.68, 0.56]), [0.68, 0.56], [0.58, 0.675], [0.4, 0.738], [0, 0.78]] },
-  { z: 1.5, pts: [[0, -0.625], [0.456, -0.645], [0.95, -0.817], [1.49, -0.843], [1.849, -0.717], [1.939, -0.432], [1.93, -0.108], ...wrap(1.5, [0.72, 0.5]), [0.72, 0.5], [0.56, 0.626], [0.36, 0.673], [0, 0.7]] },
-  { z: 2.4, pts: [[0, -0.612], [0.453, -0.632], [0.95, -0.799], [1.486, -0.821], [1.84, -0.697], [1.929, -0.428], [1.948, -0.114], [1.938, 0.086], [1.865, 0.29], [1.53, 0.452], [1.19, 0.5], [0.85, 0.53], [0.55, 0.625], [0.3, 0.648], [0, 0.656]] },
-  { z: 3.3, pts: aft([[0, -0.6], [0.45, -0.62], [0.95, -0.78], [1.48, -0.8], [1.83, -0.68], [1.92, -0.42], [1.94, -0.12], [1.93, 0.08], [1.86, 0.26], [1.52, 0.4], [0.8, 0.55], [0, 0.6]]) },
+  { z: 0.4, pts: [[0, -0.64], [0.46, -0.66], [0.95, -0.84], [1.5, -0.87], [1.86, -0.74], [1.95, -0.44], [1.93, -0.1], ...wrap(0.4, [0.68, 0.6]), [0.68, 0.6], [0.58, 0.675], [0.4, 0.738], [0, 0.78]] },
+  { z: 1.5, pts: [[0, -0.625], [0.456, -0.645], [0.95, -0.817], [1.49, -0.843], [1.849, -0.717], [1.939, -0.432], [1.93, -0.108], ...wrap(1.5, [0.72, 0.592]), [0.72, 0.592], [0.56, 0.626], [0.36, 0.673], [0, 0.7]] },
+  { z: 2.4, pts: [[0, -0.612], [0.453, -0.632], [0.95, -0.799], [1.486, -0.821], [1.84, -0.697], [1.929, -0.428], [1.948, -0.114], [1.938, 0.086], [1.865, 0.3], [1.53, 0.5], [1.19, 0.562], [0.85, 0.588], [0.55, 0.632], [0.3, 0.65], [0, 0.656]] },
+  { z: 3.3, pts: aft([[0, -0.6], [0.45, -0.62], [0.95, -0.78], [1.48, -0.8], [1.83, -0.68], [1.92, -0.42], [1.94, -0.12], [1.93, 0.08], [1.86, 0.26], [1.52, 0.42], [0.8, 0.582], [0, 0.6]]) },
   // the engine bays: two nacelles (round, on the nozzle axes), their outer sides inside the tail booms,
   // the conformal tanks' tails on them till 4.9, a shallow valley between them on top and a keel
   // between them underneath; they end round the nozzles' roots
