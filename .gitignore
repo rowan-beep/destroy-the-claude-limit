@@ -6,3 +6,7 @@ dist-single/
 
 # loading-screen renders in progress
 tools/cinematics/out/
+
+# local environment (Supabase keys)
+.env
+.env.local
