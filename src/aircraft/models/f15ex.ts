@@ -634,7 +634,7 @@ const BODY = keyedProfile([
   { z: -2.15, pts: [[0, -0.607], [0.283, -0.604], [0.427, -0.573], [0.5, -0.446], [0.513, -0.12], [0.513, 0.2], [0.542, 0.5], ...deck(-2.15, 0.74), [0.528, 1.02], [0.384, 0.992], [0, 0.932]] },
   // the canopy's tail closes onto the dorsal spine, which falls away going aft
   // with the speedbrake lying on its top
-  { z: -1.6, pts: [[0, -0.62], [0.3, -0.62], [0.46, -0.59], [0.54, -0.46], [0.56, -0.12], [0.56, 0.2], [0.58, 0.5], ...deck(-1.6, 0.73), [0.55, 1.0], [0.32, 1.17], [0, 1.22]] },
+  { z: -1.6, pts: [[0, -0.62], [0.3, -0.62], [0.46, -0.59], [0.54, -0.46], [0.56, -0.12], [0.56, 0.2], [0.58, 0.5], ...deck(-1.6, 0.73), [0.55, 1.0], [0.32, 1.12], [0, 1.17]] },
   { z: -0.9, pts: [[0, -0.63], [0.32, -0.64], [0.5, -0.62], [0.58, -0.5], [0.6, -0.12], [0.6, 0.2], [0.62, 0.46], ...deck(-0.9, 0.69), [0.62, 0.78], [0.4, 0.928], [0, 1.0]] },
   // (the deck stays flat beside the trunk's chine right up to the wing root; the lower points are inside
   // the trunk, on their way out to the nacelle)
@@ -665,24 +665,26 @@ const BODY_SUB = [4, 3, 3, 3, 2, 3, 2, 3, 2, 2, 2, 2, 2, 4];
 
 // The two-seat bubble off the three-view: the windscreen rises from the
 // coaming 3.3 m behind the nose tip, the crown is 1.8 m above the tip over
-// the bow between the cockpits, and the glass runs 5 m back to the spine.
+// the bow between the cockpits, and the glass runs 6 m back, its tail tapering
+// down over the turtle deck and lying flush on the spine (a tail that stopped
+// short stood the turtle deck up behind it as a square hump).
 // The rail sits on the shoulder ledge beside the front seat and climbs the
 // raised side walls of the rear cockpit.
-const CROWN = curve([[-6.56, 0.81], [-6.36, 0.995], [-5.86, 1.275], [-5.36, 1.455], [-4.86, 1.585], [-4.36, 1.645], [-3.86, 1.665], [-3.36, 1.625], [-2.86, 1.555], [-2.36, 1.425], [-1.86, 1.275], [-1.6, 1.225]]);
-const RAIL = curve([[-6.56, 0.775], [-6.2, 0.795], [-5.75, 0.815], [-5, 0.84], [-4.35, 0.86], [-3.9, 0.895], [-3.4, 0.93], [-3, 0.955], [-2.6, 0.963], [-2.4, 0.969], [-2.2, 0.978], [-2, 1.013], [-1.8, 1.104], [-1.7, 1.159], [-1.6, 1.19]]);
+const CROWN = curve([[-6.56, 0.81], [-6.36, 0.995], [-5.86, 1.275], [-5.36, 1.455], [-4.86, 1.585], [-4.36, 1.645], [-3.86, 1.665], [-3.36, 1.625], [-2.86, 1.555], [-2.36, 1.425], [-2.0, 1.31], [-1.8, 1.26], [-1.6, 1.21], [-1.4, 1.16], [-1.2, 1.105], [-1.0, 1.045], [-0.8, 0.985], [-0.6, 0.935]]);
+const RAIL = curve([[-6.56, 0.775], [-6.2, 0.795], [-5.75, 0.815], [-5, 0.84], [-4.35, 0.86], [-3.9, 0.895], [-3.4, 0.93], [-3, 0.955], [-2.6, 0.963], [-2.4, 0.969], [-2.2, 0.978], [-2, 1.02], [-1.8, 1.06], [-1.6, 1.09], [-1.4, 1.09], [-1.2, 1.06], [-1.0, 1.0], [-0.8, 0.958], [-0.6, 0.92]]);
 // (the windscreen rounded in plan at the front, as on the jet: a blunt 0.9 m front edge forced the
 // forebody's upper corners to flare out into a hood right behind the radome)
-const CANOPY_W = curve([[-6.56, 0.2], [-6.42, 0.31], [-6.2, 0.39], [-5.85, 0.44], [-5.5, 0.465], [-5.15, 0.478], [-4.6, 0.49], [-4.1, 0.505], [-3.6, 0.52], [-3.1, 0.53], [-2.6, 0.528], [-2.3, 0.5], [-2, 0.42], [-1.8, 0.3], [-1.6, 0.04]]);
+const CANOPY_W = curve([[-6.56, 0.2], [-6.42, 0.31], [-6.2, 0.39], [-5.85, 0.44], [-5.5, 0.465], [-5.15, 0.478], [-4.6, 0.49], [-4.1, 0.505], [-3.6, 0.52], [-3.1, 0.53], [-2.6, 0.528], [-2.3, 0.5], [-2, 0.46], [-1.8, 0.43], [-1.6, 0.39], [-1.4, 0.34], [-1.2, 0.28], [-1.0, 0.21], [-0.8, 0.13], [-0.7, 0.085], [-0.6, 0.04]]);
 // the glass's section: boxy at the windscreen (head-on its sides stand near vertical and its top is
 // broad), rounder toward the tail
-const CANOPY_N = curve([[-6.56, 2.6], [-6.2, 3.4], [-5.15, 4], [-4.2, 3.6], [-3, 3.2], [-2.2, 2.8], [-1.6, 2.4]]);
+const CANOPY_N = curve([[-6.56, 2.6], [-6.2, 3.4], [-5.15, 4], [-4.2, 3.6], [-3, 3.2], [-2.2, 2.8], [-1.6, 2.4], [-1.0, 2.2], [-0.6, 2.0]]);
 /**
  * The windscreen's rear frame and the bow between the cockpits, where the three-view has them (the
  * photos agree to within the accuracy of cameras fitted to them, about 0.3 m along the canopy).
  */
 const ARCH_Z = -5.2;
 const BOW_Z = -3.8;
-const CANOPY: Section[] = [-6.56, -6.45, -6.3, -6.05, -5.75, -5.4, ARCH_Z, -5.0, -4.6, -4.2, BOW_Z, -3.6, -3.3, -3.0, -2.6, -2.25, -1.95, -1.75, -1.6].map((z, i, all) => {
+const CANOPY: Section[] = [-6.56, -6.45, -6.3, -6.05, -5.75, -5.4, ARCH_Z, -5.0, -4.6, -4.2, BOW_Z, -3.6, -3.3, -3.0, -2.6, -2.25, -1.95, -1.8, -1.6, -1.4, -1.2, -1.0, -0.85, -0.72, -0.6].map((z, i, all) => {
   const y = RAIL(z) + 0.03;
   const last = i === all.length - 1;
   return { z, w: CANOPY_W(z), top: Math.max(0.01, CROWN(z) - y), bot: last ? 0.01 : 0.03, y, n: CANOPY_N(z) };
@@ -1572,7 +1574,7 @@ export function buildF15EX(v: AirframeVisual): void {
     }
     return best;
   };
-  const SB_Z0 = -1.45, SB_Z1 = 1.0, SB_W = 0.49;
+  const SB_Z0 = -0.5, SB_Z1 = 1.0, SB_W = 0.49;
   const sbXs = [0, 0.08, 0.16, 0.24, 0.31, 0.37, 0.42, 0.455, 0.475];
   const sbProfile = (z: number): P2[] => {
     // (the ends sink into the skin like the sides)
