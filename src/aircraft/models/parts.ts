@@ -23,6 +23,8 @@ export interface PartMaterials {
   helmet: THREE.MeshStandardMaterial;
   visor: THREE.MeshStandardMaterial;
   glass: THREE.MeshStandardMaterial;
+  /** the far wall of a canopy seen through its near wall (back faces) */
+  glassBack: THREE.MeshStandardMaterial;
   frame: THREE.MeshStandardMaterial;
   antenna: THREE.MeshStandardMaterial;
   rubber: THREE.MeshStandardMaterial;
@@ -124,6 +126,93 @@ export function glassify<T extends THREE.MeshStandardMaterial>(m: T, edge = 0.88
   return m;
 }
 
+export interface AcrylicOptions {
+  /** absorption along the path through one wall, looking straight through it */
+  absorb: number;
+  /** the faint glow of light scattered in the glass and its coatings (times the material colour) */
+  haze: number;
+  /** smudges, wipe swirls and dust that light up when the sun is on them */
+  smudge: number;
+}
+
+/**
+ * Stretched-acrylic canopy glass seen from outside, built like the real thing:
+ *
+ * - what lies behind it (seats, pilots, the far wall) shows through, dimmed only by the
+ *   light lost to reflection at its surfaces and absorbed along the slant path through
+ *   the wall (Fresnel for n = 1.49, Beer-Lambert absorption) -- so it is nearly clear
+ *   looking straight in and turns into a mirror of the sky and the ground toward the sill
+ * - the reflections are added on top at full strength instead of being faded with the glass,
+ *   and both walls reflect: you see the sky in the near wall and, fainter, in the far one
+ * - a tinted haze of scattered light and a pattern of smudges and wipe swirls that only
+ *   show when the light catches them, and slightly blur the reflections where they are
+ *
+ * Drawn with normal blending, the colour written un-premultiplied so the haze of distant air
+ * mixes in correctly. The far wall is a second, back-face copy (`glassBack`) drawn first.
+ */
+export function acrylic<T extends THREE.MeshStandardMaterial>(m: T, o: AcrylicOptions = { absorb: 0.07, haze: 0.05, smudge: 1 }): T {
+  m.transparent = true;
+  m.depthWrite = false;
+  m.userData.acrylic = o;
+  const u = { glassAcr: { value: new THREE.Vector3(o.absorb, o.haze, o.smudge) } };
+  m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, u);
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vAcrP;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvAcrP = transformed;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace(
+        '#include <common>',
+        `#include <common>
+        varying vec3 vAcrP;
+        uniform vec3 glassAcr;
+        float acrHash( vec3 p ) { return fract( sin( dot( p, vec3( 127.1, 311.7, 74.7 ) ) ) * 43758.5453 ); }
+        float acrNoise( vec3 p ) {
+          vec3 i = floor( p ); vec3 f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );
+          return mix( mix( mix( acrHash( i ), acrHash( i + vec3( 1, 0, 0 ) ), f.x ), mix( acrHash( i + vec3( 0, 1, 0 ) ), acrHash( i + vec3( 1, 1, 0 ) ), f.x ), f.y ),
+                      mix( mix( acrHash( i + vec3( 0, 0, 1 ) ), acrHash( i + vec3( 1, 0, 1 ) ), f.x ), mix( acrHash( i + vec3( 0, 1, 1 ) ), acrHash( i + vec3( 1, 1, 1 ) ), f.x ), f.y ), f.z );
+        }
+        // smudges and the arcs a cloth leaves wiping the canopy (0..1)
+        float acrSmudge( vec3 p ) {
+          float blot = acrNoise( p * 3.1 ) * 0.6 + acrNoise( p * 7.3 ) * 0.4;
+          blot = smoothstep( 0.55, 0.85, blot );
+          float swirl = sin( length( p.xz * vec2( 1.0, 0.6 ) - vec2( 0.3, 0.0 ) ) * 46.0 + acrNoise( p * 5.0 ) * 6.0 );
+          swirl = smoothstep( 0.9, 1.0, swirl ) * smoothstep( 0.5, 0.9, acrNoise( p * 2.3 + 4.0 ) );
+          float dust = smoothstep( 0.82, 0.95, acrNoise( p * 160.0 ) ) * 0.5;
+          return clamp( blot * 0.7 + swirl * 0.6 + dust, 0.0, 1.0 );
+        }`,
+      )
+      .replace(
+        '#include <roughnessmap_fragment>',
+        `#include <roughnessmap_fragment>
+        float acrS = acrSmudge( vAcrP ) * glassAcr.z;
+        roughnessFactor = clamp( roughnessFactor + acrS * 0.05, 0.0, 1.0 );`,
+      )
+      .replace(
+        '#include <opaque_fragment>',
+        `{
+          float cosT = clamp( abs( dot( normalize( vViewPosition ), normal ) ), 0.0, 1.0 );
+          float sinR = sqrt( max( 0.0, 1.0 - cosT * cosT ) ) / 1.49;
+          float cosR = sqrt( 1.0 - sinR * sinR );
+          float Fs = 0.039 + 0.961 * pow( 1.0 - cosT, 5.0 );
+          float trans = ( 1.0 - Fs ) * ( 1.0 - Fs ) * exp( -glassAcr.x / cosR );
+          // the far wall (seen from inside the bubble) mirrors the dim cockpit, not the open sky
+          float wall = gl_FrontFacing ? 1.0 : 0.3;
+          vec3 haze = totalDiffuse * ( glassAcr.y + acrS * 0.025 ) / cosR;
+          // (smudges catch the light where the glass mirrors something bright: the sun's glint spreads round them)
+          vec3 rgb = totalSpecular * wall * ( 1.0 + 0.7 * ( 1.0 - Fs ) ) * ( 1.0 + acrS * 0.6 ) + haze;
+          float a = 1.0 - trans;
+          a = clamp( max( a, max( rgb.r, max( rgb.g, rgb.b ) ) ), 0.0, 1.0 ) * opacity;
+          gl_FragColor = vec4( rgb / max( a, 1e-3 ) * opacity, a );
+        }`,
+      );
+  };
+  m.customProgramCacheKey = () => 'acrylic-v1';
+  return m;
+}
+
+const CANOPY_ACRYLIC: AcrylicOptions = { absorb: 0.12, haze: 0.05, smudge: 1 };
+
 export function partMaterials(): PartMaterials {
   if (PM) return PM;
   PM = {
@@ -139,7 +228,9 @@ export function partMaterials(): PartMaterials {
     helmet: new THREE.MeshStandardMaterial({ color: 0x6f7263, roughness: 0.55, metalness: 0.05 }),
     visor: new THREE.MeshStandardMaterial({ color: 0x1a1a14, roughness: 0.08, metalness: 0.9 }),
     // (a dielectric, not a metal: clear head-on, reflective at a glancing angle)
-    glass: glassify(new THREE.MeshStandardMaterial({ color: 0xa9bcc8, roughness: 0.025, metalness: 0.0, transparent: true, opacity: 0.16, depthWrite: false, envMapIntensity: 2.4 })),
+    // (stretched acrylic: clear looking in, a mirror of the sky across the curve)
+    glass: acrylic(new THREE.MeshStandardMaterial({ color: 0x9fb6b4, roughness: 0.02, metalness: 0.0, envMapIntensity: 2.8 }), CANOPY_ACRYLIC),
+    glassBack: acrylic(new THREE.MeshStandardMaterial({ color: 0x9fb6b4, roughness: 0.02, metalness: 0.0, envMapIntensity: 2.8, side: THREE.BackSide }), CANOPY_ACRYLIC),
     frame: new THREE.MeshStandardMaterial({ color: 0x2f3337, roughness: 0.6, metalness: 0.3 }),
     antenna: new THREE.MeshStandardMaterial({ color: 0x4b5054, roughness: 0.6, metalness: 0.3 }),
     rubber: new THREE.MeshStandardMaterial({ color: 0x151617, roughness: 0.85, metalness: 0 }),

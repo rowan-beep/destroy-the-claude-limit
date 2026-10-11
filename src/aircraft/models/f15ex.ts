@@ -675,9 +675,9 @@ const RAIL = curve([[-6.56, 0.775], [-6.2, 0.795], [-5.75, 0.815], [-5, 0.84], [
 // (the windscreen rounded in plan at the front, as on the jet: a blunt 0.9 m front edge forced the
 // forebody's upper corners to flare out into a hood right behind the radome)
 const CANOPY_W = curve([[-6.56, 0.2], [-6.42, 0.31], [-6.2, 0.39], [-5.85, 0.44], [-5.5, 0.465], [-5.15, 0.478], [-4.6, 0.49], [-4.1, 0.505], [-3.6, 0.52], [-3.1, 0.53], [-2.6, 0.528], [-2.3, 0.5], [-2, 0.46], [-1.8, 0.43], [-1.6, 0.39], [-1.4, 0.34], [-1.2, 0.28], [-1.0, 0.21], [-0.8, 0.13], [-0.7, 0.085], [-0.6, 0.04]]);
-// the glass's section: boxy at the windscreen (head-on its sides stand near vertical and its top is
-// broad), rounder toward the tail
-const CANOPY_N = curve([[-6.56, 2.6], [-6.2, 3.4], [-5.15, 4], [-4.2, 3.6], [-3, 3.2], [-2.2, 2.8], [-1.6, 2.4], [-1.0, 2.2], [-0.6, 2.0]]);
+// the glass's section: an arch, not a box -- head-on the windscreen's sides lean in from the sill
+// and curve over into a rounded top, the bubble behind it a little fuller, rounder still at the tail
+const CANOPY_N = curve([[-6.56, 2.0], [-6.2, 2.1], [-5.6, 2.2], [-5.15, 2.35], [-4.2, 2.45], [-3, 2.4], [-2.2, 2.3], [-1.6, 2.2], [-1.0, 2.1], [-0.6, 2.0]]);
 /**
  * The windscreen's rear frame and the bow between the cockpits, where the three-view has them (the
  * photos agree to within the accuracy of cameras fitted to them, about 0.3 m along the canopy).

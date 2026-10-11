@@ -162,6 +162,12 @@ export function buildCanopy(v: AirframeVisual, can: Section[], archZ: number, bo
   // renderOrder, and the clouds write no depth, so a canopy drawn before them vanished behind any
   // cloud it was silhouetted against (the cloud painted over the glass where only sky was behind it)
   glass.renderOrder = 11;
+  // the far wall, seen through the near one (its own back-face mesh, drawn first; the cockpit view,
+  // inside the bubble, hides it)
+  const far = new THREE.Mesh(glass.geometry, pm.glassBack);
+  far.renderOrder = 10.99;
+  glass.add(far);
+  v.hideInCockpit.push(far);
   v.canopy = glass;
   v.canopySections = can;
   v.windscreenArchZ = archZ;
