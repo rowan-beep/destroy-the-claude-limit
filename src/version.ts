@@ -37,6 +37,17 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.8.1',
+    date: '2026-10-11',
+    air: {
+      title: 'SIGN IN is in the menu',
+      notes: [
+        fixed('The SIGN IN button now shows on triad.church and the Windows app',
+          'It sits at the bottom of the menu rail, next to LOGBOOK (at the top in the simple menu). 7.8.0 left it out by mistake.'),
+      ],
+    },
+  },
+  {
     version: '7.8.0',
     date: '2026-10-11',
     air: {

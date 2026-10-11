@@ -4,6 +4,13 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
+## v7.8.1 (2026-10-11)
+
+### Air Combat: SIGN IN is in the menu
+
+- **Fixed: The SIGN IN button now shows on triad.church and the Windows app**
+  - It sits at the bottom of the menu rail, next to LOGBOOK (at the top in the simple menu). 7.8.0 left it out by mistake.
+
 ## v7.8.0 (2026-10-11)
 
 ### Air Combat: Accounts: your progress saved online

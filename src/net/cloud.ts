@@ -15,9 +15,9 @@ import type { Session, SupabaseClient } from '@supabase/supabase-js';
 import { inArtifact } from './artifact';
 import { applySave, isEmptySave, planSync, saveHash, snapshot, summarize, type SaveData, type SaveSummary } from './cloudSave';
 
-const ENV = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
-const SUPABASE_URL = ENV?.VITE_SUPABASE_URL ?? '';
-const SUPABASE_KEY = ENV?.VITE_SUPABASE_PUBLISHABLE_KEY ?? '';
+// (each read by its full name so the build writes the value in: Vite 7 leaves a bare import.meta.env empty)
+const SUPABASE_URL: string = import.meta.env?.VITE_SUPABASE_URL ?? '';
+const SUPABASE_KEY: string = import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY ?? '';
 /** what this device and its account last agreed on (not part of the save itself) */
 const BOOK = 'triad.cloud.v1';
 const SYNC_EVERY = 20000;
