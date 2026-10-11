@@ -434,40 +434,6 @@ function rampGeometry(): THREE.BufferGeometry {
   return rg;
 }
 
-/**
- * The inner side plate ahead of the raked mouth: the boundary-layer splitter runs full height from the
- * top lip down, its leading edge nearly upright (the outer side plate alone is swept back), so from the
- * side and the front quarter the scoop under the ramp shows the plate's dark inside face (F-15 photos).
- * A thin slab just inside the trunk's inner wall line, and the duct lining on its inner face.
- */
-function splitterGeometry(): { plate: THREE.BufferGeometry; lining: THREE.BufferGeometry } {
-  const yTop = MW.y1 - 0.025, yBot = MW.y0 + 0.06;
-  const zLip = (y: number) => INTAKE_MOUTH + INTAKE_RAKE(y);
-  const zFront = (y: number) => zLip(yTop) + 0.11 * (yTop - y) / (yTop - yBot);
-  const sh = new THREE.Shape();
-  sh.moveTo(zFront(yTop), yTop);
-  sh.lineTo(zFront(yBot), yBot);
-  sh.lineTo(zLip(yBot) + 0.012, yBot);
-  sh.lineTo(zLip(yTop) + 0.012, yTop);
-  sh.closePath();
-  const x0 = T_IN(-3) + 0.002, t = INTAKE_LIP - 0.004;
-  const plate = new THREE.ExtrudeGeometry(sh, { depth: t - 0.008, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.004, bevelSegments: 2 });
-  // shape (z, y) extruded along local +z: turn it so the slab lies across x from x0 to x0 + t
-  plate.rotateY(-Math.PI / 2);
-  plate.translate(x0 + t - 0.004, 0, 0);
-  // (the lining's material is double-sided)
-  const lining = new THREE.ShapeGeometry(sh);
-  lining.rotateY(-Math.PI / 2);
-  lining.translate(x0 + t + 0.003, 0, 0);
-  // (deep in the mouth's shadow: dark, as the photos show it)
-  // (white inside, as the jet's intakes are painted: through the scoop's swept side the inner plate
-  // showed as a black triangle)
-  const k = 0.58;
-  const n = lining.attributes.position.count;
-  lining.setAttribute('color', new THREE.Float32BufferAttribute(new Array(n * 3).fill(0).map((_v, i) => (i % 3 === 2 ? k * 1.02 : k)), 3));
-  return { plate: join([plate]), lining: join([lining]) };
-}
-
 // Conformal fuel tanks: a long fairing over each trunk's outer side, from the glove line under the trunk's
 // top corner down to the trunk's bottom (side photos: the tank's top edge runs level ~0.5 m up, its bottom
 // ~0.55 m down), bulging ~0.2-0.6 m out of the trunk wall (from below and head-on its outer side is ~2.1 m
@@ -1531,11 +1497,6 @@ export function buildF15EX(v: AirframeVisual): void {
   const fan = v.addMesh(both(trunk.fan), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.38, metalness: 0.7 }));
   fan.userData.detail = true;
   ductParts.add(fan);
-  const splitter = splitterGeometry();
-  ductParts.add(skin(both(splitter.plate)));
-  const lining = v.addMesh(both(splitter.lining), ductMat);
-  lining.userData.detail = true;
-  ductParts.add(lining);
 
   // conformal fuel tanks on the outside of each trunk (see cftSection)
   const cft = loftProfile({ stations: stations(CFT_TIP, CFT_END, 110, 0.3, 0.2), profile: cftSection, sub: CFT_SUB, full: true, capStart: true, capEnd: true });
