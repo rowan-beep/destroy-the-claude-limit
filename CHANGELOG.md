@@ -4,6 +4,19 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
+## v7.5.0 (2026-10-11)
+
+### Air Combat: The Raptor in its real colours
+
+- **Improved: The F-22 wears its real two-grey camouflage**
+  - Soft-edged darker grey patches over the lighter grey, laid out in 3D so they run on unbroken over the top, round the sides and under the wings, as on the jets flying today.
+  - The gold canopy is real coated glass now: the sky mirrored in gold across its curve, the pilot a shadow behind it, its tail fading into the turtle deck with no hoop behind it.
+  - The pale outlines of the stealth coating's edge seals and access panels show from above: the sawtooth-ended panels down the spine, the hexagonal patches behind the intakes and the rows of diamonds on the wings.
+- **Fixed: A smoother F-22 back**
+  - The spine behind the canopy no longer rises into a bulb and drops off: it falls away steadily from the glass to the tail as a broad, low crown.
+- **New: RAPTOR CAMO wrap**
+  - The F-22's camouflage, for any jet, in the paint shop: pick your own two colours for it too.
+
 ## v7.4.1 (2026-10-11)
 
 ### Air Combat: APEX much harder

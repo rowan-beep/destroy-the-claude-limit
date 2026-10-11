@@ -14,7 +14,7 @@ It has three programs, chosen on the launcher screen:
 | **SPACE EXPLORATION** | Fly the Saturn V to the Moon, Starship to Mars, Falcon 9, Falcon Heavy and SLS missions, drive Perseverance and Curiosity, and tour the whole Solar System at real scale. |
 | **OCEAN** | Pilot a one-person survey submersible off Kestrel Harbor, listen with hydrophones, triangulate a sound and recover what is knocking in the dark. |
 
-Current version: **7.4.1**. Full history in [CHANGELOG.md](CHANGELOG.md).
+Current version: **7.5.0**. Full history in [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -394,10 +394,16 @@ denser hero build.
 
 The **hangar** shows your jet in a lit 3D bay that you can orbit and zoom, with its
 specs, loadouts and paint. **Customize** offers each jet's factory scheme, solid
-colours and 12 wrap patterns (Black Ice, Inferno, Aurora, Galaxy, Digital, Splinter,
-Tiger, Hex, Woodland, Arctic, Carbon and Chevron), with a finish (matte, satin, gloss or
-metallic) and a brightness for each jet. The F-15EX's
-factory scheme is a near-black gunship-grey metallic with a satin radome.
+colours and 13 wrap patterns (Black Ice, Inferno, Aurora, Galaxy, Raptor Camo, Digital,
+Splinter, Tiger, Hex, Woodland, Arctic, Carbon and Chevron), with a finish (matte, satin,
+gloss or metallic) and a brightness for each jet. The F-15EX's
+factory scheme is a near-black gunship-grey metallic with a satin radome. The F-22A wears
+its real two-grey camouflage: soft-edged darker patches laid out in 3D by the skin shader,
+so they run on unbroken over every surface (the Raptor Camo wrap puts it on any jet).
+
+Canopies are shaded as stretched acrylic: nearly clear looking straight in, a mirror of
+the sky across the curve (Fresnel), the far wall seen through the near one, and faint
+smudges that catch the sun; the F-22's is gold-coated.
 
 ### Cameras, replay, logbook
 

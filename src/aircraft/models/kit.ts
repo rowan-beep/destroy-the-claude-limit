@@ -776,6 +776,8 @@ export interface SkinParams {
    * metallic finish: no shade lift, little metalness, the near-black ones flat. 0 (default) = off.
    */
   markPaint?: number;
+  /** camouflage patches over the factory paint: their colour and strength (0..1) */
+  camo?: { color: THREE.Color; amount: number };
 }
 
 const SKIN_VERT_PARS = /* glsl */ `
@@ -810,6 +812,7 @@ uniform sampler3D aoTex;
 uniform vec3 aoMin;
 uniform vec3 aoSize;
 uniform float aoOn;
+uniform vec4 camo;        // the factory scheme's camouflage patches: colour, strength (0 = none)
 varying vec3 vSkin;
 varying vec3 vSkinN;
 // value noise for paint mottling (airframe coordinates, metres)
@@ -824,6 +827,14 @@ float skinNoise( vec3 x ) {
   f = f * f * ( 3.0 - 2.0 * f );
   return mix( mix( mix( skinHash( i ), skinHash( i + vec3( 1, 0, 0 ) ), f.x ), mix( skinHash( i + vec3( 0, 1, 0 ) ), skinHash( i + vec3( 1, 1, 0 ) ), f.x ), f.y ),
               mix( mix( skinHash( i + vec3( 0, 0, 1 ) ), skinHash( i + vec3( 1, 0, 1 ) ), f.x ), mix( skinHash( i + vec3( 0, 1, 1 ) ), skinHash( i + vec3( 1, 1, 1 ) ), f.x ), f.y ), f.z );
+}
+// soft-edged camouflage patches a metre or two across, laid out in 3D so they run on unbroken
+// over the top, round the sides and under the wings (1 = patch)
+float camoMask( vec3 p ) {
+  vec3 q = p * 0.42 + vec3( skinNoise( p * 0.8 + 3.1 ), skinNoise( p * 0.8 - 5.2 ), skinNoise( p * 0.8 + 9.4 ) ) * 0.95;
+  float n = skinNoise( q ) * 0.6 + skinNoise( q * 2.13 + 17.0 ) * 0.28 + skinNoise( q * 4.7 - 3.0 ) * 0.12;
+  float w = 0.012 + fwidth( n ) * 0.8;
+  return smoothstep( 0.535 - w, 0.535 + w, n );
 }
 `;
 const SKIN_FRAG = /* glsl */ `
@@ -872,6 +883,7 @@ const SKIN_FRAG = /* glsl */ `
     }
     float up = smoothstep( -0.45, 0.35, sn.y );
     vec3 base = mix( paintBot, paintTop, up );
+    if ( camo.a > 0.0 ) base = mix( base, camo.rgb * mix( 0.92, 1.0, up ), camoMask( vSkin ) * camo.a );
     if ( customMode > 0.5 ) {
       float shade = mix( 0.86, 1.0, up );
       base = customA * shade;
@@ -904,7 +916,11 @@ const SKIN_FRAG = /* glsl */ `
         base = ice * shade * 0.6;
         skinGlow = crackCol * tx.r * ( 0.1 + 0.2 * t ) + customB * tx.g * 0.1 * t;
       }
-      if ( customMode > 3.5 ) {
+      if ( customMode > 6.5 ) {
+        // RAPTOR CAMO: the F-22's two greys, its soft-edged patches running on over every surface
+        base = mix( customA, customB, camoMask( vSkin ) ) * shade;
+      }
+      if ( customMode > 3.5 && customMode < 6.5 ) {
         vec3 tx = texture2D( customTex, vSkin.xz / customScale ).rgb * wY
                 + texture2D( customTex, vSkin.zy / customScale ).rgb * wX
                 + texture2D( customTex, vSkin.xy / customScale ).rgb * wF;
@@ -1182,6 +1198,7 @@ export function skinMaterial(p: SkinParams): THREE.MeshStandardMaterial {
     aoMin: { value: new THREE.Vector3() },
     aoSize: { value: new THREE.Vector3(1, 1, 1) },
     aoOn: { value: 0 },
+    camo: { value: p.camo ? new THREE.Vector4(p.camo.color.r, p.camo.color.g, p.camo.color.b, p.camo.amount) : new THREE.Vector4(0, 0, 0, 0) },
   };
   const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: p.roughness ?? 0.58, metalness: p.metalness ?? 0.22 });
   applySkin(mat, uniforms);
@@ -1206,7 +1223,7 @@ function applySkin(mat: THREE.MeshStandardMaterial, uniforms: Record<string, THR
       .replace('#include <aomap_fragment>', '#include <aomap_fragment>\n' + SKIN_AO)
       .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n' + SKIN_BOUNCE);
   };
-  mat.customProgramCacheKey = () => 'skin-v16';
+  mat.customProgramCacheKey = () => 'skin-v17';
   void id;
 }
 

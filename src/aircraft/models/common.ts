@@ -155,7 +155,7 @@ export function sectionsFromProfile(profile: (z: number) => P2[], z0: number, z1
 }
 
 /** Bubble canopy (glass), windscreen arch, bows and sill rails. */
-export function buildCanopy(v: AirframeVisual, can: Section[], archZ: number, bows: number[], frameMat?: THREE.Material, taperTail = 0, fadeTail?: [number, number]): void {
+export function buildCanopy(v: AirframeVisual, can: Section[], archZ: number, bows: number[], frameMat?: THREE.Material, taperTail = 0, fadeTail?: [number, number], archFrame = true): void {
   const pm = partMaterials();
   // (a glass tail lying flush on the spine fades into the skin instead of ending in a hard bright point)
   const [glassMat, glassBack] = fadeTail ? canopyGlass(fadeTail) : [pm.glass, pm.glassBack];
@@ -175,7 +175,8 @@ export function buildCanopy(v: AirframeVisual, can: Section[], archZ: number, bo
   v.windscreenArchZ = archZ;
   v.canopyBows = bows;
   const frame: THREE.BufferGeometry[] = [];
-  for (const z of [archZ, ...bows]) frame.push(strip(sectionArch(sectionAt(can, z), 0.022, -0.006, 0.02, Math.PI - 0.02, 36)));
+  // (a one-piece frameless transparency has no arch: `archFrame` false)
+  for (const z of [...(archFrame ? [archZ] : []), ...bows]) frame.push(strip(sectionArch(sectionAt(can, z), 0.022, -0.006, 0.02, Math.PI - 0.02, 36)));
   // sill rails along both sides
   for (const sx of [-1, 1]) {
     const pts: THREE.Vector3[] = [];

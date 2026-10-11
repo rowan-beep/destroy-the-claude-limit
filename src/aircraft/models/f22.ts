@@ -11,7 +11,7 @@ import { AirframeVisual } from './visual';
 import { addPilot } from './pilot';
 import { Section } from './builder';
 import { P2, loftProfile, keyedProfile, stations, mergeStations, wing, WingStation, finMatrix, both, mirror, join, stamp, lathe, rrect, Livery, skinMaterial, line, rivets, weather, prng, roundel, LINE, LINE_LIGHT, curve, sstep, roundBox, colorize, resample } from './kit';
-import { intake, partMaterials, blade, probe, formationStrip, withMorph, glassify } from './parts';
+import { intake, partMaterials, blade, probe, formationStrip, withMorph, acrylic } from './parts';
 import { DEG } from '../../core/constants';
 import { buildCanopy, buildGearSet, wingPanels, finPanels, sectionsFromProfile } from './common';
 
@@ -70,13 +70,15 @@ const BODY = keyedProfile([
   { z: -4.0, pts: S(-0.84, 0.4, 0.76, -0.5, 0.93, 0.08, 0.93, 0.4, 0.52, 0.66, 0.04) },
   // behind the intake mouths the body stays inboard of the ducts (the
   // intakes' own skin is the outside here), then fills out under the deck
-  { z: -2.9, pts: S(-0.84, 0.44, 0.85, -0.6, 0.94, 0.34, 0.97, 0.42, 0.56, 0.68, 0.1) },
-  { z: -2.3, pts: S(-0.84, 0.48, 0.88, -0.62, 0.94, 0.34, 0.97, 0.42, 0.58, 0.62, 0.24) },
+  { z: -2.9, pts: S(-0.84, 0.44, 0.85, -0.6, 0.94, 0.34, 0.97, 0.42, 0.56, 0.66, 0.13) },
+  { z: -2.3, pts: S(-0.84, 0.48, 0.88, -0.62, 0.94, 0.34, 0.97, 0.42, 0.6, 0.6, 0.2) },
+  // (the spine behind the canopy falls away steadily to the tail, a broad low crown: it once climbed
+  // to a peak 0.6 m behind the glass and dropped off steeply, a bulb with a wavy neck behind it)
   // from here aft the underside carries on the intakes' shape: a flat belly
   // out to a sharp edge, then a straight wall leaning out to the chine
-  { z: -1.8, pts: S(-0.83, 1.75, 1.88, -0.4, 2.05, 0.06, 1.38, 0.36, 0.58, 0.5, 0.29) },
-  { z: 0.5, pts: S(-0.86, 1.85, 1.98, -0.45, 2.15, 0.02, 1.44, 0.34, 0.56, 0.42, 0.3) },
-  { z: 3.0, pts: S(-0.82, 1.8, 1.92, -0.45, 2.08, -0.02, 1.42, 0.32, 0.5, 0.38, 0.2) },
+  { z: -1.8, pts: S(-0.83, 1.75, 1.88, -0.4, 2.05, 0.06, 1.38, 0.36, 0.64, 0.54, 0.24) },
+  { z: 0.5, pts: S(-0.86, 1.85, 1.98, -0.45, 2.15, 0.02, 1.44, 0.34, 0.66, 0.46, 0.25) },
+  { z: 3.0, pts: S(-0.82, 1.8, 1.92, -0.45, 2.08, -0.02, 1.42, 0.32, 0.6, 0.4, 0.18) },
   { z: 5.3, pts: S(-0.58, 1.62, 1.72, -0.38, 1.82, -0.06, 1.34, 0.26, 0.45, 0.3, 0.08) },
   { z: 6.4, pts: S(-0.42, 1.14, 1.24, -0.3, 1.36, -0.1, 1.16, 0.18, 0.42, 0.22, 0.03) },
   // the aft end wraps the two nozzle boxes: a flat bottom and deck and near-vertical
@@ -155,33 +157,7 @@ function livery(team: string): Livery {
   const B = (x: number, z: number) => L.B(x, z);
   const S = (z: number, y: number) => L.S(z, y);
   const pt = L.pt, ps = L.ps;
-  // the darker grey patches of the Raptor's two-tone scheme
-  const blob = (g: CanvasRenderingContext2D, M: (x: number, z: number) => [number, number], x: number, z: number, rx: number, rz: number, a: number, k: number) => {
-    const [px, py] = M(x, z);
-    g.save();
-    g.translate(px, py);
-    g.rotate(a);
-    const grad = g.createRadialGradient(0, 0, 0, 0, 0, rx * k);
-    grad.addColorStop(0, 'rgba(78,76,72,0.55)');
-    grad.addColorStop(0.7, 'rgba(78,76,72,0.42)');
-    grad.addColorStop(1, 'rgba(78,76,72,0)');
-    g.fillStyle = grad;
-    g.scale(1, rz / rx);
-    g.beginPath();
-    g.arc(0, 0, rx * k, 0, Math.PI * 2);
-    g.fill();
-    g.restore();
-  };
-  for (const sx of [-1, 1]) {
-    for (const [g, M, k] of [[gt, T, pt]] as const) {
-      blob(g, M, 4.2 * sx, 2.4, 1.9, 1.1, 0.5 * sx, k);
-      blob(g, M, 2.6 * sx, 0.6, 1.3, 0.8, -0.3 * sx, k);
-      blob(g, M, 1.2 * sx, -3.8, 0.7, 1.4, 0.1 * sx, k);
-      blob(g, M, 3.2 * sx, 7.9, 0.9, 0.5, 0.4 * sx, k);
-      blob(g, M, 0.9 * sx, 4.6, 0.8, 1.2, 0.0, k);
-    }
-  }
-  blob(gt, T, 0, -7.4, 0.45, 1.0, 0, pt);
+  // (the camouflage patches themselves are drawn by the skin shader in 3D: see `camo` in buildF22)
   // anti-glare, cockpit well
   gt.fillStyle = 'rgba(52,56,60,0.55)';
   gt.beginPath();
@@ -305,6 +281,44 @@ function livery(team: string): Livery {
       gb.moveTo(px, py);
       gb.lineTo(px, py + (0.4 + rnd() * 1.6) * pb);
       gb.stroke();
+    }
+  }
+  // the pale outlines of the radar-absorbent material's edge seals and access panels, as on the jet
+  // seen from above: the long sawtooth-ended panels down the spine, the hexagonal patches behind the
+  // intakes, rows of small diamonds across the wings
+  {
+    const pale = 'rgba(176,181,184,0.3)';
+    const pw = 0.016 * pt;
+    for (const sx of [-1, 1]) {
+      const W = (x: number, z: number) => T(x * sx, z);
+      // spine panels: square sides, sawtooth ends
+      const zig = (x0: number, x1: number, z: number, d: number): [number, number][] => {
+        const pts: [number, number][] = [];
+        for (let i = 0; i <= 4; i++) pts.push(W(x0 + ((x1 - x0) * i) / 4, z + (i % 2 ? d : 0)));
+        return pts;
+      };
+      line(gt, [...zig(0.08, 0.62, -1.9, -0.16), W(0.62, 2.6), ...zig(0.62, 0.08, 2.6, 0.16), W(0.08, -1.9)], pw, pale, true);
+      line(gt, [...zig(0.66, 1.25, -1.5, -0.14), W(1.3, 1.3), ...zig(1.3, 0.66, 1.3, 0.14), W(0.66, -1.5)], pw, pale, true);
+      // hexagonal patches behind the intakes, at the wing root
+      const hex = (cx: number, cz: number, r: number) => {
+        const pts: [number, number][] = [];
+        for (let k = 0; k < 6; k++) {
+          const a = (k / 6) * Math.PI * 2 + Math.PI / 6;
+          pts.push(W(cx + Math.cos(a) * r * 0.9, cz + Math.sin(a) * r));
+        }
+        line(gt, pts, pw, pale, true);
+      };
+      hex(1.55, 2.2, 0.42);
+      hex(1.05, 2.45, 0.32);
+      // diamonds in rows across the wing
+      const dia = (x: number, z: number, r: number) => line(gt, [W(x, z - r), W(x + r * 0.62, z), W(x, z + r), W(x - r * 0.62, z)], pw * 0.9, pale, true);
+      for (let i = 0; i < 4; i++) {
+        dia(3.0, 1.0 + i * 0.5, 0.2);
+        dia(4.1, 2.2 + i * 0.45, 0.18);
+      }
+      // the light trailing-edge and wing-root seals
+      line(gt, [W(2.0, 5.6), W(5.9, 4.3)], pw, pale);
+      line(gt, [W(1.95, -0.6), W(1.95, 5.5)], pw, pale);
     }
   }
   line(gs, [S(-6.5, -0.02), S(7.3, -0.1)], 1.3, LINE_LIGHT); // chine
@@ -484,7 +498,16 @@ export function buildF22(v: AirframeVisual): void {
   }
   // the Raptor's coating has a slight metallic sheen
   // the two-tone medium greys (FS 36170 / 36176) with the coating's faint sheen
-  const paint = skinMaterial({ top: new THREE.Color('#74726d'), bottom: new THREE.Color('#8e9296'), livery: L, roughness: 0.34, metalness: 0.3 });
+  // the two greys as worn today: a lighter base (FS 36176) with soft-edged darker patches (FS 36170)
+  // over the top, the sides and the undersides alike
+  const paint = skinMaterial({
+    top: new THREE.Color('#76787b'),
+    bottom: new THREE.Color('#7e8083'),
+    livery: L,
+    roughness: 0.34,
+    metalness: 0.3,
+    camo: { color: new THREE.Color('#47494c'), amount: 1 },
+  });
   v.paintMat = paint;
   const skin = (g: THREE.BufferGeometry) => v.addMesh(stamp(g), paint);
 
@@ -562,8 +585,8 @@ export function buildF22(v: AirframeVisual): void {
 
   // --- canopy: one-piece, frameless, gold tinted; seat and pilot
   v.cockpitEye.set(0, 0.98, -5.3);
-  // the only hoop is the one at the back of the canopy
-  buildCanopy(v, CANOPY, -2.9, []);
+  // one-piece and frameless: no hoop; its pointed tail fades into the turtle deck
+  buildCanopy(v, CANOPY, -2.9, [], undefined, 0, undefined, false);
   addPilot(v, new THREE.Vector3(0, 0.98, -5.3), 0.26, { style: 'us', stick: 'side', martinBaker: false });
   const shroud = loftProfile({
     stations: stations(-6.4, -6.0, 6),
@@ -576,16 +599,13 @@ export function buildF22(v: AirframeVisual): void {
   });
   v.hideInCockpit.push(v.addMesh(shroud, pm.seat));
   if (v.canopy) {
-    const gm = (v.canopy.material as THREE.MeshStandardMaterial).clone();
-    // the indium-tin-oxide coating: a mirror-like gold from outside
-    gm.color.set('#5a4620');
-    gm.opacity = 0.94;
-    gm.metalness = 1;
-    gm.roughness = 0.06;
-    gm.envMapIntensity = 1.0;
-    // (the copy needs the edge reflections put back: clones lose them)
-    glassify(gm, 0.97);
-    v.canopy.material = gm;
+    // the indium-tin-oxide coating: the sky mirrored in gold, darker looking in (the pilot a shadow
+    // behind it), the reflections strongest across the curve
+    const o = { absorb: 1.2, haze: 0.015, smudge: 0.6, fade: [-3.1, -2.66] as [number, number] };
+    const p = { color: '#d49a3e', roughness: 0.05, metalness: 0.66, envMapIntensity: 2.2 };
+    v.canopy.material = acrylic(new THREE.MeshStandardMaterial(p), o);
+    const far = v.canopy.children[0] as THREE.Mesh | undefined;
+    if (far) far.material = acrylic(new THREE.MeshStandardMaterial({ ...p, side: THREE.BackSide }), o);
   }
   // canopy sill: the raised rail the canopy seals onto
   const sill = loftProfile({

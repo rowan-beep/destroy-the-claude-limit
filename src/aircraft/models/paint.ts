@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import type { AircraftType } from '../specs';
 
 export type PaintMode = 'factory' | 'solid' | 'wrap';
-export type WrapId = 'blackice' | 'inferno' | 'aurora' | 'galaxy' | 'digital' | 'splinter' | 'tiger' | 'hex' | 'woodland' | 'arctic' | 'carbon' | 'chevron';
+export type WrapId = 'blackice' | 'inferno' | 'aurora' | 'galaxy' | 'raptor' | 'digital' | 'splinter' | 'tiger' | 'hex' | 'woodland' | 'arctic' | 'carbon' | 'chevron';
 export type Finish = 'matte' | 'satin' | 'gloss' | 'metallic';
 
 export interface PaintConfig {
@@ -57,12 +57,14 @@ export const SOLID_COLORS: [string, string][] = [
   ['LIME', '#8cc63f'],
 ];
 
-/** full: the whole-jet art style drawn by the skin shader (3 Black Ice, 4 Inferno, 5 Aurora, 6 Galaxy). */
+/** full: the whole-jet art style drawn by the skin shader (3 Black Ice, 4 Inferno, 5 Aurora, 6 Galaxy, 7 Raptor camo). */
 export const WRAPS: { id: WrapId; name: string; a: string; b: string; tileM: number; full?: number }[] = [
   { id: 'blackice', name: 'BLACK ICE', a: '#020405', b: '#2ec4d4', tileM: 5, full: 3 },
   { id: 'inferno', name: 'INFERNO', a: '#0d0706', b: '#ff5a14', tileM: 5, full: 4 },
   { id: 'aurora', name: 'AURORA', a: '#050d24', b: '#2effa8', tileM: 6, full: 5 },
   { id: 'galaxy', name: 'GALAXY', a: '#04020d', b: '#a64dff', tileM: 7, full: 6 },
+  // the F-22's own two-grey camouflage, on any jet
+  { id: 'raptor', name: 'RAPTOR CAMO', a: '#76787b', b: '#47494c', tileM: 6, full: 7 },
   { id: 'digital', name: 'DIGITAL', a: '#7d858b', b: '#4b5258', tileM: 4 },
   { id: 'splinter', name: 'SPLINTER', a: '#b39b72', b: '#6b5436', tileM: 7 },
   { id: 'tiger', name: 'TIGER', a: '#e0701e', b: '#16171a', tileM: 5 },
@@ -272,6 +274,37 @@ function drawMask(id: WrapId, g: CanvasRenderingContext2D): void {
           });
         }
       }
+      break;
+    }
+    case 'raptor': {
+      // (the shader draws the real thing in 3D; this is the swatch) irregular patches from a
+      // warped, tileable value noise, cut at a level that leaves a little under half of it dark
+      const N = 8;
+      const grid: number[] = [];
+      for (let i = 0; i < N * N; i++) grid.push(r());
+      const vn = (x: number, y: number, f: number) => {
+        const gx = x * f, gy = y * f;
+        const x0 = Math.floor(gx), y0 = Math.floor(gy);
+        const fx = gx - x0, fy = gy - y0;
+        const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+        const at = (i: number, j: number) => grid[(((j % N) + N) % N) * N + (((i % N) + N) % N)];
+        const a = at(x0, y0) + (at(x0 + 1, y0) - at(x0, y0)) * sx;
+        const b = at(x0, y0 + 1) + (at(x0 + 1, y0 + 1) - at(x0, y0 + 1)) * sx;
+        return a + (b - a) * sy;
+      };
+      const img = g.getImageData(0, 0, S, S);
+      for (let y = 0; y < S; y++) {
+        for (let x = 0; x < S; x++) {
+          const u = x / S, v = y / S;
+          const wx = u + (vn(u + 0.3, v, 4) - 0.5) * 0.12, wy = v + (vn(u, v + 0.6, 4) - 0.5) * 0.12;
+          const n = vn(wx, wy, 4) * 0.65 + vn(wx + 0.17, wy + 0.4, 8) * 0.35;
+          const t = Math.min(1, Math.max(0, (n - 0.5) / 0.03));
+          const o = (y * S + x) * 4;
+          img.data[o] = img.data[o + 1] = img.data[o + 2] = Math.round(t * 255);
+          img.data[o + 3] = 255;
+        }
+      }
+      g.putImageData(img, 0, 0);
       break;
     }
     case 'carbon': {
@@ -607,7 +640,7 @@ export function wrapPreview(id: WrapId, a: string, b: string, size = 64): string
   const img = g.createImageData(size, size);
   const ca = hexRgb(a), cb = hexRgb(b);
   const style = WRAPS.find((w) => w.id === id)?.full ?? 0;
-  if (style >= 4) {
+  if (style >= 4 && style < 7) {
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         const sx = Math.floor((x / size) * S * 0.5), sy = Math.floor((y / size) * S * 0.5);
