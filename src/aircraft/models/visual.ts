@@ -7,9 +7,10 @@ import * as THREE from 'three';
 import { NIGHT, keepLightsVisible } from '../../render/night';
 import { getSoftDotTexture } from '../../render/textures';
 import type { Aircraft } from '../aircraft';
-import type { WeaponBay } from '../specs';
+import type { WeaponBay, StoreType } from '../specs';
 import { airframeMaterials, Section } from './builder';
 import { storeGeometry, pylonGeometry, shoulderGeometry, storeCenterY, storeCenterX, onShoulder, PYLON_DROP } from './stores';
+import { shinyStores } from './missiles';
 import { DEG } from '../../core/constants';
 import { clamp, smoothstep } from '../../core/math';
 import { makeInsignia } from './decals';
@@ -244,6 +245,8 @@ export class AirframeVisual {
   vectoring: { pivot: THREE.Object3D; side: -1 | 1 }[] = [];
   readonly cockpitEye = new THREE.Vector3();
   readonly stationMeshes = new Map<number, THREE.Object3D>();
+  /** stores with a detailed near model and a light far one (the missiles), swapped with the jet's LOD */
+  private storeLods: { mesh: THREE.Mesh; hi: THREE.BufferGeometry; lo: THREE.BufferGeometry }[] = [];
   private flames: { layers: { mesh: THREE.Mesh; mat: THREE.ShaderMaterial }[]; glow: THREE.Mesh; aspect: number; len: number; ab: number; dry: number; heat: number }[] = [];
   /** this jet's own lit nozzle-interior materials, and the engine each one belongs to */
   private burners: THREE.MeshStandardMaterial[] = [];
@@ -802,6 +805,16 @@ export class AirframeVisual {
     if (this.shadowProxy) this.shadowProxy.visible = !far;
     const hidden = this.insideView ? new Set(this.hideInCockpit) : null;
     for (const m of this.lodMeshes) m.visible = !far && !hidden?.has(m);
+    for (const s of this.storeLods) s.mesh.geometry = far ? s.lo : s.hi;
+  }
+
+  /** A store's mesh: the detailed model near, the light one far (see setFar). */
+  private storeMesh(type: StoreType, jet?: string): THREE.Mesh {
+    const hi = storeGeometry(type, jet);
+    const lo = storeGeometry(type, jet, true);
+    const m = new THREE.Mesh(this.far ? lo : hi, storeMaterial());
+    if (hi !== lo) this.storeLods.push({ mesh: m, hi, lo });
+    return m;
   }
 
   get isFar(): boolean {
@@ -958,6 +971,7 @@ export class AirframeVisual {
   buildStores(): void {
     for (const [, obj] of this.stationMeshes) this.body.remove(obj);
     this.stationMeshes.clear();
+    this.storeLods = [];
     this.bayStores = [];
     this.firedStations.clear();
     for (const py of this.pylons) {
@@ -974,7 +988,7 @@ export class AirframeVisual {
         const o = st.def.bayOut;
         if (!st.def.bay || !o) continue;
         const g = new THREE.Group();
-        const store = new THREE.Mesh(storeGeometry(st.store), storeMaterial());
+        const store = this.storeMesh(st.store);
         store.castShadow = true;
         g.add(store);
         g.visible = false;
@@ -990,7 +1004,7 @@ export class AirframeVisual {
       const cx = storeCenterX(st.def, st.store);
       const cy = storeCenterY(st.def, st.store);
       g.position.set(cx, cy, p[2]);
-      const store = new THREE.Mesh(storeGeometry(st.store, this.ac.type), storeMaterial());
+      const store = this.storeMesh(st.store, this.ac.type);
       store.castShadow = true;
       g.add(store);
       const drop = st.def.mount === 'pylon' ? (st.def.hang !== undefined ? PYLON_DROP : 0.55) : 0.1;
@@ -1323,7 +1337,8 @@ export class AirframeVisual {
 
 let _storeMat: THREE.MeshStandardMaterial | null = null;
 function storeMaterial(): THREE.MeshStandardMaterial {
-  if (!_storeMat) _storeMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.15 });
+  // (the missiles' glass domes, bare metal and paint from their `shine` attribute)
+  if (!_storeMat) _storeMat = shinyStores(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.15 }));
   return _storeMat;
 }
 

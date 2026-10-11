@@ -37,6 +37,26 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.7.0',
+    date: '2026-10-11',
+    air: {
+      title: 'Lifelike missiles, F-15EX and hangar fixes',
+      notes: [
+        improved('Every air-to-air missile is built like the real round',
+          'AIM-120D, AIM-9X, R-77M, R-74M, R-37M, Meteor, MICA IR and IRIS-T: real lengths and diameters, radomes with their dark rain-erosion tips, and glossy glass seeker domes with the optics showing through, held by a metal ring.',
+          'Each body is in its real sections with thin metal joint rings, the yellow (live warhead) and brown (live motor) bands, black stencilling, the T-hooks the launch rail holds, the wiring raceway and its connector.',
+          'Airfoil fins on the real planforms, an open sooty nozzle, the jet vanes of the thrust-vectoring rounds, the R-74M\'s rolleron wheels and the Meteor\'s ramjet intakes.',
+          'You see them on your own jet, in the hangar, on nearby jets and in flight; distant jets keep the lighter models so nothing slows down.'),
+        fixed('F-15EX: no more dents along the top',
+          'The deck from the cockpit back to the engines is level, the trunk tops behind the intakes sit a little higher, and the dip behind the wing root is gone.',
+          'The keel between the engine nozzles is back, with the arresting hook under it.'),
+        fixed('Hangar camera: no wild spin, smoother orbit',
+          'Choosing Air Combat no longer sets the camera spinning for a few seconds, and a drag that loses its mouse release now stops.',
+          'Dragging and zooming round the jet follow your hand more closely and settle smoothly.'),
+      ],
+    },
+  },
+  {
     version: '7.6.0',
     date: '2026-10-11',
     air: {

@@ -22,6 +22,18 @@ The game is one codebase with two homes, and every change ships to both:
 A change is not shipped until both are updated. Before shipping: `npx tsc --noEmit`
 and `npm test`.
 
+## Release notes with every update
+
+Every update the player can see gets a new version with release notes, so the
+"What's new" panel opens by itself in the menu the next time players come in
+(`showIfNew()` in `src/ui/menu/whatsNew.ts` opens it when the newest version is
+one they haven't seen). Small fixes included (model shape fixes too).
+
+- Add the release at the top of `RELEASES` in `src/version.ts`, under the game
+  it belongs to (`air`, `space` or `ocean`), with added()/improved()/fixed().
+- Bump `package.json` and the "Current version" line in README.md to match, and
+  run `npm run changelog`.
+
 ## One game, two runtimes
 
 The artifact cannot reach outside servers. Code that needs one checks

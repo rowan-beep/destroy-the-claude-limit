@@ -1,4 +1,5 @@
 // Store meshes: AIM-120D AMRAAM, AIM-9X Sidewinder, R-77M, R-74M, Meteor, MICA IR, external fuel tank,
+// (the missiles here are the light versions for distant jets; the detailed rounds are in missiles.ts),
 // plus pylons, LAU-128/LAU-127 style rail launchers and conformal / semi-
 // recessed ejector mounts. Vertex-coloured, built along z (nose to -z).
 
@@ -6,6 +7,7 @@ import * as THREE from 'three';
 import { lathe, wing, join, colorize, roundBox, rod, P2, loftProfile, stations, curve } from './kit';
 import type { StoreType, StationDef } from '../specs';
 import { isBomb } from '../../weapons/weaponSpecs';
+import { hasDetailedMissile, detailedMissile } from './missiles';
 
 let cache: Partial<Record<string, THREE.BufferGeometry>> = {};
 
@@ -413,7 +415,12 @@ function kab500(): THREE.BufferGeometry {
   return join(parts);
 }
 
-export function storeGeometry(t: StoreType, jet?: string): THREE.BufferGeometry {
+/**
+ * A store's mesh. Missiles have two: the detailed round (missiles.ts) for jets near the camera, the
+ * hangar and missiles in flight, and the light one below (`far`) for distant jets.
+ */
+export function storeGeometry(t: StoreType, jet?: string, far = false): THREE.BufferGeometry {
+  if (!far && hasDetailedMissile(t)) return (cache['HI:' + t] ??= detailedMissile(t));
   if (t === 'TANK' && jet === 'X15') return (cache['X15TANK'] ??= x15Tank());
   const key = t;
   if (cache[key]) return cache[key]!;

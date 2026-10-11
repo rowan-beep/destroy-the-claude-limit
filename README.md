@@ -14,7 +14,7 @@ It has three programs, chosen on the launcher screen:
 | **SPACE EXPLORATION** | Fly the Saturn V to the Moon, Starship to Mars, Falcon 9, Falcon Heavy and SLS missions, drive Perseverance and Curiosity, and tour the whole Solar System at real scale. |
 | **OCEAN** | Pilot a one-person survey submersible off Kestrel Harbor, listen with hydrophones, triangulate a sound and recover what is knocking in the dark. |
 
-Current version: **7.6.0**. Full history in [CHANGELOG.md](CHANGELOG.md).
+Current version: **7.7.0**. Full history in [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -408,6 +408,12 @@ steering collar and lights. It moves in sequence (doors open, legs swing on ease
 the brace folds and the jack telescopes, the legs tuck into their bays, the doors shut), the oleos
 compress on the ground and extend off it, the wheels roll with ground speed and are braked as the
 gear comes up, and the nose wheel steers with the pedals at taxi speed.
+
+Air-to-air missiles (`src/aircraft/models/missiles.ts`) are built like the real rounds: tangent-ogive
+radomes with rain-erosion tips or glass IR domes in a metal ring, the body in its sections with joint
+rings, warhead and motor bands and stencilling, T-hooks, raceway and umbilical, airfoil fins, an open
+nozzle with TVC jet vanes where the real one has them. A `shine` vertex attribute makes the glass
+glossy and the bare metal metallic. Distant jets carry the lighter models from `stores.ts`.
 
 Canopies are shaded as stretched acrylic: nearly clear looking straight in, a mirror of
 the sky across the curve (Fresnel), the far wall seen through the near one, and faint

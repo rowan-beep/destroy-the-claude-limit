@@ -13,6 +13,7 @@ import type { Decoy } from '../weapons/countermeasures';
 import { createAirframe, releaseAirframe, AirframeVisual, paintAirframe } from '../aircraft/models';
 import { loadPaint } from '../aircraft/models/paint';
 import { storeGeometry } from '../aircraft/models/stores';
+import { shinyStores } from '../aircraft/models/missiles';
 import { cloneMaterial } from '../aircraft/models/kit';
 import { ParticleSystem } from './particles';
 import { TrailRenderer, Trail, TrailStyle } from './trails';
@@ -113,7 +114,7 @@ export class CombatRenderer {
   /** hot exhaust columns this frame (for the heat haze) */
   readonly haze: HazeSource[] = [];
   private origin = new THREE.Vector3();
-  private missileMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.2 });
+  private missileMat = shinyStores(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.2 }));
   private unsub: (() => void)[] = [];
   /** called when something big blows up near the camera (camera shake) */
   onExplosion: ((pos: THREE.Vector3, size: number) => void) | null = null;

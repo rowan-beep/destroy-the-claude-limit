@@ -5,6 +5,9 @@ import { createAirframe } from './aircraft/models';
 import type { AircraftType } from './aircraft/specs';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { buildKC46 } from './game/tanker';
+import { storeGeometry } from './aircraft/models/stores';
+import { shinyStores } from './aircraft/models/missiles';
+import type { StoreType } from './aircraft/specs';
 
 export function runModelTest(container: HTMLElement): void {
   const q = new URLSearchParams(location.search);
@@ -40,7 +43,19 @@ export function runModelTest(container: HTMLElement): void {
     tm.group.position.set(0, 8, 0);
     scene.add(tm.group);
   }
-  const types: AircraftType[] = tanker ? [] : q.get('type') ? [q.get('type') as AircraftType] : ['F15EX', 'FA18EF', 'F16C', 'TYPHOON', 'SU35', 'RAFALE', 'F22', 'MIG31', 'SR71', 'X15', 'F35A', 'SU57', 'GRIPEN'];
+  // type=MISSILES: every air-to-air missile in a row, 0.9 m apart, noses to -z (far=1: the light LOD)
+  const missiles = q.get('type') === 'MISSILES';
+  if (missiles) {
+    const mat = shinyStores(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.15 }));
+    const list: StoreType[] = ['AIM120D', 'AIM9X', 'R77M', 'R74M', 'METEOR', 'MICAIR', 'R37M', 'IRIST'];
+    list.forEach((t, i) => {
+      const m = new THREE.Mesh(storeGeometry(t, undefined, q.get('far') === '1'), mat);
+      m.position.set((i - (list.length - 1) / 2) * 0.9, 1.2, 0);
+      m.castShadow = true;
+      scene.add(m);
+    });
+  }
+  const types: AircraftType[] = tanker || missiles ? [] : q.get('type') ? [q.get('type') as AircraftType] : ['F15EX', 'FA18EF', 'F16C', 'TYPHOON', 'SU35', 'RAFALE', 'F22', 'MIG31', 'SR71', 'X15', 'F35A', 'SU57', 'GRIPEN'];
   const view = q.get('view') ?? 'three';
   const gearUp = q.get('gear') === 'up';
   // the last jet's pilot eye in world space (tgt=eye aims the orbit camera at it)
