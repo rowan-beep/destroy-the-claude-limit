@@ -247,8 +247,10 @@ let mapRoom = null;
 let evFilter = 'all';
 
 // ------------------------------------------------------------------ api
+// relative to wherever the console is served: /admin, or /api/admin on Vercel
+const API_BASE = location.pathname.replace(/\/admin\/?$/, '') + '/admin/api/';
 async function api(path, body) {
-  const r = await fetch('/admin/api/' + path, {
+  const r = await fetch(API_BASE + path, {
     method: body ? 'POST' : 'GET',
     headers: Object.assign({ 'x-admin-key': KEY }, body ? { 'Content-Type': 'application/json' } : {}),
     body: body ? JSON.stringify(body) : undefined,

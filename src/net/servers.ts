@@ -3,11 +3,17 @@
 // The official servers (OFFICIAL 1-5) are the rooms of one server process
 // started with `node server/server.mjs --official` (see render.yaml / the
 // README). Point OFFICIAL_SERVER at wherever that is deployed; a build can
-// override it with the VITE_TRIAD_SERVER environment variable.
+// override it with the VITE_TRIAD_SERVER environment variable. A path such as
+// "/api" means the same host as the page (the Vercel deployment, vercel.json).
 
 const ENV = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
 
-export const OFFICIAL_SERVER: string = ENV?.VITE_TRIAD_SERVER || 'wss://triad-servers.onrender.com';
+function serverUrl(s: string): string {
+  if (!s.startsWith('/') || typeof location === 'undefined') return s;
+  return (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + s.replace(/\/+$/, '');
+}
+
+export const OFFICIAL_SERVER: string = serverUrl(ENV?.VITE_TRIAD_SERVER || 'wss://triad-servers.onrender.com');
 
 /**
  * The official servers sleep when nobody has been on for a while and take

@@ -665,6 +665,15 @@ and sea-bed streaming.
 - **Windows app**: `.github/workflows/desktop.yml` builds the portable `.exe` and
   publishes it as the `desktop` release. It runs by hand only (Actions → Run workflow).
 - **Servers**: `render.yaml` as described in [Multiplayer](#multiplayer).
+- **Vercel** (optional): `vercel.json` deploys the site and the game server as one
+  project with two services: `app` (the Vite site, at `/`) and `server`
+  (`server/server.mjs`, at `/api`). The site built there talks to its own server at
+  `wss://<domain>/api` (`VITE_TRIAD_SERVER=/api`); set `TRIAD_OFFICIAL=1` in the
+  project's environment variables for rooms OFFICIAL 1-5, and the console is at
+  `/api/admin`. Vercel runs the server on its Functions (WebSockets beta): rooms live
+  in memory, so players can land on different instances, and connections close at
+  the function's maximum duration. The GitHub Pages site, the Windows app and the
+  artifact keep using the Render servers.
 
 ### Cinematics
 

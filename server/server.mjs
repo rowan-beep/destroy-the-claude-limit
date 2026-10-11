@@ -298,8 +298,12 @@ class Player {
 }
 
 // ---------------------------------------------------------------- http + ws
+// On Vercel the server is mounted at /api (vercel.json) and sees the full
+// path, so /api/status, /api/admin... are the same as /status, /admin...
+const MOUNT = '/api';
 const server = http.createServer((req, res) => {
-  const path = (req.url || '/').split('?')[0];
+  let path = (req.url || '/').split('?')[0];
+  if (path === MOUNT || path.startsWith(MOUNT + '/')) path = path.slice(MOUNT.length) || '/';
   if (path === '/admin' || path.startsWith('/admin/')) {
     handleAdmin(req, res, path);
     return;
@@ -732,6 +736,11 @@ function handleAdmin(req, res, path) {
   json(404, { error: 'not found' });
 }
 
-server.listen(PORT, () => {
-  log(`TRIAD server on port ${PORT}: ${rooms.map((r) => `${r.name} [${r.map}]`).join(', ')}`);
-});
+// On Vercel the platform serves the exported server; everywhere else listen.
+if (!process.env.VERCEL) {
+  server.listen(PORT, () => {
+    log(`TRIAD server on port ${PORT}: ${rooms.map((r) => `${r.name} [${r.map}]`).join(', ')}`);
+  });
+}
+
+export default server;
