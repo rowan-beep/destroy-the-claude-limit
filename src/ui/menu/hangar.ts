@@ -88,7 +88,8 @@ export class Hangar {
     if (performance.now() - this.lastRender > 300) return false;
     const t = e.target as HTMLElement | null;
     if (!t || !t.closest) return true;
-    return !t.closest('.card, button, input, select, label, a, .jet-card, .mode-card, .cz-panel, .cz-top, .cz-foot, .hangar-caption, .fly-row, .menu-header, .modal-back, .modal, .scroll, .lib-top, .lib-shelf, .lib-panel, .lib-hero, .mm-block, .fm-dock, .fm-top');
+    // (the launcher and its loading screen sit over the hangar: a click there picks a program, it never takes the camera)
+    return !t.closest('.tl, .card, button, input, select, label, a, .jet-card, .mode-card, .cz-panel, .cz-top, .cz-foot, .hangar-caption, .fly-row, .menu-header, .modal-back, .modal, .scroll, .lib-top, .lib-shelf, .lib-panel, .lib-hero, .mm-block, .fm-dock, .fm-top');
   }
 
   private bindControls(): void {
@@ -110,6 +111,11 @@ export class Hangar {
     window.addEventListener('pointermove', (e) => {
       const p = this.pointers.get(e.pointerId);
       if (!p) return;
+      // (a release outside the window never sends pointerup: a mouse moving with no button down has let go)
+      if (e.pointerType === 'mouse' && e.buttons === 0) {
+        up(e);
+        return;
+      }
       p.x = e.clientX;
       p.y = e.clientY;
       if (this.pinch) {
@@ -134,8 +140,8 @@ export class Hangar {
         const now = performance.now();
         const dtm = Math.max(0.008, (now - this.lastMove) / 1000);
         this.lastMove = now;
-        this.vYaw = this.vYaw * 0.6 + (dyaw / dtm) * 0.4;
-        this.vPitch = this.vPitch * 0.6 + (dpitch / dtm) * 0.4;
+        this.vYaw = clampN(this.vYaw * 0.6 + (dyaw / dtm) * 0.4, -FLING_MAX, FLING_MAX);
+        this.vPitch = clampN(this.vPitch * 0.6 + (dpitch / dtm) * 0.4, -FLING_MAX * 0.6, FLING_MAX * 0.6);
       }
     });
     const up = (e: PointerEvent) => {
@@ -320,7 +326,19 @@ export class Hangar {
 
   render(dt: number, w: number, h: number): void {
     this.t += dt;
-    this.lastRender = performance.now();
+    const now = performance.now();
+    // back on screen after a while away (the loading screen, a flight): nothing from before carries over, no
+    // half-finished drag or fling, and the view starts where it is rather than racing round to catch up
+    if (now - this.lastRender > 1000) {
+      this.drag = null;
+      this.pinch = null;
+      this.pointers.clear();
+      this.vYaw = this.vPitch = 0;
+      this.yawS = this.yaw;
+      this.pitchS = this.pitch;
+      this.zoomS = this.zoom;
+    }
+    this.lastRender = now;
     // the jet stays parked, nose to the doors; idle, the camera walks slowly around it
     if (!this.userView) this.yaw += dt * 0.06;
     this.turntable.rotation.y = 0;
@@ -339,11 +357,12 @@ export class Hangar {
       this.vYaw *= f;
       this.vPitch *= f;
     }
-    // ease toward the requested view (soft, so drags and zooms glide)
-    const k = 1 - Math.exp(-dt * 7);
+    // ease toward the requested view: close behind your hand while you drag (a slow ease there felt laggy),
+    // softer once you let go so flings and zooms glide
+    const k = 1 - Math.exp(-dt * (this.drag || this.pinch ? 24 : 9));
     this.yawS += (this.yaw - this.yawS) * k;
     this.pitchS += (this.pitch - this.pitchS) * k;
-    this.zoomS += (this.zoom - this.zoomS) * (1 - Math.exp(-dt * 6));
+    this.zoomS += (this.zoom - this.zoomS) * (1 - Math.exp(-dt * (this.pinch ? 20 : 8)));
     // never inside the airframe: at least ~0.42 of its length from the centre
     const d = Math.max(len * 0.42, (len * 1.15 + 4) * this.zoomS);
     // frame the jet slightly right of centre so the UI columns don't cover it;
@@ -498,6 +517,8 @@ function storeThumb(key: string, url: string): void {
 }
 
 /** zoom factor limits: right up against the jet .. well back */
+/** the fastest fling the view keeps after you let go (rad/s) */
+const FLING_MAX = 5;
 const ZOOM_MIN = 0.12;
 const ZOOM_MAX = 1.55;
 
