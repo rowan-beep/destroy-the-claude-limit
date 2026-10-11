@@ -486,7 +486,11 @@ async function boot(): Promise<void> {
 
   /** a pause for the loading screen's bar and pictures between two heavy steps */
   const breathe = () => new Promise<void>((r) => requestAnimationFrame(() => setTimeout(r, 0)));
-  async function preload(p: Program, progress: (f: number, label: string) => void): Promise<void> {
+  /**
+   * Load a program behind the loading screen. `late` turns true at the screen's deadline: work that can
+   * wait (jet portraits, the theater) stops there and is done later, when it is first needed.
+   */
+  async function preload(p: Program, progress: (f: number, label: string) => void, late: () => boolean, deadline: Promise<void>): Promise<void> {
     const sz = game.renderer.size;
     if (p === 'air') {
       progress(0.02, 'OPENING THE HANGAR');
@@ -498,7 +502,8 @@ async function boot(): Promise<void> {
       await breathe();
       // every jet built once (and its library portrait made), so the library opens at once
       const types = AIRCRAFT_TYPES;
-      for (let i = 0; i < types.length; i++) {
+      // (past the deadline the rest are drawn when the library first shows them)
+      for (let i = 0; i < types.length && !late(); i++) {
         progress(0.12 + (0.38 * i) / types.length, 'PREPARING THE JETS');
         hangar.thumbnail(types[i]);
         await breathe();
@@ -506,7 +511,9 @@ async function boot(): Promise<void> {
       // the theater for the first flight, generated now instead of after LAUNCH
       // (a slow machine goes on building it in the background once the menu is up)
       progress(0.5, 'GENERATING THE THEATER');
-      await Promise.race([game.ensureWorld((f, l) => progress(0.5 + f * 0.48, l)), new Promise((r) => setTimeout(r, 20000))]);
+      // (started either way: past the deadline it goes on building behind the menu)
+      const world = game.ensureWorld((f, l) => progress(0.5 + f * 0.48, l));
+      if (!late()) await Promise.race([world, deadline]);
       progress(1, 'READY');
     } else if (p === 'ocean') {
       progress(0.03, 'LOADING THE OCEAN');
@@ -544,8 +551,11 @@ async function boot(): Promise<void> {
       program = p;
       saveProgram(p);
     }
-    // load the chosen program behind the loading screen, so its menu comes up ready
-    await preload(p, (f, l) => launcher.setProgress(f, l)).catch((e) => console.warn('preload', e));
+    // load the chosen program behind the loading screen, so its menu comes up ready; the screen
+    // lasts 8 s at most, so a slow machine brings the menu up then and goes on loading behind it
+    // (every program's menu copes with its own parts still on their way)
+    const work = preload(p, (f, l) => launcher.setProgress(f, l), () => launcher.late, launcher.deadline).catch((e) => console.warn('preload', e));
+    await Promise.race([work, launcher.deadline]);
     launcher.markDone();
   } else markPicked();
   hangar.setJet(menu.cfg.aircraft, menu.cfg.loadoutId);

@@ -14,7 +14,7 @@ It has three programs, chosen on the launcher screen:
 | **SPACE EXPLORATION** | Fly the Saturn V to the Moon, Starship to Mars, Falcon 9, Falcon Heavy and SLS missions, drive Perseverance and Curiosity, and tour the whole Solar System at real scale. |
 | **OCEAN** | Pilot a one-person survey submersible off Kestrel Harbor, listen with hydrophones, triangulate a sound and recover what is knocking in the dark. |
 
-Current version: **7.3.0**. Full history in [CHANGELOG.md](CHANGELOG.md).
+Current version: **7.3.1**. Full history in [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -52,8 +52,7 @@ Current version: **7.3.0**. Full history in [CHANGELOG.md](CHANGELOG.md).
 
 ### In a browser
 
-The website build is published to GitHub Pages on every push to `main` (see
-[Deploying](#deploying)). Any recent desktop browser with WebGL 2 works; a dedicated
+The website build is published to GitHub Pages (see [Deploying](#deploying)). Any recent desktop browser with WebGL 2 works; a dedicated
 graphics card is strongly recommended. The game warns you if the browser is drawing
 on the CPU (SwiftShader) instead of the graphics card, and tells you how to switch
 hardware acceleration on.
@@ -90,10 +89,15 @@ program has its own touch layout.
 
 ## The launcher
 
-The game opens on a cinematic loading screen that cycles through in-engine
-photographs, then the **TRIAD** launcher: three full-height cards, one per program,
+The game opens on the **TRIAD** launcher: three full-height cards, one per program,
 each with its own backdrop. Pick with the mouse, the arrow keys or **1 / 2 / 3**, and
 **Enter** to start. The last program you played is pre-selected.
+
+Picking a program starts its loading screen: in-engine cinematic photographs of that
+program, a new one every 4 seconds with a slow push-in and a cross-fade, a fact along
+the bottom and a loading bar. It always takes 8 seconds from the pick to the menu. On a
+slow machine the menu comes up on time and the rest (jet portraits, the theater) keeps
+loading behind it.
 
 A pulsing red **NEW** badge appears on a program's card while that program has
 release notes you have not opened yet. Each program keeps its own notes: the air
@@ -630,9 +634,10 @@ and sea-bed streaming.
 
 ### Deploying
 
-- **Website**: `.github/workflows/deploy.yml` builds and publishes to GitHub Pages on
-  every push to `main`. Enable Pages with source "GitHub Actions" in the repository
-  settings.
+- **Website**: `.github/workflows/deploy.yml` builds the site plus the offline
+  single-file copy (`triad-offline.html`) and publishes them to GitHub Pages. It runs by
+  hand only (Actions → Run workflow); pull requests build as a check without deploying.
+  Enable Pages with source "GitHub Actions" in the repository settings.
 - **Windows app**: `.github/workflows/desktop.yml` builds the portable `.exe` and
   publishes it as the `desktop` release. It runs by hand only (Actions → Run workflow).
 - **Servers**: `render.yaml` as described in [Multiplayer](#multiplayer).

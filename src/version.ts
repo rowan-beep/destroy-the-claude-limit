@@ -37,6 +37,22 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.3.1',
+    date: '2026-10-11',
+    air: {
+      title: 'A shorter loading screen',
+      notes: [improved('Into the menu in 8 seconds', 'The loading screen now takes 8 seconds from your pick to the menu, with a new picture every 4 seconds and the same cross-fade. On a slow machine the menu comes up on time and the rest loads behind it.')],
+    },
+    space: {
+      title: 'A shorter loading screen',
+      notes: [improved('Into the menu in 8 seconds', 'The loading screen now takes 8 seconds from your pick to the menu, with a new picture every 4 seconds and the same cross-fade. On a slow machine the menu comes up on time and the rest loads behind it.')],
+    },
+    ocean: {
+      title: 'A shorter loading screen',
+      notes: [improved('Into the menu in 8 seconds', 'The loading screen now takes 8 seconds from your pick to the menu, with a new picture every 4 seconds and the same cross-fade. On a slow machine the menu comes up on time and the rest loads behind it.')],
+    },
+  },
+  {
     version: '7.3.0',
     date: '2026-10-10',
     air: {

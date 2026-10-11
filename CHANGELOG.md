@@ -4,6 +4,23 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
+## v7.3.1 (2026-10-11)
+
+### Air Combat: A shorter loading screen
+
+- **Improved: Into the menu in 8 seconds**
+  - The loading screen now takes 8 seconds from your pick to the menu, with a new picture every 4 seconds and the same cross-fade. On a slow machine the menu comes up on time and the rest loads behind it.
+
+### Space Exploration: A shorter loading screen
+
+- **Improved: Into the menu in 8 seconds**
+  - The loading screen now takes 8 seconds from your pick to the menu, with a new picture every 4 seconds and the same cross-fade. On a slow machine the menu comes up on time and the rest loads behind it.
+
+### Ocean: A shorter loading screen
+
+- **Improved: Into the menu in 8 seconds**
+  - The loading screen now takes 8 seconds from your pick to the menu, with a new picture every 4 seconds and the same cross-fade. On a slow machine the menu comes up on time and the rest loads behind it.
+
 ## v7.3.0 (2026-10-10)
 
 ### Air Combat: F-15EX rebuilt to match the real jet

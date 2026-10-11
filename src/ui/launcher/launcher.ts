@@ -1,9 +1,10 @@
 // The first thing on screen: TRIAD, and its two programs side by side, each one
 // a picture from the game. Picking one starts the music and the loading screen:
-// cinematic shots of that program cross-fading over each other, a fact along the
-// bottom, and a bar that fills smoothly while the game loads that program behind
-// it (models, textures, shaders), so the menu comes up ready. It takes 22 s from
-// the click to the menu, however fast the loading is.
+// cinematic shots of that program cross-fading over each other (a new one every
+// 4 s), a fact along the bottom, and a bar that fills smoothly while the game loads
+// that program behind it (models, textures, shaders). It takes 8 s from the click
+// to the menu: never longer (a slow machine goes on loading behind the menu), and
+// never shorter (each picture gets its full turn).
 
 import { el } from '../dom';
 import type { Program } from '../menu/program';
@@ -15,14 +16,16 @@ import { markPicked } from './introSkip';
 import { hasUnseenNotes } from '../menu/whatsNew';
 
 /** from the click to the menu on screen (s) */
-const TOTAL = 22;
+const TOTAL = 8;
 /** the last part of it: the fade into the menu */
 const FADE_OUT = 1.3;
+/** when the fade into the menu starts (s after the click) */
+const FADE_AT = TOTAL - FADE_OUT;
 /** each picture's turn, and the cross-fade between two */
-const SHOT_T = 2.6;
+const SHOT_T = 4;
 const SHOT_FADE = 1;
-/** each fact's turn */
-const FACT_T = 7;
+/** the bar's last stretch: it runs smoothly from wherever it is to full by FADE_AT */
+const BAR_END = 0.8;
 
 const CSS = /* css */ `
 .tl{position:fixed;inset:0;z-index:9000;background:#020306;color:#eef3f8;font-family:'Rajdhani','Segoe UI',system-ui,sans-serif;overflow:hidden;user-select:none;transition:opacity ${FADE_OUT}s ease}
@@ -151,6 +154,11 @@ export class Launcher {
   private pickResolve!: (p: Program) => void;
   /** resolves with the program the player picked */
   readonly chosen: Promise<Program>;
+  /** resolves just before the loading screen starts fading into the menu, loaded or not */
+  readonly deadline: Promise<void>;
+  private deadlineResolve!: () => void;
+  /** the deadline has passed: work that can wait is left for later */
+  late = false;
   // loading
   private t0 = 0;
   private work = 0;
@@ -173,6 +181,7 @@ export class Launcher {
     }
     this.root = el('div', 'tl', document.body);
     this.chosen = new Promise((r) => (this.pickResolve = r));
+    this.deadline = new Promise((r) => (this.deadlineResolve = r));
     this.pickEl = el('div', 'tl-pick', this.root);
     const side = (p: Program, kicker: string, title: string, desc: string) => {
       const s = el('div', `tl-side ${p}` + (p === last ? ' sel' : ''), this.pickEl);
@@ -263,6 +272,13 @@ export class Launcher {
 
   private startLoading(p: Program): void {
     this.t0 = performance.now();
+    // (timers, not the frame clock: they keep time even when frames stall on a slow graphics chip
+    // or the tab is hidden; the fade starts on whichever comes first, a frame or the timer)
+    setTimeout(() => {
+      this.late = true;
+      this.deadlineResolve();
+    }, FADE_AT * 1000 - 200);
+    setTimeout(() => this.finish(), FADE_AT * 1000);
     const L = (this.loadEl = el('div', `tl-load ${p}`, this.root));
     el('div', 'tl-fb', L);
     const stage = el('div', '', L);
@@ -282,7 +298,9 @@ export class Launcher {
     const meta = el('div', 'tl-meta', foot);
     this.lbl = el('span', '', meta, 'LOADING');
     this.pct = el('span', '', meta, '0%');
-    requestAnimationFrame(() => L.classList.add('on'));
+    // (styles flushed, then the class: it fades in at once, without waiting for a frame)
+    void L.offsetWidth;
+    L.classList.add('on');
 
     // ---- the pictures: in a random order, each loaded while the one before shows
     const order = this.orders[p];
@@ -296,7 +314,6 @@ export class Launcher {
       return load(shotUrl(p, shot)).then((img) => (img ? { img, shot } : null));
     };
     let pending = fetchNext();
-    let lastSwap = -1e9;
     let current: HTMLDivElement | null = null;
     const swap = () => {
       if (this.finished) return;
@@ -316,7 +333,9 @@ export class Launcher {
           ],
           { duration: (SHOT_T + SHOT_FADE * 2) * 1000, easing: 'linear', fill: 'forwards' },
         );
-        requestAnimationFrame(() => d.classList.add('in'));
+        // (styles flushed, then the class: the cross-fade starts at once, without waiting for a frame)
+        void d.offsetWidth;
+        d.classList.add('in');
         const old = current;
         current = d;
         if (old) setTimeout(() => old.remove(), SHOT_FADE * 1000 + 200);
@@ -325,56 +344,58 @@ export class Launcher {
           cap.textContent = got.shot.caption;
           cap.style.opacity = '1';
         }, 500);
-        lastSwap = performance.now();
       });
     };
     swap();
-
-    // ---- the facts: a random one every 7 s
-    const facts = shuffle(p === 'air' ? AIR_FACTS : p === 'space' ? SPACE_FACTS : OCEAN_FACTS);
-    let fi = 0;
-    const showFact = () => {
-      fact.classList.add('hide');
+    // a new picture every 4 s, on a timer (frames can be slow while the program loads behind);
+    // none that would only start cross-fading as the screen fades out
+    const nextShot = () =>
       setTimeout(() => {
-        fx.textContent = facts[fi++ % facts.length];
-        fact.classList.remove('hide');
-      }, fi === 0 ? 0 : 900);
-    };
-    showFact();
-    let lastFact = performance.now();
+        if (this.finished || (performance.now() - this.t0) / 1000 > FADE_AT - SHOT_FADE) return;
+        swap();
+        nextShot();
+      }, SHOT_T * 1000);
+    nextShot();
 
-    // ---- the clock: pictures, facts, and a bar that never jumps
+    // ---- the fact: one, picked at random, for the whole screen
+    const facts = shuffle(p === 'air' ? AIR_FACTS : p === 'space' ? SPACE_FACTS : OCEAN_FACTS);
+    if (facts.length) {
+      fx.textContent = facts[0];
+      requestAnimationFrame(() => fact.classList.remove('hide'));
+    }
+
+    // ---- the clock: pictures, and a bar that never jumps
     let prev = performance.now();
+    let endFrom = -1;
+    let endT0 = 0;
     const tick = () => {
       if (this.finished) return;
       this.raf = requestAnimationFrame(tick);
       const now = performance.now();
-      // (real time, even at a low frame rate: the screen must not outstay its 17 s on a slow machine)
+      // (real time, even at a low frame rate: the screen must not outstay its 8 s on a slow machine)
       const dt = Math.min(0.5, (now - prev) / 1000);
       prev = now;
       const t = (now - this.t0) / 1000;
-      // (pictures and facts keep coming while a slow machine is still loading; they stop just before the fade)
-      const winding = this.workDone && this.shown > 0.9 && t >= TOTAL - FADE_OUT - 1;
-      if (now - lastSwap > SHOT_T * 1000 && !winding) {
-        lastSwap = now;
-        swap();
+      if (t < FADE_AT - BAR_END) {
+        // the bar follows the slower of the clock and the real work, eased
+        const clock = Math.min(1, t / (FADE_AT - BAR_END));
+        const eased = 1 - Math.pow(1 - clock, 1.6);
+        const target = Math.min(eased, this.workDone ? 1 : 0.06 + this.work * 0.9);
+        const rate = Math.max(0, target - this.shown);
+        this.shown += Math.min(rate, rate * (1 - Math.exp(-dt * 2.5)) + dt * 0.02, dt * 0.25);
+      } else {
+        // its last stretch: from wherever it got to, smoothly to full as the fade begins
+        if (endFrom < 0) {
+          endFrom = this.shown;
+          endT0 = t;
+        }
+        const u = Math.min(1, (t - endT0) / Math.max(0.05, FADE_AT - endT0));
+        this.shown = endFrom + (1 - endFrom) * u * u * (3 - 2 * u);
       }
-      if (now - lastFact > FACT_T * 1000 && !(this.workDone && this.shown > 0.8 && t >= TOTAL - FADE_OUT - 2)) {
-        lastFact = now;
-        showFact();
-      }
-      // the bar follows the slower of the clock and the real work, eased
-      const clock = Math.min(1, t / (TOTAL - FADE_OUT - 1));
-      const eased = 1 - Math.pow(1 - clock, 1.6);
-      const target = Math.min(eased, this.workDone ? 1 : 0.06 + this.work * 0.9);
-      const rate = Math.max(0, target - this.shown);
-      // (behind time, after a slow load: it catches up quicker, still without a jump)
-      const late = t > TOTAL - FADE_OUT;
-      this.shown += Math.min(rate, rate * (1 - Math.exp(-dt * (late ? 4 : 2.5))) + dt * (late ? 0.06 : 0.02), dt * (late ? 0.4 : 0.18));
       if (this.fill) this.fill.style.width = `${(this.shown * 100).toFixed(2)}%`;
       if (this.pct) this.pct.textContent = `${Math.floor(this.shown * 100)}%`;
       if (this.lbl) this.lbl.textContent = this.shown > 0.995 ? 'READY' : this.workDone ? (p === 'air' ? 'PREFLIGHT CHECKS' : 'FINAL CHECKS') : this.workLabel;
-      if (t >= TOTAL - FADE_OUT && this.workDone && this.shown > 0.995) this.finish();
+      if (t >= FADE_AT) this.finish();
     };
     this.raf = requestAnimationFrame(tick);
   }
