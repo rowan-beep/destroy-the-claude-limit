@@ -12,8 +12,9 @@ updates, the space menu the space updates and the ocean menu the ocean updates.
   - Against a heat-seeker fired close in it breaks at once, harder, drops flares from five seconds out and, in the last second, reverses out of the plane of its turn so the missile flies past. In a scissors it no longer slows right down, and close in it fires a second heat-seeker a second behind the first.
   - Its radar missiles fly a look-up profile against a jet high off the ground: no loft, in from below, the seeker looking up at him against the sky, where beaming him into the Doppler notch does not work.
   - Measured in the default duel (your F-15EX against its Typhoon), APEX now loses about one fight in ten to an EXTREME pilot (it was one in four) and one in twenty to a HARD one (one in five).
-- **Fixed: No more triangle on the F-15EX intakes**
+- **Fixed: A cleaner F-15EX**
   - The plate that showed as a triangle through the swept side of each intake is gone, and the ducts are white inside as on the real jet, greying toward the fan.
+  - The groove and bump along the spine behind the canopy are gone: its sides now run smoothly down to the tail. The paint is cleaner, a new jet's, with only a light film of grime.
 
 ## v7.4.0 (2026-10-11)
 

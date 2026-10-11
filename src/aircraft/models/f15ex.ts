@@ -637,7 +637,9 @@ const BODY = keyedProfile([
   { z: -0.9, pts: [[0, -0.63], [0.32, -0.64], [0.5, -0.62], [0.58, -0.5], [0.6, -0.12], [0.6, 0.2], [0.62, 0.46], ...deck(-0.9, 0.69), [0.6, 0.95], [0.36, 1.14], [0, 1.19]] },
   // (the deck stays flat beside the trunk's chine right up to the wing root; the lower points are inside
   // the trunk, on their way out to the nacelle)
-  { z: -0.3, pts: [[0, -0.635], [0.384, -0.649], [0.707, -0.721], [1.003, -0.67], [1.18, -0.405], [1.221, -0.094], [1.223, 0.202], ...deck(-0.3, 0.675), [0.63, 0.78], [0.36, 1.06], [0, 1.11]] },
+  // (the spine's side runs straight down from the canopy to the tail: a low point here, 0.78 up, left a
+  // groove along it with a bump behind)
+  { z: -0.3, pts: [[0, -0.635], [0.384, -0.649], [0.707, -0.721], [1.003, -0.67], [1.18, -0.405], [1.221, -0.094], [1.223, 0.202], ...deck(-0.3, 0.675), [0.6, 0.905], [0.36, 1.06], [0, 1.11]] },
   // the body takes over the intake trunks (wrapping their top corner clear of
   // it); the deck runs on to the engine bays and the spine falls away to the tail
   { z: 0.4, pts: [[0, -0.64], [0.46, -0.66], [0.95, -0.84], [1.5, -0.87], [1.86, -0.74], [1.95, -0.44], [1.93, -0.1], ...wrap(0.4, [0.68, 0.56]), [0.68, 0.56], [0.53, 0.86], [0.36, 0.96], [0, 1.0]] },
@@ -1190,9 +1192,10 @@ function livery(team: string, withCamo = true): Livery {
       g.stroke();
     }
   };
-  grime(gt, L.top.width, L.top.height, 1, [0, 1]);
-  grime(gb, L.bot.width, L.bot.height, 0.9, [0, 1]);
-  grime(gs, L.side.width, L.side.height, 1, [1, 0.1]);
+  // (a new jet, kept clean: a light film of grime, not a blotchy one)
+  grime(gt, L.top.width, L.top.height, 0.3, [0, 1]);
+  grime(gb, L.bot.width, L.bot.height, 0.35, [0, 1]);
+  grime(gs, L.side.width, L.side.height, 0.3, [1, 0.1]);
   // fluid and grime streaks blown aft from the radome joint and the doors under the nose
   {
     const rs = prng(77);
