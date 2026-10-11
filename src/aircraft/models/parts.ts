@@ -493,6 +493,11 @@ export interface IntakeSpec {
   /** with ductFollow: how much further the duct draws in from the outer loop per metre going back (default 0) */
   ductInset?: number;
   /**
+   * the duct's own section at depth u (0 at the lip, 1 at the fan) and build station z, given the mouth's
+   * inner loop (it must return that loop at u = 0); replaces ductFollow and the fan morph
+   */
+  ductRing?: (u: number, z: number, inner0: P2[]) => P2[];
+  /**
    * measure the duct shade's depth from the raked mouth (z of the lip at that height) instead of from
    * the first station (default false): a hard-raked mouth then darkens evenly into the duct
    */
@@ -532,9 +537,9 @@ export function intake(s: IntakeSpec): { skin: THREE.BufferGeometry; duct: THREE
   for (let k = 0; k <= DN; k++) {
     const u = k / DN;
     const z = zl + 0.02 + u * s.depth;
-    const base = s.ductFollow ? offsetLoop(at(z), -(s.lip + (s.ductInset ?? 0) * (z - zl))) : inner0;
+    const base = s.ductRing ? s.ductRing(u, z, inner0) : s.ductFollow ? offsetLoop(at(z), -(s.lip + (s.ductInset ?? 0) * (z - zl))) : inner0;
     let loop = base;
-    if (fan) {
+    if (fan && !s.ductRing) {
       // morph toward a circle round the fan
       const circ: P2[] = base.map((_p, i) => {
         const a = Math.atan2(base[i][1] - fan.cy, base[i][0] - fan.cx);

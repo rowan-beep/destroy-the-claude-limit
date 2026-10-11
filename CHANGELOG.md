@@ -4,6 +4,15 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
+## v7.3.1 (2026-10-11)
+
+### Air Combat: F-15EX intakes and tail booms fixed
+
+- **Fixed: You can see the engine fans down the F-15EX intakes**
+  - The body and the wing root ran through the intake ducts, so looking in you saw a grey wall. The ducts are clear now and run straight back to the F110 fan, which has a spinner and 20 wide twisted blades.
+- **Fixed: No more dent in the tail booms**
+  - The F-15EX tail booms had a notch in their sides just behind the wing, on both sides. The boom sides now run smoothly back to the tail.
+
 ## v7.3.0 (2026-10-10)
 
 ### Air Combat: F-15EX rebuilt to match the real jet

@@ -10,7 +10,7 @@ import { addPilot } from './pilot';
 import { Section } from './builder';
 import {
   P2, loftProfile, keyedProfile, stations, mergeStations, wing, WingStation, finMatrix, both, mirror, join, stamp, lathe, rrect, ring, mirrorHalf,
-  Livery, skinMaterial, line, rivets, weather, prng, roundel, LINE, LINE_LIGHT, deform, sstep, curve, crSeg,
+  Livery, skinMaterial, line, rivets, weather, prng, roundel, LINE, LINE_LIGHT, deform, sstep, curve, crSeg, offsetLoop, colorize,
 } from './kit';
 import { nozzle, intake, partMaterials, blade, probe, formationStrip } from './parts';
 import { buildCanopy, buildGearSet, wingPanels, finPanels, sectionsFromProfile } from './common';
@@ -160,34 +160,244 @@ function trunkLoop(z: number): P2[] {
   return pts;
 }
 
-/** the intake lips' thickness, and how much further in the duct draws from the trunk wall per metre going back */
+/** the intake lips' thickness */
 const INTAKE_LIP = 0.022;
-const DUCT_INSET = 0.12;
-/** a trunk's skin (outer walls, lips) and its duct, right side */
-function trunkGeometry(): { skin: THREE.BufferGeometry; duct: THREE.BufferGeometry } {
-  return intake({
+/** the duct: its length from the cowl lip to the engine's fan, the fan (trunk frame), and how far down it keeps the mouth's shape */
+const DUCT_DEPTH = 3.4;
+const FAN = { cx: 0.95, cy: 0.0, r: 0.43 };
+const DUCT_STRAIGHT = 0.4;
+
+/**
+ * The duct's section at depth u (0 at the lip, 1 at the fan) and build station zb: the mouth's inner loop,
+ * kept inside the trunk's walls where they close in going back (the top drops, the inner wall closes on
+ * the fuselage), rounding into the fan's circle over the back 60 %. Each point keeps its bearing from the
+ * mouth's centre all the way, so the rings never fold (the duct used to be the trunk's own loop drawn in
+ * further and further, which looped over itself at the corners and, behind the wing root where the trunk
+ * no longer surrounded the fan, folded right across the fan's face). Until the body takes the trunks over
+ * at z 0.4 the duct stays clear of the trunk's walls; after that the body is round it.
+ */
+function ductRing(u: number, zb: number, inner0: P2[]): P2[] {
+  const fade = Math.max(0, 1 - (zb - INTAKE_MOUTH) / INTAKE_FADE);
+  const v = Math.min(1, Math.max(0, (u - DUCT_STRAIGHT) / (1 - DUCT_STRAIGHT)));
+  const m = v * v * (3 - 2 * v);
+  // the walls: the lip at the mouth, 4 cm a little further in
+  const w = INTAKE_LIP + 0.018 * Math.min(1, u / 0.12);
+  // (each point keeps its bearing from the mouth's centre)
+  const cx = (MW.x0 + MW.x1) / 2, cy = (MW.y0 + MW.y1) / 2;
+  return inner0.map(([x0, y0]) => {
+    const a = Math.atan2(y0 - cy, x0 - cx);
+    let x = x0 + (FAN.cx + Math.cos(a) * FAN.r - x0) * m;
+    let y = y0 + (FAN.cy + Math.sin(a) * FAN.r - y0) * m;
+    if (u > 0) {
+      const zt = zb + INTAKE_RAKE(y) * fade;
+      // (the trunk's walls hold the duct in until the body wraps round it)
+      const k = 1 - sstep(0.2, 0.75, zt);
+      x = Math.min(x, T_OUT(zt) - w);
+      y = Math.max(y, T_BOT(zt) + w);
+      x += (Math.max(x, T_IN(zt) + w) - x) * k;
+      y += (Math.min(y, T_TOP(zt) - w) - y) * k;
+    }
+    return [x, y] as P2;
+  });
+}
+
+/** a trunk's skin (outer walls, lips), its duct and the engine's fan at the end of it, right side */
+function trunkGeometry(): { skin: THREE.BufferGeometry; duct: THREE.BufferGeometry; fan: THREE.BufferGeometry } {
+  const t = intake({
     loop: trunkLoop,
     outer: stations(INTAKE_MOUTH, 1.6, 64, 0.3, 0),
     lip: INTAKE_LIP,
-    depth: 3.4,
+    depth: DUCT_DEPTH,
     n: 168,
     rake: (_x, y) => INTAKE_RAKE(y),
     rakeFade: INTAKE_FADE,
     exactLoop: true,
     ductRings: 40,
-    fan: { cx: 0.95, cy: 0.0, r: 0.43 },
-    ductShade: { k0: 0.11, fall: 1.5, floor: 0.01, fan: 0.45 },
+    ductShade: { k0: 0.11, fall: 1.5, floor: 0.01 },
     ductShadeRaked: true,
-    ductStraight: 0.4,
-    ductFollow: true,
-    ductInset: DUCT_INSET,
+    ductRing,
+  });
+  return { ...t, fan: fanGeometry() };
+}
+
+/**
+ * The F110's fan face at the end of the duct: a pointed spinner and 20 wide-chord blades, twisted from a
+ * steep root to a flatter tip, so close that head-on they overlap into a disc of metal (the way the fan
+ * shows down an F-15's intake), the blades lighter toward their tips where the light reaches.
+ */
+function fanGeometry(): THREE.BufferGeometry {
+  const z = INTAKE_MOUTH + DUCT_DEPTH, { cx, cy, r } = FAN;
+  const hub = lathe([[0.001, z - 0.3], [r * 0.16, z - 0.17], [r * 0.29, z - 0.04], [r * 0.31, z + 0.02]], 28, cx, cy);
+  const parts: THREE.BufferGeometry[] = [colorize(hub, (p, c) => {
+    const k = 0.3 + 0.08 * Math.min(1, (p.z - z + 0.3) / 0.3);
+    c.setRGB(k, k, k * 1.03);
+  })];
+  const N = 20, R0 = r * 0.3, R1 = r * 0.985, CH = 0.2, TH = 0.007, S = 6;
+  for (let b = 0; b < N; b++) {
+    const a0 = (b / N) * Math.PI * 2;
+    const pos: number[] = [], col: number[] = [], idx: number[] = [];
+    // a twisted plate: along the span (root to tip) and the chord, both faces
+    for (let i = 0; i <= S; i++) {
+      const t = i / S, rr = R0 + (R1 - R0) * t;
+      const pitch = 0.95 - 0.4 * t; // from the fan's axis toward the plane of rotation
+      const ch = CH * (0.8 + 0.25 * t);
+      const k = 0.24 + 0.2 * t;
+      for (const side of [-1, 1]) {
+        for (const e of [-0.5, 0.5]) {
+          // a point on the chord line, rotated about the span by the pitch
+          const along = e * ch, off = side * TH;
+          const zz = z - 0.08 + along * Math.cos(pitch) - off * Math.sin(pitch);
+          const tang = along * Math.sin(pitch) + off * Math.cos(pitch);
+          const a = a0 + tang / rr;
+          pos.push(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr, zz);
+          col.push(k, k, k * 1.03);
+        }
+      }
+    }
+    for (let i = 0; i < S; i++) {
+      const q = i * 4, n = q + 4;
+      // front face (side -1), back face (side +1), leading and trailing edges
+      idx.push(q, n, q + 1, q + 1, n, n + 1);
+      idx.push(q + 2, q + 3, n + 2, q + 3, n + 3, n + 2);
+      idx.push(q, q + 2, n, q + 2, n + 2, n);
+      idx.push(q + 1, n + 1, q + 3, q + 3, n + 1, n + 3);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    parts.push(g);
+  }
+  return join(parts);
+}
+
+/** the inner and outer walls' x where a duct section crosses height y */
+function ductWallsAt(loop: P2[], y: number): [number, number] {
+  let lo = Infinity, hi = -Infinity;
+  for (let i = 0, j = loop.length - 1; i < loop.length; j = i++) {
+    const [xi, yi] = loop[i], [xj, yj] = loop[j];
+    if (yi > y === yj > y) continue;
+    const x = xi + ((xj - xi) * (y - yi)) / (yj - yi);
+    lo = Math.min(lo, x);
+    hi = Math.max(hi, x);
+  }
+  return [lo, hi];
+}
+
+/** the duct's section at build station `zb` of the trunk (as intake() builds it), cached by the centimetre */
+const DUCT_LOOPS = new Map<number, P2[]>();
+let MOUTH_INNER: P2[] | null = null;
+function ductLoopAt(zb: number): P2[] {
+  const key = Math.round(zb * 100);
+  let loop = DUCT_LOOPS.get(key);
+  if (loop) return loop;
+  MOUTH_INNER ??= offsetLoop(trunkLoop(INTAKE_MOUTH), -INTAKE_LIP);
+  const z = key / 100;
+  loop = ductRing((z - INTAKE_MOUTH - 0.02) / DUCT_DEPTH, z, MOUTH_INNER);
+  DUCT_LOOPS.set(key, loop);
+  return loop;
+}
+
+/**
+ * The duct's section through the point (x >= 0, body frame) as the build station of the duct ring passing
+ * through it (the rings are sheared forward by the rake, fading out down the duct), or null outside the
+ * duct's length (ahead of the cowl lip, or behind the fan).
+ */
+function ductSectionAt(y: number, z: number): P2[] | null {
+  const R = INTAKE_RAKE(y);
+  const zb = (z - R * (1 + INTAKE_MOUTH / INTAKE_FADE)) / (1 - R / INTAKE_FADE);
+  if (zb < INTAKE_MOUTH + 0.02 || zb > INTAKE_MOUTH + DUCT_DEPTH) return null;
+  return ductLoopAt(zb);
+}
+
+function inLoop(x: number, y: number, loop: P2[]): boolean {
+  let c = false;
+  for (let i = 0, j = loop.length - 1; i < loop.length; j = i++) {
+    const [xi, yi] = loop[i], [xj, yj] = loop[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c;
+  }
+  return c;
+}
+
+/**
+ * Clear the intake ducts of everything else. Looking down an intake you see the duct and the engine's fan
+ * at its end, but the body's lower side swings out through the ducts on its way round the trunks, the
+ * wing's root runs on inside them and the deck's edge dips under the top lips: from outside all of it is
+ * hidden in the trunks, from the mouth it blocked the view. Each point inside a duct moves out onto its
+ * wall (a centimetre beyond it, still inside the trunk's wall), and what still spans the duct then goes.
+ * Only the meshes in the body's frame are touched; `keep` are the duct's own parts.
+ */
+function clearDucts(body: THREE.Object3D, keep: Set<THREE.Object3D>): void {
+  body.updateMatrixWorld(true);
+  const inv = body.matrixWorld.clone().invert();
+  const rel = new THREE.Matrix4();
+  const I = new THREE.Matrix4();
+  // (a quick box round both ducts first: most of the airframe is nowhere near them)
+  const near = (x: number, y: number, z: number) => x > 0.45 && x < 1.8 && y > -0.75 && y < 0.8 && z > INTAKE_MOUTH - 2.4 && z < INTAKE_MOUTH + DUCT_DEPTH + 0.05;
+  const inside = (x: number, y: number, z: number) => {
+    const ax = Math.abs(x);
+    if (!near(ax, y, z)) return false;
+    const loop = ductSectionAt(y, z);
+    return !!loop && inLoop(ax, y, loop);
+  };
+  body.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh || keep.has(mesh) || !mesh.geometry) return;
+    rel.multiplyMatrices(inv, mesh.matrixWorld);
+    if (!rel.equals(I)) return;
+    const g = mesh.geometry;
+    if (g.groups.length > 1) return;
+    const pos = g.getAttribute('position') as THREE.BufferAttribute | undefined;
+    if (!pos) return;
+    let moved = false;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+      if (!inside(x, y, z)) continue;
+      // out onto the nearest point of the duct's wall at this station, and a centimetre beyond it
+      const loop = ductSectionAt(y, z)!;
+      const ax = Math.abs(x);
+      let best = Infinity, bx = ax, by = y;
+      for (let a = 0, b = loop.length - 1; a < loop.length; b = a++) {
+        const [x0, y0] = loop[b], [x1, y1] = loop[a];
+        const dx = x1 - x0, dy = y1 - y0;
+        const t = Math.min(1, Math.max(0, ((ax - x0) * dx + (y - y0) * dy) / (dx * dx + dy * dy || 1)));
+        const px = x0 + dx * t, py = y0 + dy * t;
+        const d = (px - ax) ** 2 + (py - y) ** 2;
+        if (d < best) [best, bx, by] = [d, px, py];
+      }
+      const d = Math.sqrt(best) || 1;
+      const nx = bx + ((bx - ax) / d) * 0.01, ny = by + ((by - y) / d) * 0.01;
+      pos.setXY(i, Math.sign(x) * nx, ny);
+      moved = true;
+    }
+    // triangles still spanning a duct (corners on opposite walls): their middle or an edge's middle inside
+    const idx = g.getIndex();
+    const nTri = idx ? idx.count / 3 : pos.count / 3;
+    const vi = (k: number) => (idx ? idx.getX(k) : k);
+    const kept: number[] = [];
+    let dropped = 0;
+    for (let t = 0; t < nTri; t++) {
+      const a = vi(3 * t), b = vi(3 * t + 1), c = vi(3 * t + 2);
+      const P = [a, b, c].map((k) => [pos.getX(k), pos.getY(k), pos.getZ(k)]);
+      const mid = (p: number[], q: number[]) => inside((p[0] + q[0]) / 2, (p[1] + q[1]) / 2, (p[2] + q[2]) / 2);
+      const cen = inside((P[0][0] + P[1][0] + P[2][0]) / 3, (P[0][1] + P[1][1] + P[2][1]) / 3, (P[0][2] + P[1][2] + P[2][2]) / 3);
+      if (cen || mid(P[0], P[1]) || mid(P[1], P[2]) || mid(P[2], P[0])) dropped++;
+      else kept.push(a, b, c);
+    }
+    if (dropped) g.setIndex(kept);
+    if (moved) pos.needsUpdate = true;
+    if (moved || dropped) {
+      g.computeBoundingBox();
+      g.computeBoundingSphere();
+    }
   });
 }
 
 /**
  * The compression ramp: a plate under the top lip angling down into the duct, the first ramp shallow,
  * the second steeper, down to the throat behind the cowl lip (it reads as the inlet's thick upper lip
- * from the front). Its edges follow the duct's side walls, which draw in going back.
+ * from the front). Its edges follow the duct's side walls.
  */
 function rampGeometry(): THREE.BufferGeometry {
   // the build station whose ring passes the true station Z at height y (inverse of trunkLoop's shear)
@@ -204,9 +414,9 @@ function rampGeometry(): THREE.BufferGeometry {
     const u = i / N;
     const Z = z0 + u * 2.7;
     const y = MW.y1 - INTAKE_LIP - 0.012 - (u < 0.4 ? u * 0.16 : 0.064 + (u - 0.4) * 0.53);
-    const d = INTAKE_LIP + DUCT_INSET * Math.max(0, stationAt(Z, y) - INTAKE_MOUTH) + 0.006;
+    const [xi, xo] = ductWallsAt(ductLoopAt(stationAt(Z, y)), y);
     const k = 0.13 * Math.pow(1 - u, 1.3) + 0.015;
-    for (const x of [T_IN(Z) + d, T_OUT(Z) - d]) {
+    for (const x of [xi + 0.006, xo - 0.006]) {
       ramp.push(x, y, Z);
       cols.push(k, k, k * 1.02);
     }
@@ -627,7 +837,7 @@ const AFT_END = 7.3; // (the BODY's last key)
 // close into a short stinger at the stabilator's height. Inner and outer wall x, top and bottom y, and
 // how round the corners are (0 square .. 1 a full radius).
 const BOOM_XI = curve([[2.4, 1.6], [3.0, 1.52], [3.6, 1.48], [4.4, 1.46], [5.2, 1.45], [5.9, 1.44], [6.6, 1.42], [7.0, 1.39], [7.45, 1.37], [8.0, 1.38], [8.15, 1.42], [8.45, 1.52], [8.75, 1.58], [9.0, 1.6], [9.3, 1.635], [9.52, 1.68]]);
-const BOOM_XO = curve([[2.4, 1.8], [3.0, 1.86], [3.4, 2.05], [5.12, 2.05], [5.35, 1.96], [5.6, 2.05], [5.85, 2.08], [6.2, 2.07], [6.55, 2.04], [6.75, 1.99], [6.86, 1.9], [6.95, 1.8], [7.05, 1.77], [8.75, 1.77], [9.0, 1.765], [9.3, 1.745], [9.52, 1.71]]);
+const BOOM_XO = curve([[2.4, 1.8], [3.0, 1.86], [3.4, 2.05], [5.12, 2.05], [5.6, 2.065], [5.85, 2.08], [6.2, 2.07], [6.55, 2.04], [6.75, 1.99], [6.86, 1.9], [6.95, 1.8], [7.05, 1.77], [8.75, 1.77], [9.0, 1.765], [9.3, 1.745], [9.52, 1.71]]);
 const BOOM_T = curve([[2.4, 0.3], [2.9, 0.345], [3.4, 0.4], [3.9, 0.47], [4.4, 0.55], [4.9, 0.625], [5.4, 0.7], [5.9, 0.76], [6.4, 0.78], [6.8, 0.77], [7.4, 0.71], [8.1, 0.65], [8.7, 0.6], [8.8, 0.52], [8.9, 0.3], [9.0, 0.17], [9.2, 0.125], [9.4, 0.07], [9.52, 0.02]]);
 const BOOM_B = curve([[2.4, 0.0], [3.0, -0.1], [3.6, -0.25], [4.4, -0.4], [5.0, -0.46], [5.9, -0.42], [6.6, -0.36], [7.4, -0.3], [8.1, -0.22], [8.7, -0.165], [9.0, -0.13], [9.2, -0.1], [9.4, -0.06], [9.52, -0.02]]);
 const BOOM_R = curve([[2.4, 0.9], [3.2, 0.6], [4.0, 0.4], [7.4, 0.36], [8.6, 0.45], [8.85, 0.7], [9.0, 0.92]]);
@@ -1305,13 +1515,23 @@ export function buildF15EX(v: AirframeVisual): void {
   // first ramp's sharp leading edge, juts out ahead and the thin side plates sweep back from it to the
   // cowl lip. The duct is long and goes dark toward the fan, which is only just made out.
   const trunk = trunkGeometry();
-  skin(both(trunk.skin));
+  const ductParts = new Set<THREE.Object3D>();
+  ductParts.add(skin(both(trunk.skin)));
   const ductMat = intakeDuctMaterial();
-  v.addMesh(both(trunk.duct), ductMat).userData.detail = true;
-  v.addMesh(both(rampGeometry()), ductMat).userData.detail = true;
+  for (const g of [trunk.duct, rampGeometry()]) {
+    const m = v.addMesh(both(g), ductMat);
+    m.userData.detail = true;
+    ductParts.add(m);
+  }
+  // the engine's fan at the end of the duct: bare metal, its blades catching what light gets down there
+  const fan = v.addMesh(both(trunk.fan), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.38, metalness: 0.7 }));
+  fan.userData.detail = true;
+  ductParts.add(fan);
   const splitter = splitterGeometry();
-  skin(both(splitter.plate));
-  v.addMesh(both(splitter.lining), ductMat).userData.detail = true;
+  ductParts.add(skin(both(splitter.plate)));
+  const lining = v.addMesh(both(splitter.lining), ductMat);
+  lining.userData.detail = true;
+  ductParts.add(lining);
 
   // conformal fuel tanks on the outside of each trunk (see cftSection)
   const cft = loftProfile({ stations: stations(CFT_TIP, CFT_END, 110, 0.3, 0.2), profile: cftSection, sub: CFT_SUB, full: true, capStart: true, capEnd: true });
@@ -1769,4 +1989,7 @@ export function buildF15EX(v: AirframeVisual): void {
       if (bayDoor) face(bayDoor.pivot, new THREE.Vector3(sx * (0.9 + 0.0095), -0.99, 0.9), 1.06, 0.38, sx, white);
     }
   }
+
+  // nothing but the duct between an intake's mouth and its fan
+  clearDucts(v.body, ductParts);
 }

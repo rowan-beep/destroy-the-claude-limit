@@ -37,6 +37,19 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.3.1',
+    date: '2026-10-11',
+    air: {
+      title: 'F-15EX intakes and tail booms fixed',
+      notes: [
+        fixed('You can see the engine fans down the F-15EX intakes',
+          'The body and the wing root ran through the intake ducts, so looking in you saw a grey wall. The ducts are clear now and run straight back to the F110 fan, which has a spinner and 20 wide twisted blades.'),
+        fixed('No more dent in the tail booms',
+          'The F-15EX tail booms had a notch in their sides just behind the wing, on both sides. The boom sides now run smoothly back to the tail.'),
+      ],
+    },
+  },
+  {
     version: '7.3.0',
     date: '2026-10-10',
     air: {

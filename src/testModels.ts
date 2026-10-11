@@ -137,6 +137,8 @@ export function runModelTest(container: HTMLElement): void {
     shot = oc;
     (window as unknown as { __box: number[] }).__box = [box.min.x, box.min.y, box.min.z, box.max.x, box.max.y, box.max.z];
   }
+  // clipz: cut the scene away ahead of that z (m) to look at a cross-section from the front
+  if (q.get('clipz')) renderer.clippingPlanes = [new THREE.Plane(new THREE.Vector3(0, 0, 1), -+q.get('clipz')!)];
   renderer.render(scene, shot);
   const breakdown: [string, number][] = [];
   scene.traverse((o) => {
