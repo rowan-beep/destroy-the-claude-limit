@@ -14,7 +14,7 @@ updates, the space menu the space updates and the ocean menu the ocean updates.
   - Measured in the default duel (your F-15EX against its Typhoon), APEX now loses about one fight in ten to an EXTREME pilot (it was one in four) and one in twenty to a HARD one (one in five).
 - **Fixed: A cleaner F-15EX**
   - The plate that showed as a triangle through the swept side of each intake is gone, and the ducts are white inside as on the real jet, greying toward the fan.
-  - The groove and bump along the spine behind the canopy are gone: its sides now run smoothly down to the tail. The paint is cleaner, a new jet's, with only a light film of grime.
+  - The hump behind the canopy is gone: the back falls away right behind the glass and runs low to the tail as a broad, rounded crown, and the trunks' top edges soften behind the intakes instead of running back as one long hard corner. The paint is cleaner, a new jet's, with only a light film of grime.
 
 ## v7.4.0 (2026-10-11)
 

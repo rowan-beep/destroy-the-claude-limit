@@ -52,10 +52,11 @@ const T_OUT = curve([[-4.2, 1.49], [-1.95, 1.49], [-1.5, 1.755], [-1.2, 1.819], 
 const T_TOP = curve([[-4.2, 0.71], [-4.0, 0.7], [-3.6, 0.672], [-3.2, 0.656], [-2.75, 0.65], [-1.9, 0.64], [-0.9, 0.58], [0.4, 0.47], [1.6, 0.39]]);
 const T_BOT = curve([[-1.9, -0.65], [-1.4, -0.665], [-0.9, -0.7], [0.4, -0.81], [1.6, -0.79]]);
 const T_R = curve([[-4.1, 0.12], [-2.75, 0.15], [-0.9, 0.2], [1.6, 0.22]]);
-// the trunk's own corner radii: the top corner a crisp chine from the capsule's top all the way back to
-// the wing root (the glove's edge; it only rounds off under the wing, where the body wraps it), the
-// mouth's rounded lower corners at the cowl lip growing into the trunk's rounded corners behind
-const T_RT = curve([[-4.2, 0.03], [-2.7, 0.035], [-1.9, 0.045], [-0.9, 0.06], [-0.3, 0.09], [0.4, 0.2], [1.6, 0.22]]);
+// the trunk's own corner radii: the top corner a crisp chine along the intake capsule, rounding off
+// behind the cowl lip into the soft shoulder the wing root and the body wrap (a crisp corner all the
+// way back drew a long straight edge down the jet's back and made it read as a box), the mouth's
+// rounded lower corners at the cowl lip growing into the trunk's rounded corners behind
+const T_RT = curve([[-4.2, 0.03], [-2.7, 0.035], [-1.9, 0.045], [-1.4, 0.09], [-0.9, 0.15], [-0.3, 0.19], [0.4, 0.2], [1.6, 0.22]]);
 const T_RB = curve([[-1.9, 0.11], [-1.2, 0.17], [-0.9, 0.2], [1.6, 0.22]]);
 
 /** A rounded rectangle with its own corner radius on top and underneath (from the bottom-right corner, CCW). */
@@ -631,20 +632,22 @@ const BODY = keyedProfile([
   // the end of the ramps: the deck spreads across the trunk tops in a few
   // centimetres, beside the rear cockpit's raised walls
   { z: -2.15, pts: [[0, -0.607], [0.283, -0.604], [0.427, -0.573], [0.5, -0.446], [0.513, -0.12], [0.513, 0.2], [0.542, 0.5], ...deck(-2.15, 0.74), [0.528, 1.02], [0.384, 0.992], [0, 0.932]] },
-  // the canopy's tail closes onto the dorsal spine, which narrows going aft
+  // the canopy's tail closes onto the dorsal spine, which falls away going aft
   // with the speedbrake lying on its top
   { z: -1.6, pts: [[0, -0.62], [0.3, -0.62], [0.46, -0.59], [0.54, -0.46], [0.56, -0.12], [0.56, 0.2], [0.58, 0.5], ...deck(-1.6, 0.73), [0.55, 1.0], [0.32, 1.17], [0, 1.22]] },
-  { z: -0.9, pts: [[0, -0.63], [0.32, -0.64], [0.5, -0.62], [0.58, -0.5], [0.6, -0.12], [0.6, 0.2], [0.62, 0.46], ...deck(-0.9, 0.69), [0.6, 0.95], [0.36, 1.14], [0, 1.19]] },
+  { z: -0.9, pts: [[0, -0.63], [0.32, -0.64], [0.5, -0.62], [0.58, -0.5], [0.6, -0.12], [0.6, 0.2], [0.62, 0.46], ...deck(-0.9, 0.69), [0.62, 0.78], [0.4, 0.928], [0, 1.0]] },
   // (the deck stays flat beside the trunk's chine right up to the wing root; the lower points are inside
   // the trunk, on their way out to the nacelle)
-  // (the spine's side runs straight down from the canopy to the tail: a low point here, 0.78 up, left a
-  // groove along it with a bump behind)
-  { z: -0.3, pts: [[0, -0.635], [0.384, -0.649], [0.707, -0.721], [1.003, -0.67], [1.18, -0.405], [1.221, -0.094], [1.223, 0.202], ...deck(-0.3, 0.675), [0.6, 0.905], [0.36, 1.06], [0, 1.11]] },
+  // (behind the canopy the back falls away at once and runs low to the tail, the spine a broad, gentle
+  // crown, an arc from the deck's foot over the centre line: a tall dorsal hump stood up behind the
+  // glass, and a flat-topped one read as a box; its side runs straight down from the canopy to the
+  // tail: a low point here once left a groove along it with a bump behind)
+  { z: -0.3, pts: [[0, -0.635], [0.384, -0.649], [0.707, -0.721], [1.003, -0.67], [1.18, -0.405], [1.221, -0.094], [1.223, 0.202], ...deck(-0.3, 0.675), [0.6, 0.702], [0.42, 0.803], [0, 0.87]] },
   // the body takes over the intake trunks (wrapping their top corner clear of
   // it); the deck runs on to the engine bays and the spine falls away to the tail
-  { z: 0.4, pts: [[0, -0.64], [0.46, -0.66], [0.95, -0.84], [1.5, -0.87], [1.86, -0.74], [1.95, -0.44], [1.93, -0.1], ...wrap(0.4, [0.68, 0.56]), [0.68, 0.56], [0.53, 0.86], [0.36, 0.96], [0, 1.0]] },
-  { z: 1.5, pts: [[0, -0.625], [0.456, -0.645], [0.95, -0.817], [1.49, -0.843], [1.849, -0.717], [1.939, -0.432], [1.93, -0.108], ...wrap(1.5, [0.72, 0.5]), [0.72, 0.5], [0.5, 0.72], [0.3, 0.815], [0, 0.84]] },
-  { z: 2.4, pts: [[0, -0.612], [0.453, -0.632], [0.95, -0.799], [1.486, -0.821], [1.84, -0.697], [1.929, -0.428], [1.948, -0.114], [1.938, 0.086], [1.865, 0.272], [1.53, 0.42], [1.19, 0.464], [0.85, 0.5], [0.55, 0.62], [0.3, 0.67], [0, 0.68]] },
+  { z: 0.4, pts: [[0, -0.64], [0.46, -0.66], [0.95, -0.84], [1.5, -0.87], [1.86, -0.74], [1.95, -0.44], [1.93, -0.1], ...wrap(0.4, [0.68, 0.56]), [0.68, 0.56], [0.58, 0.675], [0.4, 0.738], [0, 0.78]] },
+  { z: 1.5, pts: [[0, -0.625], [0.456, -0.645], [0.95, -0.817], [1.49, -0.843], [1.849, -0.717], [1.939, -0.432], [1.93, -0.108], ...wrap(1.5, [0.72, 0.5]), [0.72, 0.5], [0.56, 0.626], [0.36, 0.673], [0, 0.7]] },
+  { z: 2.4, pts: [[0, -0.612], [0.453, -0.632], [0.95, -0.799], [1.486, -0.821], [1.84, -0.697], [1.929, -0.428], [1.948, -0.114], [1.938, 0.086], [1.865, 0.272], [1.53, 0.42], [1.19, 0.464], [0.85, 0.5], [0.55, 0.618], [0.3, 0.645], [0, 0.655]] },
   { z: 3.3, pts: aft([[0, -0.6], [0.45, -0.62], [0.95, -0.78], [1.48, -0.8], [1.83, -0.68], [1.92, -0.42], [1.94, -0.12], [1.93, 0.08], [1.86, 0.26], [1.52, 0.4], [0.8, 0.55], [0, 0.6]]) },
   // the engine bays: two nacelles (round, on the nozzle axes), their outer sides inside the tail booms,
   // the conformal tanks' tails on them till 4.9, a shallow valley between them on top and a keel
