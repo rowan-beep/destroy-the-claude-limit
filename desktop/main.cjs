@@ -1,5 +1,5 @@
 // TRIAD desktop app. It plays the live game from the website, so every update
-// arrives by itself (the game checks every minute and reloads at the main menu),
+// arrives by itself (the game checks every 15 s and reloads at the main menu),
 // and falls back to the copy built into the app when there is no internet.
 const { app, BrowserWindow, shell, Menu } = require('electron');
 const path = require('path');

@@ -1,9 +1,10 @@
-// GitHub Pages caches index.html for ~10 minutes, so a returning player can
-// keep loading an old build. On boot, fetch the page uncached and compare the
-// hashed bundle name; if a newer build is live, reload once to pick it up.
-// While the game runs (website and desktop app) it keeps checking every
-// minute; a new build reloads the game at the main menu (never mid-flight:
-// then it waits until you are back in the menu).
+// Updates reach every open game within seconds of going live. GitHub Pages'
+// CDN caches index.html for ~10 minutes, so the page is fetched with a unique
+// query (a fresh CDN key, never a cached copy) and its hashed bundle name
+// compared with ours; a newer build reloads the game to a fresh URL as well.
+// On boot that happens at once; while the game runs (website and desktop app)
+// it checks every 15 s and reloads at the main menu (never mid-flight: then it
+// waits until you are back in the menu).
 import { noteAutoReload } from '../ui/launcher/introSkip';
 
 const name = (s: string) => s.match(/assets\/index-[\w-]+\.js/)?.[0];
@@ -13,9 +14,16 @@ function mine(): string | undefined {
   return cur ? name(cur.src) : undefined; // single-file / dev build: nothing to compare
 }
 
+/** this page's URL with `key` set to `value` (other parameters kept, no hash) */
+function withParam(key: string, value: string): string {
+  const u = new URL(location.href);
+  u.hash = '';
+  u.searchParams.set(key, value);
+  return u.toString();
+}
+
 function liveBuild(): Promise<string | undefined> {
-  const url = location.href.split('#')[0];
-  return fetch(url, { cache: 'no-store' })
+  return fetch(withParam('fresh', String(Date.now())), { cache: 'no-store' })
     .then((r) => (r.ok ? r.text() : ''))
     .then((html) => name(html))
     .catch(() => undefined);
@@ -30,7 +38,8 @@ function reloadTo(live: string): void {
     return;
   }
   noteAutoReload();
-  location.reload();
+  // (to a URL the CDN has not cached, so the new page comes back and not the old one)
+  location.replace(withParam('b', live.replace(/^.*index-|\.js$/g, '')));
 }
 
 export function checkForNewBuild(): void {
@@ -58,8 +67,8 @@ export function watchForUpdates(atMenu: () => boolean, onPending?: (v: boolean) 
         onPending?.(true);
       }
     });
-  }, 60000);
+  }, 15000);
   setInterval(() => {
     if (pending && atMenu()) reloadTo(pending);
-  }, 2000);
+  }, 1000);
 }

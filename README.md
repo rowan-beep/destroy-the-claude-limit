@@ -61,7 +61,8 @@ hardware acceleration on.
 
 [Download TRIAD-Air-Combat.exe](https://github.com/rowan-beep/destroy-the-claude-limit/releases/download/desktop/TRIAD-Air-Combat.exe):
 a portable app, no installer. It plays the live website, so game updates reach it
-without a new download.
+without a new download: a few seconds after an update goes live the game switches to it
+at the main menu (mid-flight it waits until you are back in the menu).
 
 ### From source
 
@@ -642,8 +643,10 @@ and sea-bed streaming.
 ### Deploying
 
 - **Website**: `.github/workflows/deploy.yml` builds the site plus the offline
-  single-file copy (`triad-offline.html`) and publishes them to GitHub Pages. It runs by
-  hand only (Actions → Run workflow); pull requests build as a check without deploying.
+  single-file copy (`triad-offline.html`) and publishes them to GitHub Pages on every
+  push to the release branch (`claude/bold-darwin-occlgg`; it can also be run by hand from
+  Actions); pull requests build as a check without deploying. Open games (in a browser or
+  the Windows app) check for a new build every 15 s and switch to it at the main menu.
   Enable Pages with source "GitHub Actions" in the repository settings.
 - **Windows app**: `.github/workflows/desktop.yml` builds the portable `.exe` and
   publishes it as the `desktop` release. It runs by hand only (Actions → Run workflow).

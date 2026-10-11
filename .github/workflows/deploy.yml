@@ -1,8 +1,12 @@
 name: Build and deploy to GitHub Pages
 
-# Run by hand only (Actions → Run workflow): pushes no longer update the site.
-# Pull requests still build, as a check, without deploying.
+# Every push to the release branch goes live (the website and, through it, the
+# desktop app, which plays the live site). It can also be run by hand (Actions →
+# Run workflow). Pull requests build, as a check, without deploying. (Pages only
+# accepts deployments from this branch: main is held back by the environment's rules.)
 on:
+  push:
+    branches: [claude/bold-darwin-occlgg]
   pull_request:
   workflow_dispatch:
 
