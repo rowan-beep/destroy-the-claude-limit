@@ -7,13 +7,16 @@
 // follows the account: changes go up every 20 s and when the game is hidden, and
 // another device that signs in gets them. When a device and the account have both
 // moved on, the player chooses which to keep, and the other copy is stored in the
-// account's backups first, so nothing is ever lost. The ranked leaderboard for
+// account's backups first, so nothing is ever lost. When both moved on in
+// different ways (progress on one, settings on the other, say), the two are
+// merged by themselves: the player is only asked when both have different
+// progress. The ranked leaderboard for
 // these builds lives here too. The claude.ai artifact has its own storage and
 // board, so none of this runs there.
 
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
 import { inArtifact } from './artifact';
-import { applySave, isEmptySave, planSync, saveHash, snapshot, summarize, type SaveData, type SaveSummary } from './cloudSave';
+import { applySave, entryHashes, isEmptySave, mergeSaves, onlySave, planSync, saveHash, snapshot, summarize, type SaveData, type SaveSummary } from './cloudSave';
 
 // (each read by its full name so the build writes the value in: Vite 7 leaves a bare import.meta.env empty)
 const SUPABASE_URL: string = import.meta.env?.VITE_SUPABASE_URL ?? '';
@@ -94,20 +97,26 @@ interface Book {
   user: string;
   hash: string;
   at: number;
+  /** each entry's fingerprint in the save they agreed on (what a merge compares with) */
+  keys?: Record<string, string>;
 }
 
-function agreedHash(user: string): string | null {
+function readBook(user: string): Book | null {
   try {
     const b = JSON.parse(storage()?.getItem(BOOK) ?? 'null') as Book | null;
-    return b && b.user === user && typeof b.hash === 'string' ? b.hash : null;
+    return b && b.user === user && typeof b.hash === 'string' ? b : null;
   } catch {
     return null;
   }
 }
 
-function agree(user: string, hash: string): void {
+function agreedHash(user: string): string | null {
+  return readBook(user)?.hash ?? null;
+}
+
+function agree(user: string, data: SaveData): void {
   try {
-    storage()?.setItem(BOOK, JSON.stringify({ user, hash, at: Date.now() } satisfies Book));
+    storage()?.setItem(BOOK, JSON.stringify({ user, hash: saveHash(data), at: Date.now(), keys: entryHashes(data) } satisfies Book));
   } catch {
     /* storage full: we will simply compare again next time */
   }
@@ -159,7 +168,7 @@ async function upload(c: SupabaseClient, local: SaveData, expect: string | null)
     if (error) throw error;
     if (!data?.length) return false;
   }
-  agree(user, hash);
+  agree(user, local);
   return true;
 }
 
@@ -169,8 +178,9 @@ async function download(c: SupabaseClient, row: CloudRow, local: SaveData): Prom
   const user = userId;
   if (!st || !user) return;
   await backup(c, local, 'device-replaced');
-  applySave(st, row.data);
-  agree(user, saveHash(row.data));
+  const data = onlySave(row.data);
+  applySave(st, data);
+  agree(user, data);
   location.reload();
 }
 
@@ -191,10 +201,17 @@ async function reconcile(): Promise<void> {
     for (let attempt = 0; attempt < 3; attempt++) {
       const row = await fetchSave(c);
       const local = snapshot(st);
-      const cloudHash = row ? saveHash(row.data) : null;
-      const plan = planSync(local, cloudHash, agreedHash(userId));
+      const cloud = row ? onlySave(row.data) : null;
+      const cloudHash = cloud ? saveHash(cloud) : null;
+      const book = readBook(userId);
+      const plan = planSync(local, cloudHash, book?.hash ?? null);
       if (plan.do === 'none') {
-        if (row) agree(userId, row.hash);
+        // (an account save from an older version, with device entries in it: tidy it up)
+        if (row && row.hash !== cloudHash) {
+          if (await upload(c, local, row.hash)) return;
+          continue;
+        }
+        if (cloud) agree(userId, cloud);
         else set({ status: 'synced', lastSync: Date.now(), message: '' });
         return;
       }
@@ -206,7 +223,19 @@ async function reconcile(): Promise<void> {
         await download(c, row, local);
         return;
       }
-      if (plan.do === 'ask' && row) {
+      if (plan.do === 'ask' && row && cloud) {
+        // both moved on: keep both sides' changes if they don't clash
+        const m = mergeSaves(local, cloud, book?.keys ?? null);
+        if (!m.clash.length) {
+          await backup(c, row.data, 'account-merged');
+          if (!(await upload(c, m.data, row.hash))) continue;
+          if (saveHash(m.data) !== saveHash(local)) {
+            // the other device's progress is in: start again with it
+            applySave(st, m.data);
+            location.reload();
+          }
+          return;
+        }
         pending = row;
         set({
           status: 'conflict',

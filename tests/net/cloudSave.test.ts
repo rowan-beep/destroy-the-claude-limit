@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applySave, isSaveKey, planSync, saveHash, snapshot, summarize, type SaveData } from '../../src/net/cloudSave';
+import { applySave, entryHashes, isSaveKey, mergeSaves, onlySave, planSync, saveHash, snapshot, summarize, type SaveData } from '../../src/net/cloudSave';
 
 /** a tiny in-memory localStorage */
 function store(init: Record<string, string> = {}): Storage {
@@ -83,4 +83,44 @@ test('summaries read the logbook and ranked entries, and survive junk', () => {
   };
   assert.deepEqual(summarize(d), { items: 3, flights: 12, rankedMatches: 7, rp: 2650 });
   assert.deepEqual(summarize({ 'triad.logbook.v1': '{' }), { items: 1, flights: 0, rankedMatches: 0, rp: null });
+});
+
+test('what only matters to one device is not part of the save', () => {
+  for (const k of ['triad.seenVersion', 'triad.space.seenVersion', 'triad.ocean.seenVersion', 'triad.program', 'triad.album.view']) assert.ok(!isSaveKey(k), k);
+  assert.deepEqual(onlySave({ 'triad.seenVersion': '7.10.1', 'triad.ranked.v2': 'r', 'triad.cloud.v1': 'b' }), { 'triad.ranked.v2': 'r' });
+});
+
+test('an update on two devices no longer looks like two different saves', () => {
+  // both devices showed the new release notes: their saves are still the same
+  const a = snapshot(store({ 'triad.ranked.v2': 'r', 'triad.seenVersion': '7.10.1' }));
+  const b = snapshot(store({ 'triad.ranked.v2': 'r', 'triad.seenVersion': '7.10.0' }));
+  assert.equal(saveHash(a), saveHash(b));
+});
+
+test('both moved on in different entries: merged, nothing lost, nobody asked', () => {
+  const base: SaveData = { 'triad.ranked.v2': 'r1', 'triad.logbook.v1': 'l1', 'triad.camera.v1': 'c1' };
+  // this device flew a sortie, the other changed a setting and played ranked
+  const local: SaveData = { ...base, 'triad.logbook.v1': 'l2' };
+  const cloud: SaveData = { ...base, 'triad.ranked.v2': 'r2', 'triad.camera.v1': 'c2', 'triad.ocean.progress.v1': 'o' };
+  const m = mergeSaves(local, cloud, entryHashes(base));
+  assert.deepEqual(m.clash, []);
+  assert.deepEqual(m.data, { 'triad.ranked.v2': 'r2', 'triad.logbook.v1': 'l2', 'triad.camera.v1': 'c2', 'triad.ocean.progress.v1': 'o' });
+});
+
+test('a setting both changed follows this device; progress both changed is the player\'s call', () => {
+  const base: SaveData = { 'triad.camera.v1': 'c1', 'triad.ranked.v2': 'r1' };
+  const local: SaveData = { 'triad.camera.v1': 'c2', 'triad.ranked.v2': 'r2' };
+  const cloud: SaveData = { 'triad.camera.v1': 'c3', 'triad.ranked.v2': 'r3' };
+  const m = mergeSaves(local, cloud, entryHashes(base));
+  assert.equal(m.data['triad.camera.v1'], 'c2');
+  assert.deepEqual(m.clash, ['triad.ranked.v2']);
+});
+
+test('a deletion on one side carries over; without a known base nothing is ever dropped', () => {
+  const base: SaveData = { 'triad.a': '1', 'triad.ranked.v2': 'r' };
+  assert.deepEqual(mergeSaves({ 'triad.ranked.v2': 'r' }, base, entryHashes(base)).data, { 'triad.ranked.v2': 'r' });
+  const m = mergeSaves({ 'triad.a': '1' }, { 'triad.b': '2', 'triad.camera.v1': 'x' }, null);
+  assert.deepEqual(m.data, { 'triad.a': '1', 'triad.b': '2', 'triad.camera.v1': 'x' });
+  assert.deepEqual(m.clash, []);
+  assert.deepEqual(mergeSaves({ 'triad.logbook.v1': 'a' }, { 'triad.logbook.v1': 'b' }, null).clash, ['triad.logbook.v1']);
 });

@@ -4,6 +4,28 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
+## v7.11.1 (2026-10-12)
+
+### Air Combat: No more "which save?" after every update
+
+- **Fixed: Signed in on more than one device, you are no longer asked which save to keep after every update**
+  - Each device remembering which release notes it had shown (and the last page it was on) made both copies look changed after every update. Those stay on the device now: they are not part of your save.
+  - When two devices changed different things (progress on one, settings on the other), the game now puts them together by itself. It only asks when both have different progress, and the other copy is still backed up first.
+
+## v7.11.0 (2026-10-12)
+
+### Air Combat: AUTO-FLY flies like a fighter pilot
+
+- **Improved: AUTO-FLY gets the job done much faster**
+  - It flies hard now: turns at up to 7 G, climbs at up to 30 degrees, and dives with the speedbrake out instead of easing about.
+  - Landing: it stays high and fast until late, dives at 10 degrees to a gate 8 NM out (it was 12), breaks hard onto final and lands. A 110 NM trip with a landing takes about 17 minutes instead of 21.
+  - After takeoff it pulls up steeply on afterburner and turns on course at 600 ft.
+- **Improved: KC-46 tanker: plugged in within minutes**
+  - It races in up to 390 kt faster than the tanker, swings round behind it if it is coming the other way, then brakes hard at the last moment. From a runway 30 NM away it is connected in about 4 minutes, where it took close to 20.
+  - The auto-connect at the boom or basket takes half as long.
+- **Fixed: The MiG-31 no longer flies into the runway on auto-land**
+  - Heavy, fast jets start the flare a little higher and round out more gently.
+
 ## v7.10.1 (2026-10-12)
 
 ### Air Combat: F-15EX landing gear like the real one

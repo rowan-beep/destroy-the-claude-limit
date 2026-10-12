@@ -677,18 +677,19 @@ export class Tanker {
       this.captureT += dt;
       const goal = boomOut ? contactTarget('boom') : BASKET_REST.clone().add(new THREE.Vector3(0, 0, -1.6));
       // a short pause at pre-contact, 3 m short, so the plug-in reads as two steps
-      const stage = this.captureT < 4.5 ? goal.clone().add(new THREE.Vector3(0, -0.4, 3.2)) : goal;
-      const settled = this.hold(p, dt, stage, this.captureT < 4.5 ? 1.5 : 1.1, 9, false);
+      const PAUSE = 2;
+      const stage = this.captureT < PAUSE ? goal.clone().add(new THREE.Vector3(0, -0.4, 3.2)) : goal;
+      const settled = this.hold(p, dt, stage, this.captureT < PAUSE ? 0.9 : 0.7, 12, false);
       if (boomOut) {
         // the boom operator flies the boom down onto the receptacle as the jet comes in
         const v = local.clone().sub(BOOM_HINGE);
-        const reach = this.captureT > 4.5 ? Math.min(1, (this.captureT - 4.5) / 2.5) : 0;
+        const reach = this.captureT > PAUSE ? Math.min(1, (this.captureT - PAUSE) / 1.5) : 0;
         if (reach > 0) this.aimBoom(v, dt, reach);
         else this.boomTo(new THREE.Vector3(0, -Math.sin(BOOM_DOWN), Math.cos(BOOM_DOWN)), 3, dt);
-      } else this.basketPos.lerp(this.captureT > 4.5 ? local.clone().add(new THREE.Vector3(0, 0, 0.6)) : BASKET_REST, Math.min(1, dt * 3));
+      } else this.basketPos.lerp(this.captureT > PAUSE ? local.clone().add(new THREE.Vector3(0, 0, 0.6)) : BASKET_REST, Math.min(1, dt * 3));
       const dGoal = goal.clone().sub(local).length();
-      this.cue = this.captureT < 4.5 ? `AUTO-CONNECT · STABILISING AT PRE-CONTACT · HANDS OFF` : boomOut ? `AUTO-CONNECT · THE BOOM IS COMING DOWN · ${dGoal.toFixed(1)} M` : `AUTO-CONNECT · PUSHING INTO THE BASKET · ${dGoal.toFixed(1)} M`;
-      if (this.captureT > 6 && dGoal < 0.35 && settled) {
+      this.cue = this.captureT < PAUSE ? `AUTO-CONNECT · STABILISING AT PRE-CONTACT · HANDS OFF` : boomOut ? `AUTO-CONNECT · THE BOOM IS COMING DOWN · ${dGoal.toFixed(1)} M` : `AUTO-CONNECT · PUSHING INTO THE BASKET · ${dGoal.toFixed(1)} M`;
+      if (this.captureT > PAUSE + 1.2 && dGoal < 0.35 && settled) {
         this.state = 'contact';
         this.latch = 0;
         audio.mechanical();
