@@ -2,7 +2,8 @@
 // the main thread as a fallback when workers are unavailable.
 
 import { terrainInfo, surfaceColor, treeDensity, treeKind, TerrainInfo, terrainHeight } from './terrain';
-import { computeGridRows } from './heightGrid';
+import { computeGridRows, GRID_SPACING } from './heightGrid';
+import { MAP_HALF } from '../core/constants';
 import { hash2f } from '../core/rng';
 
 export interface ChunkRequest {
@@ -31,7 +32,16 @@ export interface GridRequest {
   r1: number;
 }
 
-export type GenRequest = ChunkRequest | TreeRequest | GridRequest;
+/** Fine heights for the coastal cells of the height grid (k x k samples in each cell). */
+export interface ShoreRequest {
+  type: 'shore';
+  id: number;
+  /** grid cell (i, j) pairs */
+  cells: Int32Array;
+  k: number;
+}
+
+export type GenRequest = ChunkRequest | TreeRequest | GridRequest | ShoreRequest;
 
 export interface ChunkResult {
   type: 'chunk';
@@ -59,7 +69,16 @@ export interface GridResult {
   data: Float32Array;
 }
 
-export type GenResult = ChunkResult | TreeResult | GridResult;
+export interface ShoreResult {
+  type: 'shore';
+  id: number;
+  cells: Int32Array;
+  k: number;
+  /** per cell, k x k heights (row by row, z then x) */
+  data: Float32Array;
+}
+
+export type GenResult = ChunkResult | TreeResult | GridResult | ShoreResult;
 
 export const TREE_STRIDE = 7;
 
@@ -232,14 +251,29 @@ export function buildTrees(req: TreeRequest): TreeResult {
   return { type: 'trees', id: req.id, data, count: tmp.length / TREE_STRIDE };
 }
 
+function buildShore(req: ShoreRequest): ShoreResult {
+  const { cells, k } = req;
+  const n = cells.length / 2;
+  const data = new Float32Array(n * k * k);
+  const step = GRID_SPACING / k;
+  for (let c = 0; c < n; c++) {
+    const x0 = -MAP_HALF + cells[c * 2] * GRID_SPACING + step * 0.5;
+    const z0 = -MAP_HALF + cells[c * 2 + 1] * GRID_SPACING + step * 0.5;
+    for (let b = 0; b < k; b++) for (let a = 0; a < k; a++) data[(c * k + b) * k + a] = terrainHeight(x0 + a * step, z0 + b * step);
+  }
+  return { type: 'shore', id: req.id, cells, k, data };
+}
+
 export function handleRequest(req: GenRequest): GenResult {
   if (req.type === 'chunk') return buildChunk(req);
   if (req.type === 'trees') return buildTrees(req);
+  if (req.type === 'shore') return buildShore(req);
   const data = computeGridRows(terrainHeight, req.r0, req.r1);
   return { type: 'grid', id: req.id, r0: req.r0, r1: req.r1, data };
 }
 
 export function transferables(res: GenResult): Transferable[] {
   if (res.type === 'chunk') return [res.positions.buffer, res.normals.buffer, res.colors.buffer];
+  if (res.type === 'shore') return [res.data.buffer, res.cells.buffer];
   return [res.data.buffer];
 }

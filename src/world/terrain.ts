@@ -9,7 +9,7 @@
 import { NM, WORLD_SEED, MAP_HALF } from '../core/constants';
 import { hash2f } from '../core/rng';
 import { Simplex2 } from '../core/noise';
-import { smoothstep, clamp01, lerp } from '../core/math';
+import { smoothstep, clamp01, clamp, lerp } from '../core/math';
 import {
   ISLANDS,
   ISLAND_BY_ID,
@@ -508,6 +508,56 @@ function packIce(x: number, z: number, offshore: number): number {
 // Jade Archipelago: twenty tropical islands, each its own landform
 // ---------------------------------------------------------------------------
 
+/**
+ * Where a tropical island's reef stands and how deep its lagoon is: the big old
+ * volcanic islands sit inside a barrier reef a kilometre or two offshore (a wide
+ * turquoise lagoon between, Bora Bora style), the small rocky ones have a
+ * fringing reef close in, an atoll's reef is its own ring.
+ */
+function reefPlan(isl: IslandDef): { R: number; L: number } {
+  const k = isl.kind;
+  if (k === 'atoll') return { R: 0, L: 0 };
+  if (k === 'strato' || k === 'shield' || k === 'highland' || k === 'twin' || k === 'hills' || k === 'crescent' || k === 'ridge') {
+    return { R: clamp(isl.reff * 0.15, 750, 1900), L: 7 + 9 * hash2f(isl.cx * 0.001, isl.cz * 0.001) };
+  }
+  if (k === 'cay') return { R: 520, L: 3 };
+  return { R: 340, L: 2.4 };
+}
+
+/**
+ * The sea floor off a tropical island, dOut metres from its coast: a lagoon of
+ * white sand (shallow by the beach, deeper between), coral heads dotted through
+ * it, the reef crest awash where the surf breaks, passes through the reef here
+ * and there, then the steep reef front and the blue drop-off into the deep.
+ */
+function jadeSea(isl: IslandDef, dOut: number, x: number, z: number): number {
+  const { R, L } = reefPlan(isl);
+  const seed = isl.cx * 0.0007 + isl.cz * 0.0003;
+  // the open sea beyond the reef: a steep reef front, then the blue drop-off
+  const fore = (o: number, top: number) => -(top + 45 * smoothstep(0, 450, o) + 290 * smoothstep(450, 7000, o)) + N3.noise(x / 7000, z / 7000) * 6 * smoothstep(500, 4000, o);
+  if (R === 0) return fore(dOut, 2.5);
+  const Rw = R * (1 + 0.18 * N2.noise(x / 2600 + seed, z / 2600 - seed));
+  const W = R > 600 ? 180 : 110;
+  const crest = 0.3 + 0.35 * (0.5 + 0.5 * N3.noise(x / 170, z / 170));
+  // passes: gaps through the reef where the lagoon opens to the sea
+  const pass = smoothstep(0.36, 0.5, N.noise(x / 3400 - seed * 7, z / 3400 + seed * 13));
+  const back = Rw - W * 0.5;
+  if (dOut > Rw + W * 0.5) return fore(dOut - Rw - W * 0.5, crest + 5 * pass);
+  let depth: number;
+  if (dOut > back) depth = crest;
+  else {
+    // the lagoon: 2 m at the beach, L in the middle, rising to the back of the reef
+    const t = dOut / Math.max(1, back);
+    depth = lerp(2, crest, smoothstep(0.6, 1, t)) + (L - 1) * Math.pow(Math.sin(Math.PI * Math.min(1, t)), 0.75) * smoothstep(0, 0.15, t);
+    // coral heads scattered through the deeper lagoon
+    const c = cells(x, z, 320, 41);
+    if (c.h < 0.45 && depth > 2.2) depth = lerp(0.8 + 0.6 * c.h, depth, smoothstep(25, 75, c.d1));
+  }
+  // through a pass the water stays lagoon-deep, out to the open sea
+  depth = lerp(depth, Math.max(depth, L * 0.8, 5), pass);
+  return -depth;
+}
+
 /** Distance to the nearest of a jittered grid of points (cell size c), its cell hash and the 2nd nearest. */
 function cells(x: number, z: number, c: number, seed: number): { d1: number; d2: number; h: number } {
   const ci = Math.floor(x / c), cj = Math.floor(z / c);
@@ -539,6 +589,60 @@ function coneShape(r: number, H: number, x: number, z: number, seed: number, cra
   // the crater at the top
   if (crater > 0 && r < crater) h -= H * 0.09 * (1 - (r / crater) * (r / crater));
   return Math.max(0, h);
+}
+
+/**
+ * How an old tropical volcano is worn down by the rain: deep amphitheatre valleys
+ * radiating from the summit with knife-edged ridges between them (Kauai, Tahiti,
+ * Moorea). a = angle round the summit, r = 0 at the summit .. 1 at the coast.
+ * Returns 0 on the crests .. 1 down the valley floors, deepest on the middle flanks.
+ */
+function radialValleys(a: number, r: number, x: number, z: number, n: number, seed: number): number {
+  const ca = Math.cos(a), sa = Math.sin(a);
+  // the valleys wander and fork (noise read round a circle, so there is no seam)
+  const q = a * n * 0.5 + 1.5 * N2.noise(r * 2.2 + seed + ca * 0.9, sa * 0.9 - seed) + 0.5 * N3.noise(x / 2600, z / 2600);
+  // broad valley floors, sharp crests
+  const cut = Math.pow(1 - Math.abs(Math.sin(q)), 0.55);
+  return cut * Math.pow(Math.sin(Math.PI * clamp01(r * 1.06)), 0.8) * smoothstep(0.04, 0.22, r);
+}
+
+/** The same for a long range: valleys running down both sides from the crest line. u along the range (m), w = 0 on the crest .. 1 at the coast. */
+function sideValleys(u: number, w: number, x: number, z: number, spacing: number, seed: number): number {
+  const q = (u / spacing) * Math.PI + 1.3 * N2.noise(w * 2.5 + seed, u / (spacing * 3)) + 0.5 * N3.noise(x / 2400, z / 2400);
+  const cut = Math.pow(1 - Math.abs(Math.sin(q)), 0.55);
+  return cut * Math.pow(Math.sin(Math.PI * clamp01(w * 1.05)), 0.8) * smoothstep(0.05, 0.25, w);
+}
+
+/**
+ * How deeply a tropical island is cut by valleys at this point: 0 on the crests .. the
+ * island's erosion strength down a valley floor (what the shape takes away, and what the
+ * colouring darkens: wet, shaded valley floors, sunlit crests).
+ */
+function erosion(isl: IslandDef, x: number, z: number, u: number, v: number): number {
+  const seed = isl.id.charCodeAt(0) + isl.id.charCodeAt(1) * 3 + isl.id.length * 7;
+  const nu = u / isl.rx, nv = v / isl.ry;
+  const r = Math.sqrt(nu * nu + nv * nv) * (1 + 0.08 * N2.noise(x / 6000 + seed, z / 6000 - seed));
+  const ang = Math.atan2(nv, nu);
+  switch (isl.kind) {
+    case 'strato':
+      // a younger volcano: valleys cut into its flanks below the summit cone
+      return 0.38 * radialValleys(ang, r, x, z, 15, seed) * smoothstep(0.12, 0.35, r);
+    case 'shield':
+      // the rainy windward side worn into deep valleys, the dry lee side smoother (Hawaii)
+      return 0.48 * radialValleys(ang, Math.min(1, r), x, z, 16, seed) * (0.3 + 0.7 * smoothstep(-0.35, 0.45, Math.cos(ang - 0.9)));
+    case 'highland':
+      return 0.45 * sideValleys(u, Math.min(1, Math.abs(nv) / 0.85), x, z, 2300, seed);
+    case 'twin': {
+      const a = Math.hypot(nu - 0.45, nv) / 0.62, b = Math.hypot(nu + 0.48, nv + 0.05) / 0.58;
+      return 0.4 * radialValleys(Math.atan2(nv, nu - 0.45), Math.min(a, b), x, z, 12, seed);
+    }
+    case 'ridge':
+      return 0.4 * sideValleys(u, Math.min(1, Math.abs(nv) / 0.75), x, z, 1500, seed);
+    case 'cone':
+      return 0.14 * radialValleys(ang, r, x, z, 18, seed);
+    default:
+      return 0;
+  }
 }
 
 function tropicLand(isl: IslandDef, x: number, z: number, u: number, v: number, d: number): number {
@@ -576,21 +680,37 @@ function tropicLand(isl: IslandDef, x: number, z: number, u: number, v: number, 
       break;
     }
     case 'karst': {
-      // sheer limestone towers: a tower in most cells, steep sides, round tops
-      const c = cells(x, z, 650, seed);
-      const tall = c.h < 0.72 ? (0.35 + 0.65 * hash2f(seed, Math.floor(c.h * 997))) : 0;
-      const rad = 210 + 90 * c.h;
-      const tower = tall * H * (1 - smoothstep(rad * 0.62, rad, c.d1)) * (0.85 + 0.15 * N3.noise(x / 120, z / 120));
-      f = Math.max(tower, 45 * inl * (0.5 + 0.5 * N.fbm(x / 1500, z / 1500, 2)));
+      // limestone towers (Ha Long Bay, El Nido): sheer walls, jungle-domed tops, all sizes,
+      // some merged into massifs; low jungle between them
+      const c = cells(x, z, 820, seed);
+      const tall = c.h < 0.78 ? 0.4 + 0.6 * hash2f(seed, Math.floor(c.h * 997)) : 0;
+      const rad = (240 + 200 * c.h) * (1 + 0.18 * N2.noise(x / 260, z / 260));
+      const core = rad * 0.72;
+      // a rounded dome on top of near-vertical walls
+      const dome = 1 - 0.32 * Math.pow(Math.min(1, c.d1 / core), 2);
+      const wall = 1 - smoothstep(core, rad, c.d1);
+      const tower = tall * H * dome * Math.pow(wall, 0.35) * (0.9 + 0.1 * N3.noise(x / 140, z / 140));
+      f = Math.max(tower, 40 * inl * (0.5 + 0.5 * N.fbm(x / 1500, z / 1500, 2)));
       // the towers stand right at the waterline too: sea cliffs
       f *= smoothstep(0, 60, d) * 0.6 + 0.4;
       break;
     }
     case 'atoll': {
-      // a ring of sand and palms; inside it a shallow turquoise lagoon
+      // a ring of reef awash, palm-covered islets (motus) standing on parts of it and passes
+      // cut through it; inside, a turquoise lagoon dotted with coral heads
       const ring = isl.reff * 0.2 * (0.8 + 0.4 * (0.5 + 0.5 * N2.noise(x / 2500, z / 2500)));
-      if (d > ring) return -2.5 - 4 * smoothstep(ring, ring + 1500, d) + N3.noise(x / 300, z / 300) * 0.8;
-      return Math.min(d * 0.02, 2.2) + 1.2 * Math.sin(Math.PI * Math.min(1, d / ring));
+      if (d > ring) {
+        let depth = 2.5 + 13 * smoothstep(ring, ring + 2600, d) + N3.noise(x / 300, z / 300) * 0.8;
+        const c = cells(x, z, 300, 17);
+        if (c.h < 0.5) depth = lerp(0.7 + 0.8 * c.h, depth, smoothstep(30, 85, c.d1));
+        return -depth;
+      }
+      const across = Math.sin(Math.PI * Math.min(1, d / ring));
+      const motu = smoothstep(-0.05, 0.25, N.noise(x / 1900 + seed, z / 1900 - seed));
+      const pass = smoothstep(0.42, 0.58, N2.noise(x / 2700 - seed, z / 2700 + seed));
+      let a = -0.45 + 0.25 * N3.noise(x / 150, z / 150);
+      a = lerp(a, 0.3 + 2.6 * Math.pow(across, 0.6), motu * (1 - pass));
+      return lerp(a, -2, pass);
     }
     case 'caldera': {
       // the broken rim of a sunken volcano around a flooded crater
@@ -642,6 +762,8 @@ function tropicLand(isl: IslandDef, x: number, z: number, u: number, v: number, 
       // sand cay
       return Math.min(d * 0.01, 2.6) + 0.6 * N3.noise(x / 200, z / 200);
   }
+  // valleys and knife ridges worn into the old volcanoes and ranges
+  if (f > 0) f *= 1 - erosion(isl, x, z, u, v);
   return ground + Math.max(0, f) * sup;
 }
 
@@ -656,6 +778,8 @@ export interface TerrainInfo {
   inland: number;
   /** 0..1 airfield levelling weight */
   field: number;
+  /** the island whose coast is nearest (offshore too; null far out at sea) */
+  near?: IslandId | null;
 }
 
 const _loc = { u: 0, v: 0 };
@@ -674,6 +798,7 @@ export function terrainInfo(x: number, z: number, out: TerrainInfo): TerrainInfo
   let best = DEEP_SEA;
   let bestIsland: IslandId | null = null;
   let bestInland = -1e9;
+  let near: IslandId | null = null;
   for (let i = 0; i < ISLANDS.length; i++) {
     const isl = ISLANDS[i];
     const dx = x - isl.cx, dz = z - isl.cz;
@@ -683,7 +808,7 @@ export function terrainInfo(x: number, z: number, out: TerrainInfo): TerrainInfo
     const d = (1 - rr) * isl.reff;
     let h: number;
     if (d <= 0) {
-      h = seaFloor(-d, x, z);
+      h = isl.style === 'tropic' ? jadeSea(isl, -d, x, z) : seaFloor(-d, x, z);
     } else {
       if (isl.style === 'tropic') h = tropicLand(isl, x, z, _loc.u, _loc.v, d);
       else if (isl.style === 'frost') h = frostLand(isl, x, z, _loc.u, _loc.v, d);
@@ -698,6 +823,7 @@ export function terrainInfo(x: number, z: number, out: TerrainInfo): TerrainInfo
     if (d > bestInland) {
       bestInland = d;
       bestIsland = d > 0 ? isl.id : null;
+      near = isl.id;
     }
   }
   if (best === DEEP_SEA) {
@@ -744,6 +870,7 @@ export function terrainInfo(x: number, z: number, out: TerrainInfo): TerrainInfo
   out.island = bestIsland;
   out.inland = bestInland;
   out.field = fieldW;
+  out.near = near;
   return out;
 }
 
@@ -943,53 +1070,141 @@ function frostColor(x: number, z: number, info: TerrainInfo, slope: number, out:
 const VOLCANIC = new Set(['strato', 'shield', 'cone', 'twin', 'caldera']);
 const LIMESTONE = new Set(['karst', 'spires']);
 
-/** Jade Archipelago: white and black sand, reef shallows, rainforest greens, basalt and limestone. */
+const _cl = { u: 0, v: 0 };
+
+/** Jade: cleared ground on the low coastal plains (fields, red laterite, grass), 0..1. No trees grow there. */
+function jadeClearing(x: number, z: number, h: number, inland: number): number {
+  if (h > 90 || inland < 300) return 0;
+  // warped and ragged-edged: fields and pasture, never round blobs
+  const w = 0.4 * N.noise(x / 700 + 1.1, z / 700 - 2.3);
+  const n = N3.noise(x / 1600 + 3.3 + w, z / 1600 - 7.1 - w) + 0.14 * N2.noise(x / 230 + 5.1, z / 230 + 0.7);
+  return smoothstep(0.6, 0.7, n) * (1 - smoothstep(40, 90, h));
+}
+
+/**
+ * Jade Archipelago: white coral sand and black volcanic sand, lagoons with coral heads and
+ * seagrass, reef crests, a mosaic of jungle greens, clearings on the plains, lava flows on
+ * the young volcanoes, cinder summits, grey limestone walls.
+ */
 function jadeColor(x: number, z: number, info: TerrainInfo, slope: number, out: SurfaceColor, n1: number, n2: number, n3: number): SurfaceColor {
   const h = info.h;
-  const isl = info.island ? ISLAND_BY_ID[info.island] : undefined;
+  const isl = info.island ? ISLAND_BY_ID[info.island] : info.near ? ISLAND_BY_ID[info.near] : undefined;
   const kind = isl?.kind;
   const volcanic = !!kind && VOLCANIC.has(kind);
   if (h < 0.5) {
-    // the sea bed: bright coral sand in the shallows, reef patches, then the blue deep
     const depth = -h;
-    out.r = 0.93;
-    out.g = 0.89;
-    out.b = 0.74;
-    const reef = smoothstep(0.15, 0.55, N2.noise(x / 380, z / 380)) * (1 - smoothstep(6, 18, depth));
-    mix3(out, 0.46, 0.42, 0.33, reef * 0.6);
-    mix3(out, 0.62, 0.72, 0.66, smoothstep(3, 14, depth));
-    mix3(out, 0.08, 0.2, 0.3, smoothstep(14, 60, depth));
-    mix3(out, 0.02, 0.07, 0.13, smoothstep(60, 260, depth));
+    const dOut = -info.inland;
+    // white coral sand
+    out.r = 0.9;
+    out.g = 0.88;
+    out.b = 0.76;
+    if (isl && dOut > -50) {
+      const { R } = reefPlan(isl);
+      // a few seagrass beds and coral heads on the lagoon floor
+      const grass = smoothstep(0.4, 0.65, N2.noise(x / 650 + 9, z / 650 - 4)) * smoothstep(1.5, 4, depth) * (R > 0 ? 1 - smoothstep(R * 0.7, R, dOut) : 0);
+      mix3(out, 0.42, 0.48, 0.32, grass * 0.45);
+      const c = cells(x, z, 320, 41);
+      mix3(out, 0.55 + 0.1 * c.h, 0.47, 0.38, (1 - smoothstep(30, 70, c.d1)) * (c.h < 0.3 ? 0.6 : 0) * smoothstep(1.2, 3, depth));
+      // the reef crest: coral and coralline algae, ochre and rose with dark patches
+      const crest = R > 0 ? 1 - smoothstep(60, 230, Math.abs(dOut - R)) : depth < 1.5 ? 1 : 0;
+      if (crest > 0) {
+        mix3(out, 0.72 + 0.06 * n3, 0.6 + 0.05 * n3, 0.5 + 0.04 * n3, crest * 0.85);
+        mix3(out, 0.34, 0.32, 0.25, crest * smoothstep(0.1, 0.5, N3.noise(x / 90, z / 90)) * 0.6);
+      }
+    }
+    // a sea cliff's foot: rock, not sand (its colour runs up the wall to the next vertex)
+    const foot = smoothstep(0.12, 0.3, slope);
+    if (foot > 0) {
+      if (kind && LIMESTONE.has(kind)) mix3(out, 0.22, 0.25, 0.2, foot);
+      else mix3(out, 0.16, 0.16, 0.15, foot);
+    }
+    // the reef front and the drop-off: dark coral, then the deep
+    mix3(out, 0.3, 0.38, 0.36, smoothstep(14, 30, depth));
+    mix3(out, 0.06, 0.15, 0.24, smoothstep(30, 80, depth));
+    mix3(out, 0.02, 0.06, 0.12, smoothstep(80, 260, depth));
     return out;
   }
   const v = 0.5 + 0.5 * n1;
-  // rainforest ground: deep, saturated greens
-  out.r = 0.16 + 0.05 * v;
-  out.g = 0.3 + 0.06 * v;
-  out.b = 0.11 + 0.03 * v;
-  mix3(out, 0.24, 0.36, 0.14, 0.4 * (0.5 + 0.5 * n2));
+  // a mosaic of rainforest greens: bright yellow-green crowns, deep blue-green shade
+  const m = 0.5 + 0.5 * N.noise(x / 1400 + 1.7, z / 1400 - 2.9);
+  out.r = 0.15 + 0.05 * v;
+  out.g = 0.31 + 0.06 * v;
+  out.b = 0.1 + 0.03 * v;
+  mix3(out, 0.27, 0.42, 0.12, smoothstep(0.55, 0.9, m) * 0.55);
+  mix3(out, 0.07, 0.2, 0.09, smoothstep(0.45, 0.1, m) * 0.6);
+  mix3(out, 0.22, 0.36, 0.13, 0.3 * (0.5 + 0.5 * n2));
   const fd = treeDensity(x, z, info, slope);
-  if (fd > 0) mix3(out, 0.08, 0.17, 0.06, fd * 0.7);
-  // cloud forest and alpine scrub higher up, then bare rock and ash near the big summits
-  const alp = smoothstep(1500, 2100, h + n2 * 150);
-  if (alp > 0) mix3(out, 0.36, 0.38, 0.22, alp * 0.7);
-  const bare = smoothstep(2200, 2700, h + n2 * 200);
-  if (bare > 0) mix3(out, 0.3 + 0.04 * n3, 0.27 + 0.03 * n3, 0.26 + 0.03 * n3, bare);
-  // rock on steep faces: dark basalt on the volcanoes, pale grey limestone on the towers, red cliffs on the mesa
-  const rockT = smoothstep(0.55, 0.85, slope + n3 * 0.06);
+  if (fd > 0) mix3(out, 0.07, 0.17, 0.06, fd * 0.55);
+  // deep shaded valley floors, sunlit crests
+  if (isl && h > 60) {
+    toIslandLocal(isl, x, z, _cl);
+    const e = erosion(isl, x, z, _cl.u, _cl.v);
+    if (e > 0) {
+      const k = e / 0.45;
+      mix3(out, 0.05, 0.15, 0.07, smoothstep(0.35, 0.9, k) * 0.55);
+      mix3(out, 0.3, 0.42, 0.14, smoothstep(0.2, 0.0, k) * 0.35 * smoothstep(300, 900, h));
+    }
+  }
+  // the low coastal plain: palm groves and grass, lighter
+  const plain = (1 - smoothstep(25, 90, h)) * smoothstep(120, 400, info.inland);
+  mix3(out, 0.25, 0.39, 0.13, plain * (0.45 - 0.25 * fd));
+  // clearings: red laterite fields and grass
+  const clr = jadeClearing(x, z, h, info.inland);
+  if (clr > 0) {
+    if (n2 > 0.35) mix3(out, 0.46 + 0.04 * n3, 0.36 + 0.03 * n3, 0.22, clr * 0.45);
+    else mix3(out, 0.33 + 0.04 * n3, 0.45 + 0.04 * n3, 0.17, clr * 0.55);
+  }
+  // cloud forest higher up: dark, mossy
+  mix3(out, 0.17, 0.25, 0.12, smoothstep(1300, 1800, h + n2 * 150) * 0.7);
+  // alpine scrub, then bare cinders and ash near the big summits
+  const alp = smoothstep(1800, 2300, h + n2 * 150);
+  if (alp > 0) mix3(out, 0.38, 0.37, 0.22, alp * 0.75);
+  const bare = smoothstep(2300, 2750, h + n2 * 200);
+  if (bare > 0) {
+    mix3(out, 0.36 + 0.05 * n3, 0.29 + 0.03 * n3, 0.26 + 0.03 * n3, bare);
+    mix3(out, 0.46, 0.27, 0.19, bare * smoothstep(0.1, 0.6, n2) * 0.7);
+  }
+  // lava flows down the young volcanoes: black rock streaks from the summit, the older ones greening over
+  if (isl && (kind === 'strato' || kind === 'cone')) {
+    const lu = (x - isl.cx) / isl.rx, lv = (z - isl.cz) / isl.ry;
+    const a = Math.atan2(lv, lu), rr = Math.hypot(lu, lv);
+    const flow = smoothstep(0.62, 0.8, 0.5 + 0.5 * N2.noise(Math.cos(a) * 2.6 + rr * 1.4, Math.sin(a) * 2.6 - rr * 0.8)) * (1 - smoothstep(0.75, 0.95, rr));
+    const young = kind === 'cone' ? 1 : smoothstep(900, 1600, h);
+    mix3(out, 0.13 + 0.02 * n3, 0.12 + 0.02 * n3, 0.12 + 0.02 * n3, flow * young * 0.9);
+  }
+  // cliffs: jungle clings to all but the steepest walls; dark basalt on the volcanoes,
+  // grey streaked limestone on the towers, red rock on the mesa
+  const cliffV = smoothstep(0.55, 0.78, slope + n3 * 0.05);
+  if (cliffV > 0) mix3(out, 0.12, 0.24, 0.1, cliffV * 0.5);
+  const rockT = smoothstep(0.72, 0.92, slope + n3 * 0.06);
   if (rockT > 0) {
-    if (kind === 'mesa') mix3(out, 0.58 + 0.05 * n2, 0.36 + 0.04 * n2, 0.24 + 0.03 * n2, rockT);
-    else if (kind && LIMESTONE.has(kind)) mix3(out, 0.66 + 0.06 * n2, 0.64 + 0.05 * n2, 0.58 + 0.05 * n2, rockT * 0.9);
-    else mix3(out, 0.22 + 0.03 * n2, 0.21 + 0.03 * n2, 0.21 + 0.02 * n2, rockT);
+    if (kind === 'mesa') mix3(out, 0.58 + 0.05 * n2, 0.34 + 0.04 * n2, 0.22 + 0.03 * n2, rockT);
+    else if (kind && LIMESTONE.has(kind)) {
+      // weathered limestone: pale grey with black and orange streaks, green ledges
+      const streak = 0.5 + 0.5 * N.noise(x / 45 + z / 300, z / 45 - x / 300);
+      mix3(out, 0.31 + 0.06 * streak, 0.31 + 0.05 * streak, 0.28 + 0.04 * streak, rockT * 0.9);
+      mix3(out, 0.17, 0.17, 0.16, rockT * smoothstep(0.55, 0.85, streak) * 0.6);
+      // vines and shrubs hang down the walls in vertical strips
+      const vine = smoothstep(0.1, 0.6, N2.noise(x / 70 + z / 900, z / 70 - x / 900) + 0.35 * n3);
+      mix3(out, 0.1, 0.22, 0.08, rockT * vine * 0.7);
+    } else mix3(out, 0.2 + 0.03 * n2, 0.19 + 0.03 * n2, 0.19 + 0.02 * n2, rockT * 0.85);
   }
+  // limestone towers show grey on their walls even where the slope is moderate
+  if (kind && LIMESTONE.has(kind) && h > 60) mix3(out, 0.3, 0.33, 0.27, smoothstep(0.5, 0.68, slope) * (1 - rockT) * 0.35);
   // beaches: black sand below the volcanoes, white coral sand everywhere else
-  const beachT = (1 - smoothstep(70, 240, info.inland)) * (1 - smoothstep(3, 9, h)) * (1 - rockT);
+  // (only on flat ground: sand at the foot of a sea cliff would smear up its wall)
+  let beachT = (1 - smoothstep(60, 200, info.inland)) * (1 - smoothstep(2.5, 7, h)) * (1 - smoothstep(0.15, 0.35, slope));
   if (beachT > 0) {
-    if (volcanic && N2.noise(x / 5000, z / 5000) > -0.2) mix3(out, 0.2 + 0.03 * n3, 0.19 + 0.03 * n3, 0.19 + 0.03 * n3, beachT);
-    else mix3(out, 0.95 + 0.02 * n3, 0.9 + 0.02 * n3, 0.76 + 0.03 * n3, beachT);
+    // (a coarse far tile can't see the cliff beside it: look 60 m around)
+    const rise = Math.max(terrainHeight(x + 60, z), terrainHeight(x - 60, z), terrainHeight(x, z + 60), terrainHeight(x, z - 60)) - h;
+    beachT *= 1 - smoothstep(8, 20, rise);
   }
-  // sand cays and atoll rings are all sand under the palms
-  if (kind === 'cay' || kind === 'atoll') mix3(out, 0.93, 0.88, 0.72, 0.75);
+  if (beachT > 0) {
+    if (volcanic && N2.noise(x / 5000, z / 5000) > -0.2) mix3(out, 0.18 + 0.03 * n3, 0.17 + 0.03 * n3, 0.17 + 0.03 * n3, beachT);
+    else mix3(out, 0.97 + 0.02 * n3, 0.94 + 0.02 * n3, 0.82 + 0.03 * n3, beachT);
+  }
+  // sand cays and atoll islets: sand under the palms
+  if (kind === 'cay' || kind === 'atoll') mix3(out, 0.95, 0.91, 0.76, 0.6 * (1 - smoothstep(1.6, 2.6, h)) + 0.15);
   // airfields: mown grass and red laterite
   if (info.field > 0.3) mix3(out, 0.4, 0.42, 0.24, smoothstep(0.3, 0.9, info.field) * 0.8);
   return out;
@@ -1006,7 +1221,7 @@ export function treeDensity(x: number, z: number, info: TerrainInfo, slope: numb
     // palms on the sand, then rainforest as dense as it gets, thinning into cloud forest and none above the tree line
     if (kind === 'cay' || kind === 'atoll') return 0.55 * (0.6 + 0.4 * N.noise(x / 500, z / 500));
     const clump = 0.85 + 0.15 * N.noise(x / 900, z / 900);
-    let dd = 0.95 * clump * (1 - smoothstep(1900, 2400, h));
+    let dd = 0.95 * clump * (1 - smoothstep(1900, 2400, h)) * (1 - jadeClearing(x, z, h, info.inland));
     dd *= 1 - smoothstep(0.62, 0.9, slope);
     if (kind === 'mesa' && h > (isl?.peak ?? 0) * 0.85) dd *= 0.45;
     return dd < 0 ? 0 : dd;

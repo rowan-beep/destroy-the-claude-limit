@@ -236,7 +236,8 @@ export class Game implements ModeHost {
   private async buildWorld(onProgress: (f: number, label: string) => void): Promise<void> {
     const t0 = performance.now();
     const name = `GENERATING ${activeMap.name} (${activeMap.sizeNm} × ${activeMap.sizeNm} NM)`;
-    await this.world.buildGrid((f) => onProgress(f * 0.8, name));
+    await this.world.buildGrid((f) => onProgress(f * 0.72, name));
+    await this.world.buildShore((f) => onProgress(0.72 + f * 0.08, 'MAPPING THE REEFS AND SHALLOWS'));
     await this.world.buildMapData((f) => onProgress(0.8 + f * 0.15, 'BUILDING THE DIGITAL MAP'));
     onProgress(0.97, 'BUILDING WORLD');
     this.world.init();

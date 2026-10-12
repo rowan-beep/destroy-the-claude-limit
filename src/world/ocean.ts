@@ -22,13 +22,22 @@ const PATCH_R = 1500;
 /** Radius (m) of the sea disc: past the horizon even from the edge of space. */
 const SEA_R = 1500000;
 
-/** Water depth over the theater (0 = shore, 1 = 400 m or deeper), from the height grid. */
-function depthTexture(grid: HeightGrid): THREE.DataTexture {
-  const n = grid.n;
-  const d = new Uint8Array(n * n);
-  for (let i = 0; i < n * n; i++) {
-    const h = grid.data[i];
-    d[i] = h >= 0 ? 0 : Math.min(255, Math.round((-h / 400) * 255));
+/**
+ * Water depth over the theater as sqrt(depth / 400 m) (0 = shore, 1 = 400 m or deeper): most
+ * of the precision goes to the shallows. From the height grid, or the finer coastal map.
+ */
+function depthTexture(grid: HeightGrid, fine: { data: Uint8Array; n: number } | null): THREE.DataTexture {
+  let n = grid.n;
+  let d: Uint8Array;
+  if (fine) {
+    n = fine.n;
+    d = fine.data;
+  } else {
+    d = new Uint8Array(n * n);
+    for (let i = 0; i < n * n; i++) {
+      const h = grid.data[i];
+      d[i] = h >= 0 ? 0 : Math.round(Math.sqrt(Math.min(1, -h / 400)) * 255);
+    }
   }
   const t = new THREE.DataTexture(d, n, n, THREE.RedFormat, THREE.UnsignedByteType);
   t.magFilter = THREE.LinearFilter;
@@ -108,6 +117,9 @@ void main() {
   float fade = 1.0 - smoothstep( 800.0, 30000.0, dist );
   float fade2 = 1.0 - smoothstep( 60.0, 900.0, dist );
   vec2 slope = ( n1.xy * 0.9 + n2.xy * 0.6 ) * fade + n3.xy * 0.5 * fade2 + n4.xy * 0.8;
+#ifdef TROPIC
+  slope *= 0.55;
+#endif
   vec3 N = normalize( vec3( slope.x * 0.35 - vWave.y, 1.0, slope.y * 0.35 - vWave.z ) );
   float ndv = max( dot( N, V ), 0.0 );
   float fresnel = 0.02 + 0.98 * pow( 1.0 - ndv, 5.0 );
@@ -120,8 +132,22 @@ void main() {
   // depth: 0 at the shore .. 1 at ~400 m and beyond (off the map = deep)
   vec2 duv = ( vWorldPos.xz + mapHalf ) / ( 2.0 * mapHalf );
   float dep = ( duv.x < 0.0 || duv.y < 0.0 || duv.x > 1.0 || duv.y > 1.0 ) ? 1.0 : texture2D( depthMap, duv ).r;
+  dep *= dep;
+#ifdef TROPIC
+  // a tropical sea by depth: clear over the sand, turquoise lagoons, teal over the reef,
+  // azure on the drop-off, sapphire in the deep
+  float dm = dep * 400.0;
+  vec3 body = vec3( 0.22, 0.86, 0.82 );
+  body = mix( body, vec3( 0.04, 0.76, 0.78 ), smoothstep( 0.8, 4.0, dm ) );
+  body = mix( body, vec3( 0.02, 0.62, 0.72 ), smoothstep( 4.0, 12.0, dm ) );
+  body = mix( body, vec3( 0.02, 0.42, 0.66 ), smoothstep( 12.0, 35.0, dm ) );
+  body = mix( body, vec3( 0.012, 0.2, 0.44 ), smoothstep( 35.0, 110.0, dm ) );
+  body = mix( body, vec3( 0.008, 0.12, 0.34 ), smoothstep( 110.0, 330.0, dm ) );
+  body = pow( body, vec3( 2.2 ) );
+#else
   vec3 body = mix( shallowColor, midColor, smoothstep( 0.0, 0.07, dep ) );
   body = mix( body, deepColor, smoothstep( 0.07, 0.6, dep ) );
+#endif
   // broad, still colour variation and faint current streaks (seen from altitude)
   float broad = texture2D( normalMap, uv / 26000.0 ).r;
   float streak = texture2D( normalMap, vec2( uv.x / 70000.0, uv.y / 9000.0 ) + vec2( broad * 0.15 ) ).g;
@@ -131,14 +157,40 @@ void main() {
   float shade = tlv.r * ( 1.0 - 0.6 * cloudShadow( vWorldPos.xz, 0.0 ) );
   spec *= shade;
   body *= sunLit * ( 0.62 + 0.38 * shade );
+#ifdef TROPIC
+  // sunlight dancing on the sand under shallow water (near the camera only)
+  float near = 1.0 - smoothstep( 300.0, 2500.0, dist );
+  float shal = 1.0 - smoothstep( 2.0, 12.0, dm );
+  if ( near * shal > 0.01 ) {
+    vec2 cuv = uv / 11.0;
+    float c1 = texture2D( normalMap, cuv + vec2( 0.021, 0.013 ) * time ).r;
+    float c2 = texture2D( normalMap, cuv * 1.37 + vec2( 0.41, 0.17 ) - vec2( 0.017, 0.026 ) * time ).g;
+    float caus = pow( 1.0 - abs( c1 - c2 ), 14.0 );
+    body += vec3( 0.75, 0.95, 0.9 ) * caus * 0.32 * near * shal * smoothstep( 0.2, 1.5, dm ) * shade * sunLit;
+  }
+#endif
   // keep the water's own colour visible from high up (less washed-out sky)
   vec3 col = mix( body, sky, fresnel * 0.8 ) + spec;
+#ifdef TROPIC
+  // surf: white water where the swell breaks on the reef crest, and a thin wash along the beaches
+  float surfN = texture2D( normalMap, uv / 47.0 + vec2( 0.013, -0.009 ) * time ).b;
+  float surfN2 = texture2D( normalMap, uv / 160.0 - vec2( 0.006, 0.004 ) * time ).r;
+  float surf = smoothstep( 1.35, 0.45, dm ) * smoothstep( 0.02, 0.15, dm );
+  surf *= smoothstep( 0.35, 0.75, surfN * 0.6 + surfN2 * 0.6 + 0.12 * sin( time * 0.9 + surfN2 * 9.0 ) );
+  col = mix( col, vec3( 0.92, 0.95, 0.96 ) * ( 0.55 + 0.45 * shade ) * sunLit, surf * 0.85 );
+#endif
 #ifdef WAVES
   // white caps on the steepest crests
   float cap = smoothstep( 0.8, 1.15, vWave.x ) * smoothstep( 0.62, 0.86, texture2D( normalMap, uv / 9.0 + vec2( 0.02, 0.01 ) * ft ).b );
   col = mix( col, vec3( 0.85, 0.88, 0.9 ) * sunLit, cap * 0.35 * ( 1.0 - smoothstep( 300.0, 1400.0, dist ) ) );
 #endif
+#ifdef TROPIC
+  // crystal clear: the sand and the reef show through
+  float alpha = mix( mix( 0.48, 0.97, smoothstep( 0.5, 40.0, dm ) ), 1.0, clamp( fresnel * 1.2 + smoothstep( 6000.0, 40000.0, dist ) * 0.5, 0.0, 1.0 ) );
+  alpha = max( alpha, surf * 0.9 );
+#else
   float alpha = mix( mix( 0.55, 0.96, smoothstep( 0.0, 0.2, dep ) ), 1.0, clamp( fresnel * 1.4 + smoothstep( 4000.0, 30000.0, dist ) * 0.6, 0.0, 1.0 ) );
+#endif
   gl_FragColor = vec4( col, alpha );
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
@@ -162,6 +214,7 @@ export class Ocean {
     scene: THREE.Scene,
     private env: Environment,
     grid: HeightGrid,
+    fine: { data: Uint8Array; n: number } | null = null,
   ) {
     const frost = activeMap.id === 'frost';
     const jade = activeMap.id === 'jade';
@@ -182,7 +235,7 @@ export class Ocean {
           deepColor: { value: frost ? srgb(0.02, 0.1, 0.24) : jade ? srgb(0.02, 0.15, 0.33) : srgb(0.02, 0.13, 0.27) },
           midColor: { value: frost ? srgb(0.04, 0.25, 0.46) : jade ? srgb(0.02, 0.4, 0.56) : srgb(0.03, 0.3, 0.46) },
           shallowColor: { value: frost ? srgb(0.2, 0.56, 0.68) : jade ? srgb(0.16, 0.8, 0.76) : srgb(0.12, 0.6, 0.62) },
-          depthMap: { value: depthTexture(grid) },
+          depthMap: { value: depthTexture(grid, fine) },
           mapHalf: { value: MAP_HALF },
           flow: { value: seaMoves() ? 1 : 0 },
           holeR: { value: 0 },
@@ -192,6 +245,7 @@ export class Ocean {
       depthWrite: true,
       fog: true,
     });
+    if (jade) this.mat.defines = { TROPIC: 1 };
     this.mat.uniforms.normalMap.value = getWaterNormalTexture();
     Object.assign(this.mat.uniforms, TERRAIN_LIGHT);
     void u;
@@ -209,7 +263,7 @@ export class Ocean {
       const pm = this.mat.clone();
       // same uniforms (one update drives both), but the patch never has a hole
       pm.uniforms = { ...this.mat.uniforms, holeR: { value: 0 } };
-      pm.defines = { WAVES: 1 };
+      pm.defines = { ...this.mat.defines, WAVES: 1 };
       pm.vertexShader = WATER_VERT.replace('// @WAVES@', wavesGlsl());
       this.patch = new THREE.Mesh(ringDisc(PATCH_R, 72, 144, 1.5), pm);
       this.patch.frustumCulled = false;

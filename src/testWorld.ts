@@ -12,6 +12,7 @@ export async function runWorldTest(container: HTMLElement): Promise<void> {
   const world = new World(gr.scene);
   const t0 = performance.now();
   await world.buildGrid(() => {});
+  await world.buildShore(() => {});
   const tGrid = performance.now() - t0;
   world.init();
   const pos = new THREE.Vector3(+(q.get('x') ?? -290000), +(q.get('y') ?? 1500), +(q.get('z') ?? -190000));

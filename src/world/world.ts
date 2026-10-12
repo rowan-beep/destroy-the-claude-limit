@@ -15,7 +15,8 @@ import { PrecipitationFx, Weather, loadWeather } from './weather';
 import { AirfieldRenderer } from './airfieldMeshes';
 import { CarrierRenderer } from '../render/carrierRenderer';
 import { NIGHT } from '../render/night';
-import type { GridResult } from './terrainGen';
+import type { GridResult, ShoreResult } from './terrainGen';
+import { activeMap } from './islands';
 import { MapData } from './mapData';
 import { TerrainLightBaker } from '../render/terrainLight';
 
@@ -78,6 +79,59 @@ export class World {
     this.mapData = new MapData(this.grid);
   }
 
+  /** Water depth at a finer spacing than the grid near the coasts (Jade only): what the sea is coloured by. */
+  shore: { data: Uint8Array; n: number } | null = null;
+
+  /**
+   * The sea's depth map, sharp near the coasts: the grid cells where shallow water
+   * or a coast lies get K x K samples of the real terrain (built by the workers),
+   * everything else is filled in from the grid. Depth is stored as sqrt(depth / 400 m)
+   * so the shallows, where the colour changes fastest, get most of the precision.
+   */
+  async buildShore(onProgress: (f: number) => void): Promise<void> {
+    this.shore = null;
+    if (activeMap.id !== 'jade') return;
+    const g = this.grid, N = g.n, K = 4, F = (N - 1) * K;
+    const enc = (h: number) => (h >= 0 ? 0 : Math.round(Math.sqrt(Math.min(1, -h / 400)) * 255));
+    const out = new Uint8Array(F * F);
+    const coast: number[] = [];
+    for (let j = 0; j < N - 1; j++) {
+      for (let i = 0; i < N - 1; i++) {
+        const a = g.data[j * N + i], b = g.data[j * N + i + 1], c = g.data[(j + 1) * N + i], d = g.data[(j + 1) * N + i + 1];
+        const mn = Math.min(a, b, c, d), mx = Math.max(a, b, c, d);
+        if (mx > -60 && mn < 15) {
+          coast.push(i, j);
+          continue;
+        }
+        // open water or high ground: the grid, interpolated
+        for (let bb = 0; bb < K; bb++) {
+          const fz = (bb + 0.5) / K;
+          for (let aa = 0; aa < K; aa++) {
+            const fx = (aa + 0.5) / K;
+            const h = (a * (1 - fx) + b * fx) * (1 - fz) + (c * (1 - fx) + d * fx) * fz;
+            out[(j * K + bb) * F + i * K + aa] = enc(h);
+          }
+        }
+      }
+    }
+    const per = 500;
+    const reqs: { type: 'shore'; cells: Int32Array; k: number }[] = [];
+    for (let s = 0; s < coast.length; s += per * 2) reqs.push({ type: 'shore', cells: new Int32Array(coast.slice(s, s + per * 2)), k: K });
+    await this.pool.runAll(
+      reqs,
+      (res) => {
+        const r = res as ShoreResult;
+        const n = r.cells.length / 2;
+        for (let q = 0; q < n; q++) {
+          const i = r.cells[q * 2], j = r.cells[q * 2 + 1];
+          for (let bb = 0; bb < K; bb++) for (let aa = 0; aa < K; aa++) out[(j * K + bb) * F + i * K + aa] = enc(r.data[(q * K + bb) * K + aa]);
+        }
+      },
+      onProgress,
+    );
+    this.shore = { data: out, n: F };
+  }
+
   /** Coastlines, contours and the moving-map raster (cockpit displays). */
   async buildMapData(onProgress: (f: number) => void): Promise<void> {
     await this.mapData.build(onProgress);
@@ -86,7 +140,7 @@ export class World {
   /** Create render objects once the grid exists. */
   init(): void {
     this.env = new Environment(this.scene);
-    this.ocean = new Ocean(this.scene, this.env, this.grid);
+    this.ocean = new Ocean(this.scene, this.env, this.grid, this.shore);
     this.terrain = new TerrainLOD(this.pool, this.grid);
     this.scene.add(this.terrain.group);
     this.trees = new TreeSystem(this.pool, this.scene);
