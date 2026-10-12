@@ -42,6 +42,19 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.10.1',
+    date: '2026-10-12',
+    air: {
+      title: 'F-15EX landing gear like the real one',
+      notes: [
+        fixed('The F-15EX\'s landing gear now looks like the real jet\'s',
+          'Nose gear: a wide grey panel down the front of the leg carries the round landing light, with the taxi light under it. The wheel hangs from one curved arm on the left side, and the tyre is the real size (it was too big).',
+          'Main gear: the real, slightly bigger tyres; heavier grey legs right beside the wheels, and a brace from each leg up to the fuselage.',
+          'The gear still folds up and comes down the same way, and the jet sits at the same height.'),
+      ],
+    },
+  },
+  {
     version: '7.10.0',
     date: '2026-10-12',
     air: {

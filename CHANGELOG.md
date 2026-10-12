@@ -4,6 +4,15 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
+## v7.10.1 (2026-10-12)
+
+### Air Combat: F-15EX landing gear like the real one
+
+- **Fixed: The F-15EX's landing gear now looks like the real jet's**
+  - Nose gear: a wide grey panel down the front of the leg carries the round landing light, with the taxi light under it. The wheel hangs from one curved arm on the left side, and the tyre is the real size (it was too big).
+  - Main gear: the real, slightly bigger tyres; heavier grey legs right beside the wheels, and a brace from each leg up to the fuselage.
+  - The gear still folds up and comes down the same way, and the jet sits at the same height.
+
 ## v7.10.0 (2026-10-12)
 
 ### Air Combat: Faster battles, no freeze at the start
