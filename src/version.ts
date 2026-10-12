@@ -58,6 +58,8 @@ export const RELEASES: Release[] = [
           'TUAHA and PINNA have taller limestone towers with sheer grey walls, vines hanging down them and jungle on top.',
           'Fields and clearings on the coastal plains, darker forest in the valleys.'),
         note('Runs as fast as before: no extra trees or detail to draw.'),
+        note('MULTIPLAYER is no longer on the menu',
+          'The online server dropped every pilot after five minutes, so it has been taken off. RANKED against the AI, your rank and everything else stay as they were.'),
       ],
     },
   },

@@ -6,6 +6,17 @@
 // override it with the VITE_TRIAD_SERVER environment variable. A path such as
 // "/api" means the same host as the page (the Vercel deployment, vercel.json).
 
+import { inArtifact } from './artifact';
+
+/**
+ * Is multiplayer offered in this copy? Only inside the claude.ai artifact (its own
+ * live rooms): it was taken off the website and the Windows app in 7.12.0, where the
+ * game server dropped every connection after five minutes. The servers and the
+ * code stay, switched off.
+ */
+export function multiplayerOn(): boolean {
+  return inArtifact();
+}
 
 function serverUrl(s: string): string {
   if (!s.startsWith('/') || typeof location === 'undefined') return s;

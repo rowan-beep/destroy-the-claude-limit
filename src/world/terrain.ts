@@ -538,11 +538,14 @@ function jadeSea(isl: IslandDef, dOut: number, x: number, z: number): number {
   if (R === 0) return fore(dOut, 2.5);
   const Rw = R * (1 + 0.18 * N2.noise(x / 2600 + seed, z / 2600 - seed));
   const W = R > 600 ? 180 : 110;
+  // well out past the reef the crest and the passes no longer show (and cost nothing)
+  const o = dOut - Rw - W * 0.5;
+  if (o > 1500) return fore(o, 2.5);
   const crest = 0.3 + 0.35 * (0.5 + 0.5 * N3.noise(x / 170, z / 170));
   // passes: gaps through the reef where the lagoon opens to the sea
   const pass = smoothstep(0.36, 0.5, N.noise(x / 3400 - seed * 7, z / 3400 + seed * 13));
   const back = Rw - W * 0.5;
-  if (dOut > Rw + W * 0.5) return fore(dOut - Rw - W * 0.5, crest + 5 * pass);
+  if (o > 0) return fore(o, lerp(crest + 5 * pass, 2.5, smoothstep(450, 1500, o)));
   let depth: number;
   if (dOut > back) depth = crest;
   else {
@@ -550,8 +553,10 @@ function jadeSea(isl: IslandDef, dOut: number, x: number, z: number): number {
     const t = dOut / Math.max(1, back);
     depth = lerp(2, crest, smoothstep(0.6, 1, t)) + (L - 1) * Math.pow(Math.sin(Math.PI * Math.min(1, t)), 0.75) * smoothstep(0, 0.15, t);
     // coral heads scattered through the deeper lagoon
-    const c = cells(x, z, 320, 41);
-    if (c.h < 0.45 && depth > 2.2) depth = lerp(0.8 + 0.6 * c.h, depth, smoothstep(25, 75, c.d1));
+    if (depth > 2.2) {
+      const c = cells(x, z, 320, 41);
+      if (c.h < 0.45) depth = lerp(0.8 + 0.6 * c.h, depth, smoothstep(25, 75, c.d1));
+    }
   }
   // through a pass the water stays lagoon-deep, out to the open sea
   depth = lerp(depth, Math.max(depth, L * 0.8, 5), pass);
@@ -618,7 +623,19 @@ function sideValleys(u: number, w: number, x: number, z: number, spacing: number
  * island's erosion strength down a valley floor (what the shape takes away, and what the
  * colouring darkens: wet, shaded valley floors, sunlit crests).
  */
+const _ero = { id: '', x: NaN, z: NaN, e: 0 };
 function erosion(isl: IslandDef, x: number, z: number, u: number, v: number): number {
+  // (a chunk vertex's colour asks for the same point its height just did)
+  if (x === _ero.x && z === _ero.z && isl.id === _ero.id) return _ero.e;
+  const e = erosionAt(isl, x, z, u, v);
+  _ero.id = isl.id;
+  _ero.x = x;
+  _ero.z = z;
+  _ero.e = e;
+  return e;
+}
+
+function erosionAt(isl: IslandDef, x: number, z: number, u: number, v: number): number {
   const seed = isl.id.charCodeAt(0) + isl.id.charCodeAt(1) * 3 + isl.id.length * 7;
   const nu = u / isl.rx, nv = v / isl.ry;
   const r = Math.sqrt(nu * nu + nv * nv) * (1 + 0.08 * N2.noise(x / 6000 + seed, z / 6000 - seed));
@@ -1073,8 +1090,18 @@ const LIMESTONE = new Set(['karst', 'spires']);
 const _cl = { u: 0, v: 0 };
 
 /** Jade: cleared ground on the low coastal plains (fields, red laterite, grass), 0..1. No trees grow there. */
+const _clr = { x: NaN, z: NaN, h: NaN, c: 0 };
 function jadeClearing(x: number, z: number, h: number, inland: number): number {
   if (h > 90 || inland < 300) return 0;
+  // (the colouring asks twice for each vertex: for the forest and for the clearing itself)
+  if (x === _clr.x && z === _clr.z && h === _clr.h) return _clr.c;
+  _clr.x = x;
+  _clr.z = z;
+  _clr.h = h;
+  return (_clr.c = clearingAt(x, z, h));
+}
+
+function clearingAt(x: number, z: number, h: number): number {
   // warped and ragged-edged: fields and pasture, never round blobs
   const w = 0.4 * N.noise(x / 700 + 1.1, z / 700 - 2.3);
   const n = N3.noise(x / 1600 + 3.3 + w, z / 1600 - 7.1 - w) + 0.14 * N2.noise(x / 230 + 5.1, z / 230 + 0.7);
@@ -1098,13 +1125,15 @@ function jadeColor(x: number, z: number, info: TerrainInfo, slope: number, out: 
     out.r = 0.9;
     out.g = 0.88;
     out.b = 0.76;
-    if (isl && dOut > -50) {
-      const { R } = reefPlan(isl);
+    const R = isl ? reefPlan(isl).R : 0;
+    if (isl && dOut < (R > 0 ? R + 300 : 300)) {
       // a few seagrass beds and coral heads on the lagoon floor
       const grass = smoothstep(0.4, 0.65, N2.noise(x / 650 + 9, z / 650 - 4)) * smoothstep(1.5, 4, depth) * (R > 0 ? 1 - smoothstep(R * 0.7, R, dOut) : 0);
       mix3(out, 0.42, 0.48, 0.32, grass * 0.45);
-      const c = cells(x, z, 320, 41);
-      mix3(out, 0.55 + 0.1 * c.h, 0.47, 0.38, (1 - smoothstep(30, 70, c.d1)) * (c.h < 0.3 ? 0.6 : 0) * smoothstep(1.2, 3, depth));
+      if (depth > 1.2 && depth < 20) {
+        const c = cells(x, z, 320, 41);
+        mix3(out, 0.55 + 0.1 * c.h, 0.47, 0.38, (1 - smoothstep(30, 70, c.d1)) * (c.h < 0.3 ? 0.6 : 0) * smoothstep(1.2, 3, depth));
+      }
       // the reef crest: coral and coralline algae, ochre and rose with dark patches
       const crest = R > 0 ? 1 - smoothstep(60, 230, Math.abs(dOut - R)) : depth < 1.5 ? 1 : 0;
       if (crest > 0) {
@@ -1194,8 +1223,8 @@ function jadeColor(x: number, z: number, info: TerrainInfo, slope: number, out: 
   // beaches: black sand below the volcanoes, white coral sand everywhere else
   // (only on flat ground: sand at the foot of a sea cliff would smear up its wall)
   let beachT = (1 - smoothstep(60, 200, info.inland)) * (1 - smoothstep(2.5, 7, h)) * (1 - smoothstep(0.15, 0.35, slope));
-  if (beachT > 0) {
-    // (a coarse far tile can't see the cliff beside it: look 60 m around)
+  if (beachT > 0 && kind && LIMESTONE.has(kind)) {
+    // (a coarse far tile can't see the tower wall beside it: look 60 m around)
     const rise = Math.max(terrainHeight(x + 60, z), terrainHeight(x - 60, z), terrainHeight(x, z + 60), terrainHeight(x, z - 60)) - h;
     beachT *= 1 - smoothstep(8, 20, rise);
   }

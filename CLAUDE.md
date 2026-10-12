@@ -39,7 +39,7 @@ equivalent or degrades gracefully:
 
 | Feature | Website / Windows app | Artifact |
 | --- | --- | --- |
-| Multiplayer | game servers (Render, `server/`) | the page's live room |
+| Multiplayer | off since 7.12.0 (`multiplayerOn()`; owner's call) | the page's live room |
 | Ranked leaderboard | Supabase (`src/net/cloud.ts`) | the artifact's database |
 | Accounts, cloud saves | Supabase email + password | none (saved in the browser) |
 

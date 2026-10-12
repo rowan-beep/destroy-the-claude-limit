@@ -12,6 +12,7 @@ import {
 import { rankEmblemSvg, rankColor } from '../rankEmblem';
 import { loadBoard, championPlace, boardAvailable } from '../../net/rankBoard';
 import { cloudEnabled, cloudUserId } from '../../net/cloud';
+import { multiplayerOn } from '../../net/servers';
 
 type RankTab = 'ladder' | 'matches' | 'board' | 'how';
 let tab: RankTab = 'ladder';
@@ -197,7 +198,7 @@ function matchLine(p: HTMLElement, m: MatchRecord): void {
 
 function matches(p: HTMLElement, s: RankedState): void {
   if (!s.history.length) {
-    el('div', 'mm-note', p, 'No ranked matches yet. Play RANKED (or an online free-for-all with 4 or more pilots) and every match shows up here with what it did to your RP.');
+    el('div', 'mm-note', p, `No ranked matches yet. Play RANKED${multiplayerOn() ? ' (or an online free-for-all with 4 or more pilots)' : ''} and every match shows up here with what it did to your RP.`);
     return;
   }
   let week = '';
@@ -258,6 +259,6 @@ function how(p: HTMLElement): void {
   sec('PLACEMENTS', 'Every week starts with 5 placement matches. Your rank is hidden until the fifth, and each one is worth more: about +100 for a win and −50 for a loss. You start at least 300 RP below your hidden skill, more while the game is still unsure of it (at most Diamond V); a brand-new pilot starts at 1,667 (Bronze IV). Placements never put you straight into Champion.');
   sec('THE DEMOTION SHIELD', 'A loss that would drop you a division stops at that division’s 0 RP instead, as long as you had more than 0 RP going in. The next loss from 0 drops you. Champion is held at 4,500 the same way.');
   sec('THE WEEKLY RESET', 'Ranks reset every Monday at 8:00 a.m. Pacific time. Last week’s final rank and peak are kept, and you place again.');
-  sec('MATCHES', 'RANKED is a 5v5 team battle: first to 4 rounds, overtime at 3-3 (first to 5). A round that runs out of time goes to the team with more jets left. Every AI pilot in it flies at your skill, from about Easy in Copper to Extreme in Diamond and APEX for Champions. Online free-for-all matches with 4 or more pilots count too: your place counts as a win against every pilot below you and a loss against every one above, and the lobby is scored as an even one. Your RP is settled the moment you are out (or win).');
-  sec('LEAVING', 'Leaving a ranked match early counts as a loss (no kill RP, no shield) and keeps you out of ranked for 5 minutes, then 15, 45 and 120 for repeat exits; a week later they are forgiven. Online, leaving while you are still flying counts as last place; once you are out you can go. A dropped connection counts as being the next one out, with no cooldown.');
+  sec('MATCHES', 'RANKED is a 5v5 team battle: first to 4 rounds, overtime at 3-3 (first to 5). A round that runs out of time goes to the team with more jets left. Every AI pilot in it flies at your skill, from about Easy in Copper to Extreme in Diamond and APEX for Champions.' + (multiplayerOn() ? ' Online free-for-all matches with 4 or more pilots count too: your place counts as a win against every pilot below you and a loss against every one above, and the lobby is scored as an even one.' : '') + ' Your RP is settled the moment you are out (or win).');
+  sec('LEAVING', 'Leaving a ranked match early counts as a loss (no kill RP, no shield) and keeps you out of ranked for 5 minutes, then 15, 45 and 120 for repeat exits; a week later they are forgiven.' + (multiplayerOn() ? ' Online, leaving while you are still flying counts as last place; once you are out you can go. A dropped connection counts as being the next one out, with no cooldown.' : ''));
 }

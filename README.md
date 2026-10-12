@@ -14,7 +14,7 @@ It has three programs, chosen on the launcher screen:
 | **SPACE EXPLORATION** | Fly the Saturn V to the Moon, Starship to Mars, Falcon 9, Falcon Heavy and SLS missions, drive Perseverance and Curiosity, and tour the whole Solar System at real scale. |
 | **OCEAN** | Pilot a one-person survey submersible off Kestrel Harbor, listen with hydrophones, triangulate a sound and recover what is knocking in the dark. |
 
-Current version: **7.11.1**. Full history in [CHANGELOG.md](CHANGELOG.md).
+Current version: **7.12.0**. Full history in [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -576,6 +576,11 @@ Nothing marks a source on the map before you have located it yourself.
 ---
 
 ## Multiplayer
+
+> Since 7.12.0 multiplayer is only offered inside the claude.ai artifact (its own live
+> rooms). The website and the Windows app no longer show **MULTIPLAYER**: the server the
+> website used dropped every connection after five minutes. The servers and the client
+> code are still here, switched off by `multiplayerOn()` in `src/net/servers.ts`.
 
 ### Online servers
 

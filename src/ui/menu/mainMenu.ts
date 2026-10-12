@@ -19,7 +19,7 @@ import { airfieldsOf } from '../../world/islands';
 import { MISSILES } from '../../weapons/weaponSpecs';
 import { LIBRARY } from '../../aircraft/library';
 import { loadLogbook } from '../../game/logbook';
-import { loadNetPrefs } from '../../net/servers';
+import { loadNetPrefs, multiplayerOn } from '../../net/servers';
 import { programLogo, Program } from './program';
 import { menuMusic } from '../../audio/menuMusic';
 import type { TimeOfDay } from '../../render/environment';
@@ -136,7 +136,7 @@ export class MainMenu {
     act('JET LIBRARY', 'Every jet, in depth', () => cb.onLibrary());
     act('PAINT SHOP', 'Colours, wraps, flight suit', () => cb.onCustomize(this.cfg.aircraft));
     act('PHOTO ALBUM', 'Your airshow pictures', () => cb.onAlbum?.());
-    act('MULTIPLAYER', 'Real pilots online', () => cb.onMultiplayer(), 'mm-nav-mp');
+    if (multiplayerOn()) act('MULTIPLAYER', 'Real pilots online', () => cb.onMultiplayer(), 'mm-nav-mp');
     const foot = el('div', 'mm-rail-foot', rail);
     const wn = new WhatsNewModal(document.body, 'air');
     const small = (label: string, fn: () => void) => button(label, 'mm-foot-btn', foot, fn);

@@ -36,7 +36,7 @@ import { activeMap } from './world/islands';
 import { jetAllowedIn, AIRCRAFT_TYPES } from './aircraft/specs';
 import type { AircraftType } from './aircraft/specs';
 import { MultiplayerScreen, connectTo, JoinRequest } from './ui/menu/multiplayerScreen';
-import { setPendingJoin, takePendingJoin, loadNetPrefs, wakeOfficialServers, pendingJoinHash } from './net/servers';
+import { setPendingJoin, takePendingJoin, loadNetPrefs, wakeOfficialServers, pendingJoinHash, multiplayerOn } from './net/servers';
 import { inArtifact, isArtifactOwner, ARTIFACT_ROOMS, ARTIFACT_URL, setLobby, sendAdmin } from './net/artifact';
 import { RoomLink } from './net/roomLink';
 import { AdminPanel } from './ui/menu/adminPanel';
@@ -50,7 +50,7 @@ import type { MapId } from './world/islands';
 import { startCloud } from './net/cloud';
 import { initAccount } from './ui/menu/accountModal';
 
-wakeOfficialServers();
+if (multiplayerOn()) wakeOfficialServers();
 // accounts and cloud saves (website and Windows app): restore the session, sync
 void startCloud();
 initAccount();
@@ -581,7 +581,7 @@ async function boot(): Promise<void> {
   );
   // came back from loading a server's theater: finish joining
   const pj = takePendingJoin();
-  if (pj) {
+  if (pj && multiplayerOn()) {
     mp.jet = jetAllowedIn(menu.cfg.aircraft, 'online') ? menu.cfg.aircraft : 'F15EX';
     mp.show(true);
     mp.setStatus('CONNECTING…');
