@@ -144,7 +144,7 @@ export class World {
     this.terrain = new TerrainLOD(this.pool, this.grid);
     this.scene.add(this.terrain.group);
     this.trees = new TreeSystem(this.pool, this.scene);
-    this.clouds = new CloudSystem(this.scene, this.env);
+    this.clouds = new CloudSystem(this.scene, this.env, (x0, z0, x1, z1) => this.grid.maxInRect(x0, z0, x1, z1));
     this.precip = new PrecipitationFx(this.scene);
     this.precip.onThunder = (d) => this.onThunder?.(d);
     this.setWeather(this.weather);

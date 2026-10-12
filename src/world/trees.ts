@@ -135,6 +135,8 @@ export class TreeSystem {
   private meshes: THREE.InstancedMesh[] = [];
   /** each tree carries its own foliage colour (Jade) */
   private tinted = false;
+  /** share of the near range drawn in full detail (Jade's crowns are bigger and richer: a little less of it) */
+  private detailShare = DETAIL_SHARE;
   private nearR = 2600;
   private farR = 7000;
   private origin = new THREE.Vector3();
@@ -157,6 +159,7 @@ export class TreeSystem {
     applyTerrainLight(mat);
     const kinds = kindsHere();
     this.tinted = activeMap.id === 'jade';
+    if (this.tinted) this.detailShare = 0.28;
     if (this.tinted) {
       // each tree's own colour tints only its foliage (green-dominant vertex colours), not its wood
       const lit = mat.onBeforeCompile;
@@ -296,7 +299,7 @@ export class TreeSystem {
     const fCount = new Array(KINDS).fill(0);
     const near2 = this.nearR * this.nearR;
     const far2 = this.farR * this.farR;
-    const detail2 = near2 * DETAIL_SHARE * DETAIL_SHARE;
+    const detail2 = near2 * this.detailShare * this.detailShare;
     const e = this.m.elements;
     const v = this.view;
     const cull = v.cull;

@@ -6,7 +6,7 @@ updates, the space menu the space updates and the ocean menu the ocean updates.
 
 ## v7.12.0 (2026-10-12)
 
-### Air Combat: Jade Archipelago: real tropical islands
+### Air Combat: Jade Archipelago: real tropical islands, and better clouds
 
 - **Improved: Coral reefs and lagoons round every island**
   - The big volcanic islands sit inside a barrier reef a kilometre or two offshore, with a wide turquoise lagoon between (like Bora Bora). The small islands have a reef close in.
@@ -18,7 +18,14 @@ updates, the space menu the space updates and the ocean menu the ocean updates.
   - The old volcanoes are cut by deep valleys with sharp ridges between them. The young ones have dark lava flows down their sides.
   - TUAHA and PINNA have taller limestone towers with sheer grey walls, vines hanging down them and jungle on top.
   - Fields and clearings on the coastal plains, darker forest in the valleys.
-- **Runs as fast as before: no extra trees or detail to draw.**
+- **New: Five kinds of tropical trees**
+  - Coconut palms along the beaches (leaning out over the sand), giant rainforest trees standing over the canopy, the broad canopy trees that make up most of the forest, tree ferns in the cloud forest and the wet valleys, and pandanus on the beaches and the limestone towers.
+  - The forest is a closed canopy now, in many shades of green with the odd tree flushing red or in flower, shrubs and saplings underneath, and palm groves on the coastal plains.
+- **Improved: Better clouds on every map**
+  - Each cloud is lit by the sun from its own side: bright sunlit tops, grey shaded sides and flat, darker bases like real cumulus.
+  - Finer, wispier edges, and clouds no longer cut into the mountains with straight edges.
+- **Runs about as fast as before**
+  - Measured side by side with the last version: the same frame rate over the sea and in the clouds, a few per cent more low over the jungle.
 - **MULTIPLAYER is no longer on the menu**
   - The online server dropped every pilot after five minutes, so it has been taken off. RANKED against the AI, your rank and everything else stay as they were.
 

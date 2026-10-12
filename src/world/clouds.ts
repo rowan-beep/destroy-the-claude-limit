@@ -21,7 +21,7 @@ import { Weather, WEATHER_PRESETS, CloudDeck, deckFor } from './weather';
 
 const CELL = 14000;
 const RANGE = 75000;
-const MAX_PUFFS = 20000;
+const MAX_PUFFS = 24000;
 /** cloud-shadow map: texels per side over the whole visible cloud field */
 const SHADOW_RES = 256;
 
@@ -41,24 +41,41 @@ interface Puff {
   size: number;
   shade: number;
   rot: number;
+  /** the cloud's flat base (m) */
+  base: number;
+  /** where the puff sits in its cloud: offset from the cloud's middle over its radius */
+  ox: number;
+  oy: number;
+  oz: number;
 }
 
 const VERT = /* glsl */ `
 attribute vec3 iOffset;
-attribute vec3 iParams; // size, shade, rotation
+attribute vec4 iParams; // size, shade, rotation, sunward (-1 on the cloud's shaded side .. 1 on its sunlit side)
+attribute float iBase;  // the cloud's flat base (m)
 varying vec2 vUv;
+varying vec2 vCorner;
 varying float vShade;
 varying float vFade;
-varying float vHeightF;
+varying float vSunward;
+varying float vWorldY;
+varying float vBase;
+varying float vSeed;
 varying vec3 vWDir;
+varying vec3 vSunV;
+varying vec3 vUpV;
 uniform float camInside;
 uniform vec2 farFade;
+uniform vec3 sunDir;
 #include <common>
 #include <fog_pars_vertex>
 #include <logdepthbuf_pars_vertex>
 void main() {
   vUv = uv;
   vShade = iParams.y;
+  vSunward = iParams.w;
+  vBase = iBase;
+  vSeed = fract( iParams.z * 7.31 );
   vec4 mvPosition = curveView( modelViewMatrix * vec4( iOffset, 1.0 ) );
   float dist = length( mvPosition.xyz );
   float size = iParams.x;
@@ -72,10 +89,15 @@ void main() {
     gl_Position = vec4( 0.0, 0.0, 2.0, 1.0 );
     return;
   }
-  vHeightF = position.y + 0.5;
   vWDir = ( modelMatrix * vec4( iOffset, 1.0 ) ).xyz - cameraPosition;
   float c = cos( iParams.z ), s = sin( iParams.z );
   vec2 corner = vec2( position.x * c - position.y * s, position.x * s + position.y * c );
+  vCorner = corner;
+  // the sun and "up" seen from the camera: the puff is lit as the round lump it stands for
+  vSunV = normalize( ( viewMatrix * vec4( sunDir, 0.0 ) ).xyz );
+  vUpV = normalize( ( viewMatrix * vec4( 0.0, 1.0, 0.0, 0.0 ) ).xyz );
+  // this corner's height in the world (for the cloud's flat base)
+  vWorldY = ( modelMatrix * vec4( iOffset, 1.0 ) ).y + ( viewMatrix[ 1 ][ 0 ] * corner.x + viewMatrix[ 1 ][ 1 ] * corner.y ) * size;
   mvPosition.xy += corner * size;
   gl_Position = projectionMatrix * mvPosition;
   #include <logdepthbuf_vertex>
@@ -87,28 +109,50 @@ const FRAG = /* glsl */ `
 uniform sampler2D map;
 uniform vec3 sunColor;
 uniform vec3 shadowColor;
+uniform vec3 skyColor;
 uniform float opacity;
 uniform vec3 sunDir;
 uniform float scatter;
 varying vec3 vWDir;
 varying vec2 vUv;
+varying vec2 vCorner;
 varying float vShade;
 varying float vFade;
-varying float vHeightF;
+varying float vSunward;
+varying float vWorldY;
+varying float vBase;
+varying float vSeed;
+varying vec3 vSunV;
+varying vec3 vUpV;
 #include <common>
 #include <fog_pars_fragment>
 #include <logdepthbuf_pars_fragment>
 void main() {
   #include <logdepthbuf_fragment>
   vec4 t = texture2D( map, vUv );
-  float a = t.a * opacity * vFade;
+  // the rim torn into finer wisps by the cloud's own texture at a smaller scale
+  float wisp = texture2D( map, vUv * 2.3 + vec2( vSeed, vSeed * 1.7 ) ).r;
+  float a = t.a * smoothstep( 0.0, 0.55, t.a + ( wisp - 0.62 ) * 0.7 * ( 1.0 - t.a ) );
+  // a cumulus has a flat base where the rising air reaches its condensation level
+  a *= smoothstep( vBase - 50.0, vBase + 70.0, vWorldY );
+  a *= opacity * vFade;
   if ( a < 0.01 ) discard;
-  float light = clamp( t.r * vShade, 0.0, 1.2 );
-  vec3 col = mix( shadowColor, sunColor, light );
+  // the puff as a round lump: its own normal from where on the billboard this is
+  vec2 q = vCorner * 2.0;
+  vec3 n = normalize( vec3( q, sqrt( max( 0.0, 1.0 - dot( q, q ) ) ) + 0.2 ) );
+  float ndl = dot( n, vSunV ) * 0.5 + 0.5;
+  // light reaching it through the cloud: full on the sunlit side, dim on the far side and low down
+  float through = mix( 0.4, 1.0, smoothstep( -0.85, 0.75, vSunward ) );
+  float direct = through * mix( 0.66, 1.04, ndl ) * clamp( vShade, 0.0, 1.25 ) * ( 0.84 + 0.32 * t.r );
+  // sky light from above, darker underneath; the base in its own shade
+  float up = mix( 0.5, dot( n, vUpV ) * 0.5 + 0.5, 0.6 );
+  float baseShade = smoothstep( vBase - 20.0, vBase + 420.0, vWorldY );
+  vec3 amb = mix( shadowColor * 0.78, skyColor, up ) * ( 0.62 + 0.38 * baseShade );
+  vec3 col = amb * 0.7 + sunColor * direct * ( 0.72 + 0.28 * baseShade );
   // forward scattering: thin edges glow silver when the sun is behind the cloud
   float mu = max( dot( vWDir / max( length( vWDir ), 1e-3 ), sunDir ), 0.0 );
   float thin = 1.0 - t.a;
-  col += sunColor * scatter * ( pow( mu, 6.0 ) * ( 0.12 + 0.6 * thin ) + pow( mu, 40.0 ) * 0.5 * thin );
+  col += sunColor * scatter * ( pow( mu, 6.0 ) * ( 0.1 + 0.55 * thin ) + pow( mu, 40.0 ) * 0.5 * thin );
   gl_FragColor = vec4( col, a );
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
@@ -163,6 +207,7 @@ export class CloudSystem {
   private geo: THREE.InstancedBufferGeometry;
   private offsets: Float32Array;
   private params: Float32Array;
+  private bases: Float32Array;
   private mat: THREE.ShaderMaterial;
   private cellCache = new Map<string, Puff[]>();
   private visible: Puff[] = [];
@@ -186,6 +231,7 @@ export class CloudSystem {
   private camBelowDeck = true;
   private fadeTarget = RANGE * 0.9;
   private sortKeys = new Float64Array(MAX_PUFFS);
+  private sunSorted = new THREE.Vector3();
   private clusterCache = new Map<string, Cluster[]>();
   private visibleClusters: Cluster[] = [];
   private shadowCanvas: HTMLCanvasElement;
@@ -198,6 +244,8 @@ export class CloudSystem {
   constructor(
     scene: THREE.Scene,
     private env: Environment,
+    /** highest ground in a rectangle (puffs are kept out of the hills: a flat billboard would cut into them) */
+    private groundMax: ((x0: number, z0: number, x1: number, z1: number) => number) | null = null,
   ) {
     const quad = new THREE.PlaneGeometry(1, 1);
     this.geo = new THREE.InstancedBufferGeometry();
@@ -205,13 +253,17 @@ export class CloudSystem {
     this.geo.setAttribute('position', quad.attributes.position);
     this.geo.setAttribute('uv', quad.attributes.uv);
     this.offsets = new Float32Array(MAX_PUFFS * 3);
-    this.params = new Float32Array(MAX_PUFFS * 3);
+    this.params = new Float32Array(MAX_PUFFS * 4);
+    this.bases = new Float32Array(MAX_PUFFS);
     const oa = new THREE.InstancedBufferAttribute(this.offsets, 3);
-    const pa = new THREE.InstancedBufferAttribute(this.params, 3);
+    const pa = new THREE.InstancedBufferAttribute(this.params, 4);
+    const ba = new THREE.InstancedBufferAttribute(this.bases, 1);
     oa.setUsage(THREE.DynamicDrawUsage);
     pa.setUsage(THREE.DynamicDrawUsage);
+    ba.setUsage(THREE.DynamicDrawUsage);
     this.geo.setAttribute('iOffset', oa);
     this.geo.setAttribute('iParams', pa);
+    this.geo.setAttribute('iBase', ba);
     this.geo.instanceCount = 0;
     this.mat = new THREE.ShaderMaterial({
       vertexShader: VERT,
@@ -222,6 +274,7 @@ export class CloudSystem {
           map: { value: null },
           sunColor: { value: new THREE.Color(1, 1, 1) },
           shadowColor: { value: new THREE.Color(0.55, 0.6, 0.7) },
+          skyColor: { value: new THREE.Color(0.5, 0.65, 0.9) },
           opacity: { value: 0.92 },
           sunDir: { value: new THREE.Vector3(0, 1, 0) },
           scatter: { value: 1 },
@@ -442,25 +495,49 @@ export class CloudSystem {
   /** One cumulus: overlapping puffs filling a flat-based dome. */
   private addCumulus(p: Puff[], cl: Cluster[], rng: Rng, px: number, pz: number, rx: number, rz: number, base: number, height: number): void {
     cl.push({ x: px, z: pz, rx, rz, base, height });
-    const n = Math.floor(Math.min(90, 16 + (rx * rz) / 180000) * this.density);
+    // more, smaller puffs than there used to be (the same area of cloud): a finer, lumpier outline
+    const n = Math.floor(Math.min(104, 18 + (rx * rz) / 156000) * this.density);
     const dark = this.gloom;
+    const cy = base + height * 0.45;
     for (let k = 0; k < n; k++) {
       // sample a flat-based dome, denser toward the core
       const a = rng.range(0, Math.PI * 2);
       const rr = Math.pow(rng.float(), 0.65);
       const hy = Math.pow(rng.float(), 1.3) * height * (1 - rr * rr * 0.75);
       // big overlapping puffs so the cloud reads as one mass, not a pile of balls
-      const size = Math.max(420, Math.min(rx, rz) * rng.range(0.42, 0.72)) * (1 - (hy / Math.max(1, height)) * 0.3);
+      const size = Math.max(420, Math.min(rx, rz) * rng.range(0.4, 0.7)) * (1 - (hy / Math.max(1, height)) * 0.3);
       const hf = hy / Math.max(1, height);
-      p.push({
-        x: px + Math.cos(a) * rr * rx * 0.85,
-        y: base + hy + size * 0.3,
-        z: pz + Math.sin(a) * rr * rz * 0.85,
+      const x = px + Math.cos(a) * rr * rx * 0.85;
+      const z = pz + Math.sin(a) * rr * rz * 0.85;
+      const y = base + hy + size * 0.3;
+      this.pushPuff(p, {
+        x,
+        y,
+        z,
         size,
-        shade: (0.58 + 0.6 * hf + 0.1 * (1 - rr)) * (1 - 0.45 * dark * (1 - hf)),
+        shade: (0.62 + 0.5 * hf + 0.1 * (1 - rr)) * (1 - 0.45 * dark * (1 - hf)),
         rot: rng.range(0, Math.PI * 2),
+        base,
+        ox: (x - px) / rx,
+        oy: (y - cy) / Math.max(400, height * 0.6),
+        oz: (z - pz) / rz,
       });
     }
+  }
+
+  /** Add a puff, kept clear of the ground under it (shrunk, or left out on a hilltop). */
+  private pushPuff(p: Puff[], pf: Puff): void {
+    if (this.groundMax) {
+      const r = pf.size * 0.45;
+      const g = this.groundMax(pf.x - r, pf.z - r, pf.x + r, pf.z + r);
+      const room = (pf.y - g - 40) * 2;
+      if (room < pf.size) {
+        // a little smaller is fine; a lone small ball over a hill is not
+        if (room < pf.size * 0.7) return;
+        pf.size = room;
+      }
+    }
+    p.push(pf);
   }
 
   /** A cumulonimbus: a column of cloud to ~9 km spreading into an anvil. */
@@ -480,13 +557,19 @@ export class CloudSystem {
       const rr = Math.pow(rng.float(), 0.6) * r;
       const drift = anvil * r0 * 1.2;
       const size = r0 * rng.range(0.45, 0.8) * (1 - anvil * 0.35);
-      p.push({
-        x: px + Math.cos(a) * rr + Math.cos(lean) * drift,
+      const x = px + Math.cos(a) * rr + Math.cos(lean) * drift;
+      const z = pz + Math.sin(a) * rr * (1 - anvil * 0.4) + Math.sin(lean) * drift;
+      this.pushPuff(p, {
+        x,
         y,
-        z: pz + Math.sin(a) * rr * (1 - anvil * 0.4) + Math.sin(lean) * drift,
+        z,
         size,
-        shade: (0.45 + 0.75 * t) * (1 - 0.3 * this.gloom * (1 - t)),
+        shade: (0.5 + 0.7 * t) * (1 - 0.3 * this.gloom * (1 - t)),
         rot: rng.range(0, Math.PI * 2),
+        base,
+        ox: (x - px) / (r * 1.2 + 1),
+        oy: (t - 0.5) * 1.6,
+        oz: (z - pz) / (r * 1.2 + 1),
       });
     }
   }
@@ -530,6 +613,9 @@ export class CloudSystem {
     if (this.sortTimer <= 0) {
       this.sortTimer = 0.2;
       this.sortAndUpload(cam);
+    } else if (this.sunSorted.distanceToSquared(this.env.sunDir) > 1e-4) {
+      // the sun moved (time warp, time of day): relight
+      this.sortAndUpload(cam);
     }
     const u = this.mat.uniforms;
     const e = this.env.uniformsForWater;
@@ -540,6 +626,7 @@ export class CloudSystem {
     const lit = 1.05 * (1 - 0.45 * gloom) + this.flash * 1.5;
     (u.sunColor.value as THREE.Color).copy(e.sunColor).multiplyScalar(lit);
     (u.shadowColor.value as THREE.Color).copy(e.horizon).multiplyScalar(0.72 * (1 - 0.5 * gloom) + this.flash);
+    (u.skyColor.value as THREE.Color).copy(e.zenith).lerp(e.horizon, 0.45).multiplyScalar(0.95 * (1 - 0.5 * gloom) + this.flash);
     this.updateDeck(cam, e, gloom);
     (u.sunDir.value as THREE.Vector3).copy(e.sunDir);
     this.cirrus.position.x = Math.round(cam.x / 20000) * 20000;
@@ -591,6 +678,7 @@ export class CloudSystem {
     this.origin.set(Math.round(cam.x / 1000) * 1000, 0, Math.round(cam.z / 1000) * 1000);
     const arr = this.visible;
     const hideAbove = this.deck.solid > 0.8 && cam.y < this.deck.base;
+    const sd = this.env.sunDir;
     // back to front: pack (distance in metres, index) into one number and let
     // the native numeric sort do the work (a comparator sort of 20k puffs stutters)
     const keys = this.sortKeys.length >= arr.length ? this.sortKeys.subarray(0, arr.length) : (this.sortKeys = new Float64Array(arr.length * 2)).subarray(0, arr.length);
@@ -612,14 +700,20 @@ export class CloudSystem {
       this.offsets[n * 3] = p.x - this.origin.x;
       this.offsets[n * 3 + 1] = p.y;
       this.offsets[n * 3 + 2] = p.z - this.origin.z;
-      this.params[n * 3] = p.size;
-      this.params[n * 3 + 1] = p.shade;
-      this.params[n * 3 + 2] = p.rot;
+      this.params[n * 4] = p.size;
+      this.params[n * 4 + 1] = p.shade;
+      this.params[n * 4 + 2] = p.rot;
+      // which side of its cloud the puff is on, as the sun sees it
+      const ol = Math.hypot(p.ox, p.oy, p.oz) || 1;
+      this.params[n * 4 + 3] = ((p.ox * sd.x + p.oy * sd.y + p.oz * sd.z) / ol) * Math.min(1, ol * 1.3);
+      this.bases[n] = p.base;
       n++;
     }
     this.geo.instanceCount = n;
+    this.sunSorted.copy(sd);
     this.mesh.position.copy(this.origin);
     (this.geo.attributes.iOffset as THREE.InstancedBufferAttribute).needsUpdate = true;
     (this.geo.attributes.iParams as THREE.InstancedBufferAttribute).needsUpdate = true;
+    (this.geo.attributes.iBase as THREE.InstancedBufferAttribute).needsUpdate = true;
   }
 }

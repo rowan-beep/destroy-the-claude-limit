@@ -176,8 +176,8 @@ export function getCloudPuffTexture(): THREE.Texture {
       const edge = r * (0.62 + 0.62 * nn + 0.18 * fine);
       let a = Math.exp(-edge * edge * 2.3) - 0.05;
       a = Math.max(0, Math.min(1, a * 1.3));
-      // fake self-shadowing: lit from above, darker underneath, cauliflower texture
-      const shade = 0.7 + 0.22 * (1 - (v * 0.5 + 0.5)) + 0.14 * (nn - 0.5) + 0.06 * (fine - 0.5);
+      // the cauliflower texture of the cloud (the lighting is done in the shader, from the sun)
+      const shade = 0.6 + 0.55 * (nn - 0.5) + 0.35 * (fine - 0.5);
       const i = (y * size + x) * 4;
       img.data[i] = Math.min(255, shade * 255);
       img.data[i + 1] = Math.min(255, shade * 255);
@@ -187,7 +187,8 @@ export function getCloudPuffTexture(): THREE.Texture {
   }
   g.putImageData(img, 0, 0);
   const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
+  // (data, not a colour)
+  tex.colorSpace = THREE.NoColorSpace;
   cloudPuff = tex;
   return tex;
 }
