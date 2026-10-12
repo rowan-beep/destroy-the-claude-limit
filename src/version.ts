@@ -42,6 +42,26 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.12.0',
+    date: '2026-10-12',
+    air: {
+      title: 'Jade Archipelago: real tropical islands',
+      notes: [
+        improved('Coral reefs and lagoons round every island',
+          'The big volcanic islands sit inside a barrier reef a kilometre or two offshore, with a wide turquoise lagoon between (like Bora Bora). The small islands have a reef close in.',
+          'Lagoons have white sand, seagrass and coral heads. Gaps in the reef open the lagoon to the sea, and the atolls are rings of reef with palm islets on them.'),
+        improved('The water is coloured by how deep it really is',
+          'Clear over the sand, turquoise in the lagoons, then azure off the reef edge and deep blue in the open sea.',
+          'Waves break white along the reef edge, and sunlight ripples on the sand in shallow water when you fly low.'),
+        improved('More realistic islands',
+          'The old volcanoes are cut by deep valleys with sharp ridges between them. The young ones have dark lava flows down their sides.',
+          'TUAHA and PINNA have taller limestone towers with sheer grey walls, vines hanging down them and jungle on top.',
+          'Fields and clearings on the coastal plains, darker forest in the valleys.'),
+        note('Runs as fast as before: no extra trees or detail to draw.'),
+      ],
+    },
+  },
+  {
     version: '7.11.1',
     date: '2026-10-12',
     air: {

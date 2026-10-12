@@ -23,8 +23,8 @@ const PATCH_R = 1500;
 const SEA_R = 1500000;
 
 /**
- * Water depth over the theater as sqrt(depth / 400 m) (0 = shore, 1 = 400 m or deeper): most
- * of the precision goes to the shallows. From the height grid, or the finer coastal map.
+ * Water depth over the theater (0 = shore, 1 = 400 m or deeper), from the height grid; or
+ * Jade's finer coastal map, which holds sqrt(depth / 400 m) so the shallows get the precision.
  */
 function depthTexture(grid: HeightGrid, fine: { data: Uint8Array; n: number } | null): THREE.DataTexture {
   let n = grid.n;
@@ -36,7 +36,7 @@ function depthTexture(grid: HeightGrid, fine: { data: Uint8Array; n: number } | 
     d = new Uint8Array(n * n);
     for (let i = 0; i < n * n; i++) {
       const h = grid.data[i];
-      d[i] = h >= 0 ? 0 : Math.round(Math.sqrt(Math.min(1, -h / 400)) * 255);
+      d[i] = h >= 0 ? 0 : Math.min(255, Math.round((-h / 400) * 255));
     }
   }
   const t = new THREE.DataTexture(d, n, n, THREE.RedFormat, THREE.UnsignedByteType);
@@ -132,8 +132,8 @@ void main() {
   // depth: 0 at the shore .. 1 at ~400 m and beyond (off the map = deep)
   vec2 duv = ( vWorldPos.xz + mapHalf ) / ( 2.0 * mapHalf );
   float dep = ( duv.x < 0.0 || duv.y < 0.0 || duv.x > 1.0 || duv.y > 1.0 ) ? 1.0 : texture2D( depthMap, duv ).r;
-  dep *= dep;
 #ifdef TROPIC
+  dep *= dep;
   // a tropical sea by depth: clear over the sand, turquoise lagoons, teal over the reef,
   // azure on the drop-off, sapphire in the deep
   float dm = dep * 400.0;
@@ -245,7 +245,8 @@ export class Ocean {
       depthWrite: true,
       fog: true,
     });
-    if (jade) this.mat.defines = { TROPIC: 1 };
+    // (the tropical sea reads Jade's coastal depth map: without one it keeps the plain look)
+    if (jade && fine) this.mat.defines = { TROPIC: 1 };
     this.mat.uniforms.normalMap.value = getWaterNormalTexture();
     Object.assign(this.mat.uniforms, TERRAIN_LIGHT);
     void u;
