@@ -131,8 +131,11 @@ void main() {
   #include <logdepthbuf_fragment>
   vec4 t = texture2D( map, vUv );
   // the rim torn into finer wisps by the cloud's own texture at a smaller scale
-  float wisp = texture2D( map, vUv * 2.3 + vec2( vSeed, vSeed * 1.7 ) ).r;
-  float a = t.a * smoothstep( 0.0, 0.55, t.a + ( wisp - 0.62 ) * 0.7 * ( 1.0 - t.a ) );
+  float a = t.a;
+  if ( t.a < 0.85 ) {
+    float wisp = texture2D( map, vUv * 2.3 + vec2( vSeed, vSeed * 1.7 ) ).r;
+    a *= smoothstep( 0.0, 0.55, t.a + ( wisp - 0.62 ) * 0.7 * ( 1.0 - t.a ) );
+  }
   // a cumulus has a flat base where the rising air reaches its condensation level
   a *= smoothstep( vBase - 50.0, vBase + 70.0, vWorldY );
   a *= opacity * vFade;

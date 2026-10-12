@@ -246,7 +246,22 @@ vec4 triSample( sampler2D t, vec3 p, vec3 w, float s ) {
 }
 #else
 vec4 triSample( sampler2D t, vec3 p, vec3 w, float s ) {
-  return texture2D( t, p.xz / s ) * w.y + texture2D( t, p.zy / s ) * w.x + texture2D( t, p.xy / s ) * w.z;
+  // the side projections only where they count: on flat and gently sloping ground (most of it)
+  // their weight is next to nothing, and skipping them saves two of every three lookups.
+  // (the gradients are taken outside the branches, so the mip level stays right at their edges)
+  vec2 a = p.xz / s, b = p.zy / s, c = p.xy / s;
+  vec2 bx = dFdx( b ), by = dFdy( b ), cx = dFdx( c ), cy = dFdy( c );
+  vec4 r = texture2D( t, a ) * w.y;
+  float sum = w.y;
+  if ( w.x > 0.03 ) {
+    r += textureGrad( t, b, bx, by ) * w.x;
+    sum += w.x;
+  }
+  if ( w.z > 0.03 ) {
+    r += textureGrad( t, c, cx, cy ) * w.z;
+    sum += w.z;
+  }
+  return r / max( sum, 1e-4 );
 }
 #endif
 `;

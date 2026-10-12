@@ -37,6 +37,11 @@ const KEEP_ALL = 600;
 const VIEW_MARGIN = 0.45;
 /** rebuild once the view has turned this far since the last one (rad) */
 const TURN_REBUILD = 0.2;
+/**
+ * Distance rings the trees are drawn in, nearest first: a crown hidden behind a nearer one is then
+ * thrown away by the depth test before it is shaded (looking across a forest, most of them are).
+ */
+const RINGS = 32;
 
 interface Cell {
   i: number;
@@ -137,6 +142,11 @@ export class TreeSystem {
   private tinted = false;
   /** share of the near range drawn in full detail (Jade's crowns are bigger and richer: a little less of it) */
   private detailShare = DETAIL_SHARE;
+  /** the trees to draw this time round (cell, tree, mesh slot, distance ring), sorted nearest first */
+  private vis = { cell: new Uint16Array(65536), tree: new Uint32Array(65536), slot: new Uint8Array(65536), ring: new Uint8Array(65536) };
+  private order = new Uint32Array(65536);
+  private ringCount = new Uint32Array(KINDS * 2 * RINGS);
+  private cellList: Cell[] = [];
   private nearR = 2600;
   private farR = 7000;
   private origin = new THREE.Vector3();
@@ -194,6 +204,9 @@ export class TreeSystem {
         }
         im.receiveShadow = true;
         im.castShadow = false;
+        // before the ground: the ground hidden behind the crowns (its shader is the costliest) is then
+        // skipped by the depth test instead of shaded and painted over
+        im.renderOrder = -1;
         im.name = 'trees';
         scene.add(im);
         this.meshes.push(im);
@@ -308,6 +321,14 @@ export class TreeSystem {
     const fx = Math.sin(v.heading), fz = Math.cos(v.heading);
     const cosHalf = Math.cos(v.half);
     const keep2 = KEEP_ALL * KEEP_ALL;
+    // 1. which trees, in which mesh and distance ring
+    const vis = this.vis;
+    const cells = this.cellList;
+    cells.length = 0;
+    let n = 0;
+    const ringK = RINGS / this.farR;
+    const rc = this.ringCount;
+    rc.fill(0);
     for (const c of this.cells.values()) {
       if (c.state !== 'ready' || !c.data || c.count === 0) continue;
       const dx = Math.max(0, Math.abs(cam.x - c.cx) - CELL / 2);
@@ -319,9 +340,9 @@ export class TreeSystem {
         const cl = Math.hypot(ccx, ccz);
         if (cl > CELL * 0.75 + KEEP_ALL && (ccx * fx + ccz * fz) / cl < Math.cos(Math.min(Math.PI, v.half + Math.asin(Math.min(1, (CELL * 0.75) / cl))))) continue;
       }
+      const ci = cells.length;
+      cells.push(c);
       const d = c.data;
-      const ox = c.cx - this.origin.x;
-      const oz = c.cz - this.origin.z;
       for (let t = 0; t < c.count; t++) {
         const b = t * TREE_STRIDE;
         const x = d[b] + c.cx, z = d[b + 2] + c.cz;
@@ -332,22 +353,54 @@ export class TreeSystem {
         const kind = d[b + 5] | 0;
         const isNear = dd < detail2;
         if (dd >= near2 && d[b + 6] > FAR_FRACTION) continue;
-        const im = isNear ? this.near[kind] : this.far[kind];
-        if (!im) continue;
-        const counts = isNear ? nCount : fCount;
-        const idx = counts[kind];
-        if (idx >= (isNear ? NEAR_CAP : FAR_CAP)) continue;
-        counts[kind]++;
-        const s = d[b + 3] * (isNear ? 1 : dd < near2 ? 1.05 : 1.15);
-        const rot = d[b + 4];
-        const cs = Math.cos(rot) * s, sn = Math.sin(rot) * s;
-        e[0] = cs; e[1] = 0; e[2] = -sn; e[3] = 0;
-        e[4] = 0; e[5] = s; e[6] = 0; e[7] = 0;
-        e[8] = sn; e[9] = 0; e[10] = cs; e[11] = 0;
-        e[12] = d[b] + ox; e[13] = d[b + 1]; e[14] = d[b + 2] + oz; e[15] = 1;
-        im.instanceMatrix.array.set(e, idx * 16);
-        if (this.tinted && im.instanceColor) tropicTint(kind, rot, d[b + 6], im.instanceColor.array as Float32Array, idx * 3);
+        if (!(isNear ? this.near[kind] : this.far[kind])) continue;
+        if (n === vis.cell.length) this.growVis();
+        const slot = kind * 2 + (isNear ? 0 : 1);
+        const ring = Math.min(RINGS - 1, (Math.sqrt(dd) * ringK) | 0);
+        vis.cell[n] = ci;
+        vis.tree[n] = t;
+        vis.slot[n] = slot;
+        vis.ring[n] = ring;
+        rc[slot * RINGS + ring]++;
+        n++;
       }
+    }
+    // 2. nearest first within each mesh (a counting sort by ring)
+    let acc = 0;
+    for (let k = 0; k < rc.length; k++) {
+      const c = rc[k];
+      rc[k] = acc;
+      acc += c;
+    }
+    if (this.order.length < n) this.order = new Uint32Array(vis.cell.length);
+    const order = this.order;
+    for (let i = 0; i < n; i++) order[rc[vis.slot[i] * RINGS + vis.ring[i]]++] = i;
+    // 3. write them out in that order
+    for (let o = 0; o < n; o++) {
+      const i = order[o];
+      const c = cells[vis.cell[i]];
+      const d = c.data!;
+      const b = vis.tree[i] * TREE_STRIDE;
+      const slot = vis.slot[i];
+      const kind = slot >> 1;
+      const isNear = (slot & 1) === 0;
+      const im = (isNear ? this.near[kind] : this.far[kind])!;
+      const counts = isNear ? nCount : fCount;
+      const idx = counts[kind];
+      // (over the cap the farthest go, not just any)
+      if (idx >= (isNear ? NEAR_CAP : FAR_CAP)) continue;
+      counts[kind]++;
+      const ddx = d[b] + c.cx - cam.x, ddz = d[b + 2] + c.cz - cam.z;
+      const dd = ddx * ddx + ddz * ddz;
+      const s = d[b + 3] * (isNear ? 1 : dd < near2 ? 1.05 : 1.15);
+      const rot = d[b + 4];
+      const cs = Math.cos(rot) * s, sn = Math.sin(rot) * s;
+      e[0] = cs; e[1] = 0; e[2] = -sn; e[3] = 0;
+      e[4] = 0; e[5] = s; e[6] = 0; e[7] = 0;
+      e[8] = sn; e[9] = 0; e[10] = cs; e[11] = 0;
+      e[12] = d[b] + c.cx - this.origin.x; e[13] = d[b + 1]; e[14] = d[b + 2] + c.cz - this.origin.z; e[15] = 1;
+      im.instanceMatrix.array.set(e, idx * 16);
+      if (this.tinted && im.instanceColor) tropicTint(kind, rot, d[b + 6], im.instanceColor.array as Float32Array, idx * 3);
     }
     for (let k = 0; k < KINDS; k++) {
       for (const [im, cnt] of [
@@ -369,6 +422,20 @@ export class TreeSystem {
         }
       }
     }
+  }
+
+  private growVis(): void {
+    const v = this.vis;
+    const m = v.cell.length * 2;
+    const grow = <T extends Uint8Array | Uint16Array | Uint32Array>(a: T, make: (n: number) => T): T => {
+      const b = make(m);
+      b.set(a);
+      return b;
+    };
+    v.cell = grow(v.cell, (k) => new Uint16Array(k));
+    v.tree = grow(v.tree, (k) => new Uint32Array(k));
+    v.slot = grow(v.slot, (k) => new Uint8Array(k));
+    v.ring = grow(v.ring, (k) => new Uint8Array(k));
   }
 
   get stats(): { cells: number; near: number; far: number } {

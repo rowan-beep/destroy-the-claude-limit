@@ -173,11 +173,14 @@ void main() {
   vec3 col = mix( body, sky, fresnel * 0.8 ) + spec;
 #ifdef TROPIC
   // surf: white water where the swell breaks on the reef crest, and a thin wash along the beaches
-  float surfN = texture2D( normalMap, uv / 47.0 + vec2( 0.013, -0.009 ) * time ).b;
-  float surfN2 = texture2D( normalMap, uv / 160.0 - vec2( 0.006, 0.004 ) * time ).r;
+  // (only where the water is that shallow: the open sea skips the two lookups)
   float surf = smoothstep( 1.35, 0.45, dm ) * smoothstep( 0.02, 0.15, dm );
-  surf *= smoothstep( 0.35, 0.75, surfN * 0.6 + surfN2 * 0.6 + 0.12 * sin( time * 0.9 + surfN2 * 9.0 ) );
-  col = mix( col, vec3( 0.92, 0.95, 0.96 ) * ( 0.55 + 0.45 * shade ) * sunLit, surf * 0.85 );
+  if ( surf > 0.0 ) {
+    float surfN = texture2D( normalMap, uv / 47.0 + vec2( 0.013, -0.009 ) * time ).b;
+    float surfN2 = texture2D( normalMap, uv / 160.0 - vec2( 0.006, 0.004 ) * time ).r;
+    surf *= smoothstep( 0.35, 0.75, surfN * 0.6 + surfN2 * 0.6 + 0.12 * sin( time * 0.9 + surfN2 * 9.0 ) );
+    col = mix( col, vec3( 0.92, 0.95, 0.96 ) * ( 0.55 + 0.45 * shade ) * sunLit, surf * 0.85 );
+  }
 #endif
 #ifdef WAVES
   // white caps on the steepest crests
