@@ -8,6 +8,11 @@ import {
 
 const utc = (s: string) => Date.parse(s);
 
+// the pilots below are made in the week of 5 October 2026; anything that reads the clock reads a
+// moment in that same week (the real clock moving on into the next ranked week must not change them)
+const NOW = utc('2026-10-08T20:00:00Z');
+Date.now = () => NOW;
+
 /** a pilot who has finished this week's placements at `rp`, hidden skill `mmr` */
 function placed(rp: number, mmr = rp, now = utc('2026-10-07T20:00:00Z')): RankedState {
   const s = newRankedState(now);

@@ -4,6 +4,15 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
+## v7.12.1 (2026-10-12)
+
+### Air Combat: Smoother flying low to the ground
+
+- **Fixed: Less lag close to the ground, on every map**
+  - The ground does about a third of the texture work it did on flat and gently sloping land, which is most of what fills the screen down low.
+  - Trees are drawn nearest first and before the ground, so whatever they hide is skipped instead of drawn and then covered up.
+  - The surf on the reefs and the torn edges of the clouds are only worked out where they actually show.
+
 ## v7.12.0 (2026-10-12)
 
 ### Air Combat: Jade Archipelago: real tropical islands, and better clouds

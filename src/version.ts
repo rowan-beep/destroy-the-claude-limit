@@ -42,6 +42,19 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.12.1',
+    date: '2026-10-12',
+    air: {
+      title: 'Smoother flying low to the ground',
+      notes: [
+        fixed('Less lag close to the ground, on every map',
+          'The ground does about a third of the texture work it did on flat and gently sloping land, which is most of what fills the screen down low.',
+          'Trees are drawn nearest first and before the ground, so whatever they hide is skipped instead of drawn and then covered up.',
+          'The surf on the reefs and the torn edges of the clouds are only worked out where they actually show.'),
+      ],
+    },
+  },
+  {
     version: '7.12.0',
     date: '2026-10-12',
     air: {
