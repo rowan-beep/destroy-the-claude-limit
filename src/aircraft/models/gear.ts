@@ -21,13 +21,25 @@
 
 import * as THREE from 'three';
 import type { AirframeVisual, GearLeg } from './visual';
-import { join, strip, roundBox, rod, lathe, P2 } from './kit';
+import { join, strip, roundBox, rod, tube, lathe, P2 } from './kit';
 import { partMaterials } from './parts';
 
 export interface GearSpec {
-  nose: { top: THREE.Vector3; axle: THREE.Vector3; r: number; w: number; twin: boolean; retract: 'forward' | 'aft'; launchBar?: boolean; /** false: no bay doors */ doors?: boolean };
-  mains: { top: THREE.Vector3; axle: THREE.Vector3; r: number; w: number; retract: 'forward' | 'aft' | 'inward'; outboard: number; trailing?: boolean };
+  nose: {
+    top: THREE.Vector3; axle: THREE.Vector3; r: number; w: number; twin: boolean; retract: 'forward' | 'aft'; launchBar?: boolean; /** false: no bay doors */ doors?: boolean;
+    /** a wide panel down the front of the strut (w across, h down the leg) carrying the landing light with the taxi light under it (F-15) */
+    panel?: { w: number; h: number };
+    /** 'half': one curved arm down the side of a single wheel from a collar at the oleo's foot (F-15) */
+    fork?: 'half';
+  };
+  mains: {
+    top: THREE.Vector3; axle: THREE.Vector3; r: number; w: number; retract: 'forward' | 'aft' | 'inward'; outboard: number; trailing?: boolean;
+    /** a heavier leg: the yoke at the top, a side brace to the airframe inboard, the axle knuckle down beside the wheel (F-15) */
+    heavy?: boolean;
+  };
   doorColor: string;
+  /** the legs' paint (default: bare light metal) */
+  strutColor?: string;
   /** the doors' inner faces (white on most jets, the F-15's nose doors carry the jet's number) */
   inner?: { noseDoor?: THREE.Material; mainDoor?: THREE.Material; legDoor?: THREE.Material };
 }
@@ -217,6 +229,11 @@ interface LegOptions {
   launchBar: boolean;
   door: { color: THREE.Material; inner?: THREE.Material } | null;
   trailing: boolean;
+  /** the legs' paint */
+  paint: THREE.Material;
+  panel: { w: number; h: number } | null;
+  halfFork: boolean;
+  heavy: boolean;
 }
 
 function buildLeg(v: AirframeVisual, o: LegOptions): void {
@@ -232,9 +249,11 @@ function buildLeg(v: AirframeVisual, o: LegOptions): void {
     parent.add(x);
     return x;
   };
+  const P = o.paint;
   const A = o.axle.clone().sub(top);
-  // the strut's bottom: just above the axle line (inboard of the wheel on a main leg)
-  const S = A.clone().add(V(o.strutX, o.r * 0.22, 0));
+  // the strut's bottom: just above the axle line (inboard of the wheel on a main leg); with a half
+  // fork, the collar just above the tyre
+  const S = A.clone().add(V(o.strutX, o.r * (o.halfFork ? 1.25 : 0.22), 0));
   const L = S.length();
   const dir = S.clone().normalize();
   const fwd = V(0, 0, -1).addScaledVector(dir, dir.z).normalize();
@@ -253,11 +272,20 @@ function buildLeg(v: AirframeVisual, o: LegOptions): void {
   const qJack = dir.clone().multiplyScalar(L * 0.2).addScaledVector(o.braceDir, rO * 0.9).add(V(o.side ? -o.side * 0.1 : 0.1, 0, 0));
   for (const q of [qBrace, qJack]) fixed.push(strip(roundBox(0.06, 0.08, 0.06, 0.012).translate(q.x, q.y, q.z)));
   if (o.nose) {
-    // the steering collar: a deeper ring with the steering actuators each side
+    // the steering collar: a deeper ring with the steering actuators each side (behind the leg when a
+    // panel covers its front)
     fixed.push(rod(C.clone().addScaledVector(dir, -0.16), C.clone().addScaledVector(dir, -0.06), rO * 1.35, rO * 1.35, 16));
-    for (const sx of [-1, 1]) fixed.push(rod(C.clone().addScaledVector(dir, -0.11).add(V(sx * rO * 1.3, 0, 0)), C.clone().addScaledVector(dir, -0.11).add(V(sx * rO * 1.3, 0, -0.18)), rO * 0.3, rO * 0.3, 8));
+    const az = o.panel ? 0.18 : -0.18;
+    for (const sx of [-1, 1]) fixed.push(rod(C.clone().addScaledVector(dir, -0.11).add(V(sx * rO * 1.3, 0, 0)), C.clone().addScaledVector(dir, -0.11).add(V(sx * rO * 1.3, 0, az)), rO * 0.3, rO * 0.3, 8));
   }
-  mesh(join(fixed), M.strut, pivot);
+  if (o.heavy) {
+    // the yoke the leg hangs from: wider than the cylinder, its side-brace lug inboard
+    const y = dir.clone().multiplyScalar(L * 0.12);
+    fixed.push(strip(roundBox(rO * 2.7, L * 0.24, rO * 2.3, rO * 0.35).applyQuaternion(new THREE.Quaternion().setFromUnitVectors(UP, dir)).translate(y.x, y.y, y.z)));
+    const q = dir.clone().multiplyScalar(L * 0.5).add(V(-o.side * rO * 1.05, 0, 0));
+    fixed.push(strip(roundBox(0.07, 0.09, 0.07, 0.014).translate(q.x, q.y, q.z)));
+  }
+  mesh(join(fixed), P, pivot);
   // brake (or, on the nose, the light wiring) line down the back of the cylinder
   {
     const back = V(0, 0, 1).addScaledVector(dir, -dir.z).normalize().multiplyScalar(rO * 1.08);
@@ -265,7 +293,41 @@ function buildLeg(v: AirframeVisual, o: LegOptions): void {
     pts[0].addScaledVector(back, 0.6);
     mesh(strip(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 16, 0.009, 6, false)), M.hose, pivot);
   }
-  if (o.lights) {
+  if (o.panel) {
+    // the panel down the front of the strut (F-15): built facing forward with the leg's line down -y,
+    // then stood along the leg; two slots in its upper half, the round landing light below them and
+    // the taxi light at its foot, tipped down
+    const { w, h } = o.panel;
+    const qLeg = new THREE.Quaternion().setFromUnitVectors(V(0, -1, 0), dir);
+    const c = dir.clone().multiplyScalar(0.03 + h / 2).addScaledVector(fwd, rO + 0.05);
+    const put = (g: THREE.BufferGeometry) => g.applyQuaternion(qLeg).translate(c.x, c.y, c.z);
+    const t = 0.024;
+    mesh(put(strip(roundBox(w, h, t, 0.008))), P, pivot);
+    const dark: THREE.BufferGeometry[] = [];
+    for (const sx of [-1, 1]) dark.push(strip(roundBox(0.04, h * 0.32, 0.01, 0.004).translate(sx * w * 0.2, h * 0.14, -t / 2)));
+    const lamps: THREE.BufferGeometry[] = [];
+    const ring: THREE.BufferGeometry[] = [];
+    const lamp = (y: number, r: number, tilt: number) => {
+      const a = V(0, y, -t / 2);
+      const n = V(0, -Math.sin(tilt), -Math.cos(tilt));
+      // the can, its bezel and the glass
+      dark.push(rod(a.clone().addScaledVector(n, -0.005), a.clone().addScaledVector(n, 0.05), r * 1.08, r * 1.08, 20));
+      ring.push(rod(a.clone().addScaledVector(n, 0.045), a.clone().addScaledVector(n, 0.062), r * 1.2, r * 1.2, 20, false));
+      const b = a.clone().addScaledVector(n, 0.062);
+      ring.push(strip(new THREE.TorusGeometry(r * 1.1, 0.011, 6, 24).applyQuaternion(new THREE.Quaternion().setFromUnitVectors(V(0, 0, 1), n)).translate(b.x, b.y, b.z)));
+      // the glass: a shallow dome
+      const glass = new THREE.SphereGeometry(r * 2.2, 20, 4, 0, Math.PI * 2, 0, Math.asin(1 / 2.2));
+      glass.translate(0, -Math.sqrt(4.84 - 1) * r, 0);
+      glass.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(UP, n));
+      const g = a.clone().addScaledVector(n, 0.05);
+      lamps.push(strip(glass.translate(g.x, g.y, g.z)));
+    };
+    lamp(-h * 0.18, Math.min(0.075, w * 0.2), 0);
+    lamp(-h * 0.5 - 0.005, Math.min(0.055, w * 0.15), 0.5);
+    mesh(put(join(dark)), M.dark, pivot);
+    mesh(put(join(ring)), P, pivot);
+    mesh(put(join(lamps)), M.lens, pivot);
+  } else if (o.lights) {
     // the landing and taxi lights, side by side on a bracket on the front of the strut
     const at = C.clone().addScaledVector(dir, -0.24).addScaledVector(fwd, rO * 1.4);
     const housing: THREE.BufferGeometry[] = [strip(roundBox(0.2, 0.09, 0.08, 0.02).translate(at.x, at.y, at.z + 0.01))];
@@ -305,9 +367,19 @@ function buildLeg(v: AirframeVisual, o: LegOptions): void {
   const low = steer ?? lower;
   mesh(rod(C.clone().addScaledVector(dir, -0.12), S.clone().addScaledVector(dir, -0.02), rO * 0.7, rO * 0.7, 16), M.chrome, low);
   // the axle fitting at the bottom of the oleo, the fork or axle stubs out to the wheels
-  const fit: THREE.BufferGeometry[] = [strip(roundBox(rO * 2.2, rO * 1.6, rO * 2.0, rO * 0.4).applyQuaternion(new THREE.Quaternion().setFromUnitVectors(UP, dir)).translate(S.x, S.y, S.z))];
+  const fit: THREE.BufferGeometry[] = [];
+  if (!o.halfFork) fit.push(strip(roundBox(rO * 2.2, rO * 1.6, rO * 2.0, rO * 0.4).applyQuaternion(new THREE.Quaternion().setFromUnitVectors(UP, dir)).translate(S.x, S.y, S.z)));
   const wheelC = o.wheelX.map((x) => A.clone().add(V(x, 0, 0)));
-  if (o.nose && o.wheelX.length === 1) {
+  if (o.halfFork) {
+    // a half fork (F-15): a collar at the oleo's foot, one arm out and down round the tyre's shoulder
+    // on the jet's left (-x), the axle held from its end only
+    const ex = -(o.w / 2 + 0.045);
+    const sg = Math.sign(ex);
+    fit.push(rod(S.clone().addScaledVector(dir, -0.05), S.clone().addScaledVector(dir, 0.035), rO * 1.3, rO * 1.3, 16));
+    fit.push(tube([S.clone().add(V(sg * rO * 0.8, -0.01, 0)), S.clone().add(V(ex * 0.9, -0.035, 0)), A.clone().add(V(ex + sg * 0.03, o.r * 0.7, 0)), A.clone().add(V(ex + sg * 0.02, o.r * 0.3, 0)), A.clone().add(V(ex, 0, 0))], 0.03, 8, 20));
+    fit.push(rod(A.clone().add(V(ex + sg * 0.035, 0, 0)), A.clone().add(V(ex - sg * 0.03, 0, 0)), 0.048, 0.048, 14));
+    fit.push(rod(A.clone().add(V(ex, 0, 0)), A.clone().add(V(-sg * (o.w / 2 - 0.03), 0, 0)), 0.026, 0.026, 10));
+  } else if (o.nose && o.wheelX.length === 1) {
     // a single nose wheel in a fork: two arms either side of it from the fitting
     for (const sx of [-1, 1]) {
       const arm = V(sx * (o.w / 2 + 0.035), 0, 0);
@@ -324,13 +396,18 @@ function buildLeg(v: AirframeVisual, o: LegOptions): void {
     const xs = [...o.wheelX, o.strutX];
     fit.push(rod(A.clone().add(V(Math.min(...xs) - 0.02, 0, 0)), A.clone().add(V(Math.max(...xs) + 0.02, 0, 0)), 0.045, 0.045, 10));
     fit.push(rod(S, A.clone().add(V(o.strutX, 0, 0)), rO * 0.6, rO * 0.6, 10));
+    if (o.heavy) {
+      // the axle knuckle: the leg's foot carried on down beside the wheel past the axle
+      const k = A.clone().add(V(o.strutX, 0, 0));
+      fit.push(strip(roundBox(rO * 1.25, S.y - k.y + o.r * 0.3, rO * 1.6, rO * 0.4).translate(k.x, (S.y + k.y - o.r * 0.3) / 2, k.z)));
+    }
   }
   if (o.launchBar) fit.push(rod(A.clone().add(V(0, o.r * 1.3, -0.12)), A.clone().add(V(0, o.r * 1.45, -0.8)), 0.03, 0.025, 6));
-  mesh(join(fit), M.strut, low);
+  mesh(join(fit), P, low);
   const wheels: THREE.Object3D[] = [];
   wheelC.forEach((c, i) => {
     // the brake faces the leg: inboard for a main wheel outside its leg, inward for twin nose wheels
-    const side = o.wheelX.length === 2 ? (i === 0 ? 1 : -1) : o.side ? -o.side : 1;
+    const side = o.wheelX.length === 2 ? (i === 0 ? 1 : -1) : o.side ? -o.side : o.halfFork ? -1 : 1;
     const wg = gearWheel(o.r, o.w, side);
     const g = new THREE.Group();
     g.position.copy(c);
@@ -343,13 +420,15 @@ function buildLeg(v: AirframeVisual, o: LegOptions): void {
     wheels.push(g);
   });
 
-  // --- torque links on the front of the strut, from the gland nut to the axle fitting
-  const la = C.clone().addScaledVector(dir, -0.03).addScaledVector(fwd, rO * 1.15);
-  const lb = S.clone().addScaledVector(dir, -rO * 0.6).addScaledVector(fwd, rO * 1.15);
+  // --- torque links on the front of the strut (the back, behind a panel), from the gland nut to the
+  // axle fitting
+  const lf = o.panel ? fwd.clone().negate() : fwd;
+  const la = C.clone().addScaledVector(dir, -0.03).addScaledVector(lf, rO * 1.15);
+  const lb = S.clone().addScaledVector(dir, -rO * 0.6).addScaledVector(lf, rO * 1.15);
   const half = la.distanceTo(lb) / 2;
-  const lu = mesh(unitLink(rO * 0.9, 0.025), M.strut, pivot);
-  const ll = mesh(unitLink(rO * 0.9, 0.025), M.strut, pivot);
-  const links = { upper: lu, lower: ll, a: la, b: lb, l1: half * 1.12, l2: half * 1.12, pole: fwd.clone() };
+  const lu = mesh(unitLink(rO * 0.9, 0.025), P, pivot);
+  const ll = mesh(unitLink(rO * 0.9, 0.025), P, pivot);
+  const links = { upper: lu, lower: ll, a: la, b: lb, l1: half * 1.12, l2: half * 1.12, pole: lf.clone() };
 
   // --- the drag brace and the retraction jack: from the airframe to the leg
   const braces: LegRig['braces'] = [];
@@ -358,10 +437,20 @@ function buildLeg(v: AirframeVisual, o: LegOptions): void {
   {
     const qb = qBrace.clone().add(top);
     const d0 = pB.distanceTo(qb);
-    const m1 = mesh(unitRod(rO * 0.42, 10), M.strut, v.body);
-    const m2 = mesh(unitRod(rO * 0.42, 10), M.strut, v.body);
+    const m1 = mesh(unitRod(rO * 0.42, 10), P, v.body);
+    const m2 = mesh(unitRod(rO * 0.42, 10), P, v.body);
     // (dead straight with the gear down: the brace locks over centre; it folds up into the bay)
     braces.push({ kind: 'fold', m1, m2, p: pB, q: qBrace, l1: d0 * 0.5, l2: d0 * 0.5 + 0.002, pole: V(0, 1, 0).addScaledVector(o.braceDir, -0.3).normalize() });
+  }
+  if (o.heavy) {
+    // the side brace: from the airframe inboard of the trunnion, on the hinge line (so it swings with
+    // the leg without folding much), to the lug half way down the leg
+    const q = dir.clone().multiplyScalar(L * 0.5).add(V(-o.side * rO * 1.05, 0, 0));
+    const p = top.clone().add(V(-o.side * Math.max(0.4, L * 0.38), 0.02, 0));
+    const d0 = p.distanceTo(q.clone().add(top));
+    const m1 = mesh(unitRod(rO * 0.4, 10), P, v.body);
+    const m2 = mesh(unitRod(rO * 0.4, 10), P, v.body);
+    braces.push({ kind: 'fold', m1, m2, p, q, l1: d0 * 0.5, l2: d0 * 0.5 + 0.002, pole: V(0, 1, 0) });
   }
   {
     const qj = qJack.clone().add(top);
@@ -440,6 +529,7 @@ function swing(top: THREE.Vector3, axle: THREE.Vector3, dir: 'forward' | 'aft' |
 /** Detailed tricycle gear: legs, wheels, braces, doors and wells, sequenced (see updateGear). */
 export function buildGearSet(v: AirframeVisual, g: GearSpec): void {
   const doorMat = new THREE.MeshStandardMaterial({ color: g.doorColor, roughness: 0.6, metalness: 0.2 });
+  const paint = g.strutColor ? new THREE.MeshStandardMaterial({ color: g.strutColor, roughness: 0.5, metalness: 0.3 }) : gearMats().strut;
   // --- nose
   {
     const n = g.nose;
@@ -464,6 +554,10 @@ export function buildGearSet(v: AirframeVisual, g: GearSpec): void {
       // (the bay doors close the nose bay: no door on the strut itself)
       door: null,
       trailing: false,
+      paint,
+      panel: n.panel ?? null,
+      halfFork: n.fork === 'half' && !twin,
+      heavy: false,
     });
     if (n.doors !== false) {
       // two long doors either side of the bay, along the leg's path, hinged at the bay's edges
@@ -503,6 +597,10 @@ export function buildGearSet(v: AirframeVisual, g: GearSpec): void {
       launchBar: false,
       door: { color: doorMat, inner: g.inner?.legDoor },
       trailing: !!m.trailing,
+      paint,
+      panel: null,
+      halfFork: false,
+      heavy: !!m.heavy && !m.trailing,
     });
     // the bay door, beside the bay along the leg's path, and the well under it
     const L = top.distanceTo(axle) + m.r;

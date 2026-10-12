@@ -1979,10 +1979,13 @@ export function buildF15EX(v: AirframeVisual): void {
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
   const white = new THREE.MeshStandardMaterial({ color: 0xdfe0dd, roughness: 0.6, metalness: 0.05 });
+  // the real tyres: 22 x 7.75 on the nose, 36 x 11 on the mains; the nose leg's wide panel with the
+  // landing and taxi lights one above the other, its wheel on a half fork; heavy painted main legs
   buildGearSet(v, {
-    nose: { top: noseTop, axle: new THREE.Vector3(0, -2.05 + 0.33, -4.25), r: 0.33, w: 0.19, twin: false, retract: 'forward' },
-    mains: { top: new THREE.Vector3(1.3, -0.78, 0.8), axle: new THREE.Vector3(1.42, -2.05 + 0.43, 1.2), r: 0.43, w: 0.27, retract: 'forward', outboard: 0.12 },
+    nose: { top: noseTop, axle: new THREE.Vector3(0, -2.05 + 0.28, -4.25), r: 0.28, w: 0.2, twin: false, retract: 'forward', panel: { w: 0.38, h: 0.7 }, fork: 'half' },
+    mains: { top: new THREE.Vector3(1.3, -0.78, 0.8), axle: new THREE.Vector3(1.42, -2.05 + 0.457, 1.2), r: 0.457, w: 0.28, retract: 'forward', outboard: 0.03, heavy: true },
     doorColor: '#41464b',
+    strutColor: '#a4a9ad',
     inner: { noseDoor: new THREE.MeshStandardMaterial({ map: tex, roughness: 0.62, metalness: 0.05 }), mainDoor: white, legDoor: white },
   });
 
