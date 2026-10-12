@@ -12,6 +12,10 @@ game change ships there and nowhere else:
   key, the multiplayer server). `.github/workflows/deploy.yml` also builds the
   GitHub Pages copy. A setting the game needs must be in both.
 - After a push, check the live site (https://www.triad.church) shows the change.
+  If it doesn't, look at https://www.vercel-status.com: during a Vercel outage a
+  push to `main` can be dropped (no Production deployment appears for the commit
+  on GitHub). The next push to `main` deploys everything, or the owner can
+  redeploy from the Vercel dashboard.
 
 **Leave the claude.ai artifact alone** (https://claude.ai/artifact/QSftNhcw3JkQfNKzsLVaHM):
 the owner said not to update it any more. Don't build or publish it unless the
