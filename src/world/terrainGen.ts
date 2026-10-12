@@ -1,7 +1,7 @@
 // Pure chunk / tree / grid builders. Runs inside the terrain workers, and on
 // the main thread as a fallback when workers are unavailable.
 
-import { terrainInfo, surfaceColor, treeDensity, treeKind, TerrainInfo, terrainHeight } from './terrain';
+import { terrainInfo, surfaceColor, treeDensity, treeKind, treeScale, TerrainInfo, terrainHeight } from './terrain';
 import { computeGridRows, GRID_SPACING } from './heightGrid';
 import { MAP_HALF } from '../core/constants';
 import { hash2f } from '../core/rng';
@@ -83,7 +83,7 @@ export type GenResult = ChunkResult | TreeResult | GridResult | ShoreResult;
 export const TREE_STRIDE = 7;
 
 const info: TerrainInfo = { h: 0, island: null, inland: 0, field: 0 };
-const col = { r: 0, g: 0, b: 0 };
+const col = { r: 0, g: 0, b: 0, f: 0 };
 
 export function buildChunk(req: ChunkRequest): ChunkResult {
   const { cx, cz, size, res, skirt } = req;
@@ -105,7 +105,8 @@ export function buildChunk(req: ChunkRequest): ChunkResult {
   const total = vN * vN + skirtCount;
   const positions = new Float32Array(total * 3);
   const normals = new Float32Array(total * 3);
-  const colors = new Uint8Array(total * 3);
+  // RGB, and A: how much of the ground lies under trees (the forest floor's shade)
+  const colors = new Uint8Array(total * 4);
   let minH = Infinity, maxH = -Infinity;
 
   for (let j = 0; j < vN; j++) {
@@ -136,9 +137,11 @@ export function buildChunk(req: ChunkRequest): ChunkResult {
       normals[k] = nx;
       normals[k + 1] = ny;
       normals[k + 2] = nz;
-      colors[k] = Math.min(255, col.r * 255);
-      colors[k + 1] = Math.min(255, col.g * 255);
-      colors[k + 2] = Math.min(255, col.b * 255);
+      const kc = (j * vN + i) * 4;
+      colors[kc] = Math.min(255, col.r * 255);
+      colors[kc + 1] = Math.min(255, col.g * 255);
+      colors[kc + 2] = Math.min(255, col.b * 255);
+      colors[kc + 3] = Math.min(255, (col.f ?? 0) * 255);
     }
   }
 
@@ -153,9 +156,11 @@ export function buildChunk(req: ChunkRequest): ChunkResult {
     normals[dst] = normals[src];
     normals[dst + 1] = normals[src + 1];
     normals[dst + 2] = normals[src + 2];
-    colors[dst] = colors[src];
-    colors[dst + 1] = colors[src + 1];
-    colors[dst + 2] = colors[src + 2];
+    const cs = (src / 3) * 4, cd = (dst / 3) * 4;
+    colors[cd] = colors[cs];
+    colors[cd + 1] = colors[cs + 1];
+    colors[cd + 2] = colors[cs + 2];
+    colors[cd + 3] = colors[cs + 3];
     s++;
   };
   for (let i = 0; i < vN; i++) edge(i, 0); // north edge (z0)
@@ -242,9 +247,12 @@ export function buildTrees(req: TreeRequest): TreeResult {
       const slope = Math.min(1, grad / 1.5);
       const d = treeDensity(x, z, info, slope);
       if (r3 >= d) continue;
-      const kind = treeKind(info, r4);
-      const scale = kind === 5 ? 1.0 + 0.55 * r5 : kind === 4 ? 0.85 + 0.35 * r5 : 0.75 + 0.6 * r5 * r5 + (kind === 0 && info.island === 'samos' ? 0.15 : 0);
-      tmp.push(x - cx, h - 1.2, z - cz, scale, r1 * Math.PI * 2, kind, r2);
+      const kind = treeKind(info, r4, x, z);
+      const scale = treeScale(kind, info, r5);
+      let rot = r1 * Math.PI * 2;
+      // coconut palms near the shore lean out toward the sea (downhill), as they grow toward the light
+      if (kind === 4 && info.inland < 260 && (hx !== h || hz !== h)) rot = Math.atan2(hz - h, -(hx - h)) + (r1 - 0.5) * 1.3;
+      tmp.push(x - cx, h - 1.2, z - cz, scale, rot, kind, r2);
     }
   }
   const data = new Float32Array(tmp);

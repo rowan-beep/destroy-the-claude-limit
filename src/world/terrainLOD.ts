@@ -175,7 +175,7 @@ export class TerrainLOD {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(res.positions, 3));
     geo.setAttribute('normal', new THREE.BufferAttribute(res.normals, 3));
-    geo.setAttribute('color', new THREE.BufferAttribute(res.colors, 3, true));
+    geo.setAttribute('color', new THREE.BufferAttribute(res.colors, 4, true));
     geo.setIndex(this.index);
     const half = n.size / 2;
     const midY = (res.minH + res.maxH) / 2;
@@ -316,6 +316,10 @@ export function createTerrainMaterial(): THREE.MeshLambertMaterial {
         // (with anti-aliasing an edge pixel's colour is extrapolated past the triangle and a
         // near-black seabed channel dips below zero: pow() of that is NaN, dotting the coasts)
         diffuseColor.rgb *= pow( max( vColor.rgb, vec3( 0.0 ) ), vec3( 2.2 ) );
+        // the forest floor near the camera, where the trees stand drawn over it, lies in their
+        // shade; further out the ground's own colour is the canopy seen from afar
+        diffuseColor.rgb *= 1.0 - 0.5 * clamp( vColor.a, 0.0, 1.0 ) * ( 1.0 - smoothstep( 1800.0, 6000.0, length( vViewPosition ) ) );
+        diffuseColor.a = 1.0;
         // surface relief (metres) for the lighting, and how much of this is snow
         float tBump = 0.0;
         float tSnow = 0.0;

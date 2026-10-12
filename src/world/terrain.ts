@@ -954,6 +954,8 @@ export interface SurfaceColor {
   r: number;
   g: number;
   b: number;
+  /** 0..1 how much of the ground here lies under the trees (Jade: the forest floor's shade near the camera) */
+  f?: number;
 }
 
 function mix3(out: SurfaceColor, r: number, g: number, b: number, t: number): void {
@@ -974,6 +976,7 @@ export function surfaceColor(x: number, z: number, info: TerrainInfo, slope: num
   const n3 = N2.noise(x / 90, z / 90);
   const vary = 0.5 + 0.5 * n1;
 
+  out.f = 0;
   if (activeMap.id === 'frost') return frostColor(x, z, info, slope, out, n1, n2, n3);
   if (activeMap.id === 'jade') return jadeColor(x, z, info, slope, out, n1, n2, n3);
   if (h < 0.5) {
@@ -1163,7 +1166,15 @@ function jadeColor(x: number, z: number, info: TerrainInfo, slope: number, out: 
   mix3(out, 0.07, 0.2, 0.09, smoothstep(0.45, 0.1, m) * 0.6);
   mix3(out, 0.22, 0.36, 0.13, 0.3 * (0.5 + 0.5 * n2));
   const fd = treeDensity(x, z, info, slope);
-  if (fd > 0) mix3(out, 0.07, 0.17, 0.06, fd * 0.55);
+  // under the closed canopy: deep shade (the crowns above hide most of it, the gaps between
+  // them read as the forest's depth), but the palm groves stand in grass
+  if (fd > 0) {
+    const grove = jadeGrove(x, z, h, info.inland);
+    // (the cloud forest's floor is mossy and lit through a thinner canopy)
+    const up = smoothstep(1100, 1700, h);
+    mix3(out, 0.05, 0.13, 0.045, fd * (grove ? 0.3 : 0.78 - 0.4 * up));
+    out.f = fd * (grove ? 0.3 : 1 - 0.55 * up);
+  }
   // deep shaded valley floors, sunlit crests
   if (isl && h > 60) {
     toIslandLocal(isl, x, z, _cl);
@@ -1176,7 +1187,7 @@ function jadeColor(x: number, z: number, info: TerrainInfo, slope: number, out: 
   }
   // the low coastal plain: palm groves and grass, lighter
   const plain = (1 - smoothstep(25, 90, h)) * smoothstep(120, 400, info.inland);
-  mix3(out, 0.25, 0.39, 0.13, plain * (0.45 - 0.25 * fd));
+  mix3(out, 0.25, 0.39, 0.13, plain * (out.f ? 0.45 - 0.4 * out.f : 0.45));
   // clearings: red laterite fields and grass
   const clr = jadeClearing(x, z, h, info.inland);
   if (clr > 0) {
@@ -1272,23 +1283,65 @@ export function treeDensity(x: number, z: number, info: TerrainInfo, slope: numb
   return d < 0 ? 0 : d;
 }
 
-export type TreeKind = 0 | 1 | 2 | 3 | 4 | 5; // 0 conifer, 1 umbrella pine, 2 cypress, 3 broadleaf, 4 coconut palm, 5 rainforest giant
+export type TreeKind = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+// 0 conifer, 1 umbrella pine, 2 cypress, 3 broadleaf; Jade's tropical five (tropicTrees.ts):
+// 4 coconut palm, 5 rainforest emergent, 6 canopy tree, 7 tree fern, 8 pandanus
+
+/** Palm groves (old plantations) in patches over Jade's coastal plains. */
+function jadeGrove(x: number, z: number, h: number, inland: number): boolean {
+  return h < 70 && inland < 1800 && h > 2 && N.noise(x / 520 + 4.1, z / 520 - 2.7) > 0.22;
+}
 
 /** Which tree species grows here (deterministic from a per-tree random 0..1). */
-export function treeKind(info: TerrainInfo, r: number): TreeKind {
+export function treeKind(info: TerrainInfo, r: number, x = 0, z = 0): TreeKind {
   const isl = info.island;
-  if (activeMap.id === 'jade') {
-    const kind = isl ? ISLAND_BY_ID[isl]?.kind : undefined;
-    if (kind === 'cay' || kind === 'atoll') return 4;
-    // coconut palms along the shore; lowland rainforest of tall emergents over a broadleaf canopy;
-    // above ~1,400 m the cloud forest is smaller, darker broadleaf and podocarps
-    if (info.inland < 380 && info.h < 30) return r < 0.85 ? 4 : 3;
-    if (info.h > 1400) return r < 0.6 ? 3 : 0;
-    return r < 0.5 ? 5 : r < 0.92 ? 3 : 4;
-  }
+  if (activeMap.id === 'jade') return jadeTreeKind(info, r, x, z);
   if (isl === 'samos') return r < 0.82 ? 0 : r < 0.92 ? 3 : 2;
   if (isl === 'capri') return r < 0.5 ? 1 : r < 0.78 ? 2 : 3;
   return r < 0.55 ? 0 : 3;
+}
+
+/**
+ * Jade's forests by habitat, as on a real high Pacific island: coconut palms and pandanus
+ * along the beach strand and on the cays, palm groves on the coastal plain, a closed canopy
+ * of broadleaf trees over the lowlands and hills with giants standing out of it, tree ferns
+ * and wild palms down the wet valley floors, and tree ferns among small mossy trees in the
+ * cloud forest up high. The limestone towers carry a scrub of pandanus and small trees.
+ */
+function jadeTreeKind(info: TerrainInfo, r: number, x: number, z: number): TreeKind {
+  const isl = info.island ? ISLAND_BY_ID[info.island] : undefined;
+  const kind = isl?.kind;
+  const h = info.h;
+  if (kind === 'cay' || kind === 'atoll') return r < 0.8 ? 4 : 8;
+  if (info.inland < 190 && h < 16) return r < 0.66 ? 4 : r < 0.9 ? 8 : 6;
+  if (kind && LIMESTONE.has(kind) && h > 45) return r < 0.35 ? 8 : 6;
+  if (h > 1250) return r < 0.5 ? 7 : 6;
+  if (jadeGrove(x, z, h, info.inland)) return r < 0.85 ? 4 : 6;
+  if (isl && h > 40 && r < 0.3) {
+    toIslandLocal(isl, x, z, _cl);
+    if (erosion(isl, x, z, _cl.u, _cl.v) > 0.27) return r < 0.18 ? 7 : 4;
+  }
+  if (h > 850) return r < 0.25 ? 7 : 6;
+  return r < 0.11 ? 5 : r < 0.14 ? 7 : 6;
+}
+
+/** How big a tree grows (1 = the species' usual size), from a per-tree random 0..1. */
+export function treeScale(kind: number, info: TerrainInfo, r: number): number {
+  if (activeMap.id === 'jade') {
+    const isl = info.island ? ISLAND_BY_ID[info.island] : undefined;
+    if (kind === 4) return 0.8 + 0.4 * r;
+    if (kind === 5) return 0.9 + 0.4 * r;
+    if (kind === 7) return 0.9 + 0.7 * r;
+    if (kind === 8) return 0.75 + 0.5 * r;
+    // canopy trees: smaller and stunted up in the cloud forest, on the thin soil of the
+    // limestone and out on the windy beach strand
+    let s = 0.75 + 0.55 * r;
+    s *= 1 - 0.42 * smoothstep(900, 1900, info.h);
+    if (isl && LIMESTONE.has(isl.kind ?? '')) s *= 0.62;
+    if (info.inland < 190 && info.h < 16) s *= 0.7;
+    return s;
+  }
+  return kind === 5 ? 1.0 + 0.55 * r : kind === 4 ? 0.85 + 0.35 * r : 0.75 + 0.6 * r * r + (kind === 0 && info.island === 'samos' ? 0.15 : 0);
 }
 
 /** Nearest island to a point with its inland distance (negative offshore). */

@@ -1,5 +1,6 @@
 // Scattered trees over every island: conifers on Samos' hills, umbrella pines
-// and cypresses on Capri, sparse pines and broadleaves on Skye. Tree cells
+// and cypresses on Capri, sparse pines and broadleaves on Skye, Jade's five
+// tropical species (tropicTrees.ts) over the archipelago. Tree cells
 // (1 km squares) are generated in the workers; the visible set is packed
 // into a few instanced meshes around a floating origin.
 
@@ -9,10 +10,19 @@ import { WorkerPool } from './workerPool';
 import { TreeResult, TREE_STRIDE } from './terrainGen';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { srgbToLinear } from '../core/math';
+import { activeMap } from './islands';
+import { buildTropicTree, tropicTint } from './tropicTrees';
 
 const CELL = 1024;
 const SPACING = 30;
-const KINDS = 6;
+const KINDS = 9;
+
+/** the species each theater grows (see treeKind): only these get meshes */
+function kindsHere(): number[] {
+  if (activeMap.id === 'jade') return [4, 5, 6, 7, 8];
+  if (activeMap.id === 'triad') return [0, 1, 2, 3];
+  return [];
+}
 const NEAR_CAP = 60000;
 const FAR_CAP = 60000;
 const FAR_FRACTION = 0.4;
@@ -81,6 +91,7 @@ function blob(radius: number, y: number, sy: number, detail: number, c: [number,
 }
 
 function buildTreeGeometry(kind: number, far: boolean): THREE.BufferGeometry {
+  if (kind >= 4) return buildTropicTree(kind, far);
   const seg = far ? 5 : 8;
   const parts: THREE.BufferGeometry[] = [];
   if (kind === 0) {
@@ -104,48 +115,6 @@ function buildTreeGeometry(kind: number, far: boolean): THREE.BufferGeometry {
     parts.push(trunk(2, 0.3, 4));
     parts.push(cone(1.4, 15, 1, seg, [0.09, 0.17, 0.09]));
     if (!far) parts.push(blob(1.5, 4, 1.6, 0, [0.1, 0.18, 0.1]));
-  } else if (kind === 4) {
-    // coconut palm: a slender curved trunk leaning out, a crown of long drooping fronds
-    const lean = 0.18;
-    const segs = far ? 2 : 4;
-    let px = 0, py = 0;
-    for (let i = 0; i < segs; i++) {
-      const h = 13 / segs;
-      const g = new THREE.CylinderGeometry(0.2, 0.26, h, far ? 4 : 6, 1, true);
-      g.rotateZ(-lean * (0.4 + i / segs));
-      g.translate(px + Math.sin(lean * (0.4 + i / segs)) * h * 0.5, py + h * 0.5, 0);
-      parts.push(colorize(nonIndexed(g), 0.42, 0.36, 0.27, 0.06));
-      px += Math.sin(lean * (0.4 + i / segs)) * h;
-      py += Math.cos(lean * (0.4 + i / segs)) * h;
-    }
-    const fronds = far ? 6 : 10;
-    for (let i = 0; i < fronds; i++) {
-      const a = (i / fronds) * Math.PI * 2 + (i % 2) * 0.2;
-      const len = 5.2 + (i % 3) * 0.5;
-      const f = new THREE.ConeGeometry(0.75, len, 3, 1, false);
-      f.scale(1, 1, 0.12);
-      f.translate(0, len / 2, 0);
-      // out from the crown and drooping toward the tip
-      f.rotateZ(-Math.PI / 2 + 0.55 + (i % 2) * 0.25);
-      f.rotateY(a);
-      f.translate(px, py, 0);
-      parts.push(colorize(nonIndexed(f), i % 2 ? 0.2 : 0.24, i % 2 ? 0.38 : 0.42, 0.12, 0.1));
-    }
-    if (!far) parts.push(blob(0.55, py - 0.5, 0.9, 0, [0.36, 0.3, 0.14]));
-  } else if (kind === 5) {
-    // rainforest emergent: a tall straight trunk on buttress roots, a wide flat crown
-    parts.push(cone(1.6, 3.2, 0, far ? 4 : 6, [0.33, 0.28, 0.2]));
-    parts.push(trunk(19, 0.55, far ? 4 : 6));
-    const g1: [number, number, number] = [0.1, 0.24, 0.08];
-    const g2: [number, number, number] = [0.13, 0.28, 0.1];
-    if (far) parts.push(blob(6.5, 20, 0.42, 0, g1));
-    else {
-      parts.push(blob(5.2, 20.5, 0.45, 1, g1));
-      for (let i = 0; i < 4; i++) {
-        const a = i * 1.7 + 0.4;
-        parts.push(blob(3.6, 19.5 + (i % 2), 0.5, 0, i % 2 ? g2 : g1).translate(Math.cos(a) * 3.8, 0, Math.sin(a) * 3.8));
-      }
-    }
   } else {
     // broadleaf (oak / plane)
     parts.push(trunk(4.5, 0.4, far ? 4 : 6));
@@ -160,8 +129,12 @@ function buildTreeGeometry(kind: number, far: boolean): THREE.BufferGeometry {
 
 export class TreeSystem {
   private cells = new Map<string, Cell>();
-  private near: THREE.InstancedMesh[] = [];
-  private far: THREE.InstancedMesh[] = [];
+  /** per kind (null: a species this theater does not grow) */
+  private near: (THREE.InstancedMesh | null)[] = [];
+  private far: (THREE.InstancedMesh | null)[] = [];
+  private meshes: THREE.InstancedMesh[] = [];
+  /** each tree carries its own foliage colour (Jade) */
+  private tinted = false;
   private nearR = 2600;
   private farR = 7000;
   private origin = new THREE.Vector3();
@@ -182,17 +155,45 @@ export class TreeSystem {
   ) {
     const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
     applyTerrainLight(mat);
+    const kinds = kindsHere();
+    this.tinted = activeMap.id === 'jade';
+    if (this.tinted) {
+      // each tree's own colour tints only its foliage (green-dominant vertex colours), not its wood
+      const lit = mat.onBeforeCompile;
+      mat.onBeforeCompile = (shader, renderer) => {
+        lit(shader, renderer);
+        shader.vertexShader = shader.vertexShader.replace(
+          '#include <color_vertex>',
+          `vColor = vec4( 1.0 );
+          vColor.rgb *= color;
+          #ifdef USE_INSTANCING_COLOR
+            vColor.rgb = mix( vColor.rgb, vColor.rgb * instanceColor.rgb, step( color.r * 1.05, color.g ) );
+          #endif`,
+        );
+      };
+      mat.customProgramCacheKey = () => 'trees-tinted';
+    }
     for (let k = 0; k < KINDS; k++) {
+      if (!kinds.includes(k)) {
+        this.near.push(null);
+        this.far.push(null);
+        continue;
+      }
       const n = new THREE.InstancedMesh(buildTreeGeometry(k, false), mat, NEAR_CAP);
       const f = new THREE.InstancedMesh(buildTreeGeometry(k, true), mat, FAR_CAP);
       for (const im of [n, f]) {
         im.count = 0;
         im.frustumCulled = false;
         im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        if (this.tinted) {
+          im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(im.instanceMatrix.count * 3).fill(1), 3);
+          im.instanceColor.setUsage(THREE.DynamicDrawUsage);
+        }
         im.receiveShadow = true;
         im.castShadow = false;
         im.name = 'trees';
         scene.add(im);
+        this.meshes.push(im);
       }
       this.near.push(n);
       this.far.push(f);
@@ -217,7 +218,7 @@ export class TreeSystem {
   update(cam: THREE.Vector3, look?: THREE.Vector3, halfWidth = Math.PI): void {
     this.frame++;
     const high = cam.y > 12000;
-    for (const im of [...this.near, ...this.far]) im.visible = this.enabled && !high;
+    for (const im of this.meshes) im.visible = this.enabled && !high && im.count > 0;
     if (!this.enabled || high) return;
 
     // Horizontal range shrinks naturally with altitude in the far ring check below.
@@ -329,6 +330,7 @@ export class TreeSystem {
         const isNear = dd < detail2;
         if (dd >= near2 && d[b + 6] > FAR_FRACTION) continue;
         const im = isNear ? this.near[kind] : this.far[kind];
+        if (!im) continue;
         const counts = isNear ? nCount : fCount;
         const idx = counts[kind];
         if (idx >= (isNear ? NEAR_CAP : FAR_CAP)) continue;
@@ -341,19 +343,27 @@ export class TreeSystem {
         e[8] = sn; e[9] = 0; e[10] = cs; e[11] = 0;
         e[12] = d[b] + ox; e[13] = d[b + 1]; e[14] = d[b + 2] + oz; e[15] = 1;
         im.instanceMatrix.array.set(e, idx * 16);
+        if (this.tinted && im.instanceColor) tropicTint(kind, rot, d[b + 6], im.instanceColor.array as Float32Array, idx * 3);
       }
     }
     for (let k = 0; k < KINDS; k++) {
       for (const [im, cnt] of [
         [this.near[k], nCount[k]],
         [this.far[k], fCount[k]],
-      ] as [THREE.InstancedMesh, number][]) {
+      ] as [THREE.InstancedMesh | null, number][]) {
+        if (!im) continue;
         im.count = cnt;
+        im.visible = this.enabled && cnt > 0;
         im.position.copy(this.origin);
         im.updateMatrix();
         im.instanceMatrix.clearUpdateRanges();
         im.instanceMatrix.addUpdateRange(0, cnt * 16);
         im.instanceMatrix.needsUpdate = true;
+        if (im.instanceColor) {
+          im.instanceColor.clearUpdateRanges();
+          im.instanceColor.addUpdateRange(0, cnt * 3);
+          im.instanceColor.needsUpdate = true;
+        }
       }
     }
   }
@@ -361,8 +371,8 @@ export class TreeSystem {
   get stats(): { cells: number; near: number; far: number } {
     return {
       cells: this.cells.size,
-      near: this.near.reduce((a, m) => a + m.count, 0),
-      far: this.far.reduce((a, m) => a + m.count, 0),
+      near: this.near.reduce((a, m) => a + (m?.count ?? 0), 0),
+      far: this.far.reduce((a, m) => a + (m?.count ?? 0), 0),
     };
   }
 }
