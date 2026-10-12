@@ -42,6 +42,21 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.10.0',
+    date: '2026-10-12',
+    air: {
+      title: 'Faster battles, no freeze at the start',
+      notes: [
+        improved('Battles draw about 40% less every frame, and look exactly the same',
+          'Jets far away were drawn with far more detail than a few pixels can show. Their distant models now merge points that sit closer together than a fraction of a pixel: the same picture, with about 40% fewer triangles, and about 80% fewer for jets only a few pixels across.',
+          'Every jet\'s shadow comes from a stand-in model that was also being sent, invisibly, through the normal picture. Now only the shadow uses it, and it is lighter (still finer than a shadow pixel).',
+          'A 5v5 battle: about 790 thousand triangles a frame instead of 1.34 million. Your own jet is drawn with 140 thousand fewer in every flight.'),
+        fixed('No more freeze in the first seconds of a flight',
+          'The game gave the graphics card only 5 seconds to prepare its shaders, then started anyway and froze while it finished. The loading screen now waits until everything is ready, the cockpit view included.'),
+      ],
+    },
+  },
+  {
     version: '7.9.0',
     date: '2026-10-11',
     air: {

@@ -2,6 +2,7 @@
 // knows what time of day it is and how the air looks at the camera altitude.
 
 import * as THREE from 'three';
+import { SHADOW_ONLY } from './layers';
 import { updateAirLight } from './airLight';
 import { clamp01, lerp, smoothstep } from '../core/math';
 import { FOG_SUN, FOG_SUN_COLOR } from './fog';
@@ -218,6 +219,8 @@ export class Environment {
     scene.fog = this.fog;
 
     this.sun.castShadow = true;
+    // (the jets' shadow-only stand-ins live on their own layer: see layers.ts)
+    this.sun.shadow.camera.layers.enable(SHADOW_ONLY);
     this.sun.shadow.mapSize.set(2048, 2048);
     const sc = this.sun.shadow.camera as THREE.OrthographicCamera;
     sc.left = -70;

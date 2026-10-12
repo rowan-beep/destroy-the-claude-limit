@@ -349,11 +349,17 @@ export class Game implements ModeHost {
     await this.world.prewarm(p.fm.pos.clone(), this.renderer.camera, 12000);
     // build the 3D cockpit now so the first switch to it doesn't hitch
     const pv = this.combat.aircraftVis.get(p);
-    if (pv) pv.getCockpit();
-    // compile every shader the opening scene needs while the loading screen is
-    // up (in parallel where the browser can), instead of stalling in flight
+    const pit = pv?.getCockpit();
+    // compile every shader the opening scene (and the cockpit) needs while the loading
+    // screen is up, in parallel where the browser can. On a slow graphics driver this
+    // can take several seconds: the loading screen waits for it (up to 25 s), rather than
+    // going live and freezing the first seconds of the flight while it finishes.
     onProgress(0.98, 'PREPARING SHADERS');
-    await this.renderer.compileFor(this.renderer.scene, this.renderer.scene, this.renderer.camera).catch(() => undefined);
+    const r = this.renderer;
+    await Promise.all([
+      r.compileFor(r.scene, r.scene, r.camera, 25000),
+      pit ? r.compileFor(pit.root, this.cockpitView.scene, this.cockpitView.camera, 25000) : null,
+    ]).catch(() => undefined);
     onProgress(1, 'READY');
     this.goLive();
     this.lastT = performance.now();

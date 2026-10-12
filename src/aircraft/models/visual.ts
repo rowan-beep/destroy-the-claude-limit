@@ -4,6 +4,7 @@
 // diamonds, navigation / strobe lights and the stores on each station.
 
 import * as THREE from 'three';
+import { SHADOW_ONLY } from '../../render/layers';
 import { NIGHT, keepLightsVisible } from '../../render/night';
 import { getSoftDotTexture } from '../../render/textures';
 import type { Aircraft } from '../aircraft';
@@ -897,6 +898,8 @@ export class AirframeVisual {
       sp.castShadow = true;
       sp.receiveShadow = false;
       sp.name = 'shadow-proxy';
+      // drawn by the shadow pass only (the picture's camera does not see this layer)
+      sp.layers.set(SHADOW_ONLY);
       v.body.add(sp);
       v.shadowProxy = sp;
       const sk = new THREE.Mesh(L.speck, this.paintMat!);

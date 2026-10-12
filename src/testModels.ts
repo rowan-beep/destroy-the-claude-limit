@@ -8,6 +8,7 @@ import { buildKC46 } from './game/tanker';
 import { storeGeometry } from './aircraft/models/stores';
 import { shinyStores } from './aircraft/models/missiles';
 import type { StoreType } from './aircraft/specs';
+import { SHADOW_ONLY } from './render/layers';
 
 export function runModelTest(container: HTMLElement): void {
   const q = new URLSearchParams(location.search);
@@ -26,6 +27,8 @@ export function runModelTest(container: HTMLElement): void {
   const sun = new THREE.DirectionalLight(0xffffff, 2.6);
   sun.position.set(-30, 60, -20);
   sun.castShadow = true;
+  // (the jets' shadow stand-ins cast on their own layer, as in the game: render/layers.ts)
+  sun.shadow.camera.layers.enable(SHADOW_ONLY);
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = 0.03;
   sun.shadow.mapSize.set(2048, 2048);

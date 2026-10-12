@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { clusterSimplify } from './simplify';
 import type { Aircraft } from '../aircraft';
 import { AirframeVisual, FarLod, setLodScale } from './visual';
 import { buildAoVolume, AoVolume } from './ao';
@@ -48,6 +49,14 @@ export function setHeroDetail(q: Tier): void {
 
 /** Density of the distance LOD (and of the shadow silhouettes). */
 const FAR_DENSITY = 0.45;
+/**
+ * Merge distances (m). The far LOD is drawn once a jet is ~70 px long or less: at 4K a pixel there
+ * is ~14 cm (lodScale 1), and 1.5 cm cells move nothing more than 0.2 px. The speck starts at
+ * ~1.3 m a pixel. The shadow stand-in: the finest shadow map is ~3.4 cm a texel, softened over 3.
+ */
+const FAR_CELL = 0.03;
+const SPECK_CELL = 0.15;
+const SHADOW_CELL = 0.015;
 const farLods = new Map<string, FarLod>();
 
 function farLod(ac: Aircraft): FarLod {
@@ -57,9 +66,21 @@ function farLod(ac: Aircraft): FarLod {
     const t = build(ac, FAR_DENSITY);
     L = t.buildFarLod();
     L.ao = buildAoVolume(L.shadow);
+    // only ever seen from far off (or as a soft shadow): vertices closer together than a
+    // fraction of a pixel there (or of a shadow-map texel) are merged, see simplify.ts
+    const full = L;
+    L = {
+      ...L,
+      parts: L.parts.map((p) => ({ geo: clusterSimplify(p.geo, FAR_CELL), mat: p.mat })),
+      shadow: clusterSimplify(L.shadow, SHADOW_CELL),
+      speck: clusterSimplify(L.speck, SPECK_CELL, false),
+    };
+    for (const [i, p] of full.parts.entries()) if (p.geo !== L.parts[i].geo) p.geo.dispose();
+    if (full.speck !== L.speck) full.speck.dispose();
     // keep only the merged geometry: the low template itself is not used again
     const keep = new Set<THREE.BufferGeometry>(L.parts.map((p) => p.geo));
     keep.add(L.shadow);
+    if (full.shadow !== L.shadow) full.shadow.dispose();
     t.root.traverse((o) => {
       const m = o as THREE.Mesh;
       if (m.isMesh && !keep.has(m.geometry)) m.geometry.dispose();

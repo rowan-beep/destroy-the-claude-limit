@@ -536,14 +536,14 @@ export class GameRenderer {
    * pipeline, in the background where the browser supports it. Resolves once
    * drawing it will no longer stall on a compile.
    */
-  compileFor(obj: THREE.Object3D, scene: THREE.Scene, camera: THREE.Camera): Promise<unknown> {
+  compileFor(obj: THREE.Object3D, scene: THREE.Scene, camera: THREE.Camera, maxMs = 5000): Promise<unknown> {
     const r = this.renderer;
     const prev = r.getRenderTarget();
     // the programs depend on the target (HDR buffer: no tone mapping, linear output)
     r.setRenderTarget(this.scenePass.msaa);
     try {
-      // never wait on it for long: the worst case is the old blocking compile
-      return Promise.race([r.compileAsync(obj, camera, scene), new Promise((res) => setTimeout(res, 5000))]);
+      // (past maxMs the caller goes on, and whatever is still compiling finishes on first use)
+      return Promise.race([r.compileAsync(obj, camera, scene), new Promise((res) => setTimeout(res, maxMs))]);
     } finally {
       r.setRenderTarget(prev);
     }
