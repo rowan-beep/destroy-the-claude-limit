@@ -4,6 +4,17 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
+## v7.12.2 (2026-10-13)
+
+### Air Combat: No more freezing at the start of a flight, and a realistic F-15EX load
+
+- **Fixed: No more freeze in the first seconds of a flight**
+  - The game used to stop for a few seconds just after a flight began, the first time you looked from the cockpit and the first time a jet went down, while the graphics card finished getting those things ready.
+  - That is all done behind the loading screen now, so it can take a moment longer to load. The same goes for the first time you grey out pulling G, look towards the sun or fly into rain.
+- **Improved: F-15EX missiles where the real ones go**
+  - The inner wing pylons sit 3 m out from the middle like the real jet's, clear of the missiles on the fuselage, and the EX's extra outer pylons are further out towards the wingtips, so the twelve missiles are not bunched together.
+  - Slimmer pylons, and each missile hangs from a narrow LAU-128 rail on its back like the real launcher, instead of a wide plate (the Super Hornet's twin racks got the same rails).
+
 ## v7.12.1 (2026-10-12)
 
 ### Air Combat: Smoother flying low to the ground

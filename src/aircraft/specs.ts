@@ -60,6 +60,8 @@ export interface StationDef {
    * like LAU-128s on an F-15 pylon); a fuel tank hangs from the pylon centre.
    */
   rack?: number;
+  /** twin rack: how far the shared pylon's blade reaches below the missiles' centre line (m; default just past their bellies) */
+  rackDepth?: number;
   /** internal stations: which weapons bay (its doors must be open to launch) */
   bay?: WeaponBay;
   /** internal stations: where the store sits once its bay is open (lowered on its launcher) */
@@ -224,9 +226,18 @@ const IRIS = 'IRIST' as const;
 /** fore-aft centres of the F-15EX wing racks, each at 40% chord of the swept wing (so the
  * inboard and outboard pairs' noses are staggered like the real jet's); the pylons' hang heights
  * are the wing underside at each rack, measured on the model (the blade buries 3-4 cm mid-chord
- * because the underside is convex and the blade top is straight) */
-const F15_RZ_IB = 2.38;
-const F15_RZ_OB = 3.23;
+ * because the underside is convex and the blade top is straight). Spanwise, the inboard pylons
+ * (stations 2 and 8) sit 3.0 m out like the real jet's, a metre outboard of the fuselage side, and
+ * the EX's added outer pylons (1 and 9) well out toward the tips: each carries two missiles on
+ * LAU-128 shoulder rails, 0.3 m either side of it. */
+const F15_RZ_IB = 2.45;
+const F15_RZ_OB = 3.45;
+const F15_RX_IB = 3.0;
+const F15_RX_OB = 4.55;
+const F15_HANG_IB = 0.125;
+const F15_HANG_OB = 0.148;
+/** the Eagle's wing pylons are slim: the blade ends level with the missiles' lower half, not below them */
+const F15_RACK_DEPTH = 0.07;
 const FA18_RZ = 1.8;
 
 // ---------------------------------------------------------------------------
@@ -298,19 +309,19 @@ const F15EX: AircraftSpec = {
     port: [1.81, 0.31, -0.84],
   },
   stations: [
-    { id: 1, label: 'LW OB-O', pos: [-4.45, -0.15, F15_RZ_OB], allowed: [AIM9, AIM120], mount: 'pylon', hang: 0.143, rack: -4.15 },
-    { id: 2, label: 'LW OB-I', pos: [-3.85, -0.15, F15_RZ_OB], allowed: [AIM120, AIM9], mount: 'pylon', hang: 0.143, rack: -4.15 },
-    { id: 3, label: 'LW IB-O', pos: [-3.05, -0.15, F15_RZ_IB], allowed: [AIM120, AIM9, TANK, GBU31], mount: 'pylon', hang: 0.117, rack: -2.75 },
-    { id: 4, label: 'LW IB-I', pos: [-2.45, -0.15, F15_RZ_IB], allowed: [AIM120, AIM9], mount: 'pylon', hang: 0.117, rack: -2.75 },
+    { id: 1, label: 'LW OB-O', pos: [-(F15_RX_OB + 0.3), -0.15, F15_RZ_OB], allowed: [AIM9, AIM120], mount: 'pylon', hang: F15_HANG_OB, rack: -F15_RX_OB, rackDepth: F15_RACK_DEPTH },
+    { id: 2, label: 'LW OB-I', pos: [-(F15_RX_OB - 0.3), -0.15, F15_RZ_OB], allowed: [AIM120, AIM9], mount: 'pylon', hang: F15_HANG_OB, rack: -F15_RX_OB, rackDepth: F15_RACK_DEPTH },
+    { id: 3, label: 'LW IB-O', pos: [-(F15_RX_IB + 0.3), -0.15, F15_RZ_IB], allowed: [AIM120, AIM9, TANK, GBU31], mount: 'pylon', hang: F15_HANG_IB, rack: -F15_RX_IB, rackDepth: F15_RACK_DEPTH },
+    { id: 4, label: 'LW IB-I', pos: [-(F15_RX_IB - 0.3), -0.15, F15_RZ_IB], allowed: [AIM120, AIM9], mount: 'pylon', hang: F15_HANG_IB, rack: -F15_RX_IB, rackDepth: F15_RACK_DEPTH },
     { id: 5, label: 'L CFT-F', pos: [-1.98, -0.7, -1.4], allowed: [AIM120], mount: 'conformal', hang: -0.54 },
     { id: 6, label: 'L CFT-A', pos: [-1.98, -0.77, 1.9], allowed: [AIM120, GBU31], mount: 'conformal', hang: -0.61 },
     { id: 7, label: 'CL', pos: [0, -1.2, 0.4], allowed: [TANK], mount: 'pylon' },
     { id: 8, label: 'R CFT-A', pos: [1.98, -0.77, 1.9], allowed: [AIM120, GBU31], mount: 'conformal', hang: -0.61 },
     { id: 9, label: 'R CFT-F', pos: [1.98, -0.7, -1.4], allowed: [AIM120], mount: 'conformal', hang: -0.54 },
-    { id: 10, label: 'RW IB-I', pos: [2.45, -0.15, F15_RZ_IB], allowed: [AIM120, AIM9], mount: 'pylon', hang: 0.117, rack: 2.75 },
-    { id: 11, label: 'RW IB-O', pos: [3.05, -0.15, F15_RZ_IB], allowed: [AIM120, AIM9, TANK, GBU31], mount: 'pylon', hang: 0.117, rack: 2.75 },
-    { id: 12, label: 'RW OB-I', pos: [3.85, -0.15, F15_RZ_OB], allowed: [AIM120, AIM9], mount: 'pylon', hang: 0.143, rack: 4.15 },
-    { id: 13, label: 'RW OB-O', pos: [4.45, -0.15, F15_RZ_OB], allowed: [AIM9, AIM120], mount: 'pylon', hang: 0.143, rack: 4.15 },
+    { id: 10, label: 'RW IB-I', pos: [F15_RX_IB - 0.3, -0.15, F15_RZ_IB], allowed: [AIM120, AIM9], mount: 'pylon', hang: F15_HANG_IB, rack: F15_RX_IB, rackDepth: F15_RACK_DEPTH },
+    { id: 11, label: 'RW IB-O', pos: [F15_RX_IB + 0.3, -0.15, F15_RZ_IB], allowed: [AIM120, AIM9, TANK, GBU31], mount: 'pylon', hang: F15_HANG_IB, rack: F15_RX_IB, rackDepth: F15_RACK_DEPTH },
+    { id: 12, label: 'RW OB-I', pos: [F15_RX_OB - 0.3, -0.15, F15_RZ_OB], allowed: [AIM120, AIM9], mount: 'pylon', hang: F15_HANG_OB, rack: F15_RX_OB, rackDepth: F15_RACK_DEPTH },
+    { id: 13, label: 'RW OB-O', pos: [F15_RX_OB + 0.3, -0.15, F15_RZ_OB], allowed: [AIM9, AIM120], mount: 'pylon', hang: F15_HANG_OB, rack: F15_RX_OB, rackDepth: F15_RACK_DEPTH },
   ],
   loadouts: [
     {

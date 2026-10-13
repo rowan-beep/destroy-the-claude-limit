@@ -21,8 +21,8 @@ import { getSmokeTexture, getSoftDotTexture } from './textures';
 import { rand, randGauss } from '../core/rng';
 import { srgb, smoothstep } from '../core/math';
 import { terrainHeight } from '../world/terrain';
-import { EjectionEffects } from './ejection';
-import { JetDeathFx } from './jetDeath';
+import { EjectionEffects, ejectionSamples } from './ejection';
+import { JetDeathFx, jetDeathSamples } from './jetDeath';
 
 const TRACER_VERT = /* glsl */ `
 attribute vec3 iStart;
@@ -208,6 +208,11 @@ export class CombatRenderer {
     this.tracerMesh.visible = v;
     if (!v) for (const vf of this.vapors.values()) vf.group.visible = false;
     this.eject.setVisible(v);
+  }
+
+  /** what a kill draws (wreck, ejection, blast), for the loading screen to draw once (see Game.warmView) */
+  effectSamples(): THREE.Object3D[] {
+    return [ejectionSamples(), jetDeathSamples()];
   }
 
   clearEffects(): void {

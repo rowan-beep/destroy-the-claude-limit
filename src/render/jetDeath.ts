@@ -59,6 +59,31 @@ interface Shell {
   flat: boolean;
 }
 
+/** a shock shell (sphere) or ring (flat, along the ground); each its own, it fades on its own */
+function shellMaterial(flat: boolean, opacity: number): THREE.MeshBasicMaterial {
+  return new THREE.MeshBasicMaterial({ color: flat ? 0xd8c8b0 : 0xfff2dd, transparent: true, opacity, depthWrite: false, blending: flat ? THREE.NormalBlending : THREE.AdditiveBlending, side: THREE.DoubleSide, fog: true });
+}
+
+let _samples: THREE.Group | null = null;
+/**
+ * A shock shell and a shock ring for the loading screen to draw once, so their
+ * shaders are built before the first jet goes down. Never freed: while they live,
+ * so do the shaders (each blast's own material is freed when it fades).
+ */
+export function jetDeathSamples(): THREE.Group {
+  if (_samples) return _samples;
+  const g = (_samples = new THREE.Group());
+  const box = new THREE.BoxGeometry(1, 1, 1);
+  for (const flat of [false, true]) {
+    const m = new THREE.Mesh(box, shellMaterial(flat, 0.5));
+    m.position.x = flat ? 1.5 : -1.5;
+    m.renderOrder = 16;
+    m.frustumCulled = false;
+    g.add(m);
+  }
+  return g;
+}
+
 export class JetDeathFx {
   private time = 0;
   private pending: Pending[] = [];
@@ -116,7 +141,7 @@ export class JetDeathFx {
   /** A shock shell (sphere) or ring (flat, along the ground) racing out. */
   private shock(p: THREE.Vector3, r1: number, life: number, flat: boolean, a0: number): void {
     if (this.shells.length > 8) return;
-    const mat = new THREE.MeshBasicMaterial({ color: flat ? 0xd8c8b0 : 0xfff2dd, transparent: true, opacity: a0, depthWrite: false, blending: flat ? THREE.NormalBlending : THREE.AdditiveBlending, side: THREE.DoubleSide, fog: true });
+    const mat = shellMaterial(flat, a0);
     const mesh = new THREE.Mesh(flat ? this.ring : this.sphere, mat);
     mesh.position.copy(p);
     if (flat) mesh.position.y += 1.5;

@@ -46,6 +46,50 @@ function chuteTexture(): THREE.CanvasTexture {
 
 let _chuteTex: THREE.CanvasTexture | null = null;
 
+/** a parachute's canopy (each its own: it fades out on its own) */
+function chuteMaterial(): THREE.MeshStandardMaterial {
+  if (!_chuteTex) _chuteTex = chuteTexture();
+  return new THREE.MeshStandardMaterial({ map: _chuteTex, side: THREE.DoubleSide, roughness: 0.9, transparent: true, opacity: 1 });
+}
+
+/** the pieces of one wrecked airframe, in its paint, scorched */
+function debrisMaterial(paint: THREE.Color): THREE.MeshStandardMaterial {
+  return new THREE.MeshStandardMaterial({ color: paint.clone().multiplyScalar(0.55), roughness: 0.8, metalness: 0.2, flatShading: true });
+}
+
+const suitMaterial = () => new THREE.MeshStandardMaterial({ color: 0x4a5340, roughness: 0.95 });
+const helmetMaterial = () => new THREE.MeshStandardMaterial({ color: 0x5b6150, roughness: 0.5 });
+const seatMaterial = () => new THREE.MeshStandardMaterial({ color: 0x2d3033, roughness: 0.8 });
+const glassMaterial = () => new THREE.MeshStandardMaterial({ color: 0x9fb4c4, roughness: 0.1, metalness: 0.3, transparent: true, opacity: 0.45 });
+const lineMaterial = () => new THREE.LineBasicMaterial({ color: 0x2a2a2a });
+
+let _samples: THREE.Group | null = null;
+/**
+ * One of each thing an ejection or a wreck draws (pilot, seat, open chute and its
+ * lines, a jettisoned canopy, a piece of wreck), for the loading screen to draw once
+ * so their shaders are built before the first jet goes down (that used to freeze the
+ * game for a second or more). Never freed: while they live, so do the shaders.
+ */
+export function ejectionSamples(): THREE.Group {
+  if (_samples) return _samples;
+  const g = (_samples = new THREE.Group());
+  const box = new THREE.BoxGeometry(1, 1, 1);
+  const mats = [suitMaterial(), helmetMaterial(), seatMaterial(), glassMaterial(), chuteMaterial(), debrisMaterial(new THREE.Color(0x808080))];
+  mats.forEach((m, i) => {
+    const o = new THREE.Mesh(box, m);
+    o.position.x = (i - 3) * 1.5;
+    g.add(o);
+  });
+  const lg = new THREE.BufferGeometry();
+  lg.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 0, 2, 0], 3));
+  g.add(new THREE.LineSegments(lg, lineMaterial()));
+  g.traverse((o) => {
+    o.castShadow = true;
+    o.frustumCulled = false;
+  });
+  return g;
+}
+
 interface Body {
   obj: THREE.Object3D;
   pos: THREE.Vector3;
@@ -81,11 +125,11 @@ export class EjectionEffects {
   private bodies: Body[] = [];
   private chutes: Chute[] = [];
   private pieces: Piece[] = [];
-  private suit = new THREE.MeshStandardMaterial({ color: 0x4a5340, roughness: 0.95 });
-  private helmet = new THREE.MeshStandardMaterial({ color: 0x5b6150, roughness: 0.5 });
-  private seatMat = new THREE.MeshStandardMaterial({ color: 0x2d3033, roughness: 0.8 });
-  private glass = new THREE.MeshStandardMaterial({ color: 0x9fb4c4, roughness: 0.1, metalness: 0.3, transparent: true, opacity: 0.45 });
-  private lineMat = new THREE.LineBasicMaterial({ color: 0x2a2a2a });
+  private suit = suitMaterial();
+  private helmet = helmetMaterial();
+  private seatMat = seatMaterial();
+  private glass = glassMaterial();
+  private lineMat = lineMaterial();
   /** materials every parachute / seat shares: never freed with one of them */
   private shared = new Set<THREE.Material>([this.suit, this.helmet, this.seatMat, this.glass, this.lineMat]);
   /** latest player parachute position (the death camera follows it) */
@@ -135,7 +179,6 @@ export class EjectionEffects {
   }
 
   private spawnChute(pos: THREE.Vector3, vel: THREE.Vector3, isPlayer: boolean, deployAt: number): void {
-    if (!_chuteTex) _chuteTex = chuteTexture();
     const group = new THREE.Group();
     // pilot hanging below the harness point (origin = harness)
     const pilot = new THREE.Group();
@@ -155,7 +198,7 @@ export class EjectionEffects {
       prof.push(new THREE.Vector2(0.05 + 3.8 * Math.sin((t * Math.PI) / 2), 2.2 * Math.cos((t * Math.PI) / 2) - 0.3 * t));
     }
     const canopyGeo = new THREE.LatheGeometry(prof, 16);
-    const canopy = new THREE.Mesh(canopyGeo, new THREE.MeshStandardMaterial({ map: _chuteTex, side: THREE.DoubleSide, roughness: 0.9, transparent: true, opacity: 1 }));
+    const canopy = new THREE.Mesh(canopyGeo, chuteMaterial());
     canopy.position.y = 7.0;
     canopy.scale.setScalar(0.05);
     canopy.visible = false;
@@ -182,7 +225,7 @@ export class EjectionEffects {
   debris(a: Aircraft, paint: THREE.Color): void {
     const fm = a.fm;
     const n = 7 + Math.floor(Math.random() * 4);
-    const mat = new THREE.MeshStandardMaterial({ color: paint.clone().multiplyScalar(0.55), roughness: 0.8, metalness: 0.2, flatShading: true });
+    const mat = debrisMaterial(paint);
     for (let i = 0; i < n; i++) {
       const big = i < 3;
       const s = big ? rand(1.2, 2.6) : rand(0.35, 1.0);

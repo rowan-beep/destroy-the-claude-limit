@@ -361,6 +361,12 @@ export class Game implements ModeHost {
       r.compileFor(r.scene, r.scene, r.camera, 25000),
       pit ? r.compileFor(pit.root, this.cockpitView.scene, this.cockpitView.camera, 25000) : null,
     ]).catch(() => undefined);
+    try {
+      this.warmView();
+    } catch (e) {
+      // (only ever a head start: the flight goes on without it)
+      console.warn('warm-up', e);
+    }
     onProgress(1, 'READY');
     this.goLive();
     this.lastT = performance.now();
@@ -1109,6 +1115,61 @@ export class Game implements ModeHost {
     this.hud.update(dt, this);
     this.spectatorUi?.update();
     audio.silenceContinuous();
+  }
+
+  /**
+   * Draw the opening view once behind the loading screen, with every screen effect
+   * on, then once from the cockpit with its displays lit. Compiling a shader is not
+   * the whole job: the driver finishes it on the first real draw, so the flight's
+   * first frame used to freeze for seconds, and so did the first look from the
+   * cockpit (its screens' textures make shaders of their own).
+   */
+  private warmView(): void {
+    const p = this.player;
+    if (!p) return;
+    const R = this.renderer;
+    const cam = R.camera;
+    const update = () => {
+      cam.updateMatrixWorld();
+      this.world.update(0, cam, p.fm.pos);
+      this.combat.update(0, cam);
+      this.ground?.update(0, cam);
+    };
+    const vis = this.combat.aircraftVis.get(p);
+    const mode = this.cam.mode;
+    const prev = this.cam.prevMode;
+    try {
+      if (vis && this.avionics && mode !== 'cockpit') {
+        this.cam.setMode('cockpit');
+        vis.setCockpitView(true);
+        this.cam.update(0.016, p, this.eyeWorld());
+        update();
+        this.updateCockpit(true);
+        this.avionics.update(0, true);
+        R.render();
+      }
+    } finally {
+      if (this.cam.mode !== mode) {
+        vis?.setCockpitView(false);
+        this.cam.setMode(mode);
+        this.updateCockpit(false);
+      }
+      this.cam.prevMode = prev;
+    }
+    this.cam.update(0.016, p, this.eyeWorld());
+    update();
+    // and what a kill draws (wreck, ejection seat, chute, blast), just ahead of the camera
+    const ahead = cam.getWorldDirection(new THREE.Vector3()).multiplyScalar(40).add(cam.position);
+    const samples = this.combat.effectSamples();
+    for (const s of samples) {
+      s.position.copy(ahead);
+      R.scene.add(s);
+    }
+    try {
+      R.render(true);
+    } finally {
+      for (const s of samples) R.scene.remove(s);
+    }
   }
 
   /** Build / attach the 3D cockpit and keep its pass in sync with the world camera. */

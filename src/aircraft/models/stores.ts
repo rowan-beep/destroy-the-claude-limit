@@ -534,27 +534,35 @@ export function pylonGeometry(mount: string, store: StoreType, drop: number): TH
 
 /**
  * Twin-rack shoulder mount, in the missile's frame: the shared pylon blade
- * `dx` to one side (from the wing, `top` above, down past the missile) and a
- * LAU-128 style launcher bridging from the pylon's flank to the missile.
+ * `dx` to one side (from the wing, `top` above, down `depth` below the
+ * missile's centre line) and a LAU-128 style launcher: a narrow rail riding
+ * on the missile's back, held out from the pylon's flank by a short adapter
+ * (not a plate the missile's length, which read as a slab from below).
  */
-export function shoulderGeometry(store: StoreType, dx: number, top: number): THREE.BufferGeometry {
-  const key = `shoulder-${store}-${dx.toFixed(2)}-${top.toFixed(2)}`;
-  if (cache[key]) return cache[key]!;
+export function shoulderGeometry(store: StoreType, dx: number, top: number, depth?: number): THREE.BufferGeometry {
   const r = storeRadius(store);
+  const bottom = depth ?? r + 0.12;
+  const key = `shoulder-${store}-${dx.toFixed(2)}-${top.toFixed(2)}-${bottom.toFixed(2)}`;
+  if (cache[key]) return cache[key]!;
   const ir = store === 'AIM9X' || store === 'R74M' || store === 'MICAIR' || store === 'IRIST';
   const s = Math.sign(dx) || 1;
-  const bottom = r + 0.12;
   const blade = pylonBlade(top + bottom, 2.3, 0.13);
   blade.translate(dx, -bottom, -0.1);
   const len = ir ? 2.0 : 2.4;
-  const reach = Math.abs(dx) - 0.06 - r * 0.35;
-  const body = roundBox(reach, 0.085, len, 0.025);
-  body.translate(s * (r * 0.35 + reach / 2), r * 0.55, 0.05);
+  // the launcher on the missile's back
+  const lw = 0.1, lh = 0.08;
+  const ly = r + 0.015 + lh / 2;
+  const body = roundBox(lw, lh, len, 0.025);
+  body.translate(0, ly, 0.05);
   const nose = lathe([[0.002, -len / 2 - 0.12], [0.04, -len / 2 - 0.02], [0.045, -len / 2 + 0.05]], 12);
-  nose.translate(s * (r * 0.35 + reach * 0.55), r * 0.55, 0.05);
+  nose.translate(0, ly, 0.05);
   const rail = roundBox(0.04, 0.02, len * 0.92, 0.006);
-  rail.translate(s * r * 0.55, r * 0.78, 0.05);
-  const g = colorize(join([blade, body, nose, rail]), (_p, c) => c.copy(PYLON));
+  rail.translate(0, r + 0.008, 0.05);
+  // the shoulder adapter from the pylon's flank out to it
+  const reach = Math.max(0.02, Math.abs(dx) - 0.065 - lw / 2 + 0.02);
+  const adapter = roundBox(reach, lh * 0.8, 0.9, 0.02);
+  adapter.translate(s * (lw / 2 - 0.01 + reach / 2), ly, -0.05);
+  const g = colorize(join([blade, body, nose, rail, adapter]), (_p, c) => c.copy(PYLON));
   cache[key] = g;
   return g;
 }

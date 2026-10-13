@@ -517,7 +517,13 @@ export class GameRenderer {
     this.hazePass.enabled = writeHaze(sources, this.camera, u) > 0;
   }
 
-  render(): void {
+  /**
+   * Draw the frame. `everyEffect` also runs every pass that can switch on in flight
+   * (heat haze, rain on the glass, sun shafts, night, the pilot's vision): done once
+   * behind the loading screen, since a driver finishes a shader on its first real
+   * draw, and the first G-pull or glance at the sun used to freeze the game for that.
+   */
+  render(everyEffect = false): void {
     // pitch black night and the night-vision goggles
     const nu = this.nightPass.uniforms;
     this.nightPass.enabled = NIGHT.dark || NIGHT.nvg;
@@ -528,7 +534,18 @@ export class GameRenderer {
     nu.time.value = performance.now() / 1000;
     (nu.res.value as THREE.Vector2).set(this.width * this.pixelRatio, this.height * this.pixelRatio);
     this.aimSun(true);
-    this.composer.render();
+    if (!everyEffect) {
+      this.composer.render();
+      return;
+    }
+    const passes = [this.hazePass, this.dropletPass, this.sunPass, this.nightPass, this.visionPass];
+    const was = passes.map((p) => p.enabled);
+    for (const p of passes) p.enabled = true;
+    try {
+      this.composer.render();
+    } finally {
+      passes.forEach((p, i) => (p.enabled = was[i]));
+    }
   }
 
   /**

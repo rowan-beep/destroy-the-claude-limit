@@ -1011,7 +1011,7 @@ export class AirframeVisual {
       store.castShadow = true;
       g.add(store);
       const drop = st.def.mount === 'pylon' ? (st.def.hang !== undefined ? PYLON_DROP : 0.55) : 0.1;
-      const pg = onShoulder(st.def, st.store) ? shoulderGeometry(st.store, st.def.rack! - cx, st.def.hang! - cy) : pylonGeometry(st.def.mount, st.store, drop);
+      const pg = onShoulder(st.def, st.store) ? shoulderGeometry(st.store, st.def.rack! - cx, st.def.hang! - cy, st.def.rackDepth) : pylonGeometry(st.def.mount, st.store, drop);
       pylons.push(pg.clone().translate(cx, cy, p[2]));
       this.body.add(g);
       this.stationMeshes.set(st.def.id, g);

@@ -64,7 +64,7 @@ export function runModelTest(container: HTMLElement): void {
   // the last jet's pilot eye in world space (tgt=eye aims the orbit camera at it)
   const eye = { world: null as THREE.Vector3 | null };
   types.forEach((t, i) => {
-    const ac = new Aircraft(t, i === 1 ? 'red' : 'blue', 'T' + i);
+    const ac = new Aircraft(t, i === 1 ? 'red' : 'blue', 'T' + i, q.get('loadout') ?? undefined);
     ac.fm.pos.set((i - (types.length - 1) / 2) * 24, ac.spec.gear.height, 0);
     ac.fm.gearPos = gearUp ? 0 : 1;
     // parked on its wheels (the oleos compressed); gp=0..1 poses the gear part way through its travel
