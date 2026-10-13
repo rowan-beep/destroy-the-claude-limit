@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.1",
+    "@vercel/analytics": "^2.0.1",
     "three": "0.186.1"
   },
   "devDependencies": {

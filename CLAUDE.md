@@ -46,6 +46,7 @@ equivalent or degrades gracefully:
 | Multiplayer | off since 7.12.0 (`multiplayerOn()`; owner's call) | the page's live room |
 | Ranked leaderboard | Supabase (`src/net/cloud.ts`) | the artifact's database |
 | Accounts, cloud saves | Supabase email + password | none (saved in the browser) |
+| Visitor counts | Vercel Web Analytics (`src/net/analytics.ts`; only on triad.church and vercel.app) | none |
 
 New features must work in both, or switch themselves off cleanly in one.
 

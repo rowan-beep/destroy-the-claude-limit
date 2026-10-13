@@ -49,11 +49,14 @@ import { hiresImage } from './render/hires';
 import type { MapId } from './world/islands';
 import { startCloud } from './net/cloud';
 import { initAccount } from './ui/menu/accountModal';
+import { startAnalytics } from './net/analytics';
 
 if (multiplayerOn()) wakeOfficialServers();
 // accounts and cloud saves (website and Windows app): restore the session, sync
 void startCloud();
 initAccount();
+// visitor counts on the website (Vercel Web Analytics)
+startAnalytics();
 
 async function boot(): Promise<void> {
   // the theater must be chosen before anything about the world is built
