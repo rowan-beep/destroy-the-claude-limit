@@ -4,6 +4,14 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates, the space menu the space updates and the ocean menu the ocean updates.
 
+## v7.12.3 (2026-10-13)
+
+### Air Combat: The F-15EX flies with an everyday load
+
+- **Improved: A less crowded F-15EX**
+  - The F-15EX now starts with what Eagles usually carry: 6 AIM-120D and 2 AIM-9X. That means four on the body and one pair on each inner wing pylon, with the outer pylons left empty. The AI's F-15s carry the same.
+  - The full twelve-missile MISSILE TRUCK is still in the hangar's loadouts. If it was remembered for your F-15 (it was the old default), the jet has moved to the new load once; pick it again any time.
+
 ## v7.12.2 (2026-10-13)
 
 ### Air Combat: No more freezing at the start of a flight, and a realistic F-15EX load

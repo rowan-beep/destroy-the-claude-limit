@@ -42,6 +42,18 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.12.3',
+    date: '2026-10-13',
+    air: {
+      title: 'The F-15EX flies with an everyday load',
+      notes: [
+        improved('A less crowded F-15EX',
+          'The F-15EX now starts with what Eagles usually carry: 6 AIM-120D and 2 AIM-9X. That means four on the body and one pair on each inner wing pylon, with the outer pylons left empty. The AI\'s F-15s carry the same.',
+          'The full twelve-missile MISSILE TRUCK is still in the hangar\'s loadouts. If it was remembered for your F-15 (it was the old default), the jet has moved to the new load once; pick it again any time.'),
+      ],
+    },
+  },
+  {
     version: '7.12.2',
     date: '2026-10-13',
     air: {

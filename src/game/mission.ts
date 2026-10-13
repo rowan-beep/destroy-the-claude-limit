@@ -37,7 +37,7 @@ export function defaultMission(): MissionConfig {
   return {
     mode: 'free',
     aircraft: 'F15EX',
-    loadoutId: 'eagle-12',
+    loadoutId: 'eagle-8',
     timeOfDay: 'morning',
     freeBase: 'broadford',
     freeStart: 'runway',

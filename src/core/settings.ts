@@ -103,6 +103,8 @@ export function defaultGraphics(): GraphicsOptions {
 }
 
 const KEY = 'triad-air-combat-settings-v1';
+/** set once the remembered F-15EX loadout has moved to the everyday load (7.12.3) */
+const F15_EVERYDAY = 'triad.f15everyday';
 
 export function defaultSettings(): GameSettings {
   return {
@@ -163,6 +165,20 @@ export function loadSettings(): GameSettings {
     // make sure every action has a binding list (new actions after updates)
     for (const a of Object.keys(DEFAULT_BINDINGS) as Action[]) {
       if (!Array.isArray(s.input.bindings[a])) s.input.bindings[a] = [...DEFAULT_BINDINGS[a]];
+    }
+    // 7.12.3: the F-15EX's default became the everyday eight missiles. The twelve-missile
+    // load was the default before, so nearly everyone has it remembered without having
+    // picked it: it moves over once (it is still in the hangar to pick again)
+    try {
+      if (!localStorage.getItem(F15_EVERYDAY)) {
+        if (s.lastLoadout.F15EX === 'eagle-12') {
+          s.lastLoadout.F15EX = 'eagle-8';
+          localStorage.setItem(KEY, JSON.stringify(s));
+        }
+        localStorage.setItem(F15_EVERYDAY, '1');
+      }
+    } catch {
+      /* storage full or blocked: the remembered load stays as it was */
     }
     return s;
   } catch {

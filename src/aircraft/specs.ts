@@ -325,6 +325,13 @@ const F15EX: AircraftSpec = {
   ],
   loadouts: [
     {
+      // what Eagles usually fly with: the conformal tanks' four and a pair on each inner
+      // wing pylon, the EX's outer pylons empty (the default; the full twelve is next)
+      id: 'eagle-8',
+      name: 'EVERYDAY — 6x AIM-120D, 2x AIM-9X',
+      stores: { 3: AIM9, 4: AIM120, 5: AIM120, 6: AIM120, 8: AIM120, 9: AIM120, 10: AIM120, 11: AIM9 },
+    },
+    {
       id: 'eagle-12',
       name: 'EAGLE II "MISSILE TRUCK" — 8x AIM-120D, 4x AIM-9X',
       stores: { 1: AIM9, 2: AIM120, 3: AIM120, 4: AIM9, 5: AIM120, 6: AIM120, 8: AIM120, 9: AIM120, 10: AIM9, 11: AIM120, 12: AIM120, 13: AIM9 },
