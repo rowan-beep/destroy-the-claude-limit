@@ -6,15 +6,14 @@ TRIAD is written in TypeScript on Three.js and runs entirely in the browser: no 
 no downloads, no game assets beyond what the code builds. Every aircraft, rocket, rover,
 submarine, island and sound is generated procedurally at start-up.
 
-It has three programs, chosen on the launcher screen:
+It has two programs, chosen on the launcher screen:
 
 | Program | What you do |
 |---|---|
 | **AIR COMBAT** | Fly 13 real jets over four theaters: dogfights, campaigns, ranked 5v5, airstrikes, spy flights, carrier ops, aerial refuelling, airshows and online battles. |
 | **SPACE EXPLORATION** | Fly the Saturn V to the Moon, Starship to Mars, Falcon 9, Falcon Heavy and SLS missions, drive Perseverance and Curiosity, and tour the whole Solar System at real scale. |
-| **OCEAN** | Pilot a one-person survey submersible off Kestrel Harbor, listen with hydrophones, triangulate a sound and recover what is knocking in the dark. |
 
-Current version: **7.12.3**. Full history in [CHANGELOG.md](CHANGELOG.md).
+Current version: **7.13.0**. Full history in [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -40,11 +39,10 @@ Current version: **7.12.3**. Full history in [CHANGELOG.md](CHANGELOG.md).
    - [Controls](#controls)
    - [Graphics settings](#graphics-settings)
 4. [Space exploration](#space-exploration)
-5. [Ocean](#ocean)
-6. [Multiplayer](#multiplayer)
-7. [Building and development](#building-and-development)
-8. [Project layout](#project-layout)
-9. [Release notes](#release-notes)
+5. [Multiplayer](#multiplayer)
+6. [Building and development](#building-and-development)
+7. [Project layout](#project-layout)
+8. [Release notes](#release-notes)
 
 ---
 
@@ -83,8 +81,7 @@ server and no network. Fonts fall back to system fonts offline.
 ### Phones and tablets
 
 Touch controls switch on automatically on touch devices: a virtual stick, a throttle
-slider, fire, lock, weapon and countermeasure buttons, and drag-to-look. The ocean
-program has its own touch layout.
+slider, fire, lock, weapon and countermeasure buttons, and drag-to-look.
 
 ---
 
@@ -102,8 +99,8 @@ loading behind it.
 
 A pulsing red **NEW** badge appears on a program's card while that program has
 release notes you have not opened yet. Each program keeps its own notes: the air
-combat menu lists only air updates, the space menu only space updates, and the
-ocean menu only ocean updates. Opening the notes clears the badge.
+combat menu lists only air updates and the space menu only space updates. Opening
+the notes clears the badge.
 
 The air and space menus come in two styles, switchable in settings: **CURRENT**
 (the full menu with the 3D hangar) and **SIMPLE** (a compact list).
@@ -532,49 +529,6 @@ the ascent while you watch or take over.
 
 ---
 
-## Ocean
-
-The third program: **SV-1 PETREL**, a one-pilot survey submersible rated to 300 m, off
-Kestrel Harbor. Built around listening, navigation and atmosphere rather than survival
-or crafting. Full design notes in [docs/OCEAN.md](docs/OCEAN.md).
-
-### Missions
-
-- **Quiet Survey: The Silent Buoy**, a complete expedition: leave the harbor, hear a
-  strange knock, take bearings from two places to triangulate it, ping the approach,
-  find the wreck in your lamps, scan its plate, recover the recorder, come home and dock.
-- **The Slow Pulse**, the follow-up, opens when the expedition is done: a pulse from
-  the deep basin, the Kestrel Marine Lab's mooring 282 m down, with something lying past
-  the boat's rating that only the multibeam can see.
-- **Free Survey**: the whole region, no story.
-
-Nothing marks a source on the map before you have located it yourself.
-
-### How it works
-
-- **Acoustics** on the passive sonar equation: signal excess is source level minus
-  transmission loss minus noise, in dB re 1 µPa. Spherical spreading plus Thorp's
-  seawater absorption, and sea noise from the Knudsen curves for the sea state. The same
-  numbers drive the sound, the listening display, the bearings and the atlas.
-- **The Echo Atlas** keeps every contact you hear, its bearings and its story, the
-  evidence and the expedition log, across sessions.
-- **The boat**: fixed-step physics with thrust, drag, buoyancy, ballast, assists and
-  collisions; a 360 degree scanning sonar whose beam paints the sea bed blue as it
-  sweeps; a manipulator arm you fly by hand to take samples; floodlights all round the
-  hull.
-- **The sea**: a streamed sea bed with ripples, burrows, seagrass, starfish, glass
-  sponges, fish, drifting jellyfish, silt your thrusters stir up and plankton that spark
-  blue-green in the dark. Water absorbs light per colour with depth.
-- **Above water**: the harbor with its sky, hills, structures and boats.
-- **Weather**: dawn, morning, noon, afternoon or sunset; clear, fair, cloudy or overcast
-  skies; calm, moderate or rough seas.
-- **Time warp** for the long transits.
-- **Graphics presets**: Performance, Balanced and Cinematic, and a repeatable benchmark
-  route on the HARBOR page (or `triadBench('balanced')` in the browser console).
-- Keyboard and mouse, gamepad or touch.
-
----
-
 ## Multiplayer
 
 > Since 7.12.0 multiplayer is only offered inside the claude.ai artifact (its own live
@@ -648,7 +602,7 @@ menu rail, or at the top of the simple menu), backed by a Supabase project:
   the game never needs to send mail. The email is only the account's name. There is no
   password reset by email; a signed-in player can change their password.
 - **Nothing is lost.** The first time a player signs in, everything the game has saved
-  in that browser (settings, ranked, logbook, campaign, paint, ocean and space
+  in that browser (settings, ranked, logbook, campaign, paint and space
   progress) is copied to the account, and the browser copy stays as it is. After that
   changes are saved every 20 s and when the game is closed or hidden, and another
   device that signs in gets them. If a device and the account have both moved on, the
@@ -689,10 +643,8 @@ accounts. The claude.ai artifact keeps its own storage and board.
 
 `npm test` runs `scripts/test.mjs`: every `tests/**/*.test.ts` is bundled with esbuild
 (shipped with Vite) and run with Node's built-in test runner. No browser and no extra
-packages. There are 75 tests: `tests/air` covers the ranked maths (ranks, RP, MMR,
-placements, weekly reset) and `tests/ocean` covers the acoustics, the Echo Atlas, the
-controls, both expeditions, geography, sea life, the manipulator arm, the sub's physics
-and sea-bed streaming.
+packages. There are 29 tests: `tests/air` covers the ranked maths (ranks, RP, MMR,
+placements, weekly reset) and `tests/net` the cloud saves.
 
 ### Deploying
 
@@ -761,26 +713,23 @@ src/
   audio/           synthesised sound engine, DSP, menu music
   space/           the space program: universe, Saturn V, launch vehicles and missions,
                    Mars and Starship, rovers, the Solar System explorer, time warp
-  ocean/           the ocean program: sub physics, acoustics, the dive, the Echo Atlas,
-                   missions, rendering, performance presets and benchmark
-tests/             unit tests (air, ocean)
+tests/             unit tests (air, cloud saves)
 scripts/           test runner, changelog generator
 server/            multiplayer server, Dockerfile, admin page
 desktop/           Electron wrapper for the Windows app
 tools/cinematics/  in-engine shot scripts and renderer
-docs/              design notes (OCEAN.md)
 public/            static assets served as-is (cinematic stills, hi-res images)
 ```
 
-The space and ocean programs are split into their own lazily loaded chunks, so players
-of one program never download the others' code.
+The space program is split into its own lazily loaded chunk, so air players never
+download its code.
 
 ---
 
 ## Release notes
 
 Release notes live in `src/version.ts`, newest first, with separate notes for each
-program (`air`, `space`, `ocean`). Each note is a short headline with detail points,
+program (`air`, `space`). Each note is a short headline with detail points,
 tagged NEW, IMPROVED or FIXED. The game shows them in each program's **NOTES** panel,
 opens them by itself the first time there is something new, and badges the launcher card
 until they are read. `npm run changelog` writes the same notes to

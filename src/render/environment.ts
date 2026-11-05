@@ -392,6 +392,12 @@ export class Environment {
   }
 
   private envTarget: THREE.WebGLRenderTarget | null = null;
+  /** kept between builds: a new generator recompiles its blur shaders every time */
+  private pmrem: THREE.PMREMGenerator | null = null;
+  private envScene: THREE.Scene | null = null;
+  private envMat: THREE.ShaderMaterial | null = null;
+  /** what the current map was built from: the same sky again is not rebuilt */
+  private envKey = '';
 
   /** Image-based lighting from the current sky so metal and paint reflect it. */
   buildEnvMap(renderer: THREE.WebGLRenderer): void {
@@ -404,31 +410,43 @@ export class Environment {
     const top = new THREE.Color().setRGB(...p.zenith, THREE.SRGBColorSpace).lerp(cloud.clone().multiplyScalar(0.85), grey);
     const mid = new THREE.Color().setRGB(...p.horizon, THREE.SRGBColorSpace).lerp(cloud, grey);
     const sunCol = new THREE.Color().setRGB(...p.sunColor, THREE.SRGBColorSpace).multiplyScalar(1 - 0.95 * wx.deckSolid);
-    const scene = new THREE.Scene();
-    const mat = new THREE.ShaderMaterial({
-      side: THREE.BackSide,
-      uniforms: {
-        top: { value: top },
-        mid: { value: mid },
-        bot: { value: new THREE.Color().setRGB(0.36, 0.3, 0.26, THREE.SRGBColorSpace) },
-        sunDir: { value: this.sunDir.clone() },
-        sunCol: { value: sunCol },
-      },
-      vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-      fragmentShader:
-        'uniform vec3 top; uniform vec3 mid; uniform vec3 bot; uniform vec3 sunDir; uniform vec3 sunCol; varying vec3 vD;' +
-        'void main(){ vec3 d = normalize(vD); vec3 c = d.y > 0.0 ? mix(mid, top, pow(d.y, 0.5)) : mix(mid * 0.8, bot, clamp(-d.y * 4.0, 0.0, 1.0));' +
-        ' c += sunCol * pow(max(dot(d, sunDir), 0.0), 64.0) * 6.0; gl_FragColor = vec4(c, 1.0); }',
-    });
-    scene.add(new THREE.Mesh(new THREE.SphereGeometry(10, 32, 16), mat));
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    const rt = pmrem.fromScene(scene, 0);
-    pmrem.dispose();
+    this.scene.environmentIntensity = NIGHT.dark ? 0.02 : 0.55;
+    const d = this.sunDir;
+    const key = [top.getHexString(), mid.getHexString(), sunCol.getHexString(), d.x.toFixed(3), d.y.toFixed(3), d.z.toFixed(3)].join();
+    if (key === this.envKey && this.envTarget) {
+      this.scene.environment = this.envTarget.texture;
+      return;
+    }
+    if (!this.envMat || !this.envScene) {
+      this.envMat = new THREE.ShaderMaterial({
+        side: THREE.BackSide,
+        uniforms: {
+          top: { value: new THREE.Color() },
+          mid: { value: new THREE.Color() },
+          bot: { value: new THREE.Color().setRGB(0.36, 0.3, 0.26, THREE.SRGBColorSpace) },
+          sunDir: { value: new THREE.Vector3() },
+          sunCol: { value: new THREE.Color() },
+        },
+        vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+        fragmentShader:
+          'uniform vec3 top; uniform vec3 mid; uniform vec3 bot; uniform vec3 sunDir; uniform vec3 sunCol; varying vec3 vD;' +
+          'void main(){ vec3 d = normalize(vD); vec3 c = d.y > 0.0 ? mix(mid, top, pow(d.y, 0.5)) : mix(mid * 0.8, bot, clamp(-d.y * 4.0, 0.0, 1.0));' +
+          ' c += sunCol * pow(max(dot(d, sunDir), 0.0), 64.0) * 6.0; gl_FragColor = vec4(c, 1.0); }',
+      });
+      this.envScene = new THREE.Scene();
+      this.envScene.add(new THREE.Mesh(new THREE.SphereGeometry(10, 32, 16), this.envMat));
+    }
+    const u = this.envMat.uniforms;
+    (u.top.value as THREE.Color).copy(top);
+    (u.mid.value as THREE.Color).copy(mid);
+    (u.sunDir.value as THREE.Vector3).copy(d);
+    (u.sunCol.value as THREE.Color).copy(sunCol);
+    this.pmrem ??= new THREE.PMREMGenerator(renderer);
+    const rt = this.pmrem.fromScene(this.envScene, 0);
     this.envTarget?.dispose();
     this.envTarget = rt;
+    this.envKey = key;
     this.scene.environment = rt.texture;
-    this.scene.environmentIntensity = NIGHT.dark ? 0.02 : 0.55;
-    mat.dispose();
   }
 
   /** How bright the ambient scene is (used for cloud shading). */

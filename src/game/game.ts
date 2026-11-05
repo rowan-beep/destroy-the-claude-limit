@@ -178,7 +178,7 @@ export class Game implements ModeHost {
     if (s !== 'playing') this.autoFlyPanel?.hide();
     this.input.enabled = s === 'playing';
     // (a flight on hold is silenced; the menus are not: the jet's sounds are stopped there anyway,
-    // and the ocean's dives and the space missions, which run over the menus, are heard)
+    // and the space missions, which run over the menus, are heard)
     audio.setPaused(s !== 'playing' && s !== 'menu');
     if (s !== 'playing') this.input.exitPointerLock();
     this.onStateChange?.(s);
@@ -244,6 +244,17 @@ export class Game implements ModeHost {
     this.applySettings();
     this.onWorldBuilt?.();
     console.info(`theater ready in ${Math.round(performance.now() - t0)} ms${this.world.pool.usingFallback ? ' (main-thread fallback)' : ''}`);
+  }
+
+  /**
+   * The built theater made ready for a flight at the menu's time of day: its sky reflections
+   * (rebuilt at LAUNCH only if the time or the weather changed). Called behind the launcher.
+   */
+  prepareTheater(): void {
+    if (!this.world.ready) return;
+    this.world.env.setTimeOfDay(this.settings.gameplay.timeOfDay);
+    this.world.env.buildEnvMap(this.renderer.renderer);
+    this.world.bakeLighting(this.renderer.renderer);
   }
 
   async startMission(cfg: MissionConfig, progress: (f: number, label: string) => void): Promise<void> {

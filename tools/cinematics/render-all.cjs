@@ -1,4 +1,4 @@
-// Renders the loading screen's cinematic shots (twenty air, twenty space, ten ocean) in
+// Renders the loading screen's cinematic shots (twenty air, twenty space) in
 // the game itself at 2560 x 1440 and puts them in place: public/cinematics/<program>/NN.webp
 // and the list in src/ui/launcher/shots.ts. Needs a machine with a graphics card:
 //
@@ -20,7 +20,7 @@ const ROOT = path.join(__dirname, '..', '..');
 const OUT = path.join(__dirname, 'out');
 const PORT = +process.env.CINE_PORT || 5199;
 /** the picture shown first (and on the picker) for each program */
-const HERO = { air: '01', space: '01', ocean: '01' };
+const HERO = { air: '01', space: '01' };
 const JOBS = {
   air: [
     ['run.cjs', 'air.cjs'],
@@ -28,7 +28,6 @@ const JOBS = {
     ['run.cjs', 'air_ocean.cjs'],
   ],
   space: [['runspace.cjs', 'space.cjs']],
-  ocean: [['runocean.cjs', 'ocean.cjs']],
 };
 
 try {
@@ -39,9 +38,9 @@ try {
 }
 
 const which = process.argv[2];
-const programs = which ? [which] : ['air', 'space', 'ocean'];
+const programs = which ? [which] : ['air', 'space'];
 if (programs.some((p) => !JOBS[p])) {
-  console.error('usage: npm run cinematics [-- air|space|ocean]');
+  console.error('usage: npm run cinematics [-- air|space]');
   process.exit(1);
 }
 

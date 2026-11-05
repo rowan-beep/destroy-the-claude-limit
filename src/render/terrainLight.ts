@@ -105,6 +105,8 @@ export class TerrainLightBaker {
   private mat: THREE.ShaderMaterial;
   private scene = new THREE.Scene();
   private cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  /** the sun direction the map was last baked for */
+  private bakedFor = '';
 
   constructor(private grid: HeightGrid, half: number) {
     const n = grid.n;
@@ -137,6 +139,13 @@ export class TerrainLightBaker {
 
   /** Bake for a sun direction (unit vector toward the sun). */
   bake(renderer: THREE.WebGLRenderer, sunDir: THREE.Vector3): void {
+    // the same sun again (the launcher already baked it): nothing to do
+    const key = `${sunDir.x.toFixed(4)},${sunDir.y.toFixed(4)},${sunDir.z.toFixed(4)}`;
+    if (key === this.bakedFor) {
+      TERRAIN_LIGHT.tlMap.value = this.target.texture;
+      return;
+    }
+    this.bakedFor = key;
     (this.mat.uniforms.sunDir.value as THREE.Vector3).copy(sunDir);
     const prevTarget = renderer.getRenderTarget();
     const n = this.grid.n;

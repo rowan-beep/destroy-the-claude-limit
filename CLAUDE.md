@@ -29,7 +29,7 @@ Every update the player can see gets a new version with release notes, so the
 one they haven't seen). Small fixes included (model shape fixes too).
 
 - Add the release at the top of `RELEASES` in `src/version.ts`, under the game
-  it belongs to (`air`, `space` or `ocean`), with added()/improved()/fixed().
+  it belongs to (`air` or `space`), with added()/improved()/fixed().
 - Bump `package.json` and the "Current version" line in README.md to match, and
   run `npm run changelog`.
 - Notes about accounts or sign-in get `accounts: true`: they only show in a

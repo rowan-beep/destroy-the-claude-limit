@@ -228,8 +228,6 @@ export class GameRenderer {
   /** depth of field (the airshow camera) */
   private dofPass: DofPass;
   private look: CameraLook | null = null;
-  /** a scene's own grade on top of the settings (the ocean menu's richer picture) */
-  private boost = { saturation: 1, contrast: 1 };
   /** god rays and lens ghosts from the sun (HDR) */
   private sunPass: SunShaftPass;
   private sunK = 0;
@@ -342,8 +340,8 @@ export class GameRenderer {
     const g = this.settings;
     const fu = this.finalPass.uniforms;
     const l = this.look;
-    fu.contrast.value = g.contrast * (l?.contrast ?? 1) * this.boost.contrast;
-    fu.saturation.value = g.saturation * (l?.saturation ?? 1) * this.boost.saturation;
+    fu.contrast.value = g.contrast * (l?.contrast ?? 1);
+    fu.saturation.value = g.saturation * (l?.saturation ?? 1);
     fu.vignette.value = l ? l.vignette : g.vignette ? 0.28 : 0;
     if (l) fu.aberration.value = l.aberration;
     else fu.aberration.value = g.quality === 'low' ? 0 : 0.0014;
@@ -357,13 +355,6 @@ export class GameRenderer {
       fu.camMono.value = l.mono;
       fu.camNoise.value = l.noise;
     }
-  }
-
-  /** a scene's own saturation and contrast on top of the player's (1, 1: none) */
-  setGradeBoost(saturation: number, contrast: number): void {
-    if (this.boost.saturation === saturation && this.boost.contrast === contrast) return;
-    this.boost = { saturation, contrast };
-    this.applyGrade();
   }
 
   /** the airshow camera's look (null: the game's own picture) */

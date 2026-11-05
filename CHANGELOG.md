@@ -2,7 +2,17 @@
 
 Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
-updates, the space menu the space updates and the ocean menu the ocean updates.
+updates and the space menu the space updates.
+
+## v7.13.0 (2026-11-05)
+
+### Air Combat: Into the game twice as fast
+
+- **Improved: Faster loading**
+  - The loading screen after picking AIR COMBAT takes 4 seconds instead of 8, and the theater is now built while it plays, so LAUNCH starts the first flight sooner.
+  - The sky's reflections and the terrain lighting are no longer rebuilt when nothing about them changed.
+- **Improved: Two programs**
+  - TRIAD is now AIR COMBAT and SPACE. The Ocean exploration program has been removed. The jets' Open Ocean map, carriers and water stay.
 
 ## v7.12.3 (2026-10-13)
 
@@ -419,19 +429,6 @@ updates, the space menu the space updates and the ocean menu the ocean updates.
 - **Fixed: AI gun trigger during a break**
   - Computer pilots no longer keep the trigger held while they break from a missile, which used to empty their gun at nothing.
 
-## v6.4.2 (2026-10-09)
-
-### Ocean: Time warp that works
-
-- **Fixed: Time warp**
-  - It no longer sits at 1× in most of the places you use it. Set it and it runs: up to 100× in open water; at most 10× in the harbor, within 300 m of the wreck and K3, while listening and with the battery under 10 %; at most 5× within 6 m of the bottom; 1× only during a task, with the arm out or behind the Battery flat card.
-  - Set to 100× at the berth, PETREL now covers about 77 m in 4 seconds of thrust; it used to be held at 1× until it had left the whole harbor.
-  - Starting Quiet Survey no longer puts the slider back to 1×: the setting stays where you put it.
-- **Fixed: A free survey no longer ends at the start**
-  - Pressing E at the berth before leaving docked straight away and ended the dive at 0 km. Docking, and its prompt, now only come once the boat has been more than 40 m out.
-- **No touch controls**
-  - The on-screen stick and button pad are gone from the dives: dives are played with the keyboard and mouse or a gamepad.
-
 ## v6.4.1 (2026-10-09)
 
 ### Air Combat: Sound stays off while paused
@@ -451,48 +448,6 @@ updates, the space menu the space updates and the ocean menu the ocean updates.
   - In the simple menu the tile titles (APOLLO · THE MOON, STARSHIP TO MARS, CREW DRAGON · ISS, PERSEVERANCE) and their descriptions were cut off on narrower windows, from 1280 pixels wide down to a phone: tiles now take two lines and the titles scale to the tile.
   - The main menu's top bar ran off the right edge at 1024 wide (its mission counters now give way below 1100), and on a phone the footer's SIMPLE MENU button ran off the screen (the footer now wraps).
 
-### Ocean: Weather, a bright harbor and a free look
-
-- **New: Weather**
-  - Pick the time of day (Dawn, Morning, Noon, Afternoon, Sunset), the sky (Clear, Fair, Cloudy, Overcast) and the sea (Calm, Moderate, Rough): 60 combinations. The new Weather panel at the menu's right has a slider for the time and buttons for the sky and the sea; The boat page and a dive's pause card have the same three.
-  - The sun's height and colour, the sky, the clouds, the haze, the light under water, the waves and the wind all follow. The menu's harbor changes at once.
-- **Improved: A bright menu**
-  - The harbor now starts at noon with a few clouds and a calm sea instead of dawn. The dark veil over the left of the menu is gone (a light one stays behind the text), the glass panels let the harbor's colour through, and the picture behind the menu has a richer grade.
-  - Saved weather carries over: Calm daylight becomes Noon, Fair, Calm; Overcast becomes Afternoon, Overcast, Rough; Dawn swell, which was everyone's default, becomes the new bright noon.
-- **New: Look around the harbor**
-  - Drag on the harbor to turn the view round PETREL, scroll to come closer or stand back, double-click to go back to the slow drift. A flick keeps it turning for a moment. The camera stays above the water, the pier and the survey vessel.
-- **Fixed: Time warp and the battery**
-  - With less than 10 % battery left, time now runs at most 10×: at 100× with full thrust and the lamps on, the last 10 % used to go in about 5 seconds. Behind the Battery flat card time runs at 1×.
-- **Fixed: No sound from a tab you have left**
-  - Switching to another browser tab left the sub's motor and the sea sounding in the background. The sound now stops while the tab is hidden and comes back when you return.
-- **Fixed: The dive's instruments on narrower windows**
-  - The objective panel no longer runs into the compass, and the survey panel and the prompt above it sit higher so they no longer cover the bottom of the screen. On a phone held upright the big messages appear under the compass instead of over the objective panel.
-- **Fixed: The simple menu's tiles**
-  - On narrower windows the tile titles and their descriptions were cut off; tiles now take two lines and the titles scale to the tile.
-
-## v6.4.0 (2026-10-09)
-
-### Ocean: A real harbor, a real sky, time warp and a new look
-
-- **New: Kestrel Harbor, built like a working port**
-  - The quay is a cast concrete wall with a capping beam, rubber fenders, steel ladders, cast-iron bollards, crane rails and lamp masts. Behind it a levelled concrete yard: stacked shipping containers, a corrugated-steel shed, the Kestrel Marine Lab, a workshop with the harbor control tower and its turning radar, and two fuel tanks.
-  - A quay crane with a lattice jib stands over the water. The pier stands on concrete piles with timber fendering; the berth has its launch and recovery crane, foam fenders and marker buoys.
-  - The two breakwaters are armour rock round a concrete crown, out to the red and green lights at the gate.
-  - Every surface has its real texture and relief: concrete with joints and stains, timber, ribbed cladding, granite, painted steel. Everything the tide reaches is wet, weeded and darker up to the high-water mark.
-- **New: The survey vessel**
-  - KESTREL SURVEYOR lies alongside the pier, held by mooring lines: a 34 m hull with red antifouling, a white boot-top and dark blue topsides, a bridge with raked wraparound windows, a mast with two turning radar scanners and satellite domes, the funnel, an A-frame over the stern, a winch, a deck crane, a lab container, liferafts and a rescue boat. PETREL can no longer pass through it.
-- **New: The land round the harbor**
-  - Wooded hills: 2,288 pines, 1,666 broadleaf trees and 167 bushes on the Balanced preset, moving in the wind, with open grass between. The town's 55 houses stand along the slopes either side of the yard.
-  - The ground itself shows grass going from green to dry, scrub and heather, bare soil, rock where it is steep and wet sand at the shore.
-- **Improved: A real sky**
-  - The sky is worked out from how sunlight scatters in the air: deep blue overhead, paler toward the horizon, a glow round the sun, and a red sky at dawn.
-  - Cumulus clouds drift across it with the wind, lit on the side toward the sun; overcast is a grey deck. The haze over the land and the sea takes the sky's colour at the horizon.
-- **New: Time warp**
-  - The same slider as the space missions': 1× to 100× (or , and . to step it). Time speeds up smoothly and drops at once where it must: inside the harbor, near the wreck and K3, close to the bottom, while listening and during a task it stays at 1×; with the arm out 1×; with the scanning sonar turning at most 4×.
-- **Improved: A new look for the menu and the dive**
-  - The menu is laid over the harbor on a clear glass column: plain readable text, three pages (Missions, The boat, Echo Atlas) and one big Dive button that always says what it will start. Pick a mission and press Dive, or Continue on one in progress.
-  - The dive's instruments, the pause and debrief cards, the chart and the touch controls are restyled to match: clean glass panels, normal letter spacing, the same colours throughout.
-
 ## v6.3.1 (2026-10-08)
 
 ### Air Combat: Sharp picture all the time
@@ -506,117 +461,6 @@ updates, the space menu the space updates and the ocean menu the ocean updates.
   - After the first screen, the game's sound was held at zero everywhere outside a jet flight, so the rover arm's motors, the drill, the time-warp sounds and the clicks in the space menus and missions were not heard. They are now.
 - **Fixed: No more automatic resolution drops**
   - The automatic resolution option is gone: it lowered the picture to as little as 60 % of its resolution whenever the frame rate dipped, which made launches, Mars and the rover look blurry. The picture now stays at the resolution and scale you set.
-
-### Ocean: Sound, the camera the right way round and a sharp picture
-
-- **Fixed: The dives had no sound**
-  - After the first screen the game's sound was held at zero, so nothing in a dive was heard: the sea, the thrusters, the ballast pumps, the hull, the hydrophone and the clicks. All of it is heard now.
-- **Fixed: Looking around turns the way you look**
-  - Dragging right (or the gamepad's right stick to the right) now turns the view right, from the dome and in the chase view; it turned left before. Up and down were already right.
-- **Fixed: A sharp, clean picture**
-  - The automatic resolution option is gone: it lowered the picture to as little as 60 % of its resolution whenever the frame rate dipped, which is when the ocean looked blurry. The picture now stays at the resolution and scale you set (the PERFORMANCE preset still draws at 75 %, as it says).
-  - No more rainbow fringes along hard edges toward the sides of the screen (the posts, rails and the boat against the sky): the ocean is drawn without the lens's colour fringes.
-
-## v6.3.0 (2026-10-08)
-
-### Ocean: Scanning sonar, a hand-flown arm and floodlights
-
-- **New: Scanning sonar**
-  - PETREL's sonar head now turns: a ping is one full turn (3 s), the beam sweeping round from the bow, and N keeps it turning, a ping every turn, until you switch it off. While it turns the hydrophones are masked, so listening switches it off.
-  - With the overlay on (O), whatever the beam sweeps over in the water lights up blue as it passes and fades behind it, out to 280 m with range rings every 50 m: the slope, the reef, the wreck and K3's mooring stand out well beyond what the lamps reach.
-  - A round sonar display shows the same picture, heading-up, in the minimap's place while the head turns (and in the Quiet Survey panel): the sea bed in blue, hard returns in amber.
-- **New: The manipulator arm, flown by hand**
-  - V brings the arm out and the boat holds its place and depth. W/S move the jaw ahead and back, A/D left and right, R/F up and down; E closes the jaw on what is between it, V stows the arm and puts what it holds in the sample basket.
-  - The jaw reaches 2.1 m from its shoulder, not behind it or into the hull, rests on the bottom (and stirs it) instead of going through it, and the camera moves round to watch it.
-  - Take shells, stones, starfish, sea urchins and sea cucumbers off the bottom: each one in the basket goes into the Echo Atlas with the depth it came from. The expeditions' recorders can be taken by hand too; E outside the arm still does it for you.
-- **New: Floodlights**
-  - K switches on the floodlights round the hull (along both sides, under the belly and at the stern): the water and the bottom all round the boat light up, not only ahead, and the particles in the water catch the light. They draw a little more from the battery.
-- **Controls**
-  - Gamepad: hold A for the arm, hold B for the scanning sonar, hold Y for the floodlights (a tap still does what it did). Touch: ARM, SCAN SONAR and FLOODS buttons; with the arm out the stick and up / down move the jaw and USE grips.
-
-## v6.2.0 (2026-10-08)
-
-### Ocean: A living sea: the sea bed up close, jellyfish, silt and bioluminescence
-
-- **New: The sea bed up close**
-  - Wave ripples in the sand run across the swell, longer and fainter with depth until they die out below about 90 m, with shell fragments on the crests and darker sand in the troughs.
-  - Rock is lumpy and cracked, with dark crevices and pink coralline crusts in the shallows; the deep silt is marked with the burrows and mounds of the animals living in it.
-  - The relief catches the sunlight, the caustics and your lamps, and fades out with distance so nothing shimmers far off.
-- **New: Life on the sea floor**
-  - Seagrass meadows on the shallow sand that lean with the surge, shells, starfish, urchins on the rock and reef, sea pens, brittle stars and sea cucumbers on the deeper sand and mud, and glass sponges below 150 m.
-  - Each lives where it would, and they are in the same places in every dive.
-- **New: Jellyfish**
-  - Moon jellies drift in loose swarms in the upper 30 m over the shelf; seen from below they catch the daylight coming down through them.
-  - In the dark water of the basin, below 120 m, there are deep-red helmet jellies: they show only in your lamps, and lose their red a few metres off as the water takes it away.
-  - Their bells pulse, a quick stroke and a slow relaxation, and the tentacles trail after them.
-- **New: Silt**
-  - Run the thrusters close to sand or mud, or touch the bottom, and the wash lifts the sediment in billowing clouds, lit by the daylight at that depth and by your lamps.
-  - The fine mud of the deep basin hangs for about half a minute and drifts with the current; sand drops back within seconds. Rock stays clear.
-- **New: Bioluminescence**
-  - In dark water the plankton flash blue-green where the hull pushes through them and in the thrusters' wash. Switch the lamps off in the deep basin and the boat is outlined in sparks.
-- **Fixed: Things in the water no longer vanish against the surface**
-  - Seen from below, the surface was drawn over the marine snow, silt and lamp beams that were between it and the camera. It is now drawn behind them.
-
-## v6.1.0 (2026-10-08)
-
-### Ocean: THE SLOW PULSE: a second mission, 282 m down, and touch and gamepad controls
-
-- **New: THE SLOW PULSE: what was pulsing in the deep basin**
-  - Finish the first expedition and the follow-up opens on the MISSIONS page: nine stages, saved at each one, with its own debrief.
-  - Take two bearings on the 12 kHz pulse (it is kilometres off, so the second bearing needs a long step to the side), go down in the search area and find its source in your lamps.
-  - It is the Kestrel Marine Lab's deep mooring K3: an orange float 282 m down on a taut line, with its relocation pinger, a hydrophone recorder and the lab's tag. Scan the tag from in front and take the recorder off the line with the arm.
-  - The anchor is 339 m down, past PETREL's 300 m rating: ping, and the multibeam under the boat (65° either side, 120 m down) shows what lies across the foot of the line.
-- **New: Touch controls for phones and tablets**
-  - A stick (ahead, astern, turn), buttons for up and down, flood and blow, the side thrusters, listening, sonar, the arm, lamps, the holds and transit time. Drag to look, pinch to zoom.
-  - The emergency blow must be held for 2 s, so it never goes off by accident. On a phone held sideways the instruments move to the top corners.
-- **New: Gamepad**
-  - Left stick to drive, triggers up and down, bumpers for the side thrusters, D-pad for the tanks and the holds (hold up 2 s for the emergency blow), A use, B ping, X listen, Y lamps, right stick to look.
-  - The CONTROLS page and the in-dive help (H) list it all.
-- **Improved: The sea bed is built on a separate thread**
-  - Sea-bed tiles are now built on a worker thread; the game itself only turns them into meshes. On the benchmark route (BALANCED) the slowest tile on the game's own thread went from 13.9 ms to 4.4 ms, frames held up by more than 8 ms of sea-bed work from 9 to none, and the game's own work per frame (95th percentile) from 8.9 to 6.4 ms.
-  - The benchmark can compare: triadBench('balanced', 15, false) builds the tiles the old way.
-- **Improved: Sonar answers across each beam's width**
-  - Each of the 90 beams now answers for anything inside its own width, not only on its centre line, so a thin mooring line 200 m off is found from any side instead of only now and then.
-
-## v6.0.0 (2026-10-08)
-
-### Ocean: OCEAN: a survey submarine, a strange knock, and the sea as it really looks
-
-- **New: A third program: OCEAN**
-  - Pick OCEAN from the program menu under the TRIAD logo. Its menu has three pages: MISSIONS (the expedition and the free survey), HARBOR (the boat, the ocean's settings and a benchmark) and CHART (the Echo Atlas).
-  - There is a SIMPLE menu too, like the air and space programs.
-- **New: SV-1 PETREL, a one-pilot survey submersible**
-  - 6.4 m long and 7.8 t, with an acrylic bow dome, two stern and two vertical thrusters, LED lamps, a forward-looking sonar with a multibeam under the hull, hydrophones and a five-function arm.
-  - Top speed 2.6 m/s (5 knots). Rated to 300 m; past 360 m the tanks blow by themselves.
-  - Real ballast: the vents flood the main tanks in about 4 s, the trim pump does the last bit slowly, the blower empties them, and B blows everything straight to the surface. Too light to dive? The boat says so.
-  - Assists hold a depth (T) or a position (G). The battery lasts about 85 minutes at full thrust with the lamps on.
-  - The physics runs in fixed 1/60 s steps, so the boat handles the same at any frame rate.
-- **New: The expedition: QUIET SURVEY: THE SILENT BUOY**
-  - Ten stages: leave Kestrel Harbor, dive by the training buoy, hear a faint double knock, take two bearings on it from two places, ping the search area, find a wreck in your lamps at about 85 m, scan her stern plate, recover what is knocking with the arm, come home and dock.
-  - Nothing marks the source until you have found it yourself: the bearings and the search area they make are the only guide.
-  - A debrief tells the story, with your scan photo, time, distance, depth, bearings and how close your search area was.
-- **New: Quiet Survey: listening is the game**
-  - Q quiets the thrusters and turns the hydrophones up. Hold slow (under 1.2 m/s) and steady (turning under 6°/s) for 3.5 s and you get a bearing, as a wedge 3° to 22° wide depending on how clearly the sound stands out.
-  - The acoustics use real units: source levels in dB, spreading loss, seawater absorption by Thorp's formula (about 12 dB per km at the beacon's 37.5 kHz), the sea's own noise by Knudsen's curves, and your boat's noise from its thrusters, pumps and speed.
-  - Every sound is also shown and written out: a bearing / time display, a noise budget (your noise, the sea's, the ping's), and a caption of each contact's pattern.
-- **New: Active sonar**
-  - P pings: the sector display and a sonar overlay in the view show the ground and anything hard within 280 m. A ping drowns faint sounds for 6 s, so you can't listen and ping at once.
-- **New: The Echo Atlas**
-  - Every contact, every bearing (with where you took it), every search area, the evidence (recordings, scans, photographs, the recovered item), your routes and an expedition log, kept between sessions.
-  - M opens the chart in a dive; CHART in the menu shows it all with the story of each contact.
-- **New: The sea as it really looks**
-  - Water takes the red out of light first, then the green: the reef at 10 m is blue-green, the wreck at 85 m is in deep blue twilight and only your lamps show colour, and only close up.
-  - Looking up from below you see the sky squeezed into Snell's window, with the mirror of total reflection outside it. Sunlight makes caustic nets on the shallow bottom and shafts through the water; marine snow drifts in your lamp beams.
-  - At the waterline the picture is split properly between air and sea. The surface reflects the sky by Fresnel's law, and the swell is smaller inside the breakwater.
-  - The camera's exposure adapts to the light, as a real camera's does.
-- **New: Three graphics presets**
-  - PERFORMANCE, BALANCED and CINEMATIC change only how things look (render scale, water and sea-bed detail, foam, caustics, light shafts, particles, fish, reef density, lamp shadows). Every clue, control and sonar reading is the same on all three.
-  - The sea bed streams in tiles round you, finer near and coarser far, and is released behind you.
-- **New: A free survey, and something more out there**
-  - FREE SURVEY leaves the harbor with no task: listen, ping and chart the reef, the kelp, the slope and the deep basin. Finishing the expedition opens a follow-up contact you can hear and take bearings on.
-- **New: Help when you need it**
-  - Progress saves at every stage and every 20 s: CONTINUE picks up where you left off. The pause menu can take you back to the last safe point. A flat battery? Call a tow.
-  - Settings: guidance (markers in view, compass only, or instruments only), a relaxed battery, a visibility aid, a large HUD, reduce motion and look speed. The CONTROLS page lists the ocean's keys.
 
 ## v5.8.0 (2026-10-08)
 

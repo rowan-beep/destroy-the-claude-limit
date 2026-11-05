@@ -1,4 +1,4 @@
-// RANKED: a Rainbow Six Siege-style ladder for the air game (not space, not ocean).
+// RANKED: a Rainbow Six Siege-style ladder for the air game (not space).
 //
 // THE LADDER (Siege Ranked 2.0's): 36 ranks. Copper, Bronze, Silver, Gold, Platinum,
 // Emerald and Diamond, five divisions each (V lowest .. I highest), 100 RP a division:

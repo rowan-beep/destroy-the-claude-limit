@@ -7,7 +7,6 @@ import { RELEASES } from '../src/version.ts';
 const GAMES = [
   ['air', 'Air Combat'],
   ['space', 'Space Exploration'],
-  ['ocean', 'Ocean'],
 ];
 const TAG = { new: 'New', better: 'Improved', fix: 'Fixed' };
 
@@ -15,7 +14,7 @@ let md = `# Changelog
 
 Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
-updates, the space menu the space updates and the ocean menu the ocean updates.
+updates and the space menu the space updates.
 `;
 for (const r of RELEASES) {
   md += `\n## v${r.version} (${r.date})\n`;
