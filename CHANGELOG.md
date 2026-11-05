@@ -4,13 +4,6 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu the space updates.
 
-## v7.14.0 (2026-11-05)
-
-### Air Combat: Daily Mission removed
-
-- **Improved: One less mode**
-  - The Daily Mission has been removed from the mode list and the simple menu. Every other mode stays.
-
 ## v7.13.0 (2026-11-05)
 
 ### Air Combat: Into the game twice as fast
