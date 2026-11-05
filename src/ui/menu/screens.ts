@@ -71,7 +71,7 @@ export class PauseMenu {
   }
 }
 
-/** Daily mission (and other) briefings: the mission waits until OKAY. */
+/** Mission briefings: the mission waits until OKAY. */
 export class BriefingModal {
   readonly root: HTMLDivElement;
   private box: HTMLDivElement;

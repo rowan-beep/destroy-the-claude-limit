@@ -13,7 +13,7 @@ It has two programs, chosen on the launcher screen:
 | **AIR COMBAT** | Fly 13 real jets over four theaters: dogfights, campaigns, ranked 5v5, airstrikes, spy flights, carrier ops, aerial refuelling, airshows and online battles. |
 | **SPACE EXPLORATION** | Fly the Saturn V to the Moon, Starship to Mars, Falcon 9, Falcon Heavy and SLS missions, drive Perseverance and Curiosity, and tour the whole Solar System at real scale. |
 
-Current version: **7.13.0**. Full history in [CHANGELOG.md](CHANGELOG.md).
+Current version: **7.14.0**. Full history in [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -218,7 +218,6 @@ once.
 | **Campaign** | *Wolf of the Strait*, eight story missions with wingmen and radio calls: First Contact, Wolf at the Door, Blind Their Eyes, Shepherd, Night Hunter, Anvil, Full Sky and The White Wolf. Each unlocks the next and has three stars to earn. |
 | **Airstrike** | Bomb a defended ground target: an ammunition depot, command post, SAM site, army camp, radar station or airbase. Every sortie is new: different target, defences, patrols and start. Destroy every primary target, fly home and land. |
 | **Blackbird** | SR-71 spy missions. Each is a new crisis: photograph enemy bases, sweep them with the side-looking radar and record their radio traffic, piece the clues together and make the call. Inlet unstarts, SA-2 launches and MiG-31 scrambles along the way. |
-| **Daily Mission** | A new mission every day built from real aviation news: read the briefing, scramble, find the bandits where the story put them, fight and land. |
 | **Airshow** | No flying: you stand on the crowd line with a camera and a long lens while every jet flies its display (takeoff into the vertical, high-speed pass with vapour cone, rolling pass, max-G turn, high-alpha pass or cobra, landing). Every picture is scored on framing, sharpness and moment; the best go into an album in the hangar, and points earn longer lenses. Pro camera settings: shutter, aperture, ISO, focus. |
 | **Online** | Multiplayer Last Pilot Standing against real players only. See [Multiplayer](#multiplayer). |
 

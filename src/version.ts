@@ -41,6 +41,17 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.14.0',
+    date: '2026-11-05',
+    air: {
+      title: 'Daily Mission removed',
+      notes: [
+        improved('One less mode',
+          'The Daily Mission has been removed from the mode list and the simple menu. Every other mode stays.'),
+      ],
+    },
+  },
+  {
     version: '7.13.0',
     date: '2026-11-05',
     air: {

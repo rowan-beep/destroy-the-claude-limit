@@ -11,7 +11,7 @@ import { bearingXZ, clamp, wrap360 } from '../core/math';
 
 export type SteerKind = 'airfield' | 'bullseye' | 'objective' | 'tanker';
 
-/** A mission objective the mode wants as steerpoint 1 (daily mission), or null. */
+/** A mission objective the mode wants as steerpoint 1 (strike, recon), or null. */
 let objective: { name: string; short: string; x: number; z: number; /** a point in the air (else on the ground) */ y?: number; /** the line over the marker (else GO HERE) */ hint?: string } | null = null;
 export function setMissionObjective(o: typeof objective): void {
   objective = o;

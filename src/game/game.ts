@@ -20,14 +20,12 @@ import { audio, OtherJetSound, MissileSound } from '../audio/audio';
 import { Aircraft } from '../aircraft/aircraft';
 import { MissionConfig } from './mission';
 import { GameMode, ModeHost, MissionResult, MsgKind, Briefing } from './modes/mode';
-import { DailyMode } from './modes/daily';
 import { StrikeMode } from './modes/strike';
 import { ReconMode } from './modes/recon';
 import { CampaignMode } from './modes/campaign';
 import { CAMPAIGN } from './campaign';
 import type { Weather } from '../world/weather';
 import { GroundRenderer } from '../render/groundRenderer';
-import { todaysMission } from './daily';
 import { FreeFlightMode } from './modes/freeFlight';
 import { WavesMode } from './modes/waves';
 import { DuelMode } from './modes/duel';
@@ -304,7 +302,6 @@ export class Game implements ModeHost {
     else if (cfg.mode !== 'free' && cfg.mode !== 'spotter') for (const t of enemyTypesFor(cfg.aircraft)) pre.push(new Aircraft(t, 'red', 'PRE'));
     if (cfg.mode === 'team' || cfg.mode === 'ranked' || cfg.mode === 'recon' || cfg.mode === 'campaign') for (const t of enemyTypesFor(cfg.aircraft)) pre.push(new Aircraft(t, 'blue', 'PRE'));
     if (cfg.mode === 'ffa') pre.push(new Aircraft(cfg.aircraft, 'red', 'PRE'));
-    if (cfg.mode === 'daily') pre.push(new Aircraft(todaysMission().enemy.type, 'red', 'PRE'));
     // (the airshow builds each act's jet as it rolls out of the hangar, not every jet up front)
     prewarmAirframes(pre);
     this.stopSpectating();
@@ -326,9 +323,7 @@ export class Game implements ModeHost {
               ? new FreeForAllMode(this)
               : cfg.mode === 'tutorial'
                 ? new TutorialMode(this)
-                : cfg.mode === 'daily'
-                  ? new DailyMode(this)
-                  : cfg.mode === 'strike'
+                : cfg.mode === 'strike'
                     ? new StrikeMode(this)
                     : cfg.mode === 'recon'
                       ? new ReconMode(this)

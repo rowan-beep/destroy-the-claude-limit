@@ -11,7 +11,6 @@ import { WhatsNewModal } from './whatsNew';
 import { el, clearEl, button } from '../dom';
 import { AIRCRAFT_TYPES, AircraftType, AircraftSpec, SPECS, enemyTypesFor, getSpec, strikeLoadout, jetAllowedIn } from '../../aircraft/specs';
 import { MissionConfig, MODE_INFO, ModeId } from '../../game/mission';
-import { todaysMission, dailyDone } from '../../game/daily';
 import { CAMPAIGN, CAMPAIGN_PROLOGUE, CAMPAIGN_TITLE, campaignText, loadCampaign, missionUnlocked, nextCampaignMission, starCount } from '../../game/campaign';
 import { FFA_JETS } from '../../game/modes/ffa';
 import { DIFFICULTIES, Difficulty } from '../../ai/skill';
@@ -38,9 +37,9 @@ const DIFF_TEXT: Record<Difficulty, string> = {
   APEX: 'A battle commander re-reads the fight every second: it works out what you are doing, learns which way you like to turn, predicts where you will be and gives each jet a role (bait, flanker, high cover, press). Its pilots fly the jet like anyone else, smooth and at its real limits, but react in 0.04 s, never black out, fire their AMRAAMs in pairs, hold the gun until they are inside 800 m and time chaff and flares to the moment they work best.',
 };
 
-const MODES: ModeId[] = ['spotter', 'campaign', 'daily', 'recon', 'strike', 'tutorial', 'free', 'waves', 'duel', 'ranked', 'team', 'ffa'];
+const MODES: ModeId[] = ['spotter', 'campaign', 'recon', 'strike', 'tutorial', 'free', 'waves', 'duel', 'ranked', 'team', 'ffa'];
 /** modes that need land (targets, sites, the lesson course) */
-const OCEAN_OFF: ModeId[] = ['spotter', 'campaign', 'daily', 'recon', 'strike', 'tutorial'];
+const OCEAN_OFF: ModeId[] = ['spotter', 'campaign', 'recon', 'strike', 'tutorial'];
 
 const TIMES: [TimeOfDay, string, string][] = [
   ['dawn', 'DAWN', 'linear-gradient(180deg,#2b3a67 0%,#c46b8a 60%,#f4b27a 100%)'],
@@ -225,7 +224,6 @@ export class MainMenu {
     ['duel', 'DOGFIGHT', '14'],
     ['ranked', 'RANKED', '15'],
     ['waves', 'WAVE COMBAT', '12'],
-    ['daily', 'DAILY MISSION', '10'],
   ];
 
   private renderSimpleMenu(): void {
@@ -291,7 +289,7 @@ export class MainMenu {
     menuMusic.want('air', v);
     this.musBtn.textContent = menuMusic.enabled ? 'MUSIC ON' : 'MUSIC OFF';
     // back from a mission: redraw everything, so new campaign stars, unlocked
-    // missions and the daily mission's DONE tag show at once
+    // missions show at once
     if (v) this.render();
   }
 
@@ -417,10 +415,6 @@ export class MainMenu {
         const n = prog.reduce((a, b) => a + starCount(b), 0);
         el('span', 'mm-tag' + (prog.every((b) => b & 1) ? ' done' : ''), tl, `★ ${n}/${CAMPAIGN.length * 3}`);
       }
-      if (m === 'daily') {
-        const dm = todaysMission();
-        el('span', 'mm-tag' + (dailyDone(dm.date) ? ' done' : ''), tl, dailyDone(dm.date) ? '✓ DONE' : dm.date.slice(5).replace('-', '/'));
-      }
       el('div', 'mm-mode-s', t, off ? 'NOT ON THE OPEN OCEAN: PICK ANOTHER THEATER' : info.subtitle);
       if (on) el('div', 'mm-mode-d', t, info.description);
       r.addEventListener('click', () => {
@@ -527,29 +521,6 @@ export class MainMenu {
       this.pills(c, 'FIRST TO', [['2', '2 ROUNDS'], ['3', '3 ROUNDS'], ['4', '4 ROUNDS']], String(cfg.teamWins) as '2' | '3' | '4', (v) => (cfg.teamWins = +v));
       this.pills(c, 'WEAPONS', [['all', 'ALL'], ['ir', 'HEATERS + GUN'], ['guns', 'GUNS ONLY']], cfg.duelRules, (v) => (cfg.duelRules = v));
       el('div', 'mm-note', c, `Bandits fly only the jets you did not pick (${enemyTypesFor(cfg.aircraft).map((t) => SPECS[t].shortName).join(' / ')}). Shot down? Watch any jet or fly a free camera until the round ends.`);
-    } else if (cfg.mode === 'daily') {
-      const dm = todaysMission();
-      const card = el('div', 'mm-daily', c);
-      el('div', 'mm-daily-k', card, `TODAY · ${dm.date} · FROM THE NEWS (${dm.eventDate})`);
-      el('div', 'mm-daily-t', card, dm.title);
-      el('div', 'mm-daily-d', card, dm.headline);
-      el(
-        'div',
-        'mm-daily-d',
-        card,
-        dm.behavior === 'inbound'
-          ? `${dm.enemy.count} jet drones inbound across ${dm.targetName}, fast and radar silent. Take off, stop every one before it gets within ${dm.failNm ?? 15} NM of home${dm.rtb ? ', then fly home' : ''}.`
-          : `${dm.enemy.count} × ${SPECS[dm.enemy.type].shortName} (${dm.enemy.difficulty}) waiting over ${dm.targetName}. Take off from home base${dm.rtb ? ', shoot them down and fly home' : ' and shoot them down'}.`,
-      );
-      if (dailyDone(dm.date)) el('div', 'mm-daily-done', card, '✓ COMPLETED TODAY');
-      if (dm.map && dm.map !== activeMap.id) {
-        const want = MAPS.find((x) => x.id === dm.map);
-        if (want) {
-          el('div', 'mm-note', c, `This story is set best on ${want.name}. You can fly it here too.`);
-          button(`SWITCH TO ${want.name}`, 'mm-pill', c, () => switchMap(want.id));
-        }
-      }
-      if (dm.realJet && dm.realJet !== cfg.aircraft) el('div', 'mm-note', c, `The real pilots flew the ${SPECS[dm.realJet].shortName}. Any jet works.`);
     } else if (cfg.mode === 'campaign') {
       this.renderCampaign(c);
       return;
