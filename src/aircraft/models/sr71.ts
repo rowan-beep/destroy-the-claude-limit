@@ -465,7 +465,7 @@ export function buildSr71(v: AirframeVisual): void {
   // --- landing gear: twin-wheel nose leg, three-wheel main bogies folding into the fuselage ----------
   buildGearSet(v, {
     nose: { top: new THREE.Vector3(0, -0.45, -10.2), axle: new THREE.Vector3(0, -2.15 + 0.33, -10.5), r: 0.33, w: 0.2, twin: true, retract: 'forward' },
-    mains: { top: new THREE.Vector3(2.0, -0.5, 0.6), axle: new THREE.Vector3(2.55, -2.15 + 0.42, 1.0), r: 0.42, w: 0.36, retract: 'inward', outboard: 0.1 },
+    mains: { top: new THREE.Vector3(2.0, -0.5, 0.6), axle: new THREE.Vector3(2.55, -2.15 + 0.42, 1.0), r: 0.42, w: 0.36, retract: 'inward', outboard: 0.1, doorLen: 0.6 },
     doorColor: '#1e2023',
   });
 }

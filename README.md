@@ -13,7 +13,7 @@ It has two programs, chosen on the launcher screen:
 | **AIR COMBAT** | Fly 13 real jets over four theaters: dogfights, campaigns, ranked 5v5, airstrikes, spy flights, carrier ops, aerial refuelling, airshows and online battles. |
 | **SPACE EXPLORATION** | Fly the Saturn V to the Moon, Starship to Mars, Falcon 9, Falcon Heavy and SLS missions, drive Perseverance and Curiosity, and tour the whole Solar System at real scale. |
 
-Current version: **7.14.1**. Full history in [CHANGELOG.md](CHANGELOG.md).
+Current version: **7.14.2**. Full history in [CHANGELOG.md](CHANGELOG.md).
 
 ---
 

@@ -4,6 +4,19 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu the space updates.
 
+## v7.14.2 (2026-11-10)
+
+### Air Combat: F-35A side view fixed, small floating parts fixed on every jet
+
+- **Improved: The F-35A now looks like the real jet from the side**
+  - A long nose cone, a low canopy on a deck that rises toward the tail, a sharp forward intake lip with no ball in front of it, the roundel 3 m behind the nose, the tailplanes and nozzle at the heights on the drawing, and the nose gear behind the canopy. The camera pod under the nose is one flush block instead of floating discs.
+- **Fixed: Small parts that hung in the air**
+  - The X-15's drop tanks sat 23 cm below their pylons, the Gripen's wingtip missiles hung 3 cm under their rails, the Su-57's tailplane roots left daylight against the tail boom, the Rafale's tail fairing stuck 0.55 m past the end of the jet, the Typhoon's intake splitter plate hung free, and the F-15EX's canopy rail sat 3 cm above the spine.
+- **Fixed: Landing gear doors**
+  - On the F-22 and SR-71 the main gear doors were long slabs across the belly. They are now short plates beside each leg. The Rafale's intakes also show a dark tunnel now instead of a bright engine face.
+- **Fixed: X-15 lettering**
+  - The "U.S. AIR FORCE" text on the side was cut off by a seam and now sits fully on the skin.
+
 ## v7.14.1 (2026-11-10)
 
 ### Air Combat: Canopies and tails fixed on four jets
