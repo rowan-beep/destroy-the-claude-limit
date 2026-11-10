@@ -41,6 +41,23 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.15.0',
+    date: '2026-11-10',
+    air: {
+      title: 'Eight jets reshaped to match real photos',
+      notes: [
+        improved('Typhoon, Rafale and Gripen',
+          'The Typhoon has its deep body and big smiling chin intake instead of a thin tube with a box under it, and its canards show. The Rafale has a slimmer, longer nose and proper D-shaped intakes under raised canards. The Gripen\'s canards now stand clearly over rounded intakes, and its long drooping nose probe is a short straight pitot.'),
+        improved('F/A-18, F-16, MiG-31 and Su-57',
+          'The Super Hornet\'s tails are the big squared-off fins of the real jet and its leading-edge extensions run forward to the cockpit. The F-16\'s canopy is a long, low, smoky-gold bubble and its chin intake is deeper. The MiG-31\'s cockpit stands up above the nose with two humped canopies. The Su-57\'s canopy lies long and low with the spine rising to meet it, on a wider, flatter body.'),
+        improved('F-35A in its real dark grey',
+          'The F-35A is the dark matte grey of the real jet instead of light silver, and its intakes flow out of the forebody instead of looking like boxes on its sides.'),
+        fixed('Paint and lettering',
+          'The F-15EX and F-22 paint is matte, so their wings no longer shine like bare metal, and the "U.S. AIR FORCE" lettering on top of the SR-71 is no longer mirrored.'),
+      ],
+    },
+  },
+  {
     version: '7.14.2',
     date: '2026-11-10',
     air: {
