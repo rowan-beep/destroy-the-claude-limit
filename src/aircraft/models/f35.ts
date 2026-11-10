@@ -58,22 +58,25 @@ const BODY = keyedProfile([
   { z: -7.6, pts: S(-0.15, 0.04, 0.12, -0.08, 0.16, -0.035, 0.12, 0.04, 0.06, 0.07, 0.02) },
   { z: -7.3, pts: S(-0.3, 0.08, 0.24, -0.15, 0.31, -0.04, 0.24, 0.1, 0.12, 0.17, 0.03) },
   { z: -6.5, pts: S(-0.57, 0.16, 0.42, -0.28, 0.52, -0.05, 0.42, 0.22, 0.2, 0.38, 0.05) },
-  { z: -5.5, pts: S(-0.6, 0.22, 0.54, -0.3, 0.64, -0.04, 0.54, 0.27, 0.3, 0.38, 0.03) },
-  { z: -4.5, pts: S(-0.66, 0.3, 0.66, -0.36, 0.76, -0.02, 0.72, 0.36, 0.44, 0.44, 0.02) },
-  { z: -4.0, pts: S(-0.68, 0.32, 0.7, -0.38, 0.8, 0.04, 0.8, 0.4, 0.46, 0.5, 0.2) },
-  { z: -3.7, pts: S(-0.7, 0.34, 0.74, -0.38, 0.84, 0.1, 0.86, 0.42, 0.48, 0.6, 0.5) },
-  { z: -3.4, pts: S(-0.7, 0.34, 0.74, -0.38, 0.84, 0.14, 0.86, 0.42, 0.5, 0.68, 0.56) },
-  { z: -3.0, pts: S(-0.74, 0.38, 0.78, -0.42, 0.84, 0.2, 0.88, 0.43, 0.5, 0.72, 0.52) },
-  { z: -2.3, pts: S(-0.78, 0.42, 0.8, -0.46, 0.84, 0.3, 0.88, 0.44, 0.52, 0.72, 0.5) },
+  // the deck rises with the canopy sill (shoulder ~ sill at the glass edge, x 0.45),
+  // a slim bubble on a sloped deck; behind the glass the spine runs on at ~1.25
+  { z: -5.5, pts: S(-0.6, 0.22, 0.54, -0.3, 0.64, -0.04, 0.6, 0.6, 0.36, 0.66, 0.12) },
+  { z: -5.0, pts: S(-0.64, 0.26, 0.6, -0.34, 0.72, -0.03, 0.7, 0.7, 0.38, 0.8, 0.15) },
+  { z: -4.5, pts: S(-0.66, 0.3, 0.66, -0.36, 0.8, -0.02, 0.8, 0.84, 0.42, 0.93, 0.2) },
+  { z: -4.0, pts: S(-0.68, 0.32, 0.7, -0.38, 0.82, 0.04, 0.8, 0.98, 0.44, 1.04, 0.22) },
+  { z: -3.7, pts: S(-0.7, 0.34, 0.74, -0.38, 0.84, 0.1, 0.8, 1.06, 0.46, 1.12, 0.14) },
+  { z: -3.4, pts: S(-0.7, 0.34, 0.74, -0.38, 0.84, 0.14, 0.8, 1.12, 0.5, 1.16, 0.1) },
+  { z: -3.0, pts: S(-0.74, 0.38, 0.78, -0.42, 0.84, 0.2, 0.8, 1.16, 0.6, 1.2, 0.06) },
+  { z: -2.3, pts: S(-0.78, 0.42, 0.8, -0.46, 0.84, 0.3, 0.8, 1.12, 0.6, 1.18, 0.06) },
   // behind the intakes the body takes their width: a flat belly out to a sharp
   // edge, a wall leaning out to the chine, a broad deck and the big spine
   { z: -1.25, pts: S(-0.9, 1.28, 1.52, -0.55, 1.72, 0.02, 1.05, 0.4, 0.52, 0.62, 0.52) },
   { z: 0.8, pts: S(-0.97, 1.3, 1.55, -0.6, 1.76, 0.0, 1.1, 0.4, 0.52, 0.58, 0.46) },
   { z: 3.0, pts: S(-1.0, 1.15, 1.4, -0.6, 1.58, -0.02, 1.05, 0.36, 0.5, 0.52, 0.42) },
-  { z: 4.0, pts: S(-1.08, 1.1, 1.3, -0.6, 1.45, -0.03, 1.02, 0.34, 0.48, 0.5, 0.4) },
-  { z: 4.8, pts: S(-0.8, 0.9, 1.1, -0.48, 1.25, -0.05, 0.95, 0.3, 0.46, 0.5, 0.44) },
-  { z: 5.4, pts: S(-0.56, 0.52, 0.76, -0.26, 0.86, 0.06, 0.76, 0.4, 0.42, 0.52, 0.4) },
-  { z: 5.75, pts: S(-0.34, 0.4, 0.62, -0.12, 0.7, 0.18, 0.62, 0.44, 0.4, 0.5, 0.38) },
+  { z: 4.0, pts: S(-1.03, 1.1, 1.3, -0.6, 1.45, -0.03, 1.02, 0.34, 0.48, 0.5, 0.4) },
+  { z: 4.8, pts: S(-0.92, 0.9, 1.1, -0.48, 1.25, -0.05, 0.95, 0.3, 0.46, 0.5, 0.44) },
+  { z: 5.4, pts: S(-0.7, 0.52, 0.76, -0.26, 0.86, 0.06, 0.76, 0.4, 0.42, 0.52, 0.4) },
+  { z: 5.75, pts: S(-0.46, 0.4, 0.62, -0.12, 0.7, 0.18, 0.62, 0.44, 0.4, 0.5, 0.38) },
 ]);
 const BODY_SUB = [3, 1, 1, 1, 1, 1, 3, 3, 3, 3, 3];
 
@@ -87,15 +90,16 @@ const INTAKE_END: P2[] = (() => {
   return resample([[INTAKE_XI, yb], q[2], q[3], q[4], q[5], q[6], q[7], top], 144);
 })();
 
-// a tall one-piece canopy (its crown 1.27 m over the datum) that runs into the spine
+// a low, long bubble: the sill is a straight ramp (0.52 at the windscreen front to
+// 1.15 at the rear), the glass only 0.2-0.45 tall above it; crown about 1.34 at z -4.55
 const CANOPY: Section[] = [
-  { z: -6.1, w: 0.03, top: 0.02, bot: 0.02, y: 0.36, n: 2 },
-  { z: -5.55, w: 0.34, top: 0.5, bot: 0.03, y: 0.38, n: 2.3 },
-  { z: -4.9, w: 0.46, top: 0.84, bot: 0.03, y: 0.42, n: 2.3 },
-  { z: -4.3, w: 0.48, top: 0.9, bot: 0.03, y: 0.44, n: 2.3 },
-  { z: -3.95, w: 0.4, top: 0.78, bot: 0.03, y: 0.5, n: 2.3 },
-  { z: -3.7, w: 0.24, top: 0.52, bot: 0.03, y: 0.62, n: 2.2 },
-  { z: -3.55, w: 0.06, top: 0.14, bot: 0.03, y: 0.84, n: 2 },
+  { z: -6.1, w: 0.03, top: 0.02, bot: 0.02, y: 0.52, n: 2 },
+  { z: -5.6, w: 0.3, top: 0.22, bot: 0.03, y: 0.63, n: 2.3 },
+  { z: -5.2, w: 0.42, top: 0.36, bot: 0.03, y: 0.73, n: 2.3 },
+  { z: -4.55, w: 0.47, top: 0.45, bot: 0.03, y: 0.89, n: 2.3 },
+  { z: -4.0, w: 0.42, top: 0.32, bot: 0.03, y: 1.02, n: 2.3 },
+  { z: -3.7, w: 0.26, top: 0.2, bot: 0.03, y: 1.09, n: 2.2 },
+  { z: -3.45, w: 0.06, top: 0.1, bot: 0.03, y: 1.15, n: 2 },
 ];
 
 // trapezoidal wing: 34 deg leading edge behind a short, sharply swept root section, the trailing
@@ -279,7 +283,8 @@ export function buildF35(v: AirframeVisual): void {
     lip: 0.035,
     depth: 1.8,
     n: 72,
-    rake: (x, y) => -0.45 * (y - 0.46) + 0.55 * (1.52 - x),
+    // the lip tip (outer edge, mid cheek height) leads; the rest of the mouth sweeps back
+    rake: (x, y) => 0.8 * Math.abs(y + 0.1) + 0.6 * Math.abs(x - 1.5),
     rakeFade: 1.6,
     fan: { cx: 1.15, cy: -0.15, r: 0.32 },
   });
@@ -297,20 +302,20 @@ export function buildF35(v: AirframeVisual): void {
   // the DSI bump: a smooth swelling of the fuselage side inside each mouth
   for (const sx of [-1, 1]) {
     const b = new THREE.SphereGeometry(1, 28, 18);
-    b.scale(0.12, 0.4, 1.0);
-    b.translate(INTAKE_XI * sx, -0.1, -3.3);
+    b.scale(0.12, 0.4, 0.55);
+    b.translate(INTAKE_XI * sx, -0.1, -3.1);
     skin(b);
   }
 
   // --- canopy, seat, pilot ---------------------------------------------------------
-  v.cockpitEye.set(0, 0.95, -4.5);
+  v.cockpitEye.set(0, 1.05, -4.7);
   buildCanopy(v, CANOPY, -5.5, []);
-  addPilot(v, new THREE.Vector3(0, 0.95, -4.5), 0.26, { style: 'us', stick: 'side', martinBaker: true });
+  addPilot(v, new THREE.Vector3(0, 1.05, -4.7), 0.26, { style: 'us', stick: 'side', martinBaker: true });
   const shroud = loftProfile({
     stations: stations(-5.42, -5.05, 6),
     profile: (z) => {
       const u = sstep(-5.42, -5.05, z);
-      return [[0, 0.1], [0.28, 0.12], [0.31, 0.34], [0.22, 0.42 - u * 0.05], [0, 0.44 - u * 0.05]] as P2[];
+      return [[0, 0.4], [0.28, 0.42], [0.31, 0.64], [0.22, 0.72 - u * 0.05], [0, 0.74 - u * 0.05]] as P2[];
     },
     sub: 3,
     capEnd: true,
@@ -421,8 +426,8 @@ export function buildF35(v: AirframeVisual): void {
 
   // --- landing gear: single nose wheel, mains folding forward into the fuselage sides
   buildGearSet(v, {
-    nose: { top: new THREE.Vector3(0, -0.8, -4.9), axle: new THREE.Vector3(0, -1.95 + 0.3, -5.1), r: 0.3, w: 0.18, twin: false, retract: 'forward' },
-    mains: { top: new THREE.Vector3(1.3, -0.95, 0.6), axle: new THREE.Vector3(1.55, -1.95 + 0.4, 0.9), r: 0.4, w: 0.26, retract: 'forward', outboard: 0.06, well: { w: 0.65, dx: 0.1 } },
+    nose: { top: new THREE.Vector3(0, -0.6, -2.95), axle: new THREE.Vector3(0, -1.95 + 0.3, -3.1), r: 0.3, w: 0.18, twin: false, retract: 'forward' },
+    mains: { top: new THREE.Vector3(1.25, -0.9, 1.15), axle: new THREE.Vector3(1.4, -1.95 + 0.4, 1.15), r: 0.4, w: 0.26, retract: 'forward', outboard: 0.06, well: { w: 0.65, dx: 0.1 } },
     doorColor: '#73787d',
   });
 }
