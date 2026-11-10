@@ -55,21 +55,22 @@ const S = (yb: number, xb: number, xs: number, ys: number, xc: number, yc: numbe
 // bays (1.1 m) and sweeps up to a nozzle set high in the tail
 const BODY = keyedProfile([
   { z: -7.85, pts: S(-0.03, 0.004, 0.008, -0.03, 0.012, -0.03, 0.008, -0.02, 0.004, -0.015, 0.002) },
-  { z: -7.3, pts: S(-0.14, 0.05, 0.15, -0.08, 0.2, -0.04, 0.15, 0.05, 0.08, 0.1, 0.02) },
-  { z: -6.5, pts: S(-0.4, 0.14, 0.38, -0.2, 0.48, -0.05, 0.38, 0.17, 0.18, 0.28, 0.04) },
-  { z: -5.5, pts: S(-0.6, 0.22, 0.56, -0.3, 0.68, -0.04, 0.56, 0.27, 0.3, 0.38, 0.03) },
-  { z: -4.5, pts: S(-0.75, 0.3, 0.68, -0.4, 0.8, -0.02, 0.76, 0.36, 0.44, 0.44, 0.02) },
-  { z: -3.4, pts: S(-0.78, 0.34, 0.76, -0.42, 0.84, 0.12, 0.86, 0.42, 0.5, 0.5, 0.04) },
-  { z: -2.3, pts: S(-0.85, 0.42, 0.8, -0.5, 0.84, 0.3, 0.88, 0.44, 0.52, 0.6, 0.45) },
+  { z: -7.6, pts: S(-0.15, 0.04, 0.12, -0.08, 0.16, -0.035, 0.12, 0.04, 0.06, 0.07, 0.02) },
+  { z: -7.3, pts: S(-0.3, 0.08, 0.24, -0.15, 0.31, -0.04, 0.24, 0.1, 0.12, 0.17, 0.03) },
+  { z: -6.5, pts: S(-0.57, 0.16, 0.42, -0.28, 0.52, -0.05, 0.42, 0.22, 0.2, 0.38, 0.05) },
+  { z: -5.5, pts: S(-0.6, 0.22, 0.54, -0.3, 0.64, -0.04, 0.54, 0.27, 0.3, 0.38, 0.03) },
+  { z: -4.5, pts: S(-0.66, 0.3, 0.66, -0.36, 0.76, -0.02, 0.72, 0.36, 0.44, 0.44, 0.02) },
+  { z: -3.4, pts: S(-0.7, 0.34, 0.74, -0.38, 0.84, 0.12, 0.86, 0.42, 0.5, 0.5, 0.04) },
+  { z: -2.3, pts: S(-0.78, 0.42, 0.8, -0.46, 0.84, 0.3, 0.88, 0.44, 0.52, 0.64, 0.5) },
   // behind the intakes the body takes their width: a flat belly out to a sharp
   // edge, a wall leaning out to the chine, a broad deck and the big spine
   { z: -1.25, pts: S(-0.9, 1.28, 1.52, -0.55, 1.72, 0.02, 1.05, 0.4, 0.52, 0.6, 0.48) },
   { z: 0.8, pts: S(-0.97, 1.3, 1.55, -0.6, 1.76, 0.0, 1.1, 0.4, 0.52, 0.58, 0.46) },
   { z: 3.0, pts: S(-1.0, 1.15, 1.4, -0.6, 1.58, -0.02, 1.05, 0.36, 0.5, 0.52, 0.42) },
   { z: 4.0, pts: S(-1.08, 1.1, 1.3, -0.6, 1.45, -0.03, 1.02, 0.34, 0.48, 0.5, 0.4) },
-  { z: 5.0, pts: S(-0.86, 0.9, 1.1, -0.5, 1.25, -0.05, 0.95, 0.3, 0.46, 0.46, 0.4) },
-  { z: 6.3, pts: S(-0.45, 0.55, 0.8, -0.25, 0.9, 0.1, 0.78, 0.4, 0.42, 0.5, 0.36) },
-  { z: 6.95, pts: S(-0.22, 0.4, 0.62, -0.1, 0.72, 0.2, 0.62, 0.45, 0.4, 0.5, 0.38) },
+  { z: 4.8, pts: S(-0.8, 0.9, 1.1, -0.48, 1.25, -0.05, 0.95, 0.3, 0.46, 0.5, 0.44) },
+  { z: 5.4, pts: S(-0.56, 0.52, 0.76, -0.26, 0.86, 0.06, 0.76, 0.4, 0.42, 0.52, 0.4) },
+  { z: 5.75, pts: S(-0.34, 0.4, 0.62, -0.12, 0.7, 0.18, 0.62, 0.44, 0.4, 0.5, 0.38) },
 ]);
 const BODY_SUB = [3, 1, 1, 1, 1, 1, 3, 3, 3, 3, 3];
 
@@ -85,36 +86,41 @@ const INTAKE_END: P2[] = (() => {
 
 // a tall one-piece canopy (its crown 1.27 m over the datum) that runs into the spine
 const CANOPY: Section[] = [
-  { z: -6.0, w: 0.03, top: 0.02, bot: 0.02, y: 0.36, n: 2 },
-  { z: -5.5, w: 0.34, top: 0.36, bot: 0.03, y: 0.38, n: 2.3 },
-  { z: -4.9, w: 0.46, top: 0.7, bot: 0.03, y: 0.42, n: 2.3 },
-  { z: -4.2, w: 0.48, top: 0.82, bot: 0.03, y: 0.44, n: 2.3 },
-  { z: -3.5, w: 0.46, top: 0.74, bot: 0.03, y: 0.5, n: 2.3 },
-  { z: -2.95, w: 0.4, top: 0.62, bot: 0.03, y: 0.58, n: 2.3 },
-  { z: -2.5, w: 0.3, top: 0.42, bot: 0.03, y: 0.7, n: 2.2 },
-  { z: -2.2, w: 0.12, top: 0.1, bot: 0.03, y: 0.95, n: 2 },
+  { z: -6.1, w: 0.03, top: 0.02, bot: 0.02, y: 0.36, n: 2 },
+  { z: -5.55, w: 0.34, top: 0.5, bot: 0.03, y: 0.38, n: 2.3 },
+  { z: -4.9, w: 0.46, top: 0.84, bot: 0.03, y: 0.42, n: 2.3 },
+  { z: -4.3, w: 0.48, top: 0.9, bot: 0.03, y: 0.44, n: 2.3 },
+  { z: -3.5, w: 0.46, top: 0.8, bot: 0.03, y: 0.5, n: 2.3 },
+  { z: -2.95, w: 0.4, top: 0.66, bot: 0.03, y: 0.58, n: 2.3 },
+  { z: -2.5, w: 0.3, top: 0.46, bot: 0.03, y: 0.72, n: 2.2 },
+  { z: -2.2, w: 0.12, top: 0.1, bot: 0.03, y: 1.02, n: 2 },
 ];
 
-// trapezoidal wing: 34 deg leading edge, trailing edge swept forward 16 deg,
-// the root chord 5.2 m, a 1.4 m streamwise tip
-const wle = (x: number) => -1.1 + (x - 1.45) * 0.73;
-const wte = (x: number) => 4.33 - (x - 1.45) * 0.25;
+// trapezoidal wing: 34 deg leading edge behind a short, sharply swept root section, the trailing
+// edge swept forward 14 deg, a 1.55 m streamwise tip
+const wle = (x: number) => 0.54 + (x - 3.0) * 0.67;
+const wte = (x: number) => 4.55 - (x - 2.0) * 0.253;
 const WING: WingStation[] = [
-  { x: 1.2, le: -1.3, te: 4.4, y: -0.04, t: 0.052 },
-  { x: 1.45, le: wle(1.45), te: wte(1.45), y: -0.05, t: 0.05 },
-  { x: 5.35, le: wle(5.35), te: wte(5.35), y: -0.16, t: 0.034 },
+  { x: 1.2, le: -1.2, te: 4.75, y: -0.04, t: 0.052 },
+  { x: 1.75, le: -0.85, te: wte(1.75), y: -0.05, t: 0.05 },
+  { x: 2.2, le: wle(2.2), te: wte(2.2), y: -0.065, t: 0.048 },
+  { x: 5.39, le: wle(5.39), te: wte(5.39), y: -0.16, t: 0.034 },
 ];
-// the tailplanes' 42 deg leading edge tucks under the wing's trailing edge
+// the tailplanes sit on flat booms that run aft past the nozzle; their tips are the jet's last point
 const STAB: WingStation[] = [
-  { x: 1.0, le: 3.8, te: 7.45, y: -0.14, t: 0.042 },
-  { x: 3.65, le: 6.0, te: 6.8, y: -0.18, t: 0.03 },
+  { x: 0.62, le: 4.6, te: 5.9, y: -0.14, t: 0.03 },
+  { x: 1.0, le: 4.6, te: 7.75, y: -0.14, t: 0.03 },
+  { x: 1.75, le: 4.6, te: 7.61, y: -0.15, t: 0.038 },
+  { x: 2.05, le: 5.18, te: 7.54, y: -0.15, t: 0.04 },
+  { x: 3.66, le: 6.27, te: 7.14, y: -0.18, t: 0.03 },
 ];
-const STAB_PIVOT = 6.4;
+const STAB_PIVOT = 6.6;
+// fins: a parallelogram, leading and trailing edges both swept back
 const FIN: WingStation[] = [
-  { x: 0, le: 4.1, te: 7.0, t: 0.046 },
-  { x: 2.35, le: 5.85, te: 7.3, t: 0.03 },
+  { x: 0, le: 3.55, te: 5.9, t: 0.046 },
+  { x: 2.47, le: 5.69, te: 7.05, t: 0.03 },
 ];
-const RUDDER = { h0: 0.2, h1: 2.15, hinge: (h: number) => 6.42 + h * 0.15 };
+const RUDDER = { h0: 0.2, h1: 2.25, hinge: (h: number) => 5.3 + h * 0.57 };
 const FIN_ROOT = { x: 0.98, y: 0.28, cant: 20 };
 // the two weapons bays side by side under the belly
 const BAY: P2 = [-1.3, 2.9];
@@ -181,8 +187,8 @@ function livery(team: string): Livery {
     saw(gb, Wb, BAY_X[0], BAY_X[1], BAY[1]);
     line(gb, [Wb(BAY_X[1], BAY[0]), Wb(BAY_X[1], BAY[1])], 1.3, LINE);
     line(gb, [Wb(0.58, BAY[0]), Wb(0.58, BAY[1])], 1.1, LINE_LIGHT);
-    if (sx < 0) roundel(gt, team, ...W(3.9, 2.3), 0.36 * pt);
-    else roundel(gb, team, ...Wb(3.9, 2.3), 0.36 * L.pb);
+    if (sx < 0) roundel(gt, team, ...W(3.9, 2.75), 0.36 * pt);
+    else roundel(gb, team, ...Wb(3.9, 2.75), 0.36 * L.pb);
   }
   weather(gt, L.top.width, L.top.height, rnd, 0.5, [0, 1]);
   weather(gb, L.bot.width, L.bot.height, rnd, 0.4, [0, 1]);
@@ -190,8 +196,8 @@ function livery(team: string): Livery {
   L.copySides();
   const mark = 'rgba(46,49,52,0.85)';
   // tail code and serial, low-visibility
-  L.sideText(team === 'blue' ? 'HL' : 'LF', 5.75, 1.25, 0.32 * ps, mark);
-  L.sideText(team === 'blue' ? 'AF 14-5097' : 'AF 18-5341', 6.0, 0.8, 0.09 * ps, mark);
+  L.sideText(team === 'blue' ? 'HL' : 'LF', 5.4, 1.3, 0.32 * ps, mark);
+  L.sideText(team === 'blue' ? 'AF 14-5097' : 'AF 18-5341', 5.5, 0.85, 0.09 * ps, mark);
   L.sideDraw(-1.5, -0.2, (g, x, y) => roundel(g, team, x, y, 0.2 * ps));
   L.sideText('USAF', 1.4, -0.35, 0.13 * ps, mark);
   return L;
@@ -239,15 +245,15 @@ export function buildF35(v: AirframeVisual): void {
   v.paintMat = paint;
   const skin = (g: THREE.BufferGeometry) => v.addMesh(stamp(g), paint);
 
-  const zs = mergeStations(stations(-7.85, -5.5, 34, 0.6, 0), stations(-5.5, -1.25, 54), stations(-1.25, 6.95, 76));
+  const zs = mergeStations(stations(-7.85, -5.5, 34, 0.6, 0), stations(-5.5, -1.25, 54), stations(-1.25, 5.75, 76));
   skin(loftProfile({ stations: zs, profile: BODY, sub: BODY_SUB, capEnd: true }));
-  v.fuselageSections = sectionsFromProfile(BODY, -7.6, 6.9, 40);
+  v.fuselageSections = sectionsFromProfile(BODY, -7.6, 5.7, 40);
 
-  // --- diverterless intakes: a trapezoidal mouth whose upper inboard corner
-  // leads, raked back toward the bottom and the outside, the fuselage bump
+  // --- diverterless intakes: a trapezoidal mouth whose upper outboard corner
+  // leads (the cowl lip is swept forward), raked back toward the bottom, the fuselage bump
   // inside it doing the diverter's job
   const para = (z: number): P2[] => {
-    const u = sstep(-4.0, -2.4, z);
+    const u = sstep(-3.6, -2.3, z);
     const ib: P2 = [INTAKE_XI, -0.7 - 0.1 * u];
     const ob: P2 = [1.4 + 0.2 * u, -0.7 - 0.1 * u];
     const ot: P2 = [1.52 + 0.22 * u, 0.2 - 0.04 * u];
@@ -267,12 +273,12 @@ export function buildF35(v: AirframeVisual): void {
   };
   const ci = intake({
     loop: para,
-    outer: stations(-4.0, -1.25, 32, 0.3, 0),
+    outer: stations(-3.6, -1.25, 32, 0.3, 0),
     lip: 0.035,
     depth: 1.8,
     n: 72,
-    rake: (x, y) => -0.45 * (y - 0.46) + 0.1 * (x - INTAKE_XI),
-    rakeFade: 1.0,
+    rake: (x, y) => -0.45 * (y - 0.46) + 0.55 * (1.52 - x),
+    rakeFade: 1.6,
     fan: { cx: 1.15, cy: -0.15, r: 0.32 },
   });
   skin(both(ci.skin));
@@ -283,7 +289,7 @@ export function buildF35(v: AirframeVisual): void {
   for (const sx of [-1, 1]) {
     const d = new THREE.CircleGeometry(0.36, 28);
     d.rotateY(Math.PI);
-    d.translate(1.15 * sx, -0.15, -4.0 + 1.8 - 0.02);
+    d.translate(1.15 * sx, -0.15, -3.6 + 1.8 - 0.02);
     v.addMesh(d, blind);
   }
   // the DSI bump: a smooth swelling of the fuselage side inside each mouth
@@ -341,9 +347,9 @@ export function buildF35(v: AirframeVisual): void {
   const panels = wingPanels(
     WING,
     [
-      { x0: 1.6, x1: 5.25, hinge: (x) => wle(x) + 0.12 * (wte(x) - wle(x)) + 0.05, kind: 'lef', maxDeg: 25, leading: true },
-      { x0: 1.62, x1: 3.3, hinge: (x) => wte(x) - 0.62, kind: 'flap', maxDeg: 30 },
-      { x0: 3.35, x1: 5.15, hinge: (x) => wte(x) - 0.5, kind: 'aileron', maxDeg: 25 },
+      { x0: 2.25, x1: 5.3, hinge: (x) => wle(x) + 0.12 * (wte(x) - wle(x)) + 0.05, kind: 'lef', maxDeg: 25, leading: true },
+      { x0: 2.0, x1: 3.4, hinge: (x) => wte(x) - 0.62, kind: 'flap', maxDeg: 30 },
+      { x0: 3.45, x1: 5.25, hinge: (x) => wte(x) - 0.5, kind: 'aileron', maxDeg: 25 },
     ],
     { chordPts: 34, thickPos: 0.42 },
   );
@@ -371,17 +377,17 @@ export function buildF35(v: AirframeVisual): void {
     const f = finPanels(FIN, RUDDER, m, { chordPts: 30 });
     skin(f.fixed);
     v.addSurface(stamp(f.rudder.geo), paint, f.rudder.hinge, f.rudder.axis, 'rudder', side, 30);
-    const top = new THREE.Vector3(2.35, 0, 0).applyMatrix4(m);
-    v.addNavLight(new THREE.Vector3(top.x, top.y, 6.3), 'formation');
+    const top = new THREE.Vector3(2.47, 0, 0).applyMatrix4(m);
+    v.addNavLight(new THREE.Vector3(top.x, top.y, 6.5), 'formation');
   }
 
   // --- the F135's nozzle, set high in the upswept tail: low-observable, with serrated petal edges
-  const nz = nozzle({ cx: 0, cy: 0.36, z0: 6.85, z1: 7.82, r0: 0.54, r1: 0.46, petals: 15, saw: 0.09, floor: 6.98 });
+  const nz = nozzle({ cx: 0, cy: 0.3, z0: 5.68, z1: 6.28, r0: 0.56, r1: 0.47, petals: 15, saw: 0.09, floor: 5.8 });
   const nzOut = v.addMesh(nz.outer, pm.nozzle);
   const nzIn = v.addMesh(nz.inner, pm.nozzleIn);
   nzIn.userData.detail = true;
   v.morphNozzle(nzOut, nzIn);
-  v.nozzles.push({ pos: new THREE.Vector3(0, 0.36, 7.76), radius: 0.44, depth: 0.82, area: nz.area });
+  v.nozzles.push({ pos: new THREE.Vector3(0, 0.3, 6.22), radius: 0.45, depth: 0.55, area: nz.area });
   v.buildFlames(5.6);
 
   // --- GAU-22/A blister over the left intake, its muzzle door at the front --------------
@@ -407,8 +413,8 @@ export function buildF35(v: AirframeVisual): void {
     formationStrip(new THREE.Vector3(-1.76, 0.0, 1.6), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 1), 0.55, 0.032),
   ]), pm.formation, v.body, false);
   buildBays(v, paint);
-  v.addNavLight(new THREE.Vector3(-5.3, -0.17, 2.5), 'red');
-  v.addNavLight(new THREE.Vector3(5.3, -0.17, 2.5), 'green');
+  v.addNavLight(new THREE.Vector3(-5.33, -0.17, 2.9), 'red');
+  v.addNavLight(new THREE.Vector3(5.33, -0.17, 2.9), 'green');
   v.addNavLight(new THREE.Vector3(0, -1.08, 4.2), 'strobe');
 
   // --- landing gear: single nose wheel, mains folding forward into the fuselage sides

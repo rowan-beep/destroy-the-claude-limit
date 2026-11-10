@@ -1497,16 +1497,16 @@ const F35A: AircraftSpec = {
     port: [-0.78, 0.36, -1.7],
   },
   stations: [
-    { id: 1, label: 'LW OB', pos: [-4.15, -0.42, 2.6], allowed: [AIM9], mount: 'pylon', hang: -0.36 },
-    { id: 2, label: 'LW MID', pos: [-3.2, -0.48, 2.25], allowed: [AIM120, GBU32], mount: 'pylon', hang: -0.4 },
-    { id: 3, label: 'LW IB', pos: [-2.25, -0.52, 1.9], allowed: [AIM120, GBU32], mount: 'pylon', hang: -0.42 },
+    { id: 1, label: 'LW OB', pos: [-4.15, -0.42, 3.0], allowed: [AIM9], mount: 'pylon', hang: -0.36 },
+    { id: 2, label: 'LW MID', pos: [-3.2, -0.48, 2.65], allowed: [AIM120, GBU32], mount: 'pylon', hang: -0.4 },
+    { id: 3, label: 'LW IB', pos: [-2.25, -0.52, 2.3], allowed: [AIM120, GBU32], mount: 'pylon', hang: -0.42 },
     { id: 4, label: 'L BAY OB', pos: [-0.84, -0.4, 0.8], allowed: [AIM120, GBU31], mount: 'internal', bay: 'left', bayOut: [-0.86, -0.98, 0.8] },
     { id: 5, label: 'L BAY IB', pos: [-0.38, -0.48, 0.8], allowed: [AIM120], mount: 'internal', bay: 'left', bayOut: [-0.38, -0.9, 0.8] },
     { id: 6, label: 'R BAY IB', pos: [0.38, -0.48, 0.8], allowed: [AIM120], mount: 'internal', bay: 'right', bayOut: [0.38, -0.9, 0.8] },
     { id: 7, label: 'R BAY OB', pos: [0.84, -0.4, 0.8], allowed: [AIM120, GBU31], mount: 'internal', bay: 'right', bayOut: [0.86, -0.98, 0.8] },
-    { id: 8, label: 'RW IB', pos: [2.25, -0.52, 1.9], allowed: [AIM120, GBU32], mount: 'pylon', hang: -0.42 },
-    { id: 9, label: 'RW MID', pos: [3.2, -0.48, 2.25], allowed: [AIM120, GBU32], mount: 'pylon', hang: -0.4 },
-    { id: 10, label: 'RW OB', pos: [4.15, -0.42, 2.6], allowed: [AIM9], mount: 'pylon', hang: -0.36 },
+    { id: 8, label: 'RW IB', pos: [2.25, -0.52, 2.3], allowed: [AIM120, GBU32], mount: 'pylon', hang: -0.42 },
+    { id: 9, label: 'RW MID', pos: [3.2, -0.48, 2.65], allowed: [AIM120, GBU32], mount: 'pylon', hang: -0.4 },
+    { id: 10, label: 'RW OB', pos: [4.15, -0.42, 3.0], allowed: [AIM9], mount: 'pylon', hang: -0.36 },
   ],
   loadouts: [
     {
