@@ -1,4 +1,4 @@
-// Sukhoi Su-57: 20.1 m long, 14.1 m span, 4.6 m tall.
+// Sukhoi Su-57: 20.1 m long, 14.1 m span, 4.6 m tall. Checked against a scale three-view.
 // A flattened, blended lifting body with a sharp chine round the faceted nose,
 // a long one-piece canopy, the 101KS-V IRST ball ahead of it, movable
 // leading-edge root extensions (LEVCONs) in front of a 48 deg wing, two
@@ -28,54 +28,58 @@ function circ(R: number, yc: number, sq = 1): P2[] {
 // the spine sloping down from the canopy to the nozzles)
 const BODY = keyedProfile([
   { z: -10.0, pts: circ(0.012, -0.2) },
-  { z: -9.6, pts: circ(0.3, -0.16, 0.8) },
-  // the nose is a flattened, faceted shape with a hard chine at its widest
-  { z: -8.8, pts: [[0, -0.55], [0.25, -0.54], [0.44, -0.43], [0.56, -0.26], [0.62, -0.12], [0.65, -0.09], [0.62, -0.05], [0.55, 0.1], [0.44, 0.26], [0.28, 0.36], [0.13, 0.4], [0, 0.41]] },
-  { z: -7.8, pts: [[0, -0.68], [0.32, -0.67], [0.58, -0.54], [0.72, -0.33], [0.8, -0.14], [0.84, -0.1], [0.8, -0.06], [0.7, 0.14], [0.56, 0.32], [0.38, 0.44], [0.18, 0.49], [0, 0.5]] },
-  { z: -6.6, pts: [[0, -0.76], [0.38, -0.75], [0.64, -0.62], [0.8, -0.38], [0.88, -0.16], [0.95, -0.1], [0.9, -0.05], [0.8, 0.12], [0.64, 0.32], [0.54, 0.42], [0.4, 0.26], [0, 0.14]] },
-  { z: -5.4, pts: [[0, -0.78], [0.42, -0.78], [0.68, -0.66], [0.84, -0.42], [0.95, -0.17], [1.07, -0.1], [1.03, -0.04], [0.88, 0.14], [0.7, 0.36], [0.56, 0.46], [0.42, 0.3], [0, 0.2]] },
+  { z: -9.6, pts: circ(0.16, -0.17, 0.9) },
+  // the nose is slim and flattened, with a hard chine at its widest
+  { z: -8.8, pts: [[0, -0.5], [0.163, -0.49], [0.288, -0.4], [0.362, -0.25], [0.4, -0.12], [0.419, -0.09], [0.4, -0.05], [0.35, 0.02], [0.22, 0.07], [0.14, 0.1], [0.07, 0.115], [0, 0.12]] },
+  { z: -7.8, pts: [[0, -0.66], [0.234, -0.65], [0.429, -0.53], [0.533, -0.33], [0.585, -0.14], [0.611, -0.1], [0.585, -0.06], [0.52, 0.106], [0.32, 0.236], [0.22, 0.33], [0.1, 0.366], [0, 0.378]] },
+  { z: -6.6, pts: [[0, -0.74], [0.312, -0.73], [0.52, -0.61], [0.65, -0.38], [0.702, -0.16], [0.754, -0.1], [0.728, -0.05], [0.689, 0.1], [0.5, 0.24], [0.46, 0.32], [0.36, 0.18], [0, 0.08]] },
+  { z: -5.4, pts: [[0, -0.76], [0.364, -0.76], [0.585, -0.65], [0.728, -0.42], [0.806, -0.17], [0.884, -0.1], [0.858, -0.04], [0.78, 0.12], [0.54, 0.28], [0.48, 0.36], [0.38, 0.22], [0, 0.12]] },
   // the LEVCONs start: the chine sweeps outboard into a sharp root extension
-  // (its edge sits just under the LEVCON's own, which reaches 3.3 m out)
-  { z: -4.2, pts: [[0, -0.66], [0.44, -0.66], [0.74, -0.56], [0.92, -0.38], [1.1, -0.2], [1.3, -0.1], [1.25, -0.02], [1.05, 0.16], [0.78, 0.4], [0.58, 0.62], [0.32, 0.74], [0, 0.76]] },
+  { z: -4.2, pts: [[0, -0.66], [0.408, -0.66], [0.648, -0.56], [0.792, -0.38], [0.912, -0.2], [1.008, -0.1], [0.972, -0.02], [0.864, 0.16], [0.6, 0.38], [0.48, 0.58], [0.28, 0.7], [0, 0.72]] },
   { z: -2.6, pts: [[0, -0.46], [0.6, -0.46], [1.0, -0.44], [1.45, -0.32], [1.78, -0.18], [2.0, -0.1], [1.95, -0.02], [1.55, 0.2], [1.1, 0.44], [0.7, 0.7], [0.36, 0.94], [0, 1.02]] },
   { z: -1.0, pts: [[0, -0.4], [0.7, -0.4], [1.4, -0.38], [2.0, -0.3], [2.5, -0.14], [2.85, -0.1], [2.8, -0.02], [2.2, 0.22], [1.5, 0.46], [0.85, 0.72], [0.42, 0.86], [0, 0.9]] },
   { z: 1.5, pts: [[0, -0.36], [0.7, -0.36], [1.4, -0.36], [2.1, -0.28], [2.6, -0.1], [3.0, 0.02], [2.95, 0.1], [2.3, 0.28], [1.5, 0.48], [0.82, 0.64], [0.4, 0.72], [0, 0.74]] },
   { z: 4.5, pts: [[0, -0.34], [0.7, -0.34], [1.4, -0.36], [1.9, -0.28], [2.2, -0.1], [2.35, 0.02], [2.3, 0.1], [1.95, 0.26], [1.4, 0.42], [0.85, 0.52], [0.4, 0.58], [0, 0.6]] },
   { z: 7.0, pts: [[0, -0.24], [0.45, -0.3], [0.9, -0.36], [1.3, -0.32], [1.65, -0.16], [1.85, -0.02], [1.82, 0.06], [1.62, 0.22], [1.2, 0.34], [0.78, 0.36], [0.35, 0.4], [0, 0.42]] },
-  { z: 8.6, pts: [[0, -0.18], [0.2, -0.22], [0.35, -0.2], [0.45, -0.12], [0.5, -0.02], [0.5, 0.02], [0.49, 0.07], [0.45, 0.16], [0.35, 0.24], [0.25, 0.28], [0.12, 0.3], [0, 0.3]] },
+  { z: 8.6, pts: [[0, -0.3], [0.2, -0.34], [0.35, -0.32], [0.45, -0.24], [0.5, -0.14], [0.5, -0.1], [0.49, -0.05], [0.45, 0.04], [0.35, 0.12], [0.25, 0.16], [0.12, 0.18], [0, 0.18]] },
   // the long sting: radar warning and the brake parachute
-  { z: 9.6, pts: circ(0.19, 0.06) },
-  { z: 10.1, pts: circ(0.04, 0.06) },
+  { z: 9.6, pts: circ(0.19, -0.14) },
+  { z: 10.1, pts: circ(0.04, -0.2) },
 ]);
 const BODY_SUB = [4, 3, 3, 3, 2, 1, 2, 3, 3, 3, 4];
 
 // a long one-piece bubble, set low into the flattened forebody: the
 // windscreen base 2.3 m behind the tip, the crown 1.36 m up at z -5.6
 const CANOPY: Section[] = [
-  { z: -7.7, w: 0.03, top: 0.02, bot: 0.02, y: 0.42, n: 2 },
-  { z: -7.1, w: 0.4, top: 0.4, bot: 0.03, y: 0.42, n: 2.3 },
-  { z: -6.4, w: 0.5, top: 0.7, bot: 0.03, y: 0.42, n: 2.3 },
-  { z: -5.6, w: 0.53, top: 0.9, bot: 0.03, y: 0.44, n: 2.3 },
-  { z: -4.8, w: 0.5, top: 0.86, bot: 0.03, y: 0.48, n: 2.3 },
-  { z: -4.1, w: 0.42, top: 0.7, bot: 0.03, y: 0.55, n: 2.3 },
-  { z: -3.5, w: 0.3, top: 0.48, bot: 0.03, y: 0.7, n: 2.2 },
-  { z: -3.0, w: 0.12, top: 0.12, bot: 0.03, y: 0.88, n: 2 },
+  { z: -7.45, w: 0.03, top: 0.02, bot: 0.02, y: 0.3, n: 2 },
+  { z: -6.95, w: 0.34, top: 0.36, bot: 0.03, y: 0.32, n: 2.3 },
+  { z: -6.4, w: 0.43, top: 0.66, bot: 0.03, y: 0.32, n: 2.3 },
+  { z: -5.6, w: 0.45, top: 0.9, bot: 0.03, y: 0.34, n: 2.3 },
+  { z: -4.8, w: 0.43, top: 0.84, bot: 0.03, y: 0.38, n: 2.3 },
+  { z: -4.1, w: 0.37, top: 0.68, bot: 0.03, y: 0.45, n: 2.3 },
+  { z: -3.5, w: 0.28, top: 0.46, bot: 0.03, y: 0.6, n: 2.2 },
+  { z: -3.0, w: 0.12, top: 0.12, bot: 0.03, y: 0.82, n: 2 },
 ];
 
-// wing: 48 deg leading edge from the LEVCON hinge, trailing edge almost straight
+// wing: 48 deg leading edge from the LEVCON hinge; the trailing edge sweeps back from a clipped tip to
+// the flaperon's inner end, then steps forward to the root ahead of the stabilator
 const wle = (x: number) => -1.2 + (x - 2.3) * 1.116;
-const wte = (x: number) => 5.4 - (x - 2.3) * 0.042;
+const wte = (x: number) => (x < 2.8 ? 5.3 : x < 3.86 ? 5.3 + (x - 2.8) * 0.896 : x < 6.38 ? 6.25 - (x - 3.86) * 0.1786 : 5.8 - (x - 6.38) * 0.746);
 const WING: WingStation[] = [
-  { x: 1.9, le: -1.6, te: 5.42, y: 0.08, t: 0.048 },
+  { x: 1.9, le: -1.6, te: 5.3, y: 0.08, t: 0.048 },
   { x: 2.3, le: wle(2.3), te: wte(2.3), y: 0.07, t: 0.046 },
+  { x: 2.8, le: wle(2.8), te: wte(2.8), y: 0.06, t: 0.045 },
+  { x: 3.86, le: wle(3.86), te: wte(3.86), y: 0.035, t: 0.042 },
+  { x: 6.38, le: wle(6.38), te: wte(6.38), y: -0.025, t: 0.034 },
   { x: 7.05, le: wle(7.05), te: wte(7.05), y: -0.04, t: 0.032 },
 ];
 // the LEVCON: the sharp root extension out to the wing's kink at 3.3 m,
 // hinged along the wing's leading-edge line
 const LEVCON: WingStation[] = [
-  { x: 1.6, le: -3.7, te: -2.2, y: 0.06, t: 0.025 },
-  { x: 2.5, le: -2.35, te: -1.0, y: 0.07, t: 0.025 },
-  { x: 3.3, le: -0.6, te: 0.1, y: 0.08, t: 0.025 },
+  { x: 1.0, le: -4.05, te: -2.9, y: 0.05, t: 0.025 },
+  { x: 2.6, le: -2.36, te: -0.95, y: 0.07, t: 0.025 },
+  { x: 2.75, le: -1.8, te: -0.75, y: 0.07, t: 0.025 },
+  { x: 3.25, le: -0.1, te: 0.05, y: 0.08, t: 0.025 },
 ];
 // the stabilators: a 46 deg leading edge whose root tucks under the wing's
 // trailing edge, the tips 5 m out, the trailing edge ending at the sting
@@ -150,7 +154,7 @@ function livery(team: string): Livery {
     line(gt, [W(1.25, -2.6), W(1.4, 7.0)], 1.2, LINE_LIGHT);
     for (const [g, M] of [[gt, W], [gb, Wb]] as const) {
       line(g, [M(2.4, wle(2.4) + 0.5), M(6.9, wle(6.9) + 0.25)], 1.3, LINE);
-      line(g, [M(2.4, wte(2.4) - 0.85), M(6.4, wte(6.4) - 0.7)], 1.4, LINE);
+      line(g, [M(3.9, wte(3.9) - 0.85), M(6.35, wte(6.35) - 0.7)], 1.4, LINE);
       for (const x of [3.2, 4.1, 5.0, 5.9]) line(g, [M(x, wle(x) + 0.45), M(x, wte(x) - 0.8)], 1.0, LINE_LIGHT);
       rivets(g, M(2.4, 2.4), M(6.6, 4.4), 7, 0.9);
       // the darker edge treatment on the leading edges
@@ -332,14 +336,14 @@ export function buildSu57(v: AirframeVisual): void {
   v.rudderBrake = 0.75;
 
   // --- canopy, seat, pilot, IRST -------------------------------------------------
-  v.cockpitEye.set(0, 1.0, -5.7);
-  buildCanopy(v, CANOPY, -7.1, []);
-  addPilot(v, new THREE.Vector3(0, 1.0, -5.7), 0.26, { style: 'ru', stick: 'center', martinBaker: true });
+  v.cockpitEye.set(0, 0.9, -5.7);
+  buildCanopy(v, CANOPY, -6.95, []);
+  addPilot(v, new THREE.Vector3(0, 0.9, -5.7), 0.26, { style: 'ru', stick: 'center', martinBaker: true });
   const shroud = loftProfile({
-    stations: stations(-7.5, -7.1, 6),
+    stations: stations(-7.25, -6.9, 6),
     profile: (z) => {
-      const u = sstep(-7.5, -7.1, z);
-      return [[0, 0.1], [0.44, 0.12], [0.5, 0.44], [0.34, 0.54 - u * 0.06], [0, 0.56 - u * 0.06]] as P2[];
+      const u = sstep(-7.25, -6.9, z);
+      return [[0, 0.05], [0.3, 0.07], [0.34, 0.32], [0.24, 0.4 - u * 0.05], [0, 0.42 - u * 0.05]] as P2[];
     },
     sub: 3,
     capEnd: true,
@@ -347,17 +351,17 @@ export function buildSu57(v: AirframeVisual): void {
   v.hideInCockpit.push(v.addMesh(shroud, pm.seat));
   // 101KS-V IRST ball ahead of the windscreen, offset right
   const ball = new THREE.Mesh(new THREE.SphereGeometry(0.13, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2), pm.glass);
-  ball.position.set(0.2, 0.4, -8.1);
+  ball.position.set(0.14, 0.25, -7.8);
   v.body.add(ball);
-  v.hideInCockpit.push(ball, skin(lathe([[0.15, -8.35], [0.16, -8.1], [0.14, -7.9], [0.004, -7.75]], 18, 0.2, 0.36)));
+  v.hideInCockpit.push(ball, skin(lathe([[0.004, -8.1], [0.12, -7.97], [0.14, -7.8], [0.12, -7.63], [0.004, -7.52]], 18, 0.14, 0.19)));
 
   // --- wing: leading-edge flaps, flaperons, ailerons -------------------------------
   const panels = wingPanels(
     WING,
     [
       { x0: 2.45, x1: 6.9, hinge: (x) => wle(x) + 0.14 * (wte(x) - wle(x)) + 0.05, kind: 'lef', maxDeg: 30, leading: true },
-      { x0: 2.45, x1: 4.6, hinge: (x) => wte(x) - 0.85, kind: 'flap', maxDeg: 35 },
-      { x0: 4.7, x1: 6.7, hinge: (x) => wte(x) - 0.7, kind: 'aileron', maxDeg: 22 },
+      { x0: 3.9, x1: 5.1, hinge: (x) => wte(x) - 0.85, kind: 'flap', maxDeg: 35 },
+      { x0: 5.18, x1: 6.35, hinge: (x) => wte(x) - 0.72, kind: 'aileron', maxDeg: 22 },
     ],
     { chordPts: 36, thickPos: 0.42 },
   );
