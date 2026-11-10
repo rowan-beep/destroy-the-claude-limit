@@ -188,7 +188,7 @@ function livery(team: string): Livery {
     const [z0, y0] = lexEdge[i], [z1, y1] = lexEdge[i + 1];
     // the shelf's underside faces down (bottom paint): the shade goes on the wall below it
     const ym = Math.min((y0 + y1) / 2, 0.4);
-    const a = i === 0 ? 0.25 : 0.6;
+    const a = i === 0 ? 0.2 : 0.45;
     const gr = gs.createLinearGradient(...S((z0 + z1) / 2, ym), ...S((z0 + z1) / 2, ym - 0.5));
     gr.addColorStop(0, `rgba(36,40,46,${a})`);
     gr.addColorStop(0.35, `rgba(36,40,46,${a * 0.55})`);

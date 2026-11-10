@@ -74,13 +74,13 @@ const WING: WingStation[] = [
 // swept 57 degrees, the trailing edge swept too, a narrow tip, 8 deg of dihedral (the tips ride
 // up above the intake and the spine shoulder, as in the front view)
 const CANARD: WingStation[] = [
-  { x: 0.72, le: -2.48, te: -0.45, y: 0.31, t: 0.05 },
-  { x: 1.0, le: -2.3, te: -0.4, y: 0.35, t: 0.048 },
-  { x: 2.35, le: -0.23, te: 0.27, y: 0.54, t: 0.035 },
+  { x: 0.72, le: -2.88, te: -0.45, y: 0.31, t: 0.05 },
+  { x: 1.0, le: -2.68, te: -0.4, y: 0.35, t: 0.046 },
+  { x: 2.42, le: -0.4, te: 0.22, y: 0.55, t: 0.034 },
 ];
 const CANARD_PIVOT = -1.3;
 /** the intake: the lip's leading point (mid-height, outboard) and the D's reach aft */
-const MOUTH = -2.85;
+const MOUTH = -3.08;
 /** the D's flat inner wall (beside the splitter gap), its width outboard, centre height and half height */
 const BOX_XI = curve([[MOUTH, 0.555], [-1.0, 0.545], [0.8, 0.64]]);
 const BOX_W = curve([[MOUTH, 0.5], [-1.0, 0.52], [0.8, 0.36]]);
@@ -146,7 +146,7 @@ function livery(team: string): Livery {
       rivets(g, M(1.1, wle(1.1) + 0.7), M(4.1, wle(4.1) + 0.3), 7, 0.9);
       rivets(g, M(1.1, wte(1.1) - 0.85), M(4.1, wte(4.1) - 0.7), 7, 0.9);
       for (const x of [1.7, 2.5, 3.3]) line(g, [M(x, wle(x) + 0.8), M(x, wte(x) - 1.0)], 1.0, LINE_LIGHT);
-      line(g, [M(1.05, -2.45), M(2.45, -0.45)], 1.0, LINE_LIGHT); // canard
+      line(g, [M(1.05, -2.6), M(2.4, -0.5)], 1.0, LINE_LIGHT); // canard
     }
     if (sx < 0) roundel(gt, team, ...W(2.9, 3.55), 0.36 * pt);
     else roundel(gb, team, ...Wb(2.9, 3.55), 0.36 * L.pb);
@@ -157,6 +157,12 @@ function livery(team: string): Livery {
   const chev = 'rgba(58,62,68,0.9)';
   // (everything sits behind the first 0.5 m of the box: its inboard wall shows through the gap, and
   // the skin rolls that far into the duct, where it would show from ahead)
+  // the darker grey panel on the intake's upper side, under the canard, its front edge saw-toothed
+  gs.fillStyle = 'rgba(64,70,76,0.88)';
+  gs.beginPath();
+  for (const [z, y] of [[-2.85, 0.34], [-0.2, 0.34], [-0.2, -0.12], [-1.5, -0.12], [-1.8, 0.06], [-2.15, -0.06], [-2.6, 0.14]] as const) gs.lineTo(...S(z, y));
+  gs.closePath();
+  gs.fill();
   line(gs, [S(-2.38, -0.42), S(-2.05, -0.14), S(-2.38, 0.14)], 3.4, chev);
   line(gs, [S(-1.3, -0.48), S(-0.7, -0.48), S(-0.7, -0.2), S(-1.3, -0.2)], 1.2, LINE, true);
   line(gs, [S(0.0, -0.5), S(0.6, -0.5), S(0.6, -0.2), S(0.0, -0.2)], 1.2, LINE, true);
@@ -215,7 +221,7 @@ export function buildGripen(v: AirframeVisual): void {
     n: 72,
     rake: (x, y) => {
       const q = (y - yC) / hC;
-      return 0.3 * q * q + 0.06 * (q + 1) + 0.12 * (1 - Math.min(1, (x - xI) / wC));
+      return 0.22 * q * q + 0.1 * (1 - Math.min(1, (x - xI) / wC));
     },
     rakeFade: 1.4,
     fan: { cx: 0.76, cy: -0.11, r: 0.26 },
@@ -232,9 +238,9 @@ export function buildGripen(v: AirframeVisual): void {
     back.translate(0.535 * sx, -0.08, -1.95);
     v.addMesh(back, new THREE.MeshStandardMaterial({ color: 0x17191b, roughness: 0.9, side: THREE.DoubleSide }));
     const deck = loftProfile({
-      stations: stations(-2.4, 0.8, 16),
+      stations: stations(-2.85, 0.8, 16),
       profile: (z) => {
-        const h = sstep(-2.4, -1.8, z) * 0.075;
+        const h = sstep(-2.85, -2.2, z) * 0.075;
         return [[0.46, 0.25], [0.6, 0.25], [0.6, 0.25 + h], [0.53, 0.27 + h], [0.46, 0.28 + h]] as P2[];
       },
       sub: 2,
@@ -244,7 +250,7 @@ export function buildGripen(v: AirframeVisual): void {
     });
     skin(sx > 0 ? deck : mirror(deck));
     // the canard's pivot fairing on the box top
-    skin(lathe([[0.004, -2.3], [0.09, -2.1], [0.125, -1.7], [0.12, -1.0], [0.08, -0.7], [0.004, -0.55]], 14, 0.8 * sx, 0.25));
+    skin(lathe([[0.004, -2.7], [0.09, -2.4], [0.125, -1.9], [0.12, -1.0], [0.08, -0.7], [0.004, -0.55]], 14, 0.8 * sx, 0.25));
   }
 
   // --- canopy, seat, pilot, IRST

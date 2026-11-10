@@ -155,6 +155,17 @@ function livery(team: string): Livery {
       line(g, [M(0.9, -2.95), M(2.6, -1.4)], 1.0, LINE_LIGHT); // canard
     }
     line(gt, [W(1.0, 0.8), W(1.9, 1.6), W(1.9, 3.7), W(1.0, 3.7)], 1.1, 'rgba(25,27,30,0.4)');
+    // the canards' upper skins catch the light a shade darker than the shoulder below them
+    // (and the shoulder under each lies in its shadow), so they read against the fuselage
+    gt.fillStyle = 'rgba(52,57,61,0.32)';
+    gt.beginPath();
+    gt.moveTo(...W(0.9, -3.14));
+    gt.lineTo(...W(2.65, -1.63));
+    gt.lineTo(...W(2.65, -1.02));
+    gt.lineTo(...W(0.9, -1.6));
+    gt.closePath();
+    gt.fill();
+    line(gt, [W(0.95, -3.1), W(2.65, -1.63), W(2.65, -1.02), W(0.95, -1.58)], 1.3, LINE);
     if (sx < 0) roundel(gt, team, ...W(3.4, 3.4), 0.44 * pt);
     else roundel(gb, team, ...Wb(3.4, 3.4), 0.44 * L.pb);
   }
@@ -262,7 +273,7 @@ export function buildRafale(v: AirframeVisual): void {
     rakeFade: 1.2,
     fan: { cx: 0.92, cy: -0.38, r: 0.32 },
     // the S-shaped duct hides the fan: the face at its end reads as a dark tunnel, not a bright engine
-    ductShade: { k0: 0.24, fall: 1.3, floor: 0.02, fan: 0.3 },
+    ductShade: { k0: 0.24, fall: 1.3, floor: 0.02, fan: 0.12 },
   });
   skin(both(inl.skin));
   v.addMesh(both(inl.duct), pm.duct);

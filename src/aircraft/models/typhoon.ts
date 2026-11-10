@@ -7,8 +7,8 @@
 import * as THREE from 'three';
 import { AirframeVisual } from './visual';
 import { addPilot } from './pilot';
-import { Section } from './builder';
-import { P2, loftProfile, keyedProfile, stations, mergeStations, wing, WingStation, finMatrix, mirror, join, stamp, lathe, ring, mirrorHalf, Livery, skinMaterial, line, rivets, weather, prng, roundel, LINE, LINE_LIGHT, curve, sstep, roundBox } from './kit';
+import { Section, sectionArch, sectionAt } from './builder';
+import { P2, loftProfile, keyedProfile, stations, mergeStations, wing, WingStation, finMatrix, mirror, join, stamp, lathe, ring, mirrorHalf, Livery, skinMaterial, line, rivets, weather, prng, roundel, LINE, LINE_LIGHT, curve, sstep, roundBox, strip } from './kit';
 import { nozzle, intake, partMaterials, blade, probe, formationStrip } from './parts';
 import { buildCanopy, buildGearSet, wingPanels, finPanels, sectionsFromProfile } from './common';
 
@@ -238,7 +238,7 @@ export function buildTyphoon(v: AirframeVisual): void {
     rakeFade: 1.0,
     fan: { cx: 0, cy: -0.76, r: 0.27 },
     // a dark mouth: the duct falls into shadow right behind the lip
-    ductShade: { k0: 0.07, fall: 1.0, floor: 0.015 },
+    ductShade: { k0: 0.1, fall: 1.0, floor: 0.015 },
     ductShadeRaked: true,
     ductRings: 24,
   });
@@ -254,8 +254,9 @@ export function buildTyphoon(v: AirframeVisual): void {
 
   // --- canopy, seat, pilot
   v.cockpitEye.set(0, 0.95, -3.95);
-  // the heavy windscreen frame: two arches close together
-  buildCanopy(v, CANOPY, -4.56, [-4.5]);
+  buildCanopy(v, CANOPY, -4.56, []);
+  // the windscreen's heavy frame: a broad band of arches over the thin one buildCanopy draws
+  v.hideInCockpit.push(v.addMesh(join([-4.64, -4.6, -4.52, -4.48].map((z) => strip(sectionArch(sectionAt(CANOPY, z), 0.03, -0.012, 0.02, Math.PI - 0.02, 36)))), pm.frame));
   addPilot(v, new THREE.Vector3(0, 0.95, -3.95), 0.24, { style: 'eu', stick: 'center', martinBaker: true });
   const shroud = loftProfile({
     stations: stations(-5.35, -4.95, 6),
