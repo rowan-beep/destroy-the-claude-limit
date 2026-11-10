@@ -238,7 +238,7 @@ export function buildTyphoon(v: AirframeVisual): void {
     rakeFade: 1.0,
     fan: { cx: 0, cy: -0.76, r: 0.27 },
     // a dark mouth: the duct falls into shadow right behind the lip
-    ductShade: { k0: 0.2, fall: 1.4, floor: 0.02 },
+    ductShade: { k0: 0.07, fall: 1.0, floor: 0.015 },
     ductShadeRaked: true,
     ductRings: 24,
   });
