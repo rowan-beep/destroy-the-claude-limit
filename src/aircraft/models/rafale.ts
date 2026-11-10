@@ -28,7 +28,7 @@ function oval(hw: number, yb: number, yt: number, e = 1): P2[] {
 // Sized off the three-view: the radome droops 0.3 m to its tip, the
 // windscreen base is 3 m behind the tip, the cockpit sills are high (0.75),
 // the spine behind the canopy runs down to the fin, and the belly steps
-// down under the engine bays before the close-set nozzles at z 5.9
+// up along the engine bays to the close-set nozzles at z 5.75
 const BODY = keyedProfile([
   { z: -7.95, pts: circ(0.012, -0.3) },
   { z: -7.45, pts: oval(0.16, -0.4, -0.18) },
@@ -45,12 +45,12 @@ const BODY = keyedProfile([
   { z: -1.3, pts: [[0, -0.77], [0.45, -0.78], [0.76, -0.74], [0.9, -0.48], [0.96, -0.26], [0.96, -0.2], [0.96, -0.14], [0.92, 0.16], [0.8, 0.56], [0.58, 0.82], [0.3, 0.88], [0, 0.9]] },
   // the spine behind the canopy
   { z: -0.8, pts: [[0, -0.77], [0.46, -0.78], [0.78, -0.74], [0.92, -0.48], [0.97, -0.26], [0.97, -0.2], [0.97, -0.14], [0.93, 0.16], [0.8, 0.58], [0.56, 0.84], [0.3, 0.95], [0, 0.97]] },
-  { z: 0.0, pts: [[0, -0.78], [0.48, -0.79], [0.82, -0.74], [0.94, -0.5], [0.98, -0.3], [0.98, -0.24], [0.98, -0.18], [0.94, 0.14], [0.78, 0.5], [0.54, 0.74], [0.28, 0.84], [0, 0.87]] },
-  { z: 1.5, pts: [[0, -0.8], [0.5, -0.82], [0.86, -0.76], [1.0, -0.52], [1.04, -0.32], [1.04, -0.26], [1.04, -0.2], [1.0, 0.1], [0.84, 0.42], [0.56, 0.62], [0.28, 0.72], [0, 0.77]] },
-  { z: 2.6, pts: [[0, -0.95], [0.55, -0.95], [0.95, -0.86], [1.12, -0.58], [1.18, -0.34], [1.18, -0.28], [1.18, -0.2], [1.14, 0.08], [0.94, 0.38], [0.6, 0.56], [0.3, 0.64], [0, 0.68]] },
-  { z: 4.0, pts: [[0, -0.95], [0.6, -0.95], [1.0, -0.86], [1.18, -0.58], [1.24, -0.34], [1.24, -0.28], [1.24, -0.2], [1.2, 0.06], [1.0, 0.34], [0.62, 0.5], [0.3, 0.58], [0, 0.62]] },
-  { z: 5.2, pts: [[0, -0.88], [0.6, -0.88], [1.0, -0.8], [1.18, -0.55], [1.24, -0.34], [1.24, -0.28], [1.24, -0.2], [1.2, 0.02], [1.0, 0.28], [0.62, 0.42], [0.3, 0.5], [0, 0.54]] },
-  { z: 5.75, pts: [[0, -0.4], [0.4, -0.48], [0.85, -0.5], [1.08, -0.4], [1.18, -0.28], [1.2, -0.22], [1.2, -0.16], [1.16, -0.02], [0.98, 0.2], [0.6, 0.34], [0.3, 0.4], [0, 0.44]] },
+  { z: 0.0, pts: [[0, -0.74], [0.48, -0.75], [0.82, -0.7], [0.94, -0.48], [0.98, -0.3], [0.98, -0.24], [0.98, -0.18], [0.94, 0.14], [0.78, 0.5], [0.54, 0.74], [0.28, 0.84], [0, 0.87]] },
+  { z: 1.5, pts: [[0, -0.72], [0.5, -0.73], [0.86, -0.68], [1, -0.5], [1.04, -0.32], [1.04, -0.26], [1.04, -0.2], [1, 0.1], [0.84, 0.42], [0.56, 0.62], [0.28, 0.72], [0, 0.77]] },
+  { z: 2.6, pts: [[0, -0.67], [0.55, -0.67], [0.95, -0.6], [1.12, -0.44], [1.18, -0.34], [1.18, -0.28], [1.18, -0.2], [1.14, 0.08], [0.94, 0.38], [0.6, 0.56], [0.3, 0.72], [0, 0.76]] },
+  { z: 4.0, pts: [[0, -0.57], [0.6, -0.57], [1, -0.51], [1.18, -0.4], [1.24, -0.34], [1.24, -0.28], [1.24, -0.2], [1.2, 0.06], [1, 0.34], [0.62, 0.5], [0.3, 0.66], [0, 0.7]] },
+  { z: 5.2, pts: [[0, -0.46], [0.6, -0.47], [1, -0.45], [1.18, -0.38], [1.24, -0.34], [1.24, -0.28], [1.24, -0.2], [1.2, 0.02], [1, 0.28], [0.62, 0.42], [0.3, 0.58], [0, 0.62]] },
+  { z: 5.75, pts: [[0, -0.34], [0.4, -0.4], [0.85, -0.42], [1.08, -0.36], [1.18, -0.28], [1.2, -0.22], [1.2, -0.16], [1.16, -0.02], [0.98, 0.2], [0.6, 0.34], [0.3, 0.4], [0, 0.44]] },
 ]);
 const BODY_SUB = [4, 3, 3, 3, 2, 1, 2, 3, 3, 3, 4];
 
@@ -70,28 +70,29 @@ const CANOPY: Section[] = [
 
 // cropped delta: 46 degrees of leading-edge sweep, the trailing edge swept
 // forward 3 degrees
+const wle = (x: number) => -1.158 + (x - 0.95) * 0.983;
+const wte = (x: number) => 4.91 - (x - 1.6) * 0.088;
 const WING: WingStation[] = [
-  { x: 0.7, le: -1.26, te: 5.42, y: -0.26, t: 0.05 },
-  { x: 0.95, le: -1.0, te: 5.4, y: -0.27, t: 0.048 },
-  { x: 5.3, le: 3.52, te: 5.15, y: -0.34, t: 0.035 },
+  { x: 0.7, le: -1.42, te: 4.99, y: -0.26, t: 0.05 },
+  { x: 0.95, le: wle(0.95), te: wte(0.95), y: -0.27, t: 0.048 },
+  { x: 5.3, le: wle(5.3), te: wte(5.3), y: -0.34, t: 0.035 },
 ];
-const wle = (x: number) => -1.0 + (x - 0.95) * 1.04;
-const wte = (x: number) => 5.4 - (x - 0.95) * 0.057;
-// big close-coupled canards: 2.75 m out from the centre line, the leading
-// edge swept 48 deg at the root easing to 42 deg, a squared trailing edge
+// close-coupled canards beside the cockpit: 2.65 m out from the centre line, the leading edge
+// swept 41 degrees, the trailing edge swept back too
 const CANARD: WingStation[] = [
-  { x: 0.55, le: -3.25, te: -0.75, y: 0.02, t: 0.05 },
-  { x: 1.9, le: -2.05, te: -0.55, y: 0.08, t: 0.045 },
-  { x: 2.75, le: -1.1, te: -0.8, y: 0.1, t: 0.04 },
+  { x: 0.55, le: -3.44, te: -1.72, y: 0.02, t: 0.05 },
+  { x: 0.9, le: -3.14, te: -1.6, y: 0.04, t: 0.048 },
+  { x: 2.65, le: -1.63, te: -1.02, y: 0.1, t: 0.04 },
 ];
-const CANARD_PIVOT = -2.1;
+const CANARD_PIVOT = -2.3;
 // the fin: a 53 deg leading edge off the spine, the rudder's trailing edge
 // a metre ahead of the SPECTRA pod's aft end (the pod overhangs the tip)
 const FIN: WingStation[] = [
-  { x: 0, le: 2.55, te: 6.4, t: 0.05 },
-  { x: 2.7, le: 6.15, te: 6.7, t: 0.036 },
+  { x: 0, le: 2.55, te: 6.05, t: 0.05 },
+  { x: 2.18, le: 5.58, te: 6.99, t: 0.038 },
+  { x: 2.8, le: 6.1, te: 7.2, t: 0.032 },
 ];
-const RUDDER = { h0: 0.3, h1: 2.1, hinge: (h: number) => 5.8 + h * 0.07 };
+const RUDDER = { h0: 0.3, h1: 2.05, hinge: (h: number) => 5.115 + h * 0.625 };
 
 function livery(team: string): Livery {
   const L = new Livery({ half: 9.0, z0: -9.0, len: 18, y0: -2.0, height: 5.8 });
@@ -317,11 +318,11 @@ export function buildRafale(v: AirframeVisual): void {
     }
   }
   // wingtip missile rails (always fitted)
-  const rail = roundBox(0.1, 0.1, 2.3, 0.03);
-  rail.translate(5.36, -0.34, 4.1);
+  const rail = roundBox(0.1, 0.1, 2.7, 0.03);
+  rail.translate(5.36, -0.34, 3.5);
   skin(both(rail));
   // the inboard elevons' actuator fairings on the trailing-edge root
-  for (const sx of [-1, 1]) skin(lathe([[0.004, 4.2], [0.15, 4.5], [0.17, 5.3], [0.15, 5.75], [0.004, 5.95]], 14, 1.38 * sx, -0.2));
+  for (const sx of [-1, 1]) skin(lathe([[0.004, 3.75], [0.15, 4.05], [0.17, 4.85], [0.15, 5.3], [0.004, 5.5]], 14, 1.38 * sx, -0.2));
 
   // --- canards (all-moving)
   const canard = wing({ sections: CANARD, chordPts: 22, spanSub: 6, tip: 'round', thickPos: 0.45 });
@@ -335,14 +336,14 @@ export function buildRafale(v: AirframeVisual): void {
   const f = finPanels(FIN, RUDDER, m, { chordPts: 30 });
   skin(f.fixed);
   v.addSurface(stamp(f.rudder.geo), paint, f.rudder.hinge, f.rudder.axis, 'rudder', 0, 25);
-  const tipBox = roundBox(0.15, 0.24, 1.55, 0.05);
-  tipBox.translate(0, 3.28, 6.45);
+  const tipBox = roundBox(0.15, 0.26, 1.7, 0.05);
+  tipBox.translate(0, 2.94, 6.38);
   skin(tipBox);
-  skin(lathe([[0.004, 5.4], [0.05, 5.5], [0.075, 5.7], [0.075, 5.7]], 12, 0, 3.28));
-  skin(lathe([[0.075, 7.2], [0.07, 7.3], [0.004, 7.38]], 12, 0, 3.28));
+  skin(lathe([[0.004, 5.25], [0.05, 5.35], [0.075, 5.55], [0.075, 5.55]], 12, 0, 2.94));
+  skin(lathe([[0.075, 7.2], [0.07, 7.27], [0.004, 7.32]], 12, 0, 2.94));
   const rootPod = lathe([[0.004, 5.6], [0.1, 5.8], [0.13, 6.2], [0.12, 6.6], [0.004, 6.7]], 16, 0, 0.42);
   skin(rootPod);
-  v.addNavLight(new THREE.Vector3(0, 3.41, 7.15), 'strobe');
+  v.addNavLight(new THREE.Vector3(0, 3.44, 6.9), 'strobe');
   // dorsal spine fillet into the fin
   const fillet = loftProfile({
     stations: stations(0.9, 3.3, 12),
@@ -360,16 +361,16 @@ export function buildRafale(v: AirframeVisual): void {
 
   // --- two close-set M88 nozzles, ending 0.9 m short of the SPECTRA pod
   for (const sx of [-1, 1]) {
-    const nz = nozzle({ cx: 0.72 * sx, cy: 0.03, z0: 5.75, z1: 6.5, r0: 0.44, r1: 0.39, petals: 12, saw: 0.05, floor: 5.85 });
+    const nz = nozzle({ cx: 0.72 * sx, cy: 0.03, z0: 5.75, z1: 6.22, r0: 0.44, r1: 0.39, petals: 12, saw: 0.05, floor: 5.85 });
     const nzOut = v.addMesh(nz.outer, pm.nozzle);
     const nzIn = v.addMesh(nz.inner, pm.nozzleIn);
     nzIn.userData.detail = true;
     v.morphNozzle(nzOut, nzIn);
-    v.nozzles.push({ pos: new THREE.Vector3(0.72 * sx, 0.03, 6.45), radius: 0.36, depth: 0.63, area: nz.area });
+    v.nozzles.push({ pos: new THREE.Vector3(0.72 * sx, 0.03, 6.17), radius: 0.36, depth: 0.5, area: nz.area });
   }
   v.buildFlames(4.8);
   // fairing between the nozzles
-  skin(lathe([[0.14, 5.5], [0.15, 5.9], [0.12, 6.3], [0.05, 6.6], [0.004, 6.7]], 16, 0, 0.0));
+  skin(lathe([[0.14, 5.3], [0.15, 5.7], [0.12, 6.05], [0.05, 6.3], [0.004, 6.4]], 16, 0, 0.0));
 
   // --- OSF front-sector optronics ahead of the windscreen
   const osf = roundBox(0.17, 0.12, 0.5, 0.055);
@@ -420,9 +421,9 @@ export function buildRafale(v: AirframeVisual): void {
     formationStrip(new THREE.Vector3(1.24, -0.1, 3.4), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 1), 0.5, 0.035),
     formationStrip(new THREE.Vector3(-1.24, -0.1, 3.4), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 1), 0.5, 0.035),
   ]), pm.formation, v.body, false);
-  v.addNavLight(new THREE.Vector3(-5.36, -0.28, 3.45), 'red');
-  v.addNavLight(new THREE.Vector3(5.36, -0.28, 3.45), 'green');
-  v.addNavLight(new THREE.Vector3(0, -0.84, 1.8), 'strobe');
+  v.addNavLight(new THREE.Vector3(-5.36, -0.28, 3.0), 'red');
+  v.addNavLight(new THREE.Vector3(5.36, -0.28, 3.0), 'green');
+  v.addNavLight(new THREE.Vector3(0, -0.74, 1.4), 'strobe');
 
   // --- landing gear: twin nose wheels under the intakes, mains fold forward into the fuselage
   buildGearSet(v, {
