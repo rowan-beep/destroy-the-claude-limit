@@ -101,4 +101,42 @@ function shot(sc: THREE.Scene, cam: THREE.Camera, w: number, h: number, sil: boo
   }
   return out;
 };
+/**
+ * How far the canopy's sill floats above the fuselage skin: a ray is dropped onto the skin beside
+ * every point of the sill rail (not through the glass, the frames or the cockpit), and the rail's
+ * height over the first thing it hits is the gap (m). Positive = floating, negative = sunk in.
+ */
+(window as unknown as { canopygap: unknown }).canopygap = (o: Opt) => {
+  const { vis } = build({ ...o, stores: false });
+  vis.root.updateMatrixWorld(true);
+  const skip = new Set<THREE.Object3D>();
+  const mark = (obj: THREE.Object3D) => obj.traverse((c) => skip.add(c));
+  for (const h of vis.hideInCockpit) mark(h);
+  if (vis.canopy) mark(vis.canopy);
+  const targets: THREE.Object3D[] = [];
+  vis.root.traverse((c) => { if ((c as THREE.Mesh).isMesh && c.visible && !skip.has(c)) targets.push(c); });
+  const can = vis.canopySections;
+  const ray = new THREE.Raycaster();
+  const out: { z: number; x: number; rail: number; hit: number | null; gap: number | null }[] = [];
+  if (can.length < 4) return { type: o.type, samples: out };
+  const z0 = can[1].z, z1 = can[can.length - 2].z;
+  const sec = (z: number) => {
+    let k = 0;
+    while (k < can.length - 2 && can[k + 1].z < z) k++;
+    const a = can[k], b = can[k + 1], t = Math.min(1, Math.max(0, (z - a.z) / (b.z - a.z || 1)));
+    return { w: a.w + (b.w - a.w) * t, y: (a.y ?? 0) + ((b.y ?? 0) - (a.y ?? 0)) * t };
+  };
+  for (let i = 0; i <= 24; i++) {
+    const z = z0 + ((z1 - z0) * i) / 24;
+    const s = sec(z);
+    for (const sx of [-1, 1]) {
+      const x = sx * s.w * 0.99, rail = s.y + 0.015;
+      ray.set(new THREE.Vector3(x, rail + 0.8, z), new THREE.Vector3(0, -1, 0));
+      const hits = ray.intersectObjects(targets, false);
+      const hit = hits.length ? hits[0].point.y : null;
+      out.push({ z: +z.toFixed(2), x: +x.toFixed(2), rail: +rail.toFixed(3), hit: hit === null ? null : +hit.toFixed(3), gap: hit === null ? null : +(rail - hit).toFixed(3) });
+    }
+  }
+  return { type: o.type, samples: out };
+};
 (window as unknown as { jetviewReady: boolean }).jetviewReady = true;

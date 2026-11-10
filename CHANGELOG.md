@@ -4,6 +4,17 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu the space updates.
 
+## v7.14.1 (2026-11-10)
+
+### Air Combat: Canopies and tails fixed on four jets
+
+- **Fixed: The F-16's canopy no longer floats**
+  - The rear of the F-16's canopy sat up to 13 cm above the fuselage, so you could see under the rail. It now sits on the skin. All nine rebuilt jets were measured for the same gap and none is more than 2 cm off.
+- **Fixed: Typhoon and F-35A canopies at their real length**
+  - The Typhoon's glass ran half a metre too far back and its pilot sat half a metre too far forward; both now match the real cockpit. The F-35A's glass was 1.5 m too long, which made one long black lozenge; it now ends where the real one does and the dorsal fairing carries on behind it.
+- **Fixed: The Rafale's engines no longer stand out**
+  - The tail ended in a blunt cut with the two engine nozzles sticking out like pipes. The rear fuselage now wraps the engines and only the nozzle petals show.
+
 ## v7.14.0 (2026-11-10)
 
 ### Air Combat: Nine jets rebuilt from their blueprints

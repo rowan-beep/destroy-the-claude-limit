@@ -46,11 +46,11 @@ const CANOPY: Section[] = [
   { z: -5.25, w: 0.38, top: 0.4, bot: 0.03, y: 0.56, n: 2.2 },
   { z: -4.7, w: 0.48, top: 0.63, bot: 0.03, y: 0.57, n: 2.2 },
   { z: -4.0, w: 0.51, top: 0.8, bot: 0.03, y: 0.58, n: 2.2 },
-  { z: -3.35, w: 0.5, top: 0.81, bot: 0.03, y: 0.59, n: 2.2 },
-  { z: -2.7, w: 0.46, top: 0.7, bot: 0.03, y: 0.6, n: 2.2 },
-  { z: -2.1, w: 0.36, top: 0.52, bot: 0.03, y: 0.64, n: 2.2 },
-  { z: -1.7, w: 0.2, top: 0.32, bot: 0.03, y: 0.7, n: 2.1 },
-  { z: -1.5, w: 0.05, top: 0.05, bot: 0.02, y: 0.86, n: 2 },
+  { z: -3.4, w: 0.5, top: 0.8, bot: 0.03, y: 0.6, n: 2.2 },
+  { z: -2.9, w: 0.46, top: 0.68, bot: 0.03, y: 0.64, n: 2.2 },
+  { z: -2.5, w: 0.38, top: 0.52, bot: 0.03, y: 0.69, n: 2.2 },
+  { z: -2.2, w: 0.24, top: 0.32, bot: 0.03, y: 0.76, n: 2.1 },
+  { z: -1.96, w: 0.08, top: 0.1, bot: 0.03, y: 0.85, n: 2 },
 ];
 
 // the delta: leading edge swept 52 degrees from 6 m behind the nose, trailing edge 13.1 m back
@@ -241,9 +241,9 @@ export function buildTyphoon(v: AirframeVisual): void {
   v.addMesh(stamp(join([-0.4, 0.4].map((x) => { const g = roundBox(0.04, 0.1, 1.2, 0.015); g.translate(x, -0.41, -2.85); return g; }))), paint);
 
   // --- canopy, seat, pilot
-  v.cockpitEye.set(0, 0.92, -4.45);
-  buildCanopy(v, CANOPY, -4.97, []);
-  addPilot(v, new THREE.Vector3(0, 0.92, -4.45), 0.24, { style: 'eu', stick: 'center', martinBaker: true });
+  v.cockpitEye.set(0, 0.95, -3.95);
+  buildCanopy(v, CANOPY, -4.56, []);
+  addPilot(v, new THREE.Vector3(0, 0.95, -3.95), 0.24, { style: 'eu', stick: 'center', martinBaker: true });
   const shroud = loftProfile({
     stations: stations(-5.35, -4.95, 6),
     profile: (z) => {

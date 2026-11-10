@@ -41,6 +41,21 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.14.1',
+    date: '2026-11-10',
+    air: {
+      title: 'Canopies and tails fixed on four jets',
+      notes: [
+        fixed('The F-16\'s canopy no longer floats',
+          'The rear of the F-16\'s canopy sat up to 13 cm above the fuselage, so you could see under the rail. It now sits on the skin. All nine rebuilt jets were measured for the same gap and none is more than 2 cm off.'),
+        fixed('Typhoon and F-35A canopies at their real length',
+          'The Typhoon\'s glass ran half a metre too far back and its pilot sat half a metre too far forward; both now match the real cockpit. The F-35A\'s glass was 1.5 m too long, which made one long black lozenge; it now ends where the real one does and the dorsal fairing carries on behind it.'),
+        fixed('The Rafale\'s engines no longer stand out',
+          'The tail ended in a blunt cut with the two engine nozzles sticking out like pipes. The rear fuselage now wraps the engines and only the nozzle petals show.'),
+      ],
+    },
+  },
+  {
     version: '7.14.0',
     date: '2026-11-10',
     air: {
