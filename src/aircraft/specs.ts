@@ -1271,8 +1271,8 @@ const X15: AircraftSpec = {
   },
   // two big drop tanks along the lower fuselage under the wing roots
   stations: [
-    { id: 1, label: 'TANK L', pos: [-0.95, -0.95, 0.6], allowed: [TANK], mount: 'pylon' },
-    { id: 2, label: 'TANK R', pos: [0.95, -0.95, 0.6], allowed: [TANK], mount: 'pylon' },
+    { id: 1, label: 'TANK L', pos: [-0.95, -0.72, 0.6], allowed: [TANK], mount: 'pylon' },
+    { id: 2, label: 'TANK R', pos: [0.95, -0.72, 0.6], allowed: [TANK], mount: 'pylon' },
   ],
   loadouts: [
     { id: 'x15-tanks', name: 'LONG BURN — two drop tanks (about 10 minutes at full power)', stores: { 1: TANK, 2: TANK } },
