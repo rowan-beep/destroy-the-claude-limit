@@ -87,9 +87,9 @@ const WING: WingStation[] = [
 // close-coupled canards high on the intake shoulders beside the cockpit: 2.65 m out from the centre line, the leading edge
 // swept 41 degrees, the trailing edge swept back too
 const CANARD: WingStation[] = [
-  { x: 0.55, le: -3.44, te: -1.72, y: 0.24, t: 0.05 },
-  { x: 0.9, le: -3.14, te: -1.6, y: 0.25, t: 0.048 },
-  { x: 2.65, le: -1.63, te: -1.02, y: 0.31, t: 0.04 },
+  { x: 0.55, le: -3.44, te: -1.72, y: 0.32, t: 0.05 },
+  { x: 0.9, le: -3.14, te: -1.6, y: 0.32, t: 0.05 },
+  { x: 2.65, le: -1.63, te: -1.02, y: 0.35, t: 0.04 },
 ];
 const CANARD_PIVOT = -2.3;
 // the fin: a 53 deg leading edge off the spine, the rudder's trailing edge
@@ -262,7 +262,7 @@ export function buildRafale(v: AirframeVisual): void {
     rakeFade: 1.2,
     fan: { cx: 0.92, cy: -0.38, r: 0.32 },
     // the S-shaped duct hides the fan: the face at its end reads as a dark tunnel, not a bright engine
-    ductShade: { k0: 0.42, fall: 1.8, floor: 0.03, fan: 0.3 },
+    ductShade: { k0: 0.24, fall: 1.3, floor: 0.02, fan: 0.3 },
   });
   skin(both(inl.skin));
   v.addMesh(both(inl.duct), pm.duct);
@@ -325,7 +325,7 @@ export function buildRafale(v: AirframeVisual): void {
   const canard = wing({ sections: CANARD, chordPts: 22, spanSub: 6, tip: 'round', thickPos: 0.45 });
   for (const side of [1, -1] as const) {
     const g = stamp(side > 0 ? canard.clone() : mirror(canard));
-    v.addSurface(g, paint, new THREE.Vector3(0.62 * side, 0.25, CANARD_PIVOT), new THREE.Vector3(1, 0, 0), 'canard', side, 20);
+    v.addSurface(g, paint, new THREE.Vector3(0.62 * side, 0.32, CANARD_PIVOT), new THREE.Vector3(1, 0, 0), 'canard', side, 20);
   }
 
   // --- fin with rudder, squared SPECTRA fairing on top, antenna at the root

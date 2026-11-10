@@ -182,6 +182,27 @@ function livery(team: string): Livery {
   rect(gs, S(-5.3, -0.38), S(-4.5, -0.12));
   rect(gs, S(1.4, -0.45), S(2.4, -0.1));
   rect(gs, S(4.3, -0.35), S(5.1, 0.05));
+  // the LEX's shadow on the fuselage side below its edge: the shelf reads as a crisp line from the side
+  const lexEdge: P2[] = [[-4.9, 0.62], [-4.2, 0.62], [-3.0, 0.615], [-2.3, 0.595], [-1.5, 0.545], [-0.7, 0.46], [-0.1, 0.41]];
+  for (let i = 0; i + 1 < lexEdge.length; i++) {
+    const [z0, y0] = lexEdge[i], [z1, y1] = lexEdge[i + 1];
+    // the shelf's underside faces down (bottom paint): the shade goes on the wall below it
+    const ym = Math.min((y0 + y1) / 2, 0.4);
+    const a = i === 0 ? 0.14 : 0.32;
+    const gr = gs.createLinearGradient(...S((z0 + z1) / 2, ym), ...S((z0 + z1) / 2, ym - 0.5));
+    gr.addColorStop(0, `rgba(36,40,46,${a})`);
+    gr.addColorStop(0.35, `rgba(36,40,46,${a * 0.55})`);
+    gr.addColorStop(1, 'rgba(36,40,46,0)');
+    gs.fillStyle = gr;
+    gs.beginPath();
+    gs.moveTo(...S(z0, y0 - 0.01));
+    gs.lineTo(...S(z1, y1 - 0.01));
+    gs.lineTo(...S(z1, ym - 0.5));
+    gs.lineTo(...S(z0, ym - 0.5));
+    gs.closePath();
+    gs.fill();
+  }
+  line(gs, lexEdge.map(([z, y]) => S(z, y - 0.012)), 1.6, 'rgba(30,34,38,0.45)');
   weather(gt, L.top.width, L.top.height, rnd, 1.0, [0, 1]);
   weather(gb, L.bot.width, L.bot.height, rnd, 0.8, [0, 1]);
   weather(gs, L.side.width, L.side.height, rnd, 0.9, [1, 0.1]);

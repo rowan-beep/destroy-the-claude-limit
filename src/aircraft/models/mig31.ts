@@ -98,7 +98,7 @@ const wy = (x: number) => 0.3 - (x - 2.0) * DROOP;
 const WING: WingStation[] = [
   { x: 1.6, le: 0.25, te: wte(1.6), y: wy(1.6), t: 0.05 },
   { x: 2.2, le: wle(2.2), te: wte(2.2), y: wy(2.2), t: 0.048 },
-  { x: 6.73, le: wle(6.73), te: wte(6.73), y: wy(6.73), t: 0.03 },
+  { x: 6.73, le: wle(6.73), te: wte(6.73), y: wy(6.73), t: 0.042 },
 ];
 // the small root extension: a thin strake from 10.8 m behind the boom tip to the wing root
 const LERX: WingStation[] = [
@@ -411,6 +411,8 @@ export function buildMig31(v: AirframeVisual): void {
       capEnd: true,
     });
   skin(hood(-4.52, -3.1, 0.55));
+  // the wide metal pillar between the two hoods, so the glazing reads as two canopies
+  skin(hood(-4.8, -4.5, 0.02));
   // ahead of and behind the windows the hood comes right down to the sill
   skin(hood(-3.7, -3.1, 0.05));
   // the flat dorsal spine from the hood back to the fins

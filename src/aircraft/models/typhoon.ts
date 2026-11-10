@@ -240,13 +240,15 @@ export function buildTyphoon(v: AirframeVisual): void {
     // a dark mouth: the duct falls into shadow right behind the lip
     ductShade: { k0: 0.2, fall: 1.4, floor: 0.02 },
     ductShadeRaked: true,
+    ductRings: 24,
   });
   skin(ci.skin);
   v.addMesh(ci.duct, pm.duct);
   const splitter = roundBox(0.03, 0.6, 1.8, 0.01);
   // the splitter's top edge meets the intake roof
   splitter.translate(0, -0.7, -2.5);
-  skin(splitter);
+  // (inside the mouth it is in shadow, not lit like the skin)
+  v.addMesh(stamp(splitter), new THREE.MeshStandardMaterial({ color: 0x3e4246, roughness: 0.8, metalness: 0.1 }));
   // diverter pillars between the fuselage and the intake roof
   v.addMesh(stamp(join([-0.4, 0.4].map((x) => { const g = roundBox(0.04, 0.08, 0.6, 0.015); g.translate(x, -0.37, -3.6); return g; }))), paint);
 

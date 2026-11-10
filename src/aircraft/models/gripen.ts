@@ -295,7 +295,9 @@ export function buildGripen(v: AirframeVisual): void {
   skin(both(rail));
 
   // --- canards (all-moving), on the intake tops
+  // trimmed 3 deg leading edge down, as they ride in level flight (the top shows from ahead)
   const canard = wing({ sections: CANARD, chordPts: 22, spanSub: 6, tip: 'round', thickPos: 0.45 });
+  canard.translate(0, -0.3, -CANARD_PIVOT).rotateX((-3 * Math.PI) / 180).translate(0, 0.3, CANARD_PIVOT);
   for (const side of [1, -1] as const) {
     const g = stamp(side > 0 ? canard.clone() : mirror(canard));
     v.addSurface(g, paint, new THREE.Vector3(0.72 * side, 0.3, CANARD_PIVOT), new THREE.Vector3(1, 0, 0), 'canard', side, 25);
