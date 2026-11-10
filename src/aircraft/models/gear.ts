@@ -27,6 +27,8 @@ import { partMaterials } from './parts';
 export interface GearSpec {
   nose: {
     top: THREE.Vector3; axle: THREE.Vector3; r: number; w: number; twin: boolean; retract: 'forward' | 'aft'; launchBar?: boolean; /** false: no bay doors */ doors?: boolean;
+    /** the dark wheel wells either side of the nose bay: width scaled by w (kept against the centre line), raised by dy (m), for a slim or round nose */
+    well?: { w?: number; dy?: number };
     /** a wide panel down the front of the strut (w across, h down the leg) carrying the landing light with the taxi light under it (F-15) */
     panel?: { w: number; h: number };
     /** 'half': one curved arm down the side of a single wheel from a collar at the oleo's foot (F-15) */
@@ -34,6 +36,10 @@ export interface GearSpec {
   };
   mains: {
     top: THREE.Vector3; axle: THREE.Vector3; r: number; w: number; retract: 'forward' | 'aft' | 'inward'; outboard: number; trailing?: boolean;
+    /** the dark wheel well shown with the gear down: shifted inboard by dx (m), its width scaled by w, raised by dy (m), so it lies on the skin */
+    well?: { dx?: number; w?: number; dy?: number };
+    /** inward-folding legs: the door's length as a fraction of the leg's (default 1), kept at the leg's end (a leg in the wing root has a short door) */
+    doorLen?: number;
     /** a heavier leg: the yoke at the top, a side brace to the airframe inboard, the axle knuckle down beside the wheel (F-15) */
     heavy?: boolean;
   };
@@ -483,7 +489,7 @@ function buildLeg(v: AirframeVisual, o: LegOptions): void {
 }
 
 /** A bay door (sequenced: open before the leg moves, shut after it) and the dark well behind it. */
-function buildDoor(v: AirframeVisual, mat: THREE.Material, hinge: THREE.Vector3, axis: THREE.Vector3, deg: number, size: [number, number], centre: THREE.Vector3, along: 'x' | 'z', inner?: { mat: THREE.Material; facing: number }): void {
+function buildDoor(v: AirframeVisual, mat: THREE.Material, hinge: THREE.Vector3, axis: THREE.Vector3, deg: number, size: [number, number], centre: THREE.Vector3, along: 'x' | 'z', inner?: { mat: THREE.Material; facing: number }, wellAt?: { x: number; w: number; dy: number }): void {
   const M = gearMats();
   const pivot = new THREE.Group();
   pivot.position.copy(hinge);
@@ -504,9 +510,10 @@ function buildDoor(v: AirframeVisual, mat: THREE.Material, hinge: THREE.Vector3,
     pivot.add(new THREE.Mesh(f, inner.mat));
   }
   // the well: the open bay seen past the door
-  const well = new THREE.Mesh(new THREE.PlaneGeometry(along === 'z' ? wid * 1.9 : len, along === 'z' ? len : wid * 1.9), M.well);
+  const ww = wid * 1.9 * (wellAt?.w ?? 1);
+  const well = new THREE.Mesh(new THREE.PlaneGeometry(along === 'z' ? ww : len, along === 'z' ? len : ww), M.well);
   well.rotation.x = Math.PI / 2;
-  well.position.set(centre.x, hinge.y + 0.012, centre.z);
+  well.position.set(wellAt ? wellAt.x : centre.x, hinge.y + 0.012 + (wellAt?.dy ?? 0), centre.z);
   v.body.add(well);
   v.gear.push({ pivot, axis: axis.clone().normalize(), retractDeg: deg, hideWhenUp: [well], door: true });
 }
@@ -567,7 +574,8 @@ export function buildGearSet(v: AirframeVisual, g: GearSpec): void {
       for (const sx of [-1, 1]) {
         const hinge = V(sx * hw, n.top.y + 0.01, zc);
         // open: hanging down a little outward; shut: swung up flat across half the bay
-        buildDoor(v, doorMat, hinge, V(0, 0, 1), sx * -84, [L * 0.95, hw * 0.98], V(sx * hw, n.top.y, zc), 'z', g.inner?.noseDoor ? { mat: g.inner.noseDoor, facing: -sx } : undefined);
+        buildDoor(v, doorMat, hinge, V(0, 0, 1), sx * -84, [L * 0.95, hw * 0.98], V(sx * hw, n.top.y, zc), 'z', g.inner?.noseDoor ? { mat: g.inner.noseDoor, facing: -sx } : undefined,
+          n.well ? { x: sx * hw * 0.93 * (n.well.w ?? 1), w: n.well.w ?? 1, dy: n.well.dy ?? 0 } : undefined);
       }
     }
   }
@@ -604,15 +612,17 @@ export function buildGearSet(v: AirframeVisual, g: GearSpec): void {
     });
     // the bay door, beside the bay along the leg's path, and the well under it
     const L = top.distanceTo(axle) + m.r;
+    const wellAt = (cx: number) => (m.well ? { x: cx - sx * (m.well.dx ?? 0), w: m.well.w ?? 1, dy: m.well.dy ?? 0 } : undefined);
     if (inward) {
-      const xc = top.x - sx * L * 0.5;
+      const dl = m.doorLen ?? 1;
+      const xc = top.x - sx * L * 0.5 * dl;
       const zEdge = top.z - m.r * 1.0;
       const hinge = V(xc, top.y + 0.01, zEdge);
-      buildDoor(v, doorMat, hinge, V(1, 0, 0), 84, [L * 0.95, m.r * 1.9], V(xc, top.y, zEdge + m.r * 0.95), 'x', g.inner?.mainDoor ? { mat: g.inner.mainDoor, facing: 1 } : undefined);
+      buildDoor(v, doorMat, hinge, V(1, 0, 0), 84, [L * 0.95 * dl, m.r * 1.9], V(xc, top.y, zEdge + m.r * 0.95), 'x', g.inner?.mainDoor ? { mat: g.inner.mainDoor, facing: 1 } : undefined, wellAt(xc));
     } else {
       const zc = top.z + (m.retract === 'forward' ? -1 : 1) * L * 0.45;
       const hinge = V(top.x - sx * (m.w / 2 + 0.25), top.y + 0.01, zc);
-      buildDoor(v, doorMat, hinge, V(0, 0, 1), 84 * sx, [L * 0.95, m.r * 1.05], V(top.x - sx * 0.05, top.y, zc), 'z', g.inner?.mainDoor ? { mat: g.inner.mainDoor, facing: sx } : undefined);
+      buildDoor(v, doorMat, hinge, V(0, 0, 1), 84 * sx, [L * 0.95, m.r * 1.05], V(top.x - sx * 0.05, top.y, zc), 'z', g.inner?.mainDoor ? { mat: g.inner.mainDoor, facing: sx } : undefined, wellAt(top.x - sx * 0.05));
     }
   }
 }

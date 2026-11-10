@@ -181,10 +181,10 @@ function livery(team: string): Livery {
   }
   L.copySides();
   const teamCol = team === 'blue' ? '#1f4f9e' : '#b0241e';
-  L.sideText(team === 'blue' ? '52' : '01', -5.9, -0.22, 0.42 * ps, teamCol);
+  L.sideText(team === 'blue' ? '52' : '01', -5.9, -0.34, 0.32 * ps, teamCol);
   L.sideDraw(-1.9, 0.22, (g, x, y) => star(g, x, y, 0.28 * ps));
   L.sideText('ВКС РОССИИ', 6.9, 0.2, 0.12 * ps, 'rgba(34,40,48,0.85)');
-  L.sideDraw(-6.6, 0.18, (g, x, y) => {
+  L.sideDraw(-6.6, 0.0, (g, x, y) => {
     g.fillStyle = '#c9402c';
     g.beginPath();
     g.moveTo(x, y - 0.09 * ps);
@@ -446,8 +446,8 @@ export function buildSu57(v: AirframeVisual): void {
 
   // --- landing gear: twin nose wheels, single mains retracting forward into the nacelles
   buildGearSet(v, {
-    nose: { top: new THREE.Vector3(0, -0.6, -6.25), axle: new THREE.Vector3(0, -2.15 + 0.3, -6.6), r: 0.3, w: 0.18, twin: true, retract: 'forward' },
-    mains: { top: new THREE.Vector3(1.95, -0.32, 1.0), axle: new THREE.Vector3(2.0, -2.15 + 0.48, 1.45), r: 0.48, w: 0.3, retract: 'forward', outboard: 0.1 },
+    nose: { top: new THREE.Vector3(0, -0.6, -6.25), axle: new THREE.Vector3(0, -2.15 + 0.3, -6.6), r: 0.3, w: 0.18, twin: true, retract: 'forward', well: { w: 0.8 } },
+    mains: { top: new THREE.Vector3(1.95, -0.32, 1.0), axle: new THREE.Vector3(2.0, -2.15 + 0.48, 1.45), r: 0.48, w: 0.3, retract: 'forward', outboard: 0.1, well: { w: 0.55, dx: 0.12 } },
     doorColor: '#9aa7b2',
   });
 }

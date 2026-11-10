@@ -190,7 +190,7 @@ function livery(team: string): Livery {
   });
   L.sideText(team === 'blue' ? '4-GE' : '30-GF', 5.6, 1.05, 0.2 * ps, 'rgba(40,44,50,0.85)');
   L.sideText(team === 'blue' ? '142' : '118', 5.8, 0.2, 0.13 * ps, 'rgba(40,44,50,0.8)');
-  L.sideDraw(-2.0, -0.45, (g, x, y) => roundel(g, team, x, y, 0.24 * ps));
+  L.sideDraw(-2.0, -0.2, (g, x, y) => roundel(g, team, x, y, 0.2 * ps));
   L.sideDraw(-4.6, 0.3, (g, x, y) => {
     g.fillStyle = '#c9402c';
     g.beginPath();
@@ -428,7 +428,7 @@ export function buildRafale(v: AirframeVisual): void {
   // --- landing gear: twin nose wheels under the intakes, mains fold forward into the fuselage
   buildGearSet(v, {
     nose: { top: new THREE.Vector3(0, -0.6, -3.8), axle: new THREE.Vector3(0, -1.75 + 0.25, -4.05), r: 0.25, w: 0.15, twin: true, retract: 'aft' },
-    mains: { top: new THREE.Vector3(0.9, -0.8, 0.8), axle: new THREE.Vector3(1.35, -1.75 + 0.38, 1.1), r: 0.38, w: 0.23, retract: 'forward', outboard: 0.05 },
+    mains: { top: new THREE.Vector3(0.9, -0.66, 0.8), axle: new THREE.Vector3(1.35, -1.75 + 0.38, 1.1), r: 0.38, w: 0.23, retract: 'forward', outboard: 0.05, well: { dx: 0.3, w: 0.8, dy: -0.1 } },
     doorColor: '#949ca1',
   });
 }

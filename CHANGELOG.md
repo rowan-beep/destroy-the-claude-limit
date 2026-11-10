@@ -4,6 +4,22 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu the space updates.
 
+## v7.14.0 (2026-11-10)
+
+### Air Combat: Nine jets rebuilt from their blueprints
+
+- **Improved: Nine jets reshaped to match the real ones**
+  - The F/A-18E/F, F-16C, Typhoon, Su-35S, Rafale, MiG-31BM, F-35A, Gripen E and Su-57 were each measured against a scale drawing of the real aircraft, from the side and from above, and rebuilt until the outlines matched.
+  - They fly, fight and carry weapons exactly as before. Only their looks changed. The F-15EX, F-22, SR-71 and X-15 are untouched.
+- **Improved: What changed most**
+  - F/A-18: a slimmer nose, the intakes moved back under the wing root, and the wing, tails and fins re-measured. F-16: the wing and tail sat almost a metre too far back; the belly is shallower and the canopy and fin taller.
+  - Typhoon: the rear fuselage was 1.4 m too long. Su-35S: a full-size drooped nose, a raised cockpit and taller fins. Rafale: a slimmer rear belly, smaller canards and the wing moved forward.
+  - MiG-31: lower canopies, straight intake trunks, and no wingtip pods (the real one has none). F-35A: the wing and tail moved back, swept fins and a shorter nozzle. Gripen E: a nose probe, the cockpit moved back, a taller spine and the wing's dog-tooth. Su-57: a slimmer nose and a swept trailing edge.
+- **Fixed: Small things found on a close inspection**
+  - Wingtip missiles now hang from their rails instead of sitting beside or inside them, wing pylons no longer poke through the top of the Gripen's wing, and wingtip lights sit on the tip.
+  - With the gear down, the dark wheel wells stay on the belly instead of sticking out past it, and the Typhoon's main legs fold from the wing roots, clear of the missiles under the fuselage.
+  - Cockpit glareshields no longer stick out through the nose on the F-35 and MiG-31, and a few numbers and roundels that wrapped round an edge were moved.
+
 ## v7.13.0 (2026-11-05)
 
 ### Air Combat: Into the game twice as fast

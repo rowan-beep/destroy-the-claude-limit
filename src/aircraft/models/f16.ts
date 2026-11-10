@@ -203,8 +203,8 @@ function livery(team: string): Livery {
   gs.fill();
   // the aerial refuelling door on the spine behind the canopy, with its guide lines
   gt.fillStyle = 'rgba(48,52,56,0.85)';
-  gt.fillRect(...T(-0.17, -1.85), 0.34 * pt, 0.62 * pt);
-  for (const sx of [-1, 1]) line(gt, [T(0.05 * sx, -1.2), T(0.05 * sx, 0.4)], 1.6, 'rgba(235,236,232,0.55)');
+  gt.fillRect(...T(-0.17, -0.95), 0.34 * pt, 0.62 * pt);
+  for (const sx of [-1, 1]) line(gt, [T(0.05 * sx, -0.3), T(0.05 * sx, 1.1)], 1.2, 'rgba(235,236,232,0.4)');
   // panel lines round the frames
   for (const z of [-5.34, -4.8, -2.4, -1.2, 0.2, 1.6, 2.9, 4.0, 4.9, 5.7]) {
     line(gt, [T(-0.85, z), T(0.85, z)], 1.3, LINE_LIGHT);
@@ -306,9 +306,9 @@ function livery(team: string): Livery {
     stencil(g, 'RESCUE', x - 0.07 * ps, y + 0.03 * ps, 0.065 * ps, 'rgba(40,44,48,0.8)');
   });
   L.sideText(team === 'blue' ? '0416' : '216', -5.0, -0.3, 0.12 * ps, 'rgba(40,44,48,0.8)');
-  L.sideDraw(-3.0, -0.72, (g, x, y) => {
+  L.sideDraw(-2.35, -0.7, (g, x, y) => {
     g.fillStyle = '#b8352a';
-    g.fillRect(x - 0.012 * ps, y - 0.22 * ps, 0.024 * ps, 0.44 * ps);
+    g.fillRect(x - 0.012 * ps, y - 0.18 * ps, 0.024 * ps, 0.36 * ps);
   });
   L.sideDraw(-4.6, 0.25, (g, x, y) => {
     g.fillStyle = '#c9402c';
@@ -541,8 +541,8 @@ export function buildF16(v: AirframeVisual): void {
     formationStrip(new THREE.Vector3(0.75, -0.05, 2.8), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 1), 0.45, 0.035),
     formationStrip(new THREE.Vector3(-0.75, -0.05, 2.8), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 1), 0.45, 0.035),
   ]), pm.formation, v.body, false);
-  v.addNavLight(new THREE.Vector3(-0.54, -0.72, -2.7), 'red');
-  v.addNavLight(new THREE.Vector3(0.54, -0.72, -2.7), 'green');
+  v.addNavLight(new THREE.Vector3(-0.58, -0.7, -2.2), 'red');
+  v.addNavLight(new THREE.Vector3(0.58, -0.7, -2.2), 'green');
   v.addNavLight(new THREE.Vector3(0, -0.92, 0.8), 'strobe');
   const hook = roundBox(0.06, 0.06, 1.0, 0.02);
   hook.translate(0, -0.52, 4.9);
@@ -552,7 +552,7 @@ export function buildF16(v: AirframeVisual): void {
   // mains fold forward into the fuselage under the wing roots
   buildGearSet(v, {
     nose: { top: new THREE.Vector3(0, -0.9, -2.1), axle: new THREE.Vector3(0, -2.0 + 0.23, -2.25), r: 0.23, w: 0.15, twin: false, retract: 'aft', doors: false },
-    mains: { top: new THREE.Vector3(0.6, -0.85, 0.95), axle: new THREE.Vector3(1.18, -2.0 + 0.36, 1.1), r: 0.36, w: 0.22, retract: 'forward', outboard: 0.08 },
+    mains: { top: new THREE.Vector3(0.6, -0.85, 0.95), axle: new THREE.Vector3(1.18, -2.0 + 0.36, 1.1), r: 0.36, w: 0.22, retract: 'forward', outboard: 0.08, well: { dx: 0.25, w: 0.6, dy: -0.06 } },
     doorColor: '#8e9499',
   });
 }

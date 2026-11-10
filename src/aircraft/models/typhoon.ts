@@ -243,13 +243,6 @@ export function buildTyphoon(v: AirframeVisual): void {
   // --- canopy, seat, pilot
   v.cockpitEye.set(0, 0.92, -4.45);
   buildCanopy(v, CANOPY, -4.97, []);
-  // BK-27 in the right wing root: the muzzle matches the gun port in the jet's spec
-  {
-    const m = new THREE.Mesh(new THREE.CircleGeometry(0.05, 12), pm.darkMetal);
-    m.position.set(0.98, -0.2, -2.15);
-    m.rotation.y = Math.PI;
-    v.body.add(m);
-  }
   addPilot(v, new THREE.Vector3(0, 0.92, -4.45), 0.24, { style: 'eu', stick: 'center', martinBaker: true });
   const shroud = loftProfile({
     stations: stations(-5.35, -4.95, 6),
@@ -372,14 +365,14 @@ export function buildTyphoon(v: AirframeVisual): void {
     formationStrip(new THREE.Vector3(0.985, -0.05, 3.4), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 1), 0.5, 0.035),
     formationStrip(new THREE.Vector3(-0.985, -0.05, 3.4), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 1), 0.5, 0.035),
   ]), pm.formation, v.body, false);
-  v.addNavLight(new THREE.Vector3(-5.345, -0.43, 2.8), 'red');
-  v.addNavLight(new THREE.Vector3(5.345, -0.43, 2.8), 'green');
+  v.addNavLight(new THREE.Vector3(-5.47, -0.43, 3.5), 'red');
+  v.addNavLight(new THREE.Vector3(5.47, -0.43, 3.5), 'green');
   v.addNavLight(new THREE.Vector3(0, -1.02, 1.8), 'strobe');
 
   // --- landing gear (mains retract inward into the fuselage)
   buildGearSet(v, {
     nose: { top: new THREE.Vector3(0, -0.34, -4.15), axle: new THREE.Vector3(0, -1.9 + 0.28, -4.4), r: 0.28, w: 0.18, twin: false, retract: 'forward' },
-    mains: { top: new THREE.Vector3(0.95, -0.72, 1.15), axle: new THREE.Vector3(1.32, -1.9 + 0.39, 1.4), r: 0.39, w: 0.24, retract: 'inward', outboard: 0.1 },
+    mains: { top: new THREE.Vector3(1.45, -0.46, 1.15), axle: new THREE.Vector3(1.75, -1.9 + 0.39, 1.4), r: 0.39, w: 0.24, retract: 'inward', outboard: 0.1, doorLen: 0.32 },
     doorColor: '#939b9f',
   });
 }

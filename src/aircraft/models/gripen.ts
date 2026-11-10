@@ -341,14 +341,14 @@ export function buildGripen(v: AirframeVisual): void {
     formationStrip(new THREE.Vector3(0.97, -0.2, 2.8), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 1), 0.45, 0.032),
     formationStrip(new THREE.Vector3(-0.97, -0.2, 2.8), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 1), 0.45, 0.032),
   ]), pm.formation, v.body, false);
-  v.addNavLight(new THREE.Vector3(-4.34, -0.38, 3.6), 'red');
-  v.addNavLight(new THREE.Vector3(4.34, -0.38, 3.6), 'green');
+  v.addNavLight(new THREE.Vector3(-4.36, -0.42, 2.4), 'red');
+  v.addNavLight(new THREE.Vector3(4.36, -0.42, 2.4), 'green');
   v.addNavLight(new THREE.Vector3(0, -0.74, 2.2), 'strobe');
 
   // --- landing gear: twin nose wheels, mains folding forward into the wing roots
   buildGearSet(v, {
-    nose: { top: new THREE.Vector3(0, -0.5, -3.6), axle: new THREE.Vector3(0, -1.6 + 0.22, -3.75), r: 0.22, w: 0.13, twin: true, retract: 'aft' },
-    mains: { top: new THREE.Vector3(0.95, -0.7, 1.8), axle: new THREE.Vector3(1.25, -1.6 + 0.3, 2.0), r: 0.3, w: 0.2, retract: 'forward', outboard: 0.05 },
+    nose: { top: new THREE.Vector3(0, -0.5, -3.6), axle: new THREE.Vector3(0, -1.6 + 0.22, -3.75), r: 0.22, w: 0.13, twin: true, retract: 'aft', well: { w: 0.7 } },
+    mains: { top: new THREE.Vector3(0.95, -0.7, 1.8), axle: new THREE.Vector3(1.25, -1.6 + 0.3, 2.0), r: 0.3, w: 0.2, retract: 'forward', outboard: 0.05, well: { dx: 0.3, w: 0.8, dy: -0.07 } },
     doorColor: '#9aa1a6',
   });
 }

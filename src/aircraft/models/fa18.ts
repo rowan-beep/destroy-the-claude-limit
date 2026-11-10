@@ -389,8 +389,8 @@ export function buildFA18(v: AirframeVisual): void {
 
   // --- landing gear: twin-wheel nose leg with launch bar, trailing-arm mains
   buildGearSet(v, {
-    nose: { top: new THREE.Vector3(0, -0.4, -3.6), axle: new THREE.Vector3(0, -1.95 + 0.28, -3.9), r: 0.28, w: 0.17, twin: true, retract: 'forward', launchBar: true },
-    mains: { top: new THREE.Vector3(0.75, -0.7, 2.9), axle: new THREE.Vector3(1.58, -1.95 + 0.44, 2.4), r: 0.44, w: 0.27, retract: 'aft', outboard: 0, trailing: true },
+    nose: { top: new THREE.Vector3(0, -0.4, -3.6), axle: new THREE.Vector3(0, -1.95 + 0.28, -3.9), r: 0.28, w: 0.17, twin: true, retract: 'forward', launchBar: true, well: { w: 0.5, dy: -0.04 } },
+    mains: { top: new THREE.Vector3(0.75, -0.7, 2.9), axle: new THREE.Vector3(1.58, -1.95 + 0.44, 2.4), r: 0.44, w: 0.27, retract: 'aft', outboard: 0, trailing: true, well: { w: 0.7, dx: 0.05, dy: -0.09 } },
     doorColor: '#a9afb3',
   });
 }

@@ -308,7 +308,7 @@ export function buildF35(v: AirframeVisual): void {
     stations: stations(-5.42, -5.05, 6),
     profile: (z) => {
       const u = sstep(-5.42, -5.05, z);
-      return [[0, 0.1], [0.4, 0.12], [0.44, 0.42], [0.32, 0.5 - u * 0.06], [0, 0.52 - u * 0.06]] as P2[];
+      return [[0, 0.1], [0.28, 0.12], [0.31, 0.34], [0.22, 0.42 - u * 0.05], [0, 0.44 - u * 0.05]] as P2[];
     },
     sub: 3,
     capEnd: true,
@@ -420,7 +420,7 @@ export function buildF35(v: AirframeVisual): void {
   // --- landing gear: single nose wheel, mains folding forward into the fuselage sides
   buildGearSet(v, {
     nose: { top: new THREE.Vector3(0, -0.8, -4.9), axle: new THREE.Vector3(0, -1.95 + 0.3, -5.1), r: 0.3, w: 0.18, twin: false, retract: 'forward' },
-    mains: { top: new THREE.Vector3(1.3, -0.95, 0.6), axle: new THREE.Vector3(1.55, -1.95 + 0.4, 0.9), r: 0.4, w: 0.26, retract: 'forward', outboard: 0.06 },
+    mains: { top: new THREE.Vector3(1.3, -0.95, 0.6), axle: new THREE.Vector3(1.55, -1.95 + 0.4, 0.9), r: 0.4, w: 0.26, retract: 'forward', outboard: 0.06, well: { w: 0.65, dx: 0.1 } },
     doorColor: '#73787d',
   });
 }

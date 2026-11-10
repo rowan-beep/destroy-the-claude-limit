@@ -495,15 +495,15 @@ export function buildSu35(v: AirframeVisual): void {
     formationStrip(new THREE.Vector3(NAC_X + 0.5, -0.52, 4.2), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 1), 0.6, 0.035),
     formationStrip(new THREE.Vector3(-NAC_X - 0.5, -0.52, 4.2), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 1), 0.6, 0.035),
   ]), pm.formation, v.body, false);
-  v.addNavLight(new THREE.Vector3(-TIP - 0.02, 0.01, wle(TIP) - 0.3), 'red');
-  v.addNavLight(new THREE.Vector3(TIP + 0.02, 0.01, wle(TIP) - 0.3), 'green');
+  v.addNavLight(new THREE.Vector3(-TIP - 0.07, 0.01, wle(TIP) - 0.3), 'red');
+  v.addNavLight(new THREE.Vector3(TIP + 0.07, 0.01, wle(TIP) - 0.3), 'green');
   v.addNavLight(new THREE.Vector3(0, 0.3, 9.42), 'strobe');
   v.addNavLight(new THREE.Vector3(0, -0.36, 1.0), 'strobe');
 
   // --- landing gear: single nose wheel, big mains retracting forward into the centre section
   buildGearSet(v, {
     nose: { top: new THREE.Vector3(0, -0.74, -3.8), axle: new THREE.Vector3(0, -2.3 + 0.33, -4.15), r: 0.33, w: 0.22, twin: false, retract: 'forward' },
-    mains: { top: new THREE.Vector3(2.12, -0.34, 1.0), axle: new THREE.Vector3(2.2, -2.3 + 0.5, 1.5), r: 0.5, w: 0.3, retract: 'forward', outboard: 0.1 },
+    mains: { top: new THREE.Vector3(2.12, -0.34, 1.0), axle: new THREE.Vector3(2.2, -2.3 + 0.5, 1.5), r: 0.5, w: 0.3, retract: 'forward', outboard: 0.1, well: { dx: 0.19, w: 0.35 } },
     doorColor: '#9fb3c0',
   });
 }

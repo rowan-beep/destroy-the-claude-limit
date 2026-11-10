@@ -422,7 +422,7 @@ export function buildMig31(v: AirframeVisual): void {
     stations: stations(-6.75, -6.35, 6),
     profile: (z) => {
       const u = sstep(-6.75, -6.35, z);
-      return [[0, 0.2], [0.44, 0.22], [0.5, 0.52], [0.34, 0.6 - u * 0.06], [0, 0.62 - u * 0.06]] as P2[];
+      return [[0, 0.2], [0.34, 0.22], [0.38, 0.44], [0.26, 0.52 - u * 0.05], [0, 0.54 - u * 0.05]] as P2[];
     },
     sub: 3,
     capEnd: true,
@@ -533,15 +533,15 @@ export function buildMig31(v: AirframeVisual): void {
     formationStrip(new THREE.Vector3(2.14, -0.4, 4.4), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 1), 0.6, 0.035),
     formationStrip(new THREE.Vector3(-2.14, -0.4, 4.4), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 1), 0.6, 0.035),
   ]), pm.formation, v.body, false);
-  v.addNavLight(new THREE.Vector3(-6.74, wy(6.73), wle(6.73) + 0.25), 'red');
-  v.addNavLight(new THREE.Vector3(6.74, wy(6.73), wle(6.73) + 0.25), 'green');
+  v.addNavLight(new THREE.Vector3(-6.67, wy(6.73), wle(6.73) + 0.4), 'red');
+  v.addNavLight(new THREE.Vector3(6.67, wy(6.73), wle(6.73) + 0.4), 'green');
   v.addNavLight(new THREE.Vector3(0, 0.88, 5.4), 'strobe');
   v.addNavLight(new THREE.Vector3(0, -1.02, 0.2), 'strobe');
 
   // --- landing gear: twin-wheel nose leg under the rear cockpit, big mains folding forward into the trunks --------
   buildGearSet(v, {
     nose: { top: new THREE.Vector3(0, -0.85, -5.3), axle: new THREE.Vector3(0, -2.45 + 0.35, -5.5), r: 0.35, w: 0.2, twin: true, retract: 'forward' },
-    mains: { top: new THREE.Vector3(1.75, -1.05, 1.35), axle: new THREE.Vector3(1.95, -2.45 + 0.5, 1.85), r: 0.5, w: 0.34, retract: 'forward', outboard: 0.12 },
+    mains: { top: new THREE.Vector3(1.5, -1.12, 1.35), axle: new THREE.Vector3(1.85, -2.45 + 0.5, 1.85), r: 0.5, w: 0.34, retract: 'forward', outboard: 0.12, well: { w: 0.5, dx: 0.1, dy: -0.155 } },
     doorColor: '#b6bec3',
   });
 }
