@@ -1,4 +1,4 @@
-// node tools/jetview/view.cjs --type FA18EF [--port 5190] [--ppm 80] [--out dir] [--hero] [--gear] [--stores] [--persp] [--far 1.3]
+// node tools/jetview/view.cjs --type FA18EF [--port 5190] [--ppm 80] [--out dir] [--hero] [--gear] [--stores] [--persp] [--far 1.3] [--shots file.json]
 // Renders one jet model on its own: orthographic views (shaded and silhouette) and, with --persp, beauty shots.
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -32,6 +32,8 @@ const flag = (k) => argv.includes('--' + k);
       ['p_low_front', [-0.5, -0.12, -0.9], [0, 0.3, -1], 24],
       ['p_top34', [-0.35, 0.9, -0.45], [0, 0, 0], 26],
     ];
+    // --shots file.json: your own pictures, [[name, [x, y, z] camera position in jet lengths, [x, y, z] look-at in metres, field of view], ...]
+    if (opt('shots', '')) { shots.length = 0; shots.push(...JSON.parse(fs.readFileSync(opt('shots', ''), 'utf8'))); }
     const far = +opt('far', '1');
     for (const sh of shots) sh[3] *= far;
     const r = await page.evaluate((o) => window.jetpersp(o), Object.assign({ w: +opt('pw', '1280'), h: +opt('ph', '720'), shots }, o, { stores: !flag('nostores'), hero: true }));
