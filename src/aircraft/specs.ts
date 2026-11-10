@@ -238,7 +238,7 @@ const F15_HANG_IB = 0.125;
 const F15_HANG_OB = 0.148;
 /** the Eagle's wing pylons are slim: the blade ends level with the missiles' lower half, not below them */
 const F15_RACK_DEPTH = 0.07;
-const FA18_RZ = 1.8;
+const FA18_RZ = 1.3;
 
 // ---------------------------------------------------------------------------
 // F-15EX Eagle II
@@ -439,18 +439,18 @@ const FA18: AircraftSpec = {
     port: [0, 0.45, -7.4],
   },
   stations: [
-    { id: 1, label: 'LWT', pos: [-6.75, -0.1, 2.4], allowed: [AIM9], mount: 'rail' },
-    { id: 2, label: 'LW OB', pos: [-5.1, -0.85, 2.0], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.035 },
+    { id: 1, label: 'LWT', pos: [-6.63, 0.06, 2.4], allowed: [AIM9], mount: 'rail' },
+    { id: 2, label: 'LW OB', pos: [-5.3, -0.7, 1.7], allowed: [AIM120, AIM9], mount: 'pylon', hang: 0.11 },
     // station 3: LAU-115 with two LAU-127 shoulder rails (a tank hangs from the pylon centre)
-    { id: 3, label: 'LW MID-O', pos: [-4.2, -0.3, FA18_RZ], allowed: [AIM120, AIM9, TANK, GBU32], mount: 'pylon', hang: -0.04, rack: -3.9 },
-    { id: 4, label: 'LW MID-I', pos: [-3.6, -0.3, FA18_RZ], allowed: [AIM120, TANK, GBU32], mount: 'pylon', hang: -0.04, rack: -3.9 },
-    { id: 5, label: 'L FUS', pos: [-0.85, -1.1, -1.4], allowed: [AIM120], mount: 'semi-recessed' },
-    { id: 6, label: 'CL', pos: [0, -1.35, 0.2], allowed: [TANK], mount: 'pylon' },
-    { id: 7, label: 'R FUS', pos: [0.85, -1.1, -1.4], allowed: [AIM120], mount: 'semi-recessed' },
-    { id: 8, label: 'RW MID-I', pos: [3.6, -0.3, FA18_RZ], allowed: [AIM120, TANK, GBU32], mount: 'pylon', hang: -0.04, rack: 3.9 },
-    { id: 9, label: 'RW MID-O', pos: [4.2, -0.3, FA18_RZ], allowed: [AIM120, AIM9, TANK, GBU32], mount: 'pylon', hang: -0.04, rack: 3.9 },
-    { id: 10, label: 'RW OB', pos: [5.1, -0.85, 2.0], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.035 },
-    { id: 11, label: 'RWT', pos: [6.75, -0.1, 2.4], allowed: [AIM9], mount: 'rail' },
+    { id: 3, label: 'LW MID-O', pos: [-4.2, -0.1, FA18_RZ], allowed: [AIM120, AIM9, TANK, GBU32], mount: 'pylon', hang: 0.16, rack: -3.9 },
+    { id: 4, label: 'LW MID-I', pos: [-3.6, -0.1, FA18_RZ], allowed: [AIM120, TANK, GBU32], mount: 'pylon', hang: 0.16, rack: -3.9 },
+    { id: 5, label: 'L FUS', pos: [-1.04, -0.84, 2.0], allowed: [AIM120], mount: 'semi-recessed' },
+    { id: 6, label: 'CL', pos: [0, -1.15, 0.6], allowed: [TANK], mount: 'pylon' },
+    { id: 7, label: 'R FUS', pos: [1.04, -0.84, 2.0], allowed: [AIM120], mount: 'semi-recessed' },
+    { id: 8, label: 'RW MID-I', pos: [3.6, -0.1, FA18_RZ], allowed: [AIM120, TANK, GBU32], mount: 'pylon', hang: 0.16, rack: 3.9 },
+    { id: 9, label: 'RW MID-O', pos: [4.2, -0.1, FA18_RZ], allowed: [AIM120, AIM9, TANK, GBU32], mount: 'pylon', hang: 0.16, rack: 3.9 },
+    { id: 10, label: 'RW OB', pos: [5.3, -0.7, 1.7], allowed: [AIM120, AIM9], mount: 'pylon', hang: 0.11 },
+    { id: 11, label: 'RWT', pos: [6.63, 0.06, 2.4], allowed: [AIM9], mount: 'rail' },
   ],
   loadouts: [
     {
