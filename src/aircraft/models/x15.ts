@@ -199,7 +199,7 @@ function livery(): Livery {
     gb.fillText('USAF', 0, 0);
     gb.restore();
   }
-  L.sideText('U.S. AIR FORCE', -1.2, 0.12, 0.3 * ps, WHITE);
+  L.sideText('U.S. AIR FORCE', -1.2, -0.06, 0.3 * ps, WHITE);
   L.sideDraw(3.6, 0.0, (g, x, y) => usInsignia(g, x, y, 0.2 * ps));
   // the NASA band across the upper fin, the tail number under it
   L.sideDraw(6.55, 1.85, (g, x, y) => {
