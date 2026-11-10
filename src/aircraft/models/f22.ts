@@ -819,7 +819,7 @@ export function buildF22(v: AirframeVisual): void {
   // --- landing gear: nose leg behind the radome, mains fold into the fuselage sides
   buildGearSet(v, {
     nose: { top: new THREE.Vector3(0, -0.8, -5.8), axle: new THREE.Vector3(0, -2.05 + 0.33, -6.1), r: 0.33, w: 0.2, twin: false, retract: 'forward' },
-    mains: { top: new THREE.Vector3(1.1, -0.84, 0.8), axle: new THREE.Vector3(1.55, -2.05 + 0.45, 0.95), r: 0.45, w: 0.28, retract: 'inward', outboard: 0.08 },
+    mains: { top: new THREE.Vector3(1.1, -0.84, 0.8), axle: new THREE.Vector3(1.55, -2.05 + 0.45, 0.95), r: 0.45, w: 0.28, retract: 'inward', outboard: 0.08, doorLen: 0.42 },
     doorColor: '#9da3a8',
   });
 }

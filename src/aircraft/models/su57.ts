@@ -84,7 +84,8 @@ const LEVCON: WingStation[] = [
 // the stabilators: a 46 deg leading edge whose root tucks under the wing's
 // trailing edge, the tips 5 m out, the trailing edge ending at the sting
 const STAB: WingStation[] = [
-  { x: 2.3, le: 4.9, te: 9.3, y: -0.02, t: 0.042 },
+  // (the root sits inside the boom: its outer skin is at x 2.23, so a root at 2.3 showed daylight)
+  { x: 1.95, le: 4.9, te: 9.3, y: -0.02, t: 0.042 },
   { x: 5.2, le: 7.85, te: 8.6, y: -0.06, t: 0.03 },
 ];
 const STAB_PIVOT_Z = 7.6;

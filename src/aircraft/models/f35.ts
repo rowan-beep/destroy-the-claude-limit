@@ -97,7 +97,8 @@ const INTAKE_END: P2[] = (() => {
 // a low, long bubble: the sill is a straight ramp (0.52 at the windscreen front to
 // 1.15 at the rear), the glass only 0.2-0.45 tall above it; crown about 1.34 at z -4.55
 const CANOPY: Section[] = [
-  { z: -6.1, w: 0.03, top: 0.02, bot: 0.02, y: 0.52, n: 2 },
+  { z: -6.0, w: 0.03, top: 0.02, bot: 0.02, y: 0.55, n: 2 },
+  { z: -5.9, w: 0.2, top: 0.12, bot: 0.03, y: 0.57, n: 2.2 },
   { z: -5.6, w: 0.3, top: 0.22, bot: 0.03, y: 0.63, n: 2.3 },
   { z: -5.2, w: 0.42, top: 0.36, bot: 0.03, y: 0.73, n: 2.3 },
   { z: -4.55, w: 0.47, top: 0.45, bot: 0.03, y: 0.89, n: 2.3 },

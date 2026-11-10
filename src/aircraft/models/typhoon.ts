@@ -235,7 +235,8 @@ export function buildTyphoon(v: AirframeVisual): void {
   skin(ci.skin);
   v.addMesh(ci.duct, pm.duct);
   const splitter = roundBox(0.03, 0.5, 1.8, 0.01);
-  splitter.translate(0, -0.76, -2.5);
+  // the splitter's top edge now meets the intake roof (it hung 0.04 m below it)
+  splitter.translate(0, -0.73, -2.5);
   skin(splitter);
   // diverter pillars between the fuselage and the intake roof
   v.addMesh(stamp(join([-0.4, 0.4].map((x) => { const g = roundBox(0.04, 0.1, 1.2, 0.015); g.translate(x, -0.41, -2.85); return g; }))), paint);
