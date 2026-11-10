@@ -1301,7 +1301,7 @@ const X15: AircraftSpec = {
 // ---------------------------------------------------------------------------
 // General Dynamics / Lockheed Martin F-16C Fighting Falcon (Block 50, F110-GE-129)
 // ---------------------------------------------------------------------------
-const F16_RZ = 1.25;
+const F16_RZ = 0.6;
 
 const F16: AircraftSpec = {
   type: 'F16C',
@@ -1370,15 +1370,15 @@ const F16: AircraftSpec = {
     port: [-0.6, 0.3, -3.55],
   },
   stations: [
-    { id: 1, label: 'LWT', pos: [-4.9, 0.0, 2.55], allowed: [AIM120, AIM9], mount: 'rail' },
-    { id: 2, label: 'LW OB', pos: [-3.95, -0.3, 1.95], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.04 },
+    { id: 1, label: 'LWT', pos: [-4.78, 0.0, 1.75], allowed: [AIM120, AIM9], mount: 'rail' },
+    { id: 2, label: 'LW OB', pos: [-3.95, -0.3, 1.3], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.04 },
     { id: 3, label: 'LW MID', pos: [-3.0, -0.35, F16_RZ], allowed: [AIM120, AIM9, GBU31, GBU32], mount: 'pylon', hang: -0.045 },
-    { id: 4, label: 'LW IB', pos: [-2.05, -0.38, 0.9], allowed: [TANK, GBU31, GBU32], mount: 'pylon', hang: -0.05 },
-    { id: 5, label: 'CL', pos: [0, -1.72, 0.35], allowed: [TANK], mount: 'pylon' },
-    { id: 6, label: 'RW IB', pos: [2.05, -0.38, 0.9], allowed: [TANK, GBU31, GBU32], mount: 'pylon', hang: -0.05 },
+    { id: 4, label: 'LW IB', pos: [-2.05, -0.38, 0.25], allowed: [TANK, GBU31, GBU32], mount: 'pylon', hang: -0.05 },
+    { id: 5, label: 'CL', pos: [0, -1.57, 0.2], allowed: [TANK], mount: 'pylon' },
+    { id: 6, label: 'RW IB', pos: [2.05, -0.38, 0.25], allowed: [TANK, GBU31, GBU32], mount: 'pylon', hang: -0.05 },
     { id: 7, label: 'RW MID', pos: [3.0, -0.35, F16_RZ], allowed: [AIM120, AIM9, GBU31, GBU32], mount: 'pylon', hang: -0.045 },
-    { id: 8, label: 'RW OB', pos: [3.95, -0.3, 1.95], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.04 },
-    { id: 9, label: 'RWT', pos: [4.9, 0.0, 2.55], allowed: [AIM120, AIM9], mount: 'rail' },
+    { id: 8, label: 'RW OB', pos: [3.95, -0.3, 1.3], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.04 },
+    { id: 9, label: 'RWT', pos: [4.78, 0.0, 1.75], allowed: [AIM120, AIM9], mount: 'rail' },
   ],
   loadouts: [
     {
