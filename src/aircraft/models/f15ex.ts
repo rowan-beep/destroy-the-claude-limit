@@ -1487,7 +1487,7 @@ export function buildF15EX(v: AirframeVisual): void {
   // the factory finish: near-black gunship grey, a dark metallic paint (the radome, a
   // composite shell, is plain satin paint a shade darker: see the skin shader)
   const paint = skinMaterial({
-    top: new THREE.Color('#434548'), bottom: new THREE.Color('#434548'), livery: L, roughness: 0.44, metalness: 0.58, paintLift: 2.0,
+    top: new THREE.Color('#434548'), bottom: new THREE.Color('#434548'), livery: L, roughness: 0.56, metalness: 0.22, paintLift: 2.0,
     radomeZ: RADOME_Z, radomeTip: -9.86, radomeAxis: [-0.13, 0.075], radomeTint: [0.54, 0.55, 0.57],
     seamRel: 1.1, markPaint: 1,
   });

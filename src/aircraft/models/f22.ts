@@ -504,8 +504,8 @@ export function buildF22(v: AirframeVisual): void {
     top: new THREE.Color('#76787b'),
     bottom: new THREE.Color('#7e8083'),
     livery: L,
-    roughness: 0.34,
-    metalness: 0.3,
+    roughness: 0.5,
+    metalness: 0.15,
     camo: { color: new THREE.Color('#47494c'), amount: 1 },
   });
   v.paintMat = paint;

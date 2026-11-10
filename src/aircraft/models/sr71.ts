@@ -237,7 +237,7 @@ function livery(team: string): Livery {
   for (const sx of [-1, 1]) {
     gt.save();
     gt.translate(...T(0.32 * sx, -4.8));
-    gt.rotate((sx * Math.PI) / 2);
+    gt.rotate((-sx * Math.PI) / 2);
     gt.fillStyle = 'rgba(214,214,210,0.82)';
     gt.font = `bold ${Math.round(0.34 * pt)}px "Arial Narrow", Arial, sans-serif`;
     gt.textAlign = 'center';
