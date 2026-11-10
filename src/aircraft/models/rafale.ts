@@ -254,6 +254,8 @@ export function buildRafale(v: AirframeVisual): void {
     rake: (x, y) => -0.55 * (y - (TY(-4.5) + TH(-4.5))) + 1.6 * (x - 0.54),
     rakeFade: 2.4,
     fan: { cx: 0.9, cy: -0.4, r: 0.3 },
+    // the S-shaped duct hides the fan: the face at its end reads as a dark tunnel, not a bright engine
+    ductShade: { k0: 0.42, fall: 1.8, floor: 0.03, fan: 0.3 },
   });
   skin(both(inl.skin));
   v.addMesh(both(inl.duct), pm.duct);
@@ -342,7 +344,8 @@ export function buildRafale(v: AirframeVisual): void {
   skin(tipBox);
   skin(lathe([[0.004, 5.25], [0.05, 5.35], [0.075, 5.55], [0.075, 5.55]], 12, 0, 2.94));
   skin(lathe([[0.075, 7.2], [0.07, 7.27], [0.004, 7.32]], 12, 0, 2.94));
-  const rootPod = lathe([[0.004, 5.6], [0.1, 5.8], [0.13, 6.2], [0.12, 6.6], [0.004, 6.7]], 16, 0, 0.42);
+  // a dorsal fairing that ends flush with the tail (z 6.15), not out in the air past it
+  const rootPod = lathe([[0.004, 5.6], [0.1, 5.8], [0.13, 6.05], [0.1, 6.15], [0.004, 6.15]], 16, 0, 0.42);
   skin(rootPod);
   v.addNavLight(new THREE.Vector3(0, 3.44, 6.9), 'strobe');
   // dorsal spine fillet into the fin
