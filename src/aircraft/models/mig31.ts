@@ -4,7 +4,7 @@
 // box intakes on the fuselage sides (the top lip leads, the mouth rakes back
 // underneath, with a splitter plate standing off the fuselage), trunks that
 // run back into two round D-30F6 nacelles, a shoulder wing with small root
-// extensions and 4 deg of anhedral, twin fins canted outward, two ventral
+// extensions and 5 deg of anhedral, twin fins canted outward, two ventral
 // fins, all-moving tailplanes, and two big heat-tinted nozzles. Four R-37M
 // ride half-sunk under the flat belly between the intake trunks; the
 // GSh-6-23M sits in a fairing low on the right, ahead of the main gear.
@@ -53,9 +53,11 @@ const BODY = keyedProfile([
   { z: -7.5, pts: chined(0.66, -1.0, 0.42) },
   { z: -7.0, pts: chined(0.67, -1.03, 0.5) },
   { z: -6.5, pts: [[0, -1.05], [0.38, -1.05], [0.6, -0.96], [0.66, -0.7], [0.67, -0.36], [0.67, 0.0], [0.67, 0.16], [0.66, 0.3], [0.6, 0.44], [0.46, 0.52], [0.26, 0.56], [0, 0.57]] },
-  { z: -5.3, pts: [[0, -1.1], [0.45, -1.1], [0.8, -1.07], [0.88, -0.8], [0.9, -0.36], [0.9, 0.0], [0.9, 0.2], [0.88, 0.34], [0.74, 0.47], [0.5, 0.56], [0.26, 0.6], [0, 0.6]] },
-  { z: -3.8, pts: [[0, -1.02], [0.45, -1.02], [0.8, -1.0], [0.9, -0.8], [0.9, -0.4], [0.9, 0.0], [0.9, 0.3], [0.9, 0.45], [0.72, 0.58], [0.48, 0.66], [0.25, 0.7], [0, 0.71]] },
-  { z: -1.0, pts: [[0, -1.02], [0.45, -1.02], [0.8, -1.0], [0.9, -0.8], [0.9, -0.4], [0.9, 0.0], [0.9, 0.3], [0.9, 0.45], [0.72, 0.58], [0.48, 0.66], [0.25, 0.7], [0, 0.71]] },
+  // (the slab-sided forebody stays 0.68 m half-wide past the intake mouths, with the
+  // splitter plates standing off it; it only widens once it is inside the trunks)
+  { z: -5.3, pts: [[0, -1.1], [0.4, -1.1], [0.62, -1.06], [0.67, -0.8], [0.68, -0.36], [0.68, 0.0], [0.68, 0.2], [0.67, 0.34], [0.6, 0.47], [0.44, 0.56], [0.23, 0.6], [0, 0.6]] },
+  { z: -3.8, pts: [[0, -1.02], [0.4, -1.02], [0.63, -1.0], [0.69, -0.8], [0.7, -0.4], [0.7, 0.0], [0.7, 0.3], [0.7, 0.45], [0.6, 0.58], [0.42, 0.66], [0.22, 0.7], [0, 0.71]] },
+  { z: -1.0, pts: [[0, -1.02], [0.42, -1.02], [0.68, -1.0], [0.75, -0.8], [0.76, -0.4], [0.76, 0.0], [0.76, 0.3], [0.76, 0.45], [0.64, 0.58], [0.45, 0.66], [0.24, 0.7], [0, 0.71]] },
   { z: 2.8, pts: [[0, -1.0], [0.45, -1.0], [0.78, -0.98], [0.88, -0.78], [0.9, -0.4], [0.9, 0.0], [0.9, 0.28], [0.9, 0.42], [0.72, 0.54], [0.48, 0.6], [0.25, 0.63], [0, 0.64]] },
   { z: 5.5, pts: [[0, -0.95], [0.3, -0.95], [0.55, -0.9], [0.62, -0.7], [0.64, -0.4], [0.64, -0.1], [0.64, 0.2], [0.64, 0.38], [0.5, 0.5], [0.34, 0.56], [0.18, 0.58], [0, 0.59]] },
   { z: 7.5, pts: [[0, -0.75], [0.15, -0.75], [0.3, -0.7], [0.36, -0.55], [0.38, -0.3], [0.38, -0.05], [0.38, 0.15], [0.38, 0.32], [0.3, 0.42], [0.2, 0.46], [0.1, 0.48], [0, 0.48]] },
@@ -66,27 +68,32 @@ const BODY_SUB = [4, 3, 3, 3, 2, 2, 2, 3, 3, 3, 4];
 
 // two canopies in tandem, low and squared off: a framed windscreen, the
 // pilot's hood, then the operator's hood, which is mostly metal with small
-// side windows and runs straight into the flat dorsal spine (the top line
-// stays at 1.4 m from the pilot's hood all the way back to the fins)
+// side windows; each hood is its own hump with a waist between them, and the
+// spine behind steps down from the operator's hood
 const CANOPY: Section[] = [
   { z: -7.1, w: 0.03, top: 0.02, bot: 0.02, y: 0.5, n: 2 },
-  { z: -6.7, w: 0.4, top: 0.2, bot: 0.03, y: 0.52, n: 2.8 },
-  { z: -6.2, w: 0.5, top: 0.38, bot: 0.03, y: 0.54, n: 3.2 },
-  { z: -5.6, w: 0.52, top: 0.52, bot: 0.03, y: 0.55, n: 3.4 },
-  { z: -5.0, w: 0.52, top: 0.58, bot: 0.03, y: 0.55, n: 3.4 },
-  { z: -4.3, w: 0.52, top: 0.56, bot: 0.03, y: 0.56, n: 3.4 },
-  { z: -3.6, w: 0.5, top: 0.52, bot: 0.03, y: 0.57, n: 3.2 },
-  { z: -3.1, w: 0.46, top: 0.46, bot: 0.03, y: 0.58, n: 3 },
+  { z: -6.7, w: 0.36, top: 0.2, bot: 0.03, y: 0.52, n: 2.8 },
+  { z: -6.2, w: 0.47, top: 0.4, bot: 0.03, y: 0.54, n: 3.0 },
+  // the pilot's hood: the higher hump, widest over the front seat
+  { z: -5.6, w: 0.5, top: 0.57, bot: 0.03, y: 0.55, n: 3.0 },
+  { z: -5.1, w: 0.5, top: 0.61, bot: 0.03, y: 0.55, n: 3.0 },
+  // the waist between the two hoods (a frame on each side of it)
+  { z: -4.72, w: 0.43, top: 0.5, bot: 0.03, y: 0.56, n: 3.0 },
+  { z: -4.55, w: 0.43, top: 0.5, bot: 0.03, y: 0.56, n: 3.0 },
+  // the operator's hood: a second, slightly lower hump
+  { z: -4.1, w: 0.47, top: 0.57, bot: 0.03, y: 0.57, n: 3.0 },
+  { z: -3.6, w: 0.46, top: 0.52, bot: 0.03, y: 0.58, n: 3.0 },
+  { z: -3.1, w: 0.4, top: 0.42, bot: 0.03, y: 0.58, n: 3.0 },
 ];
 // the dorsal spine behind the canopies: height of its top, half-width
-const SPINE_TOP = curve([[-3.3, 1.08], [0.0, 0.98], [3.0, 0.9], [5.6, 0.86]]);
-const SPINE_W = curve([[-3.3, 0.46], [0.0, 0.42], [3.0, 0.38], [5.6, 0.3]]);
+const SPINE_TOP = curve([[-3.3, 0.97], [-1.0, 0.94], [3.0, 0.9], [5.6, 0.86]]);
+const SPINE_W = curve([[-3.3, 0.38], [0.0, 0.42], [3.0, 0.38], [5.6, 0.3]]);
 
 // shoulder wing: 41 deg leading edge from the root extension, the trailing
-// edge swept back a little to the plain tips, 4 deg of anhedral
+// edge swept back a little to the plain tips, 5 deg of anhedral
 const wle = (x: number) => 0.6 + (x - 2.2) * 0.887;
 const wte = (x: number) => 6.24 + (x - 4.2) * 0.175;
-const DROOP = Math.tan(4 * (Math.PI / 180));
+const DROOP = Math.tan(5 * (Math.PI / 180));
 const wy = (x: number) => 0.3 - (x - 2.0) * DROOP;
 const WING: WingStation[] = [
   { x: 1.6, le: 0.25, te: wte(1.6), y: wy(1.6), t: 0.05 },
@@ -124,14 +131,19 @@ const VENTRAL: WingStation[] = [
 const NAC_X = 0.74;
 const NOZZLE_Z = 9.1;
 
-// intake trunk / nacelle loop: a tall box at the mouth (1.7 m out from the
+// intake trunk / nacelle loop: a tall box at the mouth (0.75 to 1.63 m out from the
 // centre line), widening to 2.3 m under the wing root, round at the nozzle;
 // the nacelles sit low (1.4 m deep under the main gear) and lift to the nozzles
-const TX = curve([[-5.42, 1.2], [-3.5, 1.2], [0.0, 1.2], [3.5, 1.14], [6.5, 1.0], [NOZZLE_Z, NAC_X]]);
-const TW = curve([[-5.42, 0.4], [-3.5, 0.4], [0.0, 0.5], [3.5, 0.54], [6.5, 0.52], [NOZZLE_Z, 0.6]]);
-const TY = curve([[-5.42, -0.37], [0.0, -0.45], [3.5, -0.52], [6.5, -0.42], [NOZZLE_Z, -0.3]]);
-const TH = curve([[-5.42, 0.72], [0.0, 0.75], [3.5, 0.8], [6.5, 0.7], [NOZZLE_Z, 0.62]]);
-const TR = curve([[-5.42, 0.06], [0.0, 0.1], [3.5, 0.26], [6.5, 0.5], [NOZZLE_Z, 0.59]]);
+const TX = curve([[-4.0, 1.19], [-3.5, 1.19], [0.0, 1.2], [3.5, 1.14], [6.5, 1.0], [NOZZLE_Z, NAC_X]]);
+const TW = curve([[-4.0, 0.44], [-3.5, 0.44], [0.0, 0.5], [3.5, 0.54], [6.5, 0.52], [NOZZLE_Z, 0.6]]);
+const TY = curve([[-4.0, -0.37], [0.0, -0.45], [3.5, -0.52], [6.5, -0.42], [NOZZLE_Z, -0.3]]);
+const TH = curve([[-4.0, 0.72], [0.0, 0.75], [3.5, 0.8], [6.5, 0.7], [NOZZLE_Z, 0.62]]);
+const TR = curve([[-4.0, 0.06], [0.0, 0.1], [3.5, 0.26], [6.5, 0.5], [NOZZLE_Z, 0.59]]);
+// the raked mouth: the top lip's station, the slant (metres aft per metre down)
+// and the station the trunk loft starts from
+const MOUTH_TOP = -5.3;
+const MOUTH_RAKE = 1.75;
+const MOUTH_Z0 = -4.0;
 const trunkLoop = (z: number) => {
   const hw = TW(z), hh = TH(z);
   return rrect(TX(z), TY(z), hw, hh, Math.min(TR(z), hw - 0.001, hh - 0.001), 3);
@@ -186,7 +198,7 @@ function livery(team: string): Livery {
     line(gb, [B(-2.1, z), B(2.1, z)], 1.2, LINE_LIGHT);
   }
   line(gs, [S(-7.6, 0.0), S(-4.7, 0.02)], 1.5, LINE);
-  line(gs, [S(-5.42, 0.36), S(3.0, 0.3), S(8.5, 0.34)], 1.3, LINE); // trunk top
+  line(gs, [S(-5.3, 0.36), S(3.0, 0.3), S(8.5, 0.34)], 1.3, LINE); // trunk top
   line(gs, [S(-5.0, -1.05), S(6.0, -1.18), S(9.0, -0.65)], 1.3, LINE); // trunk bottom
   for (const sx of [-1, 1]) {
     line(gt, [T(0.9 * sx, -4.4), T(0.9 * sx, 5.5)], 1.2, LINE_LIGHT);
@@ -252,7 +264,7 @@ function livery(team: string): Livery {
   // intake warning chevrons and the rescue arrow
   for (const g of [L.gs, L.gr]) {
     g.fillStyle = 'rgba(190,48,40,0.8)';
-    g.fillRect(...S(-4.9, -0.95), 0.06 * ps, 1.2 * ps);
+    g.fillRect(...S(-2.45, -0.95), 0.06 * ps, 1.2 * ps);
   }
   L.sideDraw(-6.6, 0.3, (g, x, y) => {
     g.fillStyle = '#c9402c';
@@ -323,15 +335,16 @@ export function buildMig31(v: AirframeVisual): void {
   // --- intake trunks into the engine nacelles: box mouths, raked back underneath ---
   const trunk = intake({
     loop: trunkLoop,
-    outer: stations(-5.42, NOZZLE_Z, 110, 0.3, 0),
+    outer: stations(-4.0, NOZZLE_Z, 110, 0.3, 0),
     lip: 0.045,
     depth: 2.8,
     n: 88,
-    // the top lip leads well ahead (its outer corner swept back a little in
-    // plan); the mouth slants steeply back toward the bottom
-    rake: (x, y) => -0.9 * (y + 0.35) + 0.5 * (x - 0.87),
-    rakeFade: 1.4,
-    fan: { cx: 1.2, cy: -0.4, r: 0.38 },
+    // the top lip leads, square across in plan, under the front of the rear
+    // cockpit (6.5 m behind the boom tip); the mouth slants hard back
+    // toward the bottom, its lower lip 2.5 m further aft
+    rake: (_x, y) => MOUTH_TOP - MOUTH_Z0 - MOUTH_RAKE * (y - 0.35),
+    rakeFade: 2.4,
+    fan: { cx: 1.19, cy: -0.4, r: 0.38 },
   });
   skin(both(trunk.skin));
   v.addMesh(both(trunk.duct), pm.duct);
@@ -339,24 +352,24 @@ export function buildMig31(v: AirframeVisual): void {
   const ramp = join([-1, 1].map((sx) => {
     const g = roundBox(0.7, 0.05, 1.4, 0.01);
     g.rotateX(0.12);
-    g.translate(sx * 1.2, 0.12, -4.45);
+    g.translate(sx * 1.19, 0.12, -4.15);
     return g;
   }));
   v.addMesh(ramp, pm.duct);
-  // boundary-layer splitter plates standing off the fuselage
+  // boundary-layer splitter plates standing off the slab forebody ahead of the
+  // inner lips, their front edges raked like the mouths
   const split = join([-1, 1].map((sx) => {
     const g = loftProfile({
-      stations: stations(-6.1, -3.6, 12),
+      stations: stations(MOUTH_TOP - 0.4, -2.65, 24),
       profile: (z) => {
-        const u = sstep(-6.1, -3.6, z);
-        const h = 1.36 * (0.3 + 0.7 * u);
-        return [[0, -0.34 - h / 2], [0.014, -0.34 - h / 2], [0.014, -0.34 + h / 2], [0, -0.34 + h / 2]] as P2[];
+        const yb = Math.max(-1.08, 0.34 - (z - MOUTH_TOP + 0.45) / MOUTH_RAKE);
+        return [[0, yb], [0.014, yb], [0.014, 0.34], [0, 0.34]] as P2[];
       },
       sub: 1,
       capStart: true,
       capEnd: true,
     });
-    g.translate(sx * 0.87, 0, 0);
+    g.translate(sx * 0.734, 0, 0);
     return g;
   }));
   skin(split);
@@ -379,7 +392,7 @@ export function buildMig31(v: AirframeVisual): void {
   // --- canopy, seats, crew --------------------------------------------------------------
   v.cockpitEye.set(0, 0.9, -5.6);
   // frames: windscreen arch and its rear frame, the hood's back edge, the operator's hood
-  buildCanopy(v, CANOPY, -6.66, [-6.1, -4.75, -4.63, -3.25], paint);
+  buildCanopy(v, CANOPY, -6.66, [-6.1, -4.76, -4.52, -3.25], paint);
   // the operator's hood is metal above a pair of small side windows
   const hood = (z0: number, z1: number, th0: number) =>
     loftProfile({
@@ -397,7 +410,7 @@ export function buildMig31(v: AirframeVisual): void {
       capStart: true,
       capEnd: true,
     });
-  skin(hood(-4.63, -3.1, 0.55));
+  skin(hood(-4.52, -3.1, 0.55));
   // ahead of and behind the windows the hood comes right down to the sill
   skin(hood(-3.7, -3.1, 0.05));
   // the flat dorsal spine from the hood back to the fins

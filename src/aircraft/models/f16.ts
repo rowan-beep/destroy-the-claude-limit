@@ -14,7 +14,7 @@ import { AirframeVisual } from './visual';
 import { addPilot } from './pilot';
 import { Section } from './builder';
 import { P2, loftProfile, keyedProfile, stations, mergeStations, wing, WingStation, mirror, join, stamp, lathe, ring, mirrorHalf, Livery, skinMaterial, line, rivets, weather, prng, roundel, stencil, LINE, LINE_LIGHT, curve, sstep, roundBox } from './kit';
-import { nozzle, intake, partMaterials, blade, probe, formationStrip, glassify } from './parts';
+import { nozzle, intake, partMaterials, blade, probe, formationStrip, acrylic } from './parts';
 import { buildCanopy, buildGearSet, wingPanels, finPanels, sectionsFromProfile } from './common';
 import { finMatrix } from './kit';
 
@@ -112,16 +112,18 @@ const BODY = keyedProfile([
   { z: -5.84, pts: sec(0.46, -0.03, 0.37, 0.37, 2.05) },
   { z: -5.34, pts: sec(0.5, 0.04, 0.42, 0.42, 2.15) },
   // the forebody: its keel rises toward the intake splitter
-  { z: -4.9, pts: fwd(0.5, -0.34, 0.4, 0.0) },
-  { z: -4.4, pts: fwd(0.53, -0.31, 0.43, 0.07) },
-  { z: -3.9, pts: fwd(0.56, -0.29, 0.44, 0.11) },
-  { z: -3.3, pts: fwd(0.58, -0.26, 0.45, 0.13) },
+  // (its top climbs under the canopy, so the glass sits on a high sill rising aft)
+  { z: -4.9, pts: fwd(0.5, -0.34, 0.49, 0.0) },
+  { z: -4.4, pts: fwd(0.53, -0.31, 0.52, 0.07) },
+  { z: -3.9, pts: fwd(0.56, -0.29, 0.55, 0.11) },
+  { z: -3.2, pts: fwd(0.58, -0.25, 0.62, 0.13) },
   // inside the intake's outer skin: the belly drops to the trunk here
-  { z: -2.85, pts: trunk(-0.9, 0.42, 0.62, 0.5, 0.42) },
-  { z: -2.0, pts: trunk(-0.92, 0.5, 0.66, 0.58, 0.45) },
-  { z: -1.5, pts: trunk(-0.92, 0.55, 0.7, 0.68, 0.47) },
-  { z: -1.0, pts: trunk(-0.92, 0.57, 0.72, 0.8, 0.48) },
-  { z: -0.4, pts: trunk(-0.91, 0.59, 0.76, 0.77, 0.5) },
+  // behind the seat the spine is a broad fairing as high as the canopy's tail, sloping gently aft
+  { z: -2.85, pts: trunk(-0.9, 0.42, 0.62, 0.71, 0.49) },
+  { z: -2.0, pts: trunk(-0.92, 0.5, 0.66, 0.87, 0.47) },
+  { z: -1.5, pts: trunk(-0.92, 0.55, 0.7, 0.89, 0.48) },
+  { z: -1.0, pts: trunk(-0.92, 0.57, 0.72, 0.85, 0.49) },
+  { z: -0.4, pts: trunk(-0.91, 0.59, 0.76, 0.79, 0.5) },
   { z: 0.5, pts: trunk(-0.9, 0.6, 0.8, 0.75, 0.52) },
   { z: 1.66, pts: trunk(-0.9, 0.6, 0.84, 0.75, 0.53) },
   { z: 2.4, pts: trunk(-0.82, 0.58, 0.88, 0.75, 0.53) },
@@ -132,18 +134,19 @@ const BODY = keyedProfile([
 ]);
 const BODY_SUB = [4, 3, 3, 3, 2, 1, 2, 3, 3, 3, 4];
 
-// the bubble: tallest over the pilot's head 4.5 m from the pitot tip, running well aft of the seat
+// the bubble: long and low, tallest over the pilot's head 4.5 m from the pitot tip; its sill climbs
+// aft along the cockpit sides and its tail runs out flush onto the spine fairing behind the seat
 const CANOPY: Section[] = [
-  { z: -4.95, w: 0.03, top: 0.02, bot: 0.02, y: 0.42, n: 2 },
-  { z: -4.7, w: 0.3, top: 0.338, bot: 0.03, y: 0.412, n: 2.2 },
-  { z: -4.34, w: 0.42, top: 0.568, bot: 0.03, y: 0.412, n: 2.2 },
-  { z: -3.84, w: 0.48, top: 0.734, bot: 0.03, y: 0.406, n: 2.2 },
-  { z: -3.34, w: 0.5, top: 0.776, bot: 0.03, y: 0.404, n: 2.2 },
-  { z: -2.84, w: 0.48, top: 0.792, bot: 0.03, y: 0.358, n: 2.2 },
-  { z: -2.34, w: 0.45, top: 0.631, bot: 0.03, y: 0.429, n: 2.2 },
-  { z: -1.84, w: 0.36, top: 0.416, bot: 0.03, y: 0.544, n: 2.1 },
-  { z: -1.4, w: 0.2, top: 0.175, bot: 0.03, y: 0.695, n: 2 },
-  { z: -1.1, w: 0.04, top: 0.02, bot: 0.02, y: 0.8, n: 2 },
+  { z: -4.95, w: 0.03, top: 0.02, bot: 0.02, y: 0.49, n: 2 },
+  { z: -4.7, w: 0.28, top: 0.255, bot: 0.03, y: 0.49, n: 2.2 },
+  { z: -4.34, w: 0.37, top: 0.445, bot: 0.03, y: 0.5, n: 2.2 },
+  { z: -3.84, w: 0.415, top: 0.578, bot: 0.03, y: 0.527, n: 2.2 },
+  { z: -3.34, w: 0.43, top: 0.564, bot: 0.03, y: 0.576, n: 2.2 },
+  { z: -2.84, w: 0.41, top: 0.502, bot: 0.03, y: 0.618, n: 2.2 },
+  { z: -2.34, w: 0.35, top: 0.32, bot: 0.03, y: 0.735, n: 2.2 },
+  { z: -1.95, w: 0.25, top: 0.138, bot: 0.03, y: 0.837, n: 2.1 },
+  { z: -1.72, w: 0.15, top: 0.058, bot: 0.03, y: 0.867, n: 2 },
+  { z: -1.6, w: 0.04, top: 0.02, bot: 0.02, y: 0.876, n: 2 },
 ];
 
 // wing: the strake runs forward from the root, curving into the cockpit side; the leading edge
@@ -358,36 +361,36 @@ export function buildF16(v: AirframeVisual): void {
   v.fuselageSections = sectionsFromProfile(BODY, -7.2, 5.7, 40);
 
   // --- the ventral intake: splitter gap ahead, merging into the belly aft
-  const IW = curve([[-3.2, 0.5], [-2.4, 0.55], [-1.7, 0.58]]);
-  const IT = curve([[-3.2, -0.5], [-2.5, -0.46], [-1.7, -0.44]]);
-  const IB = curve([[-3.2, -0.935], [-2.4, -0.94], [-1.7, -0.93]]);
+  // (a big mouth: 1.05 m across and 0.58 m deep, its upper lip just under the forebody's keel)
+  const IW = curve([[-3.38, 0.525], [-2.4, 0.56], [-1.7, 0.58]]);
+  const IT = curve([[-3.38, -0.35], [-2.5, -0.37], [-1.7, -0.42]]);
+  const IB = curve([[-3.38, -0.92], [-2.4, -0.94], [-1.7, -0.93]]);
   const loop = (z: number) => ring(mirrorHalf(IHALF(IW(z), IT(z), IB(z))), [3, 3, 3, 2, 2, 3, 3, 3, 3, 2, 2, 3, 3, 3]);
   const ci = intake({
     loop,
-    outer: stations(-3.2, -1.7, 24, 0.3, 0),
+    outer: stations(-3.38, -1.7, 24, 0.3, 0),
     lip: 0.045,
     depth: 2.4,
     n: 96,
-    // the mouth is steeply raked: the upper lip juts forward like a hood and
-    // the sides sweep back to a lower lip half a metre further aft
-    rake: (_x, y) => -0.8 * (y + 0.5),
-    fan: { cx: 0, cy: -0.52, r: 0.4 },
+    // the mouth is raked: the upper lip juts forward like a hood and the
+    // sides sweep back to a lower lip a quarter metre further aft
+    rake: (_x, y) => -0.42 * (y + 0.35),
+    fan: { cx: 0, cy: -0.62, r: 0.38 },
   });
   skin(ci.skin);
   v.addMesh(ci.duct, pm.duct);
   // --- canopy (frameless, gold tinted), seat and pilot
   v.cockpitEye.set(0, 0.86, -3.6);
-  buildCanopy(v, CANOPY, -1.85, []);
+  // (the arch: the hoop frame behind the seat)
+  buildCanopy(v, CANOPY, -2.65, []);
   if (v.canopy) {
-    const gm = (v.canopy.material as THREE.MeshStandardMaterial).clone();
-    // the gold of the canopy's radar-reflective coating, lighter than the F-22's
-    gm.color.set('#8a7a4e');
-    gm.opacity = 0.42;
-    gm.metalness = 0.55;
-    gm.roughness = 0.04;
-    gm.envMapIntensity = 1.8;
-    glassify(gm, 0.95);
-    v.canopy.material = gm;
+    // the smoky gold of the canopy's radar-reflective coating: the sky mirrored in dark gold, the
+    // pilot a shadow behind it, a touch lighter than the F-22's; the tail fades into the spine
+    const o = { absorb: 1.15, haze: 0.012, smudge: 0.5, fade: [-1.76, -1.6] as [number, number] };
+    const p = { color: '#7a6232', roughness: 0.05, metalness: 0.55, envMapIntensity: 1.7 };
+    v.canopy.material = acrylic(new THREE.MeshStandardMaterial(p), o);
+    const far = v.canopy.children[0] as THREE.Mesh | undefined;
+    if (far) far.material = acrylic(new THREE.MeshStandardMaterial({ ...p, side: THREE.BackSide }), o);
   }
   // ACES II tilted back 30 degrees, side-stick on the right console
   addPilot(v, new THREE.Vector3(0, 0.86, -3.6), 0.45, { style: 'us', stick: 'side', martinBaker: false });

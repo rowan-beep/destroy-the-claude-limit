@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import { AirframeVisual } from './visual';
 import { addPilot } from './pilot';
 import { Section } from './builder';
-import { P2, loftProfile, keyedProfile, stations, mergeStations, wing, WingStation, finMatrix, both, mirror, join, stamp, lathe, rrect, Livery, skinMaterial, line, rivets, weather, prng, roundel, LINE, LINE_LIGHT, curve, sstep, roundBox } from './kit';
+import { P2, loftProfile, keyedProfile, stations, mergeStations, wing, WingStation, finMatrix, both, mirror, join, stamp, lathe, Livery, skinMaterial, line, rivets, weather, prng, roundel, LINE, LINE_LIGHT, curve, sstep, roundBox } from './kit';
 import { nozzle, intake, partMaterials, blade, probe, formationStrip } from './parts';
 import { buildCanopy, buildGearSet, wingPanels, finPanels, sectionsFromProfile } from './common';
 
@@ -70,21 +70,36 @@ const WING: WingStation[] = [
   { x: DOG + 0.015, le: wle(DOG + 0.015), te: wte(DOG + 0.015), y: -0.385, t: 0.04 },
   { x: 4.2, le: wle(4.2), te: wte(4.2), y: -0.4, t: 0.035 },
 ];
-// the canards: close-coupled, rooted on the intake tops from just behind the lip, the leading edge
-// swept 57 degrees, the trailing edge swept too, a narrow tip
+// the canards: close-coupled, rooted on the intake tops from the lip's top edge, the leading edge
+// swept 57 degrees, the trailing edge swept too, a narrow tip, 8 deg of dihedral (the tips ride
+// up above the intake and the spine shoulder, as in the front view)
 const CANARD: WingStation[] = [
-  { x: 0.72, le: -2.6, te: -0.5, y: 0.3, t: 0.05 },
-  { x: 1.0, le: -2.32, te: -0.42, y: 0.29, t: 0.048 },
-  { x: 2.35, le: -0.23, te: 0.27, y: 0.24, t: 0.035 },
+  { x: 0.72, le: -2.48, te: -0.45, y: 0.31, t: 0.05 },
+  { x: 1.0, le: -2.3, te: -0.4, y: 0.35, t: 0.048 },
+  { x: 2.35, le: -0.23, te: 0.27, y: 0.54, t: 0.035 },
 ];
 const CANARD_PIVOT = -1.3;
-/** the intake box: the lip's inner edge (the leading point) and its reach aft */
-const MOUTH = -2.75;
-const BOX_X = curve([[MOUTH, 0.8], [-1.0, 0.8], [0.8, 0.82]]);
-const BOX_HW = curve([[MOUTH, 0.25], [-1.0, 0.26], [0.8, 0.18]]);
+/** the intake: the lip's leading point (mid-height, outboard) and the D's reach aft */
+const MOUTH = -2.85;
+/** the D's flat inner wall (beside the splitter gap), its width outboard, centre height and half height */
+const BOX_XI = curve([[MOUTH, 0.555], [-1.0, 0.545], [0.8, 0.64]]);
+const BOX_W = curve([[MOUTH, 0.5], [-1.0, 0.52], [0.8, 0.36]]);
 const BOX_Y = curve([[MOUTH, -0.08], [-1.0, -0.1], [0.8, -0.14]]);
 const BOX_HH = curve([[MOUTH, 0.38], [-1.0, 0.4], [0.8, 0.32]]);
-const BOX_R = curve([[MOUTH, 0.035], [-1.0, 0.06], [0.8, 0.1]]);
+// D-shaped mouth: flat against the splitter, the top nearly flat under the canard, the outer
+// side and the bottom rounded
+function dLoop(x0: number, cy: number, w: number, hh: number): P2[] {
+  const out: P2[] = [];
+  const N = 24;
+  for (let i = 0; i <= N; i++) {
+    const a = -Math.PI / 2 + (i / N) * Math.PI;
+    const c = Math.cos(a), s = Math.sin(a);
+    const e = s < 0 ? 0.5 : 0.3;
+    out.push([x0 + w * Math.pow(Math.max(0, c), e), cy + hh * Math.sign(s) * Math.pow(Math.abs(s), e)]);
+  }
+  for (let i = 1; i < 6; i++) out.push([x0, cy + hh - (2 * hh * i) / 6]);
+  return out;
+}
 const FIN_Y = 0.48;
 // the fin: a 51 deg leading edge, an upright trailing edge, a short tip above the EW pod
 const FIN: WingStation[] = [
@@ -186,22 +201,26 @@ export function buildGripen(v: AirframeVisual): void {
   skin(loftProfile({ stations: zs, profile: BODY, sub: BODY_SUB, capEnd: true }));
   v.fuselageSections = sectionsFromProfile(BODY, -6.6, 6.5, 40);
 
-  // --- the intake boxes: tall sharp-lipped rectangles, 0.5 m wide and 0.92 m
-  // tall at the mouth, standing 6 cm off the round fuselage on a full-height
-  // splitter gap; the top-outer corner of the lip leads, the lip raking aft
-  // toward the bottom and toward the fuselage; the box fairs into the wing root
-  const loop = (z: number) => rrect(BOX_X(z), BOX_Y(z), BOX_HW(z), BOX_HH(z), BOX_R(z), 3);
-  const yTop = BOX_Y(MOUTH) + BOX_HH(MOUTH), yBot = BOX_Y(MOUTH) - BOX_HH(MOUTH);
-  const xOut = BOX_X(MOUTH) + BOX_HW(MOUTH), xIn = BOX_X(MOUTH) - BOX_HW(MOUTH);
+  // --- the intakes: rounded D mouths, 0.5 m wide and 0.76 m tall, standing 4 cm off the round
+  // fuselage on a full-height splitter gap; the lip leads at mid-height and outboard, curving back
+  // to the top and bottom (convex forward from the side) and toward the fuselage; the trunk fairs
+  // into the wing root
+  const loop = (z: number) => dLoop(BOX_XI(z), BOX_Y(z), BOX_W(z), BOX_HH(z));
+  const yC = BOX_Y(MOUTH), hC = BOX_HH(MOUTH), xI = BOX_XI(MOUTH), wC = BOX_W(MOUTH);
   const inl = intake({
     loop,
     outer: stations(MOUTH, 0.8, 44, 0.3, 0),
-    lip: 0.028,
+    lip: 0.032,
     depth: 1.8,
     n: 72,
-    rake: (x, y) => 0.25 * ((y - yBot) / (yTop - yBot)) + 0.36 * ((x - xIn) / (xOut - xIn)),
+    rake: (x, y) => {
+      const q = (y - yC) / hC;
+      return 0.3 * q * q + 0.06 * (q + 1) + 0.12 * (1 - Math.min(1, (x - xI) / wC));
+    },
     rakeFade: 1.4,
-    fan: { cx: 0.76, cy: -0.1, r: 0.3 },
+    fan: { cx: 0.76, cy: -0.11, r: 0.26 },
+    // the S-duct hides most of the fan: the mouth reads dark from ahead, as in the photos
+    ductShade: { k0: 0.42, fall: 1.8, floor: 0.04, fan: 0.35 },
   });
   skin(both(inl.skin));
   v.addMesh(both(inl.duct), pm.duct);
@@ -326,8 +345,9 @@ export function buildGripen(v: AirframeVisual): void {
   v.body.add(muzzle);
 
   // --- probes, antennas, lights
+  // the pitot: short and straight on the radome's axis, a thicker sleeve stepping down to the tube
+  skin(lathe([[0.004, -7.36], [0.012, -7.33], [0.019, -7.3], [0.022, -7.02], [0.033, -7.0], [0.036, -6.82], [0.05, -6.74], [0.075, -6.62], [0.004, -6.62]], 12, 0, -0.33));
   v.addMesh(join([
-    probe(new THREE.Vector3(0, -0.33, -6.72), 0.88, 0.016, new THREE.Vector3(0, -0.08, -1).normalize()),
     probe(new THREE.Vector3(0.3, -0.2, -5.6), 0.22, 0.009, new THREE.Vector3(0.12, 0, -1).normalize()),
     probe(new THREE.Vector3(-0.3, -0.2, -5.6), 0.22, 0.009, new THREE.Vector3(-0.12, 0, -1).normalize()),
   ]), pm.antenna);

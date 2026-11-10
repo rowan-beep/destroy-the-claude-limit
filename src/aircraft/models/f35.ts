@@ -65,13 +65,13 @@ const BODY = keyedProfile([
   // the deck rises with the canopy sill (shoulder ~ sill at the glass edge, x 0.45),
   // a slim bubble on a sloped deck; behind the glass the spine runs on at ~1.25
   { z: -5.5, pts: S(-0.6, 0.22, 0.54, -0.3, 0.64, -0.04, 0.6, 0.6, 0.36, 0.66, 0.12) },
-  { z: -5.0, pts: S(-0.64, 0.26, 0.6, -0.34, 0.72, -0.03, 0.7, 0.7, 0.38, 0.8, 0.15) },
-  { z: -4.5, pts: S(-0.66, 0.3, 0.66, -0.36, 0.8, -0.02, 0.8, 0.84, 0.42, 0.93, 0.2) },
-  { z: -4.0, pts: S(-0.68, 0.32, 0.7, -0.38, 0.82, 0.04, 0.8, 0.98, 0.44, 1.04, 0.22) },
-  { z: -3.7, pts: S(-0.7, 0.34, 0.74, -0.38, 0.84, 0.1, 0.8, 1.0, 0.46, 1.12, 0.14) },
-  { z: -3.4, pts: S(-0.7, 0.34, 0.74, -0.38, 0.84, 0.14, 0.8, 1.0, 0.5, 1.16, 0.1) },
-  { z: -3.0, pts: S(-0.74, 0.38, 0.78, -0.42, 0.84, 0.2, 0.8, 0.92, 0.46, 1.16, 0.1) },
-  { z: -2.3, pts: S(-0.78, 0.42, 0.8, -0.46, 0.84, 0.3, 0.8, 0.9, 0.46, 1.14, 0.1) },
+  { z: -5.0, pts: S(-0.64, 0.26, 0.6, -0.34, 0.74, -0.03, 0.62, 0.68, 0.38, 0.8, 0.15) },
+  { z: -4.5, pts: S(-0.66, 0.3, 0.68, -0.36, 0.84, 0.0, 0.62, 0.85, 0.42, 0.93, 0.2) },
+  { z: -4.0, pts: S(-0.68, 0.36, 0.8, -0.38, 0.92, 0.07, 0.62, 0.98, 0.44, 1.04, 0.22) },
+  { z: -3.7, pts: S(-0.7, 0.44, 0.9, -0.36, 0.98, 0.14, 0.62, 1.02, 0.46, 1.12, 0.14) },
+  { z: -3.4, pts: S(-0.7, 0.34, 0.8, -0.38, 0.99, 0.3, 0.62, 1.02, 0.5, 1.16, 0.1) },
+  { z: -3.0, pts: S(-0.74, 0.38, 0.8, -0.42, 0.95, 0.44, 0.62, 0.98, 0.46, 1.16, 0.1) },
+  { z: -2.3, pts: S(-0.78, 0.42, 0.8, -0.46, 0.82, 0.58, 0.64, 0.94, 0.46, 1.14, 0.1) },
   // behind the intakes the body takes their width: a flat belly out to a sharp
   // edge, a wall leaning out to the chine, a broad deck and the big spine
   { z: -1.25, pts: S(-0.9, 1.28, 1.52, -0.55, 1.72, 0.02, 1.05, 0.4, 0.52, 0.62, 0.52) },
@@ -257,8 +257,8 @@ export function buildF35(v: AirframeVisual): void {
     L = livery(team);
     liveries.set(team, L);
   }
-  // FS 36170-ish dark grey, the coating's slight sheen
-  const paint = skinMaterial({ top: new THREE.Color('#6f757a'), bottom: new THREE.Color('#7a8085'), livery: L, roughness: 0.42, metalness: 0.18 });
+  // the dark, matte grey of the radar-absorbent coating
+  const paint = skinMaterial({ top: new THREE.Color('#4f5459'), bottom: new THREE.Color('#575c61'), livery: L, roughness: 0.55, metalness: 0.1 });
   v.paintMat = paint;
   const skin = (g: THREE.BufferGeometry) => v.addMesh(stamp(g), paint);
 
@@ -271,17 +271,22 @@ export function buildF35(v: AirframeVisual): void {
   // inside it doing the diverter's job
   const para = (z: number): P2[] => {
     const u = sstep(-3.6, -2.3, z);
+    // the outer wall leans in toward the belly (the forebody's lower side carried
+    // on), its top corner is the chine, and the top slopes up into the deck
     const ib: P2 = [INTAKE_XI, -0.7 - 0.1 * u];
-    const ob: P2 = [1.4 + 0.2 * u, -0.7 - 0.1 * u];
-    const ot: P2 = [1.52 + 0.22 * u, 0.2 - 0.04 * u];
-    const it: P2 = [INTAKE_XI, 0.46];
+    const ob: P2 = [1.12 + 0.2 * u, -0.7 - 0.1 * u];
+    const ot: P2 = [1.46 + 0.26 * u, 0.14 - 0.08 * u];
+    // the top lip meets the fuselage (the bump) at q; inboard of it the loop runs on under the deck
+    const q: P2 = [1.0 + 0.3 * u, 0.42 - 0.1 * u];
+    const it: P2 = [INTAKE_XI, 0.6];
     const pts: P2[] = [];
     const edge = (a: P2, b: P2, n: number) => {
       for (let i = 0; i < n; i++) pts.push([a[0] + ((b[0] - a[0]) * i) / n, a[1] + ((b[1] - a[1]) * i) / n]);
     };
     edge(ib, ob, 8);
     edge(ob, ot, 10);
-    edge(ot, it, 10);
+    edge(ot, q, 7);
+    edge(q, it, 3);
     edge(it, ib, 12);
     const w = sstep(-2.3, -1.3, z);
     if (w <= 0) return pts;
@@ -295,9 +300,9 @@ export function buildF35(v: AirframeVisual): void {
     depth: 1.8,
     n: 72,
     // the lip tip (outer edge, mid cheek height) leads; the rest of the mouth sweeps back
-    rake: (x, y) => 0.8 * Math.abs(y + 0.1) + 0.6 * Math.abs(x - 1.5),
+    rake: (x, y) => 0.8 * Math.abs(y + 0.02) + 0.6 * Math.abs(x - 1.42),
     rakeFade: 1.6,
-    fan: { cx: 1.15, cy: -0.15, r: 0.32 },
+    fan: { cx: 1.08, cy: -0.08, r: 0.32 },
   });
   skin(both(ci.skin));
   const duct = (pm.duct as THREE.MeshStandardMaterial).clone();
@@ -307,7 +312,7 @@ export function buildF35(v: AirframeVisual): void {
   for (const sx of [-1, 1]) {
     const d = new THREE.CircleGeometry(0.36, 28);
     d.rotateY(Math.PI);
-    d.translate(1.15 * sx, -0.15, -3.6 + 1.8 - 0.02);
+    d.translate(1.08 * sx, -0.08, -3.6 + 1.8 - 0.02);
     v.addMesh(d, blind);
   }
 
@@ -441,6 +446,6 @@ export function buildF35(v: AirframeVisual): void {
   buildGearSet(v, {
     nose: { top: new THREE.Vector3(0, -0.6, -2.95), axle: new THREE.Vector3(0, -1.95 + 0.3, -3.1), r: 0.3, w: 0.18, twin: false, retract: 'forward' },
     mains: { top: new THREE.Vector3(1.25, -0.9, 1.15), axle: new THREE.Vector3(1.4, -1.95 + 0.4, 1.15), r: 0.4, w: 0.26, retract: 'forward', outboard: 0.06, well: { w: 0.65, dx: 0.1 } },
-    doorColor: '#73787d',
+    doorColor: '#53585d',
   });
 }

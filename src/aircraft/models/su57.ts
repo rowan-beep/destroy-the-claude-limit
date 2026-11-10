@@ -28,18 +28,24 @@ function circ(R: number, yc: number, sq = 1): P2[] {
 // the spine sloping down from the canopy to the nozzles)
 const BODY = keyedProfile([
   { z: -10.0, pts: circ(0.012, -0.2) },
-  { z: -9.6, pts: circ(0.16, -0.17, 0.9) },
-  // the nose is slim and flattened, with a hard chine at its widest
-  { z: -8.8, pts: [[0, -0.5], [0.163, -0.49], [0.288, -0.4], [0.362, -0.25], [0.4, -0.12], [0.419, -0.09], [0.4, -0.05], [0.35, 0.02], [0.22, 0.07], [0.14, 0.1], [0.07, 0.115], [0, 0.12]] },
+  // a sharp, straight-sided cone with a hard chine running back from the tip, low on its sides
+  { z: -9.6, pts: [[0, -0.31], [0.07, -0.305], [0.115, -0.285], [0.14, -0.255], [0.15, -0.22], [0.155, -0.205], [0.15, -0.19], [0.135, -0.14], [0.105, -0.085], [0.07, -0.05], [0.035, -0.034], [0, -0.03]] },
+  { z: -9.2, pts: [[0, -0.405], [0.12, -0.4], [0.21, -0.36], [0.26, -0.3], [0.285, -0.22], [0.292, -0.198], [0.285, -0.18], [0.265, -0.11], [0.215, -0.03], [0.15, 0.015], [0.075, 0.038], [0, 0.045]] },
+  { z: -8.8, pts: [[0, -0.5], [0.17, -0.49], [0.3, -0.43], [0.375, -0.33], [0.41, -0.22], [0.425, -0.19], [0.415, -0.16], [0.39, -0.08], [0.32, 0.02], [0.22, 0.08], [0.11, 0.11], [0, 0.12]] },
   { z: -7.8, pts: [[0, -0.66], [0.234, -0.65], [0.429, -0.53], [0.533, -0.33], [0.585, -0.14], [0.611, -0.1], [0.585, -0.06], [0.52, 0.106], [0.32, 0.236], [0.22, 0.33], [0.1, 0.366], [0, 0.378]] },
-  { z: -6.6, pts: [[0, -0.74], [0.312, -0.73], [0.52, -0.61], [0.65, -0.38], [0.702, -0.16], [0.754, -0.1], [0.728, -0.05], [0.689, 0.1], [0.5, 0.24], [0.46, 0.32], [0.36, 0.18], [0, 0.08]] },
-  { z: -5.4, pts: [[0, -0.76], [0.364, -0.76], [0.585, -0.65], [0.728, -0.42], [0.806, -0.17], [0.884, -0.1], [0.858, -0.04], [0.78, 0.12], [0.54, 0.28], [0.48, 0.36], [0.38, 0.22], [0, 0.12]] },
-  // the LEVCONs start: the chine sweeps outboard into a sharp root extension
-  { z: -4.2, pts: [[0, -0.66], [0.408, -0.66], [0.648, -0.56], [0.792, -0.38], [0.912, -0.2], [1.008, -0.1], [0.972, -0.02], [0.864, 0.16], [0.6, 0.38], [0.48, 0.58], [0.28, 0.7], [0, 0.72]] },
-  { z: -2.6, pts: [[0, -0.46], [0.6, -0.46], [1.0, -0.44], [1.45, -0.32], [1.78, -0.18], [2.0, -0.1], [1.95, -0.02], [1.55, 0.2], [1.1, 0.44], [0.7, 0.7], [0.36, 0.94], [0, 1.02]] },
-  { z: -1.0, pts: [[0, -0.4], [0.7, -0.4], [1.4, -0.38], [2.0, -0.3], [2.5, -0.14], [2.85, -0.1], [2.8, -0.02], [2.2, 0.22], [1.5, 0.46], [0.85, 0.72], [0.42, 0.86], [0, 0.9]] },
-  { z: 1.5, pts: [[0, -0.36], [0.7, -0.36], [1.4, -0.36], [2.1, -0.28], [2.6, -0.1], [3.0, 0.02], [2.95, 0.1], [2.3, 0.28], [1.5, 0.48], [0.82, 0.64], [0.4, 0.72], [0, 0.74]] },
-  { z: 4.5, pts: [[0, -0.34], [0.7, -0.34], [1.4, -0.36], [1.9, -0.28], [2.2, -0.1], [2.35, 0.02], [2.3, 0.1], [1.95, 0.26], [1.4, 0.42], [0.85, 0.52], [0.4, 0.58], [0, 0.6]] },
+  // (the cockpit: steep, flat upper sides rise from the chine to a high sill, so the canopy sits
+  // down in the body instead of perched on it; points 10-11 are the tub under the glass)
+  { z: -6.6, pts: [[0, -0.74], [0.312, -0.73], [0.52, -0.61], [0.65, -0.38], [0.702, -0.16], [0.754, -0.1], [0.728, -0.05], [0.68, 0.12], [0.6, 0.36], [0.43, 0.49], [0.34, 0.26], [0, 0.12]] },
+  { z: -5.4, pts: [[0, -0.76], [0.364, -0.76], [0.585, -0.65], [0.728, -0.42], [0.806, -0.17], [0.884, -0.1], [0.858, -0.04], [0.82, 0.15], [0.7, 0.44], [0.505, 0.66], [0.4, 0.36], [0, 0.18]] },
+  // the LEVCONs start: the chine sweeps outboard into a sharp root extension; the spine
+  // rises straight behind the pilot to canopy height and carries the top line on aft
+  { z: -4.2, pts: [[0, -0.66], [0.408, -0.66], [0.648, -0.56], [0.792, -0.38], [0.912, -0.2], [1.008, -0.1], [0.972, -0.02], [0.9, 0.18], [0.74, 0.5], [0.47, 0.77], [0.26, 0.98], [0, 1.04]] },
+  // the intakes' roof: outboard of the forebody the underside steps up flat under the root extension
+  { z: -3.1, pts: [[0, -0.56], [0.5, -0.56], [0.68, -0.22], [0.92, -0.11], [1.5, -0.12], [1.69, -0.09], [1.65, -0.02], [1.35, 0.19], [0.98, 0.48], [0.63, 0.74], [0.33, 0.96], [0, 1.03]] },
+  { z: -2.6, pts: [[0, -0.46], [0.6, -0.46], [0.7, -0.24], [1.2, -0.15], [1.78, -0.13], [2.0, -0.1], [1.95, -0.02], [1.55, 0.2], [1.1, 0.44], [0.7, 0.7], [0.36, 0.94], [0, 1.02]] },
+  { z: -1.0, pts: [[0, -0.4], [0.7, -0.4], [1.4, -0.38], [2.0, -0.3], [2.5, -0.14], [2.85, -0.1], [2.8, -0.02], [2.2, 0.24], [1.5, 0.56], [0.95, 0.76], [0.45, 0.87], [0, 0.9]] },
+  { z: 1.5, pts: [[0, -0.36], [0.7, -0.36], [1.4, -0.36], [2.1, -0.28], [2.6, -0.1], [3.0, 0.02], [2.95, 0.1], [2.3, 0.3], [1.5, 0.6], [1.0, 0.67], [0.5, 0.71], [0, 0.74]] },
+  { z: 4.5, pts: [[0, -0.34], [0.7, -0.34], [1.4, -0.36], [1.9, -0.28], [2.2, -0.1], [2.35, 0.02], [2.3, 0.1], [1.95, 0.27], [1.4, 0.5], [0.9, 0.56], [0.45, 0.59], [0, 0.6]] },
   { z: 7.0, pts: [[0, -0.24], [0.45, -0.3], [0.9, -0.36], [1.3, -0.32], [1.65, -0.16], [1.85, -0.02], [1.82, 0.06], [1.62, 0.22], [1.2, 0.34], [0.78, 0.36], [0.35, 0.4], [0, 0.42]] },
   { z: 8.6, pts: [[0, -0.3], [0.2, -0.34], [0.35, -0.32], [0.45, -0.24], [0.5, -0.14], [0.5, -0.1], [0.49, -0.05], [0.45, 0.04], [0.35, 0.12], [0.25, 0.16], [0.12, 0.18], [0, 0.18]] },
   // the long sting: radar warning and the brake parachute
@@ -52,13 +58,13 @@ const BODY_SUB = [4, 3, 3, 3, 2, 1, 2, 3, 3, 3, 4];
 // windscreen base 2.3 m behind the tip, the crown 1.36 m up at z -5.6
 const CANOPY: Section[] = [
   { z: -7.45, w: 0.03, top: 0.02, bot: 0.02, y: 0.3, n: 2 },
-  { z: -6.95, w: 0.34, top: 0.36, bot: 0.03, y: 0.32, n: 2.3 },
-  { z: -6.4, w: 0.43, top: 0.66, bot: 0.03, y: 0.32, n: 2.3 },
-  { z: -5.6, w: 0.45, top: 0.9, bot: 0.03, y: 0.34, n: 2.3 },
-  { z: -4.8, w: 0.43, top: 0.84, bot: 0.03, y: 0.38, n: 2.3 },
-  { z: -4.1, w: 0.37, top: 0.68, bot: 0.03, y: 0.45, n: 2.3 },
-  { z: -3.5, w: 0.28, top: 0.46, bot: 0.03, y: 0.6, n: 2.2 },
-  { z: -3.0, w: 0.12, top: 0.12, bot: 0.03, y: 0.82, n: 2 },
+  { z: -6.95, w: 0.36, top: 0.3, bot: 0.03, y: 0.4, n: 2.3 },
+  { z: -6.4, w: 0.46, top: 0.5, bot: 0.03, y: 0.52, n: 2.3 },
+  { z: -5.6, w: 0.5, top: 0.6, bot: 0.03, y: 0.64, n: 2.3 },
+  { z: -4.8, w: 0.49, top: 0.5, bot: 0.03, y: 0.7, n: 2.3 },
+  { z: -4.1, w: 0.45, top: 0.38, bot: 0.03, y: 0.76, n: 2.3 },
+  { z: -3.5, w: 0.36, top: 0.22, bot: 0.03, y: 0.84, n: 2.2 },
+  { z: -3.0, w: 0.18, top: 0.06, bot: 0.03, y: 0.9, n: 2 },
 ];
 
 // wing: 48 deg leading edge from the LEVCON hinge; the trailing edge sweeps back from a clipped tip to
@@ -130,15 +136,18 @@ function livery(team: string): Livery {
   };
   block(gt, (x, z) => T(x, z), -7.5, 7.5, -10, 10, 0.9);
   block(gs, (z, y) => S(z, y), -10.3, 10, -2.3, 3.5, 0.7);
-  // radome: a darker grey
-  gt.fillStyle = 'rgba(80,92,104,0.9)';
-  gt.beginPath();
-  gt.ellipse(...T(0, -9.2), 0.42 * pt, 0.85 * pt, 0, 0, Math.PI * 2);
-  gt.fill();
-  gb.fillStyle = 'rgba(80,92,104,0.85)';
-  gb.beginPath();
-  gb.ellipse(...B(0, -9.2), 0.42 * L.pb, 0.85 * L.pb, 0, 0, Math.PI * 2);
-  gb.fill();
+  // radome: the pale dielectric cone, its seam square across 2 m behind the tip
+  const RADOME = 'rgb(200,214,212)';
+  for (const [g, M] of [[gt, T], [gb, B]] as const) {
+    g.fillStyle = RADOME;
+    const [ax, ay] = M(-0.8, -10.4), [bx, by] = M(0.8, -8.05);
+    g.fillRect(Math.min(ax, bx), Math.min(ay, by), Math.abs(bx - ax), Math.abs(by - ay));
+  }
+  {
+    gs.fillStyle = RADOME;
+    const [ax, ay] = S(-10.4, -1.0), [bx, by] = S(-8.05, 0.6);
+    gs.fillRect(Math.min(ax, bx), Math.min(ay, by), Math.abs(bx - ax), Math.abs(by - ay));
+  }
   // cockpit well
   gt.fillStyle = 'rgba(40,48,54,1)';
   gt.fillRect(...T(-0.45, -7.4), 0.9 * pt, 4.2 * pt);
@@ -287,7 +296,9 @@ export function buildSu57(v: AirframeVisual): void {
   v.fuselageSections = sectionsFromProfile(BODY, -9.6, 9.6, 44);
 
   // --- nacelles: trapezoidal raked intakes under the root extensions, round at the nozzles
-  const NW = curve([[-3.0, 0.42], [-1.0, 0.45], [4.0, 0.48], [6.8, 0.52], [NOZZLE_Z, 0.53]]);
+  // (wide, flat-sided boxes: the inner walls 0.72 m out leave a flat tunnel 1.4 m wide between them,
+  // the outer walls run up under the root extensions)
+  const NW = curve([[-3.0, 0.6], [-1.0, 0.61], [4.0, 0.6], [6.8, 0.54], [NOZZLE_Z, 0.53]]);
   const NH = curve([[-3.0, 0.32], [-1.0, 0.44], [4.0, 0.5], [6.8, 0.53], [NOZZLE_Z, 0.53]]);
   // (the mouths sit high under the root extensions; the nacelles deepen aft and lift to the nozzles)
   const NY = curve([[-3.0, -0.42], [-1.0, -0.6], [1.0, -0.72], [3.0, -0.72], [5.5, -0.44], [NOZZLE_Z, -0.2]]);
@@ -310,7 +321,7 @@ export function buildSu57(v: AirframeVisual): void {
     // lip trails it by 0.7 m, the outer corner swept back a little
     rake: (x, y) => -0.95 * (y + 0.1) + 0.2 * (x - NAC_X),
     rakeFade: 1.2,
-    fan: { cx: NAC_X, cy: -0.6, r: 0.38 },
+    fan: { cx: NAC_X, cy: -0.6, r: 0.4 },
   });
   skin(both(nac.skin));
   const duct = (pm.duct as THREE.MeshStandardMaterial).clone();
@@ -434,8 +445,8 @@ export function buildSu57(v: AirframeVisual): void {
     blade(new THREE.Vector3(0, -0.36, 2.2), 0.12, 0.24, new THREE.Vector3(0, -1, 0)),
   ]), pm.antenna);
   v.addMesh(join([
-    formationStrip(new THREE.Vector3(0.66, 0.14, -6.0), new THREE.Vector3(1, 0.3, 0), new THREE.Vector3(0, 0, 1), 0.45, 0.035),
-    formationStrip(new THREE.Vector3(-0.66, 0.14, -6.0), new THREE.Vector3(-1, 0.3, 0), new THREE.Vector3(0, 0, 1), 0.45, 0.035),
+    formationStrip(new THREE.Vector3(0.725, 0.24, -6.0), new THREE.Vector3(1, 0.38, 0), new THREE.Vector3(0, 0, 1), 0.45, 0.035),
+    formationStrip(new THREE.Vector3(-0.725, 0.24, -6.0), new THREE.Vector3(-1, 0.38, 0), new THREE.Vector3(0, 0, 1), 0.45, 0.035),
     formationStrip(new THREE.Vector3(NAC_X + 0.5, -0.5, 5.0), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 1), 0.6, 0.035),
     formationStrip(new THREE.Vector3(-NAC_X - 0.5, -0.5, 5.0), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 1), 0.6, 0.035),
   ]), pm.formation, v.body, false);

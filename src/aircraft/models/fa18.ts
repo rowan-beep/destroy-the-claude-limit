@@ -3,7 +3,7 @@
 // its belly well above the nacelles) with the LEX growing from beside the windscreen; caret intakes under
 // the LEX at the wing root, 8.8 m from the nose, their lower lips raked aft; a shoulder wing with three
 // degrees of anhedral and a dog-tooth at the fold; stabilators 7.1 m across with raked tips; fins canted
-// out 22 degrees, their tips 3.8 m apart; twin F414 nozzles.
+// out 20 degrees, their tips 3.75 m apart; twin F414 nozzles.
 
 import * as THREE from 'three';
 import { AirframeVisual } from './visual';
@@ -31,23 +31,23 @@ function oval(hw: number, yc: number, hh: number): P2[] {
 // right half, bottom centre -> top centre; points 5-6 form the LEX blade
 const BODY = keyedProfile([
   { z: -9.3, pts: circ(0.012, -0.165) },
-  { z: -9.0, pts: circ(0.16, -0.135) },
-  { z: -8.8, pts: circ(0.23, -0.11) },
-  { z: -8.3, pts: circ(0.35, -0.06) },
+  { z: -9.0, pts: circ(0.12, -0.14) },
+  { z: -8.8, pts: circ(0.19, -0.115) },
+  { z: -8.3, pts: circ(0.325, -0.065) },
   { z: -7.8, pts: circ(0.43, 0.0) },
   { z: -7.3, pts: oval(0.445, 0.06, 0.49) },
   { z: -6.8, pts: oval(0.45, 0.1, 0.55) },
   { z: -6.2, pts: oval(0.455, 0.155, 0.605) },
   // the cockpit tub; the LEX blade starts beside the windscreen, at shoulder height
-  { z: -5.6, pts: [[0, -0.45], [0.2, -0.44], [0.37, -0.35], [0.44, -0.13], [0.455, 0.15], [0.455, 0.385], [0.455, 0.415], [0.455, 0.5], [0.45, 0.62], [0.43, 0.74], [0.36, 0.56], [0, 0.5]] },
-  { z: -4.8, pts: [[0, -0.45], [0.2, -0.44], [0.37, -0.35], [0.44, -0.13], [0.455, 0.2], [0.51, 0.385], [0.51, 0.415], [0.46, 0.5], [0.455, 0.63], [0.44, 0.78], [0.37, 0.5], [0, 0.32]] },
-  { z: -4.3, pts: [[0, -0.45], [0.2, -0.44], [0.37, -0.35], [0.44, -0.13], [0.455, 0.2], [0.77, 0.385], [0.77, 0.415], [0.465, 0.5], [0.455, 0.635], [0.44, 0.8], [0.37, 0.5], [0, 0.32]] },
-  { z: -3.8, pts: [[0, -0.45], [0.2, -0.44], [0.37, -0.35], [0.44, -0.13], [0.455, 0.2], [1.01, 0.385], [1.01, 0.415], [0.47, 0.5], [0.46, 0.64], [0.44, 0.82], [0.37, 0.5], [0, 0.32]] },
-  { z: -3.0, pts: [[0, -0.45], [0.2, -0.44], [0.37, -0.35], [0.44, -0.13], [0.455, 0.2], [1.31, 0.385], [1.31, 0.415], [0.5, 0.5], [0.47, 0.64], [0.44, 0.84], [0.36, 0.62], [0, 0.6]] },
-  { z: -2.3, pts: [[0, -0.45], [0.2, -0.44], [0.37, -0.35], [0.44, -0.13], [0.455, 0.2], [1.56, 0.385], [1.56, 0.415], [0.56, 0.5], [0.5, 0.66], [0.44, 0.86], [0.27, 0.9], [0, 0.97]] },
-  { z: -1.5, pts: [[0, -0.45], [0.2, -0.44], [0.37, -0.35], [0.44, -0.13], [0.455, 0.22], [1.76, 0.385], [1.76, 0.415], [0.8, 0.5], [0.62, 0.66], [0.48, 0.82], [0.28, 1.0], [0, 1.1]] },
+  { z: -5.6, pts: [[0, -0.45], [0.2, -0.44], [0.37, -0.35], [0.44, -0.13], [0.455, 0.28], [0.455, 0.5], [0.455, 0.53], [0.455, 0.585], [0.45, 0.665], [0.43, 0.74], [0.36, 0.56], [0, 0.5]] },
+  { z: -4.8, pts: [[0, -0.45], [0.2, -0.44], [0.37, -0.35], [0.44, -0.13], [0.455, 0.36], [0.51, 0.605], [0.51, 0.635], [0.46, 0.67], [0.455, 0.725], [0.44, 0.78], [0.37, 0.5], [0, 0.32]] },
+  { z: -4.3, pts: [[0, -0.45], [0.2, -0.44], [0.37, -0.35], [0.44, -0.13], [0.455, 0.36], [0.77, 0.605], [0.77, 0.635], [0.465, 0.675], [0.455, 0.735], [0.44, 0.8], [0.37, 0.5], [0, 0.32]] },
+  { z: -3.8, pts: [[0, -0.45], [0.2, -0.44], [0.37, -0.35], [0.44, -0.13], [0.455, 0.36], [1.01, 0.605], [1.01, 0.635], [0.47, 0.68], [0.46, 0.75], [0.44, 0.82], [0.37, 0.5], [0, 0.32]] },
+  { z: -3.0, pts: [[0, -0.45], [0.2, -0.44], [0.37, -0.35], [0.44, -0.13], [0.455, 0.35], [1.31, 0.6], [1.31, 0.63], [0.5, 0.685], [0.47, 0.765], [0.44, 0.84], [0.36, 0.62], [0, 0.6]] },
+  { z: -2.3, pts: [[0, -0.45], [0.2, -0.44], [0.37, -0.35], [0.44, -0.13], [0.455, 0.33], [1.56, 0.58], [1.56, 0.61], [0.56, 0.675], [0.5, 0.765], [0.44, 0.86], [0.27, 0.9], [0, 0.97]] },
+  { z: -1.5, pts: [[0, -0.45], [0.2, -0.44], [0.37, -0.35], [0.44, -0.13], [0.455, 0.3], [1.76, 0.53], [1.76, 0.56], [0.8, 0.635], [0.62, 0.725], [0.48, 0.84], [0.28, 1.0], [0, 1.1]] },
   // beside the intakes the fuselage stays slim; the nacelles (the intake trunks, below) carry the width
-  { z: -0.7, pts: [[0, -0.45], [0.2, -0.44], [0.36, -0.36], [0.42, -0.13], [0.44, 0.26], [1.93, 0.385], [1.93, 0.415], [1.08, 0.5], [0.8, 0.63], [0.55, 0.83], [0.3, 1.08], [0, 1.17]] },
+  { z: -0.7, pts: [[0, -0.45], [0.2, -0.44], [0.36, -0.36], [0.42, -0.13], [0.44, 0.26], [1.93, 0.445], [1.93, 0.475], [1.08, 0.55], [0.8, 0.65], [0.55, 0.83], [0.3, 1.08], [0, 1.17]] },
   { z: 0.0, pts: [[0, -0.45], [0.2, -0.44], [0.36, -0.36], [0.42, -0.13], [0.44, 0.26], [2.0, 0.385], [2.0, 0.415], [1.12, 0.5], [0.82, 0.64], [0.56, 0.82], [0.3, 1.05], [0, 1.13]] },
   { z: 0.8, pts: [[0, -0.47], [0.2, -0.46], [0.36, -0.38], [0.42, -0.15], [0.44, 0.26], [1.9, 0.33], [1.9, 0.36], [1.1, 0.535], [0.84, 0.65], [0.58, 0.8], [0.31, 1.01], [0, 1.09]] },
   { z: 1.4, pts: [[0, -0.5], [0.2, -0.5], [0.36, -0.42], [0.42, -0.18], [0.44, 0.1], [0.46, 0.33], [0.5, 0.37], [1.1, 0.535], [0.85, 0.65], [0.6, 0.78], [0.31, 0.975], [0, 1.045]] },
@@ -92,13 +92,14 @@ const STAB: WingStation[] = [
   { x: 3.55, le: 8.03, te: 9.03, y: -0.14, t: 0.03 },
 ];
 const STAB_PIVOT_Z = 7.3;
-// the fins: canted out 22 degrees, the tips 3.1 m above the nose line and 3.8 m apart
+// the fins: big trapezoids canted out 20 degrees, standing over the engines ahead of the stabilators, with a
+// broad squared-off tip 1.45 m in chord; the tips 3.2 m above the nose line and 3.75 m apart
 const FIN: WingStation[] = [
-  { x: 0, le: 3.74, te: 6.85, t: 0.052 },
-  { x: 2.78, le: 6.09, te: 7.0, t: 0.034 },
+  { x: 0, le: 3.85, te: 7.25, t: 0.05 },
+  { x: 2.9, le: 6.4, te: 7.85, t: 0.036 },
 ];
-const FIN_ROOT = { x: 0.88, y: 0.55, cant: 22 };
-const RUDDER = { h0: 0.15, h1: 2.0, hinge: (h: number) => 6.25 + h * 0.04 };
+const FIN_ROOT = { x: 0.88, y: 0.55, cant: 20 };
+const RUDDER = { h0: 0.25, h1: 2.25, hinge: (h: number) => 6.56 + h * 0.3 };
 
 function livery(team: string): Livery {
   const L = new Livery({ half: 10.0, z0: -10.0, len: 20, y0: -2.2, height: 5.6 });
@@ -200,15 +201,15 @@ function livery(team: string): Livery {
   for (const g of [L.gs, L.gr]) {
     g.fillStyle = teamCol;
     g.beginPath();
-    g.moveTo(...S(5.86, 2.92));
-    g.lineTo(...S(7.02, 2.92));
-    g.lineTo(...S(7.0, 2.62));
-    g.lineTo(...S(5.58, 2.62));
+    g.moveTo(...S(6.4, 3.3));
+    g.lineTo(...S(8.0, 3.3));
+    g.lineTo(...S(7.95, 2.92));
+    g.lineTo(...S(6.06, 2.92));
     g.closePath();
     g.fill();
   }
-  L.sideText(team === 'blue' ? 'SK' : 'CP', 5.95, 1.75, 0.48 * ps, 'rgba(46,50,55,0.8)');
-  L.sideText(team === 'blue' ? '201' : '312', 6.05, 1.28, 0.2 * ps, 'rgba(46,50,55,0.75)');
+  L.sideText(team === 'blue' ? 'SK' : 'CP', 6.35, 1.8, 0.56 * ps, 'rgba(46,50,55,0.8)');
+  L.sideText(team === 'blue' ? '201' : '312', 6.5, 1.25, 0.22 * ps, 'rgba(46,50,55,0.75)');
   L.sideDraw(-2.6, -0.12, (g, x, y) => roundel(g, team, x, y, 0.22 * ps));
   L.sideText(team === 'blue' ? 'SKYE STRIKE' : 'CAPRI STRIKE', 3.1, -0.22, 0.1 * ps, 'rgba(46,50,55,0.7)');
   L.sideText(team === 'blue' ? '201' : '312', -7.3, -0.05, 0.2 * ps, 'rgba(46,50,55,0.7)');
@@ -325,13 +326,13 @@ export function buildFA18(v: AirframeVisual): void {
     const f = finPanels(FIN, RUDDER, m, { chordPts: 28 });
     skin(f.fixed);
     v.addSurface(stamp(f.rudder.geo), paint, f.rudder.hinge, f.rudder.axis, 'rudder', side, 28);
-    const top = new THREE.Vector3(2.76, 0, 0).applyMatrix4(m);
-    v.addNavLight(new THREE.Vector3(top.x, top.y, 6.6), 'formation');
+    const top = new THREE.Vector3(2.88, 0, 0).applyMatrix4(m);
+    v.addNavLight(new THREE.Vector3(top.x, top.y, 7.0), 'formation');
     // the antenna and fuel-dump fairings on the trailing edge of each fin tip
-    for (const [h, len] of [[2.7, 0.5], [2.52, 0.42], [2.36, 0.36]] as const) {
+    for (const [h, len] of [[2.82, 0.62], [2.64, 0.52], [2.46, 0.44]] as const) {
       const pod = lathe([[0.004, -len * 0.55], [0.04, -len * 0.3], [0.045, len * 0.25], [0.03, len * 0.5], [0.012, len * 0.55]], 10, 0, 0);
       const at = new THREE.Vector3(h, 0, 0).applyMatrix4(m);
-      pod.translate(at.x, at.y, 6.98 + (h - 2.7) * 0.04);
+      pod.translate(at.x, at.y, 7.25 + h * 0.207);
       skin(pod);
     }
   }
@@ -353,10 +354,11 @@ export function buildFA18(v: AirframeVisual): void {
   const spoilers: THREE.BufferGeometry[] = [];
   for (const sx of [-1, 1]) {
     const g = roundBox(0.42, 0.025, 0.85, 0.008);
-    g.translate(1.25 * sx, 0.445, -1.65);
+    g.rotateX(0.05);
+    g.translate(1.25 * sx, 0.605, -1.65);
     spoilers.push(stamp(g));
   }
-  const sp = v.addSurface(join(spoilers), paint, new THREE.Vector3(0, 0.44, -2.08), new THREE.Vector3(1, 0, 0), 'rudder', 0, 0);
+  const sp = v.addSurface(join(spoilers), paint, new THREE.Vector3(0, 0.625, -2.08), new THREE.Vector3(1, 0, 0), 'rudder', 0, 0);
   v.surfaces.splice(v.surfaces.indexOf(sp), 1);
   v.speedbrake = { pivot: sp.pivot, axis: new THREE.Vector3(-1, 0, 0), maxDeg: 60 };
 

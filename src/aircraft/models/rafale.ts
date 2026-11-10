@@ -31,18 +31,23 @@ function oval(hw: number, yb: number, yt: number, e = 1): P2[] {
 // up along the engine bays to the close-set nozzles at z 5.75
 const BODY = keyedProfile([
   { z: -7.95, pts: circ(0.012, -0.3) },
-  { z: -7.45, pts: oval(0.16, -0.4, -0.18) },
-  { z: -6.95, pts: oval(0.33, -0.45, 0.02) },
-  { z: -6.45, pts: oval(0.45, -0.52, 0.2) },
-  { z: -5.95, pts: oval(0.56, -0.55, 0.42, 0.95) },
-  { z: -5.45, pts: oval(0.64, -0.6, 0.66, 0.9) },
-  { z: -4.95, pts: [[0, -0.6], [0.32, -0.59], [0.52, -0.47], [0.62, -0.22], [0.66, 0.0], [0.66, 0.05], [0.66, 0.1], [0.65, 0.3], [0.6, 0.52], [0.5, 0.68], [0.28, 0.74], [0, 0.76]] },
-  // the cockpit well between the sills
-  { z: -4.4, pts: [[0, -0.62], [0.33, -0.61], [0.54, -0.49], [0.64, -0.24], [0.7, 0.0], [0.7, 0.05], [0.7, 0.1], [0.69, 0.3], [0.64, 0.55], [0.52, 0.74], [0.4, 0.42], [0, 0.36]] },
-  { z: -3.6, pts: [[0, -0.64], [0.35, -0.63], [0.57, -0.51], [0.68, -0.26], [0.76, 0.0], [0.76, 0.05], [0.76, 0.1], [0.75, 0.32], [0.7, 0.58], [0.52, 0.76], [0.4, 0.44], [0, 0.38]] },
-  { z: -2.8, pts: [[0, -0.66], [0.38, -0.66], [0.62, -0.55], [0.74, -0.28], [0.84, 0.0], [0.84, 0.05], [0.84, 0.1], [0.82, 0.33], [0.74, 0.6], [0.52, 0.78], [0.4, 0.46], [0, 0.4]] },
-  { z: -2.0, pts: [[0, -0.72], [0.42, -0.73], [0.7, -0.68], [0.84, -0.42], [0.9, -0.2], [0.9, -0.15], [0.9, -0.1], [0.88, 0.2], [0.78, 0.58], [0.52, 0.8], [0.4, 0.5], [0, 0.44]] },
-  { z: -1.3, pts: [[0, -0.77], [0.45, -0.78], [0.76, -0.74], [0.9, -0.48], [0.96, -0.26], [0.96, -0.2], [0.96, -0.14], [0.92, 0.16], [0.8, 0.56], [0.58, 0.82], [0.3, 0.88], [0, 0.9]] },
+  { z: -7.45, pts: oval(0.15, -0.39, -0.19) },
+  { z: -6.95, pts: oval(0.29, -0.44, 0.0) },
+  { z: -6.45, pts: oval(0.41, -0.48, 0.16) },
+  { z: -5.95, pts: oval(0.52, -0.52, 0.31, 0.95) },
+  // a chine runs back off the radome along the forebody (points 5-7) and
+  // widens into the shoulder over the intake mouth, where the canard sits
+  { z: -5.45, pts: [[0, -0.56], [0.34, -0.55], [0.52, -0.45], [0.6, -0.24], [0.64, -0.03], [0.67, 0.09], [0.69, 0.13], [0.66, 0.19], [0.58, 0.31], [0.44, 0.42], [0.24, 0.47], [0, 0.48]] },
+  { z: -4.95, pts: [[0, -0.59], [0.35, -0.58], [0.54, -0.48], [0.62, -0.26], [0.66, -0.04], [0.74, 0.1], [0.77, 0.14], [0.72, 0.21], [0.6, 0.36], [0.47, 0.5], [0.26, 0.54], [0, 0.55]] },
+  // the cockpit well between the sills (the sills low, so the glass stands tall)
+  { z: -4.4, pts: [[0, -0.62], [0.35, -0.61], [0.56, -0.5], [0.63, -0.28], [0.66, -0.05], [0.82, 0.11], [0.87, 0.15], [0.8, 0.23], [0.62, 0.39], [0.45, 0.55], [0.36, 0.38], [0, 0.32]] },
+  { z: -3.6, pts: [[0, -0.64], [0.36, -0.63], [0.56, -0.52], [0.6, -0.3], [0.63, -0.05], [1.0, 0.11], [1.06, 0.15], [0.96, 0.23], [0.68, 0.41], [0.515, 0.585], [0.38, 0.42], [0, 0.36]] },
+  // the intake mouths: the lower body steps in to the ducts' inner walls,
+  // the chine becomes the shelf over each mouth
+  { z: -3.2, pts: [[0, -0.65], [0.37, -0.65], [0.5, -0.58], [0.52, -0.3], [0.53, 0.1], [1.1, 0.11], [1.18, 0.16], [1.06, 0.24], [0.7, 0.42], [0.515, 0.6], [0.39, 0.43], [0, 0.37]] },
+  { z: -2.8, pts: [[0, -0.66], [0.38, -0.66], [0.5, -0.6], [0.52, -0.3], [0.53, 0.08], [1.12, 0.1], [1.22, 0.15], [1.1, 0.23], [0.72, 0.43], [0.505, 0.615], [0.4, 0.44], [0, 0.38]] },
+  { z: -2.0, pts: [[0, -0.7], [0.4, -0.7], [0.51, -0.62], [0.53, -0.3], [0.55, 0.03], [1.12, 0.06], [1.24, 0.11], [1.1, 0.2], [0.72, 0.44], [0.43, 0.67], [0.32, 0.5], [0, 0.44]] },
+  { z: -1.3, pts: [[0, -0.75], [0.42, -0.76], [0.55, -0.7], [0.58, -0.4], [0.62, -0.1], [1.08, 0.0], [1.18, 0.04], [0.98, 0.22], [0.8, 0.56], [0.58, 0.82], [0.3, 0.88], [0, 0.9]] },
   // the spine behind the canopy
   { z: -0.8, pts: [[0, -0.77], [0.46, -0.78], [0.78, -0.74], [0.92, -0.48], [0.97, -0.26], [0.97, -0.2], [0.97, -0.14], [0.93, 0.16], [0.8, 0.58], [0.56, 0.84], [0.3, 0.95], [0, 0.97]] },
   { z: 0.0, pts: [[0, -0.74], [0.48, -0.75], [0.82, -0.7], [0.94, -0.48], [0.98, -0.3], [0.98, -0.24], [0.98, -0.18], [0.94, 0.14], [0.78, 0.5], [0.54, 0.74], [0.28, 0.84], [0, 0.87]] },
@@ -58,15 +63,16 @@ const BODY_SUB = [4, 3, 3, 3, 2, 1, 2, 3, 3, 3, 4];
 // the windscreen base 3 m behind the tip, the crown 1.3 m over the datum
 // above the pilot, the glass running back to the spine at z -1
 const CANOPY: Section[] = [
-  { z: -4.9, w: 0.03, top: 0.02, bot: 0.02, y: 0.74, n: 2 },
-  { z: -4.4, w: 0.42, top: 0.3, bot: 0.03, y: 0.74, n: 2.2 },
-  { z: -3.9, w: 0.49, top: 0.45, bot: 0.03, y: 0.75, n: 2.2 },
-  { z: -3.4, w: 0.51, top: 0.52, bot: 0.03, y: 0.76, n: 2.2 },
-  { z: -2.9, w: 0.51, top: 0.52, bot: 0.03, y: 0.77, n: 2.2 },
-  { z: -2.4, w: 0.49, top: 0.47, bot: 0.03, y: 0.78, n: 2.2 },
-  { z: -1.9, w: 0.45, top: 0.41, bot: 0.03, y: 0.8, n: 2.2 },
-  { z: -1.4, w: 0.37, top: 0.3, bot: 0.03, y: 0.82, n: 2.1 },
-  { z: -1.0, w: 0.2, top: 0.12, bot: 0.03, y: 0.86, n: 2 },
+  { z: -5.15, w: 0.03, top: 0.02, bot: 0.02, y: 0.5, n: 2 },
+  { z: -4.7, w: 0.38, top: 0.27, bot: 0.03, y: 0.53, n: 2.2 },
+  { z: -4.2, w: 0.48, top: 0.5, bot: 0.03, y: 0.56, n: 2.2 },
+  { z: -3.7, w: 0.51, top: 0.63, bot: 0.03, y: 0.58, n: 2.2 },
+  { z: -3.2, w: 0.515, top: 0.65, bot: 0.03, y: 0.6, n: 2.2 },
+  { z: -2.7, w: 0.5, top: 0.6, bot: 0.03, y: 0.62, n: 2.2 },
+  { z: -2.2, w: 0.46, top: 0.5, bot: 0.03, y: 0.65, n: 2.2 },
+  { z: -1.7, w: 0.38, top: 0.36, bot: 0.03, y: 0.7, n: 2.1 },
+  { z: -1.3, w: 0.26, top: 0.2, bot: 0.03, y: 0.76, n: 2 },
+  { z: -0.95, w: 0.12, top: 0.06, bot: 0.03, y: 0.84, n: 2 },
 ];
 
 // cropped delta: 46 degrees of leading-edge sweep, the trailing edge swept
@@ -78,12 +84,12 @@ const WING: WingStation[] = [
   { x: 0.95, le: wle(0.95), te: wte(0.95), y: -0.27, t: 0.048 },
   { x: 5.3, le: wle(5.3), te: wte(5.3), y: -0.34, t: 0.035 },
 ];
-// close-coupled canards beside the cockpit: 2.65 m out from the centre line, the leading edge
+// close-coupled canards high on the intake shoulders beside the cockpit: 2.65 m out from the centre line, the leading edge
 // swept 41 degrees, the trailing edge swept back too
 const CANARD: WingStation[] = [
-  { x: 0.55, le: -3.44, te: -1.72, y: 0.02, t: 0.05 },
-  { x: 0.9, le: -3.14, te: -1.6, y: 0.04, t: 0.048 },
-  { x: 2.65, le: -1.63, te: -1.02, y: 0.1, t: 0.04 },
+  { x: 0.55, le: -3.44, te: -1.72, y: 0.24, t: 0.05 },
+  { x: 0.9, le: -3.14, te: -1.6, y: 0.25, t: 0.048 },
+  { x: 2.65, le: -1.63, te: -1.02, y: 0.31, t: 0.04 },
 ];
 const CANARD_PIVOT = -2.3;
 // the fin: a 53 deg leading edge off the spine, the rudder's trailing edge
@@ -238,45 +244,33 @@ export function buildRafale(v: AirframeVisual): void {
   skin(loftProfile({ stations: zs, profile: BODY, sub: BODY_SUB, capEnd: true }));
   v.fuselageSections = sectionsFromProfile(BODY, -7.7, 6.0, 40);
 
-  // --- side intakes under the canards: the upper inboard corner leads, the
-  // outer lip sweeps 1.2 m back in plan and the lower lip trails it
-  const TX = curve([[-4.5, 0.54], [-1.5, 0.56], [1.4, 0.6]]);
-  const TW = curve([[-4.5, 0.33], [-1.5, 0.36], [1.4, 0.25]]);
-  const TY = curve([[-4.5, -0.37], [-1.5, -0.4], [1.4, -0.46]]);
-  const TH = curve([[-4.5, 0.36], [-1.5, 0.35], [1.4, 0.27]]);
+  // --- big D-shaped side intakes under the canard shoulders: the mouth 5 m
+  // behind the radome tip, 0.9 m tall and 0.7 m wide, its lips rounded back
+  // a little at the top, bottom and outboard
+  const TX = curve([[-3.2, 0.53], [-1.5, 0.55], [1.4, 0.6]]);
+  const TW = curve([[-3.2, 0.35], [-1.5, 0.36], [1.4, 0.25]]);
+  const TY = curve([[-3.2, -0.31], [-1.5, -0.37], [1.4, -0.46]]);
+  const TH = curve([[-3.2, 0.45], [-1.5, 0.39], [1.4, 0.27]]);
   const loop = (z: number) => dLoop(TX(z), TY(z), 2 * TW(z), TH(z));
   const inl = intake({
     loop,
-    outer: stations(-4.5, 1.4, 44, 0.3, 0),
+    outer: stations(-3.2, 1.4, 44, 0.3, 0),
     lip: 0.04,
     depth: 1.9,
     n: 64,
-    rake: (x, y) => -0.55 * (y - (TY(-4.5) + TH(-4.5))) + 1.6 * (x - 0.54),
-    rakeFade: 2.4,
-    fan: { cx: 0.9, cy: -0.4, r: 0.3 },
+    rake: (x, y) => 0.18 * (x - 0.53) + 0.12 * Math.min(1, ((y + 0.31) / 0.45) ** 2),
+    rakeFade: 1.2,
+    fan: { cx: 0.92, cy: -0.38, r: 0.32 },
     // the S-shaped duct hides the fan: the face at its end reads as a dark tunnel, not a bright engine
     ductShade: { k0: 0.42, fall: 1.8, floor: 0.03, fan: 0.3 },
   });
   skin(both(inl.skin));
   v.addMesh(both(inl.duct), pm.duct);
-  // half-cone shock body in the upper inner corner of each mouth, and the
-  // canard shelf over the intake
+  // half-cone shock body in the upper inner corner of each mouth
   for (const sx of [-1, 1]) {
-    const cone = lathe([[0.004, -4.72], [0.05, -4.55], [0.085, -4.25], [0.09, -3.85]], 14, 0.57 * sx, -0.14);
+    const cone = lathe([[0.004, -3.45], [0.05, -3.3], [0.085, -3.05], [0.09, -2.7]], 14, 0.55 * sx, -0.02);
     skin(cone);
   }
-  const shelf = loftProfile({
-    stations: stations(-4.4, -1.3, 16),
-    profile: (z) => {
-      const u = sstep(-4.4, -3.0, z);
-      const w = 0.6 + u * 0.6 - sstep(-2.2, -1.3, z) * 0.2;
-      return [[0.5, -0.1], [w, -0.08 + u * 0.02], [w, -0.04 + u * 0.02], [0.5, 0.02 + u * 0.06]] as P2[];
-    },
-    sub: 2,
-    capStart: true,
-    capEnd: true,
-  });
-  skin(both(shelf));
 
   // --- canopy, seat, pilot (the seat reclined 29 deg, the eye 0.35 under the crown)
   v.cockpitEye.set(0, 0.93, -3.3);
@@ -290,10 +284,10 @@ export function buildRafale(v: AirframeVisual): void {
   }
   addPilot(v, new THREE.Vector3(0, 0.93, -3.3), 0.29, { style: 'eu', stick: 'side', martinBaker: true });
   const shroud = loftProfile({
-    stations: stations(-4.75, -4.35, 6),
+    stations: stations(-4.6, -4.3, 6),
     profile: (z) => {
-      const u = sstep(-4.75, -4.35, z);
-      return [[0, 0.3], [0.42, 0.32], [0.47, 0.64], [0.33, 0.72 - u * 0.06], [0, 0.74 - u * 0.06]] as P2[];
+      const u = sstep(-4.6, -4.3, z);
+      return [[0, 0.34], [0.4, 0.38], [0.4, 0.58], [0.28, 0.68 - u * 0.04], [0, 0.7 - u * 0.04]] as P2[];
     },
     sub: 3,
     capEnd: true,
@@ -331,7 +325,7 @@ export function buildRafale(v: AirframeVisual): void {
   const canard = wing({ sections: CANARD, chordPts: 22, spanSub: 6, tip: 'round', thickPos: 0.45 });
   for (const side of [1, -1] as const) {
     const g = stamp(side > 0 ? canard.clone() : mirror(canard));
-    v.addSurface(g, paint, new THREE.Vector3(0.62 * side, 0.05, CANARD_PIVOT), new THREE.Vector3(1, 0, 0), 'canard', side, 20);
+    v.addSurface(g, paint, new THREE.Vector3(0.62 * side, 0.25, CANARD_PIVOT), new THREE.Vector3(1, 0, 0), 'canard', side, 20);
   }
 
   // --- fin with rudder, squared SPECTRA fairing on top, antenna at the root
@@ -377,12 +371,12 @@ export function buildRafale(v: AirframeVisual): void {
   skin(lathe([[0.14, 5.3], [0.15, 5.7], [0.12, 6.1], [0.05, 6.4], [0.004, 6.5]], 16, 0, 0.0));
 
   // --- OSF front-sector optronics ahead of the windscreen
-  const osf = roundBox(0.17, 0.12, 0.5, 0.055);
-  osf.translate(0, 0.74, -5.2);
+  const osf = roundBox(0.17, 0.16, 0.4, 0.06);
+  osf.translate(0, 0.52, -5.38);
   v.hideInCockpit.push(skin(osf));
   for (const dx of [-0.05, 0.05]) {
     const w = new THREE.Mesh(new THREE.CircleGeometry(0.035, 16), pm.glass);
-    w.position.set(dx, 0.75, -5.46);
+    w.position.set(dx, 0.54, -5.59);
     w.rotation.y = Math.PI;
     v.body.add(w);
     v.hideInCockpit.push(w);
@@ -401,12 +395,12 @@ export function buildRafale(v: AirframeVisual): void {
   skin(tube);
   const nozzleTip = lathe([[0.036, -6.13], [0.05, -6.2], [0.046, -6.3], [0.025, -6.35], [0.004, -6.37]], 14, 0.33, 0.95);
   v.addMesh(nozzleTip, pm.darkMetal);
-  skin(lathe([[0.004, -4.6], [0.06, -4.45], [0.075, -4.05], [0.05, -3.65], [0.004, -3.5]], 14, 0.55, 0.42));
+  skin(lathe([[0.004, -4.6], [0.06, -4.45], [0.075, -4.05], [0.05, -3.65], [0.004, -3.5]], 14, 0.6, 0.44));
 
-  // --- 30M791 cannon port in the starboard wing root
-  skin(lathe([[0.004, -1.9], [0.06, -1.75], [0.075, -1.4], [0.07, -0.9], [0.004, -0.6]], 14, 0.98, -0.3));
+  // --- 30M791 cannon fairing on the starboard intake's flank by the wing root
+  skin(lathe([[0.004, -1.9], [0.06, -1.75], [0.075, -1.4], [0.07, -0.9], [0.004, -0.6]], 14, 1.24, -0.3));
   const muzzle = new THREE.Mesh(new THREE.CircleGeometry(0.038, 12), pm.darkMetal);
-  muzzle.position.set(0.98, -0.3, -1.78);
+  muzzle.position.set(1.24, -0.3, -1.78);
   muzzle.rotation.y = Math.PI;
   v.body.add(muzzle);
 
@@ -420,8 +414,8 @@ export function buildRafale(v: AirframeVisual): void {
     blade(new THREE.Vector3(0, -0.8, 0.6), 0.16, 0.24, new THREE.Vector3(0, -1, 0)),
   ]), pm.antenna);
   v.addMesh(join([
-    formationStrip(new THREE.Vector3(0.7, 0.3, -4.0), new THREE.Vector3(1, 0.3, 0), new THREE.Vector3(0, 0, 1), 0.45, 0.035),
-    formationStrip(new THREE.Vector3(-0.7, 0.3, -4.0), new THREE.Vector3(-1, 0.3, 0), new THREE.Vector3(0, 0, 1), 0.45, 0.035),
+    formationStrip(new THREE.Vector3(0.79, 0.3, -4.0), new THREE.Vector3(0.6, 0.8, 0), new THREE.Vector3(0, 0, 1), 0.45, 0.035),
+    formationStrip(new THREE.Vector3(-0.79, 0.3, -4.0), new THREE.Vector3(-0.6, 0.8, 0), new THREE.Vector3(0, 0, 1), 0.45, 0.035),
     formationStrip(new THREE.Vector3(1.24, -0.1, 3.4), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 1), 0.5, 0.035),
     formationStrip(new THREE.Vector3(-1.24, -0.1, 3.4), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 1), 0.5, 0.035),
   ]), pm.formation, v.body, false);
