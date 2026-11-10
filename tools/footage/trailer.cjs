@@ -1,18 +1,23 @@
-// ONE COMMAND: records a 60-second TRIAD trailer from the game itself (on your graphics card)
-// and encodes it to an MP4.
+// ONE COMMAND: records a 60-second, 9:16 TRIAD trailer from the game itself (on your graphics card),
+// cut to the beats of your music, and encodes it to an MP4.
 //
-//   node tools/footage/trailer.cjs
+//   node tools/footage/trailer.cjs --music "C:\path\to\Steel_Against_the_Clouds.mp3"
 //
-// The scenes (60 s in all):
-//   1  LOW PASS     9 s   a three-ship formation, then a burner pull-up, past a shaking camera (Jade Archipelago)
-//   2  DOGFIGHT    17 s   a 5v5 team battle, AI pilots on both sides, a camera director (Triad Isles, dusk)
-//   3  HANGAR       9 s   the paint shop and loadout screen: liveries and weapons changing on a turntable
-//   4  DOGFIGHT    14 s   another 5v5, another map and other jets (Frostfall Strait)
-//   5  SUNSET      11 s   a low pass over the open ocean, then the TRIAD.CHURCH end card
+// (tip: type  --music  and a space, then drag the mp3 file into the PowerShell window)
+//
+// The scenes (60 s in all, timed to the music: hits at 4, 8, 12 s, the drop at 16 s, a quiet breakdown 44-48 s):
+//   1   0-16 s  FORMATION   a smooth camera glides in on an F-22, F-35 and Su-57 over the islands, then the
+//                           F-22 pulls straight up on the afterburner (the drop hits as it goes)
+//   2  16-30 s  DOGFIGHT    5v5 over the Triad Isles at dusk: AI pilots on both sides, a camera director with
+//                           chase, orbit and long-lens shots, a slow-motion close-up on every missile launch
+//   3  30-38 s  HANGAR      the paint shop and loadouts, a change on every beat
+//   4  38-48 s  DOGFIGHT    5v5 over Frostfall Strait in the morning; slow motion through the breakdown
+//   5  48-60 s  SUNSET      a smooth orbit round two jets over the ocean, then the TRIAD.CHURCH end card
 //
 // Options (all optional):
+//   --music <file>     your music: it is added to the finished video (60 s)
 //   --port 5173        the game server (it is started for you if it is not running)
-//   --size 1920x1080   picture size (--size 960x540 is a quick preview)
+//   --size 1080x1920   picture size (9:16). --size 540x960 is a quick preview
 //   --fps 30           frames per second
 //   --out frames       where the pictures go (frames/trailer/s1 ... s5) and the finished video
 //   --only 2,4         record just these scenes (then the video is put together from what exists)
@@ -20,8 +25,6 @@
 //   --software         draw on the CPU (a very slow test; the default is your graphics card)
 //   --my-video <dir>   where Remotion is installed, to borrow its ffmpeg (default: ../my-video)
 //   --help
-//
-// There is no sound: add music in your editor.
 
 'use strict';
 const fs = require('fs');
@@ -37,14 +40,16 @@ const opt = (k, d) => {
 const flag = (k) => argv.includes('--' + k);
 
 const PORT = +opt('port', '5173');
-const [W, H] = opt('size', '1920x1080').split('x').map(Number);
+const [W, H] = opt('size', '1080x1920').split('x').map(Number);
 const FPS = +opt('fps', '30');
 const REPO = path.resolve(__dirname, '..', '..');
 const OUTROOT = path.resolve(opt('out', 'frames'));
 const OUT = path.join(OUTROOT, 'trailer');
 const MYVIDEO = path.resolve(opt('my-video', path.join(REPO, '..', 'my-video')));
+const MUSIC = opt('music', '');
 const ONLY = opt('only', '') ? opt('only', '').split(',').map((s) => +s) : null;
-const SC = H / 1080; // text sizes scale with the picture
+const PORTRAIT = H > W;
+const SC = Math.min(W, H) / 1080; // text sizes scale with the picture
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(...a);
@@ -53,18 +58,16 @@ const log = (...a) => console.log(...a);
 // THE SCENES
 // ======================================================================================
 
-// the hangar: what changes when (s). A paint is a wrap or a solid colour with a finish; a load is
-// an index into the jet's loadouts (the F-15EX: 0 everyday, 1 missile truck, 2 strike, ...)
+// the hangar: what changes when (s), on the music's beats. A paint is a wrap or a solid colour with a finish;
+// a load is an index into the jet's loadouts (the F-15EX: 0 everyday, 1 missile truck, 2 strike, ...)
 const HANGAR_OPS = [
-  { at: 0.9, k: 'paint', p: { wrap: 'inferno', finish: 'gloss' } },
-  { at: 1.9, k: 'paint', p: { wrap: 'aurora', finish: 'gloss' } },
-  { at: 2.9, k: 'paint', p: { wrap: 'galaxy', finish: 'metallic' } },
-  { at: 3.9, k: 'paint', p: { solid: '#d42a1f', finish: 'gloss' } },
-  { at: 4.9, k: 'paint', p: { wrap: 'arctic', finish: 'satin' } },
-  { at: 5.5, k: 'load', i: 2 },
-  { at: 6.4, k: 'paint', p: { wrap: 'blackice', finish: 'gloss' } },
-  { at: 7.0, k: 'load', i: 1 },
-  { at: 7.9, k: 'paint', p: { wrap: 'raptor', finish: 'satin' } },
+  { at: 1.0, k: 'paint', p: { wrap: 'inferno', finish: 'gloss' } },
+  { at: 2.0, k: 'load', i: 2 },
+  { at: 3.0, k: 'paint', p: { wrap: 'aurora', finish: 'gloss' } },
+  { at: 4.0, k: 'paint', p: { wrap: 'galaxy', finish: 'metallic' } },
+  { at: 5.0, k: 'paint', p: { solid: '#d42a1f', finish: 'gloss' } },
+  { at: 6.0, k: 'load', i: 1 },
+  { at: 7.0, k: 'paint', p: { wrap: 'blackice', finish: 'gloss' } },
 ];
 
 // (saved paints for the jets the player flies in a scene: the AI jets get random ones from the game)
@@ -72,33 +75,38 @@ const wrap = (id, a, b, finish) => ({ mode: 'wrap', color: a, color2: b, wrap: i
 
 const SCENES = [
   {
-    id: 1, name: 'LOW PASS (Jade Archipelago)', map: 'jade', secs: 9, run: sceneFly, paints: {},
+    id: 1, name: 'FORMATION OVER THE ISLANDS (Jade Archipelago)', map: 'jade', secs: 16, run: sceneFly, paints: {},
     opts: {
-      lead: 'F22', wings: ['F35A', 'SU57'], tod: 'afternoon', weather: 'clear', where: 'runway', sunElev: 28, sunOff: 150,
-      passes: [
-        // a three-ship formation, low, left to right, the camera on the ground beside the runway
-        { t0: 0, kind: 'formation', dir: 1, speed: 300, mach: 0.93, alt: 24, passAt: 3.4, camAcross: 95, camH: 2.6, k: 8, frame: 40, fovMin: 20, fovMax: 62, shake: 1 },
-        // then one jet past the camera and straight up on the afterburner
-        { t0: 4.6, kind: 'climb', dir: -1, speed: 290, mach: 0.9, alt: 20, passAt: 2.3, climbAt: 2.4, camAcross: -70, camH: 2.2, k: 10, frame: 22, fovMin: 24, fovMax: 70, shake: 1.2 },
+      lead: 'F22', wings: ['F35A', 'SU57'], tod: 'afternoon', weather: 'clear', where: 'coast', alt: 150, speed: 230, mach: 0.68,
+      sunElev: 26, sunHdg: 200,
+      climbAt: 12, // the F-22 pulls up on the beat at 12 s, the others peel away
+      wingBreak: 11.5,
+      // the camera rides the formation (offsets: right, up, back): first a slow push-in, then below and behind for the climb
+      cams: [
+        { t0: 0, t1: 8, a: [40, -4, 78], b: [20, 3, 22], fov: [46, 38], ahead: 10 },
+        { t0: 8, t1: 16, a: [-26, -5, 40], b: [-10, -10, 30], fov: [50, 60], ahead: 14 },
       ],
     },
   },
   {
-    id: 2, name: '5v5 DOGFIGHT (Triad Isles, dusk)', map: 'triad', secs: 17, run: sceneFight,
+    id: 2, name: '5v5 DOGFIGHT (Triad Isles, dusk)', map: 'triad', secs: 14, run: sceneFight,
     paints: { SU57: wrap('inferno', '#0d0706', '#ff5a14', 'gloss') },
     opts: { jet: 'SU57', tod: 'dusk', weather: 'cloudy', shiftNm: 10.5 },
   },
-  { id: 3, name: 'HANGAR (paint and loadout)', map: 'triad', secs: 9, run: sceneHangar, paints: {}, opts: { type: 'F15EX' }, ops: HANGAR_OPS },
+  { id: 3, name: 'HANGAR (paint and loadout)', map: 'triad', secs: 8, run: sceneHangar, paints: {}, opts: { type: 'F15EX' }, ops: HANGAR_OPS },
   {
-    id: 4, name: '5v5 DOGFIGHT (Frostfall Strait)', map: 'frost', secs: 14, run: sceneFight,
+    id: 4, name: '5v5 DOGFIGHT (Frostfall Strait)', map: 'frost', secs: 10, run: sceneFight,
     paints: { F22: wrap('blackice', '#020405', '#2ec4d4', 'gloss') },
     opts: { jet: 'F22', tod: 'morning', weather: 'clear', shiftNm: 10.5 },
+    slow: [{ from: 6, to: 10, speed: 0.4 }], // slow motion through the music's breakdown (44-48 s)
   },
   {
-    id: 5, name: 'SUNSET + END CARD (Open Ocean)', map: 'ocean', secs: 11, run: sceneFly, paints: {},
+    id: 5, name: 'SUNSET + END CARD (Open Ocean)', map: 'ocean', secs: 12, run: sceneFly, paints: {},
     opts: {
-      lead: 'TYPHOON', wings: ['RAFALE'], tod: 'dusk', weather: 'clear', where: 'sea', heading: 100, sunElev: 5, sunHdg: 12,
-      passes: [{ t0: 0, kind: 'formation', dir: 1, speed: 250, mach: 0.78, alt: 30, passAt: 4.4, camAcross: 120, camH: 3.2, k: 7, frame: 40, fovMin: 14, fovMax: 60, shake: 0.8 }],
+      lead: 'TYPHOON', wings: ['RAFALE'], tod: 'dusk', weather: 'clear', where: 'sea', heading: 100, alt: 70, speed: 190, mach: 0.58,
+      sunElev: 6, sunHdg: 80, climbAt: 999, wingBreak: 999,
+      // one slow orbit round the formation: front-right quarter to rear-right quarter, the golden light on the jets
+      cams: [{ t0: 0, t1: 12, orbit: { th: [28, 150], R: [36, 28], h: [6, 3] }, fov: [50, 44], ahead: 0 }],
     },
   },
 ];
@@ -108,8 +116,16 @@ const SCENES = [
 // ======================================================================================
 
 const ramp = (t, a, b, fi = 0.35, fo = 0.35) => Math.max(0, Math.min(1, (t - a) / fi, (b - t) / fo));
-const caption = (text, t, a, b) => ({ text, x: 0.05, y: 0.87, size: 54 * SC, track: 0.14, a: ramp(t, a, b) });
-const mark = () => ({ text: 'TRIAD.CHURCH', align: 'right', x: 0.03, y: 0.94, size: 26 * SC, track: 0.3, w: 600, a: 0.55 });
+// (9:16: captions sit above the bottom strip the phone apps cover, and wrap to two lines)
+const caption = (text, t, a, b) =>
+  PORTRAIT
+    ? { text, align: 'center', y: 0.7, size: 50 * SC, track: 0.12, maxW: 0.86, a: ramp(t, a, b) }
+    : { text, x: 0.05, y: 0.87, size: 54 * SC, track: 0.14, a: ramp(t, a, b) };
+const mark = () =>
+  PORTRAIT
+    ? { text: 'TRIAD.CHURCH', align: 'center', y: 0.8, size: 28 * SC, track: 0.3, w: 600, a: 0.6 }
+    : { text: 'TRIAD.CHURCH', align: 'right', x: 0.03, y: 0.94, size: 26 * SC, track: 0.3, w: 600, a: 0.55 };
+const BIG = PORTRAIT ? 0.88 : 1;
 
 /** what is drawn over the picture at `t` seconds into scene `sc`: black fades, flashes, dimming, text */
 function overlayFor(sc, t) {
@@ -119,19 +135,19 @@ function overlayFor(sc, t) {
   let dip = 0;
   switch (sc.id) {
     case 1:
-      lines.push({ text: 'TRIAD', align: 'center', y: 0.44, size: 190 * SC, track: 0.3, a: ramp(t, 0.4, 3.7, 0.8, 0.8) });
-      lines.push({ text: 'AIR COMBAT', align: 'center', y: 0.58, size: 46 * SC, track: 0.55, w: 600, a: ramp(t, 0.9, 3.7, 0.7, 0.8) });
-      lines.push(caption('13 REAL JETS', t, 5.2, 8.3));
-      dip = Math.max(0, 1 - Math.abs(t - 4.6) / 0.13); // a quick dip to black on the cut between the two passes
+      lines.push({ text: 'TRIAD', align: 'center', y: 0.42, size: 190 * SC * BIG, track: 0.3, a: ramp(t, 0.4, 3.8, 0.8, 0.6) });
+      lines.push({ text: 'AIR COMBAT', align: 'center', y: 0.42 + 0.075, size: 44 * SC * BIG, track: 0.55, w: 600, a: ramp(t, 0.9, 3.8, 0.7, 0.6) });
+      lines.push(caption('13 REAL JETS', t, 4.6, 7.6));
+      dip = Math.max(0, 1 - Math.abs(t - 8) / 0.13); // a quick dip to black on the cut at the 8 s hit
       break;
     case 2:
-      lines.push(caption('5 v 5 DOGFIGHTS', t, 0.5, 3.4));
-      lines.push(caption('RADAR MISSILES · HEAT SEEKERS · GUNS', t, 8.5, 12.2));
+      lines.push(caption('5 v 5 DOGFIGHTS', t, 0.4, 3.4));
+      lines.push(caption('RADAR MISSILES · HEAT SEEKERS · GUNS', t, 7, 11));
       lines.push(mark());
       break;
     case 3: {
       lines.push(caption('CUSTOMIZE YOUR JET', t, 0.3, 3.6));
-      lines.push(caption('CHOOSE YOUR LOADOUT', t, 5.3, 8.4));
+      lines.push(caption('CHOOSE YOUR LOADOUT', t, 4.3, 7.4));
       lines.push(mark());
       let last = -9;
       for (const op of sc.ops) if (t >= op.at) last = op.at;
@@ -139,21 +155,26 @@ function overlayFor(sc, t) {
       break;
     }
     case 4:
-      lines.push(caption('FOUR THEATERS', t, 0.5, 3.4));
-      lines.push(caption('FLY ANY OF 13 JETS', t, 6.8, 10.4));
+      lines.push(caption('FOUR THEATERS', t, 0.4, 3.4));
       lines.push(mark());
       break;
     case 5:
-      dim = 0.42 * Math.max(0, Math.min(1, (t - 3.8) / 1.4));
-      lines.push({ text: 'TRIAD', align: 'center', y: 0.42, size: 200 * SC, track: 0.3, a: ramp(t, 4.6, 99, 0.9, 1) });
-      lines.push({ text: 'PLAY IN YOUR BROWSER', align: 'center', y: 0.57, size: 50 * SC, track: 0.5, w: 600, a: ramp(t, 5.5, 99, 0.8, 1) });
-      lines.push({ text: 'TRIAD.CHURCH', align: 'center', y: 0.67, size: 72 * SC, track: 0.35, a: ramp(t, 6.2, 99, 0.8, 1) });
+      dim = 0.4 * Math.max(0, Math.min(1, (t - 3.8) / 1.4));
+      lines.push({ text: 'TRIAD', align: 'center', y: 0.42, size: 190 * SC * BIG, track: 0.3, a: ramp(t, 4.6, 99, 0.9, 1) });
+      lines.push({ text: 'PLAY IN YOUR BROWSER', align: 'center', y: 0.42 + 0.1, size: 40 * SC * BIG, track: 0.35, w: 600, a: ramp(t, 6.0, 99, 0.8, 1) });
+      lines.push({ text: 'TRIAD.CHURCH', align: 'center', y: 0.42 + 0.19, size: 70 * SC * BIG, track: 0.3, a: ramp(t, 7.0, 99, 0.8, 1) });
       break;
     default:
   }
   // every scene fades in from black and out to black
   const fade = Math.max(0, 1 - t / 0.2, 1 - (sc.secs - t) / 0.2, dip);
   return { fade, flash, dim, lines };
+}
+
+// slow motion forced on the scene's frames (the fight's director can also slow the action by itself)
+function forceSpeed(sc, t) {
+  for (const r of sc.slow || []) if (t >= r.from && t < r.to) return r.speed;
+  return null;
 }
 
 // ======================================================================================
@@ -200,16 +221,35 @@ async function installGrab(a) {
           /* older browsers: no letter spacing */
         }
         ctx.textBaseline = 'middle';
-        if (l.align === 'center') {
-          ctx.textAlign = 'center';
-          ctx.fillText(l.text, W / 2 + sp / 2, l.y * H);
-        } else if (l.align === 'right') {
-          ctx.textAlign = 'right';
-          ctx.fillText(l.text, W - l.x * W + sp, l.y * H);
-        } else {
-          ctx.textAlign = 'left';
-          ctx.fillText(l.text, l.x * W, l.y * H);
+        // long text wraps to the width it is given
+        const maxPx = (l.maxW || 0) * W;
+        let rows = [l.text];
+        if (maxPx > 0) {
+          rows = [];
+          let cur = '';
+          for (const word of l.text.split(' ')) {
+            const test = cur ? cur + ' ' + word : word;
+            if (cur && ctx.measureText(test).width > maxPx) {
+              rows.push(cur);
+              cur = word;
+            } else cur = test;
+          }
+          rows.push(cur);
         }
+        const lh = l.size * 1.22;
+        rows.forEach((row, i) => {
+          const y = l.y * H + (i - (rows.length - 1) / 2) * lh;
+          if (l.align === 'center') {
+            ctx.textAlign = 'center';
+            ctx.fillText(row, W / 2 + sp / 2, y);
+          } else if (l.align === 'right') {
+            ctx.textAlign = 'right';
+            ctx.fillText(row, W - l.x * W + sp, y);
+          } else {
+            ctx.textAlign = 'left';
+            ctx.fillText(row, l.x * W, y);
+          }
+        });
         ctx.restore();
       }
       if (ov.flash > 0) {
@@ -234,42 +274,57 @@ async function installGrab(a) {
   };
 }
 
-// ---------------------------------------------------------------- the fly-bys (the cinematic tool's scripted jets)
+// ---------------------------------------------------------------- the formation shots (the cinematic tool's scripted jets)
 
 /**
- * o: { lead, wings[], tod, weather, where: 'runway'|'sea', heading?, sunElev, sunOff?|sunHdg?, passes[] }
- * Sets up the theater with scripted jets (posed every frame by __flyFrame) and a camera on the ground.
+ * o: { lead, wings[], tod, weather, where: 'coast'|'sea', heading?, alt, speed, mach, sunElev, sunHdg, climbAt, wingBreak, cams[] }
+ * Sets up the theater with scripted jets (flown every frame by __flyFrame) and the camera rig that rides with them.
  */
 async function flyInit(o) {
   const c = window.cine;
   const g = window.game;
   const THREE = window.__THREE;
   const D = Math.PI / 180;
-  const { ROLES } = await import('/src/world/islands.ts');
+  const { surfaceHeight } = await import('/src/world/terrain.ts');
   await c.start({ jet: o.lead, tod: o.tod, weather: o.weather });
   const p = g.player;
   const wings = [];
   for (const t of o.wings) wings.push(await c.add(t));
-  let ox, oz, hdg, ground;
-  if (o.where === 'runway') {
-    // along the blue runway, the camera on the grass beside it
-    const f = ROLES.duelBlue;
-    ox = f.x;
-    oz = f.z;
-    hdg = Math.atan2(f.ax, -f.az) / D;
-    ground = f.elev;
+  let sx, sz, hdg;
+  if (o.where === 'coast') {
+    // start over open water about 9 km short of the highest ground nearby, flying at it
+    const pk = await c.findHigh(p.fm.pos.x, p.fm.pos.z, 30000);
+    let ux = pk[0] - p.fm.pos.x;
+    let uz = pk[1] - p.fm.pos.z;
+    const ul = Math.hypot(ux, uz) || 1;
+    ux /= ul;
+    uz /= ul;
+    const s = await c.findSea(pk[0] - ux * 9000, pk[1] - uz * 9000, 1500);
+    sx = s[0];
+    sz = s[1];
+    hdg = pk[2] > 20 ? Math.atan2(pk[0] - sx, -(pk[1] - sz)) / D : 90;
   } else {
-    // out over open water
     const s = await c.findSea(p.fm.pos.x, p.fm.pos.z, 3000);
-    ox = s[0];
-    oz = s[1];
+    sx = s[0];
+    sz = s[1];
     hdg = o.heading;
-    ground = 0;
   }
-  window.__fly = { c, g, THREE, D, p, wings, ox, oz, hdg, ground, o, pass: -1, look: new THREE.Vector3(), cpos: null, sunDone: false };
+  // the height: clear of the highest ground on the way
+  const hr = hdg * D;
+  let maxH = 0;
+  for (let d = 0; d <= 5000; d += 150) maxH = Math.max(maxH, surfaceHeight(sx + Math.sin(hr) * d, sz - Math.cos(hr) * d));
+  const alt = Math.max(o.alt, maxH + 90);
+  // (a tall frame sees less of the sides: the lenses open up)
+  const AK = g.renderer.camera.aspect < 1 ? 1.35 : 1;
+  window.__fly = {
+    c, g, THREE, D, p, wings, o, hdg, alt, AK, surfaceHeight,
+    lead: new THREE.Vector3(sx, alt, sz),
+    wpos: wings.map(() => null),
+    sunDone: false,
+  };
 }
 
-/** one frame of a fly-by at t seconds; returns the JPEG */
+/** one frame of the formation shot at t seconds; returns the JPEG (nothing if no overlay is given) */
 async function flyFrame(t, dt, ov) {
   const S = window.__fly;
   const c = S.c;
@@ -277,63 +332,44 @@ async function flyFrame(t, dt, ov) {
   const THREE = S.THREE;
   const D = S.D;
   const o = S.o;
-  let idx = 0;
-  for (let i = 0; i < o.passes.length; i++) if (t >= o.passes[i].t0) idx = i;
-  const P = o.passes[idx];
-  const enter = idx !== S.pass;
-  const Hh = S.hdg + (P.dir < 0 ? 180 : 0);
-  const dx = Math.sin(Hh * D);
-  const dz = -Math.cos(Hh * D); // along the flight line
-  const rx = Math.cos(Hh * D);
-  const rz = Math.sin(Hh * D); // to its right
-  const y0 = S.ground + P.alt;
-  const tl = t - P.t0;
-  let lx, ly, lz;
-  let pitch = 0;
-  let roll = 0;
-  let aoa = 3;
-  let gl = 1.1;
-  let spd = P.speed;
-  if (P.kind === 'climb') {
-    if (enter || !S.cpos) S.cpos = new THREE.Vector3(S.ox - dx * P.speed * P.passAt, y0, S.oz - dz * P.speed * P.passAt);
-    const k = Math.max(0, tl - P.climbAt);
-    pitch = Math.min(85, k * 58);
-    spd = P.speed * (1 - 0.1 * Math.min(k, 3));
-    const pr = pitch * D;
-    S.cpos.x += dx * Math.cos(pr) * spd * dt;
-    S.cpos.y += Math.sin(pr) * spd * dt;
-    S.cpos.z += dz * Math.cos(pr) * spd * dt;
-    roll = 20 * Math.sin(Math.min(1, k / 1.5) * Math.PI);
-    if (pitch > 5) {
-      aoa = 12;
-      gl = 4.5;
+  const V = THREE.Vector3;
+  const sm = (a, b, x) => {
+    const u = Math.max(0, Math.min(1, (x - a) / (b - a)));
+    return u * u * (3 - 2 * u);
+  };
+  const hd = S.hdg * D;
+  const dirH = new V(Math.sin(hd), 0, -Math.cos(hd)); // the way they fly
+  const rightH = new V(Math.cos(hd), 0, Math.sin(hd)); // to its right
+  // ---- the lead: level, then a smooth pull-up into a climb
+  const k = Math.max(0, t - o.climbAt);
+  const pitch = 78 * sm(0, 2.4, k);
+  const speed = o.speed * (1 - 0.12 * sm(0, 3, k));
+  const pr = pitch * D;
+  const fwd3 = new V(dirH.x * Math.cos(pr), Math.sin(pr), dirH.z * Math.cos(pr));
+  const L = S.lead;
+  L.addScaledVector(fwd3, speed * dt);
+  if (pitch < 1) L.y = S.alt + 2.5 * Math.sin(t * 0.9);
+  const climbing = pitch > 5;
+  c.pose(S.p, { pos: [L.x, L.y, L.z], hdg: S.hdg, pitch, roll: climbing ? 0 : 4 * Math.sin(t * 0.7), aoa: climbing ? 10 : 3, speed, mach: o.mach, g: climbing ? 3.5 : 1.1, ab: 1 });
+  // ---- the wingmen: in formation, then peeling away level
+  S.wings.forEach((w, i) => {
+    const side = i % 2 ? 1 : -1;
+    const rank = 1 + Math.floor(i / 2);
+    if (t < o.wingBreak) {
+      const x = L.x + rightH.x * 26 * rank * side - dirH.x * 22 * rank;
+      const z = L.z + rightH.z * 26 * rank * side - dirH.z * 22 * rank;
+      S.wpos[i] = new V(x, S.alt + 1.2 * Math.sin(t * 1.3 + i * 2), z);
+      c.pose(w, { pos: [x, S.wpos[i].y, z], hdg: S.hdg, pitch: 0, roll: 4 * Math.sin(t * 0.8 + i * 2), aoa: 3, speed: o.speed, mach: o.mach, g: 1.1, ab: 1 });
+    } else {
+      const wp = S.wpos[i];
+      wp.addScaledVector(dirH, o.speed * dt);
+      wp.addScaledVector(rightH, side * 12 * dt);
+      c.pose(w, { pos: [wp.x, wp.y, wp.z], hdg: S.hdg + side * 4, pitch: 0, roll: side * 35, aoa: 3, speed: o.speed, mach: o.mach, g: 1.6, ab: 1 });
     }
-    lx = S.cpos.x;
-    ly = S.cpos.y;
-    lz = S.cpos.z;
-  } else {
-    const along = P.speed * (tl - P.passAt);
-    lx = S.ox + dx * along;
-    lz = S.oz + dz * along;
-    ly = y0 + 1.5 * Math.sin(tl * 1.7);
-    roll = 5 * Math.sin(tl * 1.3);
-  }
-  const camX = S.ox + rx * P.camAcross;
-  const camZ = S.oz + rz * P.camAcross;
-  const camY = S.ground + P.camH;
-  if (enter) {
-    // a new pass: the smoke and trails of the last one go, the camera starts on its jet
-    try {
-      g.combat.clearEffects();
-    } catch (e) {
-      /* nothing to clear */
-    }
-    S.look.set(lx, ly, lz);
-  }
+  });
   if (!S.sunDone) {
     // the sun for the whole scene (the game's light and reflections follow it)
-    const brg = Math.atan2(S.ox - camX, -(S.oz - camZ)) / D;
-    c.sun(o.sunElev, o.sunHdg != null ? S.hdg + o.sunHdg : brg + o.sunOff);
+    c.sun(o.sunElev, S.hdg + o.sunHdg);
     try {
       g.world.bakeLighting(g.renderer.renderer);
       g.world.env.buildEnvMap(g.renderer.renderer);
@@ -342,34 +378,40 @@ async function flyFrame(t, dt, ov) {
     }
     S.sunDone = true;
   }
-  c.pose(S.p, { pos: [lx, ly, lz], hdg: Hh, pitch, roll, aoa, speed: spd, mach: P.mach, g: gl, ab: 1 });
-  S.wings.forEach((w, i) => {
-    if (P.kind === 'climb') {
-      // (the wingmen are out of the picture for the pull-up)
-      c.pose(w, { pos: [lx, -50000, lz], hdg: Hh, speed: 200 });
-      return;
-    }
-    const side = i % 2 ? 1 : -1;
-    const rank = 1 + Math.floor(i / 2);
-    const back = 42 * rank;
-    const out = 52 * rank * side;
-    c.pose(w, {
-      pos: [lx - dx * back + rx * out, ly + 1.2 * Math.sin(tl * 2 + i), lz - dz * back + rz * out],
-      hdg: Hh, pitch: 0, roll: 5 * Math.sin(tl * 1.4 + i * 2), aoa: 3, speed: P.speed, mach: P.mach, g: 1.1, ab: 1,
-    });
-  });
-  // the camera: on the ground, tracking the lead a little late (the pan lags), zooming to keep the jets framed
-  S.look.lerp(new THREE.Vector3(lx, ly, lz), 1 - Math.exp(-dt * P.k));
-  const dist = Math.hypot(camX - lx, camY - ly, camZ - lz);
-  const fov = Math.max(P.fovMin, Math.min(P.fovMax, (2 * Math.atan(P.frame / Math.max(dist, 1))) / D));
-  c.view([camX, camY, camZ], [S.look.x, S.look.y, S.look.z], fov, 0);
-  // the shake: a handheld judder that jumps as the jets go by
-  const amp = P.shake * (0.35 + 1.5 * Math.exp(-dist / 160)) * 0.004;
+  // ---- the camera: it rides with the lead on a smooth move (no shake, no whip, the horizon level)
+  let C = o.cams[o.cams.length - 1];
+  for (const cc of o.cams) if (t >= cc.t0 && t <= cc.t1) C = cc;
+  const u = sm(C.t0, C.t1, t);
+  const mix = (a, b) => a + (b - a) * u;
+  let cx, cy, cz, lx, ly, lz;
+  if (C.orbit) {
+    const th = mix(C.orbit.th[0], C.orbit.th[1]) * D;
+    const R = mix(C.orbit.R[0], C.orbit.R[1]);
+    const h = mix(C.orbit.h[0], C.orbit.h[1]);
+    cx = L.x + rightH.x * Math.sin(th) * R + dirH.x * Math.cos(th) * R;
+    cz = L.z + rightH.z * Math.sin(th) * R + dirH.z * Math.cos(th) * R;
+    cy = L.y + h;
+    lx = L.x;
+    ly = L.y + 0.6;
+    lz = L.z;
+  } else {
+    const r = mix(C.a[0], C.b[0]);
+    const up = mix(C.a[1], C.b[1]);
+    const back = mix(C.a[2], C.b[2]);
+    cx = L.x + rightH.x * r - fwd3.x * back;
+    cy = L.y + up - fwd3.y * back;
+    cz = L.z + rightH.z * r - fwd3.z * back;
+    lx = L.x + fwd3.x * C.ahead;
+    ly = L.y + fwd3.y * C.ahead + 0.5;
+    lz = L.z + fwd3.z * C.ahead;
+  }
+  const gh = Math.max(0, S.surfaceHeight(cx, cz));
+  if (cy < gh + 3) cy = gh + 3;
+  c.view([cx, cy, cz], [lx, ly, lz], mix(C.fov[0], C.fov[1]) * S.AK, 0);
+  // (only a very slow float, so it never looks locked to a tripod)
   const cam = g.renderer.camera;
-  cam.rotateX(Math.sin(t * 53) * amp + Math.sin(t * 91) * amp * 0.5);
-  cam.rotateY(Math.sin(t * 47) * amp);
-  cam.rotateZ(Math.sin(t * 71) * amp * 0.4);
-  S.pass = idx;
+  cam.rotateX(Math.sin(t * 0.8) * 0.0012);
+  cam.rotateY(Math.sin(t * 0.55) * 0.0014);
   c.frame(dt);
   return ov ? window.__grab(ov) : null;
 }
@@ -384,7 +426,11 @@ async function flySettle() {
 /**
  * o: { jet, tod, weather, shiftNm }
  * Starts a 5v5 team battle, flies the player's jet with an AI pilot too, brings the two teams closer, and puts a
- * camera director in charge of the view: chase, wing, orbit, fly-by, missile and kill cameras, with shake.
+ * camera director in charge of the view. Everyone holds fire until __fight.go(): the first missiles fly on camera.
+ *
+ * The director: smooth shots only (chase, orbit and long lens with a level horizon, a slow float, nothing shaky),
+ * a close-up in slow motion on every missile launch, then the missile's own view, then the kill in slow motion;
+ * it favours jets near the enemy and jets of a type it has not shown yet, and cuts away from any jet that leaves the fight.
  */
 async function fightInit(o) {
   const g = window.game;
@@ -407,18 +453,33 @@ async function fightInit(o) {
   // the two teams start closer, so the missiles fly and the jets merge within the scene
   for (const a of g.sim.aircraft) a.fm.pos.x += (a.team === 'blue' ? 1 : -1) * o.shiftNm * 1852;
 
+  const F = { live: false };
+  // everyone flies but holds fire until go(): the first missiles then leave their rails in front of the camera
+  const hold = () => {
+    for (const a of g.sim.aircraft) if (a.ai) a.ai.weaponsHold = !F.live;
+  };
   // the player's jet is flown by an AI pilot too, on its team's patrol route
-  const attachAI = (p) => {
+  F.attachAI = (p) => {
     const ally = g.sim.aircraft.find((a) => a.team === 'blue' && a !== p && a.ai && a.ai.route && a.ai.route.length);
     p.ai = new AIPilot(p, duelSkill('HARD'), g.picture);
     if (ally) p.ai.setRoute(ally.ai.route.map((v) => v.clone()), ally.ai.patrolAlt);
+    p.ai.weaponsHold = !F.live;
   };
+  hold();
 
   // ---- the camera director
   const cam = g.renderer.camera;
-  const Dr = { t: 0, shot: null, shake: 0, lastSubj: null, lastMissileAt: -99, lastWreckAt: -99, pendMissile: null, pendKill: null, warned: false };
+  const AK = cam.aspect < 1 ? 1.35 : 1; // (a tall frame: the lenses open up)
+  const Dr = {
+    vt: 0, dv: 1 / 30, shot: null, lastSubj: null, lastLaunchAt: -99, lastWreckAt: -99, pendLaunch: null, pendKill: null,
+    warned: false, speed: 1, speedTarget: 1, seen: {}, init: false, cp: new V(), cq: new THREE.Quaternion(), cf: 50,
+  };
+  F.Dr = Dr;
   const t1 = new V();
   const t2 = new V();
+  const UP = new V(0, 1, 0);
+  const mat = new THREE.Matrix4();
+  const qd = new THREE.Quaternion();
   const eul = new THREE.Euler(0, 0, 0, 'YXZ');
   const qq = new THREE.Quaternion();
   const aboveGround = (p, min) => {
@@ -427,27 +488,32 @@ async function fightInit(o) {
   };
   const inSim = (a) => !!a && g.sim.aircraft.indexOf(a) >= 0;
   g.sim.events.on('launch', (e) => {
-    if (Dr.t - Dr.lastMissileAt > 7 && Math.random() < 0.75) Dr.pendMissile = e.missile;
+    if (Dr.vt - Dr.lastLaunchAt > 5 && inSim(e.shooter) && Math.random() < 0.85) Dr.pendLaunch = e;
   });
   g.sim.events.on('destroyed', (e) => {
-    Dr.shake = Math.min(1.6, Dr.shake + 0.8);
-    if (Dr.t - Dr.lastWreckAt > 4.5 && inSim(e.victim)) Dr.pendKill = e.victim;
+    if (Dr.vt - Dr.lastWreckAt > 5 && inSim(e.victim)) Dr.pendKill = e.victim;
   });
-  const mk = (kind, subj, extra) => Object.assign({ kind, subj, t: 0, dur: 4, shake: 0.3, fov: 55, pos: new V(), look: new V(), init: false, side: Math.random() < 0.5 ? -1 : 1, seed: Math.random() * 6.283 }, extra);
-  // the jet with the most going on: near the enemy, a missile in the air, burners lit, and not the one we just saw
+  const mk = (kind, subj, extra) => Object.assign({ kind, subj, vt: 0, dur: 4, fov: 50, kp: 8, kr: 8, pos: new V(), look: new V(), side: Math.random() < 0.5 ? -1 : 1, seed: Math.random() * 6.283, snap: true, speed: 1, done: false }, extra);
+  // a planned shot ends on a half second (the music is at 120 bpm), at least 2.5 s after it starts
+  const endAt = (d) => Math.max(Dr.vt + 2.5, Math.round((Dr.vt + d) * 2) / 2);
+  const nearestFoe = (a) => {
+    let d = 1e9;
+    for (const b of g.sim.aircraft) if (b.alive && b.team !== a.team) d = Math.min(d, a.fm.pos.distanceTo(b.fm.pos));
+    return d;
+  };
+  // the jet with the most going on: near the enemy, a missile in the air, a type not shown yet, not the one we just saw
   const pickSubject = () => {
-    const jets = g.sim.aircraft.filter((a) => a.alive);
-    if (!jets.length) return null;
     let best = null;
     let bs = -1e9;
-    for (const a of jets) {
-      let dmin = 1e9;
-      for (const b of jets) if (b.team !== a.team) dmin = Math.min(dmin, a.fm.pos.distanceTo(b.fm.pos));
-      let s = -Math.min(dmin, 30000) / 1500;
-      if (a === Dr.lastSubj) s -= 5;
-      for (const m of g.sim.missiles) if (m.alive && (m.target === a || m.shooter === a)) s += 2.5;
-      if (a.fm.afterburner > 0.5) s += 0.8;
-      s += Math.random() * 2.5;
+    for (const a of g.sim.aircraft) {
+      if (!a.alive) continue;
+      const dmin = nearestFoe(a);
+      if (dmin > 12000) continue; // alone and far from the fight: never
+      let s = -dmin / 1200;
+      if (a === Dr.lastSubj) s -= 6;
+      s += 3 / (1 + (Dr.seen[a.type] || 0));
+      for (const m of g.sim.missiles) if (m.alive && (m.target === a || m.shooter === a)) s += 2;
+      s += Math.random() * 2;
       if (s > bs) {
         bs = s;
         best = a;
@@ -455,130 +521,172 @@ async function fightInit(o) {
     }
     return best;
   };
+  const launchShot = (e) => {
+    const sh = e.shooter;
+    const side = t1.subVectors(e.missile.pos, sh.fm.pos).dot(sh.fm.right) >= 0 ? 1 : -1;
+    return mk('launch', sh, { missile: e.missile, side, dur: 7, kp: Infinity, kr: 14 });
+  };
+  const wreckShot = (v) => {
+    const a = Math.random() * 6.283;
+    return mk('wreck', v, { dur: 3.4, fov: 48, kp: Infinity, kr: 10, off: new V(Math.cos(a), 0.25, Math.sin(a)).multiplyScalar(75 + Math.random() * 35) });
+  };
   const nextShot = () => {
+    // a missile already in the air: ride it
+    if (Dr.vt - Dr.lastLaunchAt > 4 && Math.random() < 0.4) {
+      const ms = g.sim.missiles.filter((m) => m.alive && m.target && m.target.alive && inSim(m.shooter));
+      if (ms.length) {
+        Dr.lastLaunchAt = Dr.vt;
+        return mk('trail', null, { missile: ms[Math.floor(Math.random() * ms.length)], dur: 6, fov: 56, kp: 6, kr: 9 });
+      }
+    }
     const s = pickSubject();
     if (!s) return null;
     Dr.lastSubj = s;
+    Dr.seen[s.type] = (Dr.seen[s.type] || 0) + 1;
     const r = Math.random();
-    const spd = s.fm.vel.length();
-    if (r < 0.3) return mk('chase', s, { dur: 3.2 + Math.random() * 2, fov: 58, shake: 0.4 });
-    if (r < 0.52) return mk('wing', s, { dur: 3 + Math.random() * 1.8, fov: 52, shake: 0.55 });
-    if (r < 0.75 || spd < 120) return mk('orbit', s, { dur: 3.5 + Math.random() * 1.8, fov: 48, shake: 0.3 });
-    return mk('flyby', s, { dur: 5, fov: 32, shake: 0.8 });
+    const end = endAt(3.6 + Math.random() * 2.4);
+    if (r < 0.4) return mk('chase', s, { endVT: end, fov: 52, kp: 6, kr: 7 });
+    if (r < 0.72) return mk('orbit', s, { endVT: end, fov: 46, kp: Infinity, kr: 12 });
+    // the long lens: far back, the position following the jet slowly, a flat, compressed look
+    const a = Math.random() * 6.283;
+    return mk('long', s, { endVT: end, fov: 20, kp: 1.6, kr: 5, off: new V(Math.cos(a), 0.12, Math.sin(a)).multiplyScalar(260) });
   };
-  const bad = (s) => (s.kind === 'missile' ? false : !s.subj || !inSim(s.subj) || (s.kind !== 'wreck' && !s.subj.alive));
+  // is the shot still worth showing
+  const bad = (s) => {
+    if (s.kind === 'trail' || s.kind === 'launch') return false; // they end themselves
+    if (!s.subj || !inSim(s.subj)) return true;
+    if (s.kind === 'wreck') return false;
+    if (!s.subj.alive) return true;
+    return nearestFoe(s.subj) > 12000; // the jet has left the fight
+  };
 
-  const place = (s, dt) => {
+  // the missile seen from behind, looking at its target; the shot ends when it ends
+  const trailPlace = (s, dv) => {
+    const m = s.missile;
+    t1.copy(m.vel);
+    if (t1.lengthSq() < 1) t1.set(0, 0, -1);
+    t1.normalize();
+    s.pos.copy(m.pos).addScaledVector(t1, -12);
+    s.pos.y += 2.5;
+    const tg = m.target;
+    if (tg && tg.alive) {
+      s.look.copy(tg.fm.pos);
+      s.lost = 0;
+    } else {
+      s.look.copy(m.pos).addScaledVector(t1, 150);
+      s.lost = (s.lost || 0) + dv;
+    }
+    if (!m.alive) s.gone = (s.gone || 0) + dv;
+    let near = 1e9;
+    for (const a of g.sim.aircraft) if (a.alive) near = Math.min(near, a.fm.pos.distanceTo(m.pos));
+    if ((s.gone || 0) > 0.9 || (s.lost || 0) > 0.7 || near > 3500 || s.vt > s.dur) s.done = true;
+  };
+
+  const place = (s, dv) => {
     const fm = s.subj ? s.subj.fm : null;
     const len = s.subj ? s.subj.spec.length : 16;
-    let shake = s.shake;
-    let up = null;
     if (s.kind === 'chase') {
       // behind and above, a little to one side, the position following with a short lag
-      t1.copy(fm.fwd).multiplyScalar(-(len * 1.1 + 6)).add(fm.pos);
-      t1.y += len * 0.3 + 2;
-      t1.addScaledVector(fm.right, s.side * len * 0.35);
-      if (!s.init) {
-        s.pos.copy(t1);
-        s.init = true;
-      } else s.pos.lerp(t1, 1 - Math.exp(-dt * 12));
-      s.look.copy(fm.pos).addScaledVector(fm.fwd, len * 0.7);
-    } else if (s.kind === 'wing') {
-      // off the wingtip, rolling with the jet (the horizon tilts in the turns)
-      s.pos.copy(fm.pos).addScaledVector(fm.right, s.side * len * 0.9).addScaledVector(fm.up, len * 0.18).addScaledVector(fm.fwd, -len * 0.25);
-      s.look.copy(fm.pos).addScaledVector(fm.fwd, len * 0.15);
-      up = fm.up;
+      t1.copy(fm.fwd);
+      t1.y *= 0.5;
+      t1.normalize();
+      s.pos.copy(fm.pos).addScaledVector(t1, -(len * 1.6 + 14));
+      s.pos.y += len * 0.35 + 3;
+      s.pos.addScaledVector(fm.right, s.side * len * 0.5);
+      s.look.copy(fm.pos).addScaledVector(fm.fwd, len * 0.5);
     } else if (s.kind === 'orbit') {
-      // circling the jet as it flies
-      const a = s.seed + s.t * 0.55;
-      const r = len * 2 + 10;
-      const e = 0.22 + 0.14 * Math.sin(s.t * 0.8 + s.seed);
+      // a slow circle round the jet as it flies, the camera locked to it
+      const a = s.seed + 0.28 * s.vt;
+      const r = len * 2.6 + 14;
+      const e = 0.18 + 0.1 * Math.sin(0.5 * s.vt + s.seed);
       s.pos.set(Math.cos(a) * Math.cos(e) * r, Math.sin(e) * r, Math.sin(a) * Math.cos(e) * r).add(fm.pos);
       s.look.copy(fm.pos);
-    } else if (s.kind === 'flyby') {
-      // a camera left in the sky ahead of the jet: it passes close, the camera whips round and shakes
-      if (!s.init) {
-        const sp = Math.max(120, fm.vel.length());
-        t1.copy(fm.vel).setLength(sp * 1.9);
-        s.pos.copy(fm.pos).add(t1).addScaledVector(fm.right, s.side * (45 + Math.random() * 40));
-        s.pos.y += 4 + Math.random() * 18;
-        s.look.copy(fm.pos);
-        s.init = true;
-      }
-      s.look.lerp(fm.pos, 1 - Math.exp(-dt * 9));
-      const dist = s.pos.distanceTo(fm.pos);
-      shake = 0.35 + 1.5 * Math.exp(-dist / 120);
-      t1.subVectors(fm.pos, s.pos);
-      if (s.t > 1 && t1.dot(fm.vel) > 0 && dist > 140) s.dur = Math.min(s.dur, s.t + 0.6);
-    } else if (s.kind === 'missile') {
-      // riding behind a missile in flight, looking at its target
-      const m = s.missile;
-      if (!m.alive) {
-        s.gone = (s.gone || 0) + dt;
-        if (s.gone > 1) s.dur = 0;
-      }
-      t1.copy(m.vel);
-      if (t1.lengthSq() < 1) t1.set(0, 0, -1);
-      t1.normalize();
-      t2.copy(m.pos).addScaledVector(t1, -11);
-      t2.y += 2.4;
-      if (!s.init) {
-        s.pos.copy(t2);
-        s.init = true;
-      } else s.pos.lerp(t2, 1 - Math.exp(-dt * 14));
-      if (m.target && m.target.alive) s.look.copy(m.target.fm.pos);
-      else s.look.copy(m.pos).addScaledVector(t1, 120);
-    } else {
-      // a kill: the camera falls with the wreck at a short distance
-      if (!s.init) {
-        s.off = new V(Math.cos(s.seed), 0.22, Math.sin(s.seed)).multiplyScalar(70 + Math.random() * 50);
-        s.init = true;
-      }
+    } else if (s.kind === 'long') {
       s.pos.copy(fm.pos).add(s.off);
       s.look.copy(fm.pos);
-      shake = 0.3;
+    } else if (s.kind === 'launch') {
+      if (s.vt < 1.4) {
+        // close on the missile leaving its rail, in slow motion
+        s.pos.copy(fm.pos).addScaledVector(fm.right, s.side * 8.5).addScaledVector(fm.up, 0.8).addScaledVector(fm.fwd, -3.5);
+        s.look.copy(s.missile.pos);
+        s.kp = Infinity;
+        s.kr = 14;
+        s.fov = 46;
+        s.speed = 0.3;
+      } else {
+        // then away with it
+        trailPlace(s, dv);
+        s.kp = 6;
+        s.kr = 9;
+        s.fov = 56;
+        s.speed = 1;
+      }
+      if (s.vt > s.dur) s.done = true;
+    } else if (s.kind === 'trail') {
+      trailPlace(s, dv);
+    } else {
+      // a kill: the camera falls with the wreck at a short distance, in slow motion for the first moments
+      s.pos.copy(fm.pos).add(s.off);
+      s.look.copy(fm.pos);
+      s.speed = s.vt < 2.2 ? 0.35 : 1;
+      if (s.vt > s.dur) s.done = true;
     }
+  };
+
+  // the camera itself: the position and the aim follow the shot's with their own smoothing, a cut snaps
+  const frameCam = (s, dv) => {
     aboveGround(s.pos, 3);
-    if (!(isFinite(s.pos.x) && isFinite(s.pos.y) && isFinite(s.look.x))) throw new Error('bad camera position');
-    cam.position.copy(s.pos);
-    if (up) cam.up.copy(up);
-    else cam.up.set(0, 1, 0);
-    cam.lookAt(s.look);
-    const amp = (shake + Dr.shake) * 0.006;
-    const T = Dr.t;
-    eul.set(Math.sin(T * 53) * amp + Math.sin(T * 91) * amp * 0.5, Math.sin(T * 47) * amp, Math.sin(T * 71) * amp * 0.3);
+    if (!(isFinite(s.pos.x) && isFinite(s.pos.y) && isFinite(s.pos.z) && isFinite(s.look.x) && isFinite(s.look.y))) throw new Error('bad camera position');
+    const snap = s.snap || !Dr.init;
+    if (snap) Dr.cp.copy(s.pos);
+    else if (s.kp === Infinity) Dr.cp.copy(s.pos);
+    else Dr.cp.lerp(s.pos, 1 - Math.exp(-dv * s.kp));
+    aboveGround(Dr.cp, 3);
+    mat.lookAt(Dr.cp, s.look, UP);
+    qd.setFromRotationMatrix(mat);
+    if (snap) {
+      Dr.cq.copy(qd);
+      Dr.cf = s.fov * AK;
+      s.snap = false;
+      Dr.init = true;
+    } else {
+      Dr.cq.slerp(qd, 1 - Math.exp(-dv * s.kr));
+      Dr.cf += (s.fov * AK - Dr.cf) * (1 - Math.exp(-dv * 4));
+    }
+    cam.position.copy(Dr.cp);
+    cam.quaternion.copy(Dr.cq);
+    // only a very slow float
+    const T = Dr.vt;
+    eul.set(Math.sin(T * 0.8) * 0.0012 + Math.sin(T * 0.31) * 0.0016, Math.sin(T * 0.57) * 0.0016, Math.sin(T * 0.43) * 0.0006);
     cam.quaternion.multiply(qq.setFromEuler(eul));
-    cam.fov = s.fov;
+    cam.fov = Math.min(85, Dr.cf);
     cam.updateProjectionMatrix();
   };
 
-  const direct = (dt) => {
-    Dr.t += dt;
-    Dr.shake = Math.max(0, Dr.shake - dt * 1.1);
-    // (the game's own explosion shake: it is never worked off here, so take it and clear it)
-    if (g.cam.shake > 0) {
-      Dr.shake = Math.min(1.6, Dr.shake + g.cam.shake * 0.5);
-      g.cam.shake = 0;
-    }
+  const direct = () => {
+    const dv = Dr.dv;
     let s = Dr.shot;
-    if (Dr.pendMissile && Dr.pendMissile.alive) {
-      s = mk('missile', null, { missile: Dr.pendMissile, dur: 6, fov: 58, shake: 0.6 });
-      Dr.lastMissileAt = Dr.t;
+    if (Dr.pendLaunch && inSim(Dr.pendLaunch.shooter) && Dr.pendLaunch.missile.alive) {
+      s = launchShot(Dr.pendLaunch);
+      Dr.lastLaunchAt = Dr.vt;
     } else if (Dr.pendKill) {
-      s = mk('wreck', Dr.pendKill, { dur: 2.8, fov: 50 });
-      Dr.lastWreckAt = Dr.t;
-    } else if (!s || s.t >= s.dur || bad(s)) s = nextShot();
-    Dr.pendMissile = null;
+      s = wreckShot(Dr.pendKill);
+      Dr.lastWreckAt = Dr.vt;
+    } else if (!s || s.done || (s.endVT !== undefined && Dr.vt >= s.endVT) || bad(s)) s = nextShot();
+    Dr.pendLaunch = null;
     Dr.pendKill = null;
     if (!s) return;
     Dr.shot = s;
-    s.t += dt;
-    place(s, dt);
+    s.vt += dv;
+    place(s, dv);
+    Dr.speedTarget = s.speed;
+    frameCam(s, dv);
   };
   const orig = g.cam.update.bind(g.cam);
   g.cam.update = (dt, ac, eye) => {
     try {
-      direct(dt);
+      g.cam.shake = 0; // (the game's explosion shake: none of it)
+      direct();
     } catch (e) {
       // (the game's own camera, if the director ever fails: the footage goes on)
       if (!Dr.warned) {
@@ -588,29 +696,53 @@ async function fightInit(o) {
       orig(dt, ac, eye);
     }
   };
-  window.__fight = { Dr, attachAI };
+  // the fight starts: weapons free, the director starts fresh
+  F.go = () => {
+    F.live = true;
+    hold();
+    Dr.shot = null;
+    Dr.pendLaunch = null;
+    Dr.pendKill = null;
+    Dr.speed = 1;
+    Dr.speedTarget = 1;
+    Dr.init = false;
+    Dr.lastLaunchAt = -99;
+    Dr.lastWreckAt = -99;
+    Dr.lastSubj = null;
+    Dr.seen = {};
+  };
+  window.__fight = F;
 }
 
-/** one frame of the fight (draws it if an overlay is given) */
-async function fightStep(dt, ov) {
+/** one frame of the fight (draws it if an overlay is given); force: slow motion asked for by the scene */
+async function fightStep(dtReal, ov, force, vt) {
   const g = window.game;
+  const F = window.__fight;
+  const Dr = F.Dr;
   if (g.state === 'paused') g.setState('playing');
   const p = g.player;
-  if (p && p.alive && !p.ai) window.__fight.attachAI(p);
-  g.frame(dt);
+  if (p && p.alive && !p.ai) F.attachAI(p);
+  if (vt != null) Dr.vt = vt;
+  Dr.dv = dtReal;
+  // the speed of the action eases to what the shot (or the scene) wants: 1 normal, 0.3 slow motion
+  const want = force == null ? Dr.speedTarget : Math.min(force, Dr.speedTarget);
+  Dr.speed += (want - Dr.speed) * (1 - Math.exp(-dtReal * 6));
+  g.frame(dtReal * Dr.speed);
   return ov ? window.__grab(ov) : null;
 }
 
 /** run the sim on without drawing until the fight starts (the five-second briefing), at most `max` frames */
 function fightFast(max) {
   const g = window.game;
+  const F = window.__fight;
+  F.Dr.dv = 1 / 30;
   g.renderer.render = () => {};
   let n = 0;
   try {
     for (; n < max; n++) {
       if (g.state === 'paused') g.setState('playing');
       const p = g.player;
-      if (p && p.alive && !p.ai) window.__fight.attachAI(p);
+      if (p && p.alive && !p.ai) F.attachAI(p);
       g.frame(1 / 30);
       if (g.mode && g.mode.phase === 'combat') break;
     }
@@ -622,7 +754,7 @@ function fightFast(max) {
 
 // ---------------------------------------------------------------- the hangar
 
-/** o: { type, dur, W, H } the hangar's own camera is replaced by a slow orbit that tightens as the scene goes on */
+/** o: { type, dur } the hangar's own camera is replaced by a slow orbit that tightens as the scene goes on */
 async function hangarInit(o) {
   const g = window.game;
   const h = window.__hangar;
@@ -646,9 +778,9 @@ async function hangarInit(o) {
     const t = S.t;
     const T = Math.min(1, t / S.dur);
     const ease = T * T * (3 - 2 * T);
-    const yaw = 0.4 + t * 0.42;
-    const pitch = 0.1 + 0.1 * Math.sin(t * 0.8);
-    const dist = 21 - 7 * ease;
+    const yaw = 0.4 + t * 0.36;
+    const pitch = 0.1 + 0.08 * Math.sin(t * 0.6);
+    const dist = 22 - 7 * ease;
     const ty = 2.4;
     let x = Math.sin(yaw) * Math.cos(pitch) * dist;
     let y = ty + Math.sin(pitch) * dist;
@@ -660,9 +792,9 @@ async function hangarInit(o) {
     cam.position.set(x, y, z);
     cam.up.set(0, 1, 0);
     cam.lookAt(0, ty, 0);
-    cam.rotateX(Math.sin(t * 7.1) * 0.0012);
-    cam.rotateY(Math.sin(t * 5.3) * 0.0012);
-    cam.fov = 54 - 14 * ease;
+    // the lens: a horizontal angle that closes in as the camera does (a tall frame needs a taller lens for the same width)
+    const hf = (cam.aspect < 1 ? 50 - 12 * ease : 70 - 18 * ease) * (Math.PI / 180);
+    cam.fov = Math.min(95, (2 * Math.atan(Math.tan(hf / 2) / cam.aspect)) * (180 / Math.PI));
     cam.updateProjectionMatrix();
     orig(sc, cam);
   };
@@ -723,20 +855,24 @@ async function sceneFight(page, sc, emit) {
   await install(page, '__fightStep', fightStep);
   await install(page, '__fightFast', fightFast);
   await page.evaluate(fightInit, sc.opts);
-  log('  the battle is set up; letting the terrain load...');
+  log('  the battle is set up (everyone holds fire); letting the terrain load...');
   for (let i = 0; i < 40; i++) {
-    await page.evaluate(([dt]) => window.__fightStep(dt, null), [1 / 30]);
+    await page.evaluate(([dt]) => window.__fightStep(dt, null, null, 0), [1 / 30]);
     await page.waitForTimeout(40);
   }
   const n = await page.evaluate(() => window.__fightFast(900));
-  log(`  briefing over after ${(n / 30).toFixed(1)} s; the fight is on`);
+  log(`  briefing over after ${(n / 30).toFixed(1)} s`);
   for (let i = 0; i < 45; i++) {
-    await page.evaluate(([dt]) => window.__fightStep(dt, null), [1 / 30]);
+    await page.evaluate(([dt]) => window.__fightStep(dt, null, null, 0), [1 / 30]);
     await page.waitForTimeout(40);
   }
+  // weapons free: the first missiles are fired in front of the camera
+  await page.evaluate(() => window.__fight.go());
+  log('  weapons free; recording');
   const total = Math.round(sc.secs * FPS);
   for (let i = 0; i < total; i++) {
-    emit(await page.evaluate(([dt, ov]) => window.__fightStep(dt, ov), [1 / FPS, overlayFor(sc, i / FPS)]));
+    const t = i / FPS;
+    emit(await page.evaluate(([dt, ov, f, vt]) => window.__fightStep(dt, ov, f, vt), [1 / FPS, overlayFor(sc, t), forceSpeed(sc, t), t]));
     progress(sc, i, total);
   }
 }
@@ -876,7 +1012,17 @@ function encode() {
   const final = path.join(OUTROOT, 'triad-trailer.mp4');
   log('joining the scenes...');
   ffmpeg(ff, ['-y', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', '-movflags', '+faststart', final]);
-  return final;
+  if (!MUSIC) return final;
+  if (!fs.existsSync(MUSIC)) {
+    log(`\nThe music file was not found: ${MUSIC}\n(the video without music is at ${final})`);
+    return final;
+  }
+  // the music under the picture: it starts with the video and ends with it (60 s)
+  const withMusic = path.join(OUTROOT, 'triad-trailer-music.mp4');
+  const secs = SCENES.reduce((a, sc) => a + sc.secs, 0);
+  log('adding the music...');
+  ffmpeg(ff, ['-y', '-i', final, '-i', MUSIC, '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '256k', '-t', String(secs), '-movflags', '+faststart', withMusic]);
+  return withMusic;
 }
 
 function selfTest() {
@@ -891,6 +1037,8 @@ function selfTest() {
       for (const l of ov.lines) if (!(l.a >= 0 && l.a <= 1.0001) || typeof l.text !== 'string') bad++;
     }
   }
+  const fs4 = [0, 5.9, 6, 9.9, 10].map((t) => forceSpeed(SCENES[3], t));
+  console.log('slow motion in scene 4 at 0, 5.9, 6, 9.9, 10 s:', fs4.join(' '));
   console.log(bad ? `PROBLEM: ${bad} bad overlay values` : 'overlays ok');
   if (total !== 60 || bad) process.exit(1);
 }
