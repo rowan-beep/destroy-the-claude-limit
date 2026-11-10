@@ -1,4 +1,4 @@
-// Sukhoi Su-35S: 21.9 m long, 15.3 m span, 5.9 m tall.
+// Sukhoi Su-35S: 21.9 m long, 15.3 m span, 5.9 m tall. Measured from a scale three-view.
 // The Flanker layout: a long drooped nose with the OLS-35 ball ahead of a big
 // one-piece bubble canopy, a wide blended lifting body with sharp leading-edge
 // root extensions, two widely spaced engine nacelles underneath with raked
@@ -27,22 +27,29 @@ function circ(R: number, yc: number): P2[] {
 // Right half, 12 control points, bottom centre -> top centre. Points 5-7 are
 // the chine / LERX edge / wing-root line.
 const BODY = keyedProfile([
-  // the long radome droops a little below the cockpit line
-  { z: -11.2, pts: circ(0.012, -0.2) },
-  { z: -10.8, pts: circ(0.17, -0.18) },
-  { z: -10.0, pts: circ(0.37, -0.12) },
-  { z: -9.0, pts: circ(0.53, -0.06) },
-  { z: -8.0, pts: [[0, -0.66], [0.34, -0.64], [0.54, -0.5], [0.63, -0.3], [0.66, -0.1], [0.665, -0.03], [0.66, 0.04], [0.63, 0.22], [0.55, 0.4], [0.42, 0.5], [0.22, 0.54], [0, 0.55]] },
-  { z: -7.3, pts: [[0, -0.72], [0.38, -0.71], [0.6, -0.56], [0.7, -0.33], [0.73, -0.1], [0.74, -0.03], [0.735, 0.05], [0.7, 0.24], [0.62, 0.42], [0.52, 0.48], [0.4, 0.3], [0, 0.16]] },
-  { z: -6.0, pts: [[0, -0.76], [0.42, -0.75], [0.66, -0.6], [0.78, -0.36], [0.83, -0.1], [0.88, -0.02], [0.85, 0.07], [0.78, 0.28], [0.66, 0.45], [0.55, 0.5], [0.42, 0.3], [0, 0.14]] },
-  { z: -5.0, pts: [[0, -0.76], [0.45, -0.76], [0.72, -0.63], [0.86, -0.38], [0.95, -0.12], [1.05, 0.0], [1.02, 0.08], [0.9, 0.26], [0.72, 0.44], [0.58, 0.52], [0.44, 0.34], [0, 0.2]] },
-  { z: -4.1, pts: [[0, -0.74], [0.5, -0.74], [0.8, -0.64], [0.95, -0.4], [1.08, -0.12], [1.32, 0.02], [1.27, 0.1], [1.05, 0.3], [0.82, 0.56], [0.62, 0.8], [0.34, 0.94], [0, 0.97]] },
-  { z: -2.6, pts: [[0, -0.6], [0.6, -0.58], [0.95, -0.52], [1.2, -0.36], [1.4, -0.1], [1.72, 0.04], [1.68, 0.12], [1.32, 0.36], [1.02, 0.6], [0.66, 0.82], [0.34, 0.92], [0, 0.94]] },
-  { z: -1.0, pts: [[0, -0.38], [0.7, -0.38], [1.3, -0.38], [1.8, -0.3], [2.1, -0.08], [2.4, 0.08], [2.35, 0.17], [1.9, 0.33], [1.35, 0.52], [0.8, 0.7], [0.4, 0.8], [0, 0.82]] },
+  // the big radome (no nose boom on the Su-35S) droops below the cockpit line
+  { z: -12.38, pts: circ(0.012, -0.35) },
+  { z: -12.13, pts: circ(0.13, -0.32) },
+  { z: -11.88, pts: circ(0.22, -0.275) },
+  { z: -11.38, pts: circ(0.38, -0.2) },
+  { z: -10.88, pts: circ(0.49, -0.125) },
+  { z: -10.38, pts: circ(0.565, -0.06) },
+  { z: -9.88, pts: circ(0.6, 0.005) },
+  { z: -9.38, pts: circ(0.63, 0.065) },
+  { z: -9.0, pts: circ(0.66, 0.1) },
+  // the cockpit sits high: sills 0.9 m above the nose line, the chine growing out below them
+  { z: -8.0, pts: [[0, -0.44], [0.34, -0.42], [0.56, -0.3], [0.68, -0.12], [0.74, 0.0], [0.75, 0.06], [0.745, 0.12], [0.7, 0.4], [0.6, 0.7], [0.52, 0.86], [0.42, 0.5], [0, 0.4]] },
+  { z: -7.3, pts: [[0, -0.55], [0.38, -0.53], [0.62, -0.4], [0.76, -0.2], [0.84, -0.02], [0.86, 0.05], [0.85, 0.12], [0.76, 0.42], [0.63, 0.74], [0.55, 0.9], [0.44, 0.5], [0, 0.36]] },
+  { z: -6.0, pts: [[0, -0.79], [0.42, -0.77], [0.68, -0.6], [0.84, -0.34], [0.98, -0.06], [1.06, 0.04], [1.03, 0.12], [0.84, 0.42], [0.66, 0.76], [0.56, 0.93], [0.44, 0.5], [0, 0.36]] },
+  // the hump behind the canopy
+  { z: -5.0, pts: [[0, -0.74], [0.45, -0.73], [0.72, -0.6], [0.9, -0.36], [1.08, -0.06], [1.21, 0.04], [1.17, 0.12], [0.92, 0.42], [0.7, 0.8], [0.54, 1.06], [0.3, 1.2], [0, 1.24]] },
+  { z: -4.1, pts: [[0, -0.76], [0.5, -0.75], [0.8, -0.64], [0.98, -0.4], [1.16, -0.08], [1.36, 0.04], [1.31, 0.12], [1.05, 0.4], [0.8, 0.78], [0.58, 1.04], [0.32, 1.19], [0, 1.23]] },
+  { z: -2.6, pts: [[0, -0.6], [0.6, -0.58], [0.95, -0.52], [1.25, -0.36], [1.5, -0.1], [1.83, 0.05], [1.78, 0.13], [1.36, 0.4], [1.02, 0.72], [0.66, 0.98], [0.34, 1.11], [0, 1.14]] },
+  { z: -1.0, pts: [[0, -0.38], [0.7, -0.38], [1.3, -0.38], [1.8, -0.3], [2.1, -0.08], [2.4, 0.08], [2.35, 0.17], [1.9, 0.36], [1.35, 0.6], [0.8, 0.84], [0.4, 0.94], [0, 0.96]] },
   { z: 1.5, pts: [[0, -0.36], [0.7, -0.36], [1.4, -0.36], [2.0, -0.3], [2.25, -0.1], [2.35, 0.06], [2.32, 0.16], [1.95, 0.3], [1.45, 0.42], [0.8, 0.5], [0.4, 0.54], [0, 0.55]] },
   { z: 4.2, pts: [[0, -0.34], [0.7, -0.34], [1.4, -0.36], [1.85, -0.3], [2.05, -0.12], [2.15, 0.04], [2.12, 0.14], [1.85, 0.3], [1.35, 0.38], [0.85, 0.36], [0.4, 0.4], [0, 0.41]] },
-  { z: 5.6, pts: [[0, -0.25], [0.45, -0.3], [0.9, -0.36], [1.3, -0.34], [1.65, -0.18], [1.85, 0.0], [1.83, 0.1], [1.65, 0.26], [1.25, 0.34], [0.8, 0.28], [0.35, 0.33], [0, 0.35]] },
-  { z: 6.55, pts: [[0, -0.36], [0.2, -0.38], [0.35, -0.34], [0.45, -0.22], [0.5, -0.08], [0.5, -0.03], [0.49, 0.02], [0.45, 0.1], [0.35, 0.18], [0.25, 0.22], [0.12, 0.24], [0, 0.24]] },
+  { z: 5.4, pts: [[0, -0.25], [0.45, -0.3], [0.9, -0.36], [1.3, -0.34], [1.65, -0.18], [1.85, 0.0], [1.83, 0.1], [1.65, 0.26], [1.25, 0.34], [0.8, 0.28], [0.35, 0.33], [0, 0.35]] },
+  { z: 6.3, pts: [[0, -0.36], [0.2, -0.38], [0.35, -0.34], [0.45, -0.22], [0.5, -0.08], [0.5, -0.03], [0.49, 0.02], [0.45, 0.1], [0.35, 0.18], [0.25, 0.22], [0.12, 0.24], [0, 0.24]] },
   // the Su-35S's long tail sting runs on past the nozzles
   { z: 8.8, pts: circ(0.27, -0.14) },
   { z: 9.52, pts: circ(0.06, -0.17) },
@@ -50,43 +57,48 @@ const BODY = keyedProfile([
 const BODY_SUB = [4, 3, 3, 3, 2, 1, 2, 3, 3, 3, 4];
 
 const CANOPY: Section[] = [
-  { z: -8.15, w: 0.03, top: 0.02, bot: 0.02, y: 0.5, n: 2 },
-  { z: -7.6, w: 0.42, top: 0.5, bot: 0.03, y: 0.52, n: 2.2 },
-  { z: -7.0, w: 0.53, top: 0.82, bot: 0.03, y: 0.5, n: 2.2 },
-  { z: -6.2, w: 0.56, top: 0.87, bot: 0.03, y: 0.5, n: 2.2 },
-  { z: -5.3, w: 0.54, top: 0.83, bot: 0.03, y: 0.52, n: 2.2 },
-  { z: -4.6, w: 0.44, top: 0.64, bot: 0.03, y: 0.56, n: 2.2 },
-  { z: -4.0, w: 0.26, top: 0.3, bot: 0.03, y: 0.7, n: 2 },
+  { z: -9.1, w: 0.03, top: 0.02, bot: 0.02, y: 0.76, n: 2 },
+  { z: -8.6, w: 0.36, top: 0.2, bot: 0.03, y: 0.82, n: 2.2 },
+  { z: -8.0, w: 0.5, top: 0.42, bot: 0.03, y: 0.88, n: 2.2 },
+  { z: -7.4, w: 0.55, top: 0.62, bot: 0.03, y: 0.9, n: 2.2 },
+  { z: -6.88, w: 0.56, top: 0.67, bot: 0.03, y: 0.91, n: 2.2 },
+  { z: -6.3, w: 0.55, top: 0.58, bot: 0.03, y: 0.95, n: 2.2 },
+  { z: -5.7, w: 0.5, top: 0.38, bot: 0.03, y: 1.03, n: 2.2 },
+  { z: -5.2, w: 0.4, top: 0.2, bot: 0.03, y: 1.1, n: 2.1 },
+  { z: -4.8, w: 0.2, top: 0.06, bot: 0.03, y: 1.18, n: 2 },
 ];
 
-// wing: 42 deg leading edge from the LERX kink, nearly straight trailing edge
-const wle = (x: number) => -1.0 + (x - 2.3) * 0.9;
-const wte = (x: number) => 4.9 - (x - 2.3) * 0.075;
+// wing: 42 deg leading edge from the LERX kink 10.8 m behind the nose; the trailing edge swept back a little
+const wle = (x: number) => -1.55 + (x - 2.4) * 0.895;
+const wte = (x: number) => 4.12 + (x - 5.0) * 0.255;
+const TIP = 7.2;
 const WING: WingStation[] = [
-  { x: 1.8, le: -1.6, te: 4.95, y: 0.14, t: 0.05 },
+  { x: 1.8, le: -2.15, te: wte(1.8), y: 0.14, t: 0.05 },
   { x: 2.3, le: wle(2.3), te: wte(2.3), y: 0.13, t: 0.048 },
-  { x: 7.55, le: wle(7.55), te: wte(7.55), y: 0.02, t: 0.034 },
+  { x: TIP, le: wle(TIP), te: wte(TIP), y: 0.02, t: 0.034 },
 ];
+// stabilators: 9.9 m across, swept 45 degrees, pointed tips
 const STAB: WingStation[] = [
-  { x: 2.15, le: 4.6, te: 7.85, y: 0.02, t: 0.045 },
-  { x: 4.85, le: 7.3, te: 8.05, y: -0.04, t: 0.032 },
+  { x: 2.15, le: 4.04, te: 7.45, y: 0.02, t: 0.045 },
+  { x: 4.55, le: 6.44, te: 7.69, y: -0.035, t: 0.034 },
+  { x: 4.95, le: 6.84, te: 7.05, y: -0.045, t: 0.03 },
 ];
-const STAB_PIVOT_Z = 6.4;
-// fins in their own frame: x = height above the boom
+const STAB_PIVOT_Z = 6.1;
+// fins in their own frame: x = height above the boom; 3.6 m tall, the top corner cut back
 const FIN: WingStation[] = [
-  { x: 0, le: 2.3, te: 6.05, t: 0.045 },
-  { x: 0.6, le: 3.03, te: 6.08, t: 0.043 },
-  { x: 3.3, le: 5.38, te: 6.3, t: 0.032 },
+  { x: 0, le: 2.07, te: 6.2, t: 0.045 },
+  { x: 2.9, le: 4.48, te: 6.2, t: 0.036 },
+  { x: 3.62, le: 5.08, te: 5.68, t: 0.032 },
 ];
-const RUDDER = { h0: 0.55, h1: 3.05, hinge: (h: number) => 5.45 + h * 0.075 };
+const RUDDER = { h0: 0.55, h1: 2.85, hinge: (h: number) => 5.35 + h * 0.01 };
 const VENTRAL: WingStation[] = [
-  { x: -0.25, le: 4.0, te: 6.0, t: 0.05 },
-  { x: 0, le: 4.0, te: 6.0, t: 0.05 },
-  { x: 0.62, le: 4.65, te: 6.0, t: 0.04 },
+  { x: -0.25, le: 3.45, te: 5.4, t: 0.05 },
+  { x: 0, le: 3.45, te: 5.4, t: 0.05 },
+  { x: 1.1, le: 4.15, te: 5.35, t: 0.04 },
 ];
 const BOOM_X = 2.0;
 const NAC_X = 1.25;
-const NOZZLE_Z = 6.55;
+const NOZZLE_Z = 6.2;
 
 // Su-35S splinter scheme: hard-edged, angular fields of a pale and a dark
 // blue-grey over the mid-tone base, stretched along the airframe
@@ -173,30 +185,30 @@ function livery(team: string, withCamo = true): Livery {
   // radome: grey-blue
   gt.fillStyle = 'rgba(96,112,124,0.9)';
   gt.beginPath();
-  gt.ellipse(...T(0, -10.1), 0.55 * pt, 1.2 * pt, 0, 0, Math.PI * 2);
+  gt.ellipse(...T(0, -10.88), 0.64 * pt, 1.5 * pt, 0, 0, Math.PI * 2);
   gt.fill();
   gb.fillStyle = 'rgba(96,112,124,0.9)';
   gb.beginPath();
-  gb.ellipse(...B(0, -10.1), 0.55 * L.pb, 1.2 * L.pb, 0, 0, Math.PI * 2);
+  gb.ellipse(...B(0, -10.88), 0.64 * L.pb, 1.5 * L.pb, 0, 0, Math.PI * 2);
   gb.fill();
-  poly(gs, [S(-11.25, -0.2), S(-8.95, 0.47), S(-8.95, -0.59)], 'rgba(96,112,124,0.9)');
+  poly(gs, [S(-12.42, -0.35), S(-9.38, 0.7), S(-9.38, -0.57)], 'rgba(96,112,124,0.9)');
   // cockpit well
   gt.fillStyle = 'rgba(40,52,56,1)';
-  gt.fillRect(...T(-0.5, -7.4), 1.0 * pt, 3.0 * pt);
+  gt.fillRect(...T(-0.5, -8.5), 1.0 * pt, 3.4 * pt);
   // --- panel lines ------------------------------------------------------------
-  const frames = [-8.95, -7.9, -4.3, -3.1, -1.6, 0.2, 1.9, 3.4, 5.0, 6.6, 8.2, 9.6];
+  const frames = [-9.38, -8.6, -4.3, -3.1, -1.6, 0.2, 1.9, 3.4, 5.0, 6.6, 8.2, 9.6];
   for (const z of frames) {
     line(gt, [T(-1.6, z), T(1.6, z)], 1.4, LINE_LIGHT);
     line(gs, [S(z, -1.3), S(z, 0.78)], 1.5, LINE);
     line(gb, [B(-1.9, z), B(1.9, z)], 1.2, LINE_LIGHT);
   }
-  line(gs, [S(-8.95, -0.05), S(-4.4, 0.0), S(-1.2, 0.08)], 1.5, LINE);
+  line(gs, [S(-9.38, 0.05), S(-4.4, 0.04), S(-1.2, 0.08)], 1.5, LINE);
   line(gs, [S(-4.0, 0.42), S(2.0, 0.36), S(6.4, 0.26)], 1.3, LINE);
   line(gs, [S(-3.3, -1.3), S(6.5, -1.2)], 1.3, LINE);
   for (const sx of [-1, 1]) {
     line(gt, [T(0.4 * sx, -1.4), T(0.35 * sx, 6.4)], 1.2, LINE_LIGHT);
     line(gt, [T(1.2 * sx, -3.0), T(1.35 * sx, 5.6)], 1.2, LINE_LIGHT);
-    line(gt, [T(0.88 * sx, -6.0), T(2.3 * sx, -1.0)], 1.2, LINE_LIGHT); // LERX
+    line(gt, [T(1.06 * sx, -6.0), T(2.05 * sx, -1.9)], 1.2, LINE_LIGHT); // LERX
   }
   // spine access panels (the Su-35S has no dorsal airbrake)
   const spine = (z0: number, z1: number, w: number) => line(gt, [T(-w, z0), T(w, z0), T(w, z1), T(-w, z1)], 1.2, LINE, true);
@@ -214,16 +226,15 @@ function livery(team: string, withCamo = true): Livery {
     const Wb = (x: number, z: number) => B(x * sx, z);
     for (const [g, M] of [[gt, W], [gb, Wb]] as const) {
       line(g, [M(2.4, wle(2.4) + 0.5), M(6.9, wle(6.9) + 0.25)], 1.3, LINE); // LE flap hinge
-      line(g, [M(2.4, 2.0), M(6.6, 3.9)], 1.2, LINE_LIGHT);
+      line(g, [M(2.4, 1.2), M(6.6, 3.4)], 1.2, LINE_LIGHT);
       line(g, [M(2.4, wte(2.4) - 0.8), M(6.3, wte(6.3) - 0.65)], 1.5, LINE); // flaperon hinge
       for (const x of [3.1, 3.9, 4.7, 5.5, 6.2]) line(g, [M(x, wle(x) + 0.5), M(x, wte(x) - 0.75)], 1.0, LINE_LIGHT);
-      rivets(g, M(2.4, 2.0), M(6.6, 3.9), 7, 0.9);
-      line(g, [M(2.4, 7.5), M(4.8, 9.4)], 1.1, LINE_LIGHT); // stabilators
-      line(g, [M(2.3, 9.4), M(4.9, 9.9)], 1.1, LINE_LIGHT);
+      rivets(g, M(2.4, 1.2), M(6.6, 3.4), 7, 0.9);
+      line(g, [M(2.4, 5.2), M(4.6, 7.0)], 1.1, LINE_LIGHT); // stabilators
     }
     // red stars top and bottom
-    star(gt, ...W(5.3, 3.1), 0.55 * pt);
-    star(gb, ...Wb(5.3, 3.1), 0.55 * L.pb);
+    star(gt, ...W(5.3, 2.7), 0.55 * pt);
+    star(gb, ...Wb(5.3, 2.7), 0.55 * L.pb);
   }
   weather(gt, L.top.width, L.top.height, rnd, 0.8, [0, 1]);
   weather(gb, L.bot.width, L.bot.height, rnd, 0.6, [0, 1]);
@@ -231,7 +242,7 @@ function livery(team: string, withCamo = true): Livery {
   // exhaust staining on the booms, sting and nacelle ends
   for (const [g, M, s] of [[gt, T, pt], [gb, B, L.pb]] as const) {
     for (const sx of [-1, 1]) {
-      const [x, y] = M(NAC_X * sx, 8.6);
+      const [x, y] = M(NAC_X * sx, 7.5);
       const grd = g.createLinearGradient(x, y - 2.4 * s, x, y);
       grd.addColorStop(0, 'rgba(40,36,30,0)');
       grd.addColorStop(1, 'rgba(50,40,30,0.4)');
@@ -242,12 +253,12 @@ function livery(team: string, withCamo = true): Livery {
   L.copySides();
   // --- markings on both sides ------------------------------------------------------
   const teamCol = team === 'blue' ? '#1f4f9e' : '#b0241e';
-  L.sideDraw(5.05, 2.05, (g, x, y) => star(g, x, y, 0.42 * ps));
-  L.sideText(team === 'blue' ? '06' : '27', -6.4, -0.28, 0.5 * ps, teamCol);
-  L.sideText('ВКС РОССИИ', 4.95, 1.25, 0.14 * ps, 'rgba(34,40,48,0.85)');
-  L.sideText(team === 'blue' ? 'RF-81706' : 'RF-81727', 5.1, 0.95, 0.1 * ps, 'rgba(34,40,48,0.75)');
+  L.sideDraw(4.9, 2.2, (g, x, y) => star(g, x, y, 0.42 * ps));
+  L.sideText(team === 'blue' ? '06' : '27', -6.9, -0.1, 0.5 * ps, teamCol);
+  L.sideText('ВКС РОССИИ', 4.8, 1.35, 0.14 * ps, 'rgba(34,40,48,0.85)');
+  L.sideText(team === 'blue' ? 'RF-81706' : 'RF-81727', 4.9, 1.05, 0.1 * ps, 'rgba(34,40,48,0.75)');
   // rescue arrow, intake warning
-  L.sideDraw(-7.0, 0.3, (g, x, y) => {
+  L.sideDraw(-7.9, 0.5, (g, x, y) => {
     g.fillStyle = '#c9402c';
     g.beginPath();
     g.moveTo(x, y - 0.1 * ps);
@@ -316,15 +327,15 @@ export function buildSu35(v: AirframeVisual): void {
   const skin = (g: THREE.BufferGeometry) => v.addMesh(stamp(g), paint);
 
   // --- fuselage / lifting body ---------------------------------------------------
-  const zs = mergeStations(stations(-11.2, -8.0, 36, 0.55, 0), stations(-8.0, -4.0, 50), stations(-4.0, 6.55, 100), stations(6.55, 9.52, 30, 0, 0.4));
+  const zs = mergeStations(stations(-12.38, -9.0, 40, 0.55, 0), stations(-9.0, -4.0, 60), stations(-4.0, 6.3, 100), stations(6.3, 9.52, 30, 0, 0.4));
   skin(loftProfile({ stations: zs, profile: BODY, sub: BODY_SUB, capEnd: true }));
-  v.fuselageSections = sectionsFromProfile(BODY, -10.8, 9.1, 44);
+  v.fuselageSections = sectionsFromProfile(BODY, -12.0, 9.1, 46);
 
   // --- engine nacelles with raked intakes: rectangular up front, round at the nozzles
-  const NW = curve([[-3.4, 0.45], [-1.0, 0.47], [3.6, 0.5], [5.7, 0.55], [6.55, 0.56]]);
-  const NH = curve([[-3.4, 0.5], [-1.0, 0.52], [3.6, 0.54], [5.7, 0.56], [6.55, 0.56]]);
-  const NY = curve([[-3.4, -0.78], [-1.0, -0.8], [2.6, -0.68], [4.9, -0.42], [6.55, -0.22]]);
-  const NR = curve([[-3.4, 0.1], [0.0, 0.14], [3.6, 0.3], [5.7, 0.5], [6.55, 0.56]]);
+  const NW = curve([[-3.4, 0.45], [-1.0, 0.47], [3.4, 0.5], [5.4, 0.55], [NOZZLE_Z, 0.56]]);
+  const NH = curve([[-3.4, 0.46], [-1.0, 0.48], [3.4, 0.52], [5.4, 0.56], [NOZZLE_Z, 0.56]]);
+  const NY = curve([[-3.4, -0.72], [-1.0, -0.74], [2.4, -0.64], [4.6, -0.42], [NOZZLE_Z, -0.22]]);
+  const NR = curve([[-3.4, 0.1], [0.0, 0.14], [3.4, 0.3], [5.4, 0.5], [NOZZLE_Z, 0.56]]);
   const nacLoop = (z: number) => rrect(NAC_X, NY(z), NW(z), NH(z), Math.min(NR(z), NW(z) - 0.001, NH(z) - 0.001), 3);
   const nac = intake({
     loop: nacLoop,
@@ -334,8 +345,9 @@ export function buildSu35(v: AirframeVisual): void {
     n: 80,
     // the upper edge leads and the mouth leans back going down (a Flanker's
     // intakes are cut back underneath, facing forward and a little down)
-    rake: (_x, y) => -0.4 * (y + 0.3),
-    fan: { cx: NAC_X, cy: -0.78, r: 0.42 },
+    rake: (_x, y) => -1.2 * (y + 0.28),
+    rakeFade: 2.4,
+    fan: { cx: NAC_X, cy: -0.72, r: 0.4 },
   });
   skin(both(nac.skin));
   v.addMesh(both(nac.duct), pm.duct);
@@ -357,11 +369,11 @@ export function buildSu35(v: AirframeVisual): void {
   skin(split);
 
   // --- tail booms (fins, ventral fins and stabilators hang off them) ------------
-  const BW = curve([[3.0, 0.08], [4.0, 0.22], [6.8, 0.2], [7.8, 0.14], [8.25, 0.02]]);
-  const BT = curve([[3.0, 0.1], [4.0, 0.2], [7.7, 0.18], [8.25, 0.05]]);
-  const BB = curve([[3.0, -0.1], [4.0, -0.28], [7.7, -0.24], [8.25, -0.05]]);
+  const BW = curve([[2.0, 0.08], [3.2, 0.22], [6.6, 0.2], [7.5, 0.14], [7.9, 0.02]]);
+  const BT = curve([[2.0, 0.1], [3.2, 0.2], [7.4, 0.18], [7.9, 0.05]]);
+  const BB = curve([[2.0, -0.1], [3.2, -0.28], [7.4, -0.24], [7.9, -0.05]]);
   const boom = loftProfile({
-    stations: stations(3.0, 8.25, 44, 0.2, 0.3),
+    stations: stations(2.0, 7.9, 46, 0.2, 0.3),
     profile: (z) => {
       const w = BW(z), t = BT(z), b = BB(z);
       return [[BOOM_X, b], [BOOM_X + w * 0.85, b + 0.03], [BOOM_X + w, (t + b) * 0.5], [BOOM_X + w * 0.85, t - 0.02], [BOOM_X, t], [BOOM_X - w * 0.85, t - 0.02], [BOOM_X - w, (t + b) * 0.5], [BOOM_X - w * 0.85, b + 0.03]] as P2[];
@@ -377,14 +389,14 @@ export function buildSu35(v: AirframeVisual): void {
   v.rudderBrake = 0.75;
 
   // --- canopy, seat, pilot ----------------------------------------------------------
-  v.cockpitEye.set(0, 1.0, -6.4);
-  buildCanopy(v, CANOPY, -7.6, []);
-  addPilot(v, new THREE.Vector3(0, 1.0, -6.4), 0.26, { style: 'ru', stick: 'center', martinBaker: true });
+  v.cockpitEye.set(0, 1.33, -7.0);
+  buildCanopy(v, CANOPY, -8.55, []);
+  addPilot(v, new THREE.Vector3(0, 1.33, -7.0), 0.26, { style: 'ru', stick: 'center', martinBaker: true });
   const shroud = loftProfile({
-    stations: stations(-7.35, -6.95, 6),
+    stations: stations(-8.3, -7.9, 6),
     profile: (z) => {
-      const u = sstep(-7.35, -6.95, z);
-      return [[0, 0.18], [0.46, 0.2], [0.52, 0.5], [0.36, 0.6 - u * 0.06], [0, 0.62 - u * 0.06]] as P2[];
+      const u = sstep(-8.3, -7.9, z);
+      return [[0, 0.5], [0.44, 0.52], [0.49, 0.84], [0.35, 0.95 - u * 0.06], [0, 0.97 - u * 0.06]] as P2[];
     },
     sub: 3,
     capEnd: true,
@@ -392,18 +404,18 @@ export function buildSu35(v: AirframeVisual): void {
   v.hideInCockpit.push(v.addMesh(shroud, pm.seat));
   // OLS-35 IRST ball ahead of the windscreen, offset right
   const ball = new THREE.Mesh(new THREE.SphereGeometry(0.15, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2), pm.glass);
-  ball.position.set(0.24, 0.5, -8.35);
+  ball.position.set(0.24, 0.72, -9.08);
   v.body.add(ball);
   // (below the glareshield line for the pilot: hidden in the cockpit view)
-  v.hideInCockpit.push(ball, skin(lathe([[0.17, -8.6], [0.18, -8.35], [0.16, -8.1], [0.004, -7.95]], 18, 0.24, 0.47)));
+  v.hideInCockpit.push(ball, skin(lathe([[0.004, -9.42], [0.12, -9.3], [0.14, -9.08], [0.12, -8.88], [0.004, -8.78]], 18, 0.24, 0.64)));
 
   // --- wing: full-span leading-edge flaps, flaperons -----------------------------------
   const panels = wingPanels(
     WING,
     [
-      { x0: 2.45, x1: 7.4, hinge: (x) => wle(x) + 0.14 * (wte(x) - wle(x)) + 0.05, kind: 'lef', maxDeg: 30, leading: true },
+      { x0: 2.45, x1: 7.05, hinge: (x) => wle(x) + 0.14 * (wte(x) - wle(x)) + 0.05, kind: 'lef', maxDeg: 30, leading: true },
       { x0: 2.45, x1: 4.3, hinge: (x) => wte(x) - 0.8, kind: 'flap', maxDeg: 35 },
-      { x0: 4.38, x1: 6.85, hinge: (x) => wte(x) - 0.68, kind: 'aileron', maxDeg: 20 },
+      { x0: 4.38, x1: 6.6, hinge: (x) => wte(x) - 0.68, kind: 'aileron', maxDeg: 20 },
     ],
     { chordPts: 36, thickPos: 0.4 },
   );
@@ -417,7 +429,7 @@ export function buildSu35(v: AirframeVisual): void {
     }
   }
   // wingtip launch rails (always there, like the real jet)
-  const tipRail = lathe([[0.004, wle(7.55) - 0.35], [0.05, wle(7.55) - 0.1], [0.06, wle(7.55) + 0.4], [0.06, wte(7.55) - 0.1], [0.03, wte(7.55) + 0.1], [0.004, wte(7.55) + 0.15]], 14, 7.59, 0.01);
+  const tipRail = lathe([[0.004, wle(TIP) - 1.25], [0.05, wle(TIP) - 0.95], [0.06, wle(TIP) + 0.4], [0.06, wte(TIP) - 0.1], [0.03, wte(TIP) + 0.1], [0.004, wte(TIP) + 0.15]], 14, TIP + 0.04, 0.01);
   skin(both(tipRail));
 
   // --- stabilators --------------------------------------------------------------------------
@@ -434,9 +446,9 @@ export function buildSu35(v: AirframeVisual): void {
     skin(f.fixed);
     v.addSurface(stamp(f.rudder.geo), paint, f.rudder.hinge, f.rudder.axis, 'rudder', side, 25);
     // square dielectric fin-tip cap
-    const top = new THREE.Vector3(3.3, 0, 0).applyMatrix4(m);
-    skin(lathe([[0.004, 5.33], [0.05, 5.46], [0.06, 5.78], [0.055, 6.26], [0.004, 6.37]], 12, top.x, top.y));
-    v.addNavLight(new THREE.Vector3(top.x, top.y + 0.03, 6.25), 'formation');
+    const top = new THREE.Vector3(3.62, 0, 0).applyMatrix4(m);
+    skin(lathe([[0.004, 5.03], [0.05, 5.16], [0.06, 5.4], [0.055, 5.62], [0.004, 5.72]], 12, top.x, top.y));
+    v.addNavLight(new THREE.Vector3(top.x, top.y + 0.03, 5.6), 'formation');
     const vm = finMatrix(BOOM_X * side, -0.2, 160, side);
     skin(wing({ sections: VENTRAL, chordPts: 20, spanSub: 3, tip: 'flat', root: 'flat', matrix: vm }));
   }
@@ -468,24 +480,23 @@ export function buildSu35(v: AirframeVisual): void {
   v.body.add(muzzle);
   skin(lathe([[0.004, -4.3], [0.07, -4.1], [0.08, -3.6], [0.05, -3.2], [0.004, -3.0]], 12, 1.05, 0.08));
   v.addMesh(join([
-    probe(new THREE.Vector3(0, -0.2, -11.15), 1.1, 0.018, new THREE.Vector3(0, 0, -1)),
-    probe(new THREE.Vector3(0.42, 0.1, -9.6), 0.3, 0.01, new THREE.Vector3(0.15, 0, -1).normalize()),
-    probe(new THREE.Vector3(-0.42, 0.1, -9.6), 0.3, 0.01, new THREE.Vector3(-0.15, 0, -1).normalize()),
+        probe(new THREE.Vector3(0.56, -0.08, -10.6), 0.3, 0.01, new THREE.Vector3(0.15, 0, -1).normalize()),
+    probe(new THREE.Vector3(-0.56, -0.08, -10.6), 0.3, 0.01, new THREE.Vector3(-0.15, 0, -1).normalize()),
   ]), pm.antenna);
   v.addMesh(join([
-    blade(new THREE.Vector3(0, 0.55, 1.4), 0.22, 0.3),
+    blade(new THREE.Vector3(0, 0.56, 1.4), 0.22, 0.3),
     blade(new THREE.Vector3(0, 0.4, 4.3), 0.16, 0.26),
     blade(new THREE.Vector3(0, -0.76, -5.2), 0.18, 0.26, new THREE.Vector3(0, -1, 0)),
     blade(new THREE.Vector3(0, -0.36, 2.5), 0.18, 0.28, new THREE.Vector3(0, -1, 0)),
   ]), pm.antenna);
   v.addMesh(join([
-    formationStrip(new THREE.Vector3(0.74, 0.22, -6.5), new THREE.Vector3(1, 0.25, 0), new THREE.Vector3(0, 0, 1), 0.5, 0.035),
-    formationStrip(new THREE.Vector3(-0.74, 0.22, -6.5), new THREE.Vector3(-1, 0.25, 0), new THREE.Vector3(0, 0, 1), 0.5, 0.035),
+    formationStrip(new THREE.Vector3(0.92, 0.3, -6.5), new THREE.Vector3(1, 0.25, 0), new THREE.Vector3(0, 0, 1), 0.5, 0.035),
+    formationStrip(new THREE.Vector3(-0.92, 0.3, -6.5), new THREE.Vector3(-1, 0.25, 0), new THREE.Vector3(0, 0, 1), 0.5, 0.035),
     formationStrip(new THREE.Vector3(NAC_X + 0.5, -0.52, 4.2), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 1), 0.6, 0.035),
     formationStrip(new THREE.Vector3(-NAC_X - 0.5, -0.52, 4.2), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 1), 0.6, 0.035),
   ]), pm.formation, v.body, false);
-  v.addNavLight(new THREE.Vector3(-7.57, 0.01, wle(7.55) - 0.3), 'red');
-  v.addNavLight(new THREE.Vector3(7.57, 0.01, wle(7.55) - 0.3), 'green');
+  v.addNavLight(new THREE.Vector3(-TIP - 0.02, 0.01, wle(TIP) - 0.3), 'red');
+  v.addNavLight(new THREE.Vector3(TIP + 0.02, 0.01, wle(TIP) - 0.3), 'green');
   v.addNavLight(new THREE.Vector3(0, 0.3, 9.42), 'strobe');
   v.addNavLight(new THREE.Vector3(0, -0.36, 1.0), 'strobe');
 
