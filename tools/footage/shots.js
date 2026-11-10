@@ -1,14 +1,14 @@
 // The trailer's shots, run inside the game's page by tools/footage/trailer.cjs (with tools/cinematics/lib.js).
 //
-// Every shot is staged: the jets are flown on scripted paths (the game's own models, effects, weapons,
-// carriers, tanker and ground targets), and the camera is placed by hand so the subject is always in the
-// picture. The picture is tall (9:16), so most shots look along the jet (it runs up the frame) or at a jet
-// standing on its tail. The camera never shakes: it is locked to the jet or moves on a slow, eased path.
+// Every jet is flown by the game's own flight model: real physics, the wind and turbulence of the
+// weather, the inertia of the airframe. A "pilot" (the AI's own steering) flies each one through its
+// manoeuvre, wingmen hold their slots the way pilots do (never perfectly), and the catapult, the
+// arresting wires, the tanker's boom, the missiles, flares and bombs are the game's own.
 //
-// A shot is { mission, init(S), frame(S, dt), end?(S) }:
-//   mission  the flight it needs (jet, mode, time of day, weather); shots with the same one share it
-//   init     places everything for the first frame
-//   frame    moves everything on by dt seconds and points the camera; S.t is the time into the shot
+// The camera is a camera plane: it follows a smoothed copy of the jet, so the jet moves in the frame
+// (bumps, corrections, the formation shuffling); it swings round late in turns and floats a little.
+//
+// A shot is { mission, init(S), frame(S, dt), end?(S) }; S.t is the time into the shot.
 window.TR = (() => {
   const D = Math.PI / 180;
   const G = () => window.game;
@@ -20,10 +20,10 @@ window.TR = (() => {
     return u * u * (3 - 2 * u);
   };
   const mix = (a, b, u) => a + (b - a) * u;
-  /** unit vectors for a compass heading (deg): the way it points, and to its right */
   const dirOf = (h) => v3(Math.sin(h * D), 0, -Math.cos(h * D));
   const rightOf = (h) => v3(Math.cos(h * D), 0, Math.sin(h * D));
   const hdgOf = (dx, dz) => Math.atan2(dx, -dz) / D;
+  const KT = 0.514444;
 
   const TR = { key: '', jets: {}, shared: {}, focus: null, gfx: null, mods: null, sea: null, peak: null, start: null };
 
@@ -32,27 +32,17 @@ window.TR = (() => {
     const a = G().renderer.camera.aspect;
     return Math.min(100, (2 * Math.atan(Math.tan((hf * D) / 2) / a)) / D);
   };
-  /** camera at `from` looking at `at` (vectors), `hf` degrees across the picture */
   const look = (from, at, hf) => {
     C().view([from.x, from.y, from.z], [at.x, at.y, at.z], lens(hf), 0);
     TR.focus = at.clone();
   };
-  /** a point beside a jet's position, in a level frame along heading h: right, up, ahead (m) */
-  const rel = (pos, h, r, u, f) => pos.clone().addScaledVector(rightOf(h), r).addScaledVector(dirOf(h), f).add(v3(0, u, 0));
-  const pose = (a, pos, o) => C().pose(a, Object.assign({ pos: [pos.x, pos.y, pos.z] }, o));
-  const hide = (a) => {
-    a.fm.pos.set(a.fm.pos.x, -50000, a.fm.pos.z);
-    a.fm.vel.set(0, 0, 0);
-  };
   const ground = (x, z) => Math.max(0, TR.mods.surfaceHeight(x, z));
-  /** the highest ground along a line (m) */
   const highAlong = (x, z, h, len) => {
     const d = dirOf(h);
     let m = 0;
     for (let s = 0; s <= len; s += 120) m = Math.max(m, ground(x + d.x * s, z + d.z * s));
     return m;
   };
-  /** the sun for a shot: elevation and compass bearing (deg); the light and reflections follow */
   const sun = (elev, az) => {
     const g = G();
     C().sun(elev, az);
@@ -64,35 +54,72 @@ window.TR = (() => {
       /* the sun alone is fine */
     }
   };
-  /** another jet in the flight (made once per flight, reused by later shots) */
+
+  // ------------------------------------------------------------------ jets and their pilots
+  const park = (a) => {
+    a.scripted = true;
+    a.script = null;
+    a.ai = null;
+    a.fm.pos.set(a.fm.pos.x, -50000, a.fm.pos.z);
+    a.fm.vel.set(0, 0, 0);
+  };
+  /** another jet in the flight (made once per flight, reused) */
   const jet = (type, team = 'blue') => {
     const k = type + ':' + team;
     let a = TR.jets[k];
+    if (a && !a.alive) {
+      G().sim.remove(a);
+      a = null;
+    }
     if (!a) {
       a = new TR.mods.Aircraft(type, team, team === 'red' ? 'BANDIT' : 'CINE');
-      a.scripted = true;
-      a.script = null;
+      park(a);
       G().sim.add(a);
       TR.jets[k] = a;
     }
-    if (!a.alive) {
-      // (shot down in an earlier take: a fresh one)
-      G().sim.remove(a);
-      delete TR.jets[k];
-      return jet(type, team);
-    }
-    a.scripted = true;
-    a.script = null;
     return a;
   };
-  /** everything out of the picture, no weapons in the air, no smoke left from the last shot */
+  /** put a jet in the air and give it a pilot: fn(dt) sets its stick and throttle every physics step */
+  const fly = (a, pos, hdg, kts, pitch, fn) => {
+    a.scripted = false;
+    a.script = null;
+    a.fm.setAirborne(pos, hdg, kts * KT, pitch || 0);
+    a.controls.gearDown = false;
+    a.controls.throttle = 0.9;
+    a.controls.pitch = a.controls.roll = a.controls.yaw = 0;
+    a.ai = { skill: {}, state: 'PATROL', target: null, route: [], update: (dt) => fn(dt) };
+    return a;
+  };
+  const steer = (a, dir, o) => TR.mods.steerToward(a, dir, Object.assign({ gCap: 3, tau: 1.6, maxBank: 35 }, o));
+  const speed = (a, kts, ab, dt) => TR.mods.holdSpeed(a, kts * KT, !!ab, dt);
+  /** a direction toward a compass heading, climbing (deg) */
+  const toward = (h, climb = 0) => {
+    const d = dirOf(h);
+    d.y = Math.tan(climb * D);
+    return d.normalize();
+  };
+  /** fly level on a heading at a height, as a pilot does: small corrections, never exact */
+  const cruise = (a, h, alt, kts, dt, o = {}) => {
+    const climb = Math.max(-8, Math.min(8, (alt - a.fm.pos.y) * 0.05));
+    steer(a, toward(h, climb), o);
+    speed(a, kts, o.ab, dt);
+  };
+  /** hold a slot (right, up, back of the lead, in metres) as a wingman does */
+  const slot = (a, lead, r, u, b, dt, o = {}) => {
+    const lf = lead.fm;
+    const h = hdgOf(lf.vel.x, lf.vel.z);
+    const want = lf.pos.clone().addScaledVector(rightOf(h), r).addScaledVector(dirOf(h), -b).add(v3(0, u, 0));
+    const ahead = want.clone().addScaledVector(lf.vel, 1.4);
+    const err = want.clone().sub(a.fm.pos);
+    const along = err.dot(dirOf(h));
+    steer(a, ahead.sub(a.fm.pos), Object.assign({ gCap: 3, tau: 1.0, maxBank: 40 }, o));
+    speed(a, Math.max(120, lf.cas / KT + along * 0.6), o.ab, dt);
+  };
+
+  /** everything parked, no weapons in the air, no smoke left from the last shot */
   const clear = () => {
     const g = G();
-    for (const a of g.sim.aircraft) {
-      a.scripted = true;
-      a.script = null;
-      hide(a);
-    }
+    for (const a of g.sim.aircraft) park(a);
     g.sim.missiles.length = 0;
     try {
       g.combat.clearEffects();
@@ -100,30 +127,59 @@ window.TR = (() => {
       /* nothing to clear */
     }
   };
-  /** move the weapons, flares and wrecks on by dt (the scripted jets stay where the shot put them) */
-  const simStep = (dt) => {
+  /** the world on by dt: every jet's pilot and physics, the weapons, the carriers (pre: once per step) */
+  const physics = (dt, pre) => {
     const g = G();
     const n = Math.max(0, Math.round(dt * 120));
-    for (let i = 0; i < n; i++) g.sim.step(1 / 120);
+    for (let i = 0; i < n; i++) {
+      if (pre) pre(1 / 120);
+      g.sim.step(1 / 120);
+    }
   };
-  const NOVIS = { greyout: 0, tunnel: 0, mono: 0, redout: 0, blackout: 0, flash: 0, damage: 0, blur: 0, pinhole: 0, heart: 0 };
-  /** draw the frame (or, with render off, only move the effects on) */
-  const draw = (dt, render) => {
-    const g = G();
-    const R = g.renderer;
-    const cam = R.camera;
-    R.setOverlay(null, null);
-    const pv = g.combat.aircraftVis.get(g.player);
-    if (pv) pv.setCockpitView(false);
-    cam.updateMatrixWorld();
-    if (render) g.world.update(dt, cam, TR.focus || g.player.fm.pos);
-    g.combat.update(dt, cam);
-    if (g.ground) g.ground.update(dt, cam);
-    if (!render) return;
-    R.setHaze(g.combat.haze);
-    R.setSpeed(0);
-    R.setVision(NOVIS);
-    R.render();
+
+  // ------------------------------------------------------------------ the camera plane
+  /**
+   * A camera that follows `a` from an offset (right, up, back) in the frame of the jet's smoothed flight
+   * path. It follows a smoothed copy of the jet, so the jet bumps and wanders in the frame; the offset
+   * swings round late in turns; it floats a little.
+   * o: { off: [r,u,b] or fn(u) -> [r,u,b], at: [r,u,ahead], hf (deg across), pitch (follow climbs 0..1), k (follow), seed }
+   */
+  const rig = (S, a, o) => {
+    const f = a.fm;
+    const R = S.rig || (S.rig = { p: f.pos.clone(), v: f.vel.clone(), off: null, seed: o.seed != null ? o.seed : Math.random() * 10 });
+    return (dt) => {
+      const k = o.k || 2.2;
+      R.v.lerp(f.vel, 1 - Math.exp(-dt * 2.5));
+      R.p.addScaledVector(R.v, dt);
+      R.p.lerp(f.pos, 1 - Math.exp(-dt * k));
+      const sp = R.v.length() > 1 ? R.v.clone().normalize() : dirOf(hdgOf(f.fwd.x, f.fwd.z));
+      const h = hdgOf(sp.x, sp.z);
+      const pf = o.pitch || 0;
+      const fwd = dirOf(h).multiplyScalar(Math.cos(Math.asin(Math.max(-1, Math.min(1, sp.y))) * pf)).add(v3(0, sp.y * pf, 0)).normalize();
+      const right = rightOf(h);
+      const up = right.clone().cross(fwd);
+      const u = S.dur ? Math.min(1, S.t / S.dur) : 0;
+      const off = typeof o.off === 'function' ? o.off(sm(0, 1, u)) : o.off;
+      const want = right.clone().multiplyScalar(off[0]).addScaledVector(up, off[1]).addScaledVector(fwd, -off[2]);
+      if (!R.off) R.off = want.clone();
+      R.off.lerp(want, 1 - Math.exp(-dt * (o.swing || 1.6)));
+      const s = R.seed;
+      const t = S.t;
+      const drift = v3(Math.sin(t * 0.37 + s) * 1.4 + Math.sin(t * 0.91 + s * 2) * 0.5, Math.sin(t * 0.53 + s * 3) * 0.9, Math.sin(t * 0.29 + s * 4) * 1.2);
+      const cam = R.p.clone().add(R.off).add(drift);
+      const gh = ground(cam.x, cam.z) + 3;
+      if (cam.y < gh) cam.y = gh;
+      const at = o.at || [0, 0, 20];
+      let tgt = R.p.clone().addScaledVector(right, at[0]).addScaledVector(up, at[1]).addScaledVector(fwd, at[2]);
+      if (o.with) {
+        // two jets in the picture: aim between them, smoothly
+        const w = o.with.fm.pos.clone().lerp(f.pos, 1 - (o.withK || 0.35));
+        R.lk = R.lk ? R.lk.lerp(w, 1 - Math.exp(-dt * 3)) : w;
+        tgt = R.lk.clone();
+      }
+      const hf = typeof o.hf === 'function' ? o.hf(sm(0, 1, u)) : o.hf || 40;
+      look(cam, tgt, hf);
+    };
   };
 
   /** start (or reuse) the flight a shot needs, and set its light and weather */
@@ -146,8 +202,9 @@ window.TR = (() => {
       TR.start = [p0.x, p0.z];
       TR.sea = await C().findSea(p0.x, p0.z, 3000);
       TR.peak = await C().findHigh(p0.x, p0.z, 30000);
-      // (nothing on the ground shoots at the film crew)
+      // (nothing on the ground shoots at the film crew, and no AI joins in)
       g.sim.defenses.length = 0;
+      for (const a of g.sim.aircraft) if (a !== g.player) a.ai = null;
     }
     clear();
     g.world.env.setTimeOfDay(m.tod || 'afternoon');
@@ -165,54 +222,58 @@ window.TR = (() => {
   // THE SHOTS
   // ====================================================================================
   const shots = {};
+  const aim = (pk, from) => {
+    let ux = pk[0] - from[0];
+    let uz = pk[1] - from[1];
+    const ul = Math.hypot(ux, uz) || 1;
+    return [ux / ul, uz / ul];
+  };
 
-  // ---- TITLE: three jets over the sea toward the islands, the camera easing in from behind
+  // ---- TITLE: three jets over the sea toward the islands, the camera plane easing in behind
   shots.title = {
-    mission: { jet: 'F22', tod: 'afternoon', weather: 'clear' },
+    mission: { jet: 'F22', tod: 'afternoon', weather: 'cloudy' },
     async init(S) {
+      const g = G();
       const pk = TR.peak;
-      let ux = pk[0] - TR.start[0];
-      let uz = pk[1] - TR.start[1];
-      const ul = Math.hypot(ux, uz) || 1;
-      ux /= ul;
-      uz /= ul;
+      const [ux, uz] = aim(pk, TR.start);
       const s = await C().findSea(pk[0] - ux * 9000, pk[1] - uz * 9000, 1500);
-      S.h = pk[2] > 20 ? hdgOf(pk[0] - s[0], pk[1] - s[1]) : 90;
-      S.alt = Math.max(170, highAlong(s[0], s[1], S.h, 5000) + 110);
-      S.pos = v3(s[0], S.alt, s[1]);
-      S.wings = [jet('F35A'), jet('SU57')];
-      TR.shared.line = { x: s[0], z: s[1], h: S.h };
-      sun(30, S.h + 140);
+      const h = pk[2] > 20 ? hdgOf(pk[0] - s[0], pk[1] - s[1]) : 90;
+      const alt = Math.max(220, highAlong(s[0], s[1], h, 5000) + 140);
+      TR.shared.line = { x: s[0], z: s[1], h, alt };
+      const L = fly(g.player, v3(s[0], alt, s[1]), h, 430, 0, (dt) => cruise(L, h + 3 * Math.sin(S.t * 0.25), alt, 430, dt, { maxBank: 20 }));
+      const r = rightOf(h);
+      const d = dirOf(h);
+      const w1 = jet('F35A');
+      const w2 = jet('SU57');
+      fly(w1, v3(s[0], alt, s[1]).addScaledVector(r, -11).addScaledVector(d, -22), h, 430, 0, (dt) => slot(w1, L, -11, -2, 22, dt));
+      fly(w2, v3(s[0], alt, s[1]).addScaledVector(r, 11).addScaledVector(d, -44), h, 430, 0, (dt) => slot(w2, L, 11, -4, 44, dt));
+      physics(1.5); // (settled in: everyone flying, the slots found)
+      S.cam = rig(S, L, { off: (u) => [mix(10, 5, u), mix(42, 26, u), mix(145, 100, u)], at: [0, -2, -18], hf: (u) => mix(36, 32, u), seed: 1 });
+      sun(30, h + 140);
     },
     frame(S, dt) {
-      const d = dirOf(S.h);
-      const r = rightOf(S.h);
-      const L = S.pos.addScaledVector(d, 220 * dt);
-      L.y = S.alt + 2 * Math.sin(S.t * 0.9);
-      pose(G().player, L, { hdg: S.h, roll: 3 * Math.sin(S.t * 0.7), aoa: 3, speed: 220, mach: 0.65, g: 1, ab: 0.35 });
-      S.wings.forEach((w, i) => {
-        const side = i ? 1 : -1;
-        const wp = L.clone().addScaledVector(r, 9 * side).addScaledVector(d, -20 * (i + 1));
-        wp.y += 1.2 * Math.sin(S.t * 1.2 + i * 2) - 1;
-        pose(w, wp, { hdg: S.h, roll: 3 * Math.sin(S.t * 0.8 + i * 2), aoa: 3, speed: 220, mach: 0.65, g: 1, ab: 0.35 });
-      });
-      const u = sm(0, S.dur, S.t);
-      look(rel(L, S.h, mix(8, 3, u), mix(40, 25, u), mix(-135, -94, u)), rel(L, S.h, 0, 0, -12), mix(36, 32, u));
+      physics(dt);
+      S.cam(dt);
     },
   };
 
-  // ---- COCKPIT: the real cockpit view, low over the water toward the island
+  // ---- COCKPIT: the real cockpit view, banking gently round toward the island
   shots.cockpit = {
-    mission: { jet: 'F22', tod: 'afternoon', weather: 'clear' },
+    mission: { jet: 'F22', tod: 'afternoon', weather: 'cloudy' },
     ownDraw: true,
     async init(S) {
       const g = G();
-      const ln = TR.shared.line || { x: TR.sea[0], z: TR.sea[1], h: 90 };
+      const p = g.player;
+      const ln = TR.shared.line || { x: TR.sea[0], z: TR.sea[1], h: 90, alt: 250 };
       const d = dirOf(ln.h);
       const x = ln.x + d.x * 1500;
       const z = ln.z + d.z * 1500;
-      S.h = ln.h;
-      S.pos = v3(x, Math.max(200, highAlong(x, z, ln.h, 5000) + 110), z);
+      const alt = Math.max(240, highAlong(x, z, ln.h, 6000) + 140);
+      fly(p, v3(x, alt, z), ln.h - 25, 450, 0, (dt) => {
+        steer(p, toward(ln.h + 15, (alt - p.fm.pos.y) * 0.03), { gCap: 2.5, tau: 2.2, maxBank: 32 });
+        speed(p, 450, false, dt);
+      });
+      physics(1.2);
       if (g.state !== 'playing') g.setState('playing');
       S.fov = g.cam.fovBase;
       g.cam.fovBase = 84;
@@ -222,9 +283,6 @@ window.TR = (() => {
     frame(S, dt, render) {
       const g = G();
       if (g.state !== 'playing') g.setState('playing');
-      S.h += 1.5 * dt;
-      S.pos.addScaledVector(dirOf(S.h), 240 * dt);
-      pose(g.player, S.pos, { hdg: S.h, pitch: 2, roll: 9 + 3 * Math.sin(S.t * 0.9), aoa: 3, speed: 240, mach: 0.7, g: 1.1, ab: 0.3 });
       if (!render) g.renderer.render = () => {};
       try {
         g.frame(dt);
@@ -240,23 +298,34 @@ window.TR = (() => {
     },
   };
 
-  // ---- THE JETS: four of them, a second and a bit each
+  // ---- THE JETS: four, each in a real manoeuvre
   const JETS = [
-    // a wave-top turn, seen from just ahead of the wing
-    { type: 'SU57', y: 30, pitch: 3, roll: -64, aoa: 9, speed: 240, mach: 0.72, g: 4.5, ab: 0.7, turn: -9, brg: 35, el: 2, dist: 40, hf: 34, sweep: 8 },
-    // straight up on the burners, seen from below
-    { type: 'F15EX', y: 1500, pitch: 84, roll: 0, aoa: 3, speed: 250, mach: 0.78, g: 1.2, ab: 1, turn: 0, brg: 200, el: -38, dist: 38, hf: 30, sweep: 14 },
-    // through its own vapour, just under the speed of sound
-    { type: 'RAFALE', y: 45, pitch: 1, roll: 0, aoa: 2, speed: 325, mach: 0.965, g: 1.1, ab: 1, turn: 0, brg: 150, el: 6, dist: 46, hf: 30, sweep: -10 },
-    // a seven-g turn, the vapour pouring off the wings
-    { type: 'FA18EF', y: 1400, pitch: 10, roll: -78, aoa: 14, speed: 170, mach: 0.55, g: 7.2, ab: 0.4, turn: -22, brg: 160, el: 20, dist: 38, hf: 32, sweep: 12 },
+    // a hard turn low over the water, seen from outside the turn
+    { type: 'SU57', alt: 160, kts: 470, pitch: 0, off: [-46, 8, 30], at: [0, 0, 10], hf: 36, pilot: (a, S, dt) => {
+      steer(a, toward(S.h0 - 160, 0), { gCap: 6, tau: 0.5 });
+      speed(a, 470, true, dt);
+    } },
+    // into the vertical on the burners, seen from below and behind
+    { type: 'F15EX', alt: 900, kts: 500, pitch: 25, off: [8, -14, 34], at: [0, 2, 20], hf: 38, pitchFollow: 0.9, pilot: (a, S, dt) => {
+      steer(a, toward(S.h0, 85), { gCap: 5, tau: 0.6, maxBank: 0 });
+      speed(a, 600, true, dt);
+    } },
+    // just under the speed of sound, low: the vapour
+    { type: 'RAFALE', alt: 70, kts: 640, pitch: 0, off: [-18, 4, 30], at: [0, 0, 6], hf: 34, pilot: (a, S, dt) => {
+      cruise(a, S.h0, 70, 650, dt, { ab: true, maxBank: 8 });
+    } },
+    // a seven-g turn, the vapour off the wings
+    { type: 'FA18EF', alt: 1500, kts: 380, pitch: 0, off: [30, 18, 38], at: [0, 0, 8], hf: 36, pilot: (a, S, dt) => {
+      steer(a, toward(S.h0 + 170, 0), { gCap: 7.5, tau: 0.4, override: true });
+      speed(a, 380, true, dt);
+    } },
   ];
   shots.jets = {
-    mission: { jet: 'F22', tod: 'afternoon', weather: 'clear' },
+    mission: { jet: 'F22', tod: 'afternoon', weather: 'cloudy' },
     async init(S) {
       S.i = -1;
-      S.h0 = 70;
-      sun(32, S.h0 + 150);
+      S.base = 70;
+      sun(32, S.base + 150);
     },
     frame(S, dt) {
       const n = JETS.length;
@@ -264,147 +333,157 @@ window.TR = (() => {
       const i = Math.min(n - 1, Math.floor(S.t / each));
       const J = JETS[i];
       if (i !== S.i) {
-        // the next jet: the last one and its trails go
         clear();
         S.i = i;
-        S.a = jet(J.type);
-        S.h = S.h0 + i * 25;
-        S.pos = v3(TR.sea[0] + i * 400, J.y, TR.sea[1] + i * 400);
+        S.h0 = S.base + i * 40;
+        const a = jet(J.type);
+        const pos = v3(TR.sea[0] + i * 1500, Math.max(J.alt, ground(TR.sea[0] + i * 1500, TR.sea[1]) + J.alt), TR.sea[1]);
+        fly(a, pos, S.h0, J.kts, J.pitch, (d) => J.pilot(a, S, d));
+        physics(0.6); // (already into the manoeuvre when the shot starts)
+        const sub = { t: 0, dur: each };
+        S.sub = sub;
+        S.cam = rig(sub, a, { off: J.off, at: J.at, hf: J.hf, pitch: J.pitchFollow || 0.3, seed: i * 3 });
       }
-      const u = (S.t - i * each) / each;
-      S.h += J.turn * dt;
-      const d = dirOf(S.h);
-      const pr = J.pitch * D;
-      S.pos.x += d.x * Math.cos(pr) * J.speed * dt;
-      S.pos.y += Math.sin(pr) * J.speed * dt;
-      S.pos.z += d.z * Math.cos(pr) * J.speed * dt;
-      pose(S.a, S.pos, { hdg: S.h, pitch: J.pitch, roll: J.roll, aoa: J.aoa, speed: J.speed, mach: J.mach, g: J.g, ab: J.ab });
-      const b = (S.h + J.brg + J.sweep * u) * D;
-      const e = J.el * D;
-      const from = v3(S.pos.x + Math.sin(b) * Math.cos(e) * J.dist, S.pos.y + Math.sin(e) * J.dist, S.pos.z - Math.cos(b) * Math.cos(e) * J.dist);
-      if (from.y < 2.5) from.y = 2.5;
-      look(from, S.pos, J.hf);
+      physics(dt);
+      S.sub.t += dt;
+      S.cam(dt);
     },
   };
 
-  // ---- CARRIER: the catapult stroke, the camera travelling with the jet
+  // ---- CARRIER: a real catapult shot, the camera beside the deck edge
   const carrier = () => TR.mods.CARRIERS.find((x) => x.f.team === 'blue') || TR.mods.CARRIERS[0];
   shots.cat = {
-    mission: { jet: 'FA18EF', tod: 'morning', weather: 'clear' },
+    mission: { jet: 'FA18EF', tod: 'morning', weather: 'cloudy' },
     async init(S) {
+      const g = G();
+      const p = g.player;
       const cv = carrier();
       if (!cv) throw new Error('no carrier on this map');
+      cv.catBusy.fill(null);
+      p.scripted = false;
+      p.ai = null;
+      TR.mods.spawnOnRunway(p, cv.f);
+      p.ai = { skill: {}, state: 'PATROL', target: null, route: [], update: () => {
+        const c = p.controls;
+        c.throttle = 1.1;
+        c.gearDown = true;
+        c.pitch = p.fm.cat ? 0 : 0.25;
+        c.roll = 0;
+        c.yaw = 0;
+      } };
+      // full power, the salute; the shot starts as the shuttle fires
+      for (let i = 0; i < 12 * 120 && p.fm.cat && p.fm.cat.phase === 'hold'; i++) g.sim.step(1 / 120);
       S.cv = cv;
-      S.cat = cv.layout.cats[0];
-      S.h = (cv.heading + S.cat.off + 360) % 360;
-      S.stroke = S.cat.stroke || 90;
-      S.acc = (2 * S.stroke) / (1.9 * 1.9);
-      S.fly = null;
-      sun(24, S.h + 70);
+      // a fixed camera on the deck edge ahead, panning as the jet comes past
+      const f = p.fm;
+      const h = hdgOf(f.fwd.x, f.fwd.z);
+      S.from = f.pos.clone().addScaledVector(dirOf(h), 55).addScaledVector(rightOf(h), 26).add(v3(0, 4, 0));
+      S.atp = f.pos.clone();
+      sun(24, h + 70);
     },
     frame(S, dt) {
       const p = G().player;
+      physics(dt);
+      // the camera rides with the ship (it moves and turns) and pans after the jet
       const cv = S.cv;
-      const tau = Math.max(0, S.t - 0.3); // (a moment at full power first)
-      const s = 0.5 * S.acc * tau * tau;
-      const v = S.acc * tau;
-      let pos;
-      if (s <= S.stroke + 8) {
-        const o = S.cat.off * D;
-        const u = S.cat.u - 6 + s * Math.cos(o);
-        const w = S.cat.v + s * Math.sin(o);
-        const W = cv.toWorld(u, w, { x: 0, z: 0 });
-        pos = v3(W.x, cv.deckY(u, w) + p.spec.gear.height, W.z);
-        pose(p, pos, { hdg: S.h, pitch: 0, roll: 0, aoa: 0, speed: v, gear: 1, ab: 1 });
-        p.fm.onGround = true;
-        S.last = pos.clone();
-        S.v = v;
-      } else {
-        // off the bow: the nose comes up and it climbs away
-        const k = S.fly === null ? (S.fly = 0) : (S.fly += dt);
-        const pitch = Math.min(12, k * 30);
-        const d = dirOf(S.h);
-        S.last.addScaledVector(d, S.v * dt);
-        S.last.y += Math.sin(pitch * D) * S.v * dt;
-        pos = S.last;
-        pose(p, pos, { hdg: S.h, pitch, roll: 0, aoa: 8, speed: S.v, gear: 1, ab: 1 });
-      }
-      look(rel(pos, S.h, 12, 3.4, 17), rel(pos, S.h, 0, 1.4, 0), 46);
+      S.from.x += cv.vx * dt;
+      S.from.z += cv.vz * dt;
+      S.atp.lerp(p.fm.pos.clone().add(v3(0, 1.5, 0)), 1 - Math.exp(-dt * 5));
+      look(S.from, S.atp, 50);
     },
   };
 
-  // ---- CARRIER: down the glide slope to the deck, seen from behind
+  // ---- CARRIER: a low, fast pass over the deck, filmed from the ship
   shots.trap = {
-    mission: { jet: 'FA18EF', tod: 'morning', weather: 'clear' },
+    mission: { jet: 'FA18EF', tod: 'morning', weather: 'cloudy' },
     async init(S) {
+      const p = G().player;
       const cv = carrier();
       if (!cv) throw new Error('no carrier on this map');
-      S.f = cv.f;
-      S.back = 330;
-      sun(24, S.f.heading + 120);
+      S.cv = cv;
+      const h = cv.heading;
+      const y = 95;
+      // from astern, up the ship's side, a little to port
+      const start = v3(cv.x, y, cv.z).addScaledVector(dirOf(h), -1400).addScaledVector(rightOf(h), -40);
+      fly(p, start, h, 520, 0, (dt) => {
+        const goal = v3(cv.x, y, cv.z).addScaledVector(rightOf(h), -40).addScaledVector(dirOf(h), 3000);
+        steer(p, goal.sub(p.fm.pos), { gCap: 2, tau: 1.2, maxBank: 10 });
+        speed(p, 520, true, dt);
+      });
+      physics(1.6);
+      // the camera plane: off the jet's left, the carrier going by below on the right
+      S.cam = rig(S, p, { off: [-16, 7, 42], at: [10, -12, 30], hf: 50, k: 2.4, seed: 4 });
+      sun(24, h + 120);
     },
     frame(S, dt) {
-      const f = S.f;
-      S.back -= 68 * dt;
-      const pos = v3(f.x - f.ax * S.back, f.elev + S.back * Math.tan(3.5 * D) + 4, f.z - f.az * S.back);
-      pose(G().player, pos, { hdg: f.heading, pitch: 5, roll: 2 * Math.sin(S.t * 2), aoa: 9, speed: 68, gear: 1, ab: 0 });
-      look(rel(pos, f.heading, 5, 11, -44), rel(pos, f.heading, 0, -5, 70), 40);
+      physics(dt);
+      S.cam(dt);
     },
   };
 
   // ---- DOGFIGHT: on his tail in a hard turn
-  const fightSky = () => v3(TR.sea[0], 2500, TR.sea[1]);
+  const fightSky = () => v3(TR.sea[0], 2600, TR.sea[1]);
   shots.merge = {
     mission: { jet: 'F15EX', tod: 'dusk', weather: 'cloudy' },
     async init(S) {
-      S.b = jet('SU35', 'red');
-      S.c = fightSky();
-      S.R = 1300;
-      S.v = 250;
-      S.th = 0;
+      const g = G();
+      const p = g.player;
+      const b = jet('SU35', 'red');
+      const c = fightSky();
+      S.h0 = 30;
+      fly(b, c, S.h0, 420, 0, (dt) => {
+        // a sustained hard turn, the bandit trying to get out of it
+        steer(b, toward(hdgOf(b.fm.vel.x, b.fm.vel.z) - 60, 2 * Math.sin(S.t * 0.8)), { gCap: 4.5, tau: 0.8 });
+        speed(b, 420, true, dt);
+      });
+      fly(p, c.clone().addScaledVector(dirOf(S.h0), -150).add(v3(0, 6, 0)), S.h0, 420, 0, (dt) => {
+        // on his tail: the nose a little ahead of him, the throttle keeping about 150 m
+        const to = b.fm.pos.clone().addScaledVector(b.fm.vel, 0.35).sub(p.fm.pos);
+        steer(p, to, { gCap: 7, tau: 0.45 });
+        const gap = p.fm.pos.distanceTo(b.fm.pos);
+        speed(p, b.fm.cas / KT + (gap - 150) * 0.6, true, dt);
+      });
+      physics(2.5);
+      S.b = b;
+      S.cam = rig(S, p, { off: [4, 8, 30], with: b, withK: 0.5, hf: 50, k: 2.6, swing: 2.2, seed: 7 });
       sun(9, 220);
     },
     frame(S, dt) {
-      S.th += (S.v / S.R) * dt;
-      const at = (th) => {
-        const pos = v3(S.c.x + S.R * Math.cos(th), S.c.y, S.c.z + S.R * Math.sin(th));
-        const vel = v3(-Math.sin(th), 0, Math.cos(th));
-        return { pos, vel, h: hdgOf(vel.x, vel.z) };
-      };
-      const a = at(S.th);
-      const b = at(S.th + 115 / S.R);
-      b.pos.y += 6;
-      const o = { pitch: 0, roll: 78, aoa: 11, speed: S.v, mach: 0.76, g: 4.7, ab: 1 };
-      pose(G().player, a.pos, Object.assign({ hdg: a.h }, o));
-      pose(S.b, b.pos, Object.assign({ hdg: b.h }, o));
-      const from = a.pos.clone().addScaledVector(a.vel, -34).add(v3(0, 9, 0));
-      look(from, a.pos.clone().lerp(b.pos, 0.45), 36);
+      physics(dt);
+      S.cam(dt);
     },
   };
 
-  // ---- DOGFIGHT: the missile leaves the jet (slow motion), seen from under its tail
+  // ---- DOGFIGHT: the missile off the rail (slow motion), seen from behind and above
   shots.launch = {
     mission: { jet: 'F15EX', tod: 'dusk', weather: 'cloudy' },
     async init(S) {
-      S.b = jet('SU35', 'red');
+      const g = G();
+      const p = g.player;
+      const b = jet('SU35', 'red');
+      const c = fightSky();
       S.h = 80;
-      S.pos = fightSky();
+      fly(b, c.clone().addScaledVector(dirOf(S.h), 650).add(v3(40, 30, 0)), S.h + 10, 440, 0, (dt) => {
+        steer(b, toward(S.h + 25, 0), { gCap: 4, tau: 1.0 });
+        speed(b, 440, true, dt);
+      });
+      fly(p, c, S.h, 460, 0, (dt) => {
+        steer(p, b.fm.pos.clone().sub(p.fm.pos), { gCap: 4, tau: 1.2, maxBank: 30 });
+        speed(p, 460, true, dt);
+      });
+      physics(1.0);
+      S.b = b;
       S.fired = false;
+      S.cam = rig(S, p, { off: [3, 7, 30], at: [0, 0.5, 14], hf: 42, k: 3, seed: 9 });
       sun(9, 220);
     },
     frame(S, dt) {
       const g = G();
       const p = g.player;
       const sdt = dt * 0.5;
-      const d = dirOf(S.h);
-      S.pos.addScaledVector(d, 250 * sdt);
-      pose(p, S.pos, { hdg: S.h, pitch: 1, roll: 0, aoa: 3, speed: 250, mach: 0.76, g: 1, ab: 1 });
-      const bp = rel(S.pos, S.h, 25, 30, 520);
-      pose(S.b, bp, { hdg: S.h + 12, pitch: 0, roll: 40, aoa: 6, speed: 250, mach: 0.76, g: 2, ab: 1 });
       if (!S.fired && S.t >= 0.12) {
         S.fired = true;
         p.missileCooldown = 0;
-        // (the heat-seeker: it lights on the rail and goes; a radar missile drops clear first)
         let m = p.fireMissile(g.sim, p.irMissile, S.b);
         if (!m) {
           p.missileCooldown = 0;
@@ -412,32 +491,32 @@ window.TR = (() => {
         }
         console.log('[TR] launch: missile ' + (m ? 'away' : 'NOT fired'));
       }
-      simStep(sdt);
-      look(rel(S.pos, S.h, 6, 8, -27), rel(S.pos, S.h, 1, 1, 42), 42);
+      physics(sdt);
+      S.cam(sdt);
     },
   };
 
-  // ---- DOGFIGHT: the bandit breaks and throws flares
+  // ---- DOGFIGHT: the bandit breaks hard and throws flares
   shots.flares = {
     mission: { jet: 'F15EX', tod: 'dusk', weather: 'cloudy' },
     async init(S) {
-      S.b = jet('SU35', 'red');
-      S.c = fightSky();
-      S.R = 760;
-      S.v = 230;
-      S.th = 1;
+      const b = jet('SU35', 'red');
+      S.h0 = 140;
+      fly(b, fightSky(), S.h0, 400, 0, (dt) => {
+        steer(b, toward(S.h0 + 150, -4), { gCap: 8, tau: 0.35, override: true });
+        speed(b, 400, true, dt);
+      });
+      physics(0.5);
+      S.b = b;
       S.next = 0;
       S.st = 0;
+      S.cam = rig(S, b, { off: [-10, 12, -38], at: [0, 0, 0], hf: 38, k: 2.4, swing: 2.0, seed: 11 });
       sun(9, 220);
     },
     frame(S, dt) {
       const g = G();
       const sdt = dt * 0.6;
       S.st += sdt;
-      S.th += (S.v / S.R) * sdt;
-      const pos = v3(S.c.x + S.R * Math.cos(S.th), S.c.y, S.c.z + S.R * Math.sin(S.th));
-      const vel = v3(-Math.sin(S.th), 0, Math.cos(S.th));
-      pose(S.b, pos, { hdg: hdgOf(vel.x, vel.z), pitch: 0, roll: 82, aoa: 16, speed: S.v, mach: 0.7, g: 7.5, ab: 1 });
       while (S.st >= S.next) {
         S.next += 0.09;
         try {
@@ -446,94 +525,84 @@ window.TR = (() => {
           /* no flares: the break alone */
         }
       }
-      simStep(sdt);
-      const out = v3(Math.cos(S.th), 0, Math.sin(S.th));
-      look(pos.clone().addScaledVector(vel, 34).addScaledVector(out, 9).add(v3(0, 10, 0)), pos, 38);
+      physics(sdt);
+      S.cam(sdt);
     },
   };
 
-  // ---- DOGFIGHT: the missile arrives (the camera beside the bandit; slow motion from the hit)
+  // ---- DOGFIGHT: the missile arrives (slow motion from the hit), the camera beside the bandit
   shots.kill = {
     mission: { jet: 'F15EX', tod: 'dusk', weather: 'cloudy' },
     async init(S) {
       const g = G();
       const p = g.player;
-      S.b = jet('SU35', 'red');
+      const b = jet('SU35', 'red');
       S.h = 100;
-      S.bp = fightSky();
-      S.dead = false;
-      S.off = null;
-      sun(9, 220);
-      // the shot is fired from a mile behind; the film starts when the missile is nearly there
-      const d = dirOf(S.h);
-      const move = (dt) => {
-        S.bp.addScaledVector(d, 240 * dt);
-        pose(S.b, S.bp, { hdg: S.h, pitch: 0, roll: 0, aoa: 3, speed: 240, mach: 0.73, g: 1, ab: 0.4 });
-        pose(p, rel(S.bp, S.h, 0, -30, -1500), { hdg: S.h, pitch: 0, roll: 0, aoa: 3, speed: 260, mach: 0.78, g: 1, ab: 1 });
-      };
-      move(0);
+      const c = fightSky();
+      fly(b, c, S.h, 440, 0, (dt) => {
+        steer(b, toward(S.h + 20 * Math.sin(S.t * 0.6), 0), { gCap: 4, tau: 0.9 });
+        speed(b, 440, true, dt);
+      });
+      fly(p, c.clone().addScaledVector(dirOf(S.h), -1400).add(v3(0, -20, 0)), S.h, 480, 0, (dt) => {
+        steer(p, b.fm.pos.clone().sub(p.fm.pos), { gCap: 3, tau: 1.2 });
+        speed(p, 480, true, dt);
+      });
+      physics(0.5);
       p.missileCooldown = 0;
-      S.m = p.fireMissile(g.sim, p.radarMissile, S.b);
+      S.m = p.fireMissile(g.sim, p.radarMissile, b);
       console.log('[TR] kill: missile ' + (S.m ? 'away' : 'NOT fired'));
-      for (let i = 0; i < 12 * 30 && S.m && S.m.alive && S.b.alive; i++) {
-        move(1 / 30);
-        simStep(1 / 30);
-        if (S.m.pos.distanceTo(S.b.fm.pos) < 430) break;
-        if (i % 30 === 0) draw(1 / 30, false);
+      for (let i = 0; i < 12 * 30 && S.m && S.m.alive && b.alive; i++) {
+        physics(1 / 30);
+        if (S.m.pos.distanceTo(b.fm.pos) < 430) break;
       }
-      S.move = move;
+      S.b = b;
+      S.dead = false;
+      S.cam = rig(S, b, { off: [120, 22, -70], at: [0, 0, 0], hf: 30, k: 1.8, seed: 13 });
+      sun(9, 220);
     },
     frame(S, dt) {
       const g = G();
       const b = S.b;
       const hit = !b.alive || !S.m || !S.m.alive || S.t > 1.3;
       if (hit && !S.dead) {
-        // (whatever the fuse did: this one goes down)
         S.dead = true;
         if (b.alive) b.destroy(g.sim, 'MISSILE', g.player);
-        b.scripted = false;
+        park(g.player);
       }
       const sdt = dt * (S.dead ? 0.32 : 1);
-      if (!S.dead) S.move(sdt);
-      else hide(g.player);
-      simStep(sdt);
-      const at = b.fm.pos.clone();
-      if (!S.off) S.off = rel(at, S.h, 74, 14, 44).sub(at);
-      look(at.clone().add(S.off), at, 30);
+      physics(sdt);
+      S.cam(sdt);
     },
   };
 
-  // ---- TEAM: five different jets in echelon over the mountains, seen from behind and above
+  // ---- TEAM: five different jets in echelon over the mountains
   shots.team = {
     mission: { jet: 'F15EX', tod: 'morning', weather: 'clear' },
     async init(S) {
       const pk = TR.peak;
-      let ux = pk[0] - TR.start[0];
-      let uz = pk[1] - TR.start[1];
-      const ul = Math.hypot(ux, uz) || 1;
-      ux /= ul;
-      uz /= ul;
+      const [ux, uz] = aim(pk, TR.start);
       const x = pk[0] - ux * 7000;
       const z = pk[1] - uz * 7000;
-      S.h = hdgOf(ux, uz) + 18; // (past the peak, not into it)
-      S.alt = highAlong(x, z, S.h, 6000) + 260;
-      S.pos = v3(x, S.alt, z);
-      S.jets = ['TYPHOON', 'GRIPEN', 'F16C', 'SU35', 'F35A'].map((t) => jet(t));
-      TR.shared.ridge = { x, z, h: S.h };
-      sun(26, S.h + 150);
+      const h = hdgOf(ux, uz) + 18;
+      const alt = highAlong(x, z, h, 6000) + 300;
+      TR.shared.ridge = { x, z, h };
+      const types = ['TYPHOON', 'GRIPEN', 'F16C', 'SU35', 'F35A'];
+      const L = jet(types[0]);
+      const start = v3(x, alt, z);
+      fly(L, start, h, 440, 0, (dt) => cruise(L, h + 2 * Math.sin(S.t * 0.3), alt, 440, dt, { maxBank: 15 }));
+      const r = rightOf(h);
+      const d = dirOf(h);
+      for (let i = 1; i < types.length; i++) {
+        const a = jet(types[i]);
+        fly(a, start.clone().addScaledVector(r, 8 * i).addScaledVector(d, -20 * i).add(v3(0, -1.5 * i, 0)), h, 440, 0, (dt) => slot(a, L, 8 * i, -1.5 * i, 20 * i, dt));
+      }
+      physics(2.0);
+      S.cam = rig(S, L, { off: (u) => [mix(28, 24, u), mix(36, 30, u), mix(150, 132, u)], at: [16, -4, -32], hf: 34, seed: 15 });
+      sun(26, h + 150);
     },
     frame(S, dt) {
-      const d = dirOf(S.h);
-      const r = rightOf(S.h);
-      const L = S.pos.addScaledVector(d, 230 * dt);
-      S.jets.forEach((a, i) => {
-        const wp = L.clone().addScaledVector(r, 7 * i).addScaledVector(d, -19 * i);
-        wp.y += -1.4 * i + 0.8 * Math.sin(S.t * 1.1 + i);
-        pose(a, wp, { hdg: S.h, pitch: 0, roll: 2.5 * Math.sin(S.t * 0.8 + i), aoa: 3, speed: 230, mach: 0.7, g: 1, ab: 0.5 });
-      });
-      const mid = rel(L, S.h, 14, -3, -38);
-      const u = sm(0, S.dur, S.t);
-      look(rel(mid, S.h, mix(9, 7, u), mix(36, 30, u), mix(-112, -98, u)), rel(mid, S.h, 0, 0, 6), 34);
+      physics(dt);
+      S.cam(dt);
     },
   };
 
@@ -542,29 +611,24 @@ window.TR = (() => {
     mission: { jet: 'F15EX', tod: 'morning', weather: 'clear' },
     async init(S) {
       const rg = TR.shared.ridge || { x: TR.peak[0] - 6000, z: TR.peak[1], h: 90 };
-      S.h = rg.h - 30;
-      const d = dirOf(S.h);
-      S.pos = v3(rg.x + d.x * 1500, 0, rg.z + d.z * 1500);
-      S.pos.y = highAlong(S.pos.x, S.pos.z, S.h, 700) + 90;
-      S.a = jet('GRIPEN');
-      S.pitch = 0;
-      sun(26, S.h + 150);
+      const h = rg.h - 30;
+      const d = dirOf(h);
+      const x = rg.x + d.x * 1500;
+      const z = rg.z + d.z * 1500;
+      const a = jet('GRIPEN');
+      fly(a, v3(x, highAlong(x, z, h, 800) + 110, z), h, 400, 0, (dt) => {
+        const ahead = a.fm.pos.clone().addScaledVector(dirOf(h + 8 * Math.sin(S.t * 0.5)), 900);
+        ahead.y = highAlong(a.fm.pos.x, a.fm.pos.z, h, 1100) + 100;
+        steer(a, ahead.sub(a.fm.pos), { gCap: 4, tau: 0.8, maxBank: 40 });
+        speed(a, 400, true, dt);
+      });
+      physics(1.0);
+      S.cam = rig(S, a, { off: [9, 8, 36], at: [0, 0, 40], hf: 46, pitch: 0.5, seed: 17 });
+      sun(26, h + 150);
     },
     frame(S, dt) {
-      const d = dirOf(S.h);
-      const v = 200;
-      S.pos.addScaledVector(d, v * dt);
-      // the height follows the ground ahead, smoothly
-      const want = highAlong(S.pos.x, S.pos.z, S.h, 700) + 80;
-      const y0 = S.pos.y;
-      S.pos.y += (want - S.pos.y) * (1 - Math.exp(-dt * 1.6));
-      const climb = dt > 0 ? Math.atan2(S.pos.y - y0, v * dt) / D : 0;
-      S.pitch += (climb - S.pitch) * (1 - Math.exp(-dt * 4));
-      pose(S.a, S.pos, { hdg: S.h, pitch: S.pitch, roll: 6 * Math.sin(S.t * 0.9), aoa: 4, speed: v, mach: 0.62, g: 1.5, ab: 0.6 });
-      const from = rel(S.pos, S.h, 7, 8, -34);
-      const gh = ground(from.x, from.z) + 6;
-      if (from.y < gh) from.y = gh;
-      look(from, rel(S.pos, S.h, 0, 0, 40), 46);
+      physics(dt);
+      S.cam(dt);
     },
   };
 
@@ -577,27 +641,28 @@ window.TR = (() => {
       const units = (g.mode.primaries || []).filter((u) => u.alive);
       const all = units.length ? units : g.sim.ground.filter((u) => u.alive);
       if (!all.length) throw new Error('no ground target in this strike');
+      if (!p.bombType) throw new Error('this jet has no bombs');
       S.units = all;
       const tp = all[0].pos;
       S.h = 90;
       const d = dirOf(S.h);
       const x = tp.x - d.x * 2700;
       const z = tp.z - d.z * 2700;
-      S.pos = v3(x, Math.max(tp.y + 1000, highAlong(x, z, S.h, 2700) + 350), z);
+      const alt = Math.max(tp.y + 1000, highAlong(x, z, S.h, 2700) + 350);
+      fly(p, v3(x, alt, z), S.h, 470, 0, (dt) => cruise(p, S.h, alt, 470, dt, { maxBank: 10 }));
+      physics(0.8);
       S.n = 0;
       S.st = 0;
       S.bombs = [];
       TR.shared.strike = S;
+      S.cam = rig(S, p, { off: [4.5, -6.5, 19], at: [0, -2.5, -4], hf: 44, k: 3.2, seed: 19 });
       sun(28, S.h + 150);
-      if (!p.bombType) throw new Error('this jet has no bombs');
     },
     frame(S, dt) {
       const g = G();
       const p = g.player;
       const sdt = dt * 0.5;
       S.st += sdt;
-      S.pos.addScaledVector(dirOf(S.h), 240 * sdt);
-      pose(p, S.pos, { hdg: S.h, pitch: 0, roll: 0, aoa: 3, speed: 240, mach: 0.72, g: 1, ab: 0 });
       if (S.n < 4 && S.st >= 0.2 + S.n * 0.22) {
         const u = S.units[S.n % S.units.length];
         p.missileCooldown = 0;
@@ -605,8 +670,8 @@ window.TR = (() => {
         if (b) S.bombs.push(b);
         S.n++;
       }
-      simStep(sdt);
-      look(rel(S.pos, S.h, 4.5, -6.5, -19), rel(S.pos, S.h, 0, -2.5, 4), 44);
+      physics(sdt);
+      S.cam(sdt);
     },
   };
 
@@ -617,82 +682,64 @@ window.TR = (() => {
       const B = TR.shared.strike;
       if (!B || !B.bombs.length) throw new Error('no bombs in the air');
       S.B = B;
-      const g = G();
       const tp = B.units[0].pos;
       S.tp = tp.clone();
-      const d = dirOf(B.h);
-      const fly = (dt) => {
-        B.pos.addScaledVector(d, 240 * dt);
-        pose(g.player, B.pos, { hdg: B.h, pitch: 0, roll: 0, aoa: 3, speed: 240, mach: 0.72, g: 1, ab: 0 });
-      };
-      S.fly = fly;
-      // the fall is not filmed: on until the first bomb is a second from the ground
       for (let i = 0; i < 40 * 30; i++) {
         const live = B.bombs.filter((b) => b.alive);
         if (!live.length) break;
         let near = 1e9;
         for (const b of live) near = Math.min(near, b.st.pos.distanceTo(b.target));
         if (near < 260) break;
-        fly(1 / 30);
-        simStep(1 / 30);
-        if (i % 30 === 0) draw(1 / 30, false);
+        physics(1 / 30);
       }
-      // the camera: off to one side of the run, a little above the target
-      const r = rightOf(B.h);
-      S.side = r;
+      S.side = rightOf(B.h);
+      S.lk = S.tp.clone().add(v3(0, 6, 0));
       sun(28, B.h + 60);
     },
     frame(S, dt) {
-      S.fly(dt);
-      simStep(dt);
+      physics(dt);
       const u = sm(0, S.dur, S.t);
-      const dist = mix(210, 180, u);
-      const from = S.tp.clone().addScaledVector(S.side, dist).addScaledVector(dirOf(S.B.h), -40);
-      from.y = Math.max(S.tp.y + 60, ground(from.x, from.z) + 8);
-      look(from, S.tp.clone().add(v3(0, 6, 0)), 42);
+      const dist = mix(210, 175, u);
+      const from = S.tp.clone().addScaledVector(S.side, dist).addScaledVector(dirOf(S.B.h), -40 + 6 * Math.sin(S.t * 0.7));
+      from.y = Math.max(S.tp.y + 60, ground(from.x, from.z) + 8) + Math.sin(S.t * 0.5) * 1.5;
+      look(from, S.lk, 42);
     },
   };
 
-  // ---- TANKER: on the boom of the KC-46, seen from behind and below
+  // ---- TANKER: on the boom of the KC-46
   shots.tanker = {
-    mission: { jet: 'F15EX', tod: 'afternoon', weather: 'clear' },
+    mission: { jet: 'F15EX', tod: 'afternoon', weather: 'cloudy' },
     async init(S) {
       const g = G();
       const p = g.player;
       const tk = g.tanker;
       if (!tk) throw new Error('no tanker in this flight');
       S.tk = tk;
-      p.fm.fuelInternal = p.spec.internalFuel * 0.4; // (room to take fuel, so the boom stays in)
+      p.fm.fuelInternal = p.spec.internalFuel * 0.4;
       tk.update(0.001, null, () => {});
-      // straight to the contact position, then a few seconds for the boom to come down and latch
       const kind = TR.mods.aarKind(p.spec.type);
-      p.fm.quat.copy(tk.orientation);
-      const want = tk.toWorld(TR.mods.contactTarget(kind)).sub(TR.mods.receiverPoint(p, kind).applyQuaternion(p.fm.quat));
-      p.fm.pos.copy(want);
-      p.fm.vel.copy(tk.vel);
-      S.step = (dt) => {
-        tk.update(dt, p, () => {});
-        p.fm.pos.addScaledVector(p.fm.vel, dt);
-        p.fm.updateAxes();
-        p.fm.gearPos = 0;
-        p.fm.onGround = false;
-        for (let i = 0; i < p.fm.rpm.length; i++) p.fm.rpm[i] = 0.8;
-      };
-      for (let i = 0; i < 8 * 30; i++) {
-        S.step(1 / 30);
-        if (tk.state === 'contact' && i > 60) break;
-      }
       const hd = hdgOf(tk.vel.x, tk.vel.z);
+      // in the pre-contact position, behind and below; the auto-connect takes it from there
+      const pre = tk.toWorld(TR.mods.contactTarget(kind)).add(v3(0, -8, 0)).addScaledVector(dirOf(hd), -25);
+      fly(p, pre, hd, tk.speed / KT, 0, (dt) => {
+        if (tk.held) return;
+        const want = tk.toWorld(TR.mods.contactTarget(kind)).sub(TR.mods.receiverPoint(p, kind).applyQuaternion(p.fm.quat));
+        steer(p, want.addScaledVector(tk.vel, 1.5).sub(p.fm.pos), { gCap: 2, tau: 1.2, maxBank: 15 });
+        TR.mods.holdSpeed(p, tk.speed * 1.03 + p.fm.cas - p.fm.vel.length(), false, dt);
+      });
+      const pre1 = (dt) => tk.update(dt, p, () => {});
+      for (let i = 0; i < 10 * 30; i++) {
+        physics(1 / 30, pre1);
+        if (tk.state === 'contact' && i > 45) break;
+      }
+      S.pre = pre1;
+      S.cam = rig(S, p, { off: [12, -7, 34], at: [0, 6, 18], hf: 44, k: 2.0, seed: 21 });
       sun(34, hd + 150);
     },
     frame(S, dt) {
-      const p = G().player;
-      const tk = S.tk;
-      S.step(dt);
-      tk.drawAt(1);
-      const h = hdgOf(tk.vel.x, tk.vel.z);
-      const u = sm(0, S.dur, S.t);
-      look(rel(p.fm.pos, h, mix(13, 9, u), -7, mix(-36, -30, u)), p.fm.pos.clone().lerp(tk.pos, 0.45), 44);
+      physics(dt, S.pre);
+      S.tk.drawAt(1);
+      S.cam(dt);
     },
   };
 
@@ -700,53 +747,70 @@ window.TR = (() => {
   shots.recon = {
     mission: { jet: 'F15EX', tod: 'afternoon', weather: 'clear' },
     async init(S) {
-      S.a = jet('SR71');
-      S.h = 60;
-      S.pos = v3(TR.sea[0], 24400, TR.sea[1]);
-      sun(30, S.h + 130);
+      const a = jet('SR71');
+      const h = 60;
+      fly(a, v3(TR.sea[0], 24400, TR.sea[1]), h, 1850, 2, (dt) => cruise(a, h, 24400, 1850, dt, { ab: true, maxBank: 6 }));
+      physics(1.0);
+      S.cam = rig(S, a, { off: (u) => [mix(16, 7, u), mix(15, 9, u), mix(62, 44, u)], at: [0, 0, 30], hf: 40, seed: 23 });
+      sun(30, h + 130);
     },
     frame(S, dt) {
-      S.pos.addScaledVector(dirOf(S.h), 950 * dt);
-      pose(S.a, S.pos, { hdg: S.h, pitch: 4, roll: 0, aoa: 5, speed: 950, mach: 3.2, g: 1, ab: 1 });
-      const u = sm(0, S.dur, S.t);
-      look(rel(S.pos, S.h, mix(16, 6, u), mix(15, 9, u), mix(-62, -44, u)), rel(S.pos, S.h, 0, 0, 30), 40);
+      physics(dt);
+      S.cam(dt);
     },
   };
 
-  // ---- WEATHER: low over the sea in a storm, coming at the camera
+  // ---- WEATHER: low over the sea in a storm, the turbulence throwing it about
   shots.storm = {
     mission: { jet: 'FA18EF', tod: 'morning', weather: 'storm' },
     async init(S) {
-      S.h = 40;
-      S.pos = v3(TR.sea[0] + 3000, 45, TR.sea[1] + 3000);
+      const p = G().player;
+      const h = 40;
+      fly(p, v3(TR.sea[0] + 3000, 90, TR.sea[1] + 3000), h, 400, 0, (dt) => cruise(p, h, 90, 400, dt, { ab: true, maxBank: 20 }));
+      physics(1.0);
+      S.cam = rig(S, p, { off: (u) => [mix(7, 4, u), mix(4.5, 3, u), mix(30, 22, u)], at: [0, 0.5, 8], hf: 40, k: 1.6, seed: 25 });
     },
     frame(S, dt) {
-      S.pos.addScaledVector(dirOf(S.h), 200 * dt);
-      S.pos.y = 45 + 3 * Math.sin(S.t * 1.3);
-      pose(G().player, S.pos, { hdg: S.h, pitch: 2, roll: 8 * Math.sin(S.t * 1.1), aoa: 5, speed: 200, mach: 0.6, g: 1.2, ab: 1 });
-      const u = sm(0, S.dur, S.t);
-      look(rel(S.pos, S.h, mix(7, 4, u), mix(4.5, 3, u), mix(-30, -22, u)), rel(S.pos, S.h, 0, 0.5, 8), 40);
+      physics(dt);
+      S.cam(dt);
     },
   };
 
-  // ---- AIRSHOW: the cobra over the runway, side on (the jet stands on its tail)
+  // ---- AIRSHOW: a low pass down the runway with a full aileron roll, seen on a long lens from the crowd line
   shots.cobra = {
     mission: { jet: 'F22', tod: 'afternoon', weather: 'clear' },
     async init(S) {
       const f = TR.mods.ROLES.duelBlue;
-      S.h = hdgOf(f.ax, f.az);
-      S.pos = v3(f.x - f.ax * 160, f.elev + 60, f.z - f.az * 160);
-      S.a = jet('SU57');
-      sun(34, S.h + 60);
+      const h = hdgOf(f.ax, f.az);
+      const a = jet('SU57');
+      const y = f.elev + 70;
+      S.rolled = 0;
+      fly(a, v3(f.x - f.ax * 700, y, f.z - f.az * 700), h, 430, 0, (dt) => {
+        const c = a.controls;
+        if (S.t > 0.7 && S.rolled < 350) {
+          // one full roll to the right: the stick held over, a touch of back pressure
+          S.rolled += Math.abs(a.fm.rollRate) * dt;
+          c.roll = 1;
+          c.pitch = 0.04;
+          c.yaw = 0;
+          speed(a, 430, true, dt);
+        } else {
+          steer(a, toward(h, (y - a.fm.pos.y) * 0.04), { gCap: 3, tau: 0.8, maxBank: 8 });
+          speed(a, 430, true, dt);
+        }
+      });
+      physics(0.2);
+      // the crowd line: off the side of the runway, ahead of the jet
+      S.from = v3(f.x + f.rxv * 150, f.elev + 4, f.z + f.rzv * 150).addScaledVector(dirOf(h), -60);
+      S.lk = a.fm.pos.clone();
+      S.a = a;
+      sun(34, h + 60);
     },
     frame(S, dt) {
-      // nose up past the vertical and back, the jet still going straight on, slowing
-      const t = S.t;
-      const pitch = t < 0.25 ? 4 : t < 1.05 ? mix(4, 108, sm(0.25, 1.05, t)) : t < 1.45 ? 108 : mix(108, 8, sm(1.45, 2.4, t));
-      const v = mix(118, 62, sm(0.25, 1.5, t)) + 20 * sm(1.6, 2.5, t);
-      S.pos.addScaledVector(dirOf(S.h), v * dt);
-      pose(S.a, S.pos, { hdg: S.h, pitch, roll: 0, aoa: Math.max(4, pitch), speed: v, mach: v / 340, g: pitch > 20 ? 3 : 1, ab: 1 });
-      look(rel(S.pos, S.h, 30, 1.5, 24), S.pos, 34);
+      physics(dt);
+      // the long lens panning after it, a little late
+      S.lk.lerp(S.a.fm.pos, 1 - Math.exp(-dt * 7));
+      look(S.from, S.lk, 20);
     },
   };
 
@@ -754,32 +818,52 @@ window.TR = (() => {
   shots.end = {
     mission: { jet: 'FA18EF', tod: 'dusk', weather: 'clear' },
     async init(S) {
-      S.h = 100;
-      S.pos = v3(TR.sea[0], 70, TR.sea[1]);
-      S.a = jet('TYPHOON');
-      S.b = jet('RAFALE');
-      sun(6, S.h + 8);
+      const h = 100;
+      const a = jet('TYPHOON');
+      const b = jet('RAFALE');
+      const start = v3(TR.sea[0], 90, TR.sea[1]);
+      fly(a, start, h, 400, 0, (dt) => cruise(a, h + 2 * Math.sin(S.t * 0.3), 90, 400, dt, { maxBank: 12 }));
+      fly(b, start.clone().addScaledVector(rightOf(h), 11).addScaledVector(dirOf(h), -14), h, 400, 0, (dt) => slot(b, a, 11, -1, 14, dt));
+      physics(1.5);
+      S.cam = rig(S, a, { off: (u) => [mix(5.5, 5.5, u), mix(9, 18, u), mix(52, 84, u)], at: [5.5, 2, 40], hf: (u) => mix(38, 42, u), seed: 27 });
+      sun(6, h + 8);
     },
     frame(S, dt) {
-      const d = dirOf(S.h);
-      const L = S.pos.addScaledVector(d, 200 * dt);
-      L.y = 70 + 1.5 * Math.sin(S.t * 0.8);
-      pose(S.a, L, { hdg: S.h, pitch: 1, roll: 3 * Math.sin(S.t * 0.6), aoa: 3, speed: 200, mach: 0.6, g: 1, ab: 0.6 });
-      pose(S.b, rel(L, S.h, 11, -1 + Math.sin(S.t), -14), { hdg: S.h, pitch: 1, roll: 3 * Math.sin(S.t * 0.7 + 2), aoa: 3, speed: 200, mach: 0.6, g: 1, ab: 0.6 });
-      const u = sm(0, S.dur, S.t);
-      look(rel(L, S.h, 5.5, mix(9, 18, u), mix(-52, -84, u)), rel(L, S.h, 5.5, 2, 40), mix(38, 42, u));
+      physics(dt);
+      S.cam(dt);
     },
   };
 
   // ====================================================================================
   // RUNNING A SHOT
   // ====================================================================================
+  const NOVIS = { greyout: 0, tunnel: 0, mono: 0, redout: 0, blackout: 0, flash: 0, damage: 0, blur: 0, pinhole: 0, heart: 0 };
+  /** draw the frame (or, with render off, only move the effects on) */
+  const draw = (dt, render) => {
+    const g = G();
+    const R = g.renderer;
+    const cam = R.camera;
+    R.setOverlay(null, null);
+    const pv = g.combat.aircraftVis.get(g.player);
+    if (pv) pv.setCockpitView(false);
+    cam.updateMatrixWorld();
+    if (render) g.world.update(dt, cam, TR.focus || g.player.fm.pos);
+    g.combat.update(dt, cam);
+    if (g.ground) g.ground.update(dt, cam);
+    if (g.tanker) g.tanker.drawAt(1);
+    if (!render) return;
+    R.setHaze(g.combat.haze);
+    R.setSpeed(0);
+    R.setVision(NOVIS);
+    R.render();
+  };
+
   let cur = null;
   let S = null;
 
   TR.setup = async (o) => {
     TR.gfx = o.gfx || null;
-    const [mi, ac, wx, te, cr, is, tk] = await Promise.all([
+    const [mi, ac, wx, te, cr, is, tk, st, sp] = await Promise.all([
       import('/src/game/mission.ts'),
       import('/src/aircraft/aircraft.ts'),
       import('/src/world/weather.ts'),
@@ -787,14 +871,16 @@ window.TR = (() => {
       import('/src/world/carriers.ts'),
       import('/src/world/islands.ts'),
       import('/src/game/tanker.ts'),
+      import('/src/ai/steering.ts'),
+      import('/src/game/spawn.ts'),
     ]);
     TR.mods = {
       defaultMission: mi.defaultMission, Aircraft: ac.Aircraft, WEATHER_PRESETS: wx.WEATHER_PRESETS, surfaceHeight: te.surfaceHeight,
       CARRIERS: cr.CARRIERS, ROLES: is.ROLES, aarKind: tk.aarKind, contactTarget: tk.contactTarget, receiverPoint: tk.receiverPoint,
+      steerToward: st.steerToward, holdSpeed: st.holdSpeed, spawnOnRunway: sp.spawnOnRunway,
     };
   };
 
-  /** get a shot ready: its flight, its first pose and camera (drawn once, time standing still) */
   TR.begin = async (name, dur) => {
     if (cur && cur.end) {
       try {
@@ -808,11 +894,13 @@ window.TR = (() => {
     S = { t: 0, dur };
     await mission(cur.mission);
     await cur.init(S);
-    cur.frame(S, 0, true);
-    if (!cur.ownDraw) draw(0, true);
+    if (cur.ownDraw) cur.frame(S, 0, true);
+    else {
+      if (S.cam) S.cam(0);
+      draw(0, true);
+    }
   };
 
-  /** the terrain round the camera streams in (the picture does not move on) */
   TR.settle = async (ms) => {
     if (cur && cur.ownDraw) return;
     const g = G();
@@ -825,14 +913,12 @@ window.TR = (() => {
     }
   };
 
-  /** one frame: move on by dt and (with render) draw it */
   TR.step = (dt, render) => {
     S.t += dt;
     cur.frame(S, dt, render);
     if (!cur.ownDraw) draw(dt, render);
   };
 
-  /** n frames moved on without drawing (for a quick look at single frames of a shot) */
   TR.skip = (n, dt) => {
     for (let i = 0; i < n; i++) TR.step(dt, false);
   };
