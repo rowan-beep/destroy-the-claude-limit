@@ -1745,7 +1745,7 @@ const GRIPEN: AircraftSpec = {
     port: [-0.55, -0.42, -1.6],
   },
   stations: [
-    { id: 1, label: 'LWT', pos: [-4.3, -0.565, 3.5], allowed: [IRIS], mount: 'rail' },
+    { id: 1, label: 'LWT', pos: [-4.3, -0.535, 3.5], allowed: [IRIS], mount: 'rail' },
     { id: 2, label: 'LW OB', pos: [-3.4, -0.48, 3.85], allowed: [IRIS, MTR, AIM120], mount: 'pylon', hang: -0.41 },
     { id: 3, label: 'LW MID', pos: [-2.55, -0.52, 2.95], allowed: [MTR, AIM120, TANK, GBU39, PW4], mount: 'pylon', hang: -0.4 },
     { id: 4, label: 'LW IB', pos: [-1.65, -0.56, 2.1], allowed: [MTR, TANK, PW4], mount: 'pylon', hang: -0.385 },
@@ -1754,7 +1754,7 @@ const GRIPEN: AircraftSpec = {
     { id: 7, label: 'RW IB', pos: [1.65, -0.56, 2.1], allowed: [MTR, TANK, PW4], mount: 'pylon', hang: -0.385 },
     { id: 8, label: 'RW MID', pos: [2.55, -0.52, 2.95], allowed: [MTR, AIM120, TANK, GBU39, PW4], mount: 'pylon', hang: -0.4 },
     { id: 9, label: 'RW OB', pos: [3.4, -0.48, 3.85], allowed: [IRIS, MTR, AIM120], mount: 'pylon', hang: -0.41 },
-    { id: 10, label: 'RWT', pos: [4.3, -0.565, 3.5], allowed: [IRIS], mount: 'rail' },
+    { id: 10, label: 'RWT', pos: [4.3, -0.535, 3.5], allowed: [IRIS], mount: 'rail' },
   ],
   loadouts: [
     {
