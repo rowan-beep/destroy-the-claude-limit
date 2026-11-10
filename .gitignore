@@ -11,3 +11,6 @@ tools/cinematics/out/
 # local environment (Supabase keys)
 .env
 .env.local
+
+# footage tool output (tens of thousands of pictures)
+frames/
