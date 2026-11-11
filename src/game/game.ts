@@ -25,6 +25,12 @@ import { ReconMode } from './modes/recon';
 import { CampaignMode } from './modes/campaign';
 import { CAMPAIGN } from './campaign';
 import type { Weather } from '../world/weather';
+import { humidityOf } from '../render/vaporLight';
+
+/** how finely the vapour on the wings is ray-marched for a graphics quality */
+function vaporTier(q: string): 'low' | 'medium' | 'high' {
+  return q === 'low' ? 'low' : q === 'medium' ? 'medium' : 'high';
+}
 import { GroundRenderer } from '../render/groundRenderer';
 import { FreeFlightMode } from './modes/freeFlight';
 import { WavesMode } from './modes/waves';
@@ -187,6 +193,8 @@ export class Game implements ModeHost {
     const g = s.graphics;
     this.renderer.applySettings(g);
     setHeroDetail(g.quality);
+    // (the combat renderer is built per mission: applySettings also runs at boot, before it exists)
+    if (this.combat) this.combat.vaporQuality = vaporTier(g.quality);
     this.cam.fovBase = g.fov;
     this.cam.followRoll = s.gameplay.cameraRoll;
     if (this.world.ready) {
@@ -279,6 +287,7 @@ export class Game implements ModeHost {
     updateCarriers(0);
     this.picture = new TeamPicture();
     this.combat = new CombatRenderer(this.renderer.scene, this.sim);
+    this.combat.vaporQuality = vaporTier(this.settings.graphics.quality);
     this.ground = new GroundRenderer(this.renderer.scene, this.sim, this.combat);
     this.combat.onExplosion = (pos, size) => {
       const d = pos.distanceTo(this.renderer.camera.position);
@@ -289,6 +298,7 @@ export class Game implements ModeHost {
     this.world.env.buildEnvMap(this.renderer.renderer);
     this.world.bakeLighting(this.renderer.renderer);
     this.sim.sunDir.copy(this.world.env.sunDir);
+    this.sim.humidity = humidityOf(this.world.weather.kind);
     this.hookEvents();
     this.player = null;
     this.deathHandled = false;

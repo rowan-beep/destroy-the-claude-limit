@@ -2,11 +2,18 @@
 // views at a known scale (pixels per metre), as shaded pictures and as black silhouettes, plus
 // perspective pictures. Driven by tools/jetview/view.cjs.
 import * as THREE from 'three';
+import '../../src/render/curvature';
+import { installAltitudeFog } from '../../src/render/fog';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { Aircraft } from '../../src/aircraft/aircraft';
 import { createAirframe } from '../../src/aircraft/models';
 import type { AircraftType } from '../../src/aircraft/specs';
+import { VaporFx, probeFromParts, vaporBench } from '../../src/render/vapor';
+import { VortexRopes } from '../../src/render/vaporRopes';
+import { newVaporLight } from '../../src/render/vaporLight';
+import { startVaporNoise, vaporNoiseReady } from '../../src/render/vaporNoise';
 
+installAltitudeFog();
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(1);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -140,3 +147,110 @@ function shot(sc: THREE.Scene, cam: THREE.Camera, w: number, h: number, sil: boo
   return { type: o.type, samples: out };
 };
 (window as unknown as { jetviewReady: boolean }).jetviewReady = true;
+
+/**
+ * Vapour pictures: fly the jet through a steady turn for `seconds` (so the vortex threads are
+ * laid down along a real curve), then take the shots from the jet's own frame.
+ * [name, camera (jet lengths, in the jet's frame), look-at (m, jet frame), field of view]
+ */
+(window as unknown as { jetvapor: unknown }).jetvapor = async (
+  o: Opt & {
+    w: number;
+    h: number;
+    shots: [string, number[], number[], number][];
+    nz?: number;
+    alpha?: number;
+    tas?: number;
+    mach?: number;
+    defl?: number;
+    seconds?: number;
+    sun?: number[];
+    sky?: number[];
+    humidity?: number;
+    steps?: number;
+    levelCam?: boolean;
+    /** the sun in the jet's own frame (x right, y up, z aft), instead of `sun` in the world */
+    sunLocal?: number[];
+    /** draw the vapour volumes as wireframes */
+    wire?: boolean;
+    /** a game-like exponential fog (the game's own shaders see it: the vapour must compile with it) */
+    fog?: boolean;
+  },
+) => {
+  startVaporNoise();
+  while (!vaporNoiseReady()) await new Promise((r) => setTimeout(r, 25));
+  vaporBench.toneMap = true;
+  vaporBench.wire = !!o.wire;
+  const prevTm = renderer.toneMapping;
+  renderer.toneMapping = THREE.NeutralToneMapping;
+  renderer.toneMappingExposure = 1;
+  const { ac, vis, sc } = build({ ...o, stores: o.stores ?? false });
+  const sky = o.sky ?? [0.3, 0.5, 0.85];
+  sc.background = new THREE.Color().setRGB(sky[0], sky[1], sky[2]);
+  if (o.fog) sc.fog = new THREE.FogExp2(0xaabbcc, 1 / 30000);
+  const light = newVaporLight();
+  const sun = new THREE.Vector3(...(o.sun ?? [-0.45, 0.78, -0.4])).normalize();
+  light.sunDir.copy(sun);
+  light.sunCol.setRGB(1.0, 0.97, 0.92);
+  light.ambCol.setRGB(0.24, 0.27, 0.32);
+  light.humidity = o.humidity ?? 1;
+  const ropes = new VortexRopes(6000, true);
+  sc.add(ropes.mesh);
+  const vf = new VaporFx(ac, vis, ropes, vis.farLod ? probeFromParts(vis.farLod.parts) : null, 'high');
+  const fm = ac.fm;
+  const nz = o.nz ?? 7, alpha = o.alpha ?? 0.3, tas = o.tas ?? 220;
+  fm.nz = nz;
+  fm.alpha = alpha;
+  fm.tas = tas;
+  fm.mach = o.mach ?? tas / 330;
+  fm.defl.e = o.defl ?? -0.6;
+  fm.onGround = false;
+  // a steady level turn at this load: bank from the load factor, the turn rate from the radius
+  const bank = Math.acos(Math.min(1, 1 / Math.max(1.0001, nz)));
+  const omega = (9.81 * Math.sqrt(Math.max(0, nz * nz - 1))) / tas;
+  const qY = new THREE.Quaternion(), qZ = new THREE.Quaternion(), qX = new THREE.Quaternion();
+  qZ.setFromAxisAngle(new THREE.Vector3(0, 0, 1), bank);
+  qX.setFromAxisAngle(new THREE.Vector3(1, 0, 0), alpha);
+  const fwd = new THREE.Vector3();
+  const dt = 1 / 60, T = o.seconds ?? 6;
+  let psi = 0, now = 0;
+  fm.pos.set(0, 3000, 0);
+  const dummy = new THREE.PerspectiveCamera(50, o.w / o.h, 0.3, 4000);
+  for (let t = 0; t < T; t += dt) {
+    psi += omega * dt;
+    qY.setFromAxisAngle(new THREE.Vector3(0, 1, 0), psi);
+    fm.quat.copy(qY).multiply(qZ).multiply(qX);
+    fwd.set(0, 0, -1).applyQuaternion(qY.clone().multiply(qZ));
+    fm.pos.addScaledVector(fwd, tas * dt);
+    now += dt;
+    vis.update(dt);
+    vf.update(dt, dummy, light, now);
+  }
+  vis.root.updateMatrixWorld(true);
+  if (o.sunLocal) {
+    light.sunDir.set(o.sunLocal[0], o.sunLocal[1], o.sunLocal[2]).normalize().applyQuaternion(fm.quat);
+    vf.update(0, dummy, light, now);
+  }
+  const len = ac.spec.length;
+  const out: Record<string, string> = {};
+  const q = fm.quat;
+  for (const [name, from, at, fov] of o.shots) {
+    const cam = new THREE.PerspectiveCamera(fov || 30, o.w / o.h, 0.05, 6000);
+    cam.position.set(from[0] * len, from[1] * len, from[2] * len).applyQuaternion(q).add(fm.pos);
+    cam.up.set(0, 1, 0);
+    if (!o.levelCam) cam.up.applyQuaternion(q);
+    cam.lookAt(new THREE.Vector3(at[0], at[1], at[2]).applyQuaternion(q).add(fm.pos));
+    cam.updateMatrixWorld(true);
+    cam.updateProjectionMatrix();
+    ropes.update(now, cam, light, o.h);
+    renderer.setSize(o.w, o.h, false);
+    renderer.render(sc, cam);
+    out[name] = renderer.domElement.toDataURL('image/png');
+  }
+  renderer.toneMapping = prevTm;
+  vaporBench.toneMap = false;
+  vaporBench.wire = false;
+  vf.dispose();
+  ropes.dispose();
+  return out;
+};

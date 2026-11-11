@@ -63,6 +63,8 @@ export class Sim {
   readonly cms: CountermeasureSystem;
   readonly events = new EventBus<SimEvents>();
   readonly sunDir = new THREE.Vector3(0, 1, 0);
+  /** how damp the air is (see render/vaporLight.ts): scales how readily vapour forms on the jets */
+  humidity = 1;
   time = 0;
   /** player preference: EPAWSS auto-dispense */
   autoCm = true;

@@ -1,8 +1,7 @@
 // Clouds for the current weather: cumulus built from overlapping billboard
 // puffs scattered over the whole theater (deterministic per 14 km cell), a
-// solid cloud deck for overcast, rain and snow, towering storm cells, and a
-// thin cirrus deck high above. Puffs are depth-sorted back-to-front a few
-// times per second.
+// solid cloud deck for overcast, rain and snow, and towering storm cells.
+// Puffs are depth-sorted back-to-front a few times per second.
 
 import * as THREE from 'three';
 import { hash2f, Rng, hash2i } from '../core/rng';
@@ -14,7 +13,6 @@ function smoothstepN(a: number, b: number, x: number): number {
 import { getCloudPuffTexture, tileableNoiseData } from '../render/textures';
 import { Environment } from '../render/environment';
 import { ringDisc } from '../render/curvature';
-import { NIGHT } from '../render/night';
 import { MAP_HALF } from '../core/constants';
 import { TERRAIN_LIGHT } from '../render/terrainLight';
 import { Weather, WEATHER_PRESETS, CloudDeck, deckFor } from './weather';
@@ -218,7 +216,6 @@ export class CloudSystem {
   private sortTimer = 0;
   private origin = new THREE.Vector3();
   private density = 1;
-  private cirrus: THREE.Mesh;
   coverage = 0.55;
   private weather: Weather = { ...WEATHER_PRESETS.cloudy };
   /** the cloud layer for the current weather (read by the environment) */
@@ -295,32 +292,6 @@ export class CloudSystem {
     this.mesh.renderOrder = 10;
     this.mesh.name = 'clouds';
     scene.add(this.mesh);
-
-    // Cirrus deck
-    const size = 256;
-    const d = tileableNoiseData(size, 404, 5, 4);
-    const c = document.createElement('canvas');
-    c.width = c.height = size;
-    const g = c.getContext('2d')!;
-    const img = g.createImageData(size, size);
-    for (let i = 0; i < size * size; i++) {
-      const v = Math.max(0, d[i] * 1.6 - 0.15);
-      img.data[i * 4] = 255;
-      img.data[i * 4 + 1] = 255;
-      img.data[i * 4 + 2] = 255;
-      img.data[i * 4 + 3] = Math.min(255, v * 200);
-    }
-    g.putImageData(img, 0, 0);
-    const tex = new THREE.CanvasTexture(c);
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(60, 60);
-    const cirrusMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0.55, fog: true, side: THREE.DoubleSide });
-    this.cirrus = new THREE.Mesh(ringDisc(850000, 60, 96, 50, 1200000), cirrusMat);
-    this.cirrus.position.y = 10500;
-    this.cirrus.renderOrder = 9;
-    this.cirrus.frustumCulled = false;
-    this.cirrus.name = 'cirrus';
-    scene.add(this.cirrus);
 
     // cloud deck: a lit top surface and a dark base, one noise field
     const nd = tileableNoiseData(256, 911, 5, 3);
@@ -444,9 +415,6 @@ export class CloudSystem {
     this.cellCache.clear();
     this.clusterCache.clear();
     this.lastCell = '';
-    const cm = this.cirrus.material as THREE.MeshBasicMaterial;
-    cm.opacity = w.kind === 'clear' ? 0.45 : w.cover > 0.9 ? 0.75 : 0.55;
-    this.cirrus.visible = this.deck.solid < 0.95;
   }
 
   private cellPuffs(i: number, j: number): Puff[] {
@@ -632,15 +600,6 @@ export class CloudSystem {
     (u.skyColor.value as THREE.Color).copy(e.zenith).lerp(e.horizon, 0.45).multiplyScalar(0.95 * (1 - 0.5 * gloom) + this.flash);
     this.updateDeck(cam, e, gloom);
     (u.sunDir.value as THREE.Vector3).copy(e.sunDir);
-    this.cirrus.position.x = Math.round(cam.x / 20000) * 20000;
-    this.cirrus.position.z = Math.round(cam.z / 20000) * 20000;
-    const mat = this.cirrus.material as THREE.MeshBasicMaterial;
-    // unlit, so it must be dimmed by hand: in a pitch-black night only starlight touches it
-    mat.color.setScalar(NIGHT.dark ? 0.012 + this.flash * 0.6 : 1);
-    // a thin veil from below; from far above (on the way to space) it would be a flat sheet: fade it
-    mat.opacity = 0.55 * (1 - smoothstepN(14000, 30000, camera.position.y));
-    this.cirrus.visible = mat.opacity > 0.005;
-    if (mat.map) mat.map.offset.set(this.cirrus.position.x / 20000 / 60, -this.cirrus.position.z / 20000 / 60);
   }
 
   private deckScroll = new THREE.Vector2();

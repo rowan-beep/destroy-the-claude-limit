@@ -5,6 +5,9 @@
 import type { HazeSource } from './heatHaze';
 import * as THREE from 'three';
 import { VaporFx, probeFromParts } from './vapor';
+import { VortexRopes } from './vaporRopes';
+import { newVaporLight, sampleVaporLight } from './vaporLight';
+import { startVaporNoise } from './vaporNoise';
 import { ROUND_LIFE } from '../weapons/gun';
 import type { Sim } from '../game/sim';
 import type { Aircraft } from '../aircraft/aircraft';
@@ -103,9 +106,13 @@ export class CombatRenderer {
   private tracerCol: Float32Array;
   private burns: Burn[] = [];
   private contrails = new Map<Aircraft, Trail[]>();
-  private vortices = new Map<Aircraft, Trail[]>();
-  /** the vapour cone and wing vapour, made the first time a jet needs them */
+  /** the vapour on the wings and tail and the cone, made the first time a jet needs them */
   private vapors = new Map<Aircraft, VaporFx>();
+  /** the vortex threads the jets leave in the air (all jets share one mesh) */
+  private ropes = new VortexRopes();
+  private vaporLight = newVaporLight();
+  /** graphics tier (sets how finely the vapour is ray-marched) */
+  vaporQuality: 'low' | 'medium' | 'high' = 'high';
   private flash: THREE.PointLight;
   private flashT = 0;
   private flashDecay = 14;
@@ -126,7 +133,7 @@ export class CombatRenderer {
   ) {
     this.smoke = new ParticleSystem(9000, getSmokeTexture(), false, 14);
     this.fire = new ParticleSystem(6000, getSoftDotTexture(), true, 16);
-    scene.add(this.smoke.mesh, this.fire.mesh, this.trails.mesh);
+    scene.add(this.smoke.mesh, this.fire.mesh, this.trails.mesh, this.ropes.mesh);
     this.eject = new EjectionEffects(scene, this.smoke, this.fire, this.trails);
 
     const MAXT = 3000;
@@ -206,7 +213,8 @@ export class CombatRenderer {
     this.fire.mesh.visible = v;
     this.trails.mesh.visible = v;
     this.tracerMesh.visible = v;
-    if (!v) for (const vf of this.vapors.values()) vf.group.visible = false;
+    this.ropes.mesh.visible = v;
+    if (!v) for (const vf of this.vapors.values()) vf.setHidden(true);
     this.eject.setVisible(v);
   }
 
@@ -221,7 +229,7 @@ export class CombatRenderer {
     this.trails.clear();
     this.burns.length = 0;
     this.contrails.clear();
-    this.vortices.clear();
+    this.ropes.clear();
     for (const vf of this.vapors.values()) vf.dispose();
     this.vapors.clear();
     for (const m of [...this.missileVis.keys()]) this.removeMissile(m);
@@ -245,7 +253,6 @@ export class CombatRenderer {
     releaseAirframe(v);
     this.aircraftVis.delete(a);
     this.contrails.delete(a);
-    this.vortices.delete(a);
     this.vapors.get(a)?.dispose();
     this.vapors.delete(a);
   }
@@ -441,18 +448,21 @@ export class CombatRenderer {
     const pc = camera as THREE.PerspectiveCamera;
     const tanHalf = Math.tan(((pc.fov ?? 70) * Math.PI) / 360) / Math.max(0.01, pc.zoom ?? 1);
     this.haze.length = 0;
+    sampleVaporLight(this.scene, this.vaporLight, this.sim.sunDir);
+    this.vaporLight.humidity = this.sim.humidity;
     for (const [a, v] of this.aircraftVis) {
       v.update(dt);
       if (!v.wreck && v.root.visible) v.hazeSources(this.haze);
       v.updateLod(v.root.position.distanceTo(cam), tanHalf);
       if (a.fm.crashed) {
-        const vf = this.vapors.get(a);
-        if (vf) vf.group.visible = false;
+        this.vapors.get(a)?.setHidden(true);
         continue;
       }
       this.aircraftEffects(a, v, dt);
       this.vapor(a, v, dt, camera);
     }
+    // the vortex threads, after every jet has laid its newest point this frame
+    this.ropes.update(this.time, pc, this.vaporLight, (typeof window !== 'undefined' ? window.innerHeight * (window.devicePixelRatio || 1) : 1080) || 1080);
 
     // missiles
     for (const m of this.sim.missiles) {
@@ -529,21 +539,23 @@ export class CombatRenderer {
     }
   }
 
-  /** the vapour cone near Mach 1 and the wing vapour in a hard pull (low, damp air) */
+  /** the vapour on the wings and tail in a hard pull, the vortex threads, and the cone near Mach 1 (low, damp air) */
   private vapor(a: Aircraft, v: AirframeVisual, dt: number, camera: THREE.Camera): void {
     const fm = a.fm;
     let vf = this.vapors.get(a);
     if (!vf) {
+      // (the noise it is made of takes a moment to build: start it as a jet starts to pull)
+      if (fm.nz > 2.2 || fm.mach > 0.85 || fm.alpha > 0.15) startVaporNoise();
       // (only made once a jet gets anywhere near: most never do)
       const near = fm.mach > 0.9 || fm.nz > 3.6 || fm.alpha > 0.22;
       if (!near || fm.onGround || fm.pos.y > 8000) return;
-      // (the sheets are fitted to the jet's own airframe: the far mesh is a cheap copy to probe)
-      vf = new VaporFx(a, v.farLod ? probeFromParts(v.farLod.parts) : null);
+      // (the vapour is fitted to the jet's own airframe: the far mesh is a cheap copy to probe)
+      vf = new VaporFx(a, v, this.ropes, v.farLod ? probeFromParts(v.farLod.parts) : null, this.vaporQuality);
       this.vapors.set(a, vf);
       this.scene.add(vf.group);
     }
-    vf.update(dt, camera, this.sim.sunDir);
-    if (!v.root.visible || v.wreck) vf.group.visible = false;
+    vf.setHidden(!v.root.visible || v.wreck);
+    vf.update(dt, camera, this.vaporLight, this.time);
   }
 
   private aircraftEffects(a: Aircraft, v: AirframeVisual, dt: number): void {
@@ -567,24 +579,6 @@ export class CombatRenderer {
     } else if (cts) {
       for (const t of cts) t.emitting = false;
       this.contrails.delete(a);
-    }
-
-    // wingtip vortices when pulling G low down
-    const wantVortex = a.alive && fm.nz > 4.2 && alt < 7000 && fm.tas > 110;
-    let vts = this.vortices.get(a);
-    if (wantVortex) {
-      if (!vts) {
-        vts = [-1, 1].map(() => this.trails.create({ width0: 0.25, width1: 1.6, life: 1.2, color: WHITE_SMOKE, alpha: 0.3 * smoothstep(4.2, 6.5, fm.nz) + 0.12, spacing: 6 }));
-        this.vortices.set(a, vts);
-      }
-      const hs = a.spec.span / 2 - 0.2;
-      [-1, 1].forEach((sx, i) => {
-        tmp.set(sx * hs, 0, 2.5).applyQuaternion(q).add(fm.pos);
-        vts![i].add(tmp, this.time);
-      });
-    } else if (vts) {
-      for (const t of vts) t.emitting = false;
-      this.vortices.delete(a);
     }
 
     // damage smoke / fire
