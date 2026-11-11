@@ -15,8 +15,8 @@ import * as THREE from 'three';
 import type { Aircraft } from '../aircraft/aircraft';
 import type { AirframeVisual } from '../aircraft/models/visual';
 import { vaporNoiseTexture, vaporNoiseReady, startVaporNoise } from './vaporNoise';
-import type { VortexRopes, Rope, RopeStyle } from './vaporRopes';
-import type { VaporLight } from './vaporLight';
+import { VortexRopes, type Rope, type RopeStyle } from './vaporRopes';
+import { newVaporLight, type VaporLight } from './vaporLight';
 
 // ============================================================================
 // the lifting-surface volume
@@ -622,6 +622,90 @@ const TIP_STYLE: RopeStyle = { w0: 0.15, w1: 1.0, life: 3.6, alpha: 0.55, wander
 const LEX_STYLE: RopeStyle = { w0: 0.14, w1: 0.8, life: 2.8, alpha: 0.45, wander: 1.0 };
 const TAIL_STYLE: RopeStyle = { w0: 0.1, w1: 0.6, life: 2.2, alpha: 0.36, wander: 0.7 };
 
+/** the shader material that ray-marches the vapour in one lifting surface's prism */
+function makeHullMaterial(T0: number, seed: number, steps: number): THREE.ShaderMaterial {
+  const mat = new THREE.ShaderMaterial({
+    vertexShader: HULL_VERT,
+    fragmentShader: HULL_FRAG,
+    uniforms: THREE.UniformsUtils.merge([
+      THREE.UniformsLib.fog,
+      {
+        noiseMap: { value: null as THREE.Data3DTexture | null },
+        time: { value: 0 },
+        uCam: { value: new THREE.Vector3() },
+        uSun: { value: new THREE.Vector3(0, 1, 0) },
+        uLift: { value: 0 },
+        uTrans: { value: 0 },
+        uThick: { value: 1 },
+        uT0: { value: T0 },
+        uSigma: { value: 7 },
+        uScale: { value: Math.min(1.5, Math.max(0.45, 0.3 / T0)) },
+        uAdv: { value: 16 },
+        uSeed: { value: seed },
+        uSteps: { value: steps },
+        uSunCol: { value: new THREE.Color(1, 1, 1) },
+        uAmbCol: { value: new THREE.Color(0.4, 0.45, 0.55) },
+      },
+    ]),
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.CustomBlending,
+    blendSrc: THREE.OneFactor,
+    blendDst: THREE.OneMinusSrcAlphaFactor,
+    blendSrcAlpha: THREE.OneFactor,
+    blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
+    side: THREE.FrontSide,
+    fog: true,
+    defines: vaporBench.toneMap ? { BENCH: '' } : {},
+  });
+  mat.uniforms.noiseMap.value = vaporNoiseTexture();
+  return mat;
+}
+
+/** the transonic cone's material */
+function makeConeMaterial(): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    vertexShader: CONE_VERT,
+    fragmentShader: CONE_FRAG,
+    uniforms: {
+      intensity: { value: 0 },
+      time: { value: 0 },
+      cLit: { value: new THREE.Color(0xf4f7fb) },
+      cShade: { value: new THREE.Color(0xaab4c2) },
+      sunView: { value: new THREE.Vector3(0, 1, 0) },
+    },
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+}
+
+/**
+ * Tiny stand-ins for the vapour (a lifting-surface prism, a vortex thread, the cone). The
+ * loading screen draws them once, so the three shaders are compiled before the first hard
+ * pull instead of freezing the picture for a moment in the middle of a dogfight.
+ */
+export function vaporSamples(): THREE.Object3D[] {
+  startVaporNoise();
+  const st: Station[] = [0, 1, 2].map((i) => ({ x: i * 0.4, le: 0, te: 1, y: [0, 0, 0, 0, 0] }));
+  const hull = new THREE.Mesh<THREE.BufferGeometry, THREE.Material>(buildHull(st, 0.2), makeHullMaterial(0.2, 1, 18));
+  hull.frustumCulled = false;
+  hull.renderOrder = 15;
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1, 8), makeConeMaterial());
+  cone.frustumCulled = false;
+  cone.renderOrder = 15;
+  const ropes = new VortexRopes(24);
+  const r = ropes.create(TIP_STYLE);
+  for (let i = 0; i < 4; i++) r.add(new THREE.Vector3(i * 3, 0, -3), 0, 1, 1);
+  const cam = new THREE.PerspectiveCamera(60, 16 / 9, 0.1, 1000);
+  cam.updateMatrixWorld(true);
+  ropes.update(0, cam, newVaporLight(), 720);
+  ropes.mesh.frustumCulled = false;
+  const g = new THREE.Group();
+  g.add(hull, cone, ropes.mesh);
+  return [g];
+}
+
 export class VaporFx {
   /** the cone (in the scene); the surface vapour lives on the airframe itself */
   readonly group = new THREE.Group();
@@ -666,20 +750,7 @@ export class VaporFx {
     const lathe = new THREE.LatheGeometry(pts, 48);
     // (lathe builds round +Y with y from the profile: turn it onto the body axis, nose at -Z)
     lathe.rotateX(Math.PI / 2);
-    this.coneMat = new THREE.ShaderMaterial({
-      vertexShader: CONE_VERT,
-      fragmentShader: CONE_FRAG,
-      uniforms: {
-        intensity: { value: 0 },
-        time: { value: 0 },
-        cLit: { value: new THREE.Color(0xf4f7fb) },
-        cShade: { value: new THREE.Color(0xaab4c2) },
-        sunView: { value: new THREE.Vector3(0, 1, 0) },
-      },
-      transparent: true,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-    });
+    this.coneMat = makeConeMaterial();
     this.cone = new THREE.Mesh(lathe, this.coneMat);
     this.cone.frustumCulled = false;
     this.cone.renderOrder = 15;
@@ -744,40 +815,7 @@ export class VaporFx {
 
   private addHull(parent: THREE.Object3D, st: Station[], T0: number, kind: 'wing' | 'tail', seed: number): void {
     const geo = buildHull(st, T0);
-    const mat = new THREE.ShaderMaterial({
-      vertexShader: HULL_VERT,
-      fragmentShader: HULL_FRAG,
-      uniforms: THREE.UniformsUtils.merge([
-        THREE.UniformsLib.fog,
-        {
-          noiseMap: { value: null as THREE.Data3DTexture | null },
-          time: { value: 0 },
-          uCam: { value: new THREE.Vector3() },
-          uSun: { value: new THREE.Vector3(0, 1, 0) },
-          uLift: { value: 0 },
-          uTrans: { value: 0 },
-          uThick: { value: 1 },
-          uT0: { value: T0 },
-          uSigma: { value: 6.5 },
-          uScale: { value: Math.min(1.5, Math.max(0.45, 0.3 / T0)) },
-          uAdv: { value: 16 },
-          uSeed: { value: seed },
-          uSteps: { value: this.steps },
-          uSunCol: { value: new THREE.Color(1, 1, 1) },
-          uAmbCol: { value: new THREE.Color(0.4, 0.45, 0.55) },
-        },
-      ]),
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.CustomBlending,
-      blendSrc: THREE.OneFactor,
-      blendDst: THREE.OneMinusSrcAlphaFactor,
-      blendSrcAlpha: THREE.OneFactor,
-      blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
-      side: THREE.FrontSide,
-      fog: true,
-      defines: vaporBench.toneMap ? { BENCH: '' } : {},
-    });
+    const mat = makeHullMaterial(T0, seed, this.steps);
     mat.uniforms.noiseMap.value = vaporNoiseTexture();
     const mesh = new THREE.Mesh<THREE.BufferGeometry, THREE.Material>(geo, mat);
     mesh.renderOrder = 15;

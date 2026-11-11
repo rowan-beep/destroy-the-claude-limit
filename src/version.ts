@@ -41,6 +41,23 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.15.1',
+    date: '2026-11-11',
+    air: {
+      title: 'Photorealistic vapor in hard turns',
+      notes: [
+        improved('Vapor you can see into',
+          'In a hard pull the air over the wings condenses into real volumetric cloud: dense and clean-edged just behind the leading edge, thinning into fine streaks that run with the airflow and tear off past the trailing edge. It is lit by the sun and sky, so it glows silver where thin and goes grey where it is deep, and the paint and panel lines show through it. It forms on the wings, the tailplanes and the canards, follows the surfaces as they move, and is thicker the harder you pull and in damp air.'),
+        improved('Vortex threads that stay in the air',
+          'The thin white threads off the wingtips, the strake roots and the tailplane tips are now left behind where they formed. In a turn they trace the curve you flew, wander and break into pieces as they age, and fade out. They have gone back to being thin threads, like the ones in real photos.'),
+        improved('Brightness under control',
+          'Vapor and the transonic cone are lit to match the sky, warm at dusk and grey under cloud, and never burn out to flat white.'),
+        fixed('Flat band of cloud above the clouds',
+          'A flat, streaky layer of high cloud used to sit above the puffy clouds and showed as stripes along the horizon. It is gone.'),
+      ],
+    },
+  },
+  {
     version: '7.15.0',
     date: '2026-11-10',
     air: {

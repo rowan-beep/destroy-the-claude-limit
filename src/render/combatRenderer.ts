@@ -4,7 +4,7 @@
 
 import type { HazeSource } from './heatHaze';
 import * as THREE from 'three';
-import { VaporFx, probeFromParts } from './vapor';
+import { VaporFx, probeFromParts, vaporSamples } from './vapor';
 import { VortexRopes } from './vaporRopes';
 import { newVaporLight, sampleVaporLight } from './vaporLight';
 import { startVaporNoise } from './vaporNoise';
@@ -220,7 +220,7 @@ export class CombatRenderer {
 
   /** what a kill draws (wreck, ejection, blast), for the loading screen to draw once (see Game.warmView) */
   effectSamples(): THREE.Object3D[] {
-    return [ejectionSamples(), jetDeathSamples()];
+    return [ejectionSamples(), jetDeathSamples(), ...vaporSamples()];
   }
 
   clearEffects(): void {
