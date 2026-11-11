@@ -124,7 +124,6 @@ planform.
 | **Sukhoi Su-35S** | 1 | Mach 2.25 | 59,060 ft | 2 × Saturn AL-41F1S, 3D thrust vectoring (32,000 lbf) | 76,059 lb | GSh-30-1 30 mm, 150 rds | N035 Irbis-E PESA + OLS-35 IRST | R-77M, R-74M |
 | **Dassault Rafale C** | 1 | Mach 1.8 | 50,000 ft | 2 × Safran M88-2 (16,860 lbf) | 54,000 lb | Nexter 30M791 30 mm, 125 rds | Thales RBE2 AESA + OSF IRST | Meteor, MICA IR |
 | **F-22A Raptor** | 1 | Mach 2.25 (supercruise Mach 1.8) | 65,000 ft | 2 × P&W F119-PW-100, 2D thrust vectoring (35,000 lbf) | 83,500 lb | M61A2 Vulcan 20 mm, 480 rds | AN/APG-77 AESA | AIM-120D, AIM-9X (internal bays) |
-| **F-35A Lightning II** | 1 | Mach 1.6 | 50,000 ft | 1 × P&W F135-PW-100 (43,000 lbf) | 70,000 lb | GAU-22/A 25 mm, 182 rds | AN/APG-81 AESA | AIM-120D, AIM-9X (internal bays) |
 | **Sukhoi Su-57 Felon** | 1 | Mach 2.0 | 65,600 ft | 2 × Saturn AL-41F1, 3D thrust vectoring (32,000 lbf) | 77,160 lb | GSh-30-1 30 mm, 150 rds | N036 Byelka AESA | R-77M, R-74M (internal bays) |
 | **Saab JAS 39E Gripen E** | 1 | Mach 2.0 | 52,000 ft | 1 × GE F414G (22,000 lbf) | 36,400 lb | Mauser BK-27 27 mm, 120 rds | Leonardo Raven ES-05 AESA | Meteor, IRIS-T |
 | **MiG-31BM Foxhound** | 2 | Mach 2.83 | 67,600 ft | 2 × Aviadvigatel D-30F6 (34,170 lbf) | 101,850 lb | GSh-6-23M 23 mm, 260 rds | Zaslon-M PESA | R-37M, R-74M |
@@ -150,8 +149,6 @@ What makes each one different in the air:
 - **F-22A Raptor**: supercruises at Mach 1.8 without afterburner, climbs at over
   60,000 ft a minute, and vectors its nozzles 20 degrees for post-stall flips.
   Everything rides inside the weapons bays.
-- **F-35A**: stealth with four AIM-120Ds in the internal bays, or "beast mode" with
-  more under the wings when stealth does not matter.
 - **Su-57**: a big, fast fifth-generation airframe with moving leading-edge root
   extensions, supercruise near Mach 1.3 and 3D vectoring nozzles.
 - **Gripen E**: the lightest fighter in the theater, rolls fast and supercruises at
@@ -174,7 +171,7 @@ strike, long-range with tanks), chosen in the hangar.
 
 | Missile | Guidance | Carried by |
 |---|---|---|
-| AIM-120D AMRAAM | active radar, datalink midcourse, loft | F-15EX, Super Hornet, F-16C, Typhoon, F-22A, F-35A |
+| AIM-120D AMRAAM | active radar, datalink midcourse, loft | F-15EX, Super Hornet, F-16C, Typhoon, F-22A |
 | AIM-9X Sidewinder Block II | imaging IR, high off-boresight, helmet-cued | the same jets |
 | R-77M | active radar, dual-pulse motor | Su-35S, Su-57 |
 | R-74M | IR, canards and thrust vectoring | Su-35S, Su-57, MiG-31 |
@@ -296,7 +293,7 @@ tailhook (H in the air) on the arresting wires, and rearm and refuel on deck. St
 clear of the enemy ships' guns.
 
 **Aerial refuelling** from a Boeing KC-46A Pegasus flying a racetrack near the base.
-Boom-receptacle jets (F-15EX, F-16, F-22, F-35A, SR-71) take the flying boom;
+Boom-receptacle jets (F-15EX, F-16, F-22, SR-71) take the flying boom;
 probe-and-drogue jets (Super Hornet, Typhoon, Su-35S, Rafale, MiG-31, Su-57, Gripen)
 take the basket. Fly to the pre-contact position and the jet captures itself the last
 metres: the boom operator flies the boom down, the nozzle latches and the jet is held
@@ -360,7 +357,7 @@ Every jet has its own 3D cockpit with working displays:
 - **Su-35S**: two 15 inch MFI-35 wide-screen displays, the PUI-35 control display and a
   wide-angle HUD.
 - **Rafale**: a head-level display between two lateral displays, and the wide HUD.
-- And the others, each with its own layout, from the F-35's panoramic display to the
+- And the others, each with its own layout, from the Gripen's touch display to the
   SR-71's round gauges and the X-15's research instruments.
 
 Display pages: **RADAR** (B-scope, modes, track files, launch zone, jammer strobes,

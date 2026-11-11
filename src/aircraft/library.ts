@@ -30,24 +30,6 @@ export interface LibraryEntry {
 }
 
 export const LIBRARY: Record<AircraftType, LibraryEntry> = {
-  F35A: {
-    nation: 'United States',
-    region: 'usa',
-    flag: ['#b22234', '#ffffff', '#3c3b6e'],
-    manufacturer: 'Lockheed Martin (with Northrop Grumman and BAE Systems)',
-    generation: '5',
-    firstFlight: '15 Dec 2006',
-    inService: '2016',
-    built: 'over 1,100 (all variants)',
-    operators: 'U.S. Air Force and about 20 other nations',
-    carrier: false,
-    nickname: 'Lightning II',
-    history:
-      'The Joint Strike Fighter: one design in three versions, the F-35A for air forces, the short-take-off F-35B and the carrier F-35C. It is the most produced fighter of its generation by far, built around sensor fusion: the APG-81 radar, the EOTS targeting sensor and six DAS cameras feed one picture to the pilot\'s helmet. The A model is the only one with an internal gun.',
-    strengths: ['The best sensors in the theater: long radar reach, EOTS IRST, DAS launch warning all round', 'Holds 50 degrees angle of attack with full control', 'Big strike load: 2,000 lb JDAMs inside, more on the wings'],
-    weaknesses: ['Top speed only Mach 1.6, and slow to accelerate past the sound barrier', 'Only four missiles inside; more means carrying them outside', 'A single engine'],
-    tactics: 'See first and shoot first from the bays, then turn away. If it comes to a turning fight, slow down: it points its nose at high angles of attack better than almost anything.',
-  },
   SU57: {
     nation: 'Russia',
     region: 'russia',

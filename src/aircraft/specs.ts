@@ -6,8 +6,8 @@
 import { FT, LB, LBF } from '../core/constants';
 import type { MissileType, BombType } from '../weapons/weaponSpecs';
 
-export type AircraftType = 'F15EX' | 'FA18EF' | 'F16C' | 'TYPHOON' | 'SU35' | 'RAFALE' | 'F22' | 'MIG31' | 'SR71' | 'X15' | 'F35A' | 'SU57' | 'GRIPEN';
-export const AIRCRAFT_TYPES: AircraftType[] = ['F15EX', 'FA18EF', 'F16C', 'TYPHOON', 'SU35', 'RAFALE', 'F22', 'MIG31', 'SR71', 'X15', 'F35A', 'SU57', 'GRIPEN'];
+export type AircraftType = 'F15EX' | 'FA18EF' | 'F16C' | 'TYPHOON' | 'SU35' | 'RAFALE' | 'F22' | 'MIG31' | 'SR71' | 'X15' | 'SU57' | 'GRIPEN';
+export const AIRCRAFT_TYPES: AircraftType[] = ['F15EX', 'FA18EF', 'F16C', 'TYPHOON', 'SU35', 'RAFALE', 'F22', 'MIG31', 'SR71', 'X15', 'SU57', 'GRIPEN'];
 /**
  * The armed fighters: everything the AI flies and every combat mode allows.
  * The SR-71 is an unarmed reconnaissance jet still in testing: it only flies
@@ -1422,134 +1422,6 @@ const F16: AircraftSpec = {
 };
 
 // ---------------------------------------------------------------------------
-// Lockheed Martin F-35A Lightning II
-// ---------------------------------------------------------------------------
-// The most numerous fighter of its generation. One F135, the biggest fighter
-// engine there is; everything for air combat rides in two bays side by side
-// under the belly; and the best sensors in the theater (APG-81 radar, EOTS
-// targeting IRST, DAS cameras that see a launch anywhere round the jet). As
-// with the F-22 its stealth is not modelled: it fights on its kinematics.
-const F35A: AircraftSpec = {
-  type: 'F35A',
-  name: 'Lockheed Martin F-35A Lightning II',
-  shortName: 'F-35A',
-  role: 'Fifth-generation multirole stealth fighter',
-  crew: 1,
-  description:
-    'The most widely flown fifth-generation fighter. A single Pratt & Whitney F135, 43,000 lbf in afterburner, takes it to Mach 1.6 and 50,000 ft; it carries four AIM-120Ds inside its two weapons bays (two 2,000 lb JDAMs for strike) and more on the wings when stealth doesn\'t matter. AN/APG-81 AESA radar, the EOTS infrared search and track, and DAS cameras that warn of missile launches from any direction. Comfortable at 50 degrees angle of attack. GAU-22/A 25 mm four-barrel gun inside the left shoulder, 182 rounds.',
-  lengthFt: 51.4,
-  wingspanFt: 35.0,
-  heightFt: 14.4,
-  length: 51.4 * FT,
-  span: 35.0 * FT,
-  height: 14.4 * FT,
-  emptyMass: kg(29300),
-  internalFuel: kg(18250),
-  maxTakeoff: kg(70000),
-  maxTakeoffLb: 70000,
-  payloadLb: 18000,
-  wingArea: 42.7,
-  cd0: 0.0215,
-  // a deep, area-ruled-but-bulky fuselage: a hard transonic drag rise, Mach 1.6 at the top
-  waveDragPeak: 2.2,
-  waveDragHigh: 1.85,
-  kInduced: 0.13,
-  clAlpha: 3.7,
-  clMax: 1.75,
-  flapCl0: 0.2,
-  alphaMaxDeg: 50,
-  maxMach: 1.6,
-  ceilingFt: 50000,
-  maxIasKts: 700,
-  engineName: '1 x Pratt & Whitney F135-PW-100',
-  engines: 1,
-  thrustMil: lbf(28000),
-  thrustAb: lbf(43000),
-  thrustMilLbf: 28000,
-  thrustAbLbf: 43000,
-  tsfcMil: 0.74,
-  tsfcAb: 1.95,
-  ramFactor: 0.5,
-  spool: 1.3,
-  gLimit: 9.0,
-  gOverride: 9.5,
-  gStructural: 13.5,
-  gNeg: -3,
-  rollRate: 210,
-  pitchRate: 28,
-  cornerKts: 340,
-  rotateKts: 150,
-  approachKts: 145,
-  speedbrakeCd: 0.055,
-  combatRangeNm: 1200,
-  hardpoints: 10,
-  maxAAM: 10,
-  missiles: { radar: AIM120, ir: AIM9 },
-  tvcDeg: 0,
-  gun: {
-    name: 'GAU-22/A Equalizer 25mm four-barrel cannon',
-    caliberMm: 25,
-    rounds: 182,
-    rpm: 3300,
-    muzzleVelocity: 1050,
-    damage: 12,
-    dispersionMil: 4,
-    port: [-0.78, 0.36, -1.7],
-  },
-  stations: [
-    { id: 1, label: 'LW OB', pos: [-4.15, -0.42, 3.0], allowed: [AIM9], mount: 'pylon', hang: -0.36 },
-    { id: 2, label: 'LW MID', pos: [-3.2, -0.48, 2.65], allowed: [AIM120, GBU32], mount: 'pylon', hang: -0.4 },
-    { id: 3, label: 'LW IB', pos: [-2.25, -0.52, 2.3], allowed: [AIM120, GBU32], mount: 'pylon', hang: -0.42 },
-    { id: 4, label: 'L BAY OB', pos: [-0.84, -0.4, 0.8], allowed: [AIM120, GBU31], mount: 'internal', bay: 'left', bayOut: [-0.86, -0.98, 0.8] },
-    { id: 5, label: 'L BAY IB', pos: [-0.38, -0.48, 0.8], allowed: [AIM120], mount: 'internal', bay: 'left', bayOut: [-0.38, -0.9, 0.8] },
-    { id: 6, label: 'R BAY IB', pos: [0.38, -0.48, 0.8], allowed: [AIM120], mount: 'internal', bay: 'right', bayOut: [0.38, -0.9, 0.8] },
-    { id: 7, label: 'R BAY OB', pos: [0.84, -0.4, 0.8], allowed: [AIM120, GBU31], mount: 'internal', bay: 'right', bayOut: [0.86, -0.98, 0.8] },
-    { id: 8, label: 'RW IB', pos: [2.25, -0.52, 2.3], allowed: [AIM120, GBU32], mount: 'pylon', hang: -0.42 },
-    { id: 9, label: 'RW MID', pos: [3.2, -0.48, 2.65], allowed: [AIM120, GBU32], mount: 'pylon', hang: -0.4 },
-    { id: 10, label: 'RW OB', pos: [4.15, -0.42, 3.0], allowed: [AIM9], mount: 'pylon', hang: -0.36 },
-  ],
-  loadouts: [
-    {
-      id: 'f35-stealth',
-      name: 'STEALTH — 4x AIM-120D (internal)',
-      stores: { 4: AIM120, 5: AIM120, 6: AIM120, 7: AIM120 },
-    },
-    {
-      id: 'f35-aa',
-      name: 'AIR SUPERIORITY — 4x AIM-120D (internal), 2x AIM-9X',
-      stores: { 1: AIM9, 4: AIM120, 5: AIM120, 6: AIM120, 7: AIM120, 10: AIM9 },
-    },
-    {
-      id: 'f35-strike',
-      name: 'STRIKE — 2x GBU-31 JDAM, 2x AIM-120D (internal)',
-      stores: { 4: GBU31, 5: AIM120, 6: AIM120, 7: GBU31 },
-    },
-    {
-      id: 'f35-beast',
-      name: 'BEAST MODE — 8x AIM-120D, 2x AIM-9X',
-      stores: { 1: AIM9, 2: AIM120, 3: AIM120, 4: AIM120, 5: AIM120, 6: AIM120, 7: AIM120, 8: AIM120, 9: AIM120, 10: AIM9 },
-    },
-    {
-      id: 'f35-bomb',
-      name: 'HEAVY STRIKE — 4x GBU-32, 2x GBU-31, 2x AIM-120D',
-      stores: { 2: GBU32, 3: GBU32, 8: GBU32, 9: GBU32, 4: GBU31, 7: GBU31, 5: AIM120, 6: AIM120 },
-    },
-  ],
-  radar: { name: 'AN/APG-81 AESA', kind: 'AESA', rangeNm: 100, azLimitDeg: 60, elLimitDeg: 60, maxTracks: 23, frameTime: 1.0 },
-  irst: { name: 'AN/AAQ-40 EOTS', rangeNm: 45, fovDeg: 60 },
-  ew: { name: 'AN/ASQ-239 with AN/AAQ-37 DAS', maws: true, jamming: 0.35, autoDispense: true },
-  flightControl: 'Triplex digital fly-by-wire, carefree to 50 degrees angle of attack',
-  chaff: 0,
-  flares: 48,
-  // a conventional signature (no stealth advantage in the game, as for the F-22)
-  rcs: 7,
-  irSignature: 0.95,
-  gear: { nose: -5.1, main: 0.9, track: 1.55, height: 1.95 },
-  hitRadius: 4.9,
-  paint: { top: '#6b7075', bottom: '#73787d', accent: '#55595d' },
-};
-
-// ---------------------------------------------------------------------------
 // Sukhoi Su-57 Felon
 // ---------------------------------------------------------------------------
 // Russia's fifth-generation fighter: big, fast and agile, with Su-35 heritage
@@ -1799,7 +1671,6 @@ export const SPECS: Record<AircraftType, AircraftSpec> = {
   SU35: SU35,
   RAFALE: RAFALE,
   F22: F22,
-  F35A: F35A,
   SU57: SU57,
   GRIPEN: GRIPEN,
   MIG31: MIG31,

@@ -1,7 +1,7 @@
 // Air-to-air refuelling: a Boeing KC-46A Pegasus flying a racetrack near the
 // base, and the business of taking fuel from it.
 //
-// Jets with a boom receptacle (F-15EX, F-16, F-22, SR-71, F-35A) are served by
+// Jets with a boom receptacle (F-15EX, F-16, F-22, SR-71) are served by
 // the flying boom under the tail; probe-and-drogue jets (Super Hornet, Typhoon,
 // Su-35S, Rafale, MiG-31, Su-57, Gripen) take the basket trailing from the
 // centreline hose. Either way the hard part is done for you: fly to the
@@ -25,7 +25,7 @@ import { partMaterials } from '../aircraft/models/parts';
 
 const G = 9.81;
 /** jets that take fuel from the boom (the rest carry a probe; the X-15 neither) */
-const BOOM_JETS: AircraftType[] = ['F15EX', 'F16C', 'F22', 'SR71', 'F35A'];
+const BOOM_JETS: AircraftType[] = ['F15EX', 'F16C', 'F22', 'SR71'];
 const NO_AAR: AircraftType[] = ['X15'];
 
 export type AarKind = 'boom' | 'probe' | 'none';

@@ -58,7 +58,7 @@ export function runModelTest(container: HTMLElement): void {
       scene.add(m);
     });
   }
-  const types: AircraftType[] = tanker || missiles ? [] : q.get('type') ? [q.get('type') as AircraftType] : ['F15EX', 'FA18EF', 'F16C', 'TYPHOON', 'SU35', 'RAFALE', 'F22', 'MIG31', 'SR71', 'X15', 'F35A', 'SU57', 'GRIPEN'];
+  const types: AircraftType[] = tanker || missiles ? [] : q.get('type') ? [q.get('type') as AircraftType] : ['F15EX', 'FA18EF', 'F16C', 'TYPHOON', 'SU35', 'RAFALE', 'F22', 'MIG31', 'SR71', 'X15', 'SU57', 'GRIPEN'];
   const view = q.get('view') ?? 'three';
   const gearUp = q.get('gear') === 'up';
   // the last jet's pilot eye in world space (tgt=eye aims the orbit camera at it)

@@ -222,8 +222,8 @@ module.exports = { map: 'triad', list: {
     return 'AIRSHOW · THE CROWD LINE';
   },
   '17': async (c, g) => {
-    // the F-35A pulling up off the sea into the first light, low sun behind the camera
-    await c.start({ jet: 'F35A', tod: 'dawn', weather: 'clear' });
+    // the Su-57 pulling up off the sea into the first light, low sun behind the camera
+    await c.start({ jet: 'SU57', tod: 'dawn', weather: 'clear' });
     const p = g.player;
     const [sx, sz] = await c.findSea(p.fm.pos.x - 15000, p.fm.pos.z, 3000);
     const h = 320;
@@ -231,6 +231,6 @@ module.exports = { map: 'triad', list: {
     const look = c.orbit(c.at(p), h + 140, -6, 28, 36, 2, [0, 1, 0]);
     c.sun(6, look + 165);
     await c.settle(5000);
-    return 'F-35A LIGHTNING II · PULLING UP AT DAWN';
+    return 'SU-57 · PULLING UP AT DAWN';
   },
 }};

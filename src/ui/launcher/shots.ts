@@ -28,10 +28,8 @@ export const SHOTS: Record<Program, Shot[]> = {
     { file: '14.webp', caption: "SU-35S · VECTORED THRUST" },
     { file: '15.webp', caption: "EAGLE, TYPHOON, RAFALE · ECHELON AT SUNSET" },
     { file: '16.webp', caption: "AIRSHOW · THE CROWD LINE" },
-    { file: '17.webp', caption: "F-35A LIGHTNING II · PULLING UP AT DAWN" },
     { file: '18.webp', caption: "GRIPEN E · NORTHERN FJORD" },
     { file: '19.webp', caption: "SUPER HORNET · ON THE CATAPULT AT SUNSET" },
-    { file: '20.webp', caption: "F-35A · IN THE GROOVE" },
   ],
   space: [
     { file: '01.webp', caption: "SATURN V · PAD 39A AT SUNSET" },

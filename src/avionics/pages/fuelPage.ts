@@ -87,13 +87,6 @@ const TANKS: Record<AircraftType, TankDef[]> = {
     { name: 'WING R', frac: 0.16, box: [0.64, 0.38, 0.22, 0.24] },
   ],
   // one engine: a single feed tank in the middle, wing tanks either side
-  F35A: [
-    { name: 'F-1', frac: 0.16, box: [0.41, 0.06, 0.18, 0.18] },
-    { name: 'F-2', frac: 0.2, box: [0.41, 0.28, 0.18, 0.18] },
-    { name: 'WING L', frac: 0.2, box: [0.14, 0.4, 0.22, 0.26] },
-    { name: 'WING R', frac: 0.2, box: [0.64, 0.4, 0.22, 0.26] },
-    { name: 'FEED', frac: 0.24, box: [0.41, 0.5, 0.18, 0.3] },
-  ],
   SU57: [
     { name: 'TK 1', frac: 0.2, box: [0.41, 0.06, 0.18, 0.18] },
     { name: 'TK 3', frac: 0.2, box: [0.41, 0.66, 0.18, 0.2] },

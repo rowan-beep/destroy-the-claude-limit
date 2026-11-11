@@ -243,7 +243,7 @@ window.TR = (() => {
       const L = fly(g.player, v3(s[0], alt, s[1]), h, 430, 0, (dt) => cruise(L, h + 3 * Math.sin(S.t * 0.25), alt, 430, dt, { maxBank: 20 }));
       const r = rightOf(h);
       const d = dirOf(h);
-      const w1 = jet('F35A');
+      const w1 = jet('SU57');
       const w2 = jet('SU57');
       fly(w1, v3(s[0], alt, s[1]).addScaledVector(r, -11).addScaledVector(d, -22), h, 430, 0, (dt) => slot(w1, L, -11, -2, 22, dt));
       fly(w2, v3(s[0], alt, s[1]).addScaledVector(r, 11).addScaledVector(d, -44), h, 430, 0, (dt) => slot(w2, L, 11, -4, 44, dt));
@@ -586,7 +586,7 @@ window.TR = (() => {
       const h = hdgOf(ux, uz) + 18;
       const alt = highAlong(x, z, h, 6000) + 300;
       TR.shared.ridge = { x, z, h };
-      const types = ['TYPHOON', 'GRIPEN', 'F16C', 'SU35', 'F35A'];
+      const types = ['TYPHOON', 'GRIPEN', 'F16C', 'SU35', 'SU57'];
       const L = jet(types[0]);
       const start = v3(x, alt, z);
       fly(L, start, h, 440, 0, (dt) => cruise(L, h + 2 * Math.sin(S.t * 0.3), alt, 440, dt, { maxBank: 15 }));

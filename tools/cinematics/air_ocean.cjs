@@ -16,7 +16,7 @@ module.exports = { map: 'ocean', list: {
     return 'SUPER HORNET · ON THE CATAPULT AT SUNSET';
   },
   '20': async (c, g) => {
-    await c.start({ jet: 'F35A', tod: 'afternoon', weather: 'cloudy' });
+    await c.start({ jet: 'SU57', tod: 'afternoon', weather: 'cloudy' });
     const p = g.player;
     const { CARRIERS } = await import('/src/world/carriers.ts');
     const cv = CARRIERS.find((x) => x.f.team === 'blue') || CARRIERS[0];
@@ -33,6 +33,6 @@ module.exports = { map: 'ocean', list: {
     await c.settle(7000);
     // (the jet flies on while the picture is set up: back on the glide slope for the picture itself)
     c.before = place;
-    return 'F-35A · IN THE GROOVE';
+    return 'SU-57 · IN THE GROOVE';
   },
 }};
