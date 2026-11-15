@@ -1,18 +1,21 @@
 // Pilot logbook screen: career totals, per-aircraft record, duel record by
 // difficulty, waves, personal records, kills by weapon and victim, missile
-// defences, decorations and the most recent sorties.
+// defences, decorations and the most recent sorties. A second tab draws the
+// same record as charts (logbookAnalytics.ts).
 
 import { el, clearEl, button } from '../dom';
 import { LogbookData, MEDALS, emptyLogbook, fmtHours, saveLogbook } from '../../game/logbook';
 import { AIRCRAFT_TYPES, SPECS } from '../../aircraft/specs';
 import { DIFFICULTIES } from '../../ai/skill';
 import { fmtTime } from '../../core/math';
+import { renderAnalytics } from './logbookAnalytics';
 
 export class LogbookModal {
   readonly root: HTMLDivElement;
   private body: HTMLElement;
   private book: LogbookData | null = null;
   private resetArmed = false;
+  private tab: 'record' | 'analytics' = 'record';
 
   constructor(
     parent: HTMLElement,
@@ -39,6 +42,23 @@ export class LogbookModal {
   private render(): void {
     const b = this.book!;
     clearEl(this.body);
+    const tabs = el('div', 'tabs lb-tabs', this.body);
+    for (const [id, label] of [
+      ['record', 'RECORD'],
+      ['analytics', 'ANALYTICS'],
+    ] as const) {
+      button(label, 'small' + (this.tab === id ? ' active' : ''), tabs, () => {
+        if (this.tab === id) return;
+        this.tab = id;
+        this.resetArmed = false;
+        this.render();
+        this.body.scrollTop = 0;
+      });
+    }
+    if (this.tab === 'analytics') {
+      renderAnalytics(this.body, b);
+      return;
+    }
     const t = b.totals;
     const kd = t.losses > 0 ? (t.kills / t.losses).toFixed(2) : t.kills > 0 ? `${t.kills}.00` : '—';
     // (missile kills over missiles fired: gun kills would push it past 100 %)

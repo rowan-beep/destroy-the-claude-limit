@@ -4,8 +4,10 @@ import { build } from 'esbuild';
 import { readdirSync, mkdirSync, rmSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
-const root = new URL('..', import.meta.url).pathname;
+// (fileURLToPath, not .pathname: on Windows the pathname keeps a leading slash and %20 for spaces)
+const root = fileURLToPath(new URL('..', import.meta.url));
 const testsDir = join(root, 'tests');
 const out = join(root, 'node_modules', '.tests');
 

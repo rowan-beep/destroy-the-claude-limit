@@ -4,6 +4,14 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu the space updates.
 
+## v7.15.2 (2026-11-15)
+
+### Air Combat: Logbook analytics
+
+- **New: Logbook analytics**
+  - The Pilot Logbook has a new ANALYTICS tab that turns your career record into charts: kills per flight hour, survival and missile hit rates, your form over the last sorties, flight time and kill rate for each jet, kills by weapon, how you beat incoming missiles, the modes you fly and your duel win rate on each difficulty.
+  - The record you already know is still there, on the RECORD tab. Nothing new is stored: the charts are drawn from the logbook you already have.
+
 ## v7.15.1 (2026-11-11)
 
 ### Air Combat: Photorealistic vapor in hard turns

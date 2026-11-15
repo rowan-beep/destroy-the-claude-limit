@@ -41,6 +41,16 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.15.2',
+    date: '2026-11-15',
+    air: {
+      title: 'Logbook analytics',
+      notes: [
+        added('Logbook analytics', 'The Pilot Logbook has a new ANALYTICS tab that turns your career record into charts: kills per flight hour, survival and missile hit rates, your form over the last sorties, flight time and kill rate for each jet, kills by weapon, how you beat incoming missiles, the modes you fly and your duel win rate on each difficulty.', 'The record you already know is still there, on the RECORD tab. Nothing new is stored: the charts are drawn from the logbook you already have.'),
+      ],
+    },
+  },
+  {
     version: '7.15.1',
     date: '2026-11-11',
     air: {
