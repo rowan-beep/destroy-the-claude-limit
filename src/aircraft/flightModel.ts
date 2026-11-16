@@ -31,11 +31,19 @@ export interface FlightControls {
   throttle: number;
   speedbrake: boolean;
   gearDown: boolean;
+  /**
+   * Flap lever (down = true). Left out, the flaps follow the gear lever as they always have
+   * (AI pilots, auto-fly, the airshow); the player's own lever sets it.
+   */
+  flaps?: boolean;
   /** 0..1 wheel brakes */
   wheelBrake: number;
   /** G-limiter override (paddle switch) */
   gOverride: boolean;
 }
+
+/** calibrated airspeed (kt) above which lowered flaps retract by themselves */
+export const FLAP_BLOWUP_KTS = 250;
 
 export function neutralControls(): FlightControls {
   return { pitch: 0, roll: 0, yaw: 0, throttle: 0.75, speedbrake: false, gearDown: false, wheelBrake: 0, gOverride: false };
@@ -256,6 +264,10 @@ export class FlightModel {
   storeCd = 0;
   ammoMass = 0;
   gearPos = 0;
+  /** landing flaps 0 up .. 1 down */
+  flapPos = 0;
+  /** set once step() has run: a puppet (replay, airshow, online) never steps, and shows its flaps with its gear */
+  flapLive = false;
   speedbrakePos = 0;
   gOverrideActive = false;
 
@@ -363,6 +375,7 @@ export class FlightModel {
     this.hookDown = false;
     this.deckN = null;
     this.gearPos = 0;
+    this.flapPos = 0;
     this.crashed = false;
     for (let i = 0; i < this.rpm.length; i++) this.rpm[i] = 0.85;
     this.throttleLever = 0.85;
@@ -388,6 +401,7 @@ export class FlightModel {
     this.vel.set(_surf.vx ?? 0, _surf.vy ?? 0, _surf.vz ?? 0);
     this.onGround = true;
     this.gearPos = 1;
+    this.flapPos = 1;
     this.crashed = false;
     for (let i = 0; i < this.rpm.length; i++) this.rpm[i] = 0.2;
     this.throttleLever = 0;
@@ -431,6 +445,7 @@ export class FlightModel {
     this.placeOnCat(0);
     this.onGround = true;
     this.gearPos = 1;
+    this.flapPos = 1;
     this.crashed = false;
   }
 
@@ -484,15 +499,15 @@ export class FlightModel {
   private clMaxEff(M: number): number {
     const s = this.spec;
     let c = s.clMax * this.damage.lift;
-    c *= 1 + 0.12 * this.gearPos;
+    c *= 1 + 0.12 * this.flapPos;
     c *= 1 - 0.28 * smoothstep(0.85, 1.35, M);
     return c;
   }
 
-  /** Lift the landing flaps add at zero angle of attack: they come out with the gear, slow. */
+  /** Lift the landing flaps add at zero angle of attack, slow. */
   private flapCl0(M: number): number {
     const f = this.spec.flapCl0;
-    return f ? f * this.gearPos * (1 - smoothstep(0.35, 0.5, M)) : 0;
+    return f ? f * this.flapPos * (1 - smoothstep(0.35, 0.5, M)) : 0;
   }
 
   clOf(alpha: number, M: number): number {
@@ -549,7 +564,8 @@ export class FlightModel {
     let cd0 = s.cd0 * wave + this.barrierCd(M);
     // stores (pylons, fins, tanks) add their own drag rise through the transonic
     cd0 += this.storeCd * (1 + 0.4 * smoothstep(0.85, 1.15, M));
-    cd0 += 0.028 * this.gearPos + s.speedbrakeCd * this.speedbrakePos + this.damage.drag;
+    // (gear and flaps together: the 0.028 the gear alone used to carry when the flaps were tied to it)
+    cd0 += 0.02 * this.gearPos + 0.008 * this.flapPos + s.speedbrakeCd * this.speedbrakePos + this.damage.drag;
     const k = s.kInduced * (M > 1 ? 1 + 0.9 * (M - 1) : 1);
     return cd0 + k * cl * cl;
   }
@@ -669,6 +685,12 @@ export class FlightModel {
     // --- config surfaces ---
     const gearTarget = c.gearDown || this.onGround ? 1 : 0;
     this.gearPos += clamp(gearTarget - this.gearPos, -dt / 5, dt / 5);
+    // the flaps follow their own lever, or the gear's when there is none; above 250 kt they blow
+    // back up by themselves (the flap overspeed protection) and come down again once slower
+    const flapCmd = c.flaps ?? (c.gearDown || this.onGround);
+    const flapTarget = flapCmd && (this.onGround || this.cas < FLAP_BLOWUP_KTS * 0.514444) ? 1 : 0;
+    this.flapPos += clamp(flapTarget - this.flapPos, -dt / 5, dt / 5);
+    this.flapLive = true;
     const sbTarget = c.speedbrake ? 1 : 0;
     this.speedbrakePos += clamp(sbTarget - this.speedbrakePos, -dt / 1.5, dt / 1.5);
     this.gOverrideActive = c.gOverride;

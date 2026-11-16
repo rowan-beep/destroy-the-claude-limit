@@ -160,8 +160,19 @@ export function loadSettings(): GameSettings {
       fitToDevice(d, true);
       return d;
     }
-    const s = merge(d, JSON.parse(raw));
+    const saved = JSON.parse(raw);
+    const s = merge(d, saved);
     fitToDevice(s, false);
+    // the flaps took F from the cockpit / chase toggle: keys saved before the flaps existed
+    // (no flaps entry of their own; the merge above has already filled in the default) lose F
+    // from the camera toggle, and the flaps keep F unless the player put something else on it
+    const savedKeys = saved?.input?.bindings as Partial<Record<Action, unknown>> | undefined;
+    if (savedKeys && !Array.isArray(savedKeys.flaps)) {
+      const b = s.input.bindings;
+      if (Array.isArray(b.camera)) b.camera = b.camera.filter((k) => k !== 'KeyF');
+      const taken = (Object.keys(b) as Action[]).some((a) => a !== 'flaps' && Array.isArray(b[a]) && b[a].includes('KeyF'));
+      b.flaps = taken ? [] : [...DEFAULT_BINDINGS.flaps];
+    }
     // make sure every action has a binding list (new actions after updates)
     for (const a of Object.keys(DEFAULT_BINDINGS) as Action[]) {
       if (!Array.isArray(s.input.bindings[a])) s.input.bindings[a] = [...DEFAULT_BINDINGS[a]];

@@ -91,6 +91,7 @@ export class TouchControls {
     const small: Btn[] = [
       { action: 'camera', label: 'CAM' },
       { action: 'gear', label: 'GEAR' },
+      { action: 'flaps', label: 'FLAP' },
       { action: 'speedbrake', label: 'BRK' },
       { action: 'wheelBrake', label: 'WHL', hold: true },
       { action: 'gOverride', label: 'G-OVR' },

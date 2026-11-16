@@ -4,6 +4,15 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu the space updates.
 
+## v7.15.4 (2026-11-16)
+
+### Air Combat: Flaps on the F key
+
+- **New: Flaps on the F key**
+  - Press F to lower or raise the landing flaps on their own. The gear lever still brings them down and up with it, so nothing changes unless you use F. Above 250 knots lowered flaps stay up and come down once you slow below it. The status line shows FLAPS, and touch controls get a FLAP button.
+- **Improved: Camera keys**
+  - F used to switch between the cockpit and chase views; F1 and F2 do that now. If you had changed your keys, only F moves to the flaps; anything else you set stays.
+
 ## v7.15.3 (2026-11-16)
 
 ### Air Combat: F-15EX Missile Truck: sixteen missiles

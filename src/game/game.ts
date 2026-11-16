@@ -57,6 +57,7 @@ import type { TouchControls } from '../ui/touchControls';
 import type { ReplayUi } from '../ui/replayUi';
 import { ReplayRecorder, ReplayPlayer } from './replay';
 import { SortieRecorder, LogbookData, MissionOutcome, loadLogbook, saveLogbook, commitSortie, medalName } from './logbook';
+import { FLAP_BLOWUP_KTS } from '../aircraft/flightModel';
 import { NM } from '../core/constants';
 import { prewarmAirframes, setHeroDetail } from '../aircraft/models';
 import { randomizeWind, wind } from '../core/weather';
@@ -123,6 +124,8 @@ export class Game implements ModeHost {
   private heardBeats = 0;
   speedbrake = false;
   gearDown = false;
+  /** the flap lever (F); the gear lever moves it too, so flaps still come down with the gear */
+  flapsDown = false;
   /** Auto-Fly (U): flies to a chosen destination at a chosen speed and altitude */
   readonly autoFly = new AutoFly();
   /** bombing computer: ground target designation and the release cue */
@@ -730,7 +733,7 @@ export class Game implements ModeHost {
     const p = this.player;
     if (!p) return;
     this.throttleCmd = p.fm.onGround ? 0 : Math.max(0.85, p.controls.throttle);
-    this.gearDown = p.fm.onGround;
+    this.gearDown = this.flapsDown = p.fm.onGround;
     this.speedbrake = false;
     this.gOverride = false;
     this.autopilot = false;
@@ -1514,9 +1517,16 @@ export class Game implements ModeHost {
       if (p.fm.onGround) this.message('WEIGHT ON WHEELS — GEAR LOCKED', 'warn', 2);
       else {
         this.gearDown = !this.gearDown;
+        this.flapsDown = this.gearDown;
         audio.mechanical();
         this.message(this.gearDown ? 'GEAR DOWN' : 'GEAR UP', 'info', 2);
       }
+    }
+    if (inp.pressed('flaps')) {
+      this.flapsDown = !this.flapsDown;
+      audio.mechanical();
+      const fast = !p.fm.onGround && p.fm.cas / 0.514444 > FLAP_BLOWUP_KTS;
+      this.message(this.flapsDown ? (fast ? `FLAPS DOWN — HELD UP ABOVE ${FLAP_BLOWUP_KTS} KT` : 'FLAPS DOWN') : 'FLAPS UP', 'info', 2);
     }
     if (inp.pressed('speedbrake')) {
       this.speedbrake = !this.speedbrake;
@@ -1624,13 +1634,13 @@ export class Game implements ModeHost {
     const tk = this.tanker;
     if (ch.dest?.id === 'tanker' && tk && aarKind(p.spec.type) !== 'none') {
       this.autoFly.engageTanker(p, tk);
-      this.gearDown = p.fm.onGround;
+      this.gearDown = this.flapsDown = p.fm.onGround;
       this.message('AUTO-FLY ENGAGED → KC-46 TANKER · IT FLIES THE JOIN, AND THE JET CONNECTS BY ITSELF. HANDS OFF.', 'good', 5);
       return;
     }
     this.autoFly.engage(p, ch.dest, ch.speedKts, ch.altFt, ch.autoLand, ch.ab);
     if (ch.dest && this.avionics) this.avionics.nav.select(ch.dest.id);
-    this.gearDown = p.fm.onGround;
+    this.gearDown = this.flapsDown = p.fm.onGround;
     const land = (ch.autoLand && ch.dest?.field ? ' · AUTO-LAND' : '') + (ch.ab === 'max' ? ' · AB MAX' : ch.ab === 'off' ? ' · NO AB' : '');
     this.message(`AUTO-FLY ENGAGED → ${ch.dest ? ch.dest.name : 'HOLDING HEADING'} · ${ch.speedKts} KT · ${ch.altFt.toLocaleString('en-US')} FT${land}`, 'good', 4);
   }
@@ -1824,6 +1834,7 @@ export class Game implements ModeHost {
     c.speedbrake = this.speedbrake;
     if (p.fm.onGround) this.gearDown = true;
     c.gearDown = this.gearDown;
+    c.flaps = this.flapsDown;
     c.wheelBrake = inp.held('wheelBrake') || (p.fm.onGround && this.speedbrake) ? 1 : 0;
 
     const tk = this.tanker;
@@ -1850,9 +1861,11 @@ export class Game implements ModeHost {
         this.message('AUTO-FLY DISENGAGED — YOU HAVE CONTROL', 'warn', 2.5);
       } else {
         c.throttle = this.throttleCmd;
+        // auto-fly works the gear lever, and the flaps follow it
+        c.flaps = undefined;
         af.control(p, dt);
         this.throttleCmd = c.throttle;
-        this.gearDown = c.gearDown;
+        this.gearDown = this.flapsDown = c.gearDown;
         this.speedbrake = c.speedbrake;
         this.aimDir.copy(p.fm.fwd);
         c.gOverride = false;

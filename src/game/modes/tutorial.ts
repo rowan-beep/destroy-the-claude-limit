@@ -180,7 +180,7 @@ export class TutorialMode extends GameMode {
       },
       {
         title: 'VIEWS',
-        text: () => `Switch between the <b>cockpit</b> and the <b>chase camera</b> with ${this.key('camera')}. Try it twice now.<br><br>Other views: ${this.key('camFlyby')} fly-by, ${this.key('camTarget')} padlock the target. Hold the <kbd>RIGHT MOUSE</kbd> button and move the mouse to look around.`,
+        text: () => `Switch between the <b>cockpit</b> and the <b>chase camera</b> with ${this.key('camCockpit')} and ${this.key('camChase')}. Try it twice now.<br><br>Other views: ${this.key('camFlyby')} fly-by, ${this.key('camTarget')} padlock the target. Hold the <kbd>RIGHT MOUSE</kbd> button and move the mouse to look around.`,
         setup: () => {
           this.views = 0;
           this.lastView = h.cameraMode?.() ?? '';

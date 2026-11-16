@@ -41,6 +41,17 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.15.4',
+    date: '2026-11-16',
+    air: {
+      title: 'Flaps on the F key',
+      notes: [
+        added('Flaps on the F key', 'Press F to lower or raise the landing flaps on their own. The gear lever still brings them down and up with it, so nothing changes unless you use F. Above 250 knots lowered flaps stay up and come down once you slow below it. The status line shows FLAPS, and touch controls get a FLAP button.'),
+        improved('Camera keys', 'F used to switch between the cockpit and chase views; F1 and F2 do that now. If you had changed your keys, only F moves to the flaps; anything else you set stays.'),
+      ],
+    },
+  },
+  {
     version: '7.15.3',
     date: '2026-11-16',
     air: {

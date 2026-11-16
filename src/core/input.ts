@@ -23,6 +23,7 @@ export type Action =
   | 'flare'
   | 'chaff'
   | 'gear'
+  | 'flaps'
   | 'speedbrake'
   | 'wheelBrake'
   | 'gOverride'
@@ -75,13 +76,14 @@ export const ACTION_LABELS: Record<Action, string> = {
   irst: 'IRST lock (Typhoon, Su-35S, Rafale, MiG-31)',
   flare: 'Flares',
   chaff: 'Chaff',
-  gear: 'Landing gear',
+  gear: 'Landing gear (the flaps follow it)',
+  flaps: 'Flaps up / down',
   speedbrake: 'Speedbrake',
   wheelBrake: 'Wheel brakes (hold)',
   gOverride: 'G-limiter override (paddle)',
   map: 'Theater map',
   pause: 'Pause / menu',
-  camera: 'Toggle cockpit / chase camera',
+  camera: 'Toggle cockpit / chase camera (no key by default: F1 / F2)',
   camCockpit: 'Cockpit view',
   camChase: 'Chase view',
   camFlyby: 'Fly-by view',
@@ -130,12 +132,14 @@ export const DEFAULT_BINDINGS: Record<Action, string[]> = {
   flare: ['KeyC'],
   chaff: ['KeyV'],
   gear: ['KeyG'],
+  flaps: ['KeyF'],
   speedbrake: ['KeyB'],
   wheelBrake: ['KeyN'],
   gOverride: ['KeyL'],
   map: ['KeyM'],
   pause: ['Escape', 'KeyP'],
-  camera: ['KeyF'],
+  // (F was the camera toggle until the flaps took it; F1 / F2 pick the views)
+  camera: [],
   camCockpit: ['F1'],
   camChase: ['F2'],
   camFlyby: ['F3'],

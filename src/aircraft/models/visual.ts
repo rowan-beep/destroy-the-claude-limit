@@ -1093,6 +1093,8 @@ export class AirframeVisual {
     const roll = alive ? (air ? fm.defl.a : c.roll) : 0.6;
     const yaw = alive ? (air ? fm.defl.r : c.yaw) : 0;
     const aoa = fm.alpha / DEG;
+    // the flaps' own position in flight; a puppet that never steps shows them with its gear
+    const flapsDown = (fm.flapLive ? fm.flapPos : fm.gearPos) > 0.5;
     for (const s of this.surfaces) {
       let target = 0;
       switch (s.kind) {
@@ -1109,14 +1111,14 @@ export class AirframeVisual {
           target = roll * s.side;
           break;
         case 'flap':
-          target = fm.gearPos > 0.5 ? 0.9 : clamp(aoa / 25, 0, 0.5) + roll * 0.3 * s.side;
+          target = flapsDown ? 0.9 : clamp(aoa / 25, 0, 0.5) + roll * 0.3 * s.side;
           break;
         case 'flaperon':
-          // roll like an aileron, drooped together as flaps with the gear down
-          target = roll * s.side * 0.85 + (fm.gearPos > 0.5 ? 0.85 : 0);
+          // roll like an aileron, drooped together as flaps with the flaps down
+          target = roll * s.side * 0.85 + (flapsDown ? 0.85 : 0);
           break;
         case 'lef':
-          target = clamp(aoa / 20, 0, 1) + (fm.gearPos > 0.5 ? 0.5 : 0);
+          target = clamp(aoa / 20, 0, 1) + (flapsDown ? 0.5 : 0);
           break;
       }
       target = clamp(target, -1, 1) * s.maxDeg * DEG;
