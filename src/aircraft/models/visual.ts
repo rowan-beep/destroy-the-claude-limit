@@ -10,7 +10,7 @@ import { getSoftDotTexture } from '../../render/textures';
 import type { Aircraft } from '../aircraft';
 import type { WeaponBay, StoreType } from '../specs';
 import { airframeMaterials, Section } from './builder';
-import { storeGeometry, pylonGeometry, shoulderGeometry, storeCenterY, storeCenterX, onShoulder, PYLON_DROP } from './stores';
+import { storeGeometry, pylonGeometry, shoulderGeometry, storeCenterY, storeCenterX, onShoulder, storeRadius, PYLON_DROP } from './stores';
 import { shinyStores } from './missiles';
 import { DEG } from '../../core/constants';
 import { clamp, smoothstep } from '../../core/math';
@@ -984,6 +984,11 @@ export class AirframeVisual {
     this.pylons = [];
     // the pylons never leave: all of them are one mesh (one draw call)
     const pylons: THREE.BufferGeometry[] = [];
+    // a quad rack with its lower tier loaded: every missile on it shares one blade reaching down
+    // to the lower pair (the same mesh for all four, so no two blades fight on the same faces)
+    const rackLow = new Map<number, number>();
+    for (const st of this.ac.stations)
+      if (st.store && st.def.rack !== undefined && st.def.rackLow && onShoulder(st.def, st.store)) rackLow.set(st.def.rack, Math.max(rackLow.get(st.def.rack) ?? 0, st.def.rackLow));
     for (const st of this.ac.stations) {
       if (!st.store) continue;
       // bay stores: hidden behind the shut doors, lowered into view as they open
@@ -1011,7 +1016,10 @@ export class AirframeVisual {
       store.castShadow = true;
       g.add(store);
       const drop = st.def.mount === 'pylon' ? (st.def.hang !== undefined ? PYLON_DROP : 0.55) : 0.1;
-      const pg = onShoulder(st.def, st.store) ? shoulderGeometry(st.store, st.def.rack! - cx, st.def.hang! - cy, st.def.rackDepth) : pylonGeometry(st.def.mount, st.store, drop);
+      // (extra blade below this missile when the rack's lower tier is loaded beneath it)
+      const below = st.def.rack !== undefined ? (rackLow.get(st.def.rack) ?? 0) - (st.def.rackLow ?? 0) : 0;
+      const depth = below > 0 ? (st.def.rackDepth ?? storeRadius(st.store) + 0.12) + below : st.def.rackDepth;
+      const pg = onShoulder(st.def, st.store) ? shoulderGeometry(st.store, st.def.rack! - cx, st.def.hang! - cy, depth) : pylonGeometry(st.def.mount, st.store, drop);
       pylons.push(pg.clone().translate(cx, cy, p[2]));
       this.body.add(g);
       this.stationMeshes.set(st.def.id, g);

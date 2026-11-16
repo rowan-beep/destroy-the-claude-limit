@@ -41,6 +41,17 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.15.3',
+    date: '2026-11-16',
+    air: {
+      title: 'F-15EX Missile Truck: sixteen missiles',
+      notes: [
+        added('A sixteen-missile Missile Truck', 'The F-15EX\'s MISSILE TRUCK now carries sixteen missiles: four AIM-120Ds on each inner wing pylon on a new four-missile rack, four more on the conformal tanks, and two AIM-9Xs on each outer wing pylon.'),
+        improved('F-15EX everyday load: twelve missiles', 'The F-15EX\'s default EVERYDAY loadout now carries eight AIM-120D AMRAAMs and four AIM-9X Sidewinders: the full load the MISSILE TRUCK used to fly with.'),
+      ],
+    },
+  },
+  {
     version: '7.15.2',
     date: '2026-11-15',
     air: {

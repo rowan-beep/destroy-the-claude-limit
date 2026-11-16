@@ -118,7 +118,9 @@ export const smsPage: MfdPage = {
     const sel = p.selectedWeapon;
     const nextUp = sel !== 'GUN' ? p.pickStation(sel) : null;
     for (const st of p.stations) {
-      const [x, y] = P(st.def.pos[0], st.def.pos[2]);
+      const [x, y0] = P(st.def.pos[0], st.def.pos[2]);
+      // a quad rack's lower pair sits under the upper one: drawn just aft of it so both show
+      const y = st.def.rackLow ? y0 + 16 : y0;
       const store = st.store;
       if (!store) {
         pen.color = C.grey;

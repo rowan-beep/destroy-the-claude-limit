@@ -62,6 +62,12 @@ export interface StationDef {
   rack?: number;
   /** twin rack: how far the shared pylon's blade reaches below the missiles' centre line (m; default just past their bellies) */
   rackDepth?: number;
+  /**
+   * Twin rack, lower tier: this missile rides a second pair of shoulder rails this far (m)
+   * below the upper pair, so one pylon carries four (a quad rack). When a lower-tier missile
+   * is loaded the pylon's blade reaches down to it for every missile on the rack.
+   */
+  rackLow?: number;
   /** internal stations: which weapons bay (its doors must be open to launch) */
   bay?: WeaponBay;
   /** internal stations: where the store sits once its bay is open (lowered on its launcher) */
@@ -238,6 +244,10 @@ const F15_HANG_IB = 0.125;
 const F15_HANG_OB = 0.148;
 /** the Eagle's wing pylons are slim: the blade ends level with the missiles' lower half, not below them */
 const F15_RACK_DEPTH = 0.07;
+/** the inner wing racks' lower tier (stations 14-17): a second pair of AMRAAM rails this far below
+ * the upper pair, clear of the upper missiles' X-tail fins (0.2 m below their centre line) and of the
+ * lower missiles' own launchers on their backs */
+const F15_RACK_LOW = 0.5;
 const FA18_RZ = 1.3;
 
 // ---------------------------------------------------------------------------
@@ -250,7 +260,7 @@ const F15EX: AircraftSpec = {
   role: 'Two-seat multirole air superiority fighter',
   crew: 2,
   description:
-    'The heaviest hitter in the theater. Mach 2.5, a 60,000 ft ceiling and 23 hardpoints carrying up to 12 air-to-air missiles. AN/APG-82(V)1 AESA radar, EPAWSS electronic warfare suite and an all-digital fly-by-wire system.',
+    'The heaviest hitter in the theater. Mach 2.5, a 60,000 ft ceiling and 23 hardpoints carrying up to 16 air-to-air missiles. AN/APG-82(V)1 AESA radar, EPAWSS electronic warfare suite and an all-digital fly-by-wire system.',
   lengthFt: 63.8,
   wingspanFt: 42.8,
   heightFt: 18.5,
@@ -295,7 +305,7 @@ const F15EX: AircraftSpec = {
   speedbrakeCd: 0.07,
   combatRangeNm: 687,
   hardpoints: 23,
-  maxAAM: 12,
+  maxAAM: 16,
   missiles: { radar: AIM120, ir: AIM9 },
   tvcDeg: 0,
   gun: {
@@ -322,19 +332,26 @@ const F15EX: AircraftSpec = {
     { id: 11, label: 'RW IB-O', pos: [F15_RX_IB + 0.3, -0.15, F15_RZ_IB], allowed: [AIM120, AIM9, TANK, GBU31], mount: 'pylon', hang: F15_HANG_IB, rack: F15_RX_IB, rackDepth: F15_RACK_DEPTH },
     { id: 12, label: 'RW OB-I', pos: [F15_RX_OB - 0.3, -0.15, F15_RZ_OB], allowed: [AIM120, AIM9], mount: 'pylon', hang: F15_HANG_OB, rack: F15_RX_OB, rackDepth: F15_RACK_DEPTH },
     { id: 13, label: 'RW OB-O', pos: [F15_RX_OB + 0.3, -0.15, F15_RZ_OB], allowed: [AIM9, AIM120], mount: 'pylon', hang: F15_HANG_OB, rack: F15_RX_OB, rackDepth: F15_RACK_DEPTH },
+    // the inner wing racks' lower tier: two more AMRAAMs under each inner pylon (four a side)
+    { id: 14, label: 'LW IB-OL', pos: [-(F15_RX_IB + 0.3), -0.15 - F15_RACK_LOW, F15_RZ_IB], allowed: [AIM120], mount: 'pylon', hang: F15_HANG_IB, rack: -F15_RX_IB, rackDepth: F15_RACK_DEPTH, rackLow: F15_RACK_LOW },
+    { id: 15, label: 'LW IB-IL', pos: [-(F15_RX_IB - 0.3), -0.15 - F15_RACK_LOW, F15_RZ_IB], allowed: [AIM120], mount: 'pylon', hang: F15_HANG_IB, rack: -F15_RX_IB, rackDepth: F15_RACK_DEPTH, rackLow: F15_RACK_LOW },
+    { id: 16, label: 'RW IB-IL', pos: [F15_RX_IB - 0.3, -0.15 - F15_RACK_LOW, F15_RZ_IB], allowed: [AIM120], mount: 'pylon', hang: F15_HANG_IB, rack: F15_RX_IB, rackDepth: F15_RACK_DEPTH, rackLow: F15_RACK_LOW },
+    { id: 17, label: 'RW IB-OL', pos: [F15_RX_IB + 0.3, -0.15 - F15_RACK_LOW, F15_RZ_IB], allowed: [AIM120], mount: 'pylon', hang: F15_HANG_IB, rack: F15_RX_IB, rackDepth: F15_RACK_DEPTH, rackLow: F15_RACK_LOW },
   ],
   loadouts: [
     {
-      // what Eagles usually fly with: the conformal tanks' four and a pair on each inner
-      // wing pylon, the EX's outer pylons empty (the default; the full twelve is next)
+      // the default: twelve missiles, the conformal tanks' four AMRAAMs and a pair on each
+      // wing pylon, Sidewinders outboard on each rack (what the MISSILE TRUCK carried until 7.15.1)
       id: 'eagle-8',
-      name: 'EVERYDAY — 6x AIM-120D, 2x AIM-9X',
-      stores: { 3: AIM9, 4: AIM120, 5: AIM120, 6: AIM120, 8: AIM120, 9: AIM120, 10: AIM120, 11: AIM9 },
+      name: 'EVERYDAY — 8x AIM-120D, 4x AIM-9X',
+      stores: { 1: AIM9, 2: AIM120, 3: AIM120, 4: AIM9, 5: AIM120, 6: AIM120, 8: AIM120, 9: AIM120, 10: AIM9, 11: AIM120, 12: AIM120, 13: AIM9 },
     },
     {
+      // sixteen: four AMRAAMs on each inner wing rack (upper and lower pair), the conformal
+      // tanks' four, and a pair of Sidewinders on each outer wing rack
       id: 'eagle-12',
-      name: 'EAGLE II "MISSILE TRUCK" — 8x AIM-120D, 4x AIM-9X',
-      stores: { 1: AIM9, 2: AIM120, 3: AIM120, 4: AIM9, 5: AIM120, 6: AIM120, 8: AIM120, 9: AIM120, 10: AIM9, 11: AIM120, 12: AIM120, 13: AIM9 },
+      name: 'EAGLE II "MISSILE TRUCK" — 12x AIM-120D, 4x AIM-9X',
+      stores: { 1: AIM9, 2: AIM9, 3: AIM120, 4: AIM120, 5: AIM120, 6: AIM120, 8: AIM120, 9: AIM120, 10: AIM120, 11: AIM120, 12: AIM9, 13: AIM9, 14: AIM120, 15: AIM120, 16: AIM120, 17: AIM120 },
     },
     {
       id: 'eagle-strike',

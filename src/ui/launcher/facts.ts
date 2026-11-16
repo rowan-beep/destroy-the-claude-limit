@@ -80,7 +80,7 @@ export const AIR_FACTS: string[] = [
   'The first jet aircraft to fly was the Heinkel He 178, in 1939.',
   'The Messerschmitt Me 262 was the first jet fighter to go into service.',
   'Military jet fuels such as JP-8 are kerosene-based.',
-  'The F-15EX Eagle II can carry up to twelve air-to-air missiles.',
+  'The F-15EX Eagle II can carry up to sixteen air-to-air missiles.',
   'The F-15EX has fully digital fly-by-wire controls, where earlier Eagles had mechanical linkages.',
   'Aviation runs on "Zulu" time (UTC), so everyone shares one clock.',
   'A nautical mile is 1,852 metres: one minute of latitude.',

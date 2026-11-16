@@ -82,7 +82,7 @@ export const LIBRARY: Record<AircraftType, LibraryEntry> = {
     nickname: 'Eagle II',
     history:
       'The newest Eagle: a clean-sheet update of the F-15 with fly-by-wire controls, a digital cockpit, the APG-82 AESA radar and the EPAWSS electronic-warfare suite. The Air Force bought it to replace worn-out F-15Cs quickly, and to carry the biggest air-to-air load of any fighter in service.',
-    strengths: ['Carries 12 air-to-air missiles, more than any other jet here', 'Mach 2.5: the fastest top speed in the library', 'Big AESA radar and EPAWSS auto-countermeasures'],
+    strengths: ['Carries 16 air-to-air missiles, more than any other jet here', 'Mach 2.5: the fastest top speed in the library', 'Big AESA radar and EPAWSS auto-countermeasures'],
     weaknesses: ['Large and heavy: bleeds energy in a slow turning fight', 'No IRST: needs its radar (which warns the target) to lock'],
     tactics: 'Fight long. Use the speed and the missile count to shoot first and keep shooting, and never let a lighter jet drag you into a slow knife fight.',
   },

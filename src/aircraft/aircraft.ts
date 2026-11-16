@@ -626,6 +626,8 @@ export class Aircraft {
       const sa = a.def.pos[0] < 0 ? left : right;
       const sb = b.def.pos[0] < 0 ? left : right;
       if (sa !== sb) return sb - sa;
+      // a quad rack empties its lower pair first, clear of the missiles above
+      if (!!a.def.rackLow !== !!b.def.rackLow) return a.def.rackLow ? -1 : 1;
       return Math.abs(b.def.pos[0]) - Math.abs(a.def.pos[0]);
     });
     return cands[0];

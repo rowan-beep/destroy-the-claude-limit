@@ -495,7 +495,7 @@ export function storeCenterX(def: StationDef, store: StoreType): number {
  */
 export function storeCenterY(def: StationDef, store: StoreType): number {
   if (def.hang === undefined) return def.pos[1];
-  if (onShoulder(def, store)) return def.hang - SHOULDER_DROP;
+  if (onShoulder(def, store)) return def.hang - SHOULDER_DROP - (def.rackLow ?? 0);
   const r = storeRadius(store);
   if (def.mount === 'rail') return def.hang - (r + 0.13);
   if (def.mount === 'pylon') return def.hang - (r + 0.02 + PYLON_DROP);
