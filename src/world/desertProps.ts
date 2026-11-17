@@ -516,7 +516,7 @@ interface Placed {
 
 /** how far off each kind is drawn (m): the great monuments from far away, the many small pieces only nearer */
 const RANGE: Record<string, number> = {
-  temple: 20000, theatre: 20000, amphitheatre: 22000, forum: 16000, basilica: 16000, gate: 16000, arch: 16000, aqueduct: 14000,
+  temple: 20000, facade: 16000, theatre: 20000, amphitheatre: 22000, forum: 16000, basilica: 16000, gate: 16000, arch: 16000, aqueduct: 14000,
   colonnade: 14000, tomb: 12000, obelisk: 12000, wall: 12000, wallrun: 9000, street: 9000, houses: 7000,
 };
 const has = (k: string): k is RuinKind => (RUIN_KINDS as string[]).includes(k);
@@ -559,6 +559,8 @@ function planCity(c: (typeof ANCIENT)[number], rnd: () => number, put: (kind: st
   put('basilica', 380, 200, 0);
   put('theatre', -H * 0.55, H * 0.5, Math.PI + 0.3);
   put('colonnade', 250, -90, half);
+  // a library's two-storey columned façade facing the cardo, the hall behind it long gone
+  put('facade', 45, 330, -half);
   put('obelisk', 40, -60, 0);
   put('statue', 160, -40, rnd() * 6);
   put('column', -60, 60, 0);
@@ -626,7 +628,7 @@ function placeStone(): { ruins: Placed[][]; crashes: Placed[][] } {
     taken.push({ x: c.x, z: c.z, r: (c.H + ANCIENT_APRON) * 1.45 });
   }
   // (the scattered ruins: the kinds that stand alone, not the city's tiles and great halls)
-  const LONE = RUIN_KINDS.filter((k) => !['street', 'wallrun', 'aqueduct', 'forum', 'amphitheatre', 'basilica'].includes(k));
+  const LONE = RUIN_KINDS.filter((k) => !['street', 'wallrun', 'aqueduct', 'forum', 'amphitheatre', 'basilica', 'facade'].includes(k));
   const pick = (): RuinKind => LONE[Math.floor(rnd() * LONE.length)];
   const half = 56 * NM;
   // lost towns: a few ruins together, some beside the oases (the old towns grew round the water)
