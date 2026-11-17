@@ -302,7 +302,7 @@ function planform(ac: Aircraft): { root: number; tip: number; semi: number; inne
 }
 
 /** jets whose strakes and chines throw strong vortices over the wing roots */
-const STRAKES = new Set(['F16C', 'FA18EF', 'SU35', 'SU57', 'MIG31', 'F22']);
+const STRAKES = new Set(['F16C', 'FA18EF', 'SU35', 'SU57', 'MIG31', 'F22', 'J20']);
 
 /** The wing's span stations: where its leading and trailing edges and upper surface really are. */
 function wingStations(p: ReturnType<typeof planform>, side: number, probe: SurfaceProbe | null): Station[] {

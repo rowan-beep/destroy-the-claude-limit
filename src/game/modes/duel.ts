@@ -6,8 +6,9 @@ import { Aircraft } from '../../aircraft/aircraft';
 import { AIPilot } from '../../ai/pilot';
 import { duelSkill } from '../../ai/skill';
 import { ROLES, mapAlt } from '../../world/islands';
-import { spawnOnRunway, spawnInAir, aiStores, pickEnemyType } from '../spawn';
-import { enemyTypesFor } from '../../aircraft/specs';
+import { spawnOnRunway, spawnInAir, aiStores } from '../spawn';
+import { enemyTypesFor, typesForRules } from '../../aircraft/specs';
+import { randPick } from '../../core/rng';
 import { NM } from '../../core/constants';
 
 export class DuelMode extends GameMode {
@@ -26,7 +27,9 @@ export class DuelMode extends GameMode {
     const cfg = h.config;
     const p = h.createPlayer();
     // the enemy may only be one of the two aircraft the player did not choose
-    const enemyType = enemyTypesFor(p.type).includes(cfg.enemyType) ? cfg.enemyType : pickEnemyType(p.type);
+    // (in GUNS ONLY only jets with a gun: the J-20B has none)
+    const pool = typesForRules(enemyTypesFor(p.type), cfg.duelRules);
+    const enemyType = pool.includes(cfg.enemyType) ? cfg.enemyType : randPick(pool);
     const e = new Aircraft(enemyType, 'red', 'BANDIT 1-1');
     const skill = duelSkill(cfg.difficulty);
     if (cfg.duelRules === 'ir') {

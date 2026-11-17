@@ -4,6 +4,7 @@ import type { Aircraft } from '../aircraft';
 import { AirframeVisual, FarLod, setLodScale } from './visual';
 import { buildAoVolume, AoVolume } from './ao';
 import { buildF15EX } from './f15ex';
+import { buildJ20 } from './j20';
 import { buildFA18 } from './fa18';
 import { buildF16 } from './f16';
 import { buildTyphoon } from './typhoon';
@@ -114,6 +115,7 @@ function build(ac: Aircraft, d: number): AirframeVisual {
     else if (ac.type === 'X15') buildX15(t);
     else if (ac.type === 'SU57') buildSu57(t);
     else if (ac.type === 'GRIPEN') buildGripen(t);
+    else if (ac.type === 'J20') buildJ20(t);
     else buildTyphoon(t);
   } finally {
     setModelDensity(1);

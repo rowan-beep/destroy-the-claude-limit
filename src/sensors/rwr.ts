@@ -138,6 +138,7 @@ export const RWR_SYMBOL: Record<string, string> = {
   X15: 'X',
   SU57: '57',
   GRIPEN: 'GR',
+  J20: '20',
 };
 
 /** RWR symbol for a threat: the jet's code, or the SAM number / A for AAA for a ground site. */

@@ -94,6 +94,14 @@ const TANKS: Record<AircraftType, TankDef[]> = {
     { name: 'WING R', frac: 0.17, box: [0.64, 0.38, 0.22, 0.24] },
     { name: 'TK 2', frac: 0.26, box: [0.41, 0.28, 0.18, 0.34] },
   ],
+  // two engines: three fuselage tanks down the middle, wing tanks either side
+  J20: [
+    { name: 'FUS FWD', frac: 0.22, box: [0.41, 0.06, 0.18, 0.2] },
+    { name: 'FUS MID', frac: 0.26, box: [0.41, 0.3, 0.18, 0.32] },
+    { name: 'FUS AFT', frac: 0.2, box: [0.41, 0.68, 0.18, 0.2] },
+    { name: 'WING L', frac: 0.16, box: [0.14, 0.4, 0.22, 0.24] },
+    { name: 'WING R', frac: 0.16, box: [0.64, 0.4, 0.22, 0.24] },
+  ],
   GRIPEN: [
     { name: 'FUS FWD', frac: 0.26, box: [0.41, 0.06, 0.18, 0.2] },
     { name: 'FUS AFT', frac: 0.24, box: [0.41, 0.66, 0.18, 0.2] },

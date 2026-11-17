@@ -1504,7 +1504,7 @@ export class Game implements ModeHost {
             best = c.target;
           }
         }
-        const irst = p.type === 'SU35' ? 'OLS-35' : p.type === 'MIG31' ? '8TK' : p.type === 'RAFALE' ? 'OSF' : p.type === 'SU57' ? '101KS-V' : p.type === 'GRIPEN' ? 'SKYWARD-G' : 'PIRATE';
+        const irst = p.type === 'SU35' ? 'OLS-35' : p.type === 'MIG31' ? '8TK' : p.type === 'RAFALE' ? 'OSF' : p.type === 'SU57' ? '101KS-V' : p.type === 'GRIPEN' ? 'SKYWARD-G' : p.type === 'J20' ? 'EOTS-86' : 'PIRATE';
         if (best && p.irst.setLock(best, this.sim)) this.message(`${irst} IRST LOCK (PASSIVE)`, 'good', 2);
         else this.message(`${irst}: NO IR TRACK`, 'warn', 2);
       }

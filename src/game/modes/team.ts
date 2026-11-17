@@ -11,8 +11,8 @@ import { Aircraft } from '../../aircraft/aircraft';
 import { AIPilot } from '../../ai/pilot';
 import { duelSkill, type AISkill } from '../../ai/skill';
 import { ROLES, mapAlt } from '../../world/islands';
-import { spawnInAir, aiStores, pickEnemyType } from '../spawn';
-import { COMBAT_TYPES, AircraftType } from '../../aircraft/specs';
+import { spawnInAir, aiStores } from '../spawn';
+import { COMBAT_TYPES, AircraftType, enemyTypesFor, hasGun, typesForRules } from '../../aircraft/specs';
 import { NM } from '../../core/constants';
 import { randPick, rand } from '../../core/rng';
 import type { Team } from '../../core/constants';
@@ -117,7 +117,8 @@ export class TeamBattleMode extends GameMode {
       let b: Aircraft;
       if (i === 0) b = p;
       else {
-        const type: AircraftType = cfg.teamAllies === 'same' ? p.type : randPick(COMBAT_TYPES);
+        // (in GUNS ONLY only jets with a gun: the J-20B has none)
+        const type: AircraftType = cfg.teamAllies === 'same' && (cfg.duelRules !== 'guns' || hasGun(p.type)) ? p.type : randPick(typesForRules(COMBAT_TYPES, cfg.duelRules));
         b = new Aircraft(type, 'blue', BLUE_NAMES[i]);
         b.paint = this.paintFor(b);
         this.loadout(b, false);
@@ -125,7 +126,7 @@ export class TeamBattleMode extends GameMode {
       }
       spawnInAir(b, new THREE.Vector3(samos.cx - sep - Math.abs(slots[i]) * 900, i === 0 ? mapAlt(6400) : alt, samos.cz + off), 90, 460);
       // RED: never the player's type
-      const r = new Aircraft(pickEnemyType(p.type), 'red', RED_NAMES[i]);
+      const r = new Aircraft(randPick(typesForRules(enemyTypesFor(p.type), cfg.duelRules)), 'red', RED_NAMES[i]);
       r.paint = this.paintFor(r);
       this.loadout(r, false);
       spawnInAir(r, new THREE.Vector3(samos.cx + sep + Math.abs(slots[i]) * 900, alt, samos.cz + off), 270, 460);

@@ -158,6 +158,8 @@ const AERO: Record<string, AeroData> = {
   SU57: { refMass: 25000, ixx: 40000, iyy: 230000, izz: 260000, cyB: -1.0, cm0: 0, cmA: 0.05, cmQ: -5, cmD: 0.35, clP: -0.33, clB: -0.08, clR: 0.07, clD: 0.056, cnB: 0.12, cnR: -0.32, cnP: -0.03, cnD: 0.042, cnDa: -0.006, engineArm: 0.95, rateE: 2.9, rateA: 4.2, rateR: 3.2 },
   // light and small: lowest inertia of the deltas, close-coupled canards
   GRIPEN: { refMass: 11000, ixx: 9000, iyy: 70000, izz: 78000, cyB: -0.95, cm0: 0, cmA: 0.08, cmQ: -4.4, cmD: 0.34, clP: -0.29, clB: -0.07, clR: 0.06, clD: 0.054, cnB: 0.11, cnR: -0.3, cnP: -0.03, cnD: 0.032, cnDa: -0.005, engineArm: 0, rateE: 3.1, rateA: 5, rateR: 3 },
+  // a long canard delta: big pitch inertia, close-coupled canards for pitch authority, 3D vectoring
+  J20: { refMass: 26000, ixx: 38000, iyy: 245000, izz: 275000, cyB: -1.0, cm0: 0, cmA: 0.06, cmQ: -5, cmD: 0.36, clP: -0.32, clB: -0.08, clR: 0.07, clD: 0.054, cnB: 0.12, cnR: -0.32, cnP: -0.03, cnD: 0.04, cnDa: -0.006, engineArm: 0.95, rateE: 2.9, rateA: 4.0, rateR: 3.0 },
   TYPHOON: { refMass: 15000, ixx: 18000, iyy: 130000, izz: 145000, cyB: -0.95, cm0: 0, cmA: 0.08, cmQ: -4.5, cmD: 0.33, clP: -0.3, clB: -0.07, clR: 0.06, clD: 0.05, cnB: 0.11, cnR: -0.3, cnP: -0.03, cnD: 0.032, cnDa: -0.005, engineArm: 0.5, rateE: 3.0, rateA: 4.5, rateR: 3 },
 };
 

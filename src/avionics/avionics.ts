@@ -51,6 +51,7 @@ export const PAGE_NAMES: Record<AircraftType, PageNames> = {
   X15: { tsd: 'NAV', ew: 'INST', sms: 'SMS' },
   SU57: { tsd: 'TAK', ew: 'REB', sms: 'SUO' },
   GRIPEN: { tsd: 'TI', ew: 'EWS', sms: 'VAP' },
+  J20: { tsd: 'TAC', ew: 'EW', sms: 'WPN' },
 };
 
 export type DisplayKind = 'mfd' | 'lad' | 'ufc' | 'standby' | 'dwp' | 'efd' | 'gauge';

@@ -72,6 +72,49 @@ export interface CockpitLayout {
 const CANVAS_MFD = 512;
 
 export const COCKPIT_LAYOUTS: Record<AircraftType, CockpitLayout> = {
+  // one wide touch screen across the panel, a small display over it, a wide-angle HUD
+  J20: {
+    panelDist: 0.63,
+    panelDrop: 0.27,
+    panelTilt: 0.3,
+    panelHalfWidth: 0.41,
+    panelHeight: 0.39,
+    glareDrop: 0.21,
+    glareLip: 0.08,
+    hud: { dist: 0.6, halfW: 0.15, top: 0.1, bottom: -0.2, style: 'wide' },
+    consoleDrop: 0.5,
+    tub: 0x4a5258,
+    panel: 0x2a2f33,
+    console: 0x24292d,
+    frame: 0x2c3236,
+    seat: 0x3a3c36,
+    seatKind: 'mk16',
+    label: 'J-20B',
+    lockShoot: false,
+    displays: [
+      {
+        def: {
+          id: 'wad',
+          kind: 'lad',
+          w: 1024,
+          h: 430,
+          hz: 8,
+          portals: [
+            { x: 0, y: 0, w: 512, h: 430, page: 'TSD' },
+            { x: 512, y: 0, w: 512, h: 430, page: 'RDR' },
+          ],
+          slots: [0, 2],
+        },
+        px: 0,
+        py: 0.19,
+        sw: 0.5,
+        sh: 0.21,
+        bezel: 'touch',
+      },
+      { def: { id: 'ufc', kind: 'ufc', w: 512, h: 160, hz: 4 }, px: 0, py: 0.045, sw: 0.14, sh: 0.044, bezel: 'plain' },
+      { def: { id: 'sfd', kind: 'standby', w: 256, h: 256, hz: 15 }, px: 0.32, py: 0.33, sw: 0.06, sh: 0.06, bezel: 'plain' },
+    ],
+  },
   SU57: {
     panelDist: 0.64,
     panelDrop: 0.27,

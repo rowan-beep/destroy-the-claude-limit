@@ -164,6 +164,7 @@ const VOICES: Record<string, EngineVoice> = {
   SU57: { n1: 155, n2: 230, fanBlades: 30, compBlades: 38, roar: 0.86, crackle: 1.22, ab: 1.22, whine: 0.9 },
   // GE F414G: the Hornet's engine, alone in a light jet: a bright howl
   GRIPEN: { n1: 195, n2: 295, fanBlades: 28, compBlades: 30, roar: 1.04, crackle: 0.88, ab: 0.92, whine: 1.3 },
+  J20: { n1: 158, n2: 232, fanBlades: 30, compBlades: 36, roar: 0.9, crackle: 1.15, ab: 1.18, whine: 0.95 },
   // Saturn AL-41F1S: the Flanker's thunder
   SU35: { n1: 150, n2: 222, fanBlades: 30, compBlades: 38, roar: 0.85, crackle: 1.25, ab: 1.25, whine: 0.85 },
 };
@@ -1088,7 +1089,7 @@ export class AudioEngine {
     P(this.gearRumble.gain.gain, on * (s.gear ?? 0) * Math.min(1, q * 3) * (cockpit ? 0.32 : 0.14), 0.2);
     P(this.ecs.gain.gain, cockpit && on ? 0.007 : 0, 0.3);
     // the vortex howl: the strakes' and leading edges' vortices sing above ~14 deg, rising with speed
-    const strakes = type === 'F16C' || type === 'FA18EF' || type === 'TYPHOON' || type === 'SU35' || type === 'SU57' || type === 'MIG31' || type === 'RAFALE' ? 1 : 0.55;
+    const strakes = type === 'F16C' || type === 'FA18EF' || type === 'TYPHOON' || type === 'SU35' || type === 'SU57' || type === 'MIG31' || type === 'RAFALE' || type === 'J20' ? 1 : 0.55;
     const howlK = on * strakes * clamp01((aoaDeg - 13) / 9) * Math.min(1, q * 1.4) * (cockpit ? 0.045 : 0.02 * (0.3 + 0.7 * front) * dk * zone);
     P(this.howl.gain.gain, howlK, 0.12);
     const howlF = 900 + Math.min(2200, s.tas * 3.2) + aoaDeg * 25;

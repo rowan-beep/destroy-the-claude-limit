@@ -6,8 +6,8 @@
 import { FT, LB, LBF } from '../core/constants';
 import type { MissileType, BombType } from '../weapons/weaponSpecs';
 
-export type AircraftType = 'F15EX' | 'FA18EF' | 'F16C' | 'TYPHOON' | 'SU35' | 'RAFALE' | 'F22' | 'MIG31' | 'SR71' | 'X15' | 'SU57' | 'GRIPEN';
-export const AIRCRAFT_TYPES: AircraftType[] = ['F15EX', 'FA18EF', 'F16C', 'TYPHOON', 'SU35', 'RAFALE', 'F22', 'MIG31', 'SR71', 'X15', 'SU57', 'GRIPEN'];
+export type AircraftType = 'F15EX' | 'FA18EF' | 'F16C' | 'TYPHOON' | 'SU35' | 'RAFALE' | 'F22' | 'MIG31' | 'SR71' | 'X15' | 'SU57' | 'GRIPEN' | 'J20';
+export const AIRCRAFT_TYPES: AircraftType[] = ['F15EX', 'FA18EF', 'F16C', 'TYPHOON', 'SU35', 'RAFALE', 'F22', 'MIG31', 'SR71', 'X15', 'SU57', 'GRIPEN', 'J20'];
 /**
  * The armed fighters: everything the AI flies and every combat mode allows.
  * The SR-71 is an unarmed reconnaissance jet still in testing: it only flies
@@ -21,6 +21,8 @@ export function jetAllowedIn(t: AircraftType, mode: string): boolean {
   if (t === 'SR71') return mode === 'free' || mode === 'recon';
   // the X-15 is a rocket research ship: dropped from its mothership in free flight only
   if (t === 'X15') return mode === 'free';
+  // the J-20B carries neither bombs nor a gun: it has nothing to hit ground targets with
+  if (t === 'J20' && mode === 'strike') return false;
   return mode !== 'recon';
 }
 
@@ -229,6 +231,8 @@ const AASM = 'AASM' as const;
 const KAB = 'KAB500' as const;
 const R37 = 'R37M' as const;
 const IRIS = 'IRIST' as const;
+const PL15 = 'PL15' as const;
+const PL10 = 'PL10' as const;
 /** fore-aft centres of the F-15EX wing racks, each at 40% chord of the swept wing (so the
  * inboard and outboard pairs' noses are staggered like the real jet's); the pylons' hang heights
  * are the wing underside at each rack, measured on the model (the blade buries 3-4 cm mid-chord
@@ -1680,6 +1684,127 @@ const GRIPEN: AircraftSpec = {
   paint: { top: '#848c92', bottom: '#9aa1a6', accent: '#5d656b' },
 };
 
+// ---------------------------------------------------------------------------
+// Chengdu J-20B Mighty Dragon
+// ---------------------------------------------------------------------------
+// China's fifth-generation fighter: a long canard delta built for reach. The B
+// adds 3D thrust-vectoring WS-10C engines. Everything it fights with rides
+// inside: four PL-15s in the main bay and a PL-10 in each side bay; four wing
+// stations take more missiles or tanks. It has no gun.
+const J20: AircraftSpec = {
+  type: 'J20',
+  name: 'Chengdu J-20B Mighty Dragon',
+  shortName: 'J-20B',
+  role: 'Fifth-generation air superiority fighter',
+  crew: 1,
+  description:
+    'China\'s fifth-generation fighter: a long canard delta with big all-moving canards, all-moving canted fins and caret intakes. Two WS-10C engines (about 142 kN each in afterburner) with 3D thrust vectoring take it to Mach 2 and 66,000 ft, on more internal fuel than any fighter here but the MiG-31. Four PL-15s in the main bay and a PL-10 in each side bay (the side bays swing the missile out into the airflow); four wing stations for six more missiles or two tanks. KLJ-5 AESA radar and an electro-optical targeting system under the chin. No gun.',
+  lengthFt: 68.6,
+  wingspanFt: 42.7,
+  heightFt: 14.6,
+  length: 20.9,
+  span: 13.0,
+  height: 4.45,
+  emptyMass: 19400,
+  internalFuel: 12000,
+  maxTakeoff: 37000,
+  maxTakeoffLb: 81600,
+  payloadLb: 24250,
+  wingArea: 78.0,
+  cd0: 0.0178,
+  waveDragPeak: 1.85,
+  waveDragHigh: 1.4,
+  kInduced: 0.12,
+  clAlpha: 3.6,
+  clMax: 2.1,
+  alphaMaxDeg: 32,
+  maxMach: 2.0,
+  ceilingFt: 66000,
+  maxIasKts: 760,
+  engineName: '2 x Shenyang WS-10C, 3D thrust vectoring',
+  engines: 2,
+  thrustMil: lbf(19800),
+  thrustAb: lbf(32000),
+  thrustMilLbf: 19800,
+  thrustAbLbf: 32000,
+  tsfcMil: 0.76,
+  tsfcAb: 1.95,
+  ramFactor: 0.64,
+  spool: 1.3,
+  gLimit: 9.0,
+  gOverride: 10.5,
+  gStructural: 13.5,
+  gNeg: -3,
+  rollRate: 250,
+  pitchRate: 32,
+  cornerKts: 320,
+  rotateKts: 160,
+  approachKts: 160,
+  speedbrakeCd: 0.06,
+  combatRangeNm: 1100,
+  hardpoints: 10,
+  maxAAM: 12,
+  missiles: { radar: PL15, ir: PL10 },
+  tvcDeg: 15,
+  // (no gun: the J-20 has none; these only satisfy the type)
+  gun: {
+    name: 'None (no internal gun)',
+    caliberMm: 0,
+    rounds: 0,
+    rpm: 1,
+    muzzleVelocity: 1000,
+    damage: 0,
+    dispersionMil: 1,
+    port: [0, 0, -9],
+  },
+  stations: [
+    { id: 1, label: 'LW OB', pos: [-4.9, -0.36, 3.9], allowed: [PL10, PL15], mount: 'pylon', hang: -0.13 },
+    { id: 2, label: 'LW IB', pos: [-3.3, -0.36, 2.9], allowed: [PL15, PL10, TANK], mount: 'pylon', hang: -0.11 },
+    { id: 3, label: 'L SIDE BAY', pos: [-1.38, -0.5, -1.5], allowed: [PL10], mount: 'internal', bay: 'left', bayOut: [-1.95, -0.86, -1.5] },
+    { id: 4, label: 'MAIN BAY 1', pos: [-0.45, -0.42, -0.3], allowed: [PL15], mount: 'internal', bay: 'main', bayOut: [-0.45, -0.98, -0.3] },
+    { id: 5, label: 'MAIN BAY 2', pos: [-0.15, -0.5, -0.3], allowed: [PL15], mount: 'internal', bay: 'main', bayOut: [-0.15, -1.06, -0.3] },
+    { id: 6, label: 'MAIN BAY 3', pos: [0.15, -0.5, -0.3], allowed: [PL15], mount: 'internal', bay: 'main', bayOut: [0.15, -1.06, -0.3] },
+    { id: 7, label: 'MAIN BAY 4', pos: [0.45, -0.42, -0.3], allowed: [PL15], mount: 'internal', bay: 'main', bayOut: [0.45, -0.98, -0.3] },
+    { id: 8, label: 'R SIDE BAY', pos: [1.38, -0.5, -1.5], allowed: [PL10], mount: 'internal', bay: 'right', bayOut: [1.95, -0.86, -1.5] },
+    { id: 9, label: 'RW IB', pos: [3.3, -0.36, 2.9], allowed: [PL15, PL10, TANK], mount: 'pylon', hang: -0.11 },
+    { id: 10, label: 'RW OB', pos: [4.9, -0.36, 3.9], allowed: [PL10, PL15], mount: 'pylon', hang: -0.13 },
+  ],
+  loadouts: [
+    {
+      id: 'j20-stealth',
+      name: 'STEALTH — 4x PL-15, 2x PL-10 (internal)',
+      stores: { 3: PL10, 4: PL15, 5: PL15, 6: PL15, 7: PL15, 8: PL10 },
+    },
+    {
+      id: 'j20-max',
+      name: 'MAX AAM — 8x PL-15, 2x PL-10',
+      stores: { 1: PL15, 2: PL15, 3: PL10, 4: PL15, 5: PL15, 6: PL15, 7: PL15, 8: PL10, 9: PL15, 10: PL15 },
+    },
+    {
+      id: 'j20-dog',
+      name: 'DOGFIGHT — 4x PL-15, 6x PL-10',
+      stores: { 1: PL10, 2: PL10, 3: PL10, 4: PL15, 5: PL15, 6: PL15, 7: PL15, 8: PL10, 9: PL10, 10: PL10 },
+    },
+    {
+      id: 'j20-ferry',
+      name: 'LONG RANGE — 2x TANKS, 4x PL-15, 2x PL-10 (internal)',
+      stores: { 2: TANK, 3: PL10, 4: PL15, 5: PL15, 6: PL15, 7: PL15, 8: PL10, 9: TANK },
+    },
+  ],
+  radar: { name: 'KLJ-5 AESA', kind: 'AESA', rangeNm: 100, azLimitDeg: 60, elLimitDeg: 60, maxTracks: 20, frameTime: 1.15 },
+  irst: { name: 'EOTS-86 electro-optical targeting system', rangeNm: 45, fovDeg: 90 },
+  ew: { name: 'Integrated EW suite with a distributed aperture system', maws: true, jamming: 0.3, autoDispense: true },
+  flightControl: 'Digital fly-by-wire with integrated 3D thrust vectoring',
+  chaff: 72,
+  flares: 72,
+  // a conventional signature (no stealth advantage in the game)
+  rcs: 7,
+  irSignature: 1.05,
+  gear: { nose: -5.9, main: 1.85, track: 1.95, height: 2.3 },
+  hitRadius: 5.9,
+  paint: { top: '#7a828a', bottom: '#8e959c', accent: '#5c636a' },
+};
+
 export const SPECS: Record<AircraftType, AircraftSpec> = {
   F15EX: F15EX,
   FA18EF: FA18,
@@ -1690,6 +1815,7 @@ export const SPECS: Record<AircraftType, AircraftSpec> = {
   F22: F22,
   SU57: SU57,
   GRIPEN: GRIPEN,
+  J20: J20,
   MIG31: MIG31,
   SR71: SR71,
   X15: X15,
@@ -1728,6 +1854,8 @@ export const STORES: Record<StoreType, StoreSpec> = {
   KAB500: { type: 'KAB500', name: 'KAB-500S', mass: 560, dragCd: 0.0032, length: 3.0, diameter: 0.4 },
   R37M: { type: 'R37M', name: 'R-37M', mass: 510, dragCd: 0.0026, length: 4.2, diameter: 0.38 },
   IRIST: { type: 'IRIST', name: 'Diehl IRIS-T', mass: 87.4, dragCd: 0.0007, length: 2.94, diameter: 0.127 },
+  PL15: { type: 'PL15', name: 'PL-15', mass: 210, dragCd: 0.0013, length: 4.0, diameter: 0.203 },
+  PL10: { type: 'PL10', name: 'PL-10', mass: 89, dragCd: 0.0008, length: 3.0, diameter: 0.16 },
 };
 
 /** A strike loadout for this jet (the airstrike mode flies it). */
@@ -1741,4 +1869,16 @@ export const TANK_FUEL = 1450;
 /** Enemy types the spawner may use: never the player's own type. */
 export function enemyTypesFor(player: AircraftType): AircraftType[] {
   return COMBAT_TYPES.filter((t) => t !== player);
+}
+
+/** Whether the jet has a gun (the J-20B has none, so it sits out GUNS ONLY matches). */
+export function hasGun(t: AircraftType): boolean {
+  return SPECS[t].gun.rounds > 0;
+}
+
+/** The jets a match's AI may fly under its weapon rules: only jets with a gun in GUNS ONLY. */
+export function typesForRules(types: AircraftType[], rules: 'all' | 'ir' | 'guns'): AircraftType[] {
+  if (rules !== 'guns') return types;
+  const armed = types.filter(hasGun);
+  return armed.length ? armed : types;
 }

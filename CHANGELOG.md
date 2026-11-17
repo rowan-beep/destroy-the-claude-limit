@@ -4,6 +4,17 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu the space updates.
 
+## v7.15.5 (2026-11-17)
+
+### Air Combat: New jet: J-20B Mighty Dragon
+
+- **New: New jet: Chengdu J-20B Mighty Dragon**
+  - China's fifth-generation fighter joins the hangar: a long canard delta with all-moving canards and fins, caret intakes and thrust-vectoring WS-10C engines. It carries its missiles inside, four PL-15s in the main bay and a PL-10 in each side bay, with four wing stations for more missiles or tanks. It has no gun, like the real one, so it sits out GUNS ONLY matches and Strike missions.
+- **New: PL-15 and PL-10 missiles**
+  - The J-20B's own missiles: the PL-15, a long-range radar missile that reaches further than the AIM-120D and R-77M, and the PL-10, a thrust-vectoring heat-seeker for the merge.
+- **New: China in the Jet Library**
+  - The Jet Library has a CHINA filter and the J-20B's full history, strengths and tactics.
+
 ## v7.15.4 (2026-11-16)
 
 ### Air Combat: Flaps on the F key

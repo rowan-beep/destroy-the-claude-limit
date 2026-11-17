@@ -1,9 +1,9 @@
 // Air-to-air missile performance data: AIM-120D AMRAAM and AIM-9X Block II
 // for the US / European jets, R-77M and R-74M for the Su-35S, and Meteor and
-// MICA IR for the Rafale, the R-37M for the MiG-31BM, and IRIS-T for the
-// Gripen E (which also carries the Meteor).
+// MICA IR for the Rafale, the R-37M for the MiG-31BM, IRIS-T for the
+// Gripen E (which also carries the Meteor), and PL-15 and PL-10 for the J-20B.
 
-export type MissileType = 'AIM120D' | 'AIM9X' | 'R77M' | 'R74M' | 'METEOR' | 'MICAIR' | 'R37M' | 'IRIST';
+export type MissileType = 'AIM120D' | 'AIM9X' | 'R77M' | 'R74M' | 'METEOR' | 'MICAIR' | 'R37M' | 'IRIST' | 'PL15' | 'PL10';
 /** Satellite-guided bombs: each jet's own family (see BOMBS). */
 export type BombType = 'GBU31' | 'GBU32' | 'GBU39' | 'PAVEWAY4' | 'AASM' | 'KAB500';
 export type WeaponSelect = 'GUN' | MissileType | BombType;
@@ -273,6 +273,63 @@ export const MISSILES: Record<MissileType, MissileSpec> = {
     diameter: 0.127,
     description: 'Imaging-infrared dogfight missile with thrust vectoring: it can lock and turn on a target 90 degrees off the nose, even behind the wing line, and its seeker is among the hardest to decoy. Gripen E.',
   },
+  PL15: {
+    type: 'PL15',
+    name: 'PL-15',
+    short: 'PL-15',
+    seeker: 'ARH',
+    mass0: 210,
+    massBurnout: 140,
+    // a dual-pulse motor: a hard first pulse, then a second one lit later in the flight
+    burnTime: 6.5,
+    thrust: 18500,
+    sustain: { thrust: 6500, time: 7 },
+    refArea: 0.0324,
+    maxG: 40,
+    qFullG: 95000,
+    gimbalDeg: 60,
+    seekerRange: 22000,
+    fuseRadius: 10,
+    lethalRadius: 16,
+    damage: 175,
+    maxTime: 130,
+    minRange: 1000,
+    navConstant: 4,
+    loft: true,
+    ccm: 0.8,
+    smoke: 0.55,
+    length: 4.0,
+    diameter: 0.203,
+    description: 'Long-range active-radar missile of the J-20B, with an AESA seeker, a two-way datalink and a dual-pulse motor. Small clipped tail fins so four fit in the main weapons bay. Reaches further than the AIM-120D and R-77M: about 80 NM from high and fast. J-20B only.',
+  },
+  PL10: {
+    type: 'PL10',
+    name: 'PL-10',
+    short: 'PL-10',
+    seeker: 'IR',
+    mass0: 89,
+    massBurnout: 60,
+    burnTime: 5.5,
+    thrust: 13500,
+    refArea: 0.0201,
+    // thrust vectoring and a fixed-body imaging seeker that sees 90 degrees off the nose
+    maxG: 60,
+    qFullG: 52000,
+    gimbalDeg: 90,
+    seekerRange: 11000,
+    fuseRadius: 6,
+    lethalRadius: 10.5,
+    damage: 126,
+    maxTime: 45,
+    minRange: 280,
+    navConstant: 4.6,
+    loft: false,
+    ccm: 0.9,
+    smoke: 0.5,
+    length: 3.0,
+    diameter: 0.16,
+    description: 'Imaging-infrared dogfight missile with thrust vectoring and long body strakes, fired from the side bays of the J-20B: the rail swings the missile out into the airflow before it leaves. High off-boresight through the helmet sight. J-20B only.',
+  },
 };
 
 /** Infrared (Fox 2) or radar (Fox 3)? */
@@ -308,7 +365,7 @@ export function launchZone(
   const speedF = 1 + 0.35 * Math.max(-0.5, Math.min(1.2, shooterMach - 0.9));
   const climbF = 1 + Math.max(-0.35, Math.min(0.25, (shooterAlt - targetAlt) / 12000));
   const closeF = 0.55 + 0.45 * ((aspectCos + 1) / 2) + (aspectCos > 0 ? (aspectCos * targetSpeed) / 1400 : (aspectCos * targetSpeed) / 900);
-  const reach = type === 'R77M' ? 1.12 : type === 'R74M' ? 1.06 : type === 'METEOR' ? 1.6 : type === 'MICAIR' ? 1.2 : type === 'R37M' ? 2.1 : type === 'IRIST' ? 1.02 : 1;
+  const reach = type === 'R77M' ? 1.12 : type === 'R74M' ? 1.06 : type === 'METEOR' ? 1.6 : type === 'MICAIR' ? 1.2 : type === 'R37M' ? 2.1 : type === 'IRIST' ? 1.02 : type === 'PL15' ? 1.3 : type === 'PL10' ? 1.04 : 1;
   if (!isIrMissile(type)) {
     const base = (22000 + 58000 * altF) * reach;
     const rmax = Math.max(4000, base * speedF * climbF * closeF);
@@ -323,7 +380,7 @@ export function launchZone(
 /** Short display code (HUD, MFD). */
 export function weaponCode(t: MissileType | BombType): string {
   if (isBomb(t)) return t === 'PAVEWAY4' ? 'PW IV' : t === 'AASM' ? 'AASM' : t === 'KAB500' ? 'KAB' : t.replace('GBU', 'GBU-');
-  return t === 'AIM120D' ? '120D' : t === 'AIM9X' ? '9X' : t === 'R77M' ? 'R77M' : t === 'R74M' ? 'R74M' : t === 'METEOR' ? 'MTR' : t === 'R37M' ? 'R37M' : t === 'IRIST' ? 'IRIS' : 'MICA';
+  return t === 'AIM120D' ? '120D' : t === 'AIM9X' ? '9X' : t === 'R77M' ? 'R77M' : t === 'R74M' ? 'R74M' : t === 'METEOR' ? 'MTR' : t === 'R37M' ? 'R37M' : t === 'IRIST' ? 'IRIS' : t === 'PL15' ? 'PL15' : t === 'PL10' ? 'PL10' : 'MICA';
 }
 
 /**

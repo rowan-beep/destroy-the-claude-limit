@@ -11,6 +11,10 @@ import { MISSILES } from '../../weapons/weaponSpecs';
 
 /** Right-half planform outlines, body metres (x right, z aft positive, nose at the smallest z). */
 export const PLANFORMS: Record<AircraftType, [number, number][]> = {
+  J20: [
+    [0, -10.45], [0.3, -9.4], [0.6, -7.4], [0.8, -5.2], [1.15, -4.4], [1.7, -3.4], [3.55, -1.95], [3.55, -1.15], [2.0, -1.35],
+    [2.1, -0.6], [6.5, 4.4], [6.5, 5.8], [2.1, 6.4], [1.4, 8.8], [1.3, 10.05], [0, 10.05],
+  ],
   F15EX: [
     [0, -9.85], [0.45, -8.5], [0.66, -6.4], [0.84, -4.6], [1.9, -4.5], [1.95, -1.9], [6.5, 3.17], [6.5, 4.77],
     [1.95, 4.5], [1.75, 5.2], [4.3, 7.8], [4.3, 9.0], [1.5, 9.2], [0.9, 9.6], [0, 9.6],
@@ -61,7 +65,7 @@ export const PLANFORMS: Record<AircraftType, [number, number][]> = {
   ],
 };
 
-const STORE_SHORT: Record<StoreType, string> = { AIM120D: '120D', AIM9X: '9X', R77M: 'R77M', R74M: 'R74M', METEOR: 'MTR', MICAIR: 'MICA', TANK: 'TK', GBU31: 'GBU31', GBU32: 'GBU32', GBU39: 'SDB', PAVEWAY4: 'PWIV', AASM: 'AASM', KAB500: 'KAB', R37M: 'R37M', IRIST: 'IRIS' };
+const STORE_SHORT: Record<StoreType, string> = { AIM120D: '120D', AIM9X: '9X', R77M: 'R77M', R74M: 'R74M', METEOR: 'MTR', MICAIR: 'MICA', TANK: 'TK', GBU31: 'GBU31', GBU32: 'GBU32', GBU39: 'SDB', PAVEWAY4: 'PWIV', AASM: 'AASM', KAB500: 'KAB', R37M: 'R37M', IRIST: 'IRIS', PL15: 'PL15', PL10: 'PL10' };
 
 export const smsPage: MfdPage = {
   id: 'SMS',

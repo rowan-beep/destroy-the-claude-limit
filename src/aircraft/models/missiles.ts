@@ -326,6 +326,9 @@ const RU_DARK = hex('#7f898a');
 const EU_BODY = hex('#d9d9d3');
 const EU_RADOME = hex('#cdcdc5');
 const EU_GREY = hex('#a3a7a7');
+const CN_BODY = hex('#d4d7d4');
+const CN_DOME = hex('#e2e0d6');
+const CN_DARK = hex('#8d9495');
 
 /** AIM-120D AMRAAM: 3.66 m x 178 mm. Clipped mid-body wings, tail control fins. */
 function aim120d(): THREE.BufferGeometry {
@@ -480,6 +483,38 @@ function irisT(): THREE.BufferGeometry {
   return assemble(parts);
 }
 
+/** PL-15: 4.0 m x 203 mm. Long radome, short low strakes mid-body, small clipped tail fins (to fit the J-20's bay). */
+function pl15(): THREE.BufferGeometry {
+  const L = 4.0, r = 0.1015;
+  const parts = body({
+    L, r, nose: { kind: 'radome', len: 0.78 },
+    joints: [0.785, 1.35, 1.75, 3.55],
+    bands: [[1.375, 1.41, YELLOW], [1.775, 1.81, BROWN]],
+    paint: CN_BODY, radome: CN_DOME, boat: [3.86, 0.09], exit: 0.058,
+  });
+  parts.push(...fins(L, r, { s: 1.55, root: 0.62, tip: 0.36, span: 0.055, sweep: 0.2, t: 0.035 }, CN_BODY));
+  parts.push(...fins(L, r, { s: L - 0.4, root: 0.36, tip: 0.16, span: 0.13, sweep: 0.16, t: 0.05 }, CN_DARK));
+  parts.push(...hooks(L, r, [1.35, 2.6]), raceway(L, r, 0.85, 3.45, 0.036, 0.02, CN_DARK), umbilical(L, r, 1.8, 0.02, CN_DARK));
+  parts.push(...stencils(L, r, 0.9, [0.24, 0.18, 0.16]), ...stencils(L, r, 2.1, [0.32]));
+  return assemble(parts);
+}
+
+/** PL-10: 3.0 m x 160 mm. Glass dome, long low strakes, swept tail fins, thrust-vectoring vanes. */
+function pl10(): THREE.BufferGeometry {
+  const L = 3.0, r = 0.08;
+  const parts = body({
+    L, r, nose: { kind: 'ir', dome: r * 0.8, len: 0.33 },
+    joints: [0.342, 0.9, 1.28, 2.66],
+    bands: [[0.925, 0.95, YELLOW], [1.305, 1.33, BROWN]],
+    paint: CN_BODY, boat: [2.92, 0.068], exit: 0.05,
+  });
+  parts.push(...fins(L, r, { s: 0.6, root: 1.6, tip: 1.25, span: 0.055, sweep: 0.3, t: 0.03 }, CN_BODY));
+  parts.push(...fins(L, r, { s: L - 0.36, root: 0.33, tip: 0.15, span: 0.15, sweep: 0.15, t: 0.045 }, CN_BODY));
+  parts.push(...hooks(L, r, [0.92, 2.0]), raceway(L, r, 0.6, 2.6, 0.028, 0.016, CN_DARK), umbilical(L, r, 1.1, 0.016, CN_DARK));
+  parts.push(...stencils(L, r, 1.45, [0.24, 0.18]), ...vanes(L, 0.05));
+  return assemble(parts);
+}
+
 const BUILD: Record<string, () => THREE.BufferGeometry> = {
   AIM120D: aim120d,
   AIM9X: aim9x,
@@ -489,6 +524,8 @@ const BUILD: Record<string, () => THREE.BufferGeometry> = {
   METEOR: meteor,
   MICAIR: micaIr,
   IRIST: irisT,
+  PL15: pl15,
+  PL10: pl10,
 };
 
 /** Is there a detailed model of this store? */

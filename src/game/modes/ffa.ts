@@ -16,7 +16,7 @@ import { AIPilot } from '../../ai/pilot';
 import { duelSkill } from '../../ai/skill';
 import { ROLES, mapAlt } from '../../world/islands';
 import { spawnInAir, aiStores } from '../spawn';
-import { COMBAT_TYPES, AircraftType, StoreType } from '../../aircraft/specs';
+import { COMBAT_TYPES, AircraftType, StoreType, hasGun, typesForRules } from '../../aircraft/specs';
 import { randomPaint } from '../../aircraft/models/paint';
 import { NM } from '../../core/constants';
 import { rand, randPick } from '../../core/rng';
@@ -136,7 +136,9 @@ export class FreeForAllMode extends GameMode {
         a = h.createPlayer();
         this.loadout(a, true);
       } else {
-        const type: AircraftType = cfg.ffaJets === 'same' ? cfg.aircraft : randPick(COMBAT_TYPES);
+        // (in GUNS ONLY only jets with a gun: the J-20B has none)
+        const pool = typesForRules(COMBAT_TYPES, cfg.duelRules);
+        const type: AircraftType = cfg.ffaJets === 'same' && (cfg.duelRules !== 'guns' || hasGun(cfg.aircraft)) ? cfg.aircraft : randPick(pool);
         a = new Aircraft(type, 'red', names[n++]);
         a.paint = randomPaint();
         this.loadout(a, false);

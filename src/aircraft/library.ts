@@ -4,7 +4,7 @@
 
 import type { AircraftType } from './specs';
 
-export type Region = 'usa' | 'europe' | 'russia';
+export type Region = 'usa' | 'europe' | 'russia' | 'china';
 
 export interface LibraryEntry {
   nation: string;
@@ -30,6 +30,24 @@ export interface LibraryEntry {
 }
 
 export const LIBRARY: Record<AircraftType, LibraryEntry> = {
+  J20: {
+    nation: 'China',
+    region: 'china',
+    flag: ['#de2910'],
+    manufacturer: 'Chengdu Aircraft Corporation (AVIC)',
+    generation: '5',
+    firstFlight: '11 Jan 2011',
+    inService: '2017 (J-20B: 2023)',
+    built: 'about 300',
+    operators: 'People\'s Liberation Army Air Force',
+    carrier: false,
+    nickname: 'Mighty Dragon (Weilong); Fagin (NATO)',
+    history:
+      'China\'s first stealth fighter and the first fifth-generation jet outside the United States to enter service. A long canard delta built for range and missile carriage, with all-moving canards and fins and caret intakes. The J-20A brought Chinese WS-10C engines with saw-toothed nozzles; the J-20B adds thrust vectoring and an improved flight control system. It carries its missiles inside: the long-range PL-15 in the main bay and the PL-10 dogfight missile in side bays that swing the rail out before launch.',
+    strengths: ['PL-15: the longest-reaching missile here after the R-37M and Meteor', 'Big fuel load: it stays on station longer than anyone but the MiG-31', '3D thrust vectoring and big canards for slow-speed nose pointing'],
+    weaknesses: ['No gun: once the PL-10s are gone it cannot fight close', 'Long and heavy: slower to turn at high speed than the lighter jets'],
+    tactics: 'Fight from range: loft PL-15s high and fast, then turn away and let the missiles work. Keep the PL-10s for the merge, use the vectoring nozzles to point the nose, and never get into a guns fight you cannot answer.',
+  },
   SU57: {
     nation: 'Russia',
     region: 'russia',
@@ -252,4 +270,4 @@ export const LIBRARY: Record<AircraftType, LibraryEntry> = {
   },
 };
 
-export const REGION_NAME: Record<Region, string> = { usa: 'USA', europe: 'EUROPE', russia: 'RUSSIA' };
+export const REGION_NAME: Record<Region, string> = { usa: 'USA', europe: 'EUROPE', russia: 'RUSSIA', china: 'CHINA' };

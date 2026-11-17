@@ -9,7 +9,7 @@ import { activeMap, MAPS, ROLES } from '../../world/islands';
 import { switchMap } from '../../world/maps';
 import { WhatsNewModal } from './whatsNew';
 import { el, clearEl, button } from '../dom';
-import { AIRCRAFT_TYPES, AircraftType, AircraftSpec, SPECS, enemyTypesFor, getSpec, strikeLoadout, jetAllowedIn } from '../../aircraft/specs';
+import { AIRCRAFT_TYPES, AircraftType, AircraftSpec, SPECS, enemyTypesFor, getSpec, strikeLoadout, jetAllowedIn, hasGun, typesForRules } from '../../aircraft/specs';
 import { MissionConfig, MODE_INFO, ModeId } from '../../game/mission';
 import { CAMPAIGN, CAMPAIGN_PROLOGUE, CAMPAIGN_TITLE, campaignText, loadCampaign, missionUnlocked, nextCampaignMission, starCount } from '../../game/campaign';
 import { FFA_JETS } from '../../game/modes/ffa';
@@ -519,7 +519,7 @@ export class MainMenu {
       this.pills(c, 'YOUR WINGMEN', [['mixed', 'MIXED JETS'], ['same', `ALL ${SPECS[cfg.aircraft].shortName.toUpperCase()}`]], cfg.teamAllies, (v) => (cfg.teamAllies = v));
       this.difficulty(c);
       this.pills(c, 'FIRST TO', [['2', '2 ROUNDS'], ['3', '3 ROUNDS'], ['4', '4 ROUNDS']], String(cfg.teamWins) as '2' | '3' | '4', (v) => (cfg.teamWins = +v));
-      this.pills(c, 'WEAPONS', [['all', 'ALL'], ['ir', 'HEATERS + GUN'], ['guns', 'GUNS ONLY']], cfg.duelRules, (v) => (cfg.duelRules = v));
+      this.weaponRules(c);
       el('div', 'mm-note', c, `Bandits fly only the jets you did not pick (${enemyTypesFor(cfg.aircraft).map((t) => SPECS[t].shortName).join(' / ')}). Shot down? Watch any jet or fly a free camera until the round ends.`);
     } else if (cfg.mode === 'campaign') {
       this.renderCampaign(c);
@@ -537,14 +537,14 @@ export class MainMenu {
       this.difficulty(c);
       this.pills(c, 'OPPONENT JETS', [['mixed', 'MIXED TYPES'], ['same', `ALL ${SPECS[cfg.aircraft].shortName.toUpperCase()}`]], cfg.ffaJets, (v) => (cfg.ffaJets = v));
       this.pills(c, 'MATCH PACE', [['quick', 'QUICK ~6 MIN'], ['standard', 'STANDARD ~9'], ['long', 'LONG ~13']], cfg.ffaPace, (v) => (cfg.ffaPace = v));
-      this.pills(c, 'WEAPONS', [['all', 'ALL'], ['ir', 'HEATERS + GUN'], ['guns', 'GUNS ONLY']], cfg.duelRules, (v) => (cfg.duelRules = v));
+      this.weaponRules(c);
       el('div', 'mm-note', c, `12 jets, you included: ${FFA_JETS - 1} AI pilots, every one hostile to everyone. No respawns. Stay inside the shrinking zone; kills refill a missile of each type; the top scorer carries a bounty.`);
     } else {
-      const enemies = enemyTypesFor(cfg.aircraft);
+      const enemies = typesForRules(enemyTypesFor(cfg.aircraft), cfg.duelRules);
       this.pills(c, 'OPPONENT', enemies.map((t) => [t, SPECS[t].shortName.toUpperCase()] as [AircraftType, string]), cfg.enemyType, (v) => (cfg.enemyType = v));
       this.difficulty(c);
       this.pills(c, 'START', [['air', 'HEAD-ON, 22 NM'], ['samos', `${ROLES.arena.name} RUNWAYS`]], cfg.duelStart, (v) => (cfg.duelStart = v));
-      this.pills(c, 'WEAPONS', [['all', 'ALL'], ['ir', 'HEATERS + GUN'], ['guns', 'GUNS ONLY']], cfg.duelRules, (v) => (cfg.duelRules = v));
+      this.weaponRules(c);
     }
     this.timePicker(c);
   }
@@ -688,7 +688,7 @@ export class MainMenu {
     };
     if (s.maxAAM > 0) {
       fact('MISSILES', `${MISSILES[s.missiles.radar].short} · ${MISSILES[s.missiles.ir].short}`);
-      fact('CANNON', `${s.gun.name.split(' ').slice(0, 2).join(' ')} · ${s.gun.rounds} rds`);
+      fact('CANNON', s.gun.rounds > 0 ? `${s.gun.name.split(' ').slice(0, 2).join(' ')} · ${s.gun.rounds} rds` : 'NONE');
     } else {
       fact('WEAPONS', 'NONE — UNARMED');
       fact('FLIES IN', 'BLACKBIRD RECON · FREE FLIGHT');
@@ -703,14 +703,30 @@ export class MainMenu {
   /** the fighter to go back to when leaving the SR-71 */
   private lastFighter: AircraftType = 'F15EX';
 
+  /** The WEAPONS rules for a duel, team battle or free-for-all (no GUNS ONLY for a jet without a gun). */
+  private weaponRules(c: HTMLElement): void {
+    const cfg = this.cfg;
+    const opts: ['all' | 'ir' | 'guns', string][] = [['all', 'ALL'], ['ir', 'HEATERS + GUN']];
+    if (hasGun(cfg.aircraft)) opts.push(['guns', 'GUNS ONLY']);
+    this.pills(c, 'WEAPONS', opts, cfg.duelRules, (v) => {
+      cfg.duelRules = v;
+      // GUNS ONLY: the duel opponent must have a gun too
+      const enemies = typesForRules(enemyTypesFor(cfg.aircraft), v);
+      if (!enemies.includes(cfg.enemyType)) cfg.enemyType = enemies[0];
+    });
+    if (!hasGun(cfg.aircraft)) el('div', 'mm-note', c, `The ${SPECS[cfg.aircraft].shortName} has no gun, so it cannot fly GUNS ONLY matches.`);
+  }
+
   selectJet(t: AircraftType): void {
     if (t !== 'SR71' && t !== 'X15') this.lastFighter = t;
+    // a jet without a gun cannot fly GUNS ONLY
+    if (!hasGun(t) && this.cfg.duelRules === 'guns') this.cfg.duelRules = 'all';
     if (!jetAllowedIn(t, this.cfg.mode)) this.cfg.mode = t === 'SR71' ? 'recon' : 'free';
     this.cfg.aircraft = t;
     const s = getSpec(t);
     if (!s.loadouts.find((l) => l.id === this.cfg.loadoutId)) this.cfg.loadoutId = s.loadouts[0].id;
     // the duel opponent can never be the same type as the player
-    const enemies = enemyTypesFor(t);
+    const enemies = typesForRules(enemyTypesFor(t), this.cfg.duelRules);
     if (!enemies.includes(this.cfg.enemyType)) this.cfg.enemyType = enemies[0];
     this.render();
     this.cb.onSelectJet(t, this.cfg.loadoutId);

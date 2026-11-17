@@ -266,6 +266,46 @@ function micaIr(): THREE.BufferGeometry {
   return join(parts);
 }
 
+/** PL-15 (far / light copy): long radome, short strakes, clipped tail fins. */
+function pl15(): THREE.BufferGeometry {
+  const L = 4.0, r = 0.1015;
+  const z0 = -L / 2;
+  const prof: P2[] = [[0.003, z0]];
+  for (let k = 1; k <= 14; k++) {
+    const u = k / 14;
+    prof.push([r * Math.pow(1 - (1 - u) * (1 - u), 0.8), z0 + u * 0.78]);
+  }
+  prof.push([r, L / 2 - 0.12], [r * 0.9, L / 2 - 0.02], [r * 0.72, L / 2]);
+  const body = paintBands(lathe(prof, 28, 0, 0, false, true), WHITE, [[z0 + 1.37, z0 + 1.41, BAND_Y], [z0 + 1.77, z0 + 1.81, BAND_BR]], [z0 + 0.78, RADOME]);
+  const parts: THREE.BufferGeometry[] = [body];
+  for (const f of cruciform(z0 + 1.55, 0.62, 0.36, 0.055, 0.2, r, 0.035)) parts.push(paintBands(f, WHITE, []));
+  for (const f of cruciform(L / 2 - 0.4, 0.36, 0.16, 0.13, 0.16, r, 0.05)) parts.push(paintBands(f, GREY, []));
+  const conduit = roundBox(0.034, 0.024, 2.5, 0.008);
+  conduit.translate(0, r + 0.008, 0.1);
+  parts.push(paintBands(conduit, GREY, []));
+  return join(parts);
+}
+
+/** PL-10 (far / light copy): glass dome, long strakes, tail fins. */
+function pl10(): THREE.BufferGeometry {
+  const L = 3.0, r = 0.08;
+  const z0 = -L / 2;
+  const prof: P2[] = [];
+  for (let k = 0; k <= 10; k++) {
+    const a = (k / 10) * (Math.PI / 2);
+    prof.push([Math.max(0.003, Math.sin(a) * r * 0.8), z0 + (1 - Math.cos(a)) * r * 0.8]);
+  }
+  prof.push([r * 0.88, z0 + 0.14], [r, z0 + 0.33], [r, L / 2 - 0.05], [r * 0.86, L / 2]);
+  const body = paintBands(lathe(prof, 26, 0, 0, false, true), WHITE, [[z0 + 0.92, z0 + 0.95, BAND_Y], [z0 + 1.3, z0 + 1.33, BAND_BR]], [z0 + r * 0.75, GLASS]);
+  const parts: THREE.BufferGeometry[] = [body];
+  for (const f of cruciform(z0 + 0.6, 1.6, 1.25, 0.055, 0.3, r, 0.03)) parts.push(paintBands(f, WHITE, []));
+  for (const f of cruciform(L / 2 - 0.36, 0.33, 0.15, 0.15, 0.15, r, 0.045)) parts.push(paintBands(f, WHITE, []));
+  const conduit = roundBox(0.026, 0.02, 1.7, 0.006);
+  conduit.translate(0, r + 0.006, 0.05);
+  parts.push(paintBands(conduit, GREY, []));
+  return join(parts);
+}
+
 /** IRIS-T: a slim body with a long ogive seeker, small canards and tail fins (and thrust vectoring vanes in the nozzle). */
 function irisT(): THREE.BufferGeometry {
   const L = 2.94, r = 0.0635;
@@ -425,7 +465,7 @@ export function storeGeometry(t: StoreType, jet?: string, far = false): THREE.Bu
   const key = t;
   if (cache[key]) return cache[key]!;
   const g =
-    t === 'AIM120D' ? aim120() : t === 'AIM9X' ? aim9x() : t === 'R77M' ? r77m() : t === 'R74M' ? r74m() : t === 'METEOR' ? meteor() : t === 'MICAIR' ? micaIr() : t === 'R37M' ? r37m() : t === 'IRIST' ? irisT()
+    t === 'AIM120D' ? aim120() : t === 'AIM9X' ? aim9x() : t === 'R77M' ? r77m() : t === 'R74M' ? r74m() : t === 'METEOR' ? meteor() : t === 'MICAIR' ? micaIr() : t === 'R37M' ? r37m() : t === 'IRIST' ? irisT() : t === 'PL15' ? pl15() : t === 'PL10' ? pl10()
     : t === 'GBU31' ? jdam(true) : t === 'GBU32' ? jdam(false) : t === 'GBU39' ? sdb() : t === 'PAVEWAY4' ? paveway4() : t === 'AASM' ? aasm() : t === 'KAB500' ? kab500() : tank();
   cache[key] = g;
   return g;
@@ -466,7 +506,7 @@ export function storeRadius(store: StoreType): number {
   if (store === 'AASM') return 0.16;
   if (store === 'GBU39') return 0.1;
   if (store === 'R37M') return 0.19;
-  return store === 'TANK' ? 0.38 : store === 'AIM120D' ? 0.089 : store === 'R77M' ? 0.1 : store === 'R74M' ? 0.085 : store === 'METEOR' ? 0.089 : store === 'MICAIR' ? 0.08 : store === 'IRIST' ? 0.064 : 0.064;
+  return store === 'TANK' ? 0.38 : store === 'AIM120D' ? 0.089 : store === 'R77M' ? 0.1 : store === 'R74M' ? 0.085 : store === 'METEOR' ? 0.089 : store === 'MICAIR' ? 0.08 : store === 'IRIST' ? 0.064 : store === 'PL15' ? 0.102 : store === 'PL10' ? 0.08 : 0.064;
 }
 
 /** Pylon height below the wing for a hung store. */
@@ -507,7 +547,7 @@ export function pylonGeometry(mount: string, store: StoreType, drop: number): TH
   const key = `pylon-${mount}-${store}-${drop.toFixed(2)}`;
   if (cache[key]) return cache[key]!;
   const r = storeRadius(store);
-  const ir = store === 'AIM9X' || store === 'R74M' || store === 'MICAIR' || store === 'IRIST';
+  const ir = store === 'AIM9X' || store === 'R74M' || store === 'MICAIR' || store === 'IRIST' || store === 'PL10';
   const col = (g: THREE.BufferGeometry) => colorize(g, (_p, c) => c.copy(PYLON));
   let g: THREE.BufferGeometry;
   if (mount === 'rail') {
@@ -544,7 +584,7 @@ export function shoulderGeometry(store: StoreType, dx: number, top: number, dept
   const bottom = depth ?? r + 0.12;
   const key = `shoulder-${store}-${dx.toFixed(2)}-${top.toFixed(2)}-${bottom.toFixed(2)}`;
   if (cache[key]) return cache[key]!;
-  const ir = store === 'AIM9X' || store === 'R74M' || store === 'MICAIR' || store === 'IRIST';
+  const ir = store === 'AIM9X' || store === 'R74M' || store === 'MICAIR' || store === 'IRIST' || store === 'PL10';
   const s = Math.sign(dx) || 1;
   const blade = pylonBlade(top + bottom, 2.3, 0.13);
   blade.translate(dx, -bottom, -0.1);

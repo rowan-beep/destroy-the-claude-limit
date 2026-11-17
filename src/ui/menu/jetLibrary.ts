@@ -51,6 +51,7 @@ const FILTERS: [Filter, string][] = [
   ['usa', 'USA'],
   ['europe', 'EUROPE'],
   ['russia', 'RUSSIA'],
+  ['china', 'CHINA'],
   ['gen5', '5TH GEN'],
   ['gen45', '4.5 GEN'],
   ['tvc', 'THRUST VECTORING'],
@@ -218,6 +219,7 @@ export class JetLibrary {
       case 'usa':
       case 'europe':
       case 'russia':
+      case 'china':
         return L.region === this.filter;
       case 'gen5':
         return L.generation === '5';
@@ -493,7 +495,7 @@ export class JetLibrary {
     for (const m of METRICS) if (m.id !== 'radar' && m.id !== 'aam') this.bar(b, m, s);
     this.facts(b, [
       ['THRUST (EACH, AB)', `${s.thrustAbLbf.toLocaleString('en-US')} lbf`],
-      ['THRUST VECTORING', s.tvcDeg > 0 ? `${s.tvcDeg}° ${t === 'SU35' || t === 'SU57' ? '3D (pitch and yaw)' : '2D (pitch)'}` : 'None'],
+      ['THRUST VECTORING', s.tvcDeg > 0 ? `${s.tvcDeg}° ${t === 'SU35' || t === 'SU57' || t === 'J20' ? '3D (pitch and yaw)' : '2D (pitch)'}` : 'None'],
       ['G OVERRIDE / STRUCTURE', `${s.gOverride} G / ${s.gStructural} G`],
       ['MAX TAKEOFF WEIGHT', `${s.maxTakeoffLb.toLocaleString('en-US')} lb`],
       ['FLIGHT CONTROL', s.flightControl],

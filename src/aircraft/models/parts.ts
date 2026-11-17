@@ -228,6 +228,15 @@ export function canopyGlass(fade: [number, number]): [THREE.MeshStandardMaterial
   return [acrylic(new THREE.MeshStandardMaterial(p), o), acrylic(new THREE.MeshStandardMaterial({ ...p, side: THREE.BackSide }), o)];
 }
 
+/**
+ * Canopy glass (near wall, far wall) with a coloured coating: a metallised film (the J-20's gold
+ * tint) colours both what is seen through the glass and the sky it reflects.
+ */
+export function tintedCanopyGlass(color: number): [THREE.MeshStandardMaterial, THREE.MeshStandardMaterial] {
+  const p = { color, roughness: 0.02, metalness: 0.0, envMapIntensity: 2.8 };
+  return [acrylic(new THREE.MeshStandardMaterial(p), CANOPY_ACRYLIC), acrylic(new THREE.MeshStandardMaterial({ ...p, side: THREE.BackSide }), CANOPY_ACRYLIC)];
+}
+
 export function partMaterials(): PartMaterials {
   if (PM) return PM;
   PM = {
