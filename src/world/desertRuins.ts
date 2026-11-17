@@ -1715,7 +1715,7 @@ export function buildCrashedJet(rnd: Rnd): THREE.BufferGeometry {
     mblock(m, 14.3 - x0, 0.33, 0, 0.6, 0.2, 1.1, srgb(0.08, 0.08, 0.09), rnd, 0.03);
   });
   addFire(PF, fireF, 0.55);
-  hugs(PF, 6, 0.9);
+  hugs(PF, 6, 0.65);
   const wreck: [number, number][] = [[fx + 2, PF.z]];
   if (!noseOn) {
     const PN: Pose = { x: fx + 8.5, y: 0.3, z: zc(fx) + 3.5 * sg, rx: rr(rnd, -0.5, 0.5), ry: rr(rnd, 0, 6), rz: rr(rnd, -0.3, 0.3) };
@@ -1754,7 +1754,7 @@ export function buildCrashedJet(rnd: Rnd): THREE.BufferGeometry {
     }
   });
   addFire(PC, fireC, 1.0);
-  hugs(PC, 5.8, 0.8 + age * 0.4);
+  hugs(PC, 5.8, 0.55 + age * 0.35);
   wreck.push([cx + 3, PC.z]);
 
   // ---- rear fuselage: fin(s), stabilisers and the engine nozzle(s)
@@ -1782,7 +1782,7 @@ export function buildCrashedJet(rnd: Rnd): THREE.BufferGeometry {
     }
   });
   addFire(PR, fireR, 0.8);
-  hugs(PR, 5.4, 0.7);
+  hugs(PR, 5.4, 0.5);
   wreck.push([rx + 2, PR.z]);
 
   // ---- the wing that tore off, upside down further back
