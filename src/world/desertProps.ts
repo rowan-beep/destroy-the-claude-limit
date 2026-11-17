@@ -732,8 +732,9 @@ function buildPonds(): THREE.Mesh {
     parts.push(g);
   }
   const geo = parts.length ? mergeGeometries(parts, false)! : new THREE.BufferGeometry();
-  // still, deep green-blue water that catches the sun
-  const mat = new THREE.MeshPhongMaterial({ color: new THREE.Color().setRGB(0.12, 0.3, 0.3, THREE.SRGBColorSpace), specular: 0x9fb2bd, shininess: 90 });
+  // still, deep green-blue water: glossy, so it mirrors the sky at a low angle (the scene's sky map) and
+  // shows its own colour looking down into it
+  const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color().setRGB(0.06, 0.2, 0.21, THREE.SRGBColorSpace), roughness: 0.06, metalness: 0, envMapIntensity: 1.3 });
   const m = new THREE.Mesh(geo, mat);
   m.name = 'oasis-ponds';
   m.matrixAutoUpdate = false;
