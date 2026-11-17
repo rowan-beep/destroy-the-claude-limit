@@ -740,6 +740,8 @@ export function buildDistrict(rnd: Rnd, o: DistrictOpt, ground: (x: number, z: n
   for (let i = 0; i < o.nx; i++) for (let j = 0; j < o.nz; j++) {
     if (o.skip?.(i, j)) continue;
     if (rnd() < o.buried) continue;
+    // (no more than ~11k triangles: the rest of the blocks lie under the sand)
+    if (g.pos.length / 9 > 11000) break;
     const x0 = X0 + i * PX, z0 = Z0 + j * PZ, x1 = x0 + o.cell, z1 = z0 + cz;
     const hBase = rr(rnd, 0.6, 1.5);
     // part of the block may lie under a drift: keep a corner of it

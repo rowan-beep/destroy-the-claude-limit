@@ -575,7 +575,7 @@ function placeStone(): { ruins: Placed[][]; crashes: Placed[][]; extras: Extra[]
       extras.push({ build: ex.build, x, y: ground(x, z, ex.footprint * 0.6, ex.sink ?? 0.4), z, yaw: c.yaw + ex.yaw, range: ex.range, scale: ex.scale ?? 1 });
     }
     // nothing else is placed inside them
-    taken.push({ x: c.x, z: c.z, r: (c.H + ANCIENT_APRON) * 1.45 });
+    taken.push({ x: c.x, z: c.z, r: (c.H + ANCIENT_APRON) * 1.9 });
   }
   // (the scattered ruins: the kinds that stand alone, not the city's tiles and great halls)
   const LONE = RUIN_KINDS.filter((k) => !['street', 'wallrun', 'aqueduct', 'forum', 'amphitheatre', 'basilica', 'facade'].includes(k));
@@ -646,7 +646,8 @@ class Copies {
     this.mesh.count = 0;
     this.mesh.frustumCulled = false;
     this.mesh.matrixAutoUpdate = false;
-    this.scene.add(this.mesh);
+    // (a model that came out empty, e.g. a quarter the sand buried whole, is kept but never drawn)
+    if (geo.attributes.position?.count) this.scene.add(this.mesh);
   }
   update(cam: THREE.Vector3): void {
     if (!this.mesh) return;

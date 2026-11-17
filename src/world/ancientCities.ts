@@ -141,7 +141,28 @@ class Planner {
       const du = Math.sin(yaw) * o.len, dv = Math.cos(yaw) * o.len;
       want = Math.min(want, this.sup(u + du, v + dv), this.sup(u - du, v - dv));
     }
-    const sink = (o.sink ?? 0.4) + Math.max(0, pred - want);
+    let sink = (o.sink ?? 0.4) + Math.max(0, pred - want);
+    if (Math.max(Math.abs(u), Math.abs(v)) > this.c.H + 150 && !o.force) {
+      // out beyond the walls the erg begins: set it on the real sand, its foot at the lowest of it under the piece
+      // (the uphill end buried, nothing hanging), and leave it out where a dune has swallowed most of it
+      const wx = (pu: number, pv: number) => duneHeight(this.c.x + pu * this.co + pv * this.si, this.c.z - pu * this.si + pv * this.co);
+      const h0 = wx(u, v);
+      let ring = h0, lo = h0, hi = h0;
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2, h = wx(u + Math.cos(a) * R, v + Math.sin(a) * R);
+        ring = Math.min(ring, h);
+        hi = Math.max(hi, h);
+      }
+      lo = ring;
+      if (o.len) {
+        const du = Math.sin(yaw) * o.len, dv = Math.cos(yaw) * o.len;
+        const e1 = wx(u + du, v + dv), e2 = wx(u - du, v - dv);
+        lo = Math.min(lo, e1, e2);
+        hi = Math.max(hi, e1, e2);
+      }
+      if (h0 - lo > tall * 0.4 || hi - lo > tall * 0.5) return false;
+      sink = (o.sink ?? 0.4) + (ring - lo);
+    }
     this.pieces.push({ kind, u, v, yaw, scale, sink, range: o.range ?? defaultRange(kind), version: o.version });
     return true;
   }
@@ -175,6 +196,7 @@ class Planner {
     let cu = 0, cv = 0;
     for (const p of poly) { cu += p[0] / n; cv += p[1] / n; }
     const step = TILE * scale;
+    for (let i = 0; i < n; i++) this.lane(poly[i], poly[(i + 1) % n], 9 * scale);
     for (let i = 0; i < n; i++) {
       const a = poly[i], b = poly[(i + 1) % n];
       const du = b[0] - a[0], dv = b[1] - a[1], L = Math.hypot(du, dv);
@@ -215,6 +237,8 @@ class Planner {
       const u = a[0] + du * s + dv * off, v = a[1] + dv * s - du * off;
       const r = this.rnd();
       const kind = r < 0.78 ? 'tomb' : r < 0.88 ? 'column' : r < 0.95 ? 'statue' : 'obelisk';
+      if (!this.free(u, v, 14 * (o.scale ?? 1.5))) continue;
+      this.occupy(u, v, 12 * (o.scale ?? 1.5));
       this.put(kind, u, v, dir + (this.rnd() - 0.5) * 0.3 + (this.rnd() < 0.5 ? 0 : Math.PI / 2), (o.scale ?? 1.5) * (0.85 + 0.3 * this.rnd()), { range: kind === 'tomb' ? RANGE.mid : RANGE.small });
     }
   }
@@ -311,7 +335,11 @@ class Planner {
       const a = this.rnd() * Math.PI * 2, d = r * Math.sqrt(this.rnd());
       const pu = u + Math.cos(a) * d, pv = v + Math.sin(a) * d;
       const k = this.rnd();
-      this.put(k < 0.6 ? 'column' : k < 0.85 ? 'colonnade' : k < 0.93 ? 'statue' : 'obelisk', pu, pv, this.rnd() * 6.28, scale * (0.85 + 0.3 * this.rnd()), { range: RANGE.small });
+      const kind = k < 0.6 ? 'column' : k < 0.85 ? 'colonnade' : k < 0.93 ? 'statue' : 'obelisk';
+      const fr = (kind === 'colonnade' ? 30 : 13) * scale;
+      if (!this.free(pu, pv, fr)) continue;
+      this.occupy(pu, pv, fr);
+      this.put(kind, pu, pv, this.rnd() * 6.28, scale * (0.85 + 0.3 * this.rnd()), { range: RANGE.small });
     }
   }
 
@@ -390,12 +418,14 @@ function palmyra(p: Planner): void {
   p.occupy(bel[0], bel[1], 150);
   // the great colonnade: from the propylaeum to the arch, the bend, and on west through the tetrapylon to the west gate
   const A0: P2 = [690, -100], arch: P2 = [380, -310], B1: P2 = [-1170, -470];
+  const tetra = along(arch, B1, 0.55);
+  const bd: P2 = [(B1[0] - arch[0]) / Math.hypot(B1[0] - arch[0], B1[1] - arch[1]), (B1[1] - arch[1]) / Math.hypot(B1[0] - arch[0], B1[1] - arch[1])];
   p.street(A0, along(A0, arch, 0.9), S, 0.05);
-  p.street(along(arch, B1, 0.035), B1, S, 0.1);
+  p.street(along(arch, B1, 0.035), [tetra[0] - bd[0] * 45, tetra[1] - bd[1] * 45], S, 0.08);
+  p.street([tetra[0] + bd[0] * 45, tetra[1] + bd[1] * 45], B1, S, 0.12);
   const da = Math.atan2(A0[0] - arch[0], A0[1] - arch[1]), db = Math.atan2(arch[0] - B1[0], arch[1] - B1[1]);
   p.extra('arch3', arch[0], arch[1], Math.atan2(Math.sin(da) + Math.sin(db), Math.cos(da) + Math.cos(db)), 1.7, 14);
   p.occupy(arch[0], arch[1], 40);
-  const tetra = along(arch, B1, 0.55);
   p.tetrapylon(tetra[0], tetra[1], dirOf(arch, B1), 1.3);
   p.occupy(tetra[0], tetra[1], 50);
   // a cross street north from the tetrapylon to the temple of Baalshamin, and south to the agora
@@ -429,11 +459,10 @@ function palmyra(p: Planner): void {
   p.field(520, -330, 70, 5);
   p.put('well', -560, -320, 0, 1.4);
   p.put('statue', 300, -390, 1.2, 1.5);
-  p.put('obelisk', -80, -400, 0.4, 1.4);
   p.walls(wall, 1.5, [[-1185, -475], [-60, -1132], [1190, -110], [-660, 783]]);
   // house foundations over the town: districts on the grid, and a few better-kept houses
-  p.fill(-1150, -1120, 1180, 900, 1.5, { buried: 0.22 });
   p.houses(-1100, -1000, 1100, 850, 26, 1.5);
+  p.fill(-1150, -1120, 1180, 900, 1.5, { buried: 0.22, max: 6 });
   // the castle on its hill to the north-west
   p.put('wall', -1600, -1500, 0.4, 1.0, { range: RANGE.big, force: true });
   p.put('tomb', -1560, -1540, 0.4, 1.5, { range: RANGE.big, force: true });
@@ -478,7 +507,7 @@ function ephesus(p: Planner): void {
   p.put('facade', 480, 392, 0, 1.0, { range: RANGE.big });
   p.put('well', 700, 478, 0, 1.4);
   p.put('statue', 820, 448, 2.2, 1.5);
-  p.put('column', 600, 405, dirOf(c0, c1), 1.4);
+  p.put('column', 600, 380, dirOf(c0, c1), 1.4);
   p.put('column', 880, 452, dirOf(c0, c1), 1.4);
   p.occupy(480, 392, 30);
   // the upper agora, its stoa, the odeon
@@ -498,17 +527,16 @@ function ephesus(p: Planner): void {
   p.put('column', -1300, -300, 0, 1.4);
   p.put('column', -1300, -160, 0, 1.4);
   p.put('statue', -1310, -40, 0.7, 1.5);
-  p.put('obelisk', -1320, 60, 0.2, 1.4);
   p.walls(wall, 1.5, [[-1250, -230], [-160, -1240], [1378, 0], [-220, 1215]]);
   // houses: districts on the flat north and south-west, the terraced houses up the hill south of Curetes street
-  p.fill(-1200, -1150, 80, -300, 1.5, { buried: 0.2 });
-  p.fill(-1200, -160, -140, 520, 1.5, { buried: 0.25 });
+  p.houses(-1100, -1000, 0, 500, 22, 1.5);
+  p.houses(450, 0, 1300, 250, 6, 1.5);
+  p.fill(-1200, -1150, 80, -300, 1.5, { buried: 0.2, max: 6 });
+  p.fill(-1200, -160, -140, 520, 1.5, { buried: 0.25, max: 6 });
   p.district(390, 760, 5, 4, 1.4, { buried: 0.08 });
   p.district(780, 730, 5, 4, 1.4, { buried: 0.12 });
   p.district(1180, 780, 3, 4, 1.4, { buried: 0.2 });
-  p.fill(-560, 560, 120, 1050, 1.5, { buried: 0.3 });
-  p.houses(-1100, -1000, 0, 500, 22, 1.5);
-  p.houses(450, 0, 1300, 250, 6, 1.5);
+  p.fill(-560, 560, 120, 1050, 1.5, { buried: 0.3, max: 6 });
   // fields of fallen columns along the harbour road and at the theatre's foot
   p.field(-500, -300, 80, 6);
   p.field(60, -120, 50, 4);
@@ -564,8 +592,8 @@ function paestum(p: Planner): void {
   p.put('statue', -60, -470, 2.6, 1.5);
   p.walls(wall, 1.55, [[0, -1237], [1226, 60], [0, 1241], [-1248, 60]], { gap: 0.12 });
   // the town's grid: long narrow insulae all over, as at Paestum (most of what shows from the air), and a few better-kept houses
-  p.fill(-1220, -1220, 1220, 1220, 1.5, { cell: 30, cellZ: 80, street: 6, buried: 0.18, max: 8 });
   p.houses(-1000, -1000, 1000, 1000, 18, 1.5);
+  p.fill(-1220, -1220, 1220, 1220, 1.5, { cell: 30, cellZ: 80, street: 6, buried: 0.18, max: 5 });
   // the necropoleis along the roads out of all four gates
   p.tombRoad([0, -1237], Math.PI, 1500, { every: 80 });
   p.tombRoad([0, 1241], 0, 1400, { every: 85 });
@@ -613,8 +641,8 @@ function jerash(p: Planner): void {
   p.put('temple', -330, 820, Math.PI, 1.5, { force: true });
   p.put('colonnade', -330, 735, 0, 1.2);
   p.occupy(-330, 820, 140);
-  p.put('theatre', -610, 900, -HALF, 1.5, { force: true });
-  p.occupy(-600, 910, 115);
+  p.put('theatre', -600, 860, -HALF, 1.5, { force: true });
+  p.occupy(-600, 875, 110);
   // the north theatre, the churches, the east baths half under the dune
   p.put('theatre', -330, -470, HALF, 1.1);
   p.occupy(-330, -490, 80);
@@ -634,8 +662,8 @@ function jerash(p: Planner): void {
   p.street([0, 845], [0, 1120], S, 0.1);
   p.walls(wall, 1.5, [[0, -1165], [0, 1162], [-1000, 200], [1105, -100]]);
   // houses: districts all over, up the slope of the west hill; the east half lies under the dune (the districts leave it out)
-  p.fill(-1050, -1150, 1150, 1150, 1.5, { buried: 0.2 });
   p.houses(-900, -1000, 900, 1000, 22, 1.5);
+  p.fill(-1050, -1150, 1150, 1150, 1.5, { buried: 0.2, max: 6 });
   // outside the south gate: the hippodrome beside the road, Hadrian's arch, tombs on down the road
   p.extra('hippodrome', -230, 1455, -HALF, 1.5, 80);
   p.extra('arch3', 0, 1720, 0, 1.75, 14);

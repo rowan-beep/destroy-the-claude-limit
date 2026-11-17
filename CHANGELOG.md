@@ -4,6 +4,21 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu the space updates.
 
+## v7.15.7 (2026-11-17)
+
+### Air Combat: Dune Sea: ancient cities, oases and camels
+
+- **New: Four ancient cities**
+  - Huge ruined Greco-Roman cities, half buried in the sand, each about 5 km across with its walls, roads and tombs. TADMOR has a colonnade nearly 2 km long, the great walled temple of Bel and a valley of tower tombs. EPHESOS has a theatre cut into a hill, a library façade, the marble streets and a sunken harbour. POSEIDONIA has three great Doric temples in a row. GERASA has an oval plaza ringed by columns, temples on raised terraces and a hippodrome. Dunes have swallowed parts of every city.
+- **New: Ruins everywhere**
+  - Hundreds of half-buried stone ruins across the whole desert: temples, colonnades, arches, gates, theatres, tower tombs, wells, obelisks and fallen colossal statues, some on their own, some in lost towns.
+- **New: Oases**
+  - Nineteen oases: a lake in a hollow, thick groves of palms, green ground round the water, and mud-brick hamlets beside some of them.
+- **New: Camel herds**
+  - Herds of two to seven dromedaries wander out from the oases and back, stopping now and then, and caravans walk the old caravan track in single file.
+- **New: Crashed jets**
+  - 46 crash sites across the desert: broken-up jets along their trails, still smouldering, with small fires in the wreckage and a thin column of smoke drifting away on the wind.
+
 ## v7.15.6 (2026-11-17)
 
 ### Air Combat: New theater: Dune Sea
