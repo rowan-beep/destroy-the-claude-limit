@@ -25,6 +25,7 @@ export async function runWorldTest(container: HTMLElement): Promise<void> {
   gr.camera.lookAt(pos.clone().add(dir));
   if (q.get('tod')) world.env.setTimeOfDay(q.get('tod') as never);
   if (q.get('wx')) world.setWeather({ ...WEATHER_PRESETS[q.get('wx') as WeatherKind], ...(q.get('cover') ? { cover: +q.get('cover')! } : {}) });
+  world.desertProps?.buildAll(pos);
   await world.prewarm(pos, gr.camera, 20000);
   let frames = 0;
   const loop = () => {

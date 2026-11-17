@@ -798,6 +798,14 @@ export class DesertProps {
     }
   }
 
+  /** Build every model now (the test pages, which take one picture straight away). */
+  buildAll(cam: THREE.Vector3): void {
+    for (const c of this.copies) {
+      if (!c.mesh) c.make();
+      c.update(cam);
+    }
+  }
+
   update(cam: THREE.Vector3, dt = 1 / 60): void {
     this.fires.update(dt, cam);
     // one model built a frame till all are: the ones wanted near the camera first
