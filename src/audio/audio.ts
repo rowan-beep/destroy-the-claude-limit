@@ -35,6 +35,8 @@
 // The warning tones and speech are unchanged.
 
 import { Biquad, brown, crackleInto, hash, mixInto, modulate, normalize, normRms, nwave, onePole, pink, rng, Rng, seamless, slow, white } from './dsp';
+import { activeMap } from '../world/islands';
+import { WEATHER_NOW } from '../world/weather';
 
 export interface AudioLevels {
   master: number;
@@ -592,6 +594,8 @@ export class AudioEngine {
   private duck!: GainNode;
   private howl!: Loop;
   private creakT = 0;
+  /** the Dune Sea: seconds to the next creak of metal from a wreck somewhere out in the sand */
+  private desertCreakT = 14;
   // gun
   private gun: { src: AudioBufferSourceNode | null; gain: GainNode; filter: BiquadFilterNode; rpm: number; firing: boolean };
   // warning tones (unchanged)
@@ -1070,13 +1074,25 @@ export class AudioEngine {
 
     // --- airflow ---
     const q = Math.min(1.4, s.qbar / 55000);
+    // the Dune Sea: a quiet wind over the sand always there under it, louder in a sandstorm and
+    // near the ground (outside; in the cockpit only a whisper of it gets through)
+    const desert = activeMap.id === 'dune' ? (0.035 + 0.12 * WEATHER_NOW.dust) * (0.4 + 0.6 * clamp01(1 - (s.agl ?? 1000) / 1500)) * (cockpit ? 0.25 : 1) : 0;
     if (cockpit) {
       // the air tearing past the canopy dominates the cockpit at speed
-      P(this.wind.gain.gain, on * Math.min(1.2, q) * 0.42, 0.15);
+      P(this.wind.gain.gain, Math.max(on * Math.min(1.2, q) * 0.42, desert), 0.15);
       P(this.wind.f[0].frequency, 350 + Math.min(2600, s.tas * 3.6), 0.2);
     } else {
-      P(this.wind.gain.gain, on * q * (0.06 + 0.08 * front), 0.15);
-      P(this.wind.f[0].frequency, 300 + Math.min(3000, s.tas * 4.2), 0.2);
+      const flow = on * q * (0.06 + 0.08 * front);
+      P(this.wind.gain.gain, Math.max(flow, desert), 0.15);
+      P(this.wind.f[0].frequency, flow > desert ? 300 + Math.min(3000, s.tas * 4.2) : 420, 0.2);
+    }
+    // and now and then, low and slow or on the ground, the creak of sun-hot metal in a wreck
+    if (desert > 0 && (s.onGround || ((s.agl ?? 1000) < 300 && s.tas < 90))) {
+      this.desertCreakT -= dt;
+      if (this.desertCreakT <= 0) {
+        this.desertCreakT = 10 + Math.random() * 16;
+        this.creak(0.12 + 0.1 * Math.random());
+      }
     }
     P(this.whistle.gain.gain, on * (cockpit ? 0.018 : 0.005) * clamp01((mach - 0.6) * 2) * q, 0.3);
     P(this.whistle.f[0].frequency, 2400 + mach * 1400, 0.3);

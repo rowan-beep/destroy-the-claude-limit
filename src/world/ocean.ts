@@ -302,5 +302,10 @@ export class Ocean {
       u.holeR.value = near ? PATCH_R - 1 : 0;
     }
     this.abyss.position.set(camPos.x, -90, camPos.z);
+    // the Dune Sea has no water anywhere (its sand runs on past the map's edge)
+    const dry = activeMap.id === 'dune';
+    this.water.visible = !dry;
+    this.abyss.visible = !dry;
+    if (this.patch && dry) this.patch.visible = false;
   }
 }

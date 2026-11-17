@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { keepLightsVisible } from '../render/night';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { AIRFIELDS, AirfieldDef } from './islands';
+import { AIRFIELDS, AirfieldDef, activeMap } from './islands';
 import { makePavementTexture, makeTextTexture, getSoftDotTexture } from '../render/textures';
 
 import { RUNWAY_Y } from './airfieldMeshes.consts';
@@ -75,6 +75,11 @@ function mats() {
     struct: new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }),
     glass: new THREE.MeshStandardMaterial({ color: 0x223344, metalness: 0.6, roughness: 0.15 }),
   };
+  // the Dune Sea: runways of packed, dark sand (the paving tinted brown; the markings stay)
+  if (activeMap.id === 'dune') {
+    sharedMats.asphalt.color.setRGB(1.45, 1.15, 0.82);
+    sharedMats.shoulder.color.setRGB(1.3, 1.08, 0.8);
+  }
   return sharedMats;
 }
 

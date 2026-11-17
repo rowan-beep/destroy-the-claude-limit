@@ -11,7 +11,7 @@ import { Ocean } from './ocean';
 import { Environment } from '../render/environment';
 import { TreeSystem } from './trees';
 import { CloudSystem } from './clouds';
-import { PrecipitationFx, Weather, loadWeather } from './weather';
+import { PrecipitationFx, Weather, loadWeather, weatherHere, WEATHER_NOW } from './weather';
 import { AirfieldRenderer } from './airfieldMeshes';
 import { CarrierRenderer } from '../render/carrierRenderer';
 import { NIGHT } from '../render/night';
@@ -19,6 +19,7 @@ import type { GridResult, ShoreResult } from './terrainGen';
 import { activeMap } from './islands';
 import { MapData } from './mapData';
 import { TerrainLightBaker } from '../render/terrainLight';
+import { DesertProps } from './desertProps';
 
 export interface WorldQuality {
   terrainSplitK: number;
@@ -48,12 +49,14 @@ export class World {
   trees!: TreeSystem;
   clouds!: CloudSystem;
   precip!: PrecipitationFx;
-  weather: Weather = loadWeather();
+  weather: Weather = weatherHere(loadWeather());
   /** a lightning strike's thunder, with its distance (m) */
   onThunder: ((distance: number) => void) | null = null;
   airfields!: AirfieldRenderer;
   carriers!: CarrierRenderer;
   lightBaker!: TerrainLightBaker;
+  /** the Dune Sea's ruins and wrecks (that map only) */
+  desertProps: DesertProps | null = null;
   ready = false;
 
   constructor(private scene: THREE.Scene) {
@@ -150,12 +153,14 @@ export class World {
     this.setWeather(this.weather);
     this.airfields = new AirfieldRenderer(this.scene);
     this.carriers = new CarrierRenderer(this.scene, this.env);
+    this.desertProps = activeMap.id === 'dune' ? new DesertProps(this.scene) : null;
     this.lightBaker = new TerrainLightBaker(this.grid, MAP_HALF);
     this.ready = true;
   }
 
   /** Change the weather (clouds, deck, rain / snow, light and visibility). */
-  setWeather(w: Weather): void {
+  setWeather(w0: Weather): void {
+    const w = weatherHere(w0);
     this.weather = { ...w };
     NIGHT.dark = !!w.dark;
     if (!this.clouds) return; // applied when the world is built
@@ -163,7 +168,9 @@ export class World {
     this.precip.set(w);
     const d = this.clouds.deck;
     const gloom = w.kind === 'storm' ? 0.8 : w.kind === 'rain' ? 0.45 + 0.25 * w.precip : w.kind === 'snow' ? 0.25 : w.kind === 'overcast' ? 0.2 : 0;
-    Object.assign(this.env.weather, { gloom, deckBase: d.base, deckTop: d.top, deckSolid: d.solid, vis: w.vis });
+    const dust = w.kind === 'sand' ? w.precip : 0;
+    WEATHER_NOW.dust = dust;
+    Object.assign(this.env.weather, { gloom, deckBase: d.base, deckTop: d.top, deckSolid: d.solid, vis: w.vis, dust });
   }
 
   /** Re-bake mountain shadows and sky light for the current sun. */
@@ -189,6 +196,7 @@ export class World {
     this.trees.update(cp, this.look, pc.isPerspectiveCamera ? Math.atan(Math.tan(THREE.MathUtils.degToRad(pc.fov) / 2) * pc.aspect) : Math.PI);
     this.clouds.update(dt, camera);
     this.airfields.update(cp);
+    this.desertProps?.update(cp);
     this.carriers.update(camera, this.ocean.time);
     this.pool.tick();
   }

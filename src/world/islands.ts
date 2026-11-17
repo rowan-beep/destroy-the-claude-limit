@@ -7,6 +7,9 @@
 //                    snow-covered ranges, pack ice and a contested island.
 //  JADE ARCHIPELAGO  80 x 80 NM: twenty tropical islands, every one
 //                    different, jungle and beaches, one runway per side.
+//  DUNE SEA          120 x 120 NM of sand: long dune ridges, star dunes and
+//                    sand mountains, a ruined city in the middle, old wrecks,
+//                    one runway at each end. No water and no rock anywhere.
 //  OPEN OCEAN        80 x 80 NM of deep water and nothing else: four BLUE
 //                    and four RED aircraft carriers, each sailing its own
 //                    small loop for ever (carriers.ts moves them).
@@ -18,7 +21,7 @@ import { NM, Team, nmToWorld } from '../core/constants';
 
 export type IslandId = string;
 /** Which terrain generator shapes the island. */
-export type IslandStyle = 'skye' | 'capri' | 'samos' | 'frost' | 'islet' | 'tropic';
+export type IslandStyle = 'skye' | 'capri' | 'samos' | 'frost' | 'islet' | 'tropic' | 'desert';
 /** Jade Archipelago: the shape of each tropical island. */
 export type TropicKind = 'strato' | 'shield' | 'highland' | 'karst' | 'atoll' | 'caldera' | 'twin' | 'ridge' | 'mesa' | 'cone' | 'spires' | 'hills' | 'crescent' | 'cay';
 
@@ -179,6 +182,15 @@ const JADE_ISLANDS: IslandDef[] = [
   tropic('sola', 'SOLA CAY', 'A sand cay ringed by coral.', 'contested', 5, -35, 1.2, 0.9, -20, 'cay', 3),
 ];
 
+// Dune Sea: one sea of sand. These are named regions, not land shapes: the whole map is
+// sand (terrain.ts hands every point of it to the dune generator in desert.ts), and
+// these only give the map its labels and the game modes their homes and arena.
+const DUNE_REGIONS: IslandDef[] = [
+  island('ergwest', 'desert', 'WESTERN ERG', 'Long dune ridges running north and south, the valleys between them flat sand. Home of the BLUE coalition.', 'blue', -44, 0, 18, 42, 0, 0),
+  island('ergeast', 'desert', 'EASTERN ERG', 'Star dunes and sand mountains above parallel ridges. Home of the RED coalition.', 'red', 44, 0, 18, 42, 0, 0),
+  island('qasr', 'desert', 'AL-QASR', 'The ruined city in the middle of the sand: broken towers, roofless houses and courtyards full of drift. Contested.', 'contested', 0, 0, 5, 5, 0, 0),
+];
+
 /** The active map's islands (mutated in place by applyMapData). */
 export const ISLANDS: IslandDef[] = [...TRIAD_ISLANDS];
 
@@ -331,6 +343,13 @@ const JADE_AIRFIELDS: AirfieldDef[] = [
   field('kahiki', 'KAHIKI AB', 'NTKH', 'red', 'kahiki', 27, 19, 40, 14, '68X'),
 ];
 
+// Dune Sea: one runway at each end, both running north-south down a valley between ridges
+// (packed sand either side; the ridges stand close)
+const DUNE_AIRFIELDS: AirfieldDef[] = [
+  field('safra', 'WADI SAFRA AB', 'DSWS', 'blue', 'ergwest', -46, -6, 4, 260, '27X'),
+  field('zemla', 'BIR ZEMLA AB', 'DSBZ', 'red', 'ergeast', 46, 6, 184, 260, '73X'),
+];
+
 // Open Ocean: the BLUE fleet in the south-west, the RED fleet in the
 // north-east. Every loop is 1.5 NM in radius; the closest BLUE and RED loops
 // are 56.6 NM apart centre to centre, so a RED carrier never comes within
@@ -363,7 +382,7 @@ export const AIRFIELD_BY_ID: Record<string, AirfieldDef> = Object.fromEntries(AI
 // Maps
 // ---------------------------------------------------------------------------
 
-export type MapId = 'triad' | 'frost' | 'jade' | 'ocean';
+export type MapId = 'triad' | 'frost' | 'jade' | 'ocean' | 'dune';
 
 export interface MapInfo {
   id: MapId;
@@ -396,6 +415,15 @@ export const MAPS: MapInfo[] = [
     fightAlt: 5200,
     description: 'Twenty tropical islands in an 80 × 80 NM sea, each one different: a 10,000 ft volcano, limestone towers, atolls and lagoons, a flooded caldera, needle peaks, jungle ridges and white beaches. One runway per side.',
     places: 'TAMARU · MAUNA JADE · KAHIKI · TUAHA · KALUNA',
+  },
+  {
+    id: 'dune',
+    name: 'DUNE SEA',
+    sizeNm: 120,
+    maxTerrain: 1850,
+    fightAlt: 3000,
+    description: 'A sea of sand, 120 × 120 NM: long dune ridges with sharp crests, star dunes and sand mountains up to 6,000 ft, flat sand in the valleys between them. Old wrecks of jets and tanks lie along the roads, and a ruined city stands in the middle. Fly the valleys and the ridges hide you from radar. One runway at each end.',
+    places: 'WESTERN ERG · AL-QASR · EASTERN ERG',
   },
   {
     id: 'frost',
@@ -456,8 +484,8 @@ export function mapScale(): number {
 export function applyMapData(id: MapId): void {
   activeMap = MAPS.find((m) => m.id === id) ?? MAPS.find((m) => m.id === 'triad')!;
   const which = activeMap.id;
-  const isl = which === 'frost' ? FROST_ISLANDS : which === 'jade' ? JADE_ISLANDS : which === 'ocean' ? [] : TRIAD_ISLANDS;
-  const fld = which === 'frost' ? FROST_AIRFIELDS : which === 'jade' ? JADE_AIRFIELDS : which === 'ocean' ? OCEAN_AIRFIELDS : TRIAD_AIRFIELDS;
+  const isl = which === 'frost' ? FROST_ISLANDS : which === 'jade' ? JADE_ISLANDS : which === 'dune' ? DUNE_REGIONS : which === 'ocean' ? [] : TRIAD_ISLANDS;
+  const fld = which === 'frost' ? FROST_AIRFIELDS : which === 'jade' ? JADE_AIRFIELDS : which === 'dune' ? DUNE_AIRFIELDS : which === 'ocean' ? OCEAN_AIRFIELDS : TRIAD_AIRFIELDS;
   ISLANDS.length = 0;
   ISLANDS.push(...isl);
   AIRFIELDS.length = 0;
@@ -481,6 +509,12 @@ export function applyMapData(id: MapId): void {
     ROLES.redHome = by('fleet-red');
     ROLES.duelBlue = fb('ford');
     ROLES.duelRed = fb('volkov');
+  } else if (which === 'dune') {
+    ROLES.arena = by('qasr');
+    ROLES.blueHome = by('ergwest');
+    ROLES.redHome = by('ergeast');
+    ROLES.duelBlue = fb('safra');
+    ROLES.duelRed = fb('zemla');
   } else if (which === 'jade') {
     ROLES.arena = by('mauna');
     ROLES.blueHome = by('tamaru');

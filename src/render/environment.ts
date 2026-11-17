@@ -270,7 +270,8 @@ export class Environment {
    * camera may be under, in or above, visibility (0 murk .. 1 clear) and a
    * lightning flash (0..1).
    */
-  weather = { gloom: 0, deckBase: 2000, deckTop: 2600, deckSolid: 0, vis: 1, flash: 0 };
+  /** dust: a sandstorm's strength (0..1), its blowing sand thick near the ground */
+  weather = { gloom: 0, deckBase: 2000, deckTop: 2600, deckSolid: 0, vis: 1, flash: 0, dust: 0 };
   /** 0 above the deck .. 1 below it (for rain, sound, etc.) */
   underDeck = 0;
   /** 0..1 while the camera is inside the cloud deck */
@@ -291,7 +292,9 @@ export class Environment {
     this.inCloud = wx.deckSolid * smoothstep(wx.deckBase - 60, wx.deckBase + 150, camPos.y) * (1 - smoothstep(wx.deckTop - 150, wx.deckTop + 60, camPos.y));
     const grey = Math.max(under * (0.55 + 0.45 * wx.gloom), wx.gloom * 0.25);
     const flash = wx.flash;
-    this.sun.intensity = p.sunIntensity * (1 - 0.72 * under);
+    // a sandstorm: the sun a dim disc through the blowing sand near the ground
+    const dustLow = wx.dust * (1 - smoothstep(1500, 3200, camPos.y));
+    this.sun.intensity = p.sunIntensity * (1 - 0.72 * under) * (1 - 0.45 * dustLow);
     updateAirLight(this.sun.color, this.sun.intensity, Math.asin(Math.max(-1, Math.min(1, this.sunDir.y))));
     this.hemi.intensity = p.hemiIntensity * (1 - 0.12 * under - 0.2 * wx.gloom * under) + flash * 2.5;
     const alt = Math.max(0, camPos.y);
@@ -327,6 +330,14 @@ export class Environment {
     u.limbW.value = lerp(0.12, 0.012, smoothstep(20000, 110000, alt));
 
     this.fog.color.copy(this.horizonColor);
+    if (wx.dust > 0) {
+      // the haze turns the colour of the sand, and the sky with it, most near the ground
+      const ochre = new THREE.Color().setRGB(0.74, 0.6, 0.43, SRGB);
+      const k = wx.dust * (0.35 + 0.65 * (1 - smoothstep(1500, 3200, camPos.y)));
+      this.fog.color.lerp(ochre, 0.85 * k);
+      (u.horizonColor.value as THREE.Color).lerp(ochre, 0.7 * k);
+      (u.zenithColor.value as THREE.Color).lerp(ochre, 0.1 * k);
+    }
     // sunlit haze: stronger forward scattering when the sun is low
     FOG_SUN[0] = this.sunDir.x;
     FOG_SUN[1] = this.sunDir.y;
@@ -345,7 +356,8 @@ export class Environment {
     FOG_SUN_COLOR[1] = sc.g;
     FOG_SUN_COLOR[2] = sc.b;
     // visibility: rain, snow and mist thicken the haze; inside cloud it is a whiteout
-    const murk = 1 + Math.pow(1 - wx.vis, 1.6) * 40 * (0.35 + 0.65 * under);
+    // (a sandstorm thickens it near the ground: a few kilometres down among the dunes, clearing above them)
+    const murk = (1 + Math.pow(1 - wx.vis, 1.6) * 40 * (0.35 + 0.65 * under)) * (1 + 5.5 * dustLow);
     // high up the camera is above most of the air: the haze thins, leaving only a blue veil
     // at the far limb of the Earth
     const thin = Math.max(0.07, Math.exp(-Math.max(0, camPos.y - 10000) / 15000));

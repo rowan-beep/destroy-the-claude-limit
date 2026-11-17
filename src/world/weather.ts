@@ -1,18 +1,20 @@
-// Weather: what the sky is doing (clear, cloudy, overcast, rain, storm, snow),
+// Weather: what the sky is doing (clear, cloudy, overcast, rain, storm, snow, and on
+// the Dune Sea a sandstorm),
 // the player's saved choice, and the precipitation and lightning effects.
 // Weather is visual and local to this player (it never changes the flight model).
 
 import * as THREE from 'three';
 import { smoothstep, clamp01 } from '../core/math';
 import { getSoftDotTexture } from '../render/textures';
+import { activeMap } from './islands';
 
-export type WeatherKind = 'clear' | 'cloudy' | 'overcast' | 'rain' | 'storm' | 'snow';
+export type WeatherKind = 'clear' | 'cloudy' | 'overcast' | 'rain' | 'storm' | 'snow' | 'sand';
 
 export interface Weather {
   kind: WeatherKind;
   /** cloud cover 0..1 */
   cover: number;
-  /** rain / snow intensity 0..1 */
+  /** rain / snow intensity 0..1 (a sandstorm: how hard the sand blows) */
   precip: number;
   /** visibility 0 (thick murk) .. 1 (crystal clear) */
   vis: number;
@@ -27,7 +29,21 @@ export const WEATHER_KINDS: [WeatherKind, string][] = [
   ['rain', 'RAIN'],
   ['storm', 'STORM'],
   ['snow', 'SNOW'],
+  ['sand', 'SANDSTORM'],
 ];
+
+/** The weather in force now, for the sound: how hard the sand is blowing (0..1). Set by World.setWeather. */
+export const WEATHER_NOW = { dust: 0 };
+
+/** The kinds the active map offers (a sandstorm only over the Dune Sea). */
+export function weatherKindsHere(): [WeatherKind, string][] {
+  return WEATHER_KINDS.filter(([k]) => k !== 'sand' || activeMap.id === 'dune');
+}
+
+/** A weather the active map can have: a sandstorm away from the desert turns clear. */
+export function weatherHere(w: Weather): Weather {
+  return w.kind === 'sand' && activeMap.id !== 'dune' ? { ...WEATHER_PRESETS.clear, dark: w.dark } : w;
+}
 
 export const WEATHER_PRESETS: Record<WeatherKind, Weather> = {
   clear: { kind: 'clear', cover: 0.12, precip: 0, vis: 1 },
@@ -36,6 +52,8 @@ export const WEATHER_PRESETS: Record<WeatherKind, Weather> = {
   rain: { kind: 'rain', cover: 0.95, precip: 0.65, vis: 0.5 },
   storm: { kind: 'storm', cover: 1, precip: 1, vis: 0.35 },
   snow: { kind: 'snow', cover: 0.95, precip: 0.65, vis: 0.42 },
+  // a thin high veil over a wall of blowing sand near the ground
+  sand: { kind: 'sand', cover: 0.15, precip: 0.8, vis: 0.3 },
 };
 
 /** The layer of cloud for a weather: base and top (m), and how solid it is 0..1. */
@@ -73,7 +91,8 @@ export function loadWeather(): Weather {
   } catch {
     /* storage unavailable */
   }
-  return { ...WEATHER_PRESETS.cloudy };
+  // (the desert starts on a clear afternoon sky, the other theaters with fair-weather cumulus)
+  return { ...(activeMap.id === 'dune' ? WEATHER_PRESETS.clear : WEATHER_PRESETS.cloudy) };
 }
 
 export function saveWeather(w: Weather): void {
@@ -162,6 +181,7 @@ class Precip {
     scene: THREE.Scene,
     readonly max: number,
     snow: boolean,
+    sand = false,
   ) {
     const quad = new THREE.PlaneGeometry(1, 1);
     quad.translate(0, 0, 0);
@@ -180,12 +200,13 @@ class Precip {
         map: { value: getSoftDotTexture() },
         uCam: { value: new THREE.Vector3() },
         uCamVel: { value: new THREE.Vector3() },
-        uFall: { value: snow ? new THREE.Vector3(0.6, -1.4, 0.3) : new THREE.Vector3(1.5, -9.5, 0.6) },
+        // (sand is blown nearly flat along the ground, fast, with the wind: toward the east-south-east)
+        uFall: { value: sand ? new THREE.Vector3(15.5, -0.9, 2.7) : snow ? new THREE.Vector3(0.6, -1.4, 0.3) : new THREE.Vector3(1.5, -9.5, 0.6) },
         uTime: { value: 0 },
-        uBox: { value: snow ? 60 : 80 },
-        uLen: { value: snow ? 0.012 : 0.07 },
-        uMaxLen: { value: snow ? 1.2 : 1.6 },
-        uWidth: { value: snow ? 0.08 : 0.028 },
+        uBox: { value: sand ? 70 : snow ? 60 : 80 },
+        uLen: { value: sand ? 0.05 : snow ? 0.012 : 0.07 },
+        uMaxLen: { value: sand ? 1.4 : snow ? 1.2 : 1.6 },
+        uWidth: { value: sand ? 0.05 : snow ? 0.08 : 0.028 },
         uSnow: { value: snow ? 1 : 0 },
         uColor: { value: new THREE.Color() },
         uOpacity: { value: 1 },
@@ -196,7 +217,7 @@ class Precip {
     this.mesh = new THREE.Mesh(this.geo, this.mat);
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = 20;
-    this.mesh.name = snow ? 'snow' : 'rain';
+    this.mesh.name = sand ? 'sand' : snow ? 'snow' : 'rain';
     scene.add(this.mesh);
   }
 
@@ -213,6 +234,7 @@ class Precip {
 export class PrecipitationFx {
   private rain: Precip;
   private snow: Precip;
+  private sand: Precip;
   private time = 0;
   private lastCam = new THREE.Vector3();
   private camVel = new THREE.Vector3();
@@ -231,6 +253,7 @@ export class PrecipitationFx {
   constructor(scene: THREE.Scene) {
     this.rain = new Precip(scene, 14000, false);
     this.snow = new Precip(scene, 9000, true);
+    this.sand = new Precip(scene, 12000, true, true);
   }
 
   set(w: Weather): void {
@@ -253,20 +276,24 @@ export class PrecipitationFx {
     const under = 1 - smoothstep(this.deck.base - 150, this.deck.base + 250, cam.y);
     const amount = w.precip * under;
     const snowy = w.kind === 'snow';
+    const sandy = w.kind === 'sand';
     const speed = this.camVel.length();
     this.camSpeed = speed;
-    this.rainOnCamera = snowy ? 0 : amount;
+    this.rainOnCamera = snowy || sandy ? 0 : amount;
     // at speed the drops are on the canopy, not streaking past: thin the falling rain
-    this.rain.count = snowy ? 0 : (amount * this.rain.max) / (1 + speed / 45);
+    this.rain.count = snowy || sandy ? 0 : (amount * this.rain.max) / (1 + speed / 45);
     this.snow.count = snowy ? amount * this.snow.max : 0;
-    for (const p of [this.rain, this.snow]) {
+    // blowing sand: a layer hugging the dunes, thinning out above about 2,000 m
+    this.sand.count = sandy ? w.precip * (1 - smoothstep(1200, 2600, cam.y)) * this.sand.max : 0;
+    for (const p of [this.rain, this.snow, this.sand]) {
       const u = p.mat.uniforms;
       (u.uCam.value as THREE.Vector3).copy(cam);
       (u.uCamVel.value as THREE.Vector3).copy(this.camVel);
       // wrap the clock so the float stays precise on long sessions
       u.uTime.value = this.time % 3600;
-      (u.uColor.value as THREE.Color).setScalar(snowy ? 0.9 * light + 0.1 : 0.75 * light + 0.18);
-      u.uOpacity.value = snowy ? 0.95 : 0.4 + 0.3 * w.precip;
+      if (p === this.sand) (u.uColor.value as THREE.Color).setRGB(0.8 * light + 0.12, 0.64 * light + 0.1, 0.44 * light + 0.07);
+      else (u.uColor.value as THREE.Color).setScalar(snowy ? 0.9 * light + 0.1 : 0.75 * light + 0.18);
+      u.uOpacity.value = p === this.sand ? 0.55 : snowy ? 0.95 : 0.4 + 0.3 * w.precip;
     }
     // lightning in a storm (and now and then in heavy rain)
     const stormy = w.kind === 'storm' ? 1 : w.kind === 'rain' && w.precip > 0.8 ? 0.3 : 0;

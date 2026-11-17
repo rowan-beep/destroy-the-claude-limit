@@ -5,9 +5,12 @@ import { World } from './world/world';
 import { emptyVision } from './render/vision';
 import { dirFromHeadingPitch } from './core/math';
 import { WEATHER_PRESETS, WeatherKind } from './world/weather';
+import { applyMap, loadMapChoice } from './world/maps';
 
 export async function runWorldTest(container: HTMLElement): Promise<void> {
   const q = new URLSearchParams(location.search);
+  // the theater from #map=... or the saved choice (the game's boot() does this; this harness skips it)
+  applyMap(loadMapChoice());
   const gr = new GameRenderer(container);
   const world = new World(gr.scene);
   const t0 = performance.now();
@@ -29,8 +32,9 @@ export async function runWorldTest(container: HTMLElement): Promise<void> {
     gr.setVision(emptyVision());
     gr.render();
     frames++;
-    if (frames < 6) requestAnimationFrame(loop);
-    else {
+    // (live=1 keeps drawing, so a screenshot taken any time later still finds a picture)
+    if (frames < 6 || q.get('live')) requestAnimationFrame(loop);
+    if (frames === 6) {
       (window as unknown as { __ready: unknown }).__ready = { tGrid, stats: world.terrain.stats, trees: world.trees.stats, fallback: world.pool.usingFallback, info: gr.renderer.info.render };
     }
   };

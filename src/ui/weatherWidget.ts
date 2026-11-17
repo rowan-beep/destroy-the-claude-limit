@@ -3,7 +3,7 @@
 // arrow tab slides it off the screen and back.
 
 import { el } from './dom';
-import { Weather, WeatherKind, WEATHER_KINDS, WEATHER_PRESETS, saveWeather } from '../world/weather';
+import { Weather, WeatherKind, WEATHER_KINDS, WEATHER_PRESETS, saveWeather, weatherKindsHere } from '../world/weather';
 import { NIGHT } from '../render/night';
 
 const OPEN_KEY = 'triad.weatherWidget.open';
@@ -15,6 +15,8 @@ const ICON: Record<WeatherKind, string> = {
   rain: '<path d="M6 14h11a3.5 3.5 0 0 0 .4-7 5 5 0 0 0-9.6 1.2A3 3 0 0 0 6 14z"/><path d="M8 17l-1 3M12 17l-1 3M16 17l-1 3"/>',
   storm: '<path d="M6 13h11a3.5 3.5 0 0 0 .4-7 5 5 0 0 0-9.6 1.2A3 3 0 0 0 6 13z"/><path d="M12.5 14l-2.5 4h3l-2 4"/>',
   snow: '<path d="M6 13h11a3.5 3.5 0 0 0 .4-7 5 5 0 0 0-9.6 1.2A3 3 0 0 0 6 13z"/><path d="M8 17v3M6.6 18.5h2.8M16 17v3M14.6 18.5h2.8M12 19v3M10.6 20.5h2.8"/>',
+  // wind lines over a dune
+  sand: '<path d="M3 8h11a2.5 2.5 0 1 0-2.5-2.5"/><path d="M3 12h15a2.5 2.5 0 1 1-2.5 2.5"/><path d="M2.5 20c3-3.2 6-4.4 9.5-4.4s6.5 1.2 9.5 4.4"/>',
 };
 
 const svg = (k: WeatherKind) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[k]}</svg>`;
@@ -50,7 +52,7 @@ export class WeatherWidget {
     el('span', 'wx-title', head, 'WEATHER');
     this.kindName = el('span', 'wx-kind-name', head, '');
     const kinds = el('div', 'wx-kinds', panel);
-    for (const [k, label] of WEATHER_KINDS) {
+    for (const [k, label] of weatherKindsHere()) {
       const b = el('button', 'wx-kind', kinds);
       b.type = 'button';
       b.tabIndex = -1;
@@ -172,7 +174,7 @@ export class WeatherWidget {
 
   private syncValues(): void {
     const w = this.w;
-    const wet = w.kind === 'rain' || w.kind === 'storm' || w.kind === 'snow';
+    const wet = w.kind === 'rain' || w.kind === 'storm' || w.kind === 'snow' || w.kind === 'sand';
     this.precip.row.classList.toggle('off', !wet);
     this.precip.input.disabled = !wet;
     this.precip.value.textContent = wet ? `${Math.round(w.precip * 100)}%` : 'NONE';

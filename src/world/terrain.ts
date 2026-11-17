@@ -7,6 +7,7 @@
 // and grottoes; Samos' pine hills, pebble beaches and the dividing mountain.
 
 import { NM, WORLD_SEED, MAP_HALF } from '../core/constants';
+import { duneHeight, sandColor } from './desert';
 import { hash2f } from '../core/rng';
 import { Simplex2 } from '../core/noise';
 import { smoothstep, clamp01, clamp, lerp } from '../core/math';
@@ -816,7 +817,15 @@ export function terrainInfo(x: number, z: number, out: TerrainInfo): TerrainInfo
   let bestIsland: IslandId | null = null;
   let bestInland = -1e9;
   let near: IslandId | null = null;
-  for (let i = 0; i < ISLANDS.length; i++) {
+  // the Dune Sea: sand everywhere, no coast (its regions only name the ground)
+  const dune = activeMap.id === 'dune';
+  if (dune) {
+    best = duneHeight(x, z);
+    bestIsland = x < -15 * NM ? 'ergwest' : x > 15 * NM ? 'ergeast' : 'qasr';
+    bestInland = 1e5;
+    near = bestIsland;
+  }
+  for (let i = 0; i < (dune ? 0 : ISLANDS.length); i++) {
     const isl = ISLANDS[i];
     const dx = x - isl.cx, dz = z - isl.cz;
     if (dx * dx + dz * dz > isl.bound * isl.bound) continue;
@@ -843,7 +852,7 @@ export function terrainInfo(x: number, z: number, out: TerrainInfo): TerrainInfo
       near = isl.id;
     }
   }
-  if (best === DEEP_SEA) {
+  if (best === DEEP_SEA && !dune) {
     best = DEEP_SEA + N3.noise(x / 20000, z / 20000) * 30;
   }
   // Frostfall: pack ice floating on the sea
@@ -923,7 +932,8 @@ const _info: TerrainInfo = { h: 0, island: null, inland: 0, field: 0 };
 
 /** Terrain height (m above mean sea level) at a world position. Sea floor is negative. */
 export function terrainHeight(x: number, z: number): number {
-  if (x < -MAP_HALF - 50000 || x > MAP_HALF + 50000 || z < -MAP_HALF - 50000 || z > MAP_HALF + 50000) return DEEP_SEA;
+  // (the Dune Sea's sand runs on past the map's edge to the horizon)
+  if ((x < -MAP_HALF - 50000 || x > MAP_HALF + 50000 || z < -MAP_HALF - 50000 || z > MAP_HALF + 50000) && activeMap.id !== 'dune') return DEEP_SEA;
   return terrainInfo(x, z, _info).h;
 }
 
@@ -977,6 +987,7 @@ export function surfaceColor(x: number, z: number, info: TerrainInfo, slope: num
   const vary = 0.5 + 0.5 * n1;
 
   out.f = 0;
+  if (activeMap.id === 'dune') return sandColor(x, z, h, slope, info.field, out);
   if (activeMap.id === 'frost') return frostColor(x, z, info, slope, out, n1, n2, n3);
   if (activeMap.id === 'jade') return jadeColor(x, z, info, slope, out, n1, n2, n3);
   if (h < 0.5) {
@@ -1252,7 +1263,7 @@ function jadeColor(x: number, z: number, info: TerrainInfo, slope: number, out: 
 
 /** Tree density 0..1 at a point. Trees are scattered over every island. */
 export function treeDensity(x: number, z: number, info: TerrainInfo, slope: number): number {
-  if (activeMap.id === 'frost') return 0;
+  if (activeMap.id === 'frost' || activeMap.id === 'dune') return 0;
   const h = info.h;
   if (activeMap.id === 'jade') {
     if (h < 1.5 || info.inland < 35 || info.field > 0.25) return 0;

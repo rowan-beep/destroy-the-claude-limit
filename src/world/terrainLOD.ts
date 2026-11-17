@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import { activeMap } from './islands';
 import { TERRAIN_LIGHT, TERRAIN_LIGHT_GLSL } from '../render/terrainLight';
-import { MAP_SIZE } from '../core/constants';
+import { MAP_HALF, MAP_SIZE } from '../core/constants';
 import { WorkerPool } from './workerPool';
 import { buildChunkIndices, ChunkResult } from './terrainGen';
 import { HeightGrid } from './heightGrid';
@@ -52,6 +52,8 @@ export class TerrainLOD {
   private frame = 0;
   private meshCount = 0;
   private quality: TerrainQuality = { splitK: 2.3, maxLevel: 10 };
+  private sandBeyond = false;
+  private levelOffset = 0;
   private camX = 0;
   private camY = 0;
   private camZ = 0;
@@ -63,7 +65,11 @@ export class TerrainLOD {
     this.group.name = 'terrain';
     this.index = new THREE.BufferAttribute(buildChunkIndices(RES), 1);
     this.material = createTerrainMaterial();
-    this.root = new TNode(0, 0, 0, MAP_SIZE);
+    // the Dune Sea has no sea round it: its sand runs on past the map's edge to the horizon, so the
+    // quadtree covers four times the map (two extra levels keep the tiles near the camera the same size)
+    this.sandBeyond = activeMap.id === 'dune';
+    this.levelOffset = this.sandBeyond ? 2 : 0;
+    this.root = new TNode(0, 0, 0, this.sandBeyond ? MAP_SIZE * 4 : MAP_SIZE);
     this.initBounds(this.root);
   }
 
@@ -78,6 +84,8 @@ export class TerrainLOD {
   private initBounds(n: TNode): void {
     const h = n.size / 2;
     n.maxH = this.grid.maxInRect(n.cx - h, n.cz - h, n.cx + h, n.cz + h) + 40;
+    // (past the edge the height grid has nothing: the dunes there stand as high as anywhere on the map)
+    if (this.sandBeyond && (Math.abs(n.cx) + h > MAP_HALF || Math.abs(n.cz) + h > MAP_HALF)) n.maxH = Math.max(n.maxH, activeMap.maxTerrain + 40);
     if (n.maxH < EMPTY_BELOW) n.state = 'empty';
   }
 
@@ -109,7 +117,7 @@ export class TerrainLOD {
       return true;
     }
     const d = this.distTo(n);
-    const wantSplit = n.level < this.quality.maxLevel && d < this.quality.splitK * n.size;
+    const wantSplit = n.level < this.quality.maxLevel + this.levelOffset && d < this.quality.splitK * n.size;
     if (wantSplit) {
       if (!n.children) this.makeChildren(n);
       let covered = true;
@@ -272,6 +280,8 @@ export function createTerrainMaterial(): THREE.MeshLambertMaterial {
   // the Frostfall theater: a world of snow and ice
   const defs: Record<string, string> = {};
   if (activeMap.id === 'frost') defs.SNOW_WORLD = '';
+  // the Dune Sea: sand everywhere, no rock faces anywhere, wind ripples instead
+  if (activeMap.id === 'dune') defs.SAND_WORLD = '';
   let q = 'high';
   try {
     q = loadSettings().graphics.quality;
@@ -371,6 +381,10 @@ export function createTerrainMaterial(): THREE.MeshLambertMaterial {
           // rock faces: fractured blocks and strata instead of a smooth smear
           float strata = 0.5 + 0.5 * sin( vHeight * 0.09 + d2 * 6.0 );
           float cliff = smoothstep( 0.35, 0.7, steep ) * nearF * ( 1.0 - tSnow );
+          #ifdef SAND_WORLD
+          // (a steep slip face is still sand: no fractured blocks or strata on it)
+          cliff = 0.0;
+          #endif
           g *= mix( 1.0, ( 0.86 + 0.22 * strata ) * mix( 1.0, rockTex, 0.8 ), cliff );
           diffuseColor.rgb *= g;
           #ifdef SNOW_WORLD
@@ -389,6 +403,23 @@ export function createTerrainMaterial(): THREE.MeshLambertMaterial {
           float sast = texture2D( detailMap, vec2( vDetailXZ.x * 0.8 + vDetailXZ.y * 0.6, -vDetailXZ.x * 0.6 + vDetailXZ.y * 0.8 ) * vec2( 1.0 / 70.0, 1.0 / 11.0 ) ).r;
           float snowH = ( d1 - 0.5 ) * 0.45 + ( sast - 0.5 ) * 0.3 + ( d4 - 0.5 ) * 0.04;
           float grndH = ( d1 - 0.5 ) * 0.6 + ( d4 - 0.5 ) * 0.14 + cliff * ( tr.g - 0.5 ) * 1.0;
+          #ifdef SAND_WORLD
+          {
+            // wind ripples: crests across the wind (it blows toward the east-south-east), a few metres
+            // apart and long across it, and finer ones up close; they shade the sand faintly too
+            vec2 wd = vec2( 0.985, 0.174 );
+            float sa = dot( vDetailXZ, wd ), sc = dot( vDetailXZ, vec2( -wd.y, wd.x ) );
+            // (the ripples fade out a few hundred metres away: further, their stretched texture
+            // only shimmers in moire rings; from the air the broad wind streaks carry on)
+            float ripF = 1.0 - smoothstep( 120.0, 650.0, camDist );
+            float rip = texture2D( detailMap, vec2( sc / 55.0, sa / 3.2 ) ).r;
+            float rip2 = texture2D( detailMap, vec2( sc / 14.0, sa / 0.9 ) ).r;
+            float streak = texture2D( detailMap, vec2( sc / 900.0, sa / 60.0 ) ).r;
+            // (gentle relief: real ripples are a few centimetres high, their shading soft)
+            grndH = ( ( rip - 0.5 ) * 0.12 + ( rip2 - 0.5 ) * 0.05 * closeF ) * ripF + ( d1 - 0.5 ) * 0.12;
+            diffuseColor.rgb *= ( 1.0 + 0.05 * ( rip - 0.5 ) * ripF ) * ( 0.96 + 0.08 * streak * ( 1.0 - smoothstep( 4000.0, 15000.0, camDist ) ) );
+          }
+          #endif
           tBump += mix( grndH, snowH, tSnow ) * ( 1.0 - smoothstep( 600.0, 4000.0, camDist ) );
           // wet dark sand at the waterline
           diffuseColor.rgb *= mix( 0.72, 1.0, smoothstep( 0.0, 2.5, vHeight ) );

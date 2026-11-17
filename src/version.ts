@@ -41,6 +41,18 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.15.6',
+    date: '2026-11-17',
+    air: {
+      title: 'New theater: Dune Sea',
+      notes: [
+        added('New theater: Dune Sea', 'A 120 × 120 NM desert of dunes and ruins. Long dune ridges with sharp crests and steep orange slip faces run between the two bases, with star dunes and sand mountains up to 6,000 ft and flat sand in the valleys. Fly low in the valleys and the ridges hide you from radar and the guns. Every surface is sand. Pick it under THEATER in the menu.'),
+        added('Ruins and wrecks', 'The ruined city of Al-Qasr stands in the middle: broken towers, roofless houses and courtyards full of drifted sand around an old citadel. Villages, walled compounds and watch posts lie in the valleys, lone pillars on the crests, and burnt-out jets and tanks along the old roads, the old airstrip and the city gates: landmarks to navigate by.'),
+        added('Sandstorm weather', 'Over the Dune Sea the weather panel has a SANDSTORM: blowing sand and an ochre haze that cut the visibility to a few kilometres down among the dunes, clearing above about 6,000 ft. The desert is quiet otherwise: wind over the sand, and now and then the creak of old metal.'),
+      ],
+    },
+  },
+  {
     version: '7.15.5',
     date: '2026-11-17',
     air: {
