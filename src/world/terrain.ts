@@ -7,7 +7,7 @@
 // and grottoes; Samos' pine hills, pebble beaches and the dividing mountain.
 
 import { NM, WORLD_SEED, MAP_HALF } from '../core/constants';
-import { duneHeight, sandColor } from './desert';
+import { duneHeight, sandColor, oasisNear, pondRadius } from './desert';
 import { hash2f } from '../core/rng';
 import { Simplex2 } from '../core/noise';
 import { smoothstep, clamp01, clamp, lerp } from '../core/math';
@@ -1263,7 +1263,18 @@ function jadeColor(x: number, z: number, info: TerrainInfo, slope: number, out: 
 
 /** Tree density 0..1 at a point. Trees are scattered over every island. */
 export function treeDensity(x: number, z: number, info: TerrainInfo, slope: number): number {
-  if (activeMap.id === 'frost' || activeMap.id === 'dune') return 0;
+  if (activeMap.id === 'frost') return 0;
+  // the Dune Sea: palms round the oases only, thickest near the water
+  if (activeMap.id === 'dune') {
+    const near = oasisNear(x, z, 1);
+    if (!near) return 0;
+    const rp = pondRadius(near.o, Math.atan2(z - near.o.z, x - near.o.x));
+    const d = near.d;
+    if (d < rp * 1.08) return 0;
+    // (the grove's edge wanders: thick tongues of palms reaching out, bays of sand between them)
+    const edge = rp * (2.0 + 0.7 * N.noise(x / 900 + 3.3, z / 900 - 1.7));
+    return 0.85 * (1 - smoothstep(edge * 0.75, edge, d)) * (0.55 + 0.45 * N.noise(x / 160, z / 160));
+  }
   const h = info.h;
   if (activeMap.id === 'jade') {
     if (h < 1.5 || info.inland < 35 || info.field > 0.25) return 0;
@@ -1306,6 +1317,7 @@ function jadeGrove(x: number, z: number, h: number, inland: number): boolean {
 /** Which tree species grows here (deterministic from a per-tree random 0..1). */
 export function treeKind(info: TerrainInfo, r: number, x = 0, z = 0): TreeKind {
   const isl = info.island;
+  if (activeMap.id === 'dune') return 4;
   if (activeMap.id === 'jade') return jadeTreeKind(info, r, x, z);
   if (isl === 'samos') return r < 0.82 ? 0 : r < 0.92 ? 3 : 2;
   if (isl === 'capri') return r < 0.5 ? 1 : r < 0.78 ? 2 : 3;
@@ -1338,6 +1350,7 @@ function jadeTreeKind(info: TerrainInfo, r: number, x: number, z: number): TreeK
 
 /** How big a tree grows (1 = the species' usual size), from a per-tree random 0..1. */
 export function treeScale(kind: number, info: TerrainInfo, r: number): number {
+  if (activeMap.id === 'dune') return 0.75 + 0.4 * r;
   if (activeMap.id === 'jade') {
     const isl = info.island ? ISLAND_BY_ID[info.island] : undefined;
     if (kind === 4) return 0.8 + 0.4 * r;

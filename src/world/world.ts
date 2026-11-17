@@ -20,6 +20,7 @@ import { activeMap } from './islands';
 import { MapData } from './mapData';
 import { TerrainLightBaker } from '../render/terrainLight';
 import { DesertProps } from './desertProps';
+import { CamelHerds } from './camelHerds';
 
 export interface WorldQuality {
   terrainSplitK: number;
@@ -57,6 +58,7 @@ export class World {
   lightBaker!: TerrainLightBaker;
   /** the Dune Sea's ruins and wrecks (that map only) */
   desertProps: DesertProps | null = null;
+  camels: CamelHerds | null = null;
   ready = false;
 
   constructor(private scene: THREE.Scene) {
@@ -154,6 +156,7 @@ export class World {
     this.airfields = new AirfieldRenderer(this.scene);
     this.carriers = new CarrierRenderer(this.scene, this.env);
     this.desertProps = activeMap.id === 'dune' ? new DesertProps(this.scene) : null;
+    this.camels = activeMap.id === 'dune' ? new CamelHerds(this.scene) : null;
     this.lightBaker = new TerrainLightBaker(this.grid, MAP_HALF);
     this.ready = true;
   }
@@ -197,6 +200,7 @@ export class World {
     this.clouds.update(dt, camera);
     this.airfields.update(cp);
     this.desertProps?.update(cp);
+    this.camels?.update(dt, cp);
     this.carriers.update(camera, this.ocean.time);
     this.pool.tick();
   }

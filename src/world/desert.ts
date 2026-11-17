@@ -145,8 +145,8 @@ export function stripWeight(x: number, z: number, margin = 160, blend = 700): nu
   return 1 - smoothstep(0, blend, Math.hypot(oa, oc));
 }
 
-/** Ground height of the Dune Sea (m above sea level, always well above it). */
-export function duneHeight(x: number, z: number): number {
+/** The sand without the oases (the oases are found on it). */
+function rawHeight(x: number, z: number, out?: { small: number; base: number }): number {
   const base = duneBase(x, z);
   // downwind (s) and crestwise (t) coordinates, the crests bent into long sinuous lines
   const s0 = x * WIND_X + z * WIND_Z;
@@ -177,6 +177,113 @@ export function duneHeight(x: number, z: number): number {
   if (ws > 0) h = lerp(h, duneBase(OLD_STRIP.x, OLD_STRIP.z) + 3, ws);
   // the highest crests round off just over 1,800 m
   if (h > 1700) h = 1700 + 120 * Math.tanh((h - 1700) / 120);
+  if (out) {
+    out.small = small;
+    out.base = base;
+  }
+  return h;
+}
+
+// ---------------------------------------------------------------------------
+// Oases: here and there on a valley floor the ground dips to the water table: a
+// pond in a hollow, palms round it, green ground. Found once (the same on every
+// machine) on the sand without them.
+// ---------------------------------------------------------------------------
+
+export interface Oasis {
+  x: number;
+  z: number;
+  /** radius of the hollow the dunes stand back from (m) */
+  R: number;
+  /** the pond's mean radius (m) and the wobble of its shore */
+  pond: number;
+  wob: [number, number, number, number];
+  /** the hollow's flat floor and the water surface (m) */
+  floor: number;
+  level: number;
+}
+
+const POND_DIP = 9;
+const POND_REACH = 1.3;
+
+function findOases(): Oasis[] {
+  const found: Oasis[] = [];
+  const half = 54 * NM;
+  const cell = 15000;
+  const n = Math.ceil((2 * half) / cell);
+  for (let j = 0; j < n; j++) {
+    for (let i = 0; i < n; i++) {
+      // about one cell in four holds an oasis, if a valley floor there is flat enough
+      if (hash2f(i, j, 911) > 0.24) continue;
+      for (let k = 0; k < 6; k++) {
+        const x = -half + (i + 0.15 + 0.7 * hash2f(i * 7 + k, j, 912)) * cell;
+        const z = -half + (j + 0.15 + 0.7 * hash2f(i, j * 7 + k, 913)) * cell;
+        if (CLEAR.some((q) => Math.hypot(x - q.x, z - q.z) < q.r * 1.6 + 5000) || stripWeight(x, z) > 0) continue;
+        if (found.some((o) => Math.hypot(x - o.x, z - o.z) < 16000)) continue;
+        const base = duneBase(x, z);
+        const h0 = rawHeight(x, z);
+        if (h0 - base > 25) continue;
+        let lo = h0, hi = h0;
+        for (let a = 0; a < 8; a++) {
+          const ang = (a / 8) * Math.PI * 2;
+          const h = rawHeight(x + Math.cos(ang) * 450, z + Math.sin(ang) * 450);
+          lo = Math.min(lo, h);
+          hi = Math.max(hi, h);
+        }
+        if (hi - lo > 40) continue;
+        // (big enough to read from a jet: a lake 0.7-1.4 km across in a hollow 4-6 km wide)
+        const R = 2000 + 900 * hash2f(i, j, 914);
+        const pond = 350 + 350 * hash2f(i, j, 915);
+        const floor = base - 10;
+        found.push({
+          x, z, R, pond,
+          wob: [hash2f(i, j, 916) * 6.28, hash2f(i, j, 917) * 6.28, 0.1 + 0.08 * hash2f(i, j, 918), 0.06 + 0.06 * hash2f(i, j, 919)],
+          floor,
+          // the dip reaches the shore 1.3 x the pond radius out: the water stands where it meets the floor's level
+          level: floor - POND_DIP * (1 - 1 / (POND_REACH * POND_REACH)),
+        });
+        break;
+      }
+    }
+  }
+  return found;
+}
+
+export const OASES: Oasis[] = findOases();
+
+/** The pond's shore radius at an angle round the oasis (m). */
+export function pondRadius(o: Oasis, ang: number): number {
+  return o.pond * (1 + o.wob[2] * Math.sin(3 * ang + o.wob[0]) + o.wob[3] * Math.sin(5 * ang + o.wob[1]));
+}
+
+/** The nearest oasis within reach of a point, and the distance to it, or null. */
+export function oasisNear(x: number, z: number, reach = 2): { o: Oasis; d: number } | null {
+  for (const o of OASES) {
+    const dx = x - o.x, dz = z - o.z;
+    const r = o.R * reach;
+    if (dx * dx + dz * dz < r * r) return { o, d: Math.sqrt(dx * dx + dz * dz) };
+  }
+  return null;
+}
+
+const _raw = { small: 0, base: 0 };
+
+/** Ground height of the Dune Sea (m above sea level, always well above it). */
+export function duneHeight(x: number, z: number): number {
+  let h = rawHeight(x, z, _raw);
+  const near = oasisNear(x, z);
+  if (!near) return h;
+  const { o, d } = near;
+  // the dunes stand back from the hollow; its floor is flat and a few metres down
+  const w = 1 - smoothstep(o.R * 0.9, o.R * 1.9, d);
+  const target = o.floor + 10 * smoothstep(o.R * 0.5, o.R * 1.1, d) + _raw.small * 0.2 * smoothstep(o.R * 0.6, o.R * 1.2, d);
+  h = lerp(h, target, w);
+  // the pond: a shallow bowl, its shore wobbling round
+  const rp = pondRadius(o, Math.atan2(z - o.z, x - o.x)) * POND_REACH;
+  if (d < rp) {
+    const u = d / rp;
+    h -= POND_DIP * (1 - u * u);
+  }
   return h;
 }
 
@@ -250,5 +357,20 @@ export function sandColor(x: number, z: number, h: number, slope: number, field:
   mixc(out, 0.78, 0.67, 0.5, (1 - smoothstep(CITY.r * 0.6, CITY.r * 1.1, dc)) * 0.45);
   // the airfields: packed, dark sand
   if (field > 0.3) mixc(out, 0.56, 0.46, 0.34, smoothstep(0.3, 0.9, field) * 0.85);
+  // oases: green ground round the pond in patches, wet dark sand at the shore, the pond bed dark
+  const near = oasisNear(x, z, 1.2);
+  if (near) {
+    const { o, d } = near;
+    const rp = pondRadius(o, Math.atan2(z - o.z, x - o.x));
+    const patch = clamp01(0.55 + 0.9 * N.noise(x / 60, z / 60) + 0.4 * N2.noise(x / 17, z / 17));
+    const edge = rp * (2.15 + 0.7 * N.noise(x / 900 + 3.3, z / 900 - 1.7));
+    const green = (1 - smoothstep(edge * 0.8, edge * 1.15, d)) * smoothstep(rp * 1.0, rp * 1.15, d);
+    mixc(out, 0.4 + 0.08 * n1, 0.45 + 0.06 * n1, 0.22, green * (0.35 + 0.55 * patch));
+    // a darker, lusher ring close to the water (reeds and grass)
+    mixc(out, 0.3, 0.38, 0.17, (1 - smoothstep(rp * 1.05, rp * 1.5, d)) * smoothstep(rp * 0.98, rp * 1.08, d) * 0.7);
+    mixc(out, 0.5, 0.42, 0.3, (1 - smoothstep(rp * 0.95, rp * 1.05, d)) * 0.85);
+    // dry, trodden sand on the hollow's floor further out
+    mixc(out, 0.8, 0.68, 0.5, smoothstep(rp * 2.6, rp * 3.4, d) * (1 - smoothstep(o.R * 0.7, o.R * 1.1, d)) * 0.4);
+  }
   return out;
 }

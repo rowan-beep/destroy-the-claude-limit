@@ -15,12 +15,16 @@ import { buildTropicTree, tropicTint } from './tropicTrees';
 
 const CELL = 1024;
 const SPACING = 30;
+/** the oases' palm groves stand closer together than any forest */
+const DUNE_SPACING = 13;
 const KINDS = 9;
 
 /** the species each theater grows (see treeKind): only these get meshes */
 function kindsHere(): number[] {
   if (activeMap.id === 'jade') return [4, 5, 6, 7, 8];
   if (activeMap.id === 'triad') return [0, 1, 2, 3];
+  // (the Dune Sea: palms round the oases)
+  if (activeMap.id === 'dune') return [4];
   return [];
 }
 const NEAR_CAP = 60000;
@@ -256,7 +260,7 @@ export class TreeSystem {
           this.cells.set(key, c);
           this.pendingCount++;
           const cell = c;
-          const h = this.pool.submit({ type: 'trees', cx, cz, size: CELL, spacing: SPACING }, 50 + d / CELL, (res) => {
+          const h = this.pool.submit({ type: 'trees', cx, cz, size: CELL, spacing: activeMap.id === 'dune' ? DUNE_SPACING : SPACING }, 50 + d / CELL, (res) => {
             const r = res as TreeResult;
             cell.data = r.data;
             cell.count = r.count;

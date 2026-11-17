@@ -20,8 +20,9 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { mulberry32 } from '../core/rng';
 import { NM } from '../core/constants';
-import { duneHeight, duneBase, CITY, OLD_STRIP, ROADS, WIND_X, WIND_Z } from './desert';
+import { duneHeight, duneBase, CITY, OLD_STRIP, ROADS, WIND_X, WIND_Z, OASES, pondRadius } from './desert';
 import { AIRFIELDS } from './islands';
+import { buildRuin, ruinRadius, RUIN_KINDS, RuinKind, buildCrashedJet, CRASH_RADIUS } from './desertRuins';
 
 type Geo = THREE.BufferGeometry;
 type RGB = [number, number, number];
@@ -458,6 +459,13 @@ function buildSites(): Site[] {
       }
     }
   }
+  // a hamlet of mud-brick houses beside some of the oases, on the hollow's dry floor
+  for (const o of OASES) {
+    if (rnd() > 0.55) continue;
+    const a = rnd() * Math.PI * 2, d = o.pond * 3.2 + 60;
+    const x = o.x + Math.cos(a) * d, z = o.z + Math.sin(a) * d;
+    village(mk(x, z, 14000), 4 + Math.floor(rnd() * 6), 70);
+  }
   // villages, compounds and watch posts on flat sand in the valleys; lone pillars on the high crests
   const half = 56 * NM;
   const want = { village: 9, compound: 6, post: 12, pillar: 18 };
@@ -487,14 +495,182 @@ function buildSites(): Site[] {
   return sites;
 }
 
+// ---------------------------------------------------------------------------
+// Stone ruins and crash sites everywhere: each kind built in a few versions
+// (desertRuins.ts), and every placed one drawn as a copy of one of them, so
+// hundreds of them cost little memory. Only the ones near the camera are drawn.
+// ---------------------------------------------------------------------------
+
+const VERSIONS = 3;
+const CRASH_VERSIONS = 5;
+
+interface Placed {
+  x: number;
+  y: number;
+  z: number;
+  yaw: number;
+  range: number;
+}
+
+/** the big kinds are seen from further away */
+const BIG: Set<string> = new Set(['colonnade', 'temple', 'arch', 'wall', 'tomb', 'gate', 'houses', 'theatre']);
+
+function placeStone(): { ruins: Placed[][]; crashes: Placed[][] } {
+  const rnd = mulberry32(0x5a7d01);
+  const ruins: Placed[][] = RUIN_KINDS.flatMap(() => Array.from({ length: VERSIONS }, () => [] as Placed[]));
+  const crashes: Placed[][] = Array.from({ length: CRASH_VERSIONS }, () => [] as Placed[]);
+  const taken: { x: number; z: number; r: number }[] = [];
+  const free = (x: number, z: number, r: number) => !taken.some((t) => Math.hypot(x - t.x, z - t.z) < r + t.r + 60);
+  // the wind blows toward +x in the models (their drifts are on the -x side): turn them to the real wind
+  const windYaw = -Math.atan2(WIND_Z, WIND_X);
+  const ruinAt = (kind: RuinKind, x: number, z: number): boolean => {
+    const r = ruinRadius(kind);
+    if (!free(x, z, r) || nearRunway(x, z, 3000 + r) || !flatEnough(x, z, r, Math.max(4, r * 0.35))) return false;
+    const k = RUIN_KINDS.indexOf(kind) * VERSIONS + Math.floor(rnd() * VERSIONS);
+    // sunk to the lowest sand under it, a little more on a slope
+    ruins[k].push({ x, y: ground(x, z, r * 0.6, 0.4), z, yaw: windYaw + (rnd() - 0.5) * 0.7, range: BIG.has(kind) ? 16000 : 10000 });
+    taken.push({ x, z, r });
+    return true;
+  };
+  const pick = (): RuinKind => RUIN_KINDS[Math.floor(rnd() * RUIN_KINDS.length)];
+  const half = 56 * NM;
+  // lost towns: a few ruins together, some beside the oases (the old towns grew round the water)
+  for (const o of OASES) {
+    if (rnd() < 0.35) continue;
+    const n = 2 + Math.floor(rnd() * 4);
+    for (let i = 0, tries = 0; i < n && tries < 40; tries++) {
+      const a = rnd() * Math.PI * 2, d = o.pond * 2.4 + rnd() * o.R * 0.9;
+      if (ruinAt(pick(), o.x + Math.cos(a) * d, o.z + Math.sin(a) * d)) i++;
+    }
+  }
+  for (let t = 0, towns = 0; t < 600 && towns < 22; t++) {
+    const cx = (rnd() * 2 - 1) * half, cz = (rnd() * 2 - 1) * half;
+    if (Math.hypot(cx - CITY.x, cz - CITY.z) < CITY.r * 2 || duneHeight(cx, cz) - duneBase(cx, cz) > 40) continue;
+    towns++;
+    const n = 3 + Math.floor(rnd() * 5);
+    for (let i = 0, tries = 0; i < n && tries < 50; tries++) {
+      const a = rnd() * Math.PI * 2, d = 40 + rnd() * 420;
+      if (ruinAt(pick(), cx + Math.cos(a) * d, cz + Math.sin(a) * d)) i++;
+    }
+  }
+  // and lone ruins all over the sand
+  for (let t = 0, n = 0; t < 5000 && n < 170; t++) {
+    const x = (rnd() * 2 - 1) * half, z = (rnd() * 2 - 1) * half;
+    if (Math.hypot(x - CITY.x, z - CITY.z) < CITY.r * 1.6) continue;
+    if (ruinAt(pick(), x, z)) n++;
+  }
+  // crashed jets: anywhere, on any ground (they came down where they came down)
+  for (let t = 0, n = 0; t < 3000 && n < 46; t++) {
+    const x = (rnd() * 2 - 1) * half, z = (rnd() * 2 - 1) * half;
+    if (!free(x, z, CRASH_RADIUS) || nearRunway(x, z, 3000) || !flatEnough(x, z, CRASH_RADIUS, 14)) continue;
+    crashes[Math.floor(rnd() * CRASH_VERSIONS)].push({ x, y: ground(x, z, CRASH_RADIUS * 0.5, 0.3), z, yaw: rnd() * Math.PI * 2, range: 12000 });
+    taken.push({ x, z, r: CRASH_RADIUS });
+    n++;
+  }
+  return { ruins, crashes };
+}
+
+/**
+ * One kind-version's copies: an instanced mesh refilled with the ones near the camera. Its model is
+ * built after loading, when first wanted (one model a frame, so the loading screen does not wait).
+ */
+class Copies {
+  mesh: THREE.InstancedMesh | null = null;
+  private readonly m = new THREE.Matrix4();
+  private readonly q = new THREE.Quaternion();
+  private readonly up = new THREE.Vector3(0, 1, 0);
+  private readonly p = new THREE.Vector3();
+  private readonly one = new THREE.Vector3(1, 1, 1);
+  constructor(
+    private readonly build: () => Geo,
+    private readonly mat: THREE.Material,
+    readonly list: Placed[],
+    private readonly scene: THREE.Scene,
+  ) {}
+  /** is a copy within its range of the camera? */
+  wanted(cam: THREE.Vector3): boolean {
+    return this.list.some((s) => (cam.x - s.x) ** 2 + (cam.z - s.z) ** 2 < s.range * s.range);
+  }
+  make(): void {
+    this.mesh = new THREE.InstancedMesh(this.build(), this.mat, Math.max(1, this.list.length));
+    this.mesh.count = 0;
+    this.mesh.frustumCulled = false;
+    this.mesh.matrixAutoUpdate = false;
+    this.scene.add(this.mesh);
+  }
+  update(cam: THREE.Vector3): void {
+    if (!this.mesh) return;
+    let n = 0;
+    for (const s of this.list) {
+      const dx = cam.x - s.x, dz = cam.z - s.z;
+      if (dx * dx + dz * dz > s.range * s.range) continue;
+      this.q.setFromAxisAngle(this.up, s.yaw);
+      this.m.compose(this.p.set(s.x, s.y, s.z), this.q, this.one);
+      this.mesh.setMatrixAt(n++, this.m);
+    }
+    this.mesh.count = n;
+    this.mesh.instanceMatrix.needsUpdate = true;
+  }
+}
+
+/** The oases' ponds: one flat sheet of water each at the water level, reaching a little under the shore. */
+function buildPonds(): THREE.Mesh {
+  const parts: Geo[] = [];
+  const SEG = 64;
+  for (const o of OASES) {
+    const pos: number[] = [0, o.level, 0];
+    for (let i = 0; i <= SEG; i++) {
+      const a = (i / SEG) * Math.PI * 2;
+      const r = pondRadius(o, a) * 1.12;
+      pos.push(Math.cos(a) * r, o.level, Math.sin(a) * r);
+    }
+    const idx: number[] = [];
+    for (let i = 1; i <= SEG; i++) idx.push(0, i + 1, i);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    g.translate(o.x, 0, o.z);
+    g.computeVertexNormals();
+    parts.push(g);
+  }
+  const geo = parts.length ? mergeGeometries(parts, false)! : new THREE.BufferGeometry();
+  // still, deep green-blue water that catches the sun
+  const mat = new THREE.MeshPhongMaterial({ color: new THREE.Color().setRGB(0.12, 0.3, 0.3, THREE.SRGBColorSpace), specular: 0x9fb2bd, shininess: 90 });
+  const m = new THREE.Mesh(geo, mat);
+  m.name = 'oasis-ponds';
+  m.matrixAutoUpdate = false;
+  m.frustumCulled = false;
+  return m;
+}
+
 /** The Dune Sea's ruins and wrecks in the scene, each site shown within its own range of the camera. */
 export class DesertProps {
   private groups: { g: THREE.Mesh; x: number; z: number; range: number }[] = [];
   readonly mat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
   /** how many sites were placed (for the test pages) */
   readonly count: number;
+  readonly stoneCount: number;
+  readonly crashCount: number;
+
+  private copies: Copies[] = [];
+  private frame = 0;
 
   constructor(scene: THREE.Scene) {
+    scene.add(buildPonds());
+    const { ruins, crashes } = placeStone();
+    let k = 0;
+    for (const kind of RUIN_KINDS) {
+      for (let v = 0; v < VERSIONS; v++, k++) {
+        if (!ruins[k].length) continue;
+        const seed = 0x400 + k * 17;
+        this.copies.push(new Copies(() => buildRuin(kind, mulberry32(seed)), this.mat, ruins[k], scene));
+      }
+    }
+    crashes.forEach((list, v) => {
+      if (list.length) this.copies.push(new Copies(() => buildCrashedJet(mulberry32(0x900 + v * 31)), this.mat, list, scene));
+    });
+    this.stoneCount = ruins.reduce((n, l) => n + l.length, 0);
+    this.crashCount = crashes.reduce((n, l) => n + l.length, 0);
     const sites = buildSites();
     this.count = sites.length;
     for (const s of sites) {
@@ -514,6 +690,15 @@ export class DesertProps {
   }
 
   update(cam: THREE.Vector3): void {
+    // one model built a frame till all are: the ones wanted near the camera first
+    const unbuilt = this.copies.filter((c) => !c.mesh);
+    if (unbuilt.length) {
+      const c = unbuilt.find((u) => u.wanted(cam)) ?? unbuilt[0];
+      c.make();
+      c.update(cam);
+    }
+    // (the copies near the camera, refilled a few times a second)
+    if (this.frame++ % 15 === 0) for (const c of this.copies) c.update(cam);
     for (const s of this.groups) {
       const dx = cam.x - s.x, dz = cam.z - s.z;
       s.g.visible = dx * dx + dz * dz < s.range * s.range;

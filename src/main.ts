@@ -580,6 +580,8 @@ if (q.get('test') === 'world') {
   });
 } else if (q.get('test') === 'models') {
   import('./testModels').then((m) => m.runModelTest(document.getElementById('app')!));
+} else if (q.get('test') === 'desert') {
+  import('./testDesert').then((m) => m.runDesertTest(document.getElementById('app')!));
 } else {
   boot().catch((err) => {
     console.error(err);
