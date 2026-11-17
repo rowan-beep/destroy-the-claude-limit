@@ -35,6 +35,9 @@ export async function runWorldTest(container: HTMLElement): Promise<void> {
     frames++;
     // (live=1 keeps drawing, so a screenshot taken any time later still finds a picture)
     if (frames < 6 || q.get('live')) requestAnimationFrame(loop);
+    // snap=1: the picture read straight off the canvas after this frame (a screenshot of a heavy scene can
+    // time out waiting for the next frame)
+    if (frames === 6 && q.get('snap')) (window as unknown as { __png: string }).__png = gr.renderer.domElement.toDataURL('image/png');
     if (frames === 6) {
       (window as unknown as { __ready: unknown }).__ready = { tGrid, stats: world.terrain.stats, trees: world.trees.stats, fallback: world.pool.usingFallback, info: gr.renderer.info.render };
     }

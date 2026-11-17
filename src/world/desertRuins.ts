@@ -620,7 +620,7 @@ export type RuinKind = 'colonnade' | 'temple' | 'arch' | 'wall' | 'tomb' | 'colu
 export const RUIN_KINDS: RuinKind[] = ['colonnade', 'temple', 'arch', 'wall', 'tomb', 'column', 'statue', 'gate', 'houses', 'well', 'obelisk', 'theatre', 'street', 'wallrun', 'aqueduct', 'amphitheatre', 'forum', 'basilica', 'facade'];
 
 const RADII: Record<RuinKind, number> = {
-  colonnade: 54, temple: 70, arch: 38, wall: 76, tomb: 26, column: 20, statue: 18, gate: 56, houses: 40, well: 18, obelisk: 22, theatre: 86,
+  colonnade: 54, temple: 56, arch: 38, wall: 76, tomb: 26, column: 20, statue: 18, gate: 56, houses: 36, well: 18, obelisk: 22, theatre: 100,
   street: 33, wallrun: 33, aqueduct: 33, amphitheatre: 100, forum: 64, basilica: 56, facade: 32,
 };
 /** design-unit scale each kind is built at (monumental size) */
@@ -937,25 +937,27 @@ function tomb(m: Mesh, rnd: Rnd) {
 
 function statue(m: Mesh, rnd: Rnd) {
   const col = stoneCol(rnd);
-  const U = 30, Vn = 22;
-  const noseBroken = rnd() < 0.7, earBroken = rnd() < 0.5;
+  const U = 36, Vn = 26;
+  const noseBroken = rnd() < 0.6, earBroken = rnd() < 0.5;
   const gauss = (x: number, s: number) => Math.exp(-(x * x) / (2 * s * s));
   const head = (ang: number, lat: number): V => {
     const sv = Math.sin(lat), cvv = Math.cos(lat);
     const ux = sv * Math.sin(ang), uz = sv * Math.cos(ang), uy = cvv;
     let rad = 1;
-    const front = sstep(-0.1, 0.55, uz);
+    const front = sstep(-0.05, 0.5, uz);
     const g2 = (cx: number, cy: number, sx: number, sy: number) => gauss(ux - cx, sx) * gauss(uy - cy, sy);
-    rad += 0.5 * (noseBroken ? 0.3 : 1) * g2(0, -0.12, 0.14, 0.24) * front;
-    rad += 0.18 * g2(0, 0.27, 0.6, 0.1) * front;
-    rad -= 0.2 * (g2(0.36, 0.14, 0.14, 0.1) + g2(-0.36, 0.14, 0.14, 0.1) * (rnd() < 0.5 ? 1 : 0.4)) * front;
-    rad += 0.14 * g2(0, -0.5, 0.3, 0.08) * front;
-    rad -= 0.09 * g2(0, -0.6, 0.25, 0.04) * front;
-    rad += 0.13 * g2(0, -0.82, 0.2, 0.14) * front;
-    rad += 0.08 * (g2(0.55, -0.2, 0.2, 0.22) + g2(-0.55, -0.2, 0.2, 0.22)) * front;
+    const hair = clamp(sstep(0.34, 0.5, uy) + sstep(0.15, -0.35, uz) * sstep(-0.75, -0.1, uy)) * (1 - front * 0.7);
+    rad += 0.62 * (noseBroken ? 0.35 : 1) * g2(0, -0.1, 0.12, 0.25) * front;
+    rad += 0.24 * g2(0, 0.26, 0.55, 0.09) * front;
+    rad -= 0.28 * (g2(0.34, 0.12, 0.13, 0.09) + g2(-0.34, 0.12, 0.13, 0.09)) * front;
+    rad += 0.17 * g2(0, -0.5, 0.28, 0.07) * front;
+    rad -= 0.12 * g2(0, -0.6, 0.24, 0.035) * front;
+    rad += 0.16 * g2(0, -0.82, 0.2, 0.13) * front;
+    rad += 0.1 * (g2(0.55, -0.2, 0.2, 0.22) + g2(-0.55, -0.2, 0.2, 0.22)) * front;
     if (!(earBroken && ux > 0)) rad += 0.3 * (g2(0.98, 0, 0.18, 0.24) + g2(-0.98, 0, 0.18, 0.24)) * gauss(uz, 0.4);
-    if (uy > 0.45) rad *= 1.06;
-    rad += 0.03 * (vnoise(ux * 3, uy * 3, uz * 3) - 0.5) * 2;
+    rad *= 1 + 0.1 * hair;
+    rad += hair * 0.06 * (0.5 + 0.5 * Math.sin(ux * 21 + uz * 9 + uy * 5) * Math.sin(uy * 17 - ux * 7 + uz * 11)); // curls
+    rad += 0.02 * (vnoise(ux * 3, uy * 3, uz * 3) - 0.5) * 2;
     let y = uy * 2.2 * rad;
     if (uy < -0.9) y = -2.0 + (rnd() - 0.5) * 0.15;
     return [ux * 1.45 * rad, y, uz * 1.7 * rad];
@@ -967,35 +969,34 @@ function statue(m: Mesh, rnd: Rnd) {
     for (let j = 0; j < U; j++) r.push(head((j / U) * Math.PI * 2, lat));
     rings.push(r);
   }
-  placed(m, -3.5, 1.7, 0.5, -1.2, 2.4, 0.15, () => smoothLoft(m, rings, col));
+  // the head lies on its side, half buried, the face turned up toward the viewer
+  placed(m, -3.5, 0.15, 0.5, -0.3, 2.55, Math.PI / 2, () => smoothLoft(m, rings, col));
+  // broken torso with drapery folds, on its back
   const tcol = mixC(col, stoneCol(rnd), 0.3);
-  placed(m, 8, 0.6, -1, -1.3, 0.9, 0.2, () => {
+  placed(m, 8, 0.7, -1, -1.3, 0.9, 0.2, () => {
     const rg: V[][] = [];
-    const prof: [number, number, number][] = [[0, 2.0, 1.2], [1.5, 2.4, 1.4], [3.0, 3.0, 1.5], [4.2, 3.4, 1.3], [4.8, 2.9, 1.0]];
+    const prof: [number, number, number][] = [[0, 2.0, 1.2], [1.4, 2.3, 1.4], [2.8, 2.9, 1.5], [4.0, 3.5, 1.3], [4.7, 3.0, 1.0]];
     prof.forEach(([y, hw, hd], i) => {
       const r: V[] = [];
-      for (let j = 0; j < 14; j++) {
-        const th = (j / 14) * 6.283;
+      for (let j = 0; j < 22; j++) {
+        const th = (j / 22) * 6.283;
         const ex = Math.sign(Math.cos(th)) * Math.pow(Math.abs(Math.cos(th)), 0.6), ez = Math.sign(Math.sin(th)) * Math.pow(Math.abs(Math.sin(th)), 0.6);
-        r.push([ex * hw, y + (i === prof.length - 1 ? (rnd() - 0.3) * 0.5 : 0) + (i === 0 ? (rnd() - 0.5) * 0.4 : 0), ez * hd]);
+        const fold = 1 + 0.07 * Math.sin(th * 7 + y * 1.6) * (i < 3 ? 1 : 0.5);
+        r.push([ex * hw * fold, y + (i === prof.length - 1 ? (rnd() - 0.3) * 0.5 : 0) + (i === 0 ? (rnd() - 0.5) * 0.4 : 0), ez * hd * fold]);
       }
       rg.push(r);
     });
     smoothLoft(m, rg, tcol);
   });
-  placed(m, 13.5, 0.5, 3.8, 0.1, 2.2, Math.PI / 2 + 0.05, () => {
-    drum(m, rnd, { r0: 0.8, r1: 0.7, y0: -3, y1: 2.4, col: tcol, segs: 10, cap: true, flute: 0.0 });
-    block(m, rnd, 0, 2.4, 0, 1.5, 1.3, 1.4, 0.3, { col: tcol, bev: 0.15, jit: 0.1 });
-  });
-  // a pedestal, mostly sunk, with a worn foot on it
+  // a column drum, a worn foot on a half-sunk pedestal
+  fallenDrum(m, rnd, 12, 5.5, 1.1, 2.4, 2.2, tcol, 0.45);
   block(m, rnd, -8, -2.0, -6.5, 6.0, 2.5, 3.2, 0.5, { col, bev: 0.14, jit: 0.1, chip: 0.25 });
   block(m, rnd, -7.4, 0.3, -6.3, 2.8, 0.8, 1.2, 0.5, { col, bev: 0.15, jit: 0.09, chip: 0.2 });
-  rubble(m, rnd, 3, 0, 12, 22, 0.2, 1.3, col);
-  drift(m, { x: -6.6, z: 1.5, a: 4, b: 4.8, h: 2.0 });
-  drift(m, { x: 5.2, z: -0.5, a: 3.6, b: 4, h: 1.9 });
+  rubble(m, rnd, 3, 0, 12, 18, 0.2, 1.3, col);
+  drift(m, { x: -6.6, z: 1.5, a: 4, b: 4.8, h: 1.6 });
+  drift(m, { x: 5.2, z: -0.5, a: 3.6, b: 4, h: 1.7 });
   drift(m, { x: 12, z: 2, a: 4.5, b: 3.4, h: 1.0 });
   drift(m, { x: -9, z: -6.5, a: 3, b: 3.4, h: 1.0 });
-  drift(m, { x: -5, z: -2, a: 4, b: 2.6, h: 1.0, lee: true });
   drift(m, { x: -1, z: 6, a: 6, b: 3, h: 0.9 });
 }
 
@@ -1035,12 +1036,12 @@ function houses(m: Mesh, rnd: Rnd) {
   m.push(new THREE.Matrix4().makeRotationY(rr(rnd, -0.08, 0.08)));
   const wood = srgb(0.3, 0.22, 0.15);
   const seg = (x: number, z: number, vertical: boolean, outer: boolean) => {
-    if (rnd() < (outer ? 0.12 : 0.22)) return;
-    const hseg = rnd() < 0.18 ? rr(rnd, 3.6, 5.6) : rr(rnd, 0.7, 2.2);
+    if (rnd() < (outer ? 0.15 : 0.32)) return;
+    const hseg = rnd() < 0.12 ? rr(rnd, 3.6, 5.6) : rr(rnd, 0.7, 2.0);
     const L = CELL + 0.9, door = rnd() < 0.7 ? rr(rnd, 2.5, CELL - 2.5) : -9, sd = rnd() * 40;
     m.push(vertical ? new THREE.Matrix4().makeTranslation(x, 0, z).multiply(new THREE.Matrix4().makeRotationY(-Math.PI / 2)) : new THREE.Matrix4().makeTranslation(x - 0.45, 0, z));
     wall(m, rnd, {
-      low: true, L, t: 0.9, depth: -2, ch: [0.4, 0.7], bl: [1.4, 2.8], miss: 0.06,
+      low: true, L, t: 0.9, depth: -2, ch: [0.5, 0.8], bl: [2.2, 3.8], miss: 0.06,
       top: (u) => hseg * (0.45 + 0.8 * vnoise(u * 0.3 + sd, 2, seed)) - (u < 1 || u > L - 1 ? 0.5 : 0),
       hole: (u, y) => Math.abs(u - door) < 0.95 && y < 3.2,
     });
@@ -1453,7 +1454,7 @@ function basilica(m: Mesh, rnd: Rnd) {
     wall(m, rnd, { L: LX, t, depth: -4, ch: [1.0, 1.6], bl: [2.4, 4.4], top: tf, hole: win });
     for (let k = 0; k < 7; k++) {
       const u = wc(k);
-      if (tf(u) > 15.5) placed(m, u, 0, 0, 0, 0, 0, () => archBand(m, rnd, { span: 4.0, spring: 13, t: 0.9, depth: t + 0.1, n: 6 }));
+      if (tf(u) > 18 && tf(u - 3.2) > 16 && tf(u + 3.2) > 16) placed(m, u, 0, 0, 0, 0, 0, () => archBand(m, rnd, { span: 4.0, spring: 13, t: 0.9, depth: t + 0.1, n: 6 }));
     }
     for (let k = 0; k <= 7; k++) {
       const u = k * WP, top = tf(u) - 1.2;
