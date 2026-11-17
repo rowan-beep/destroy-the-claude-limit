@@ -683,10 +683,11 @@ export function buildOvalPlaza(rnd: Rnd, A: number, B: number): THREE.BufferGeom
 // ----------------------------------------------------------------------------------------------
 
 export interface DistrictOpt {
-  /** insulae across (x) and along (z), each cell x cell (m), streets between */
+  /** insulae across (x) and along (z), each cell x cellZ (m), streets between */
   nx: number;
   nz: number;
   cell: number;
+  cellZ?: number;
   street: number;
   /** the fraction of insulae under the sand */
   buried: number;
@@ -698,8 +699,8 @@ export interface DistrictOpt {
 export function buildDistrict(rnd: Rnd, o: DistrictOpt, ground: (x: number, z: number) => number = () => 0): THREE.BufferGeometry {
   const g = new Geo();
   const tone = o.tone === 'marble' ? MARBLE : HONEY;
-  const P = o.cell + o.street;
-  const X0 = -(o.nx * P) / 2 + o.street / 2, Z0 = -(o.nz * P) / 2 + o.street / 2;
+  const cz = o.cellZ ?? o.cell, PX = o.cell + o.street, PZ = cz + o.street;
+  const X0 = -(o.nx * PX) / 2 + o.street / 2, Z0 = -(o.nz * PZ) / 2 + o.street / 2;
   const t = 0.9;
   const wallSeg = (xa: number, za: number, xb: number, zb: number, hBase: number) => {
     const L = Math.hypot(xb - xa, zb - za);
@@ -715,6 +716,7 @@ export function buildDistrict(rnd: Rnd, o: DistrictOpt, ground: (x: number, z: n
       if (rnd() < 0.12) continue;
       const mx = xa + ux * (p0 + p1) / 2, mz = za + uz * (p0 + p1) / 2;
       const gy = ground(mx, mz);
+      if (!(gy > -1e6)) continue;
       const hh = rnd() < 0.08 ? rr(rnd, 2.6, 4.2) : hBase * rr(rnd, 0.5, 1.3);
       g.box(mx, gy - 1.6, mz, p1 - p0 + t * 0.9, hh + 1.6, t, ry, stone(rnd, tone, 0.97));
     }
@@ -738,13 +740,13 @@ export function buildDistrict(rnd: Rnd, o: DistrictOpt, ground: (x: number, z: n
   for (let i = 0; i < o.nx; i++) for (let j = 0; j < o.nz; j++) {
     if (o.skip?.(i, j)) continue;
     if (rnd() < o.buried) continue;
-    const x0 = X0 + i * P, z0 = Z0 + j * P, x1 = x0 + o.cell, z1 = z0 + o.cell;
+    const x0 = X0 + i * PX, z0 = Z0 + j * PZ, x1 = x0 + o.cell, z1 = z0 + cz;
     const hBase = rr(rnd, 0.6, 1.5);
     // part of the block may lie under a drift: keep a corner of it
     let ax = x0, az = z0, bx = x1, bz = z1;
     if (rnd() < 0.3) {
       if (rnd() < 0.5) ax = x0 + o.cell * rr(rnd, 0.3, 0.6);
-      else bz = z1 - o.cell * rr(rnd, 0.3, 0.6);
+      else bz = z1 - cz * rr(rnd, 0.3, 0.6);
     }
     // the outer walls, then the rooms (a courtyard house: a peristyle of stubs in the biggest room sometimes)
     wallSeg(ax, az, bx, az, hBase * 1.2);
@@ -753,16 +755,16 @@ export function buildDistrict(rnd: Rnd, o: DistrictOpt, ground: (x: number, z: n
     wallSeg(ax, bz, ax, az, hBase * 1.2);
     split(ax, az, bx, bz, hBase, 0);
     if (rnd() < 0.25) {
-      const cx = (ax + bx) / 2, cz = (az + bz) / 2;
+      const mx = (ax + bx) / 2, mz = (az + bz) / 2;
       for (const [dx, dz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
         if (rnd() < 0.3) continue;
-        const x = cx + dx * 3.2, z = cz + dz * 3.2;
-        column(g, rnd, x, z, ground(x, z) - 0.5, 0.35, 3.6, MARBLE, { n: 6, brk: rr(rnd, 0.6, 3) });
+        const x = mx + dx * 3.2, z = mz + dz * 3.2, gy = ground(x, z);
+        if (gy > -1e6) column(g, rnd, x, z, gy - 0.5, 0.35, 3.6, MARBLE, { n: 6, brk: rr(rnd, 0.6, 3) });
       }
     }
     if (rnd() < 0.35) {
-      const x = rr(rnd, ax, bx), z = rr(rnd, az, bz);
-      g.push(0, ground(x, z), 0, 0);
+      const x = rr(rnd, ax, bx), z = rr(rnd, az, bz), gy = ground(x, z);
+      g.push(0, gy > -1e6 ? gy : 0, 0, 0);
       g.drift(x, z, rr(rnd, 5, 12), rr(rnd, 4, 9), rr(rnd, 0.8, 1.8));
       g.pop();
     }
