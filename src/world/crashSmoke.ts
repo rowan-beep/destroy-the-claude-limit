@@ -94,7 +94,8 @@ export class CrashFires {
    * puff (to stand a column up at once).
    */
   private emitSmoke(e: Emitter, dt: number, night: number, age: number): void {
-    e.acc.smoke += dt * (1.6 + 2.0 * e.heat);
+    // (one column per wreck: the hottest spot carries it, the others only wisp)
+    e.acc.smoke += dt * (1.6 + 2.0 * e.heat) * (e.heat >= 0.95 ? 1 : 0.3);
     while (e.acc.smoke >= 1) {
       e.acc.smoke -= 1;
       const life = 16 + Math.random() * 10;
