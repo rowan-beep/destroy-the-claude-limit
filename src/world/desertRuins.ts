@@ -48,14 +48,10 @@ function vnoise(x: number, y: number, z: number): number {
   );
 }
 
-/** Sandstone: warm ochre / honey / pinkish cream, block to block +-8%, a few darker or redder. */
+/** Sandstone: one uniform warm tan; block to block only +-4%. Weathering (shading) does the rest. */
 function stoneCol(rnd: Rnd): RGB {
-  const v = rnd();
-  let r = 0.8, g = 0.64, b = 0.45;
-  if (v < 0.07) { r *= 0.9; g *= 0.8; b *= 0.74; }
-  else if (v < 0.2) { r = 0.88; g = 0.74; b = 0.58; }
-  const k = 0.94 + 0.12 * rnd();
-  return srgb(clamp(r * k * (0.985 + 0.03 * rnd())), clamp(g * k), clamp(b * k * (0.97 + 0.06 * rnd())));
+  const k = 0.96 + 0.08 * rnd();
+  return srgb(clamp(0.8 * k), clamp(0.64 * k * (0.99 + 0.02 * rnd())), clamp(0.45 * k * (0.99 + 0.02 * rnd())));
 }
 
 // ---------------------------------------------------------------- mesh builder
@@ -70,6 +66,8 @@ class Mesh {
   private st: THREE.Matrix4[] = [];
   /** 0..1: how much dust lies on upward-facing metal */
   dust = 0.4;
+  /** 1 / the scale the model will be built at (so weathering gradients keep their proportions) */
+  unit = 1;
 
   push(mx: THREE.Matrix4) { this.st.push(this.m); this.m = this.m.clone().multiply(mx); }
   pop() { this.m = this.st.pop()!; }
@@ -122,7 +120,7 @@ class Mesh {
       const c: RGB = [this.col[i * 3], this.col[i * 3 + 1], this.col[i * 3 + 2]];
       let o: RGB = c;
       const k = this.kind[i];
-      if (k === KIND_STONE) { shadeStone(c, x, y, z, this.nor[i * 3], this.nor[i * 3 + 1], col, i * 3); continue; }
+      if (k === KIND_STONE) { const u = this.unit; shadeStone(c, x * u, y * u, z * u, this.nor[i * 3], this.nor[i * 3 + 1], col, i * 3); continue; }
       else if (k === KIND_SAND) o = mulC(SAND, 1 + (vnoise(x * 0.23, 0.5, z * 0.23) - 0.5) * 0.06);
       else if (k === KIND_METAL) { shadeMetal(c, x, y, z, this.nor[i * 3 + 1], this.dust, col, i * 3); continue; }
       col[i * 3] = o[0]; col[i * 3 + 1] = o[1]; col[i * 3 + 2] = o[2];
@@ -141,8 +139,8 @@ function shadeStone(c: RGB, x: number, y: number, z: number, nx: number, ny: num
   const patch = vnoise(x * 0.6, y * 0.8, z * 0.6);
   const band = 0.5 + 0.5 * Math.sin(y * 2.9 + patch * 7 + x * 0.3);
   const grain = lh((x * 9) | 0, (y * 9) | 0, (z * 9) | 0);
-  let k = (0.9 + 0.2 * patch) * (0.92 + 0.12 * band) * (0.965 + 0.07 * grain);
-  k *= 0.56 + 0.44 * sstep(-0.4, 2.6, y);
+  let k = (0.94 + 0.12 * patch) * (0.95 + 0.08 * band) * (0.97 + 0.06 * grain);
+  k *= (0.56 + 0.44 * sstep(-0.4, 2.6, y)) * (1 + 0.07 * sstep(2, 9, y));
   if (ny < -0.2) k *= 0.78;
   let r = c[0] * k, g = c[1] * k, b = c[2] * k;
   const st = 0.22 * (1 - sstep(0, 1.6, y));
@@ -239,10 +237,19 @@ function block(m: Mesh, rnd: Rnd, cx: number, y0: number, cz: number, sx: number
 }
 
 /** Rock-like rubble chunk: strongly jittered block, tumbled, half sunk. */
-function chunk(m: Mesh, rnd: Rnd, x: number, z: number, s: number, col?: RGB, sink = 0.45) {
-  const sx = s * rr(rnd, 0.7, 1.5), sy = s * rr(rnd, 0.4, 1), sz = s * rr(rnd, 0.7, 1.4);
-  placed(m, x, sy * (0.5 - sink * rnd() - 0.2), z, rr(rnd, -0.5, 0.5), rnd() * 6.28, rr(rnd, -0.5, 0.5), () => {
-    block(m, rnd, 0, -sy / 2, 0, sx, sy, sz, 0, { col: col ?? stoneCol(rnd), jit: s * 0.14, bev: s > 0.9 ? s * 0.1 : 0, chip: s * 0.15 });
+function chunk(m: Mesh, rnd: Rnd, x: number, z: number, s: number, col?: RGB, sink = 0.5) {
+  const c = col ?? stoneCol(rnd);
+  const sx = s * rr(rnd, 0.6, 1.5), sy = s * rr(rnd, 0.3, 1), sz = s * rr(rnd, 0.6, 1.4);
+  placed(m, x, sy * (0.35 - sink * rnd() * 1.2), z, rr(rnd, -0.5, 0.5), rnd() * 6.28, rr(rnd, -0.5, 0.5), () => {
+    if (rnd() < 0.5) block(m, rnd, 0, -sy / 2, 0, sx, sy, sz, 0, { col: c, jit: s * 0.14, bev: s > 1.2 ? s * 0.08 : 0, chip: s * 0.15 });
+    else {
+      const n = 4 + Math.floor(rnd() * 3);
+      const mk = (k: number, y: number): V[] => Array.from({ length: n }, (_, j) => {
+        const a = (j / n) * 6.283 + (rnd() - 0.5) * 0.6, r = (0.55 + 0.45 * rnd()) * k;
+        return [Math.cos(a) * r * sx * 0.7, y, Math.sin(a) * r * sz * 0.7] as V;
+      });
+      loft(m, [mk(1, -sy / 2), mk(rr(rnd, 0.5, 0.9), sy / 2)], c, { capTop: true, capBot: true });
+    }
   });
 }
 
@@ -255,57 +262,111 @@ function rubble(m: Mesh, rnd: Rnd, cx: number, cz: number, rad: number, n: numbe
 }
 
 // ---------------------------------------------------------------- sand
-interface DriftOpt { x: number; z: number; a: number; b: number; h: number; rot?: number; tail?: number; seg?: number }
+interface DriftOpt { x: number; z: number; a: number; b: number; h: number; rot?: number; tail?: number; seg?: number; lee?: boolean }
 
-/** A smooth sand mound: zero slope at its rim, rim at y = -0.04, long gentle windward (-x) tail. */
+/**
+ * A wind-shaped sand drift. Local +x is downwind. Default (windward bank): a steep short face on the +x side against the
+ * obstacle and a long thin tail feathering out upwind (-x). With lee: the steep face is on -x and the tail runs downwind (+x).
+ * The rim is at y = -0.015 with zero slope, so it merges with the ground with no step.
+ */
 function drift(m: Mesh, d: DriftOpt) {
-  const rot = d.rot ?? 0, cs = Math.cos(rot), sn = Math.sin(rot), tail = d.tail ?? 1.6;
+  const rot = d.rot ?? 0, cs = Math.cos(rot), sn = Math.sin(rot), tail = d.tail ?? 2.4;
+  const sgn = d.lee ? 1 : -1;
+  const RIM = -0.015;
   const H = (px: number, pz: number) => {
     const dx = px - d.x, dz = pz - d.z;
     const lx = dx * cs - dz * sn, lz = dx * sn + dz * cs;
-    const aa = lx < 0 ? d.a * tail : d.a;
-    const q = Math.hypot(lx / aa, lz / d.b);
-    if (q >= 1) return -0.04;
-    const f = 1 - q * q;
-    return d.h * f * f - 0.04;
+    const t = lx * sgn;
+    const aa = t > 0 ? d.a * tail : d.a * 0.45;
+    const u = Math.abs(t) / aa;
+    const bb = d.b * (t > 0 ? 1 - 0.55 * Math.min(1, u) : 1);
+    const q = Math.hypot(u, lz / bb);
+    if (q >= 1) return RIM;
+    const f = 1 - q * q * (3 - 2 * q);
+    return d.h * f * (t > 0 ? 1 - 0.4 * u : 1) + RIM * (1 - f);
   };
-  const S = d.seg ?? (Math.max(d.a, d.b) > 6 ? 16 : 10);
-  const Q = [0.4, 0.74, 1];
-  const grid: V[][] = [];
-  const nrm: V[][] = [];
+  const S = d.seg ?? (Math.max(d.a, d.b) > 6 ? 18 : 12);
+  const Q = [0.3, 0.58, 0.8, 0.93, 1];
   const at = (q: number, j: number): V => {
     const th = (j / S) * Math.PI * 2;
     const ct = Math.cos(th), st = Math.sin(th);
-    const lx = q * (ct < 0 ? d.a * tail : d.a) * ct, lz = q * d.b * st;
+    const u = q * Math.abs(ct), side = ct >= 0 ? 1 : -1;
+    const t = side * u * (side > 0 ? d.a * tail : d.a * 0.45);
+    const bb = d.b * (t > 0 ? 1 - 0.55 * Math.min(1, u) : 1);
+    const lx = t * sgn, lz = q * st * bb;
     const px = d.x + lx * cs + lz * sn, pz = d.z - lx * sn + lz * cs;
     return [px, H(px, pz), pz];
   };
   const N = (p: V): V => {
-    const e = 0.08;
+    const e = 0.1;
     const hx = (H(p[0] + e, p[2]) - H(p[0] - e, p[2])) / (2 * e), hz = (H(p[0], p[2] + e) - H(p[0], p[2] - e)) / (2 * e);
     const l = Math.hypot(hx, 1, hz);
     return [-hx / l, 1 / l, -hz / l];
   };
   const centre: V = [d.x, H(d.x, d.z), d.z];
-  grid.push([centre]);
-  nrm.push([N(centre)]);
+  const grid: V[][] = [[centre]], nrm: V[][] = [[N(centre)]];
   for (const q of Q) {
     const row: V[] = [], nr: V[] = [];
     for (let j = 0; j < S; j++) { const p = at(q, j); row.push(p); nr.push(N(p)); }
     grid.push(row); nrm.push(nr);
   }
-  const white: RGB = SAND;
   for (let j = 0; j < S; j++) {
     const j2 = (j + 1) % S;
-    m.tri(centre, grid[1][j], grid[1][j2], white, KIND_SAND, [nrm[0][0], nrm[1][j], nrm[1][j2]]);
+    m.tri(centre, grid[1][j], grid[1][j2], SAND, KIND_SAND, [nrm[0][0], nrm[1][j], nrm[1][j2]]);
   }
   for (let i = 1; i < grid.length - 1; i++) {
     for (let j = 0; j < S; j++) {
       const j2 = (j + 1) % S;
-      m.tri(grid[i][j], grid[i + 1][j], grid[i][j2], white, KIND_SAND, [nrm[i][j], nrm[i + 1][j], nrm[i][j2]]);
-      m.tri(grid[i][j2], grid[i + 1][j], grid[i + 1][j2], white, KIND_SAND, [nrm[i][j2], nrm[i + 1][j], nrm[i + 1][j2]]);
+      m.tri(grid[i][j], grid[i + 1][j], grid[i][j2], SAND, KIND_SAND, [nrm[i][j], nrm[i + 1][j], nrm[i][j2]]);
+      m.tri(grid[i][j2], grid[i + 1][j], grid[i + 1][j2], SAND, KIND_SAND, [nrm[i][j2], nrm[i + 1][j], nrm[i + 1][j2]]);
     }
   }
+}
+
+/** Sand banked on all sides of a rectangular footprint (deepest on the windward -x side, a feathering tail downwind). */
+function apron(m: Mesh, cx: number, cz: number, w: number, d: number, h: number) {
+  drift(m, { x: cx - w / 2, z: cz, a: Math.min(w * 0.3, 10), b: d * 0.55, h: h * 1.25 });
+  drift(m, { x: cx + w / 2, z: cz, a: Math.min(w * 0.25, 8), b: d * 0.4, h: h * 0.7, lee: true });
+  drift(m, { x: cx, z: cz - d / 2, a: Math.min(d * 0.3, 9), b: w * 0.4, h: h * 0.8, rot: -Math.PI / 2 });
+  drift(m, { x: cx, z: cz + d / 2, a: Math.min(d * 0.3, 9), b: w * 0.4, h: h * 0.6, rot: Math.PI / 2 });
+}
+
+/** A pier / base built from stacked ashlar courses between y0 and y1 (courses fully buried are skipped). */
+function stack(m: Mesh, rnd: Rnd, cx: number, cz: number, sx: number, sz: number, y0: number, y1: number, ry = 0, ch = 1.8) {
+  let y = y0;
+  while (y < y1 - 0.05) {
+    const h = Math.min(rr(rnd, ch * 0.7, ch * 1.2), y1 - y);
+    if (y + h > -0.2) {
+      const last = y + h >= y1 - 0.05;
+      block(m, rnd, cx + (rnd() - 0.5) * 0.08, y, cz + (rnd() - 0.5) * 0.08, sx, h, sz, ry, { bev: last ? Math.min(0.14, h * 0.3) : 0, jit: 0.03, chip: last ? 0.12 : 0, capTop: last });
+    }
+    y += h;
+  }
+}
+
+/** Smooth-shaded skin of rings (carved stone, not rubble). */
+function smoothLoft(m: Mesh, rings: V[][], col: RGB, capEnd = true) {
+  const n = rings[0].length, R = rings.length;
+  const c: V = [0, 0, 0];
+  let cnt = 0;
+  for (const r of rings) for (const p of r) { c[0] += p[0]; c[1] += p[1]; c[2] += p[2]; cnt++; }
+  c[0] /= cnt; c[1] /= cnt; c[2] /= cnt;
+  const nr: V[][] = rings.map((r, i) => r.map((p, j): V => {
+    const a = rings[Math.min(R - 1, i + 1)][j], b = rings[Math.max(0, i - 1)][j];
+    const pp = r[(j + 1) % n], qq = r[(j - 1 + n) % n];
+    const ux = a[0] - b[0], uy = a[1] - b[1], uz = a[2] - b[2], vx = pp[0] - qq[0], vy = pp[1] - qq[1], vz = pp[2] - qq[2];
+    let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    const l = Math.hypot(nx, ny, nz) || 1;
+    nx /= l; ny /= l; nz /= l;
+    if (nx * (p[0] - c[0]) + ny * (p[1] - c[1]) + nz * (p[2] - c[2]) < 0) { nx = -nx; ny = -ny; nz = -nz; }
+    return [nx, ny, nz];
+  }));
+  for (let i = 0; i < R - 1; i++) for (let j = 0; j < n; j++) {
+    const j2 = (j + 1) % n;
+    m.tri(rings[i][j], rings[i + 1][j], rings[i][j2], col, KIND_STONE, [nr[i][j], nr[i + 1][j], nr[i][j2]]);
+    m.tri(rings[i][j2], rings[i + 1][j], rings[i + 1][j2], col, KIND_STONE, [nr[i][j2], nr[i + 1][j], nr[i + 1][j2]]);
+  }
+  if (capEnd) loft(m, [rings[R - 1]], col, { capTop: true, topLift: -0.1 });
 }
 
 // ---------------------------------------------------------------- walls
@@ -368,7 +429,7 @@ function wall(m: Mesh, rnd: Rnd, o: WallOpt) {
       const covered = b.y1 >= b.yc - 0.005 && above && above.some((q) => q.present && q.xb > b.xa + 0.15 && q.xa < b.xb - 0.15);
       const hh = b.y1 - b.y0;
       block(m, rnd, (b.xa + b.xb) / 2, b.y0, -b.ins + (rnd() - 0.5) * 0.07, b.xb - b.xa + 0.03, hh, t + (rnd() - 0.5) * 0.1, 0, {
-        col: b.col, bev: covered ? 0 : Math.min(0.1, hh * 0.3), jit: 0.024, skip, capTop: !covered, chip: covered ? 0 : 0.09,
+        col: b.col, bev: covered ? 0 : Math.min(0.15, hh * 0.3), jit: 0.026, skip, capTop: !covered, chip: covered ? 0 : 0.13,
       });
     }
   }
@@ -414,8 +475,7 @@ function drum(m: Mesh, rnd: Rnd, o: DrumOpt) {
   loft(m, rings, (i) => (i === 0 ? mulC(c, 0.9) : c), { capTop: !!o.cap || !!o.broken, topLift: o.broken ? -0.05 * o.r1 : 0 });
 }
 
-function capital(m: Mesh, rnd: Rnd, x: number, y: number, z: number, r: number, col: RGB, rot = 0): number {
-  const segs = 12;
+function capital(m: Mesh, rnd: Rnd, x: number, y: number, z: number, r: number, col: RGB, rot = 0, segs = 12): number {
   const spec: [number, number, boolean][] = [[1.0, 0, false], [1.12, 0.14, false], [0.94, 0.3, false], [1.0, 0.55, true], [1.35, 1.2, true], [1.5, 1.66, false]];
   const rings = spec.map(([rad, hy, leaf]) => {
     const p: V[] = [];
@@ -433,7 +493,7 @@ function capital(m: Mesh, rnd: Rnd, x: number, y: number, z: number, r: number, 
 
 interface ColOpt {
   x: number; z: number; y0: number; r: number; h: number;
-  cap?: boolean; brk?: number; base?: boolean; tint?: RGB; lean?: number; leanDir?: number;
+  cap?: boolean; brk?: number; base?: boolean; tint?: RGB; lean?: number; leanDir?: number; segs?: number; dh?: number;
 }
 /** A standing column: base, entasis shaft of fluted drums (offset slightly), capital or a jagged break. Returns the top y. */
 function column(m: Mesh, rnd: Rnd, o: ColOpt): number {
@@ -447,7 +507,7 @@ function column(m: Mesh, rnd: Rnd, o: ColOpt): number {
       block(m, rnd, o.x, y, o.z, r * 2.7, r * 0.5, r * 2.7, rnd() * 0.2, { col, bev: r * 0.06, jit: r * 0.02, chip: 0.05 });
       const rings: V[][] = [[1.28, 0.5], [1.32, 0.62], [1.2, 0.76], [1.02, 0.9]].map(([rad, hy]) => {
         const p: V[] = [];
-        for (let j = 0; j < 12; j++) { const th = (j / 12) * 6.283; p.push([o.x + Math.cos(th) * r * rad, y + hy * r, o.z + Math.sin(th) * r * rad]); }
+        for (let j = 0; j < (o.segs ?? 12); j++) { const th = (j / (o.segs ?? 12)) * 6.283; p.push([o.x + Math.cos(th) * r * rad, y + hy * r, o.z + Math.sin(th) * r * rad]); }
         return p;
       });
       loft(m, rings, mulC(col, 0.95), {});
@@ -455,7 +515,7 @@ function column(m: Mesh, rnd: Rnd, o: ColOpt): number {
     y += 0.9 * r;
   }
   const total = o.brk ?? o.h;
-  const nd = Math.max(2, Math.round(o.h / 1.45));
+  const nd = Math.max(2, Math.round(o.h / (o.dh ?? 1.45)));
   let yy = y, ox = 0, oz = 0;
   const yEnd = y + total;
   for (let i = 0; i < nd; i++) {
@@ -470,10 +530,10 @@ function column(m: Mesh, rnd: Rnd, o: ColOpt): number {
     const last = y1 >= yEnd - 1e-6;
     drum(m, rnd, {
       r0: rad(t0), r1: rad(Math.min(1, t1)), y0, y1, col: mixC(col, stoneCol(rnd), 0.35),
-      ox: o.x + ox, oz: o.z + oz, broken: last && o.brk !== undefined ? r * 0.8 : 0, cap: last && !o.cap,
+      ox: o.x + ox, oz: o.z + oz, broken: last && o.brk !== undefined ? r * 0.8 : 0, cap: last && !o.cap, segs: o.segs,
     });
   }
-  if (o.cap && o.brk === undefined) return capital(m, rnd, o.x + ox, yy, o.z + oz, r, col);
+  if (o.cap && o.brk === undefined) return capital(m, rnd, o.x + ox, yy, o.z + oz, r, col, 0, o.segs ?? 12);
   return yy;
 }
 
@@ -508,6 +568,18 @@ function arch(m: Mesh, rnd: Rnd, o: ArchOpt) {
   }
 }
 
+/** One curved band for an arch (cheap: n segments, no per-stone wedges), from angle a0 (0 = +x side) over the crown (PI/2). */
+function archBand(m: Mesh, rnd: Rnd, o: { span: number; spring: number; t: number; depth: number; n: number; a0?: number; a1?: number; col?: RGB }) {
+  const ri = o.span / 2, ro = ri + o.t, hz = o.depth / 2, a0 = o.a0 ?? 0, a1 = o.a1 ?? Math.PI;
+  const rings: V[][] = [];
+  for (let i = 0; i <= o.n; i++) {
+    const a = a0 + ((a1 - a0) * i) / o.n, ca = Math.cos(a), sa = Math.sin(a), g = (rnd() - 0.5) * 0.06;
+    rings.push([[ca * ri, o.spring + sa * ri, -hz + g], [ca * ri, o.spring + sa * ri, hz + g], [ca * (ro + g), o.spring + sa * (ro + g), hz], [ca * (ro + g), o.spring + sa * (ro + g), -hz]]);
+  }
+  const c = o.col ?? stoneCol(rnd);
+  loft(m, rings, (i) => mulC(c, i % 2 ? 0.97 : 1.02), { capTop: true, capBot: true });
+}
+
 // ---------------------------------------------------------------- the ruins
 export type RuinKind = 'colonnade' | 'temple' | 'arch' | 'wall' | 'tomb' | 'column' | 'statue' | 'gate' | 'houses' | 'well' | 'obelisk' | 'theatre';
 export const RUIN_KINDS: RuinKind[] = ['colonnade', 'temple', 'arch', 'wall', 'tomb', 'column', 'statue', 'gate', 'houses', 'well', 'obelisk', 'theatre'];
@@ -517,68 +589,74 @@ const RADII: Record<RuinKind, number> = {
 };
 
 function colonnade(m: Mesh, rnd: Rnd) {
-  const N = 6, S = 4.8, rows = [-5.2, 5.2], r = 0.62;
+  const N = 7, S = 3.8, rows = [-5.3, 5.3];
   const x0 = -((N - 1) * S) / 2;
   const seed = rnd() * 50;
   for (const row of rows) {
-    // low stylobate, mostly buried
     m.push(new THREE.Matrix4().makeTranslation(x0 - 2, 0, row));
-    wall(m, rnd, { L: (N - 1) * S + 4, t: 2.3, depth: -1.4, ch: [0.4, 0.55], bl: [1.2, 2], top: (u) => -0.1 + 0.95 * vnoise(u * 0.3, row, seed) });
+    wall(m, rnd, { L: (N - 1) * S + 4, t: 2.3, depth: -1.4, ch: [0.4, 0.55], bl: [1.2, 2], top: (u) => -0.3 + 0.9 * vnoise(u * 0.3, row, seed) });
     m.pop();
   }
-  type St = 'full' | 'broken' | 'stump' | 'gone';
-  const state: St[][] = [[], []];
+  type St = 'full' | 'nocap' | 'tall' | 'mid' | 'low' | 'gone';
+  const st: St[][] = [[], []];
+  for (let ri = 0; ri < 2; ri++) for (let i = 0; i < N; i++) {
+    const v = rnd();
+    st[ri].push(v < 0.2 ? 'full' : v < 0.32 ? 'nocap' : v < 0.5 ? 'tall' : v < 0.7 ? 'mid' : v < 0.87 ? 'low' : 'gone');
+  }
+  const pr = Math.floor(rnd() * (N - 1)), prow = Math.floor(rnd() * 2);
+  st[prow][pr] = st[prow][pr + 1] = 'full';
+  const pairY0 = -rr(rnd, 0.6, 2.4);
   const tops: (number | null)[][] = [[], []];
   rows.forEach((row, ri) => {
     for (let i = 0; i < N; i++) {
-      const v = rnd();
-      const st: St = v < 0.42 ? 'full' : v < 0.77 ? 'broken' : v < 0.9 ? 'stump' : 'gone';
-      state[ri].push(st);
-      const x = x0 + i * S + rr(rnd, -0.1, 0.1);
-      const y0 = -rr(rnd, 0.8, 3.2);
-      const o: ColOpt = { x, z: row + rr(rnd, -0.05, 0.05), y0, r, h: 6.2, cap: false };
-      let top: number | null = null;
-      const lean = rr(rnd, -0.04, 0.04);
-      if (st === 'full') top = column(m, rnd, { ...o, cap: true, lean, leanDir: rnd() * 6.28 });
-      else if (st === 'broken') column(m, rnd, { ...o, brk: rr(rnd, 3, 5.2), lean, leanDir: rnd() * 6.28 });
-      else if (st === 'stump') column(m, rnd, { ...o, y0: -rr(rnd, 3, 4.4), brk: rr(rnd, 1.6, 2.6) });
+      const sTate = st[ri][i];
+      const r = rr(rnd, 0.42, 0.5), h = rr(rnd, 5.2, 6.6);
+      const x = x0 + i * S + rr(rnd, -0.1, 0.1), z = row + rr(rnd, -0.08, 0.08);
+      const isPair = ri === prow && (i === pr || i === pr + 1);
+      let y0 = isPair ? pairY0 : -rr(rnd, 0.3, 3.4);
+      if (sTate === 'low') y0 = -rr(rnd, 2.4, 3.8);
+      const base = y0 + 0.9 * r;
+      const dir = Math.PI / 2 * (ri === 0 ? 1 : -1) + rr(rnd, -0.9, 0.9) + (rnd() < 0.3 ? Math.PI : 0);
+      const lean = rr(rnd, -0.05, 0.05), ld = rnd() * 6.28;
+      const brk = (lo: number, hi: number) => Math.min(h, Math.max(0.4, rr(rnd, lo, hi) - base));
+      let top: number | null = null, nD = 0;
+      if (sTate === 'full') top = column(m, rnd, { x, z, y0, r, h: isPair ? 6 : h, cap: true, lean, leanDir: ld });
+      else if (sTate === 'nocap') { column(m, rnd, { x, z, y0, r, h, brk: h * rr(rnd, 0.94, 1), lean, leanDir: ld }); nD = 2; }
+      else if (sTate === 'tall') { column(m, rnd, { x, z, y0, r, h, brk: brk(3.4, 5.4), lean, leanDir: ld }); nD = 2; }
+      else if (sTate === 'mid') { column(m, rnd, { x, z, y0, r, h, brk: brk(1.8, 3.2), lean, leanDir: ld }); nD = 3; }
+      else if (sTate === 'low') { column(m, rnd, { x, z, y0, r, h, brk: brk(0.2, 1.1) }); nD = 2; }
+      else { block(m, rnd, x, -0.45, z, r * 2.7, 0.55, r * 2.7, rnd(), { jit: 0.03 }); nD = 5; }
       tops[ri].push(top);
-      if (st !== 'full') {
-        // the fallen shaft: drums strewn in a line
-        const dir = rnd() * 6.28, nD = st === 'gone' ? 3 : 1 + Math.floor(rnd() * 3);
-        for (let k = 0; k < nD; k++) {
-          const dd = 1.9 + k * rr(rnd, 1.5, 1.9);
-          fallenDrum(m, rnd, x + Math.cos(dir) * dd, row + Math.sin(dir) * dd, r * 0.92, rr(rnd, 1.1, 1.6), dir + rr(rnd, -0.25, 0.25), undefined, rr(rnd, 0.3, 0.6), rnd() < 0.3);
-        }
-        if (rnd() < 0.35) {
-          placed(m, x + Math.cos(dir) * 8, 0.1, row + Math.sin(dir) * 8, 0, dir, Math.PI / 2, () => { capital(m, rnd, 0, -0.5, 0, r, stoneCol(rnd)); });
-        }
+      for (let k = 0; k < nD; k++) {
+        const dd = 1.6 + k * rr(rnd, 1.2, 1.5);
+        fallenDrum(m, rnd, x + Math.cos(dir) * dd, z + Math.sin(dir) * dd, r * 0.92, rr(rnd, 1.0, 1.5), dir + Math.PI / 2 + rr(rnd, -0.25, 0.25), undefined, rr(rnd, 0.2, 0.6), rnd() < 0.3);
       }
-      if (st !== 'gone') drift(m, { x: x - 0.4, z: row + rr(rnd, -0.2, 0.2), a: rr(rnd, 2.2, 3.2), b: rr(rnd, 1.4, 2), h: rr(rnd, 0.9, 1.9) });
+      if (sTate !== 'full' && sTate !== 'low' && rnd() < 0.6) {
+        const dd = 1.5 + nD * 1.4;
+        placed(m, x + Math.cos(dir) * dd, 0.45, z + Math.sin(dir) * dd, 0, dir, Math.PI / 2 + rr(rnd, -0.2, 0.2), () => { capital(m, rnd, 0, -0.6, 0, r, stoneCol(rnd)); });
+      }
+      if (sTate !== 'gone') {
+        drift(m, { x: x - 0.3, z, a: rr(rnd, 1.4, 2.2), b: rr(rnd, 1.2, 1.8), h: rr(rnd, 0.7, 1.7) });
+        if (rnd() < 0.7) drift(m, { x: x + 0.3, z, a: rr(rnd, 1.6, 2.6), b: rr(rnd, 1, 1.5), h: rr(rnd, 0.5, 1.2), lee: true });
+      }
     }
     for (let i = 0; i < N - 1; i++) {
       const a = tops[ri][i], b = tops[ri][i + 1];
-      if (a !== null && b !== null) {
-        const ya = Math.min(a, b);
+      if (a !== null && b !== null && Math.abs(a - b) < 0.05) {
         const x = x0 + (i + 0.5) * S;
-        block(m, rnd, x, ya, rows[ri], S - 0.15, 1.0, 1.5, 0, { bev: 0.06, jit: 0.02, chip: 0.1 });
-        if (rnd() < 0.55) block(m, rnd, x + rr(rnd, -0.1, 0.1), ya + 1.0, rows[ri], S - 0.4, 0.8, 1.2, 0, { bev: 0.06, jit: 0.02, chip: 0.2 });
+        block(m, rnd, x, a, rows[ri], S - 0.1, 0.9, 1.4, 0, { bev: 0.08, jit: 0.03, chip: 0.12 });
+        if (rnd() < 0.5) block(m, rnd, x + rr(rnd, -0.1, 0.1), a + 0.9, rows[ri], S - 0.4, 0.7, 1.1, 0, { bev: 0.08, jit: 0.03, chip: 0.2 });
       }
     }
   });
-  // a toppled architrave and a few street slabs
-  placed(m, x0 + 2 * S + 3, 0.2, 0.5, 0.1, 0.5, 0.12, () => block(m, rnd, 0, -0.5, 0, 4.2, 1.0, 1.4, 0, { bev: 0.06, jit: 0.03, chip: 0.12 }));
+  placed(m, x0 + 2 * S + 3, 0.2, 0.5, 0.1, 0.5, 0.12, () => block(m, rnd, 0, -0.5, 0, 4.2, 0.9, 1.3, 0, { bev: 0.06, jit: 0.03, chip: 0.12 }));
   for (let i = 0; i < 9; i++) {
-    const x = x0 + rr(rnd, 0, (N - 1) * S), z = rr(rnd, -2.8, 2.8);
-    block(m, rnd, x, -0.4, z, rr(rnd, 1.4, 2.4), rr(rnd, 0.45, 0.55), rr(rnd, 1.2, 1.8), rr(rnd, -0.3, 0.3), { bev: 0.04, jit: 0.03, chip: 0.06 });
+    const x = x0 + rr(rnd, 0, (N - 1) * S), z = rr(rnd, -3, 3);
+    block(m, rnd, x, -0.45, z, rr(rnd, 1.4, 2.4), rr(rnd, 0.45, 0.55), rr(rnd, 1.2, 1.8), rr(rnd, -0.3, 0.3), { bev: 0.04, jit: 0.03, chip: 0.06 });
   }
-  rubble(m, rnd, 0, 0, 20, 14, 0.3, 0.9);
-  // sand: a long ramp at the windward end, drifts filling the street
-  drift(m, { x: x0 - 3, z: 0, a: 6, b: 8, h: 1.7 });
-  drift(m, { x: x0 + 2.5 * S, z: 0.5, a: 7, b: 3.2, h: 1.1, rot: 0.1 });
-  drift(m, { x: x0 + 5.5 * S, z: -0.5, a: 6, b: 3.6, h: 1.6 });
-  drift(m, { x: 0, z: 11, a: 9, b: 4, h: 1.3 });
-  drift(m, { x: 3, z: -11, a: 10, b: 4, h: 1.2 });
+  rubble(m, rnd, 0, 0, 14, 18, 0.2, 1.4);
+  apron(m, 0, 0, (N - 1) * S + 6, 12, 1.1);
+  drift(m, { x: 0, z: 0, a: 5, b: 2.6, h: 0.9, lee: true });
 }
 
 function colunmPair(m: Mesh, rnd: Rnd) {
@@ -600,7 +678,7 @@ function colunmPair(m: Mesh, rnd: Rnd) {
 }
 
 function temple(m: Mesh, rnd: Rnd) {
-  const podH = rr(rnd, 0.8, 1.3);
+  const podH = rr(rnd, 0.2, 0.6);
   const seed = rnd() * 40;
   const corner = (k: number, u: number, L: number) => (k === 0 ? L - u : k === 1 ? u : 99); // distance to the collapsed (+x,+z) corner
   // podium ring
@@ -612,6 +690,8 @@ function temple(m: Mesh, rnd: Rnd) {
       return podH * (0.55 + 0.5 * vnoise(u * 0.3, k, seed)) * (0.15 + 0.85 * sstep(1, 8, c));
     },
   });
+  // a lower, almost buried first step
+  tower(m, rnd, { cx: 0, cz: 0, rot: 0, w: 37, d: 24, t: 1.6, depth: -2.2, ch: [0.5, 0.7], bl: [1.4, 2.2], top: (k, u) => 0.1 + 0.35 * vnoise(u * 0.3, k, seed + 4) });
   // floor slabs
   for (let i = 0; i < 6; i++) for (let j = 0; j < 3; j++) {
     const x = -13.3 + i * 5.3, z = -6.1 + j * 6.1;
@@ -662,7 +742,8 @@ function temple(m: Mesh, rnd: Rnd) {
   for (let i = 0; i < 6; i++) placed(m, rr(rnd, -22, 22), 0.1, rr(rnd, -12, 12), rr(rnd, -0.2, 0.2), rnd() * 3, rr(rnd, -0.2, 0.2), () => block(m, rnd, 0, -0.6, 0, rr(rnd, 1.6, 3), 0.9, 1.2, 0, { bev: 0.06, jit: 0.04, chip: 0.1 }));
   rubble(m, rnd, 11, 7, 7, 20, 0.4, 1.5);
   rubble(m, rnd, 0, 0, 25, 8, 0.3, 0.8);
-  // sand: banked into the portico, filling the cella
+  // sand: banked into the portico, filling the cella, aprons on every side
+  apron(m, 0, 0, 37, 24, 2.0);
   drift(m, { x: -19, z: 0, a: 11, b: 10, h: 2.3 });
   drift(m, { x: -12.5, z: 5, a: 4, b: 4, h: 2.2 });
   drift(m, { x: 3, z: 0, a: 6.5, b: 3.4, h: 3.8 });
@@ -680,12 +761,12 @@ function archKind(m: Mesh, rnd: Rnd) {
     const worn = sgn === eroded;
     const cx = sgn * (span / 2 + pw / 2);
     const hp = (k: number, u: number) => {
-      const base = worn ? 4.6 : 8.4;
+      const base = worn ? 4.6 : 10.4;
       return base * (0.8 + 0.4 * vnoise(u * 0.4, k + 2 * sgn, seed)) - (worn ? sstep(0, 3, u) * 0.0 : 0);
     };
     tower(m, rnd, { cx, cz: 0, rot: 0, w: pw, d: pd, t: 1.25, depth: -3.2, ch: [0.5, 0.7], bl: [0.9, 1.5], top: hp });
     // solid core so the broken tops are not hollow
-    const topY = (worn ? 3.4 : 6.0);
+    const topY = (worn ? 3.4 : 9.4);
     block(m, rnd, cx, -0.8, 0, pw - 2.0, topY + 0.8, pd - 2.0, 0, { col: srgb(0.66, 0.52, 0.38), bev: 0.2, jit: 0.15, chip: 0.5 });
     // engaged half-columns on the front corners
     for (const zz of [-1, 1]) {
@@ -710,6 +791,7 @@ function archKind(m: Mesh, rnd: Rnd) {
   }
   rubble(m, rnd, eroded * 8, 0, 8, 20, 0.35, 1.3);
   rubble(m, rnd, 0, 0, 13, 10, 0.3, 0.7);
+  apron(m, 0, 0, span + 2 * pw + 2, pd + 2, 1.6);
   // sand fills the passage and banks on the windward piers
   drift(m, { x: 0, z: 0, a: 3.2, b: 6.5, h: 3.4 });
   drift(m, { x: -span / 2 - pw + 0.5, z: 0, a: 5.5, b: 6.5, h: 3.0 });
@@ -718,71 +800,75 @@ function archKind(m: Mesh, rnd: Rnd) {
 }
 
 function wallKind(m: Mesh, rnd: Rnd) {
-  const L = 70, seed = rnd() * 60, breachU = rr(rnd, 34, 44), t = 2.6;
-  // the curtain wall runs along z; its outer (windward) face looks to -x
-  m.push(new THREE.Matrix4().makeTranslation(0, 0, -L / 2).multiply(new THREE.Matrix4().makeRotationY(-Math.PI / 2)).multiply(new THREE.Matrix4().makeTranslation(0, 0, 0)));
+  const L = 70, seed = rnd() * 60, t = 2.6;
+  const cs = [rr(rnd, 8, 18), rr(rnd, 30, 40), rr(rnd, 52, 64)];
+  const rad = [rr(rnd, 4, 7), rr(rnd, 5, 9), rr(rnd, 3, 6)];
+  m.push(new THREE.Matrix4().makeTranslation(0, 0, -L / 2).multiply(new THREE.Matrix4().makeRotationY(-Math.PI / 2)));
   wall(m, rnd, {
-    L, t, depth: -2.6, ch: [0.7, 0.95], bl: [1.5, 2.6],
+    L, t, depth: -2.6, ch: [0.6, 0.95], bl: [1.2, 2.4],
     top: (u) => {
-      const breach = sstep(0, 5.5, Math.abs(u - breachU));
-      const base = 4.6 * (0.7 + 0.5 * vnoise(u * 0.18, 1, seed)) - 1.4 * sstep(0.55, 0.9, vnoise(u * 0.09, 7, seed));
-      return Math.max(-0.5, base * (0.08 + 0.92 * breach));
+      let f = 1;
+      for (let i = 0; i < 3; i++) f = Math.min(f, 0.1 + 0.9 * sstep(0, rad[i], Math.abs(u - cs[i])));
+      const base = 4.8 * (0.5 + 0.8 * vnoise(u * 0.11, 1, seed)) + (vnoise(u * 0.9, 3, seed) - 0.5) * 1.6;
+      return Math.max(-0.4, base * f);
     },
-    hole: (u, y) => Math.abs(u - 18) < 1.1 && y < 3.2 && y > 0.8, // a postern gap
+    hole: (u, y) => Math.abs(u - 24) < 1.1 && y < 3.2 && y > 0.8,
   });
   m.pop();
-  // tower stumps projecting to the windward side
   const tw = (uz: number, ww: number, h: number, bust: boolean) => {
     tower(m, rnd, {
-      cx: -t / 2 - ww / 2 + 1.2, cz: uz, rot: 0, w: ww, d: ww + 1, t: 1.4, depth: -3, ch: [0.55, 0.8], bl: [1, 1.7],
-      top: (k, u) => h * (0.7 + 0.4 * vnoise(u * 0.5, k + uz, seed)) * (bust && k === 3 ? 0.55 : 1),
+      cx: -t / 2 - ww / 2 + 1.2, cz: uz, rot: 0, w: ww, d: ww + 1, t: 1.4, depth: -3, ch: [0.6, 0.9], bl: [1, 1.9],
+      top: (k, u) => h * (0.5 + 0.7 * vnoise(u * 0.5, k + uz, seed)) * (bust && k === 3 ? 0.5 : 1) - (u < 1.5 || u > ww - 1.5 ? 1.5 * vnoise(u, k, seed + 3) : 0),
       hole: (k, u, y) => k === 3 && Math.abs(u - (ww + 1 - 2.8) / 2) < 0.35 && y > 2.2 && y < 3.8 && !bust,
     });
-    block(m, rnd, -t / 2 - ww / 2 + 1.2, -0.8, uz, ww - 2.2, h * 0.6, ww - 1.6, 0, { col: srgb(0.66, 0.52, 0.38), bev: 0.2, jit: 0.2, chip: 0.5 });
+    block(m, rnd, -t / 2 - ww / 2 + 1.2, -0.8, uz, ww - 2.2, h * 0.5, ww - 1.6, 0, { col: srgb(0.66, 0.52, 0.38), bev: 0.2, jit: 0.2, chip: 0.5 });
   };
   tw(-20, 8, 8, false);
   tw(24, 6.5, 5.5, true);
-  rubble(m, rnd, -3, breachU - 35, 9, 40, 0.4, 1.6);
-  rubble(m, rnd, 4, breachU - 35, 7, 16, 0.4, 1.2);
+  for (let i = 0; i < 3; i++) {
+    const z = cs[i] - 35;
+    rubble(m, rnd, -4.5, z, rad[i] + 2, 22, 0.3, 2.2);
+    rubble(m, rnd, 3.5, z, rad[i], 10, 0.3, 1.4);
+    drift(m, { x: -1.4, z, a: 5, b: rad[i] + 3, h: 1.9 });
+  }
   for (let i = 0; i < 6; i++) placed(m, rr(rnd, -8, 6), 0.15, rr(rnd, -33, 33), rr(rnd, -0.3, 0.3), rnd() * 3, rr(rnd, -0.3, 0.3), () => block(m, rnd, 0, -0.5, 0, rr(rnd, 1.4, 2.6), 0.8, 1.2, 0, { bev: 0.06, jit: 0.05, chip: 0.2 }));
-  // windward ramp drifts along the base, a bank in the breach, shorter lee drifts
-  for (let z = -30; z <= 30; z += 12) drift(m, { x: -2.6, z: z + rr(rnd, -2, 2), a: 4.5, b: 8, h: rr(rnd, 1.4, 2.4) });
-  drift(m, { x: 0, z: breachU - 35, a: 7, b: 6, h: 1.8 });
-  drift(m, { x: 2.4, z: -12, a: 4, b: 9, h: 1.1 });
-  drift(m, { x: 2.4, z: 20, a: 3.5, b: 8, h: 1.4 });
+  for (let z = -30; z <= 30; z += 11) {
+    drift(m, { x: -2.6, z: z + rr(rnd, -2, 2), a: rr(rnd, 3.5, 5.5), b: rr(rnd, 6, 9), h: rr(rnd, 1.2, 2.4) });
+    drift(m, { x: 2.6, z: z + rr(rnd, -2, 2), a: rr(rnd, 3, 4.5), b: rr(rnd, 4, 7), h: rr(rnd, 0.8, 1.6), lee: true });
+  }
   drift(m, { x: -9, z: -20, a: 5, b: 6, h: 2.0 });
 }
 
 function tomb(m: Mesh, rnd: Rnd) {
   const seed = rnd() * 30;
   const w0 = 7.4;
-  // stepped base (mostly buried)
   for (let i = 0; i < 3; i++) {
     const wd = w0 + 5 - i * 1.7;
-    tower(m, rnd, { cx: 0, cz: 0, rot: 0, w: wd, d: wd, t: 1.2, depth: -3.5, ch: [0.45, 0.55], bl: [1.2, 1.8], top: () => 0.7 - i * 0.55 + 0.0 });
+    tower(m, rnd, { cx: 0, cz: 0, rot: 0, w: wd, d: wd, t: 1.2, depth: -3.5, ch: [0.45, 0.55], bl: [1.2, 1.8], top: (k, u) => 0.7 - i * 0.55 + 0.35 * vnoise(u * 0.5, k + i, seed) });
   }
-  const breakAt = rr(rnd, 8.5, 11);
+  const breakAt = rr(rnd, 9, 12);
+  const bite = [rr(rnd, 0, 4.5), rr(rnd, 0, 4.5), rr(rnd, 0, 4.5), rr(rnd, 0, 4.5)];
+  const L = w0 - 0, near = (k: number, u: number) => bite[k] * (1 - sstep(0, 2.6, u)) + bite[(k + 1) % 4] * (1 - sstep(0, 2.6, L - u));
+  const topF = (k: number, u: number) =>
+    Math.max(-0.5, breakAt * (0.5 + 0.7 * vnoise(u * 0.45, k + 1, seed)) * (k === 1 ? 0.8 : 1) - near(k, u) - (k === 3 ? 1.2 : 0));
   tower(m, rnd, {
-    cx: 0, cz: 0, rot: 0, w: w0, d: w0, t: 1.15, depth: -3.2, ch: [0.5, 0.65], bl: [0.9, 1.5],
-    inset: (y) => (y < 0 ? 0 : y * 0.028) - (Math.abs(((y + 100) % 6.2) - 3.1) > 3.0 ? 0.28 : 0) - (Math.abs(((y + 100) % 6.2) - 0.0) < 0.5 ? 0.0 : 0),
-    top: (k, u) => breakAt * (0.78 + 0.35 * vnoise(u * 0.45, k + 1, seed)) * (k === 1 ? 0.8 : 1) - (k === 3 ? 1.0 : 0),
+    cx: 0, cz: 0, rot: 0, w: w0, d: w0, t: 1.15, depth: -3.2, ch: [0.55, 0.75], bl: [1.0, 1.9],
+    inset: (y) => (y < 0 ? 0 : y * 0.022),
+    top: topF,
     hole: (k, u, y) => (k === 3 && Math.abs(u - w0 / 2) < 0.9 && y > 0.1 && y < 3.0) || (k !== 3 && Math.abs(u - w0 / 2) < 0.4 && y > 4.4 && y < 6.0),
   });
-  // cornice at storey height
-  tower(m, rnd, { cx: 0, cz: 0, rot: 0, w: w0 - 0.3, d: w0 - 0.3, t: 1.6, depth: 5.55, ch: [0.4, 0.45], bl: [1.2, 1.6], top: (k, u) => (k === 2 ? 6.3 + 0 * u : 6.3) });
-  rubble(m, rnd, 0, 0, 11, 30, 0.35, 1.5);
-  rubble(m, rnd, 3, 3, 6, 14, 0.8, 1.8);
-  for (let i = 0; i < 4; i++) placed(m, rr(rnd, -8, 8), 0.2, rr(rnd, -8, 8), rr(rnd, -0.3, 0.3), rnd() * 3, rr(rnd, -0.3, 0.3), () => block(m, rnd, 0, -0.6, 0, rr(rnd, 1.6, 2.4), 1, 1.4, 0, { bev: 0.07, jit: 0.05, chip: 0.2 }));
+  tower(m, rnd, { cx: 0, cz: 0, rot: 0, w: w0 + 0.6, d: w0 + 0.6, t: 1.6, depth: 5.6, ch: [0.4, 0.45], bl: [1.2, 1.8], top: (k, u) => (vnoise(u * 0.7, k, seed + 9) < 0.45 ? -9 : Math.min(6.4, topF(k, u))) });
+  rubble(m, rnd, 0, 0, 12, 24, 0.3, 2.4);
+  rubble(m, rnd, 3, 3, 6, 10, 0.8, 2.2);
+  for (let i = 0; i < 4; i++) placed(m, rr(rnd, -8, 8), 0.2, rr(rnd, -8, 8), rr(rnd, -0.3, 0.3), rnd() * 3, rr(rnd, -0.3, 0.3), () => block(m, rnd, 0, -0.6, 0, rr(rnd, 1.6, 2.8), rr(rnd, 0.8, 1.2), rr(rnd, 1, 1.8), 0, { bev: 0.07, jit: 0.05, chip: 0.2 }));
+  apron(m, 0, 0, 12.4, 12.4, 2.4);
+  drift(m, { x: 0, z: 0, a: 3, b: 3, h: 3.2 });
   drift(m, { x: -4.5, z: 0, a: 5.5, b: 7, h: 3.0 });
-  drift(m, { x: 0, z: 0, a: 3, b: 3, h: 3.4 });
-  drift(m, { x: 4, z: -3, a: 5, b: 3.5, h: 1.2 });
-  drift(m, { x: 2, z: 6.5, a: 6, b: 3, h: 1.4 });
 }
 
 function statue(m: Mesh, rnd: Rnd) {
   const col = stoneCol(rnd);
-  // colossal head, lying on its side (face toward -x/-z, one cheek buried)
-  const U = 32, Vn = 24;
+  const U = 30, Vn = 22;
   const noseBroken = rnd() < 0.7, earBroken = rnd() < 0.5;
   const gauss = (x: number, s: number) => Math.exp(-(x * x) / (2 * s * s));
   const head = (ang: number, lat: number): V => {
@@ -791,18 +877,18 @@ function statue(m: Mesh, rnd: Rnd) {
     let rad = 1;
     const front = sstep(-0.1, 0.55, uz);
     const g2 = (cx: number, cy: number, sx: number, sy: number) => gauss(ux - cx, sx) * gauss(uy - cy, sy);
-    rad += 0.5 * (noseBroken ? 0.3 : 1) * g2(0, -0.12, 0.14, 0.24) * front; // nose
-    rad += 0.16 * g2(0, 0.27, 0.6, 0.1) * front; // brow
-    rad -= 0.17 * (g2(0.36, 0.14, 0.14, 0.1) + g2(-0.36, 0.14, 0.14, 0.1)) * front; // eye sockets
-    rad += 0.13 * g2(0, -0.5, 0.3, 0.08) * front; // lips
-    rad -= 0.08 * g2(0, -0.6, 0.25, 0.04) * front;
-    rad += 0.13 * g2(0, -0.82, 0.2, 0.14) * front; // chin
-    rad += 0.08 * (g2(0.55, -0.2, 0.2, 0.22) + g2(-0.55, -0.2, 0.2, 0.22)) * front; // cheeks
+    rad += 0.5 * (noseBroken ? 0.3 : 1) * g2(0, -0.12, 0.14, 0.24) * front;
+    rad += 0.18 * g2(0, 0.27, 0.6, 0.1) * front;
+    rad -= 0.2 * (g2(0.36, 0.14, 0.14, 0.1) + g2(-0.36, 0.14, 0.14, 0.1) * (rnd() < 0.5 ? 1 : 0.4)) * front;
+    rad += 0.14 * g2(0, -0.5, 0.3, 0.08) * front;
+    rad -= 0.09 * g2(0, -0.6, 0.25, 0.04) * front;
+    rad += 0.13 * g2(0, -0.82, 0.2, 0.14) * front;
+    rad += 0.08 * (g2(0.55, -0.2, 0.2, 0.22) + g2(-0.55, -0.2, 0.2, 0.22)) * front;
     if (!(earBroken && ux > 0)) rad += 0.3 * (g2(0.98, 0, 0.18, 0.24) + g2(-0.98, 0, 0.18, 0.24)) * gauss(uz, 0.4);
-    if (uy > 0.45) rad *= 1.06; // headcloth
+    if (uy > 0.45) rad *= 1.06;
     rad += 0.03 * (vnoise(ux * 3, uy * 3, uz * 3) - 0.5) * 2;
     let y = uy * 2.2 * rad;
-    if (uy < -0.9) y = -2.0 + (rnd() - 0.5) * 0.15; // broken at the neck
+    if (uy < -0.9) y = -2.0 + (rnd() - 0.5) * 0.15;
     return [ux * 1.45 * rad, y, uz * 1.7 * rad];
   };
   const rings: V[][] = [];
@@ -812,41 +898,35 @@ function statue(m: Mesh, rnd: Rnd) {
     for (let j = 0; j < U; j++) r.push(head((j / U) * Math.PI * 2, lat));
     rings.push(r);
   }
-  const hc = col;
-  placed(m, -3.5, 1.7, 0.5, -1.2, 2.4, 0.15, () => {
-    m.push(new THREE.Matrix4().makeScale(1.7, 1.7, 1.7));
-    loft(m, rings, hc, { capTop: false });
-    loft(m, [rings[rings.length - 1]], hc, { capTop: true, topLift: -0.1 });
-    m.pop();
-  });
-  // torso: tapered, jagged, lying on its back, buried
+  placed(m, -3.5, 1.7, 0.5, -1.2, 2.4, 0.15, () => smoothLoft(m, rings, col));
   const tcol = mixC(col, stoneCol(rnd), 0.3);
-  placed(m, 8, 0.5, -1, 0.2, 0.9, Math.PI / 2 - 0.2, () => {
+  placed(m, 8, 0.6, -1, -1.3, 0.9, 0.2, () => {
     const rg: V[][] = [];
-    const prof: [number, number, number][] = [[0, 2.2, 1.3], [1.5, 2.5, 1.45], [3.0, 2.9, 1.5], [4.4, 3.3, 1.3], [5.0, 2.9, 1.0]];
+    const prof: [number, number, number][] = [[0, 2.0, 1.2], [1.5, 2.4, 1.4], [3.0, 3.0, 1.5], [4.2, 3.4, 1.3], [4.8, 2.9, 1.0]];
     prof.forEach(([y, hw, hd], i) => {
       const r: V[] = [];
-      for (let j = 0; j < 12; j++) {
-        const th = (j / 12) * 6.283;
+      for (let j = 0; j < 14; j++) {
+        const th = (j / 14) * 6.283;
         const ex = Math.sign(Math.cos(th)) * Math.pow(Math.abs(Math.cos(th)), 0.6), ez = Math.sign(Math.sin(th)) * Math.pow(Math.abs(Math.sin(th)), 0.6);
         r.push([ex * hw, y + (i === prof.length - 1 ? (rnd() - 0.3) * 0.5 : 0) + (i === 0 ? (rnd() - 0.5) * 0.4 : 0), ez * hd]);
       }
       rg.push(r);
     });
-    loft(m, rg, tcol, { capTop: true, capBot: true });
+    smoothLoft(m, rg, tcol);
   });
-  // broken arm and a fist
   placed(m, 13.5, 0.5, 3.8, 0.1, 2.2, Math.PI / 2 + 0.05, () => {
-    drum(m, rnd, { r0: 0.8, r1: 0.7, y0: -3, y1: 2.4, col: tcol, segs: 9, cap: true, flute: 0.0 });
+    drum(m, rnd, { r0: 0.8, r1: 0.7, y0: -3, y1: 2.4, col: tcol, segs: 10, cap: true, flute: 0.0 });
     block(m, rnd, 0, 2.4, 0, 1.5, 1.3, 1.4, 0.3, { col: tcol, bev: 0.15, jit: 0.1 });
   });
-  // sandalled foot on a slab
-  block(m, rnd, -8, -0.4, -6.5, 4.5, 0.9, 2.2, 0.5, { col, bev: 0.12, jit: 0.1, chip: 0.2 });
+  // a pedestal, mostly sunk, with a worn foot on it
+  block(m, rnd, -8, -2.0, -6.5, 6.0, 2.5, 3.2, 0.5, { col, bev: 0.14, jit: 0.1, chip: 0.25 });
   block(m, rnd, -7.4, 0.3, -6.3, 2.8, 0.8, 1.2, 0.5, { col, bev: 0.15, jit: 0.09, chip: 0.2 });
-  rubble(m, rnd, 3, 0, 12, 22, 0.3, 1.1, col);
+  rubble(m, rnd, 3, 0, 12, 22, 0.2, 1.3, col);
   drift(m, { x: -6.6, z: 1.5, a: 4, b: 4.8, h: 2.0 });
   drift(m, { x: 5.2, z: -0.5, a: 3.6, b: 4, h: 1.9 });
   drift(m, { x: 12, z: 2, a: 4.5, b: 3.4, h: 1.0 });
+  drift(m, { x: -9, z: -6.5, a: 3, b: 3.4, h: 1.0 });
+  drift(m, { x: -5, z: -2, a: 4, b: 2.6, h: 1.0, lee: true });
   drift(m, { x: -1, z: 6, a: 6, b: 3, h: 0.9 });
 }
 
@@ -857,7 +937,7 @@ function gate(m: Mesh, rnd: Rnd) {
     const cx = sgn * (span / 2 + 3.6);
     tower(m, rnd, {
       cx, cz: 0, rot: 0, w: 7.2, d: 9.5, t: 1.4, depth: -3.2, ch: [0.5, 0.7], bl: [1, 1.7],
-      top: (k, u) => (worn ? 6.2 : 8.4) * (0.7 + 0.5 * vnoise(u * 0.4, k + sgn, seed)) * (k === 0 && sgn < 0 ? 0.7 : 1),
+      top: (k, u) => (worn ? 6.6 : 8.4) * (0.85 + 0.3 * vnoise(u * 0.4, k + sgn, seed)),
       hole: (k, u, y) => (k === 1 || k === 3) && Math.abs(u - (k % 2 === 0 ? 3.6 : 3.35)) < 0.3 && y > 3.4 && y < 5.2,
     });
     block(m, rnd, cx, -0.8, 0, 4.2, worn ? 4.6 : 6.4, 6.6, 0, { col: srgb(0.66, 0.52, 0.38), bev: 0.2, jit: 0.2, chip: 0.5 });
@@ -867,6 +947,7 @@ function gate(m: Mesh, rnd: Rnd) {
     m.pop();
   }
   arch(m, rnd, { span, spring: 4.4, t: 0.9, depth: 8.6, n: 11, missing: (i, n) => (i > n * 0.6 && rnd() < 0.6) || (i === 1 && rnd() < 0.4) });
+  apron(m, 0, 0, 2 * (span / 2 + 7.2), 9.5, 1.8);
   // the passage is choked by a dune, the gate-ward flank banked high
   drift(m, { x: 0, z: 0, a: 3.4, b: 10, h: 3.8 });
   drift(m, { x: -11, z: 0, a: 8, b: 9, h: 2.4 });
@@ -879,35 +960,37 @@ function gate(m: Mesh, rnd: Rnd) {
 
 function houses(m: Mesh, rnd: Rnd) {
   const seed = rnd() * 50;
+  const done: [number, number, number][] = [];
   let id = 0;
-  const rooms: [number, number, number, number, number][] = [];
-  for (let gx = 0; gx < 3; gx++) for (let gz = 0; gz < 2; gz++) {
-    if (rnd() < 0.12) continue;
-    const w = rr(rnd, 5.5, 8), d = rr(rnd, 4.5, 7);
-    rooms.push([(gx - 1) * 15 + rr(rnd, -2, 2), (gz - 0.5) * 13 + rr(rnd, -1.5, 1.5), w, d, rr(rnd, -0.2, 0.2)]);
-  }
-  for (const [cx, cz, w, d, rot] of rooms) {
+  const nT = 5 + Math.floor(rnd() * 3);
+  for (let tries = 0; tries < 60 && id < nT; tries++) {
+    const w = rr(rnd, 6, 14), d = rr(rnd, 5, 11), rad = Math.hypot(w, d) / 2;
+    const a = rnd() * 6.28, dist = Math.sqrt(rnd()) * (20 - Math.min(rad, 12));
+    const cx = Math.cos(a) * dist, cz = Math.sin(a) * dist;
+    if (done.some(([px, pz, pr]) => Math.hypot(px - cx, pz - cz) < pr + rad + 1)) continue;
+    done.push([cx, cz, rad]);
     id++;
-    const doorSide = Math.floor(rnd() * 4), doorU = rr(rnd, 1.5, 3.5);
-    const sink = rr(rnd, 0, 1.2);
+    const rot = rr(rnd, -0.7, 0.7);
+    const hs = rr(rnd, 0.6, 1.5), door = Math.floor(rnd() * 4), doorU = rr(rnd, 1.8, 4.5), win = rr(rnd, 2, 5), id0 = id;
+    const lost = rnd() < 0.4 ? Math.floor(rnd() * 4) : -1;
     tower(m, rnd, {
-      cx, cz, rot, w, d, t: 0.6, depth: -2.0, ch: [0.38, 0.5], bl: [0.7, 1.2], miss: 0.05,
-      top: (k, u) => 0.3 + (2.6 - sink) * Math.pow(vnoise(u * 0.5, k + id * 3, seed), 1.2) * (k === 3 ? 0.7 : 1),
-      hole: (k, u, y) => (k === doorSide && Math.abs(u - doorU - 0.3) < 0.55 && y < 1.9) || (k !== doorSide && k % 2 === 1 && Math.abs(u - 2.4) < 0.4 && y > 1.0 && y < 1.7),
+      cx, cz, rot, w, d, t: 1.0, depth: -3.0, ch: [0.5, 0.8], bl: [1.0, 2.4], miss: 0.05,
+      top: (k, u) => 0.4 + hs * 5.0 * Math.pow(vnoise(u * 0.35 + id0 * 5, k, seed), 1.3) * (k === lost ? 0.35 : 1),
+      hole: (k, u, y) => (k === door && Math.abs(u - doorU) < 1.0 && y < 3.3) || (k !== door && (k % 2) === 1 && Math.abs(u - win) < 0.55 && y > 1.8 && y < 3.2),
     });
-    drift(m, { x: cx, z: cz, a: w * 0.42, b: d * 0.42, h: rr(rnd, 0.8, 1.9), rot });
-    drift(m, { x: cx - w / 2, z: cz + rr(rnd, -1, 1), a: 3.2, b: d * 0.65, h: rr(rnd, 0.9, 1.5) });
-    rubble(m, rnd, cx, cz, Math.max(w, d) * 0.8, 5, 0.25, 0.7);
+    drift(m, { x: cx, z: cz, a: w * 0.36, b: d * 0.36, h: rr(rnd, 0.6, 2.4), rot });
+    if (rnd() < 0.7) drift(m, { x: cx + w / 2, z: cz + rr(rnd, -2, 2), a: rr(rnd, 2.5, 5), b: rr(rnd, 2.5, 4.5), h: rr(rnd, 0.8, 1.8), lee: true });
+    if (rnd() < 0.7) drift(m, { x: cx - w / 2, z: cz + rr(rnd, -2, 2), a: rr(rnd, 2.5, 4.5), b: d * rr(rnd, 0.3, 0.5), h: rr(rnd, 1, 2.2) });
+    rubble(m, rnd, cx, cz, Math.max(w, d) * 0.8, 5, 0.3, 1.2);
   }
-  // an alley wall, a lone pillar and some sill stones
-  m.push(new THREE.Matrix4().makeTranslation(-20, 0, 0));
-  wall(m, rnd, { L: 10, t: 0.7, depth: -1.5, ch: [0.32, 0.46], bl: [0.6, 1.1], top: (u) => 0.2 + 1.4 * vnoise(u * 0.4, 3, seed) });
+  m.push(new THREE.Matrix4().makeTranslation(-18, 0, -17));
+  wall(m, rnd, { L: 14, t: 0.9, depth: -2, ch: [0.4, 0.6], bl: [0.9, 1.8], top: (u) => 0.2 + 2.4 * vnoise(u * 0.4, 3, seed) });
   m.pop();
-  column(m, rnd, { x: 4, z: 0.5, y0: -0.8, r: 0.35, h: 2.8, brk: rr(rnd, 1.3, 2), base: true });
-  for (let i = 0; i < 8; i++) placed(m, rr(rnd, -22, 22), 0.1, rr(rnd, -13, 13), rr(rnd, -0.3, 0.3), rnd() * 3, rr(rnd, -0.3, 0.3), () => block(m, rnd, 0, -0.35, 0, rr(rnd, 0.8, 1.6), 0.5, 0.7, 0, { bev: 0.05, jit: 0.04, chip: 0.1 }));
-  drift(m, { x: -22, z: 4, a: 8, b: 8, h: 1.4 });
-  drift(m, { x: 0, z: 0, a: 7, b: 3, h: 0.8 });
-  drift(m, { x: 12, z: -9, a: 6, b: 4, h: 1.1 });
+  column(m, rnd, { x: 4, z: 0.5, y0: -1.2, r: 0.5, h: 4.4, brk: rr(rnd, 2, 3.2), base: true });
+  for (let i = 0; i < 10; i++) chunk(m, rnd, rr(rnd, -22, 22), rr(rnd, -22, 22), rr(rnd, 0.4, 1.6));
+  drift(m, { x: -22, z: 4, a: 8, b: 9, h: 1.6 });
+  drift(m, { x: 0, z: 0, a: 7, b: 3, h: 0.8, lee: true });
+  drift(m, { x: 12, z: -14, a: 6, b: 5, h: 1.1 });
 }
 
 function well(m: Mesh, rnd: Rnd) {
@@ -983,40 +1066,50 @@ function obelisk(m: Mesh, rnd: Rnd) {
 
 function theatre(m: Mesh, rnd: Rnd) {
   const seed = rnd() * 30;
-  // cavea: stepped tiers of seats on a half-circle, the lower ones sunk, the open side toward -x
-  const tiers = 7, R0 = 7;
-  for (let t = 0; t < tiers; t++) {
-    const R = R0 + t * 1.15, y0 = -2.2 + t * 0.62;
-    const n = Math.round(R * 2.2);
+  const R0 = 20, rowW = 2.3, rows = 17;
+  for (let t = 0; t < rows; t++) {
+    const R = R0 + t * rowW, ytop = -4.2 + t * 1.05;
+    if (ytop < -0.15 - 1.1) continue;
+    const n = Math.max(6, Math.round((Math.PI * R) / 7.5));
     for (let i = 0; i < n; i++) {
-      const a = Math.PI * 0.5 + ((i + 0.5) / n) * Math.PI * 1.0 - Math.PI * 0.0;
-      const ax = a + Math.PI * 0.0;
-      const th = ax - Math.PI / 2 + Math.PI; // spans +x half circle
-      void th;
-      const ang = -Math.PI / 2 + ((i + 0.5) / n) * Math.PI + 0; // -90..90 deg, faces -x
-      const x = Math.cos(ang) * R + 4, z = Math.sin(ang) * R;
-      const hole = vnoise(ang * 4, t, seed);
-      if (y0 + 0.7 < -0.15) continue;
-      if (hole < 0.32 && t > 1 && rnd() < 0.8) continue;
-      if (Math.abs(((i + 0.5) / n * 8) % 1 - 0.5) < 0.06 && t > 0) continue; // a gap: the stairway
+      const ang = -Math.PI / 2 + ((i + 0.5) / n) * Math.PI;
+      const mid = Math.abs(((i + 0.5) / n) * 7 % 1 - 0.5);
+      if (mid < 0.045 && t > 0) continue; // stairways
+      if (vnoise(ang * 3, t * 0.7, seed) < 0.3 && t > 2 && rnd() < 0.85) continue; // collapsed stretches
       const arc = (Math.PI * R) / n;
-      block(m, rnd, x, y0, z, 1.0, 0.62 + (rnd() < 0.3 ? 0.0 : 0), arc * 1.02 + 0.03, -ang + Math.PI / 2 + Math.PI / 2, { bev: 0.04, jit: 0.02, chip: 0.1, capTop: true });
+      const x = Math.cos(ang) * R + 8, z = Math.sin(ang) * R;
+      block(m, rnd, x, ytop - 1.1, z, rowW, 1.1, arc * 1.03 + 0.04, -ang + Math.PI / 2 + Math.PI / 2, { bev: 0.08, jit: 0.04, chip: 0.14 });
     }
   }
-  // stage wall fragment with niches and two standing columns
-  m.push(new THREE.Matrix4().makeTranslation(-6, 0, -9));
+  // outer arcade wall stumps behind the top rows
+  const Ro = R0 + rows * rowW + 1;
+  for (let i = 0; i < 20; i++) {
+    const ang = -Math.PI / 2 + ((i + 0.5) / 20) * Math.PI;
+    if (vnoise(ang * 2, 5, seed) < 0.45) continue;
+    const arc = (Math.PI * Ro) / 20;
+    placed(m, Math.cos(ang) * Ro + 8, 0, Math.sin(ang) * Ro, 0, -ang + Math.PI, 0, () => {
+      stack(m, rnd, 0, 0, arc * 0.9, 3.2, -3, rr(rnd, 3, 12), 0, 2.2);
+    });
+  }
+  // the stage building: a wall with niches and standing columns
+  m.push(new THREE.Matrix4().makeTranslation(-14, 0, -24));
   m.push(new THREE.Matrix4().makeRotationY(-Math.PI / 2));
-  wall(m, rnd, { L: 18, t: 1.4, depth: -1.5, ch: [0.5, 0.7], bl: [1, 1.8], top: (u) => 0.4 + 3.6 * vnoise(u * 0.25, 4, seed) * (u > 14 ? 0.3 : 1), hole: (u, y) => y > 1.0 && y < 3.2 && Math.abs(((u + 1.5) % 4.5) - 2.2) < 0.8 });
+  wall(m, rnd, { L: 48, t: 3.0, depth: -2.5, ch: [0.9, 1.3], bl: [2, 3.4], top: (u) => 1 + 9 * vnoise(u * 0.12, 4, seed) * (u > 40 ? 0.3 : 1), hole: (u, y) => y > 2.2 && y < 6.8 && Math.abs(((u + 3) % 9) - 4.5) < 1.5 });
   m.pop(); m.pop();
-  column(m, rnd, { x: -9, z: -7, y0: -1.4, r: 0.55, h: 5.2, cap: true });
-  column(m, rnd, { x: -9, z: 2.5, y0: -1.8, r: 0.55, h: 5.2, brk: 3.1 });
-  fallenDrum(m, rnd, -12, 6, 0.5, 1.3, 0.4);
-  fallenDrum(m, rnd, -13.5, -3, 0.5, 1.3, 1.9);
-  rubble(m, rnd, 0, 0, 22, 34, 0.3, 1.1);
-  drift(m, { x: 0, z: 0, a: 7, b: 7, h: 2.2 });
-  drift(m, { x: -14, z: 0, a: 8, b: 9, h: 1.7 });
-  drift(m, { x: 12, z: -8, a: 7, b: 5, h: 1.8 });
-  drift(m, { x: 14, z: 10, a: 6, b: 5, h: 1.6 });
+  for (let i = 0; i < 4; i++) {
+    const z = -18 + i * 11, v = rnd();
+    if (v < 0.5) column(m, rnd, { x: -17, z, y0: -rr(rnd, 1, 3), r: 0.8, h: 11, cap: true, dh: 3.2 });
+    else column(m, rnd, { x: -17, z, y0: -rr(rnd, 1, 3), r: 0.8, h: 11, brk: rr(rnd, 2, 7), dh: 3.2 });
+  }
+  for (let i = 0; i < 5; i++) fallenDrum(m, rnd, rr(rnd, -26, -18), rr(rnd, -20, 20), 0.8, rr(rnd, 2, 3), rnd() * 3, undefined, 0.4);
+  rubble(m, rnd, 10, 0, 50, 28, 0.5, 3.0);
+  drift(m, { x: 8, z: 0, a: 20, b: 16, h: 3.5 });
+  drift(m, { x: -22, z: 0, a: 14, b: 26, h: 3.0 });
+  drift(m, { x: 46, z: -25, a: 14, b: 14, h: 4 });
+  drift(m, { x: 46, z: 25, a: 14, b: 14, h: 3 });
+  drift(m, { x: 58, z: 0, a: 12, b: 20, h: 3, lee: true });
+  drift(m, { x: 8, z: -38, a: 18, b: 10, h: 2.5, rot: -Math.PI / 2 });
+  drift(m, { x: 8, z: 38, a: 18, b: 10, h: 2.5, rot: Math.PI / 2 });
 }
 
 /** A ruin, merged and vertex-coloured (linear RGB), y = 0 the sand surface; parts below it are buried. */

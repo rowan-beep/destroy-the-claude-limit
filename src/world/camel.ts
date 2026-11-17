@@ -33,19 +33,19 @@ const col = (r: number, g: number, b: number): number[] => {
   const c = new THREE.Color().setRGB(r, g, b, THREE.SRGBColorSpace);
   return [c.r, c.g, c.b];
 };
-const TAN = col(0.77, 0.6, 0.41); // fawn body
-const TAN_LIGHT = col(0.8, 0.64, 0.44);
-const MANE = col(0.38, 0.26, 0.16); // neck crest
-const HUMP = col(0.45, 0.32, 0.2);
-const THIGH = col(0.52, 0.38, 0.24);
-const CREAM = col(0.92, 0.84, 0.7);
-const KNEE = col(0.3, 0.21, 0.14);
-const PAD = col(0.46, 0.4, 0.35); // pale grey-brown pads
-const NAIL = col(0.12, 0.09, 0.07);
-const MUZZLE = col(0.3, 0.24, 0.2);
-const TUFT = col(0.18, 0.12, 0.08);
+const TAN = col(0.76, 0.62, 0.45); // sandy beige body
+const TAN_LIGHT = col(0.8, 0.67, 0.5);
+const MANE = col(0.64, 0.49, 0.34); // neck crest
+const HUMP = col(0.66, 0.51, 0.36);
+const THIGH = col(0.68, 0.53, 0.38);
+const CREAM = col(0.86, 0.77, 0.63);
+const KNEE = col(0.43, 0.33, 0.25);
+const PAD = col(0.5, 0.44, 0.38); // pale grey-brown pads
+const NAIL = col(0.15, 0.12, 0.1);
+const MUZZLE = col(0.4, 0.32, 0.26);
+const TUFT = col(0.3, 0.22, 0.16);
 const EYE = col(0.03, 0.025, 0.025);
-const EAR = col(0.5, 0.37, 0.25);
+const EAR = col(0.58, 0.45, 0.33);
 
 const mix3 = (a: number[], b: number[], t: number): number[] => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 const ss = (e0: number, e1: number, x: number): number => {
@@ -193,7 +193,7 @@ interface Detail {
   extras: boolean;
 }
 const PICK_FRONT = [0, 3, 6, 10, 13], PICK_HIND = [0, 3, 7, 11, 14];
-const NEAR: Detail = { barrelRows: 24, barrelSeg: 16, neckRows: 16, neckSeg: 10, headRows: 12, headSeg: 12, legSeg: 8, legPick: null, tailRows: 6, tailSeg: 6, extras: true };
+const NEAR: Detail = { barrelRows: 24, barrelSeg: 18, neckRows: 14, neckSeg: 10, headRows: 11, headSeg: 12, legSeg: 8, legPick: null, tailRows: 6, tailSeg: 6, extras: true };
 const FAR: Detail = { barrelRows: 8, barrelSeg: 8, neckRows: 5, neckSeg: 6, headRows: 4, headSeg: 5, legSeg: 5, legPick: null, tailRows: 0, tailSeg: 0, extras: false };
 
 const HEAD_P0 = [0, 2.45, -1.86];
@@ -241,9 +241,9 @@ function headRows(): Row[] {
   const ca = Math.cos(HEAD_ANGLE), sa = Math.sin(HEAD_ANGLE);
   // t (metres from the poll), half width, half height up, half height down
   const t: number[][] = [
-    [-0.07, 0.07, 0.085, 0.085], [0, 0.11, 0.125, 0.12], [0.08, 0.125, 0.135, 0.13], [0.16, 0.12, 0.125, 0.125], [0.24, 0.1, 0.1, 0.115],
-    [0.32, 0.088, 0.09, 0.115], [0.4, 0.086, 0.09, 0.125], [0.48, 0.09, 0.092, 0.14], [0.55, 0.086, 0.084, 0.135], [0.6, 0.07, 0.062, 0.095],
-    [0.635, 0.045, 0.035, 0.05],
+    [-0.07, 0.07, 0.085, 0.085], [0, 0.11, 0.125, 0.12], [0.08, 0.12, 0.135, 0.125], [0.16, 0.11, 0.12, 0.12], [0.24, 0.095, 0.1, 0.115],
+    [0.32, 0.082, 0.09, 0.105], [0.4, 0.075, 0.088, 0.1], [0.48, 0.076, 0.086, 0.104], [0.55, 0.074, 0.075, 0.095], [0.6, 0.062, 0.055, 0.075],
+    [0.635, 0.042, 0.032, 0.045],
   ];
   return t.map(([d, rx, u, dn]) => [HEAD_P0[0], HEAD_P0[1] - sa * d, HEAD_P0[2] - ca * d, rx * HS, u * HS, dn * HS, TAN[0], TAN[1], TAN[2]]);
 }
@@ -252,16 +252,16 @@ function legRows(front: boolean, sx: number): Row[] {
   // y, z, half width, half depth, x
   const t: number[][] = front
     ? [
-      [1.72, -0.68, 0.11, 0.16, 0.13], [1.5, -0.68, 0.125, 0.17, 0.17], [1.25, -0.68, 0.115, 0.155, 0.185], [1.05, -0.69, 0.095, 0.125, 0.185],
-      [0.88, -0.7, 0.078, 0.1, 0.185], [0.72, -0.7, 0.064, 0.085, 0.185], [0.62, -0.7, 0.082, 0.1, 0.185], [0.53, -0.7, 0.056, 0.07, 0.185],
-      [0.4, -0.7, 0.046, 0.056, 0.185], [0.25, -0.7, 0.043, 0.052, 0.185], [0.15, -0.7, 0.054, 0.064, 0.185], [0.09, -0.705, 0.05, 0.06, 0.185],
-      [0.06, -0.72, 0.075, 0.09, 0.185], [0.035, -0.725, 0.075, 0.085, 0.185],
+      [1.72, -0.68, 0.09, 0.14, 0.1], [1.5, -0.68, 0.11, 0.16, 0.14], [1.25, -0.68, 0.11, 0.15, 0.16], [1.05, -0.69, 0.095, 0.125, 0.165],
+      [0.88, -0.7, 0.078, 0.1, 0.165], [0.72, -0.7, 0.064, 0.085, 0.165], [0.62, -0.7, 0.082, 0.1, 0.165], [0.53, -0.7, 0.056, 0.07, 0.165],
+      [0.4, -0.7, 0.046, 0.056, 0.165], [0.25, -0.7, 0.043, 0.052, 0.165], [0.15, -0.7, 0.054, 0.064, 0.165], [0.09, -0.705, 0.05, 0.06, 0.165],
+      [0.06, -0.72, 0.075, 0.09, 0.165], [0.035, -0.725, 0.075, 0.085, 0.165],
     ]
     : [
-      [1.62, 0.78, 0.07, 0.12, 0.09], [1.46, 0.8, 0.12, 0.18, 0.14], [1.3, 0.82, 0.13, 0.2, 0.17], [1.1, 0.82, 0.11, 0.17, 0.17],
-      [0.95, 0.85, 0.085, 0.13, 0.17], [0.8, 0.92, 0.07, 0.105, 0.17], [0.68, 0.98, 0.07, 0.1, 0.17], [0.6, 1.0, 0.085, 0.11, 0.17],
-      [0.5, 0.97, 0.056, 0.07, 0.17], [0.36, 0.94, 0.046, 0.056, 0.17], [0.22, 0.92, 0.043, 0.052, 0.17], [0.14, 0.915, 0.054, 0.064, 0.17],
-      [0.09, 0.92, 0.05, 0.06, 0.17], [0.06, 0.93, 0.075, 0.09, 0.17], [0.035, 0.935, 0.075, 0.085, 0.17],
+      [1.58, 0.78, 0.07, 0.12, 0.08], [1.46, 0.8, 0.1, 0.16, 0.11], [1.36, 0.81, 0.12, 0.19, 0.14], [1.18, 0.82, 0.115, 0.18, 0.15],
+      [1.0, 0.84, 0.09, 0.14, 0.15], [0.84, 0.91, 0.072, 0.108, 0.15], [0.7, 0.97, 0.07, 0.1, 0.15], [0.6, 1.0, 0.085, 0.11, 0.15],
+      [0.5, 0.97, 0.056, 0.07, 0.15], [0.36, 0.94, 0.046, 0.056, 0.15], [0.22, 0.92, 0.043, 0.052, 0.15], [0.14, 0.915, 0.054, 0.064, 0.15],
+      [0.09, 0.92, 0.05, 0.06, 0.15], [0.06, 0.93, 0.075, 0.09, 0.15], [0.035, 0.935, 0.075, 0.085, 0.15],
     ];
   const n = t.length;
   const kneeI = front ? 6 : 7;
@@ -287,20 +287,20 @@ export function buildCamel(far: boolean): THREE.BufferGeometry {
     warp: (p, th) => {
       const s = Math.sin(th);
       if (s <= 0) return;
-      const d = p[2] - 0.14;
-      const u = Math.abs(d) / (d < 0 ? 0.74 : 0.5);
+      const d = p[2] - 0.2;
+      const u = Math.abs(d) / (d < 0 ? 0.82 : 0.52);
       if (u >= 1) return;
-      const g = Math.pow(1 - u * u, 1.6) * Math.pow(s, 1.7);
+      const g = Math.pow(0.5 + 0.5 * Math.cos(Math.PI * u), 1.25) * Math.pow(s, 1.7);
       p[1] += 0.4 * g;
-      p[2] += 0.04 * g;
+      p[2] += 0.03 * g;
       p[0] *= 1 - 0.3 * g;
     },
     cfn: (row, th, p) => {
       const s = Math.sin(th);
-      let c = mix3(TAN, CREAM, ss(0.05, -0.55, s));
-      c = mix3(c, THIGH, ss(0.35, 0.95, p[2]) * 0.55 * ss(-0.5, 0.4, s));
-      c = mix3(c, MANE, ss(0.6, 1, s) * 0.3);
-      c = mix3(c, HUMP, ss(1.95, 2.2, p[1]));
+      let c = mix3(TAN, CREAM, ss(0.3, -0.95, s) * 0.8);
+      c = mix3(c, THIGH, ss(0.2, 1.0, p[2]) * 0.5 * ss(-0.8, 0.3, s));
+      c = mix3(c, MANE, ss(0.5, 1, s) * 0.25);
+      c = mix3(c, HUMP, ss(1.9, 2.25, p[1]));
       return c;
     },
   });
@@ -310,8 +310,8 @@ export function buildCamel(far: boolean): THREE.BufferGeometry {
     seg: D.neckSeg, leg: 5, wfn: (_r, f) => [ss(0.0, 0.8, f), 0],
     cfn: (row, th, p, f) => {
       const s = Math.sin(th);
-      let c = mix3(TAN, CREAM, ss(-0.2, -0.9, s) * 0.6);
-      c = mix3(c, MANE, ss(0.3, 0.95, s) * ss(0.1, 0.4, f));
+      let c = mix3(TAN, CREAM, ss(-0.1, -1.0, s) * 0.5);
+      c = mix3(c, MANE, ss(0.2, 1, s) * ss(0.1, 0.5, f));
       return c;
     },
   });
@@ -322,9 +322,9 @@ export function buildCamel(far: boolean): THREE.BufferGeometry {
     cfn: (row, th, p, f) => {
       const s = Math.sin(th);
       let c = mix3(TAN, TAN_LIGHT, 0.5);
-      c = mix3(c, CREAM, ss(-0.2, -0.8, s) * 0.85 * (1 - ss(0.45, 0.6, f)));
+      c = mix3(c, CREAM, ss(-0.1, -0.9, s) * 0.8 * (1 - ss(0.4, 0.65, f)));
       c = mix3(c, MANE, ss(0.7, 1, s) * (1 - ss(0.3, 0.6, f)) * 0.7);
-      c = mix3(c, MUZZLE, ss(0.5, 0.7, f));
+      c = mix3(c, MUZZLE, ss(0.45, 0.8, f));
       return c;
     },
   });
@@ -342,7 +342,7 @@ export function buildCamel(far: boolean): THREE.BufferGeometry {
       cfn: (r, th) => {
         const inner = Math.cos(th) * -sx; // toward the body's middle
         const c = [r[6], r[7], r[8]];
-        return r[1] > 0.3 ? mix3(c, CREAM, ss(0.3, 0.9, inner) * 0.7) : c;
+        return r[1] > 0.3 ? mix3(c, CREAM, ss(0.1, 1.0, inner) * 0.6) : c;
       },
     });
     if (D.extras) {
@@ -363,8 +363,8 @@ export function buildCamel(far: boolean): THREE.BufferGeometry {
   // ---- tail: hangs down close against the rump and the hind legs to about the hocks
   if (D.tailRows) {
     const t: [number, number, number, number[]][] = [
-      [TAIL_ROOT[0], TAIL_ROOT[1], 0.045, TAN], [1.5, 1.05, 0.036, TAN], [1.28, 1.1, 0.028, THIGH], [1.0, 1.12, 0.024, THIGH],
-      [0.76, 1.12, 0.022, MANE], [0.68, 1.12, 0.04, TUFT], [0.52, 1.12, 0.05, TUFT], [0.4, 1.12, 0.036, TUFT], [0.33, 1.12, 0.004, TUFT],
+      [TAIL_ROOT[0], TAIL_ROOT[1], 0.045, TAN], [1.5, 1.04, 0.036, TAN], [1.3, 1.08, 0.028, TAN], [1.1, 1.1, 0.024, TAN],
+      [0.95, 1.1, 0.022, TAN], [0.89, 1.1, 0.034, TUFT], [0.8, 1.1, 0.04, TUFT], [0.72, 1.1, 0.026, TUFT], [0.68, 1.1, 0.004, TUFT],
     ];
     const rows = t.map(([y, z, r, c]) => [0, y, z, r, r, r, c[0], c[1], c[2]]);
     tube(b, rows, { seg: D.tailSeg, leg: 6, wfn: (_r, f) => [ss(0, 0.6, f), 0] });
@@ -378,13 +378,13 @@ export function buildCamel(far: boolean): THREE.BufferGeometry {
     const up = [0, ca, -sa];
     const qHead = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -HEAD_ANGLE);
     for (const sx of [-1, 1]) {
-      const pe = P(0.13);
-      blob(b, [pe[0] + sx * 0.135, pe[1] + up[1] * 0.062, pe[2] + up[2] * 0.062], [0.026, 0.03, 0.03], EYE, 5, 1, 6, 4, qHead);
-      const pb = P(0.11);
-      blob(b, [pb[0] + sx * 0.1, pb[1] + up[1] * 0.115, pb[2] + up[2] * 0.115], [0.058, 0.036, 0.08], MANE, 5, 1, 7, 4, qHead);
-      const pr = P(-0.04);
-      const qEar = qHead.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -sx * 1.0));
-      blob(b, [pr[0] + sx * 0.14, pr[1] + up[1] * 0.05, pr[2] + up[2] * 0.05], [0.024, 0.055, 0.036], EAR, 5, 1, 6, 4, qEar);
+      const pe = P(0.15);
+      blob(b, [pe[0] + sx * 0.128, pe[1] - up[1] * 0.0, pe[2] - up[2] * 0.0], [0.026, 0.03, 0.03], EYE, 5, 1, 6, 4, qHead);
+      const pb = P(0.13);
+      blob(b, [pb[0] + sx * 0.112, pb[1] + up[1] * 0.052, pb[2] + up[2] * 0.052], [0.04, 0.022, 0.06], mix3(TAN, MANE, 0.5), 5, 1, 7, 4, qHead);
+      const pr = P(0.0);
+      const qEar = qHead.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -sx * 0.6));
+      blob(b, [pr[0] + sx * 0.125, pr[1] + up[1] * 0.1, pr[2] + up[2] * 0.1], [0.028, 0.065, 0.04], EAR, 5, 1, 7, 4, qEar);
     }
   }
 
