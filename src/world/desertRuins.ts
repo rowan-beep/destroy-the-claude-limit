@@ -48,10 +48,12 @@ function vnoise(x: number, y: number, z: number): number {
   );
 }
 
-/** Sandstone: one uniform warm tan; block to block only +-4%. Weathering (shading) does the rest. */
+/** Two stones: honey-gold limestone (temples, walls) and pale cream marble (streets, facades, theatre, forum). Block to block only +-4%. */
+let TONE: 'honey' | 'marble' = 'honey';
 function stoneCol(rnd: Rnd): RGB {
   const k = 0.96 + 0.08 * rnd();
-  return srgb(clamp(0.8 * k), clamp(0.64 * k * (0.99 + 0.02 * rnd())), clamp(0.45 * k * (0.99 + 0.02 * rnd())));
+  const [r, g, b] = TONE === 'honey' ? [0.83, 0.67, 0.43] : [0.9, 0.85, 0.76];
+  return srgb(clamp(r * k), clamp(g * k * (0.99 + 0.02 * rnd())), clamp(b * k * (0.99 + 0.02 * rnd())));
 }
 
 // ---------------------------------------------------------------- mesh builder
@@ -512,9 +514,21 @@ function capital(m: Mesh, rnd: Rnd, x: number, y: number, z: number, r: number, 
   return y + 2.1 * r;
 }
 
+/** Plain Doric cushion capital with a square abacus. */
+function doricCap(m: Mesh, rnd: Rnd, x: number, y: number, z: number, r: number, col: RGB, segs = 16): number {
+  const rings = ([[0.9, 0], [0.88, 0.2], [1.12, 0.45], [1.3, 0.62]] as [number, number][]).map(([rad, hy]) => {
+    const p: V[] = [];
+    for (let j = 0; j < segs; j++) { const th = (j / segs) * 6.283; p.push([x + Math.cos(th) * r * rad, y + hy * r, z + Math.sin(th) * r * rad]); }
+    return p;
+  });
+  loft(m, rings, (i) => mulC(col, i < 2 ? 0.95 : 1), {});
+  block(m, rnd, x, y + 0.62 * r, z, r * 2.75, r * 0.5, r * 2.75, 0, { col, bev: r * 0.05, jit: r * 0.02, chip: 0.05 });
+  return y + 1.12 * r;
+}
+
 interface ColOpt {
   x: number; z: number; y0: number; r: number; h: number;
-  cap?: boolean; brk?: number; base?: boolean; tint?: RGB; lean?: number; leanDir?: number; segs?: number; dh?: number; lite?: boolean;
+  cap?: boolean; brk?: number; base?: boolean; tint?: RGB; lean?: number; leanDir?: number; segs?: number; dh?: number; lite?: boolean; doric?: boolean; flute?: number;
 }
 /** A standing column: base, entasis shaft of fluted drums (offset slightly), capital or a jagged break. Returns the top y. */
 function column(m: Mesh, rnd: Rnd, o: ColOpt): number {
@@ -551,10 +565,10 @@ function column(m: Mesh, rnd: Rnd, o: ColOpt): number {
     const last = y1 >= yEnd - 1e-6;
     drum(m, rnd, {
       r0: rad(t0), r1: rad(Math.min(1, t1)), y0, y1, col: mixC(col, stoneCol(rnd), 0.35),
-      ox: o.x + ox, oz: o.z + oz, broken: last && o.brk !== undefined ? r * 0.8 : 0, cap: last && !o.cap, segs: o.segs,
+      ox: o.x + ox, oz: o.z + oz, broken: last && o.brk !== undefined ? r * 0.8 : 0, cap: last && !o.cap, segs: o.segs, flute: o.flute,
     });
   }
-  if (o.cap && o.brk === undefined) return capital(m, rnd, o.x + ox, yy, o.z + oz, r, col, 0, o.segs ?? 12, o.lite);
+  if (o.cap && o.brk === undefined) return o.doric ? doricCap(m, rnd, o.x + ox, yy, o.z + oz, r, col, o.segs ?? 16) : capital(m, rnd, o.x + ox, yy, o.z + oz, r, col, 0, o.segs ?? 12, o.lite);
   return yy;
 }
 
@@ -602,15 +616,15 @@ function archBand(m: Mesh, rnd: Rnd, o: { span: number; spring: number; t: numbe
 }
 
 // ---------------------------------------------------------------- the ruins
-export type RuinKind = 'colonnade' | 'temple' | 'arch' | 'wall' | 'tomb' | 'column' | 'statue' | 'gate' | 'houses' | 'well' | 'obelisk' | 'theatre' | 'street' | 'wallrun' | 'aqueduct' | 'amphitheatre' | 'forum' | 'basilica';
-export const RUIN_KINDS: RuinKind[] = ['colonnade', 'temple', 'arch', 'wall', 'tomb', 'column', 'statue', 'gate', 'houses', 'well', 'obelisk', 'theatre', 'street', 'wallrun', 'aqueduct', 'amphitheatre', 'forum', 'basilica'];
+export type RuinKind = 'colonnade' | 'temple' | 'arch' | 'wall' | 'tomb' | 'column' | 'statue' | 'gate' | 'houses' | 'well' | 'obelisk' | 'theatre' | 'street' | 'wallrun' | 'aqueduct' | 'amphitheatre' | 'forum' | 'basilica' | 'facade';
+export const RUIN_KINDS: RuinKind[] = ['colonnade', 'temple', 'arch', 'wall', 'tomb', 'column', 'statue', 'gate', 'houses', 'well', 'obelisk', 'theatre', 'street', 'wallrun', 'aqueduct', 'amphitheatre', 'forum', 'basilica', 'facade'];
 
 const RADII: Record<RuinKind, number> = {
-  colonnade: 54, temple: 84, arch: 38, wall: 76, tomb: 26, column: 20, statue: 18, gate: 56, houses: 40, well: 18, obelisk: 22, theatre: 86,
-  street: 33, wallrun: 33, aqueduct: 33, amphitheatre: 100, forum: 64, basilica: 56,
+  colonnade: 54, temple: 70, arch: 38, wall: 76, tomb: 26, column: 20, statue: 18, gate: 56, houses: 40, well: 18, obelisk: 22, theatre: 86,
+  street: 33, wallrun: 33, aqueduct: 33, amphitheatre: 100, forum: 64, basilica: 56, facade: 32,
 };
 /** design-unit scale each kind is built at (monumental size) */
-const SCALE: Partial<Record<RuinKind, number>> = { colonnade: 1.9, temple: 2.0, arch: 1.7, wall: 1.8, tomb: 1.6, column: 2.0, gate: 1.7, well: 1.4, obelisk: 1.2 };
+const SCALE: Partial<Record<RuinKind, number>> = { colonnade: 1.9, arch: 1.7, wall: 1.8, tomb: 1.6, column: 2.0, gate: 1.7, well: 1.4, obelisk: 1.2 };
 
 
 function colonnade(m: Mesh, rnd: Rnd) {
@@ -703,79 +717,99 @@ function colunmPair(m: Mesh, rnd: Rnd) {
 }
 
 function temple(m: Mesh, rnd: Rnd) {
-  const podH = rr(rnd, 0.2, 0.6);
   const seed = rnd() * 40;
-  const corner = (k: number, u: number, L: number) => (k === 0 ? L - u : k === 1 ? u : 99); // distance to the collapsed (+x,+z) corner
-  // podium ring
-  tower(m, rnd, {
-    low: true, cx: 0, cz: 0, rot: 0, w: 32, d: 19, t: 1.6, depth: -2.2, ch: [0.5, 0.7], bl: [1.2, 2],
-    top: (k, u) => {
-      const L = k % 2 === 0 ? 32 : 19 - 3.2;
-      const c = corner(k, u, L);
-      return podH * (0.55 + 0.5 * vnoise(u * 0.3, k, seed)) * (0.15 + 0.85 * sstep(1, 8, c));
-    },
-  });
-  // a lower, almost buried first step
-  tower(m, rnd, { low: true, cx: 0, cz: 0, rot: 0, w: 37, d: 24, t: 1.6, depth: -2.2, ch: [0.5, 0.7], bl: [1.4, 2.2], top: (k, u) => 0.1 + 0.35 * vnoise(u * 0.3, k, seed + 4) });
-  // floor slabs
-  for (let i = 0; i < 6; i++) for (let j = 0; j < 3; j++) {
-    const x = -13.3 + i * 5.3, z = -6.1 + j * 6.1;
-    if ((x > 7 && z > 1) || rnd() < 0.12) continue;
-    block(m, rnd, x, podH - 0.45, z, 5.2, 0.45, 6, 0, { jit: 0.04 });
-  }
-  // cella: 18 x 10, front (-x) wall with a doorway
-  const hf = (k: number, u: number) => {
-    const L = k % 2 === 0 ? 18 : 10 - 2.2;
-    const c = corner(k, u, L) * 0.0 + (k === 0 ? L - u : k === 1 ? u : 99);
-    const base = 4.6 + 2.2 * vnoise(u * 0.4, k + 2, seed) - (k === 3 ? 0.5 : 0);
-    return podH + base * (0.1 + 0.9 * sstep(1.5, 7, c));
-  };
-  tower(m, rnd, {
-    cx: 3, cz: 0, rot: 0, w: 18, d: 10, t: 1.1, depth: podH - 0.2, ch: [0.62, 0.85], bl: [1.3, 2.2], top: hf,
-    hole: (k, u, y) => k === 3 && Math.abs(u - (10 - 2.2) / 2) < 1.5 && y < podH + 4.3,
-  });
-  // portico columns
-  const state = (): 'full' | 'broken' | 'stump' => { const v = rnd(); return v < 0.35 ? 'full' : v < 0.75 ? 'broken' : 'stump'; };
-  const rowsX = [-13.2, -9.6];
-  const tops: (number | null)[][] = [[], []];
-  rowsX.forEach((x, ri) => {
-    for (let j = 0; j < 4; j++) {
-      const z = -6.3 + j * 4.2, st = state();
-      if (ri === 1 && (j === 0 || j === 3)) { tops[ri].push(null); continue; }
-      const o: ColOpt = { x, z, y0: podH - rr(rnd, 0, 0.2), r: 0.72, h: 6.4 };
-      if (st === 'full') tops[ri].push(column(m, rnd, { ...o, cap: true }));
-      else {
-        tops[ri].push(null);
-        column(m, rnd, { ...o, brk: st === 'broken' ? rr(rnd, 2.5, 5) : rr(rnd, 0.6, 1.4) });
-        const dir = Math.PI + rr(rnd, -0.9, 0.9);
-        for (let k = 0; k < 2; k++) fallenDrum(m, rnd, x + Math.cos(dir) * (2 + k * 1.8) - 3, z + Math.sin(dir) * (2 + k * 1.8), 0.66, 1.5, dir, undefined, 0.35);
-      }
-    }
-    for (let j = 0; j < 3; j++) {
-      const a = tops[ri][j], b = tops[ri][j + 1];
-      if (a !== null && b !== null) block(m, rnd, x, Math.min(a, b), -6.3 + (j + 0.5) * 4.2, 1.5, 1.0, 4.0, 0, { bev: 0.06, jit: 0.02, chip: 0.1 });
-    }
-  });
-  // pediment pieces and cornice blocks in the sand
+  const S = 3.7, NX = 13, NZ = 6;
+  const W = (NX - 1) * S, D = (NZ - 1) * S;
+  const yS = rr(rnd, 0.9, 1.5), r = 0.95, hS = 8.6;
+  // three big steps, the lower ones mostly buried
   for (let i = 0; i < 3; i++) {
-    placed(m, -20 + i * 3, 0.1, -9 + i * 7, 0.15, rnd() * 3, rr(rnd, -0.2, 0.2), () => {
-      const hw = rr(rnd, 1.6, 2.4), hh = rr(rnd, 0.8, 1.2), c = stoneCol(rnd);
-      const A: V[] = [[-hw, -0.4, -0.6], [hw, -0.4, -0.6], [0, hh - 0.4, -0.6]];
-      loft(m, [A, A.map((p): V => [p[0], p[1], 0.6])], c, { capTop: true, capBot: true });
+    const g = 2.2 + (2 - i) * 1.1;
+    tower(m, rnd, { low: true, cx: 0, cz: 0, rot: 0, w: W + 2 * g, d: D + 2 * g, t: 2.2, depth: -3, ch: [0.8, 1.1], bl: [2.6, 4.4], top: (k, u) => yS - (2 - i) * 0.7 + 0.14 * vnoise(u * 0.4, k + i, seed) });
+  }
+  for (let i = 0; i < 7; i++) for (let j = 0; j < 3; j++) {
+    if (rnd() < 0.12) continue;
+    block(m, rnd, -W / 2 + (i + 0.5) * (W / 7), -1.5, -D / 2 + (j + 0.5) * (D / 3), W / 7 - 0.06, yS + 1.4, D / 3 - 0.06, 0, { bev: 0.06, jit: 0.04, chip: 0.1 });
+  }
+  // the peristyle: every column on the line, the front (-x) end intact
+  type St = 'full' | 'broken' | 'stump' | 'gone';
+  const cols: { x: number; z: number; st: St; front: boolean; out: number }[] = [];
+  for (let i = 0; i < NX; i++) for (const sd of [-1, 1]) {
+    const x = -W / 2 + i * S, z = sd * D / 2;
+    const v = rnd();
+    let st: St = v < 0.38 ? 'full' : v < 0.7 ? 'broken' : v < 0.86 ? 'stump' : 'gone';
+    if (sd > 0 && i >= 6 && i <= 9) st = 'gone';
+    cols.push({ x, z, st, front: false, out: sd > 0 ? Math.PI / 2 : -Math.PI / 2 });
+  }
+  for (let j = 0; j < NZ; j++) {
+    const z = -D / 2 + j * S;
+    cols.push({ x: -W / 2, z, st: 'full', front: true, out: Math.PI });
+    if (j > 0 && j < NZ - 1) continue;
+  }
+  for (let j = 1; j < NZ - 1; j++) {
+    const v = rnd();
+    cols.push({ x: W / 2, z: -D / 2 + j * S, st: v < 0.3 ? 'full' : v < 0.7 ? 'broken' : 'stump', front: false, out: 0 });
+  }
+  const topAt = new Map<string, number>();
+  for (const c of cols) {
+    if (!c.front && c.x === -W / 2 && (c.z === -D / 2 || c.z === D / 2)) continue; // corners are in the front row
+    const o: ColOpt = { x: c.x, z: c.z, y0: yS, r, h: hS, segs: 16, dh: 3.2, base: false, doric: true, flute: 0.09, lean: rr(rnd, -0.02, 0.02), leanDir: rnd() * 6.28 };
+    let nD = 0;
+    if (c.st === 'full') topAt.set(c.x.toFixed(2) + ':' + c.z.toFixed(2), column(m, rnd, { ...o, cap: true }));
+    else if (c.st === 'broken') { column(m, rnd, { ...o, brk: rr(rnd, 2.5, 7) }); nD = 1; }
+    else if (c.st === 'stump') { column(m, rnd, { ...o, brk: rr(rnd, 0.7, 2) }); nD = 1; }
+    else nD = 3;
+    for (let k = 0; k < nD; k++) {
+      const dir = c.out + rr(rnd, -0.5, 0.5), dd = 2.2 + k * 2.3;
+      fallenDrum(m, rnd, c.x + Math.cos(dir) * dd, c.z + Math.sin(dir) * dd, r * 0.95, rr(rnd, 2.0, 2.4), dir + Math.PI / 2 + rr(rnd, -0.2, 0.2), undefined, rr(rnd, 0.3, 0.55), rnd() < 0.3);
+    }
+  }
+  // front-end corner columns
+  for (const z of [-D / 2, D / 2]) {
+    const t = column(m, rnd, { x: -W / 2, z, y0: yS, r, h: hS, segs: 16, dh: 3.2, base: false, doric: true, flute: 0.09, cap: true });
+    topAt.set((-W / 2).toFixed(2) + ':' + z.toFixed(2), t);
+  }
+  // architrave and frieze still bridging the standing runs
+  const bridge = (xa: number, za: number, xb: number, zb: number) => {
+    const ta = topAt.get(xa.toFixed(2) + ':' + za.toFixed(2)), tb = topAt.get(xb.toFixed(2) + ':' + zb.toFixed(2));
+    if (ta === undefined || tb === undefined || Math.abs(ta - tb) > 0.3) return false;
+    const mx = (xa + xb) / 2, mz = (za + zb) / 2, alongX = Math.abs(xb - xa) > 0.1;
+    const len = S - 0.1;
+    block(m, rnd, mx, Math.min(ta, tb), mz, alongX ? len : 1.7, 1.1, alongX ? 1.7 : len, 0, { bev: 0.08, jit: 0.04, chip: 0.1 });
+    block(m, rnd, mx, Math.min(ta, tb) + 1.1, mz, alongX ? len : 1.5, 1.15, alongX ? 1.5 : len, 0, { bev: 0.06, jit: 0.04, chip: 0.2, col: mulC(stoneCol(rnd), 0.96) });
+    return true;
+  };
+  let frontOk = true;
+  for (let j = 0; j < NZ - 1; j++) frontOk = bridge(-W / 2, -D / 2 + j * S, -W / 2, -D / 2 + (j + 1) * S) && frontOk;
+  for (const sd of [-1, 1]) for (let i = 0; i < NX - 1; i++) bridge(-W / 2 + i * S, sd * D / 2, -W / 2 + (i + 1) * S, sd * D / 2);
+  if (frontOk) {
+    // a triangular gable still stands over the front
+    const yb = [...topAt.values()][0] + 2.25, hw = D / 2 + 1.1;
+    const tri: V[] = [[0, 0, -hw], [0, 0, hw], [0, 2.7, 0]];
+    loft(m, [tri.map((p): V => [-W / 2 - 0.5, yb + p[1], p[2]]), tri.map((p): V => [-W / 2 + 0.5, yb + p[1], p[2]])], stoneCol(rnd), { capTop: true, capBot: true });
+    block(m, rnd, -W / 2, yb, 0, 2.4, 0.5, 2 * hw + 0.6, 0, { bev: 0.06, jit: 0.03, chip: 0.1 });
+  }
+  // the cella inside
+  tower(m, rnd, {
+    cx: 1, cz: 0, rot: 0, w: 30, d: 8.5, t: 1.3, depth: yS - 0.1, ch: [0.7, 0.95], bl: [1.6, 2.8],
+    top: (k, u) => yS + 1.5 + 6.5 * vnoise(u * 0.18, k + 2, seed) * (k === 1 ? 0.4 : 1) * (0.25 + 0.75 * sstep(0, 5, Math.abs(u - (k % 2 ? 3 : 20)))),
+    hole: (k, u, y) => k === 3 && Math.abs(u - (8.5 - 2.6) / 2) < 1.6 && y < yS + 5.2,
+  });
+  // fields of blocks: cornice pieces, an upside-down capital, drums in rows
+  for (let i = 0; i < 9; i++) {
+    const side = rnd() < 0.5 ? -1 : 1;
+    placed(m, rr(rnd, -W / 2 - 3, W / 2 + 3), 0.1, side * (D / 2 + rr(rnd, 5, 12)), rr(rnd, -0.15, 0.15), rnd() * 3, rr(rnd, -0.2, 0.2), () => {
+      const c = stoneCol(rnd);
+      block(m, rnd, 0, -0.9, 0, rr(rnd, 2.2, 3.6), 1.1, 1.7, 0, { col: c, bev: 0.1, jit: 0.05, chip: 0.2 });
+      block(m, rnd, 0, 0.1, -0.2, rr(rnd, 2, 3.2), 0.4, 1.3, 0, { col: c, bev: 0.05, jit: 0.04 });
     });
   }
-  for (let i = 0; i < 6; i++) placed(m, rr(rnd, -22, 22), 0.1, rr(rnd, -12, 12), rr(rnd, -0.2, 0.2), rnd() * 3, rr(rnd, -0.2, 0.2), () => block(m, rnd, 0, -0.6, 0, rr(rnd, 1.6, 3), 0.9, 1.2, 0, { bev: 0.06, jit: 0.04, chip: 0.1 }));
-  rubble(m, rnd, 11, 7, 7, 20, 0.4, 1.5);
-  rubble(m, rnd, 0, 0, 25, 8, 0.3, 0.8);
-  // sand: banked into the portico, filling the cella, aprons on every side
-  apron(m, 0, 0, 37, 24, 2.0);
-  drift(m, { x: -19, z: 0, a: 11, b: 10, h: 2.3 });
-  drift(m, { x: -12.5, z: 5, a: 4, b: 4, h: 2.2 });
-  drift(m, { x: 3, z: 0, a: 6.5, b: 3.4, h: 3.8 });
-  drift(m, { x: 12, z: 6, a: 7, b: 5, h: 2.6 });
-  drift(m, { x: -4, z: -13, a: 12, b: 4, h: 1.5 });
-  drift(m, { x: 7, z: -12, a: 9, b: 4, h: 1.2 });
-  drift(m, { x: -1, z: 13, a: 11, b: 4, h: 1.3 });
+  placed(m, W / 2 + 5, 0.1, D / 2 + 6, 0, 0.4, Math.PI, () => { doricCap(m, rnd, 0, -1, 0, r, stoneCol(rnd)); });
+  rubble(m, rnd, 0, 0, 38, 14, 0.4, 2.2);
+  apron(m, 0, 0, W + 9, D + 9, 2.6);
+  drift(m, { x: -W / 2 - 4, z: 0, a: 6, b: 9, h: 2.4 });
+  drift(m, { x: 1, z: 0, a: 8, b: 3.2, h: 3.6 });
+  drift(m, { x: W / 2 + 2, z: -6, a: 7, b: 5, h: 2.2, lee: true });
+  drift(m, { x: -8, z: D / 2 + 1, a: 7, b: 4, h: 1.8, rot: Math.PI / 2 });
 }
 
 function archKind(m: Mesh, rnd: Rnd) {
@@ -824,6 +858,12 @@ function archKind(m: Mesh, rnd: Rnd) {
   drift(m, { x: -4, z: 9, a: 8, b: 3.5, h: 1.1 });
 }
 
+/** Irregular broken tops for a tower: noisy heights with a bite out of each corner. */
+function mkTop(rnd: Rnd, h: number, L: number, seed: number) {
+  const b = [rr(rnd, 0, 3.5), rr(rnd, 0, 3.5), rr(rnd, 0, 3.5), rr(rnd, 0, 3.5)];
+  return (k: number, u: number) => Math.max(-0.5, h * (0.55 + 0.6 * vnoise(u * 0.45, k, seed)) - b[k] * (1 - sstep(0, 2.4, u)) - b[(k + 1) % 4] * (1 - sstep(0, 2.4, L - u)));
+}
+
 function wallKind(m: Mesh, rnd: Rnd) {
   const L = 70, seed = rnd() * 60, t = 2.6;
   const cs = [rr(rnd, 8, 18), rr(rnd, 30, 40), rr(rnd, 52, 64)];
@@ -841,15 +881,19 @@ function wallKind(m: Mesh, rnd: Rnd) {
   });
   m.pop();
   const tw = (uz: number, ww: number, h: number, bust: boolean) => {
+    const tp = mkTop(rnd, h, ww, seed + uz);
     tower(m, rnd, {
       cx: -t / 2 - ww / 2 + 1.2, cz: uz, rot: 0, w: ww, d: ww + 1, t: 1.4, depth: -3, ch: [0.6, 0.9], bl: [1, 1.9],
-      top: (k, u) => h * (0.5 + 0.7 * vnoise(u * 0.5, k + uz, seed)) * (bust && k === 3 ? 0.5 : 1) - (u < 1.5 || u > ww - 1.5 ? 1.5 * vnoise(u, k, seed + 3) : 0),
+      inset: (y) => (y < 0 ? 0 : y * 0.03),
+      top: (k, u) => tp(k, u) * (bust && k === 3 ? 0.5 : 1),
       hole: (k, u, y) => k === 3 && Math.abs(u - (ww + 1 - 2.8) / 2) < 0.35 && y > 2.2 && y < 3.8 && !bust,
     });
     block(m, rnd, -t / 2 - ww / 2 + 1.2, -0.8, uz, ww - 2.2, h * 0.5, ww - 1.6, 0, { col: srgb(0.66, 0.52, 0.38), bev: 0.2, jit: 0.2, chip: 0.5 });
   };
   tw(-20, 8, 8, false);
   tw(24, 6.5, 5.5, true);
+  rubble(m, rnd, -8, -20 + 0, 7, 8, 0.4, 1.8);
+  rubble(m, rnd, -8, 24, 6, 6, 0.4, 1.6);
   for (let i = 0; i < 3; i++) {
     const z = cs[i] - 35;
     rubble(m, rnd, -4.5, z, rad[i] + 2, 22, 0.3, 2.2);
@@ -960,9 +1004,11 @@ function gate(m: Mesh, rnd: Rnd) {
   for (const sgn of [-1, 1]) {
     const worn = rnd() < 0.5;
     const cx = sgn * (span / 2 + 3.6);
+    const gtp = mkTop(rnd, worn ? 7.4 : 9.4, 7.2, seed + sgn);
     tower(m, rnd, {
       cx, cz: 0, rot: 0, w: 7.2, d: 9.5, t: 1.4, depth: -3.2, ch: [0.5, 0.7], bl: [1, 1.7],
-      top: (k, u) => (worn ? 6.6 : 8.4) * (0.85 + 0.3 * vnoise(u * 0.4, k + sgn, seed)),
+      inset: (y) => (y < 0 ? 0 : y * 0.03),
+      top: gtp,
       hole: (k, u, y) => (k === 1 || k === 3) && Math.abs(u - (k % 2 === 0 ? 3.6 : 3.35)) < 0.3 && y > 3.4 && y < 5.2,
     });
     block(m, rnd, cx, -0.8, 0, 4.2, worn ? 4.6 : 6.4, 6.6, 0, { col: srgb(0.66, 0.52, 0.38), bev: 0.2, jit: 0.2, chip: 0.5 });
@@ -984,38 +1030,34 @@ function gate(m: Mesh, rnd: Rnd) {
 }
 
 function houses(m: Mesh, rnd: Rnd) {
-  const seed = rnd() * 50;
-  const done: [number, number, number][] = [];
-  let id = 0;
-  const nT = 4 + Math.floor(rnd() * 2);
-  for (let tries = 0; tries < 60 && id < nT; tries++) {
-    const w = rr(rnd, 6, 14), d = rr(rnd, 5, 11), rad = Math.hypot(w, d) / 2;
-    const a = rnd() * 6.28, dist = Math.sqrt(rnd()) * (20 - Math.min(rad, 12));
-    const cx = Math.cos(a) * dist, cz = Math.sin(a) * dist;
-    if (done.some(([px, pz, pr]) => Math.hypot(px - cx, pz - cz) < pr + rad + 1)) continue;
-    done.push([cx, cz, rad]);
-    id++;
-    const rot = rr(rnd, -0.7, 0.7);
-    const hs = rr(rnd, 0.6, 1.5), door = Math.floor(rnd() * 4), doorU = rr(rnd, 1.8, 4.5), win = rr(rnd, 2, 5), id0 = id;
-    const lost = rnd() < 0.4 ? Math.floor(rnd() * 4) : -1;
-    tower(m, rnd, {
-      cx, cz, rot, w, d, t: 1.0, depth: -3.0, ch: [0.7, 1.1], bl: [1.4, 3.0], miss: 0.05,
-      top: (k, u) => 0.4 + hs * 5.0 * Math.pow(vnoise(u * 0.35 + id0 * 5, k, seed), 1.3) * (k === lost ? 0.35 : 1),
-      hole: (k, u, y) => (k === door && Math.abs(u - doorU) < 1.0 && y < 3.3) || (k !== door && (k % 2) === 1 && Math.abs(u - win) < 0.55 && y > 1.8 && y < 3.2),
+  const seed = rnd() * 50, CELL = 12.5, N = 3;
+  const x0 = -(N * CELL) / 2, z0 = -(N * CELL) / 2;
+  m.push(new THREE.Matrix4().makeRotationY(rr(rnd, -0.08, 0.08)));
+  const wood = srgb(0.3, 0.22, 0.15);
+  const seg = (x: number, z: number, vertical: boolean, outer: boolean) => {
+    if (rnd() < (outer ? 0.12 : 0.22)) return;
+    const hseg = rnd() < 0.18 ? rr(rnd, 3.6, 5.6) : rr(rnd, 0.7, 2.2);
+    const L = CELL + 0.9, door = rnd() < 0.7 ? rr(rnd, 2.5, CELL - 2.5) : -9, sd = rnd() * 40;
+    m.push(vertical ? new THREE.Matrix4().makeTranslation(x, 0, z).multiply(new THREE.Matrix4().makeRotationY(-Math.PI / 2)) : new THREE.Matrix4().makeTranslation(x - 0.45, 0, z));
+    wall(m, rnd, {
+      low: true, L, t: 0.9, depth: -2, ch: [0.4, 0.7], bl: [1.4, 2.8], miss: 0.06,
+      top: (u) => hseg * (0.45 + 0.8 * vnoise(u * 0.3 + sd, 2, seed)) - (u < 1 || u > L - 1 ? 0.5 : 0),
+      hole: (u, y) => Math.abs(u - door) < 0.95 && y < 3.2,
     });
-    drift(m, { x: cx, z: cz, a: w * 0.36, b: d * 0.36, h: rr(rnd, 0.6, 2.4), rot });
-    if (rnd() < 0.5) drift(m, { x: cx + w / 2, z: cz + rr(rnd, -2, 2), a: rr(rnd, 2.5, 5), b: rr(rnd, 2.5, 4.5), h: rr(rnd, 0.8, 1.8), lee: true });
-    if (rnd() < 0.5) drift(m, { x: cx - w / 2, z: cz + rr(rnd, -2, 2), a: rr(rnd, 2.5, 4.5), b: d * rr(rnd, 0.3, 0.5), h: rr(rnd, 1, 2.2) });
-    rubble(m, rnd, cx, cz, Math.max(w, d) * 0.8, 4, 0.3, 1.4);
-  }
-  m.push(new THREE.Matrix4().makeTranslation(-18, 0, -17));
-  wall(m, rnd, { L: 14, t: 0.9, depth: -2, ch: [0.4, 0.6], bl: [0.9, 1.8], top: (u) => 0.2 + 2.4 * vnoise(u * 0.4, 3, seed) });
+    m.pop();
+  };
+  for (let r = 0; r <= N; r++) for (let c = 0; c < N; c++) seg(x0 + c * CELL, z0 + r * CELL, false, r === 0 || r === N);
+  for (let c = 0; c <= N; c++) for (let r = 0; r < N; r++) seg(x0 + c * CELL, z0 + r * CELL, true, c === 0 || c === N);
+  // the courtyard in the middle cell: a column or two and a paved corner
+  column(m, rnd, { x: -2.5, z: 1, y0: -1.2, r: 0.4, h: 4.0, cap: true, segs: 12, dh: 1.8 });
+  column(m, rnd, { x: 2.8, z: -1.5, y0: -1.2, r: 0.4, h: 4.0, brk: rr(rnd, 1.6, 3), segs: 12, dh: 1.8 });
+  for (let i = 0; i < 4; i++) block(m, rnd, rr(rnd, -3, 3), -0.8, rr(rnd, -3, 3), 3, 0.9, 3, 0, { jit: 0.03, bev: 0.02 });
+  // broken roof beams in the sand
+  for (let i = 0; i < 4; i++) placed(m, rr(rnd, -16, 16), 0.1, rr(rnd, -16, 16), 0, rnd() * 6, rr(rnd, -0.3, 0.3), () => block(m, rnd, 0, -0.14, 0, rr(rnd, 2.5, 4.5), 0.3, 0.3, 0, { col: wood, jit: 0.03 }));
+  for (let i = 0; i < 6; i++) chunk(m, rnd, rr(rnd, -19, 19), rr(rnd, -19, 19), rr(rnd, 0.4, 1.6));
+  for (let i = 0; i < 6; i++) drift(m, { x: rr(rnd, -17, 17), z: rr(rnd, -17, 17), a: rr(rnd, 2.5, 5), b: rr(rnd, 2.5, 5), h: rr(rnd, 0.6, 1.8), lee: rnd() < 0.5 });
+  drift(m, { x: x0 - 1, z: 0, a: 6, b: 14, h: 1.6 });
   m.pop();
-  column(m, rnd, { x: 4, z: 0.5, y0: -1.2, r: 0.5, h: 4.4, brk: rr(rnd, 2, 3.2), base: true });
-  for (let i = 0; i < 6; i++) chunk(m, rnd, rr(rnd, -20, 20), rr(rnd, -20, 20), rr(rnd, 0.4, 1.6));
-  drift(m, { x: -22, z: 4, a: 8, b: 9, h: 1.6 });
-  drift(m, { x: 0, z: 0, a: 7, b: 3, h: 0.8, lee: true });
-  drift(m, { x: 12, z: -14, a: 6, b: 5, h: 1.1 });
 }
 
 function well(m: Mesh, rnd: Rnd) {
@@ -1090,51 +1132,75 @@ function obelisk(m: Mesh, rnd: Rnd) {
 }
 
 function theatre(m: Mesh, rnd: Rnd) {
-  const seed = rnd() * 30;
-  const R0 = 20, rowW = 2.3, rows = 17;
-  for (let t = 0; t < rows; t++) {
-    const R = R0 + t * rowW, ytop = -4.2 + t * 1.05;
-    if (ytop < -0.15 - 1.1) continue;
-    const n = Math.max(6, Math.round((Math.PI * R) / 7.5));
-    for (let i = 0; i < n; i++) {
-      const ang = -Math.PI / 2 + ((i + 0.5) / n) * Math.PI;
-      const mid = Math.abs(((i + 0.5) / n) * 7 % 1 - 0.5);
-      if (mid < 0.045 && t > 0) continue; // stairways
-      if (vnoise(ang * 3, t * 0.7, seed) < 0.3 && t > 2 && rnd() < 0.85) continue; // collapsed stretches
-      const arc = (Math.PI * R) / n;
-      const x = Math.cos(ang) * R + 8, z = Math.sin(ang) * R;
-      block(m, rnd, x, -0.5, z, rowW, ytop + 0.5, arc * 1.03 + 0.04, -ang + Math.PI / 2 + Math.PI / 2, { bev: 0.08, jit: 0.04, chip: 0.14 });
+  const seed = rnd() * 30, R0 = 18, rowW = 1.7, rows = 28, hr = 0.5, cx = 8;
+  // paved semicircular orchestra
+  const mc = stoneCol(rnd);
+  for (let i = 0; i < 16; i++) {
+    const a0 = -Math.PI / 2 + (i / 16) * Math.PI, a1 = -Math.PI / 2 + ((i + 1) / 16) * Math.PI;
+    m.tri([cx, 0.1, 0], [cx + Math.cos(a0) * (R0 - 0.2), 0.1, Math.sin(a0) * (R0 - 0.2)], [cx + Math.cos(a1) * (R0 - 0.2), 0.1, Math.sin(a1) * (R0 - 0.2)], mc, KIND_STONE, undefined, [cx, -5, 0]);
+  }
+  // 28 sharp tiered rows, six sectors with stairway aisles between them
+  const nS = 6;
+  for (let k = 0; k < rows; k++) {
+    const Rin = R0 + k * rowW, Rout = Rin + rowW, ytop = -3 + k * hr;
+    if (ytop < -0.15) continue;
+    const gap = 0.8 / ((Rin + Rout) / 2);
+    for (let a = 0; a < nS; a++) {
+      if (k > 3 && vnoise(a * 1.7 + 1.3, k * 0.45, seed) < 0.27) continue;
+      const a0 = -Math.PI / 2 + (a * Math.PI) / nS + gap, a1 = -Math.PI / 2 + ((a + 1) * Math.PI) / nS - gap;
+      const n = Rin > 40 ? 4 : 3, rings: V[][] = [];
+      for (let i = 0; i <= n; i++) {
+        const an = a0 + ((a1 - a0) * i) / n, c = Math.cos(an), sn = Math.sin(an);
+        rings.push([[cx + c * Rin, ytop, sn * Rin], [cx + c * Rout, ytop, sn * Rout], [cx + c * Rout, -0.6, sn * Rout], [cx + c * Rin, -0.6, sn * Rin]]);
+      }
+      loft(m, rings, mulC(mc, 0.97 + 0.06 * rnd()), { skip: [1, 2], capTop: true, capBot: true });
     }
   }
-  // outer arcade wall stumps behind the top rows
-  const Ro = R0 + rows * rowW + 1;
-  for (let i = 0; i < 20; i++) {
-    const ang = -Math.PI / 2 + ((i + 0.5) / 20) * Math.PI;
-    if (vnoise(ang * 2, 5, seed) < 0.45) continue;
-    const arc = (Math.PI * Ro) / 20;
-    placed(m, Math.cos(ang) * Ro + 8, 0, Math.sin(ang) * Ro, 0, -ang + Math.PI, 0, () => {
-      stack(m, rnd, 0, 0, arc * 0.9, 3.2, -3, rr(rnd, 3, 12), 0, 2.2);
+  // stairways: sloped ramps between the sectors
+  for (let a = 0; a <= nS; a++) {
+    const an = -Math.PI / 2 + (a * Math.PI) / nS, c = Math.cos(an), sn = Math.sin(an);
+    const r0 = R0 + 3.5, r1 = R0 + rows * rowW, w2 = 0.7;
+    const pt = (r: number, dz: number, y: number): V => [cx + c * r - sn * dz, y, sn * r + c * dz];
+    loft(m, [[pt(r0, -w2, -3 + 3.5 * hr / rowW * 1), pt(r0, w2, -3 + 3.5 * hr / rowW), pt(r0, w2, -0.6), pt(r0, -w2, -0.6)], [pt(r1, -w2, -3 + (r1 - R0) * hr / rowW), pt(r1, w2, -3 + (r1 - R0) * hr / rowW), pt(r1, w2, -0.6), pt(r1, -w2, -0.6)]], mulC(mc, 0.86), { skip: [1, 2], capTop: true });
+  }
+  // outer arcade: arched vomitoria between piers with pilasters, standing in stretches
+  const Ro = R0 + rows * rowW + 1.5, nb = 22;
+  const Pt = (i: number): [number, number] => { const th = -Math.PI / 2 + (i / nb) * Math.PI; return [cx + Ro * Math.cos(th), Ro * Math.sin(th)]; };
+  const up: boolean[] = [];
+  for (let i = 0; i < nb; i++) up.push(vnoise(i * 0.35 + 4, 0.5, seed) > 0.4);
+  for (let i = 0; i <= nb; i++) {
+    const [x0, z0] = Pt(i), [x1, z1] = Pt(Math.min(nb, i + 1)), ex = i === nb;
+    const [xp, zp] = Pt(Math.max(0, i - 1));
+    const dx = (ex ? x0 - xp : x1 - x0), dz = (ex ? z0 - zp : z1 - z0), w = Math.hypot(dx, dz);
+    const nx = dz / w, nz = -dx / w, ry = Math.atan2(nx, nz);
+    const stand = (i < nb && up[i]) || (i > 0 && up[i - 1]);
+    placed(m, x0, 0, z0, 0, ry, 0, () => {
+      if (!stand) { stack(m, rnd, 0, 0, 2.7, 3.6, -3, rr(rnd, 0.3, 3.2), 0, 2.6); return; }
+      stack(m, rnd, 0, 0, 2.7, 3.6, -3, 11, 0, 3.2);
+      stack(m, rnd, 0, 2.3, 1.1, 0.9, -3, 10, 0, 3.2);
+      if (i < nb && up[i]) archBand(m, rnd, { span: w - 2.7, spring: 7.2, t: 0.9, depth: 3.6, n: 5, a0: 0, a1: Math.PI });
     });
   }
-  // the stage building: a wall with niches and standing columns
-  m.push(new THREE.Matrix4().makeTranslation(-14, 0, -24));
-  m.push(new THREE.Matrix4().makeRotationY(-Math.PI / 2));
-  wall(m, rnd, { L: 48, t: 3.0, depth: -2.5, ch: [0.9, 1.3], bl: [2, 3.4], top: (u) => 1 + 9 * vnoise(u * 0.12, 4, seed) * (u > 40 ? 0.3 : 1), hole: (u, y) => y > 2.2 && y < 6.8 && Math.abs(((u + 3) % 9) - 4.5) < 1.5 });
-  m.pop(); m.pop();
-  for (let i = 0; i < 4; i++) {
-    const z = -18 + i * 11, v = rnd();
-    if (v < 0.5) column(m, rnd, { x: -17, z, y0: -rr(rnd, 1, 3), r: 0.8, h: 11, cap: true, dh: 3.2 });
-    else column(m, rnd, { x: -17, z, y0: -rr(rnd, 1, 3), r: 0.8, h: 11, brk: rr(rnd, 2, 7), dh: 3.2 });
+  // the broken stage building: wall with niches, column stubs and pilasters
+  m.push(new THREE.Matrix4().makeTranslation(-13, 0, -26).multiply(new THREE.Matrix4().makeRotationY(-Math.PI / 2)));
+  wall(m, rnd, { L: 52, t: 2.6, depth: -2.5, ch: [0.9, 1.3], bl: [2, 3.4], top: (u) => 2 + 10 * vnoise(u * 0.1, 4, seed) * (u > 44 ? 0.3 : 1), hole: (u, y) => y > 2.4 && y < 7.2 && Math.abs(((u + 3.25) % 6.5) - 3.25) < 1.1 });
+  m.pop();
+  block(m, rnd, -4, -1.5, 0, 14, 1.9, 44, 0, { bev: 0.1, jit: 0.06, chip: 0.2 });
+  for (let i = 0; i < 7; i++) {
+    const z = -19.5 + i * 6.5, v = rnd(), o: ColOpt = { x: -9.6, z, y0: 0.45, r: 0.6, h: 7, segs: 12, dh: 3.2 };
+    if (v < 0.35) column(m, rnd, { ...o, cap: true });
+    else column(m, rnd, { ...o, brk: rr(rnd, 1.5, 6) });
   }
-  for (let i = 0; i < 5; i++) fallenDrum(m, rnd, rr(rnd, -26, -18), rr(rnd, -20, 20), 0.8, rr(rnd, 2, 3), rnd() * 3, undefined, 0.4);
-  rubble(m, rnd, 10, 0, 50, 28, 0.5, 3.0);
-  drift(m, { x: 8, z: 0, a: 20, b: 16, h: 3.5 });
-  drift(m, { x: -22, z: 0, a: 14, b: 26, h: 3.0 });
-  drift(m, { x: 46, z: -25, a: 14, b: 14, h: 4 });
-  drift(m, { x: 46, z: 25, a: 14, b: 14, h: 3 });
-  drift(m, { x: 58, z: 0, a: 12, b: 20, h: 3, lee: true });
-  drift(m, { x: 8, z: -38, a: 18, b: 10, h: 2.5, rot: -Math.PI / 2 });
-  drift(m, { x: 8, z: 38, a: 18, b: 10, h: 2.5, rot: Math.PI / 2 });
+  for (let i = 0; i < 5; i++) fallenDrum(m, rnd, rr(rnd, -8, 0), rr(rnd, -20, 20), 0.6, rr(rnd, 2, 3), rr(rnd, 0, 3), undefined, 0.4);
+  rubble(m, rnd, cx + 20, 0, 45, 10, 0.5, 2.6);
+  // half full of sand on the +z side, banks round the outside
+  drift(m, { x: cx + 18, z: 20, a: 22, b: 24, h: 7 });
+  drift(m, { x: cx + 6, z: 8, a: 10, b: 9, h: 2.4, lee: true });
+  drift(m, { x: -18, z: 0, a: 12, b: 26, h: 3.0 });
+  drift(m, { x: cx + 66, z: -20, a: 10, b: 16, h: 3 });
+  drift(m, { x: cx + 66, z: 22, a: 10, b: 14, h: 3, lee: true });
+  drift(m, { x: cx + 20, z: -66, a: 14, b: 10, h: 2.6, rot: -Math.PI / 2 });
+  drift(m, { x: cx + 20, z: 66, a: 14, b: 10, h: 2.2, rot: Math.PI / 2 });
 }
 
 // ---- city pieces (built directly in metres) ------------------------------------------------
@@ -1145,7 +1211,7 @@ function street(m: Mesh, rnd: Rnd) {
   const seed = 11;
   for (const sd of [-1, 1]) {
     m.push(new THREE.Matrix4().makeTranslation(sd * 10, 0, -30).multiply(new THREE.Matrix4().makeRotationY(-Math.PI / 2)));
-    wall(m, rnd, { low: true, L: 60, t: 3.4, depth: -2, ch: [0.6, 0.9], bl: [3, 5], ends: false, top: (u) => -0.1 + 1.1 * vnoise(u * 0.25, sd, seed) });
+    wall(m, rnd, { low: true, L: 60, t: 3.4, depth: -2, ch: [0.6, 0.9], bl: [3, 5], ends: false, top: (u) => 0.4 + 1.0 * vnoise(u * 0.25, sd, seed) });
     m.pop();
   }
   type St = 'full' | 'tall' | 'mid' | 'low' | 'gone';
@@ -1190,7 +1256,10 @@ function street(m: Mesh, rnd: Rnd) {
     block(m, rnd, (q.x + q2.x) / 2, y + 1.5, (q.z + q2.z) / 2, 1.5, 1.2, 6.8, 0, { bev: 0.1, jit: 0.04, chip: 0.2 });
   }
   // paving slabs showing between the drifts
-  for (let i = 0; i < 12; i++) block(m, rnd, rr(rnd, -7, 7), -0.5, rr(rnd, -27.5, 27.5), rr(rnd, 2.4, 3.4), 0.55, rr(rnd, 2, 3), rr(rnd, -0.15, 0.15), { jit: 0.04, bev: 0.05 });
+  for (let gx = 0; gx < 4; gx++) for (let gz = 0; gz < 12; gz++) {
+    if (vnoise(gx * 0.8 + 3, gz * 0.5, seed) < 0.5) continue;
+    block(m, rnd, -6.75 + gx * 4.5, -1.2, -27.5 + gz * 5, 4.42, 1.3, 4.92, 0, { jit: 0.02, bev: 0.02, chip: 0.04 });
+  }
   for (let i = 0; i < 8; i++) chunk(m, rnd, rr(rnd, -14, 14), rr(rnd, -28, 28), rr(rnd, 0.3, 1.8));
   for (let k = 0; k < 5; k++) {
     const z = -24 + k * 12 + rr(rnd, -2, 2);
@@ -1214,7 +1283,9 @@ function wallrun(m: Mesh, rnd: Rnd) {
   m.pop();
   if (rnd() < 0.5) {
     const tz = rr(rnd, -12, 12);
-    tower(m, rnd, { cx: -3.5, cz: tz, rot: 0, w: 11, d: 12, t: 2.4, depth: -4, ch: [1.0, 1.5], bl: [2.2, 4], top: (k, u) => 13 * (0.5 + 0.6 * vnoise(u * 0.4, k + tz, 5)) - (u < 2 || u > 9 ? 3 * vnoise(u, k, 8) : 0) });
+    const tpw = mkTop(rnd, 13, 11, 5 + tz);
+    tower(m, rnd, { cx: -3.5, cz: tz, rot: 0, w: 11, d: 12, t: 2.4, depth: -4, ch: [1.0, 1.5], bl: [2.2, 4], inset: (y) => (y < 0 ? 0 : y * 0.035), top: tpw });
+    rubble(m, rnd, -8, tz, 7, 6, 0.6, 2.4);
     block(m, rnd, -3.5, -1, tz, 6, 8, 7, 0, { col: srgb(0.66, 0.52, 0.38), bev: 0.3, jit: 0.3, chip: 0.5 });
   }
   rubble(m, rnd, -5, c1 - 30, r1 + 3, 10, 0.5, 2.6);
@@ -1268,23 +1339,23 @@ function amphitheatre(m: Mesh, rnd: Rnd) {
     const nx = Math.cos(th) / A, nz = Math.sin(th) / Bz, l = Math.hypot(nx, nz);
     return { x, z, ry: Math.atan2(nx / l, nz / l), arc: (2 * Math.PI / 128) * 0 };
   };
-  // outer arcade: tiers of piers and arch bands, standing in stretches, slumped to stubs between
+  // a continuous outer arcade: piers on the ellipse with arches between them, two or three storeys on the surviving stretches
+  const Pt = (i: number): [number, number] => { const th = (i / NB) * Math.PI * 2; return [A * Math.cos(th), Bz * Math.sin(th)]; };
+  const tiersArr: number[] = [];
   for (let i = 0; i < NB; i++) {
-    const th = ((i + 0.5) / NB) * Math.PI * 2;
-    const f = frame(th, 1);
-    const w = (2 * Math.PI * Math.sqrt((A * A + Bz * Bz) / 2)) / NB;
-    const v = vnoise(th * 2.3 + 1, 0.5, seed);
-    const tiers = v > 0.62 ? 3 : v > 0.5 ? 2 : v > 0.36 ? 1 : 0;
-    placed(m, f.x, 0, f.z, 0, f.ry, 0, () => {
-      if (tiers === 0) stack(m, rnd, -w / 2, 0, 2.8, 5.2, -3, rr(rnd, 0.3, 3.5), 0, 2.6);
-      for (let j = 0; j < tiers; j++) {
-        const yb = j * 10 - 3;
-        const cut = j === tiers - 1 && rnd() < 0.35 ? rr(rnd, 1, 4) : 0;
-        stack(m, rnd, -w / 2, 0, 2.8, 5.2, yb, yb + 10 - cut, 0, 3);
-        if (!cut && rnd() < 0.85) archBand(m, rnd, { span: w - 2.8, spring: yb + 8.5, t: 1.0, depth: 5, n: 5 });
-      }
+    const v = vnoise(((i + 0.5) / NB) * Math.PI * 2 * 0.9 + 2, 0.5, seed);
+    tiersArr.push(rnd() < 0.1 ? 0 : v > 0.7 ? 3 : v > 0.54 ? 2 : v > 0.34 ? 1 : 0);
+  }
+  for (let i = 0; i < NB; i++) {
+    const [x0, z0] = Pt(i), [x1, z1] = Pt(i + 1);
+    const dx = x1 - x0, dz = z1 - z0, w = Math.hypot(dx, dz);
+    const nx = dz / w, nz = -dx / w, ry = Math.atan2(nx, nz);
+    const tiers = tiersArr[i], pierT = Math.max(tiers, tiersArr[(i + NB - 1) % NB]);
+    placed(m, (x0 + x1) / 2, 0, (z0 + z1) / 2, 0, ry, 0, () => {
+      if (pierT === 0) stack(m, rnd, w / 2, 0, 2.8, 5.2, -3, rr(rnd, 0.3, 3.5), 0, 2.6);
+      else stack(m, rnd, w / 2, 0, 2.8, 5.2, -3, pierT * 10 - 3, 0, 3);
+      for (let j = 0; j < tiers; j++) archBand(m, rnd, { span: w - 2.8, spring: j * 10 + 2.5, t: 1.0, depth: 5, n: 5 });
     });
-    if (tiers > 0 && rnd() < 0.25) chunk(m, rnd, f.x + Math.sin(f.ry) * 5, f.z + Math.cos(f.ry) * 5, rr(rnd, 1.5, 3));
   }
   // seating rows inside, the lowest half drowned in sand
   const rows = 6;
@@ -1315,17 +1386,17 @@ function forum(m: Mesh, rnd: Rnd) {
   const W = 80, D = 60, seed = rnd() * 30;
   for (let gx = 0; gx < 16; gx++) for (let gz = 0; gz < 12; gz++) {
     if (vnoise(gx * 0.45, gz * 0.45, seed) < 0.54) continue;
-    block(m, rnd, -37.5 + gx * 5, -0.5, -27.5 + gz * 5, 4.85, 0.55, 4.85, 0, { jit: 0.05, bev: 0.04 });
+    block(m, rnd, -37.5 + gx * 5, -1.0, -27.5 + gz * 5, 4.92, 1.1, 4.92, 0, { jit: 0.025, bev: 0.02, chip: 0.04 });
   }
   const per: [number, number][] = [];
-  for (let i = 0; i <= 10; i++) { per.push([-35 + i * 7, -D / 2]); per.push([-35 + i * 7, D / 2]); }
+  for (let i = 0; i <= 8; i++) { per.push([-36 + i * 9, -D / 2]); per.push([-36 + i * 9, D / 2]); }
   for (let i = 1; i < 7; i++) { per.push([-W / 2, -D / 2 + i * 7]); per.push([W / 2, -D / 2 + i * 7]); }
   const full: [number, number][] = [];
   for (const [x, z] of per) {
     const v = rnd();
     const y0 = -rr(rnd, 0.5, 4);
     const r = 0.7, h = 10;
-    const o: ColOpt = { x, z, y0, r, h, segs: 8, dh: 3.4, lean: rr(rnd, -0.05, 0.05), leanDir: rnd() * 6.28 };
+    const o: ColOpt = { x, z, y0, r, h, segs: 14, dh: 3.4, lean: rr(rnd, -0.05, 0.05), leanDir: rnd() * 6.28 };
     const base = y0 + 0.63;
     if (v < 0.12) { column(m, rnd, { ...o, cap: true }); full.push([x, z]); }
     else if (v < 0.4) column(m, rnd, { ...o, brk: Math.min(h, Math.max(0.5, rr(rnd, 4.5, 8) - base)) });
@@ -1362,45 +1433,107 @@ function forum(m: Mesh, rnd: Rnd) {
 
 function basilica(m: Mesh, rnd: Rnd) {
   const seed = rnd() * 40, LX = 60, LZ = 30, t = 3.0;
+  const c1 = rr(rnd, 14, 24), c2 = rr(rnd, 38, 50);
   const topLong = (side: number) => (u: number) => {
-    const c = side > 0 ? 22 : 40, f = 0.15 + 0.85 * sstep(0, 9, Math.abs(u - c));
-    return Math.max(-0.5, 21 * (0.45 + 0.75 * vnoise(u * 0.08 + side * 7, 2, seed)) * f + (vnoise(u * 0.8, 6, seed) - 0.5) * 2);
+    const f = Math.min(0.14 + 0.86 * sstep(0, 8, Math.abs(u - (side > 0 ? c1 : c2))), 1);
+    return Math.max(-0.5, 20 * (0.78 + 0.3 * vnoise(u * 0.05 + side * 7, 2, seed)) * f);
   };
-  const win = (u: number, y: number) => { const du = Math.abs(((u + 4.5) % 9) - 4.5); return du < 1.7 && y > 8 && y < 15.5 - (du / 1.7) * (du / 1.7) * 2.2; };
+  const WP = 9, wc = (k: number) => 4.5 + k * WP;
+  const win = (u: number, y: number) => {
+    const du = Math.abs(((u + 4.5) % WP) - 4.5);
+    return du < 4.5 - 0 && Math.abs(du) < 2.3 && y > 7.8 && (y < 13 || du * du + (y - 13) * (y - 13) < 2.3 * 2.3);
+  };
+  // long walls: a clerestory of arched windows between pilasters
   for (const sd of [-1, 1]) {
-    m.push(new THREE.Matrix4().makeTranslation(-LX / 2, 0, sd * (LZ / 2 - t / 2)).multiply(new THREE.Matrix4().makeRotationY(sd > 0 ? 0 : Math.PI)).multiply(new THREE.Matrix4().makeTranslation(sd > 0 ? 0 : -LX, 0, sd > 0 ? 0 : 0)));
-    wall(m, rnd, { L: LX, t, depth: -4, ch: [1.0, 1.6], bl: [2.4, 4.4], top: topLong(sd), hole: win });
+    const mx = sd > 0
+      ? new THREE.Matrix4().makeTranslation(-LX / 2, 0, LZ / 2 - t / 2)
+      : new THREE.Matrix4().makeTranslation(LX / 2, 0, -(LZ / 2 - t / 2)).multiply(new THREE.Matrix4().makeRotationY(Math.PI));
+    m.push(mx);
+    const tf = topLong(sd);
+    wall(m, rnd, { L: LX, t, depth: -4, ch: [1.0, 1.6], bl: [2.4, 4.4], top: tf, hole: win });
+    for (let k = 0; k < 7; k++) {
+      const u = wc(k);
+      if (tf(u) > 15.5) placed(m, u, 0, 0, 0, 0, 0, () => archBand(m, rnd, { span: 4.0, spring: 13, t: 0.9, depth: t + 0.1, n: 6 }));
+    }
+    for (let k = 0; k <= 7; k++) {
+      const u = k * WP, top = tf(u) - 1.2;
+      if (top > 5) stack(m, rnd, u, t / 2 + 0.35, 1.5, 0.8, -3, top, 0, 3);
+    }
     m.pop();
   }
-  // entrance wall (-x end) with a big doorway
+  // entrance wall (-x) with a great arched doorway
   m.push(new THREE.Matrix4().makeTranslation(-LX / 2 + t / 2, 0, -LZ / 2).multiply(new THREE.Matrix4().makeRotationY(-Math.PI / 2)));
-  wall(m, rnd, { L: LZ, t, depth: -4, ch: [1.0, 1.6], bl: [2.4, 4.4], top: (u) => 15 * (0.3 + 0.8 * vnoise(u * 0.15, 3, seed)), hole: (u, y) => Math.abs(u - LZ / 2) < 4 && y < 11 - ((u - LZ / 2) * (u - LZ / 2)) / 8 });
+  wall(m, rnd, { L: LZ, t, depth: -4, ch: [1.0, 1.6], bl: [2.4, 4.4], top: (u) => 17 * (0.65 + 0.35 * vnoise(u * 0.12, 3, seed)), hole: (u, y) => Math.abs(u - LZ / 2) < 2.9 && y > -3 && (y < 8 || (u - LZ / 2) * (u - LZ / 2) + (y - 8) * (y - 8) < 2.9 * 2.9) });
+  placed(m, LZ / 2, 0, 0, 0, 0, 0, () => archBand(m, rnd, { span: 5.2, spring: 8, t: 1.1, depth: t + 0.1, n: 7 }));
   m.pop();
-  // apse: a half-ring of wall at the +x end
+  // the semicircular apse at the +x end, with niches
   const nA = 7, RA = 14;
   for (let i = 0; i < nA; i++) {
     const a = -Math.PI / 2 + ((i + 0.5) / nA) * Math.PI, seg = (Math.PI * RA) / nA + 0.8;
-    if (vnoise(a * 2, 9, seed) < 0.25) continue;
-    placed(m, LX / 2 - 3 + Math.cos(a) * RA, 0, Math.sin(a) * RA, 0, a + Math.PI / 2 - Math.PI / 2 + Math.PI, 0, () => {
+    placed(m, LX / 2 - 3 + Math.cos(a) * RA, 0, Math.sin(a) * RA, 0, a + Math.PI, 0, () => {
       m.push(new THREE.Matrix4().makeTranslation(-seg / 2, 0, 0));
-      wall(m, rnd, { L: seg, t, depth: -4, ch: [1.0, 1.6], bl: [2.4, 4], top: (u) => 17 * (0.45 + 0.7 * vnoise(u * 0.2 + i * 3, 1, seed)), ends: false });
+      wall(m, rnd, { L: seg, t, depth: -4, ch: [1.0, 1.6], bl: [2.4, 4], top: () => 17 * (0.6 + 0.4 * vnoise(i * 3.1, 1, seed)), ends: false, hole: (u, y) => Math.abs(u - seg / 2) < 1.1 && y > 3.5 && y < 8.5 });
       m.pop();
     });
   }
-  // two broken vault ribs springing from the long walls (only where the wall still stands high enough)
-  for (const uu of [13.5, 31.5]) {
-    for (const sd of [-1, 1]) {
-      if (topLong(sd)(uu) < 20) continue;
-      placed(m, -LX / 2 + uu, 0, 0, 0, Math.PI / 2, 0, () => {
-        archBand(m, rnd, sd > 0 ? { span: 24, spring: 13, t: 1.4, depth: 3, n: 5, a0: Math.PI * 0.62, a1: Math.PI } : { span: 24, spring: 13, t: 1.4, depth: 3, n: 5, a0: 0, a1: Math.PI * 0.38 });
-      });
-    }
+  // rows of column stubs for the nave
+  for (const zz of [-6.5, 6.5]) for (let i = 0; i < 7; i++) {
+    const x = -22 + i * 7.5, v = rnd(), y0 = -rr(rnd, 0.3, 2.5), o: ColOpt = { x, z: zz, y0, r: 0.85, h: 11, segs: 12, dh: 3.6 };
+    if (v < 0.2) column(m, rnd, { ...o, cap: true });
+    else column(m, rnd, { ...o, brk: Math.max(0.6, rr(rnd, 1.5, 8) - (y0 + 0.77)) });
+    if (v >= 0.2 && rnd() < 0.5) fallenDrum(m, rnd, x + rr(rnd, -2, 2), zz + (zz > 0 ? 1 : -1) * rr(rnd, 3, 5), 0.8, 2.6, rnd() * 3, undefined, 0.4);
   }
-  rubble(m, rnd, 0, 0, 38, 32, 0.6, 3.2);
-  for (let i = 0; i < 6; i++) chunk(m, rnd, rr(rnd, -30, 30), rr(rnd, -12, 12), rr(rnd, 2, 4.5));
+  rubble(m, rnd, 0, 0, 38, 24, 0.5, 3.2);
   apron(m, 0, 0, LX + 6, LZ + 6, 2.6);
   drift(m, { x: -10, z: 0, a: 12, b: 9, h: 4.5, lee: true });
   drift(m, { x: 12, z: 2, a: 10, b: 7, h: 3.5, lee: true });
+}
+
+/** A free-standing two-storey columned facade (Library of Celsus type), front toward +z. */
+function facade(m: Mesh, rnd: Rnd) {
+  const Wd = 21, seed = rnd() * 30;
+  block(m, rnd, 0, -2, 6.3, Wd + 4, 2.6, 3.4, 0, { bev: 0.1, jit: 0.04, chip: 0.1 });
+  block(m, rnd, 0, -2, 4.3, Wd + 2, 3.6, 2.6, 0, { bev: 0.1, jit: 0.04, chip: 0.1 });
+  m.push(new THREE.Matrix4().makeTranslation(-Wd / 2, 0, 0));
+  wall(m, rnd, {
+    L: Wd, t: 1.5, depth: -3, ch: [0.8, 1.2], bl: [2.0, 3.4], ends: true,
+    top: (u) => 16.4 * (0.92 + 0.08 * vnoise(u * 0.3, 1, seed)) * (1 - 0.6 * sstep(0.62, 1, u / Wd) * (0.5 + vnoise(u * 0.5, 4, seed))),
+    hole: (u, y) => ([4.5, 10.5, 16.5].some((d) => Math.abs(u - d) < 1.25 && y < 4.6)) || ([2.2, 7.5, 13.5, 18.8].some((d) => Math.abs(u - d) < 0.7 && y > 9 && y < 12.2)),
+  });
+  m.pop();
+  const xs = [-7.4, -2.6, 2.6, 7.4];
+  const lowOk = [0.95, 0.9, 0.78, 0.5].map((p) => rnd() < p);
+  const upOk = [0.9, 0.75, 0.5, 0.0].map((p, i) => lowOk[i] && rnd() < p);
+  xs.forEach((cx, j) => {
+    for (const sd of [-1, 1]) {
+      const x = cx + sd * 1.0, z = 3.6;
+      block(m, rnd, x, 1.2, z, 1.5, 1.5, 1.5, 0, { bev: 0.08, jit: 0.03, chip: 0.1 });
+      const o: ColOpt = { x, z, y0: 2.7, r: 0.42, h: 5.0, segs: 12, dh: 2.6 };
+      if (lowOk[j]) column(m, rnd, { ...o, cap: true });
+      else column(m, rnd, { ...o, brk: rr(rnd, 0.6, 3.4) });
+    }
+    if (lowOk[j]) {
+      block(m, rnd, cx, 9.05, 2.4, 3.9, 1.0, 3.6, 0, { bev: 0.08, jit: 0.03, chip: 0.1 });
+      if (upOk[j]) {
+        block(m, rnd, cx, 10.05, 2.7, 3.7, 0.5, 2.6, 0, { bev: 0.06, jit: 0.02, chip: 0.1 });
+        for (const sd of [-1, 1]) column(m, rnd, { x: cx + sd * 1.0, z: 3.2, y0: 10.55, r: 0.34, h: 3.4, cap: true, segs: 12, dh: 1.8 });
+        block(m, rnd, cx, 14.85, 2.6, 3.8, 0.8, 2.8, 0, { bev: 0.06, jit: 0.03, chip: 0.1 });
+        if (j % 2 === 0) {
+          const tri: V[] = [[-1.9, 0, 0], [1.9, 0, 0], [0, 1.3, 0]];
+          loft(m, [tri.map((p): V => [cx + p[0], 15.65 + p[1], 1.2]), tri.map((p): V => [cx + p[0], 15.65 + p[1], 3.8])], stoneCol(rnd), { capTop: true, capBot: true });
+        } else {
+          placed(m, cx, 0, 2.5, 0, 0, 0, () => archBand(m, rnd, { span: 3.4, spring: 15.65, t: 0.4, depth: 2.6, n: 6, a0: 0, a1: Math.PI }));
+        }
+      }
+    } else {
+      chunk(m, rnd, cx + rr(rnd, -2, 2), 6 + rr(rnd, 0, 4), rr(rnd, 1, 2.2));
+    }
+  });
+  for (let i = 0; i < 6; i++) fallenDrum(m, rnd, rr(rnd, -12, 12), rr(rnd, 8, 15), 0.42, rr(rnd, 1.6, 2.6), rr(rnd, 0, 3), undefined, rr(rnd, 0.3, 0.5));
+  for (let i = 0; i < 5; i++) placed(m, rr(rnd, -14, 14), 0.1, rr(rnd, 8, 17), rr(rnd, -0.2, 0.2), rnd() * 3, rr(rnd, -0.2, 0.2), () => block(m, rnd, 0, -0.8, 0, rr(rnd, 1.6, 3), 1.0, 1.3, 0, { bev: 0.08, jit: 0.04, chip: 0.2 }));
+  rubble(m, rnd, 0, 8, 14, 10, 0.3, 1.8);
+  apron(m, 0, 4, Wd + 4, 10, 2.4);
+  drift(m, { x: 0, z: 0.5, a: 6, b: 9, h: 3.2, lee: true });
 }
 
 /** A ruin, merged and vertex-coloured (linear RGB), y = 0 the sand surface; parts below it are buried. */
@@ -1409,6 +1542,7 @@ export function buildRuin(kind: RuinKind, rnd: Rnd): THREE.BufferGeometry {
   const sc = SCALE[kind] ?? 1;
   m.m = new THREE.Matrix4().makeScale(sc, sc, sc);
   m.unit = 1 / sc;
+  TONE = kind === 'facade' || kind === 'street' || kind === 'forum' || kind === 'theatre' || kind === 'colonnade' || kind === 'column' ? 'marble' : 'honey';
   switch (kind) {
     case 'colonnade': colonnade(m, rnd); break;
     case 'temple': temple(m, rnd); break;
@@ -1428,6 +1562,7 @@ export function buildRuin(kind: RuinKind, rnd: Rnd): THREE.BufferGeometry {
     case 'amphitheatre': amphitheatre(m, rnd); break;
     case 'forum': forum(m, rnd); break;
     case 'basilica': basilica(m, rnd); break;
+    case 'facade': facade(m, rnd); break;
   }
   return m.geometry();
 }
