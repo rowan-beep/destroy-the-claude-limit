@@ -52,6 +52,19 @@ const MOUNTAINS = [
   { ...at(-29, -33), R: 9800, H: 1240, k: 3, ph: 0.7 },
 ];
 
+/**
+ * The four ancient cities: Greco-Roman towns the sand took, laid out on a street grid inside their walls.
+ * Centre, the grid's turn (rad), the walls' half-width (m) and a name.
+ */
+export const ANCIENT = [
+  { ...at(-20, 8), yaw: 0.18, H: 1050, name: 'APAMEA DESERTA' },
+  { ...at(22, 16), yaw: -0.3, H: 950, name: 'LEPTIS ARENARIA' },
+  { ...at(-8, -36), yaw: 0.05, H: 1100, name: 'PALMYRA MINOR' },
+  { ...at(30, -8), yaw: 0.42, H: 900, name: 'DURA SABULOSA' },
+].map((c) => ({ ...c, floor: 0 }));
+/** how far beyond its walls a city's ground is levelled (its amphitheatre and tombs stand out there) */
+export const ANCIENT_APRON = 700;
+
 /** places the big dunes stand back from: the two runways and the city */
 const CLEAR = [{ ...at(-46, -6), r: 7000 }, { ...at(46, 6), r: 7000 }, { x: CITY.x, z: CITY.z, r: 6000 }];
 
@@ -184,6 +197,22 @@ function rawHeight(x: number, z: number, out?: { small: number; base: number }):
   return h;
 }
 
+// the ancient cities' floors: the sand round each, levelled (once, now the functions they need exist)
+for (const c of ANCIENT) c.floor = duneBase(c.x, c.z) + 2;
+
+/** A point in an ancient city's own frame (u across, v along its main street), or null when well outside them all. */
+export function ancientLocal(x: number, z: number): { c: (typeof ANCIENT)[number]; u: number; v: number } | null {
+  for (const c of ANCIENT) {
+    const dx = x - c.x, dz = z - c.z;
+    const reach = c.H + ANCIENT_APRON + 2400;
+    if (dx * dx + dz * dz > reach * reach * 2) continue;
+    const co = Math.cos(c.yaw), si = Math.sin(c.yaw);
+    // (the inverse of placing a local point at x = cx + u cos + v sin, z = cz - u sin + v cos)
+    return { c, u: dx * co - dz * si, v: dx * si + dz * co };
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Oases: here and there on a valley floor the ground dips to the water table: a
 // pond in a hollow, palms round it, green ground. Found once (the same on every
@@ -219,6 +248,7 @@ function findOases(): Oasis[] {
         const x = -half + (i + 0.15 + 0.7 * hash2f(i * 7 + k, j, 912)) * cell;
         const z = -half + (j + 0.15 + 0.7 * hash2f(i, j * 7 + k, 913)) * cell;
         if (CLEAR.some((q) => Math.hypot(x - q.x, z - q.z) < q.r * 1.6 + 5000) || stripWeight(x, z) > 0) continue;
+        if (ANCIENT.some((c) => Math.hypot(x - c.x, z - c.z) < c.H + ANCIENT_APRON + 6000)) continue;
         if (found.some((o) => Math.hypot(x - o.x, z - o.z) < 16000)) continue;
         const base = duneBase(x, z);
         const h0 = rawHeight(x, z);
@@ -271,6 +301,18 @@ const _raw = { small: 0, base: 0 };
 /** Ground height of the Dune Sea (m above sea level, always well above it). */
 export function duneHeight(x: number, z: number): number {
   let h = rawHeight(x, z, _raw);
+  // an ancient city: its ground levelled inside and round its walls, the small dunes still drifting
+  // through the streets, and tongues of the big dunes reaching in over a part of it
+  const al = ancientLocal(x, z);
+  if (al) {
+    const flat = al.c.H + ANCIENT_APRON;
+    const d = Math.max(Math.abs(al.u), Math.abs(al.v));
+    let w = 1 - smoothstep(flat, flat + 2200, d);
+    if (w > 0) {
+      w *= 1 - 0.75 * smoothstep(0.25, 0.65, N2.noise(x / 1600 + 11, z / 1600 - 4)) * smoothstep(al.c.H * 0.35, al.c.H, d);
+      h = lerp(h, al.c.floor + _raw.small * 0.4 + 3 * N.noise(x / 300, z / 300), w);
+    }
+  }
   const near = oasisNear(x, z);
   if (!near) return h;
   const { o, d } = near;

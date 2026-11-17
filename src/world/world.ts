@@ -199,7 +199,7 @@ export class World {
     this.trees.update(cp, this.look, pc.isPerspectiveCamera ? Math.atan(Math.tan(THREE.MathUtils.degToRad(pc.fov) / 2) * pc.aspect) : Math.PI);
     this.clouds.update(dt, camera);
     this.airfields.update(cp);
-    this.desertProps?.update(cp);
+    this.desertProps?.update(cp, dt);
     this.camels?.update(dt, cp);
     this.carriers.update(camera, this.ocean.time);
     this.pool.tick();

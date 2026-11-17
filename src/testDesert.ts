@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { mulberry32 } from './core/rng';
 import { buildCamel, camelMaterial } from './world/camel';
 import { buildRuin, ruinRadius, RUIN_KINDS, RuinKind, buildCrashedJet, CRASH_RADIUS } from './world/desertRuins';
+import { CrashFires } from './world/crashSmoke';
 
 export function runDesertTest(container: HTMLElement): void {
   const q = new URLSearchParams(location.search);
@@ -46,6 +47,7 @@ export function runDesertTest(container: HTMLElement): void {
   const obj = q.get('obj') ?? 'camel';
   const seed = +(q.get('seed') ?? 1);
   let camelMat: ReturnType<typeof camelMaterial> | null = null;
+  let fires: CrashFires | null = null;
   let size = 6;
   const lambert = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
   const place = (g: THREE.BufferGeometry, x: number) => {
@@ -87,6 +89,12 @@ export function runDesertTest(container: HTMLElement): void {
     count(g);
     place(g, 0);
     size = CRASH_RADIUS * 2;
+    // smoke=1: the smouldering fires and their smoke (sim=seconds run before the picture)
+    if (q.get('smoke')) {
+      fires = new CrashFires(scene);
+      const local = (g.userData.fires as [number, number, number, number][] | undefined) ?? [[0, 0.5, 0, 1]];
+      fires.add(local.map(([x, y, z, heat]) => ({ x, y, z, heat })));
+    }
   } else {
     const kinds: RuinKind[] = obj === 'ruins' ? RUIN_KINDS : [obj.split(':')[1] as RuinKind];
     const widths = kinds.map((k) => ruinRadius(k) * 2 + 6);
@@ -110,11 +118,16 @@ export function runDesertTest(container: HTMLElement): void {
   cam.lookAt(t[0], t[1], t[2]);
 
   const t0 = +(q.get('t') ?? 0);
+  if (fires) for (let s = 0; s < +(q.get('sim') ?? 6); s += 1 / 30) fires.update(1 / 30, cam.position);
+  let last = performance.now();
   const start = performance.now();
   let frames = 0;
   const loop = () => {
     const time = q.get('live') ? t0 + (performance.now() - start) / 1000 : t0;
     camelMat?.setTime(time);
+    const now = performance.now();
+    if (fires && q.get('live')) fires.update((now - last) / 1000, cam.position);
+    last = now;
     renderer.render(scene, cam);
     frames++;
     if (frames < 4 || q.get('live')) requestAnimationFrame(loop);

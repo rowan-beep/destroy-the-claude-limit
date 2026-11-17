@@ -115,7 +115,6 @@ class Mesh {
   }
 
   geometry(): THREE.BufferGeometry {
-    (globalThis as any).__tb = performance.now();
     const n = this.kind.length;
     const col = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) {
@@ -123,46 +122,51 @@ class Mesh {
       const c: RGB = [this.col[i * 3], this.col[i * 3 + 1], this.col[i * 3 + 2]];
       let o: RGB = c;
       const k = this.kind[i];
-      if (k === KIND_STONE) o = shadeStone(c, x, y, z, this.nor[i * 3], this.nor[i * 3 + 1]);
+      if (k === KIND_STONE) { shadeStone(c, x, y, z, this.nor[i * 3], this.nor[i * 3 + 1], col, i * 3); continue; }
       else if (k === KIND_SAND) o = mulC(SAND, 1 + (vnoise(x * 0.23, 0.5, z * 0.23) - 0.5) * 0.06);
-      else if (k === KIND_METAL) o = shadeMetal(c, x, y, z, this.nor[i * 3 + 1], this.dust);
+      else if (k === KIND_METAL) { shadeMetal(c, x, y, z, this.nor[i * 3 + 1], this.dust, col, i * 3); continue; }
       col[i * 3] = o[0]; col[i * 3 + 1] = o[1]; col[i * 3 + 2] = o[2];
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(this.pos, 3));
     g.setAttribute('normal', new THREE.Float32BufferAttribute(this.nor, 3));
     g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    (globalThis as any).__ts = ((globalThis as any).__ts || 0) + performance.now() - (globalThis as any).__tb;
     return g;
   }
 }
 
-function shadeStone(c: RGB, x: number, y: number, z: number, nx: number, ny: number): RGB {
+const ST_R = lin(0.5) * 0.8, ST_G = lin(0.32) * 0.8, ST_B = lin(0.22) * 0.8;
+const SR = SAND[0] * 0.98, SG2 = SAND[1] * 0.98, SB = SAND[2] * 0.98;
+function shadeStone(c: RGB, x: number, y: number, z: number, nx: number, ny: number, out: Float32Array, o: number) {
   const patch = vnoise(x * 0.6, y * 0.8, z * 0.6);
-  const band = vnoise(x * 0.25, y * 2.6, z * 0.25);
-  const grain = hash3(x * 7.3, y * 5.1, z * 6.7);
+  const band = 0.5 + 0.5 * Math.sin(y * 2.9 + patch * 7 + x * 0.3);
+  const grain = lh((x * 9) | 0, (y * 9) | 0, (z * 9) | 0);
   let k = (0.9 + 0.2 * patch) * (0.92 + 0.12 * band) * (0.965 + 0.07 * grain);
-  k *= 0.56 + 0.44 * sstep(-0.4, 2.6, y); // ambient occlusion / staining toward the sand
+  k *= 0.56 + 0.44 * sstep(-0.4, 2.6, y);
   if (ny < -0.2) k *= 0.78;
-  let o = mulC(c, k);
-  // weathered, reddish-brown stain low down
-  o = mixC(o, mulC(srgb(0.5, 0.32, 0.22), 0.8), 0.22 * (1 - sstep(0, 1.6, y)));
-  // sand-blasted, paler windward (-x) faces
-  const wind = clamp(-nx * 1.1);
-  if (wind > 0) o = mixC(mulC(o, 1.08), mulC(c, 1.25), wind * 0.3);
-  // dust settled on upward faces
-  const up = clamp(ny);
-  if (up > 0) o = mixC(o, mulC(SAND, 0.98), up * (0.3 + 0.3 * patch));
-  return o;
+  let r = c[0] * k, g = c[1] * k, b = c[2] * k;
+  const st = 0.22 * (1 - sstep(0, 1.6, y));
+  if (st > 0) { r += (ST_R - r) * st; g += (ST_G - g) * st; b += (ST_B - b) * st; }
+  const wind = -nx * 1.1;
+  if (wind > 0) {
+    const w = Math.min(1, wind) * 0.3;
+    r += (c[0] * 1.25 - r * 1.08) * w + r * 0.08; g += (c[1] * 1.25 - g * 1.08) * w + g * 0.08; b += (c[2] * 1.25 - b * 1.08) * w + b * 0.08;
+  }
+  if (ny > 0) {
+    const u = Math.min(1, ny) * (0.3 + 0.3 * patch);
+    r += (SR - r) * u; g += (SG2 - g) * u; b += (SB - b) * u;
+  }
+  out[o] = r; out[o + 1] = g; out[o + 2] = b;
 }
 
-function shadeMetal(c: RGB, x: number, y: number, z: number, ny: number, dust: number): RGB {
-  const grain = hash3(x * 5.3, y * 4.1, z * 5.7);
-  let o = mulC(c, 0.96 + 0.08 * grain);
-  const up = clamp(ny);
-  if (up > 0) o = mixC(o, mulC(SAND, 0.9), up * dust * (0.5 + 0.5 * vnoise(x * 0.5, y * 0.5, z * 0.5)));
-  o = mulC(o, 0.78 + 0.22 * sstep(-0.3, 0.8, y));
-  return o;
+function shadeMetal(c: RGB, x: number, y: number, z: number, ny: number, dust: number, out: Float32Array, o: number) {
+  const k = (0.96 + 0.08 * lh((x * 9) | 0, (y * 9) | 0, (z * 9) | 0)) * (0.78 + 0.22 * sstep(-0.3, 0.8, y));
+  let r = c[0] * k, g = c[1] * k, b = c[2] * k;
+  if (ny > 0) {
+    const u = Math.min(1, ny) * dust * (0.5 + 0.5 * vnoise(x * 0.5, y * 0.5, z * 0.5));
+    r += (SAND[0] * 0.9 - r) * u; g += (SAND[1] * 0.9 - g) * u; b += (SAND[2] * 0.9 - b) * u;
+  }
+  out[o] = r; out[o + 1] = g; out[o + 2] = b;
 }
 
 // ---------------------------------------------------------------- primitives
@@ -238,7 +242,7 @@ function block(m: Mesh, rnd: Rnd, cx: number, y0: number, cz: number, sx: number
 function chunk(m: Mesh, rnd: Rnd, x: number, z: number, s: number, col?: RGB, sink = 0.45) {
   const sx = s * rr(rnd, 0.7, 1.5), sy = s * rr(rnd, 0.4, 1), sz = s * rr(rnd, 0.7, 1.4);
   placed(m, x, sy * (0.5 - sink * rnd() - 0.2), z, rr(rnd, -0.5, 0.5), rnd() * 6.28, rr(rnd, -0.5, 0.5), () => {
-    block(m, rnd, 0, -sy / 2, 0, sx, sy, sz, 0, { col: col ?? stoneCol(rnd), jit: s * 0.14, bev: s * 0.1, chip: s * 0.15 });
+    block(m, rnd, 0, -sy / 2, 0, sx, sy, sz, 0, { col: col ?? stoneCol(rnd), jit: s * 0.14, bev: s > 0.9 ? s * 0.1 : 0, chip: s * 0.15 });
   });
 }
 
@@ -412,7 +416,7 @@ function drum(m: Mesh, rnd: Rnd, o: DrumOpt) {
 
 function capital(m: Mesh, rnd: Rnd, x: number, y: number, z: number, r: number, col: RGB, rot = 0): number {
   const segs = 12;
-  const spec: [number, number, boolean][] = [[1.0, 0, false], [1.12, 0.12, false], [1.12, 0.2, false], [0.94, 0.3, false], [1.0, 0.55, true], [1.28, 1.1, true], [1.5, 1.55, true], [1.5, 1.68, false]];
+  const spec: [number, number, boolean][] = [[1.0, 0, false], [1.12, 0.14, false], [0.94, 0.3, false], [1.0, 0.55, true], [1.35, 1.2, true], [1.5, 1.66, false]];
   const rings = spec.map(([rad, hy, leaf]) => {
     const p: V[] = [];
     for (let j = 0; j < segs; j++) {
@@ -422,7 +426,7 @@ function capital(m: Mesh, rnd: Rnd, x: number, y: number, z: number, r: number, 
     }
     return p;
   });
-  loft(m, rings, (i) => (i < 3 ? mulC(col, 0.95) : col), {});
+  loft(m, rings, (i) => (i < 2 ? mulC(col, 0.95) : col), {});
   block(m, rnd, x, y + 1.68 * r, z, r * 3.3, r * 0.42, r * 3.3, rot, { col, bev: r * 0.06, jit: r * 0.02, chip: 0.04 });
   return y + 2.1 * r;
 }
@@ -513,7 +517,7 @@ const RADII: Record<RuinKind, number> = {
 };
 
 function colonnade(m: Mesh, rnd: Rnd) {
-  const N = 7, S = 4.4, rows = [-5.2, 5.2], r = 0.62;
+  const N = 6, S = 4.8, rows = [-5.2, 5.2], r = 0.62;
   const x0 = -((N - 1) * S) / 2;
   const seed = rnd() * 50;
   for (const row of rows) {
@@ -568,7 +572,7 @@ function colonnade(m: Mesh, rnd: Rnd) {
     const x = x0 + rr(rnd, 0, (N - 1) * S), z = rr(rnd, -2.8, 2.8);
     block(m, rnd, x, -0.4, z, rr(rnd, 1.4, 2.4), rr(rnd, 0.45, 0.55), rr(rnd, 1.2, 1.8), rr(rnd, -0.3, 0.3), { bev: 0.04, jit: 0.03, chip: 0.06 });
   }
-  rubble(m, rnd, 0, 0, 20, 20, 0.3, 0.9);
+  rubble(m, rnd, 0, 0, 20, 14, 0.3, 0.9);
   // sand: a long ramp at the windward end, drifts filling the street
   drift(m, { x: x0 - 3, z: 0, a: 6, b: 8, h: 1.7 });
   drift(m, { x: x0 + 2.5 * S, z: 0.5, a: 7, b: 3.2, h: 1.1, rot: 0.1 });
@@ -612,7 +616,7 @@ function temple(m: Mesh, rnd: Rnd) {
   for (let i = 0; i < 6; i++) for (let j = 0; j < 3; j++) {
     const x = -13.3 + i * 5.3, z = -6.1 + j * 6.1;
     if ((x > 7 && z > 1) || rnd() < 0.12) continue;
-    block(m, rnd, x, podH - 0.45, z, 5.2, 0.45, 6, 0, { bev: 0.05, jit: 0.04, chip: 0.1 });
+    block(m, rnd, x, podH - 0.45, z, 5.2, 0.45, 6, 0, { jit: 0.04 });
   }
   // cella: 18 x 10, front (-x) wall with a doorway
   const hf = (k: number, u: number) => {
@@ -622,7 +626,7 @@ function temple(m: Mesh, rnd: Rnd) {
     return podH + base * (0.1 + 0.9 * sstep(1.5, 7, c));
   };
   tower(m, rnd, {
-    cx: 3, cz: 0, rot: 0, w: 18, d: 10, t: 1.1, depth: podH - 0.2, ch: [0.5, 0.7], bl: [1, 1.8], top: hf,
+    cx: 3, cz: 0, rot: 0, w: 18, d: 10, t: 1.1, depth: podH - 0.2, ch: [0.62, 0.85], bl: [1.3, 2.2], top: hf,
     hole: (k, u, y) => k === 3 && Math.abs(u - (10 - 2.2) / 2) < 1.5 && y < podH + 4.3,
   });
   // portico columns
@@ -632,6 +636,7 @@ function temple(m: Mesh, rnd: Rnd) {
   rowsX.forEach((x, ri) => {
     for (let j = 0; j < 4; j++) {
       const z = -6.3 + j * 4.2, st = state();
+      if (ri === 1 && (j === 0 || j === 3)) { tops[ri].push(null); continue; }
       const o: ColOpt = { x, z, y0: podH - rr(rnd, 0, 0.2), r: 0.72, h: 6.4 };
       if (st === 'full') tops[ri].push(column(m, rnd, { ...o, cap: true }));
       else {
@@ -655,8 +660,8 @@ function temple(m: Mesh, rnd: Rnd) {
     });
   }
   for (let i = 0; i < 6; i++) placed(m, rr(rnd, -22, 22), 0.1, rr(rnd, -12, 12), rr(rnd, -0.2, 0.2), rnd() * 3, rr(rnd, -0.2, 0.2), () => block(m, rnd, 0, -0.6, 0, rr(rnd, 1.6, 3), 0.9, 1.2, 0, { bev: 0.06, jit: 0.04, chip: 0.1 }));
-  rubble(m, rnd, 11, 7, 7, 26, 0.4, 1.5);
-  rubble(m, rnd, 0, 0, 25, 14, 0.3, 0.8);
+  rubble(m, rnd, 11, 7, 7, 20, 0.4, 1.5);
+  rubble(m, rnd, 0, 0, 25, 8, 0.3, 0.8);
   // sand: banked into the portico, filling the cella
   drift(m, { x: -19, z: 0, a: 11, b: 10, h: 2.3 });
   drift(m, { x: -12.5, z: 5, a: 4, b: 4, h: 2.2 });
@@ -675,7 +680,7 @@ function archKind(m: Mesh, rnd: Rnd) {
     const worn = sgn === eroded;
     const cx = sgn * (span / 2 + pw / 2);
     const hp = (k: number, u: number) => {
-      const base = worn ? 4.6 : 7.0;
+      const base = worn ? 4.6 : 8.4;
       return base * (0.8 + 0.4 * vnoise(u * 0.4, k + 2 * sgn, seed)) - (worn ? sstep(0, 3, u) * 0.0 : 0);
     };
     tower(m, rnd, { cx, cz: 0, rot: 0, w: pw, d: pd, t: 1.25, depth: -3.2, ch: [0.5, 0.7], bl: [0.9, 1.5], top: hp });
@@ -690,12 +695,13 @@ function archKind(m: Mesh, rnd: Rnd) {
   // vault of voussoirs, one side eroded
   arch(m, rnd, {
     span, spring, t: 1.0, depth: pd - 0.3, n: 13,
-    missing: (i, n) => (eroded === -1 ? i < n * 0.45 && i !== 0 && rnd() < 0.8 : i > n * 0.55 && i !== n - 1 && rnd() < 0.8) || (i > 2 && i < n - 3 && rnd() < 0.07),
+    missing: (i, n) => (eroded === -1 ? i < n * 0.45 : i > n * 0.55) || (i > 2 && i < n - 3 && rnd() < 0.07),
   });
   // attic above the vault
   const aLen = span + 2 * pw;
-  m.push(new THREE.Matrix4().makeTranslation(-aLen / 2, spring + span / 2 + 0.8, 0));
-  wall(m, rnd, { L: aLen, t: pd - 0.6, depth: 0, ch: [0.5, 0.7], bl: [1, 1.6], top: (u) => 2.6 * (eroded === -1 ? 1 - sstep(0.3, 0.9, u / aLen) * 0.85 : sstep(0.1, 0.7, u / aLen) * 0.85 + 0.15) + 0.4 * Math.sin(u) * 0 });
+  const aL = aLen * 0.56;
+  m.push(new THREE.Matrix4().makeTranslation(eroded === -1 ? aLen / 2 - aL : -aLen / 2, spring + span / 2 + 0.55, 0));
+  wall(m, rnd, { L: aL, t: pd - 0.6, depth: 0, ch: [0.5, 0.7], bl: [1, 1.6], top: (u) => 2.2 * (0.55 + 0.45 * vnoise(u * 0.5, 2, seed)) * (eroded === -1 ? sstep(0, 0.5 * aL, u) + 0.4 : 1 - sstep(0.5 * aL, aL, u) + 0.4) });
   m.pop();
   // fallen voussoirs, blocks, drums
   for (let i = 0; i < 5; i++) {
@@ -716,7 +722,7 @@ function wallKind(m: Mesh, rnd: Rnd) {
   // the curtain wall runs along z; its outer (windward) face looks to -x
   m.push(new THREE.Matrix4().makeTranslation(0, 0, -L / 2).multiply(new THREE.Matrix4().makeRotationY(-Math.PI / 2)).multiply(new THREE.Matrix4().makeTranslation(0, 0, 0)));
   wall(m, rnd, {
-    L, t, depth: -2.6, ch: [0.55, 0.8], bl: [1.2, 2.2],
+    L, t, depth: -2.6, ch: [0.7, 0.95], bl: [1.5, 2.6],
     top: (u) => {
       const breach = sstep(0, 5.5, Math.abs(u - breachU));
       const base = 4.6 * (0.7 + 0.5 * vnoise(u * 0.18, 1, seed)) - 1.4 * sstep(0.55, 0.9, vnoise(u * 0.09, 7, seed));
@@ -807,8 +813,7 @@ function statue(m: Mesh, rnd: Rnd) {
     rings.push(r);
   }
   const hc = col;
-  const DBG = typeof location !== 'undefined' && location.search.includes('dbg=head');
-  placed(m, DBG ? 0 : -3.5, DBG ? 3.5 : 1.7, DBG ? 0 : 0.5, DBG ? 0 : -1.2, DBG ? 0 : 2.4, DBG ? 0 : 0.15, () => {
+  placed(m, -3.5, 1.7, 0.5, -1.2, 2.4, 0.15, () => {
     m.push(new THREE.Matrix4().makeScale(1.7, 1.7, 1.7));
     loft(m, rings, hc, { capTop: false });
     loft(m, [rings[rings.length - 1]], hc, { capTop: true, topLift: -0.1 });
@@ -886,7 +891,7 @@ function houses(m: Mesh, rnd: Rnd) {
     const doorSide = Math.floor(rnd() * 4), doorU = rr(rnd, 1.5, 3.5);
     const sink = rr(rnd, 0, 1.2);
     tower(m, rnd, {
-      cx, cz, rot, w, d, t: 0.6, depth: -2.0, ch: [0.32, 0.46], bl: [0.55, 1.1], miss: 0.05,
+      cx, cz, rot, w, d, t: 0.6, depth: -2.0, ch: [0.38, 0.5], bl: [0.7, 1.2], miss: 0.05,
       top: (k, u) => 0.3 + (2.6 - sink) * Math.pow(vnoise(u * 0.5, k + id * 3, seed), 1.2) * (k === 3 ? 0.7 : 1),
       hole: (k, u, y) => (k === doorSide && Math.abs(u - doorU - 0.3) < 0.55 && y < 1.9) || (k !== doorSide && k % 2 === 1 && Math.abs(u - 2.4) < 0.4 && y > 1.0 && y < 1.7),
     });
@@ -1216,7 +1221,8 @@ function jetPanel(m: Mesh, rnd: Rnd, x: number, z: number, s: number, base: RGB,
   };
   placed(m, x, rr(rnd, 0.0, 0.25), z, rr(rnd, -0.4, 0.4), rnd() * 6.28, rr(rnd, -0.4, 0.4), () => {
     const c: V = [0, 0, 0];
-    for (let j = 0; j < n; j++) m.tri(c, pts[j], pts[(j + 1) % n], [pc(c, false), pc(pts[j], true), pc(pts[(j + 1) % n], true)], KIND_METAL);
+    const cc = pc(c, false), pcs = pts.map((p) => pc(p, true));
+    for (let j = 0; j < n; j++) m.tri(c, pts[j], pts[(j + 1) % n], [cc, pcs[j], pcs[(j + 1) % n]], KIND_METAL);
   });
 }
 
