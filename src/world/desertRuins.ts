@@ -68,6 +68,8 @@ class Mesh {
   dust = 0.4;
   /** 1 / the scale the model will be built at (so weathering gradients keep their proportions) */
   unit = 1;
+  /** tileable sections: keep everything inside |z| <= zLim */
+  zLim = 0;
 
   push(mx: THREE.Matrix4) { this.st.push(this.m); this.m = this.m.clone().multiply(mx); }
   pop() { this.m = this.st.pop()!; }
@@ -238,6 +240,7 @@ function block(m: Mesh, rnd: Rnd, cx: number, y0: number, cz: number, sx: number
 
 /** Rock-like rubble chunk: strongly jittered block, tumbled, half sunk. */
 function chunk(m: Mesh, rnd: Rnd, x: number, z: number, s: number, col?: RGB, sink = 0.5) {
+  if (m.zLim) z = clamp(z, -m.zLim + s * 1.6, m.zLim - s * 1.6);
   const c = col ?? stoneCol(rnd);
   const sx = s * rr(rnd, 0.6, 1.5), sy = s * rr(rnd, 0.3, 1), sz = s * rr(rnd, 0.6, 1.4);
   placed(m, x, sy * (0.35 - sink * rnd() * 1.2), z, rr(rnd, -0.5, 0.5), rnd() * 6.28, rr(rnd, -0.5, 0.5), () => {
@@ -270,7 +273,8 @@ interface DriftOpt { x: number; z: number; a: number; b: number; h: number; rot?
  * The rim is at y = -0.015 with zero slope, so it merges with the ground with no step.
  */
 function drift(m: Mesh, d: DriftOpt) {
-  const rot = d.rot ?? 0, cs = Math.cos(rot), sn = Math.sin(rot), tail = d.tail ?? 2.4;
+  if (m.zLim && !d.rot) { const lim = Math.max(0, m.zLim - d.b - 0.3); d = { ...d, z: clamp(d.z, -lim, lim) }; }
+  const rot = d.rot ?? 0, cs = Math.cos(rot), sn = Math.sin(rot), tail = d.tail ?? 1.9;
   const sgn = d.lee ? 1 : -1;
   const RIM = -0.015;
   const H = (px: number, pz: number) => {
@@ -286,7 +290,7 @@ function drift(m: Mesh, d: DriftOpt) {
     return d.h * f * (t > 0 ? 1 - 0.4 * u : 1) + RIM * (1 - f);
   };
   const S = d.seg ?? (Math.max(d.a, d.b) > 6 ? 18 : 12);
-  const Q = [0.3, 0.58, 0.8, 0.93, 1];
+  const Q = Math.max(d.a, d.b) > 6 ? [0.3, 0.58, 0.8, 0.93, 1] : [0.38, 0.68, 0.9, 1];
   const at = (q: number, j: number): V => {
     const th = (j / S) * Math.PI * 2;
     const ct = Math.cos(th), st = Math.sin(th);
@@ -415,6 +419,21 @@ function wall(m: Mesh, rnd: Rnd, o: WallOpt) {
     courses.push(row);
     y = y1;
   }
+  // structural sanity: a block needs one under it (the first course rests on the ground / whatever is below); lintels bridge supported neighbours
+  for (let ci = 1; ci < courses.length; ci++) {
+    const row = courses[ci], below = courses[ci - 1];
+    if (!below.length) continue;
+    const sup = row.map((b) => b.present && below.some((q) => q.present && q.xb > b.xa + 0.3 && q.xa < b.xb - 0.3 && q.y1 > b.y0 - 0.3));
+    for (let bi = 0; bi < row.length; bi++) {
+      if (!row[bi].present || sup[bi]) continue;
+      let l = bi - 1, r = bi + 1;
+      while (l >= 0 && row[l].present && !sup[l] && Math.abs(row[l].xb - row[l + 1].xa) < 0.25) l--;
+      while (r < row.length && row[r].present && !sup[r] && Math.abs(row[r].xa - row[r - 1].xb) < 0.25) r++;
+      const okL = l >= 0 && sup[l] && Math.abs(row[l].xb - row[l + 1].xa) < 0.25;
+      const okR = r < row.length && sup[r] && Math.abs(row[r].xa - row[r - 1].xb) < 0.25;
+      if (!(okL && okR)) row[bi].present = false;
+    }
+  }
   for (let ci = 0; ci < courses.length; ci++) {
     const row = courses[ci], above = courses[ci + 1];
     for (let bi = 0; bi < row.length; bi++) {
@@ -475,8 +494,8 @@ function drum(m: Mesh, rnd: Rnd, o: DrumOpt) {
   loft(m, rings, (i) => (i === 0 ? mulC(c, 0.9) : c), { capTop: !!o.cap || !!o.broken, topLift: o.broken ? -0.05 * o.r1 : 0 });
 }
 
-function capital(m: Mesh, rnd: Rnd, x: number, y: number, z: number, r: number, col: RGB, rot = 0, segs = 12): number {
-  const spec: [number, number, boolean][] = [[1.0, 0, false], [1.12, 0.14, false], [0.94, 0.3, false], [1.0, 0.55, true], [1.35, 1.2, true], [1.5, 1.66, false]];
+function capital(m: Mesh, rnd: Rnd, x: number, y: number, z: number, r: number, col: RGB, rot = 0, segs = 12, lite = false): number {
+  const spec: [number, number, boolean][] = lite ? [[1.0, 0, false], [1.25, 0.95, true], [1.5, 1.66, false]] : [[1.0, 0, false], [1.12, 0.14, false], [0.94, 0.3, false], [1.0, 0.55, true], [1.35, 1.2, true], [1.5, 1.66, false]];
   const rings = spec.map(([rad, hy, leaf]) => {
     const p: V[] = [];
     for (let j = 0; j < segs; j++) {
@@ -493,7 +512,7 @@ function capital(m: Mesh, rnd: Rnd, x: number, y: number, z: number, r: number, 
 
 interface ColOpt {
   x: number; z: number; y0: number; r: number; h: number;
-  cap?: boolean; brk?: number; base?: boolean; tint?: RGB; lean?: number; leanDir?: number; segs?: number; dh?: number;
+  cap?: boolean; brk?: number; base?: boolean; tint?: RGB; lean?: number; leanDir?: number; segs?: number; dh?: number; lite?: boolean;
 }
 /** A standing column: base, entasis shaft of fluted drums (offset slightly), capital or a jagged break. Returns the top y. */
 function column(m: Mesh, rnd: Rnd, o: ColOpt): number {
@@ -505,12 +524,12 @@ function column(m: Mesh, rnd: Rnd, o: ColOpt): number {
   if (o.base !== false) {
     if (y + 0.9 * r > -0.15) {
       block(m, rnd, o.x, y, o.z, r * 2.7, r * 0.5, r * 2.7, rnd() * 0.2, { col, bev: r * 0.06, jit: r * 0.02, chip: 0.05 });
-      const rings: V[][] = [[1.28, 0.5], [1.32, 0.62], [1.2, 0.76], [1.02, 0.9]].map(([rad, hy]) => {
+      const rings: V[][] = o.lite ? [] : [[1.28, 0.5], [1.32, 0.62], [1.2, 0.76], [1.02, 0.9]].map(([rad, hy]) => {
         const p: V[] = [];
         for (let j = 0; j < (o.segs ?? 12); j++) { const th = (j / (o.segs ?? 12)) * 6.283; p.push([o.x + Math.cos(th) * r * rad, y + hy * r, o.z + Math.sin(th) * r * rad]); }
         return p;
       });
-      loft(m, rings, mulC(col, 0.95), {});
+      if (rings.length) loft(m, rings, mulC(col, 0.95), {});
     }
     y += 0.9 * r;
   }
@@ -533,7 +552,7 @@ function column(m: Mesh, rnd: Rnd, o: ColOpt): number {
       ox: o.x + ox, oz: o.z + oz, broken: last && o.brk !== undefined ? r * 0.8 : 0, cap: last && !o.cap, segs: o.segs,
     });
   }
-  if (o.cap && o.brk === undefined) return capital(m, rnd, o.x + ox, yy, o.z + oz, r, col, 0, o.segs ?? 12);
+  if (o.cap && o.brk === undefined) return capital(m, rnd, o.x + ox, yy, o.z + oz, r, col, 0, o.segs ?? 12, o.lite);
   return yy;
 }
 
@@ -585,15 +604,15 @@ export type RuinKind = 'colonnade' | 'temple' | 'arch' | 'wall' | 'tomb' | 'colu
 export const RUIN_KINDS: RuinKind[] = ['colonnade', 'temple', 'arch', 'wall', 'tomb', 'column', 'statue', 'gate', 'houses', 'well', 'obelisk', 'theatre', 'street', 'wallrun', 'aqueduct', 'amphitheatre', 'forum', 'basilica'];
 
 const RADII: Record<RuinKind, number> = {
-  colonnade: 48, temple: 56, arch: 28, wall: 74, tomb: 22, column: 17, statue: 15, gate: 48, houses: 30, well: 12, obelisk: 20, theatre: 80,
-  street: 33, wallrun: 33, aqueduct: 33, amphitheatre: 100, forum: 58, basilica: 50,
+  colonnade: 54, temple: 84, arch: 38, wall: 76, tomb: 26, column: 20, statue: 18, gate: 56, houses: 40, well: 18, obelisk: 22, theatre: 86,
+  street: 33, wallrun: 33, aqueduct: 33, amphitheatre: 100, forum: 64, basilica: 56,
 };
 /** design-unit scale each kind is built at (monumental size) */
 const SCALE: Partial<Record<RuinKind, number>> = { colonnade: 1.9, temple: 2.0, arch: 1.7, wall: 1.8, tomb: 1.6, column: 2.0, gate: 1.7, well: 1.4, obelisk: 1.2 };
 
 
 function colonnade(m: Mesh, rnd: Rnd) {
-  const N = 7, S = 3.8, rows = [-5.3, 5.3];
+  const N = 6, S = 3.9, rows = [-5.3, 5.3];
   const x0 = -((N - 1) * S) / 2;
   const seed = rnd() * 50;
   for (const row of rows) {
@@ -614,7 +633,7 @@ function colonnade(m: Mesh, rnd: Rnd) {
   rows.forEach((row, ri) => {
     for (let i = 0; i < N; i++) {
       const sTate = st[ri][i];
-      const r = rr(rnd, 0.42, 0.5), h = rr(rnd, 5.2, 6.6);
+      const r = rr(rnd, 0.42, 0.5), h = rr(rnd, 5.2, 6.6), lite = true;
       const x = x0 + i * S + rr(rnd, -0.1, 0.1), z = row + rr(rnd, -0.08, 0.08);
       const isPair = ri === prow && (i === pr || i === pr + 1);
       let y0 = isPair ? pairY0 : -rr(rnd, 0.3, 3.4);
@@ -624,12 +643,12 @@ function colonnade(m: Mesh, rnd: Rnd) {
       const lean = rr(rnd, -0.05, 0.05), ld = rnd() * 6.28;
       const brk = (lo: number, hi: number) => Math.min(h, Math.max(0.4, rr(rnd, lo, hi) - base));
       let top: number | null = null, nD = 0;
-      if (sTate === 'full') top = column(m, rnd, { x, z, y0, r, h: isPair ? 6 : h, cap: true, lean, leanDir: ld });
-      else if (sTate === 'nocap') { column(m, rnd, { x, z, y0, r, h, brk: h * rr(rnd, 0.94, 1), lean, leanDir: ld }); nD = 2; }
-      else if (sTate === 'tall') { column(m, rnd, { x, z, y0, r, h, brk: brk(3.4, 5.4), lean, leanDir: ld }); nD = 2; }
-      else if (sTate === 'mid') { column(m, rnd, { x, z, y0, r, h, brk: brk(1.8, 3.2), lean, leanDir: ld }); nD = 3; }
-      else if (sTate === 'low') { column(m, rnd, { x, z, y0, r, h, brk: brk(0.2, 1.1) }); nD = 2; }
-      else { block(m, rnd, x, -0.45, z, r * 2.7, 0.55, r * 2.7, rnd(), { jit: 0.03 }); nD = 5; }
+      if (sTate === 'full') top = column(m, rnd, { x, z, y0, r, h: isPair ? 6 : h, cap: true, lean, leanDir: ld, lite });
+      else if (sTate === 'nocap') { column(m, rnd, { x, z, y0, r, h, brk: h * rr(rnd, 0.94, 1), lean, leanDir: ld }); nD = 1; }
+      else if (sTate === 'tall') { column(m, rnd, { x, z, y0, r, h, brk: brk(3.4, 5.4), lean, leanDir: ld }); nD = 1; }
+      else if (sTate === 'mid') { column(m, rnd, { x, z, y0, r, h, brk: brk(1.8, 3.2), lean, leanDir: ld }); nD = 2; }
+      else if (sTate === 'low') { column(m, rnd, { x, z, y0, r, h, brk: brk(0.2, 1.1) }); nD = 1; }
+      else { block(m, rnd, x, -0.45, z, r * 2.7, 0.55, r * 2.7, rnd(), { jit: 0.03 }); nD = 4; }
       tops[ri].push(top);
       for (let k = 0; k < nD; k++) {
         const dd = 1.6 + k * rr(rnd, 1.2, 1.5);
@@ -641,7 +660,7 @@ function colonnade(m: Mesh, rnd: Rnd) {
       }
       if (sTate !== 'gone') {
         drift(m, { x: x - 0.3, z, a: rr(rnd, 1.4, 2.2), b: rr(rnd, 1.2, 1.8), h: rr(rnd, 0.7, 1.7) });
-        if (rnd() < 0.7) drift(m, { x: x + 0.3, z, a: rr(rnd, 1.6, 2.6), b: rr(rnd, 1, 1.5), h: rr(rnd, 0.5, 1.2), lee: true });
+        if (rnd() < 0.3) drift(m, { x: x + 0.3, z, a: rr(rnd, 1.6, 2.6), b: rr(rnd, 1, 1.5), h: rr(rnd, 0.5, 1.2), lee: true });
       }
     }
     for (let i = 0; i < N - 1; i++) {
@@ -809,7 +828,7 @@ function wallKind(m: Mesh, rnd: Rnd) {
   const rad = [rr(rnd, 4, 7), rr(rnd, 5, 9), rr(rnd, 3, 6)];
   m.push(new THREE.Matrix4().makeTranslation(0, 0, -L / 2).multiply(new THREE.Matrix4().makeRotationY(-Math.PI / 2)));
   wall(m, rnd, {
-    L, t, depth: -2.6, ch: [0.6, 0.95], bl: [1.2, 2.4],
+    L, t, depth: -2.6, ch: [0.85, 1.25], bl: [1.6, 3.0],
     top: (u) => {
       let f = 1;
       for (let i = 0; i < 3; i++) f = Math.min(f, 0.1 + 0.9 * sstep(0, rad[i], Math.abs(u - cs[i])));
@@ -836,7 +855,7 @@ function wallKind(m: Mesh, rnd: Rnd) {
     drift(m, { x: -1.4, z, a: 5, b: rad[i] + 3, h: 1.9 });
   }
   for (let i = 0; i < 6; i++) placed(m, rr(rnd, -8, 6), 0.15, rr(rnd, -33, 33), rr(rnd, -0.3, 0.3), rnd() * 3, rr(rnd, -0.3, 0.3), () => block(m, rnd, 0, -0.5, 0, rr(rnd, 1.4, 2.6), 0.8, 1.2, 0, { bev: 0.06, jit: 0.05, chip: 0.2 }));
-  for (let z = -30; z <= 30; z += 11) {
+  for (let z = -28; z <= 30; z += 19) {
     drift(m, { x: -2.6, z: z + rr(rnd, -2, 2), a: rr(rnd, 3.5, 5.5), b: rr(rnd, 6, 9), h: rr(rnd, 1.2, 2.4) });
     drift(m, { x: 2.6, z: z + rr(rnd, -2, 2), a: rr(rnd, 3, 4.5), b: rr(rnd, 4, 7), h: rr(rnd, 0.8, 1.6), lee: true });
   }
@@ -966,7 +985,7 @@ function houses(m: Mesh, rnd: Rnd) {
   const seed = rnd() * 50;
   const done: [number, number, number][] = [];
   let id = 0;
-  const nT = 5 + Math.floor(rnd() * 3);
+  const nT = 4 + Math.floor(rnd() * 2);
   for (let tries = 0; tries < 60 && id < nT; tries++) {
     const w = rr(rnd, 6, 14), d = rr(rnd, 5, 11), rad = Math.hypot(w, d) / 2;
     const a = rnd() * 6.28, dist = Math.sqrt(rnd()) * (20 - Math.min(rad, 12));
@@ -978,20 +997,20 @@ function houses(m: Mesh, rnd: Rnd) {
     const hs = rr(rnd, 0.6, 1.5), door = Math.floor(rnd() * 4), doorU = rr(rnd, 1.8, 4.5), win = rr(rnd, 2, 5), id0 = id;
     const lost = rnd() < 0.4 ? Math.floor(rnd() * 4) : -1;
     tower(m, rnd, {
-      cx, cz, rot, w, d, t: 1.0, depth: -3.0, ch: [0.5, 0.8], bl: [1.0, 2.4], miss: 0.05,
+      cx, cz, rot, w, d, t: 1.0, depth: -3.0, ch: [0.7, 1.1], bl: [1.4, 3.0], miss: 0.05,
       top: (k, u) => 0.4 + hs * 5.0 * Math.pow(vnoise(u * 0.35 + id0 * 5, k, seed), 1.3) * (k === lost ? 0.35 : 1),
       hole: (k, u, y) => (k === door && Math.abs(u - doorU) < 1.0 && y < 3.3) || (k !== door && (k % 2) === 1 && Math.abs(u - win) < 0.55 && y > 1.8 && y < 3.2),
     });
     drift(m, { x: cx, z: cz, a: w * 0.36, b: d * 0.36, h: rr(rnd, 0.6, 2.4), rot });
-    if (rnd() < 0.7) drift(m, { x: cx + w / 2, z: cz + rr(rnd, -2, 2), a: rr(rnd, 2.5, 5), b: rr(rnd, 2.5, 4.5), h: rr(rnd, 0.8, 1.8), lee: true });
-    if (rnd() < 0.7) drift(m, { x: cx - w / 2, z: cz + rr(rnd, -2, 2), a: rr(rnd, 2.5, 4.5), b: d * rr(rnd, 0.3, 0.5), h: rr(rnd, 1, 2.2) });
-    rubble(m, rnd, cx, cz, Math.max(w, d) * 0.8, 5, 0.3, 1.2);
+    if (rnd() < 0.5) drift(m, { x: cx + w / 2, z: cz + rr(rnd, -2, 2), a: rr(rnd, 2.5, 5), b: rr(rnd, 2.5, 4.5), h: rr(rnd, 0.8, 1.8), lee: true });
+    if (rnd() < 0.5) drift(m, { x: cx - w / 2, z: cz + rr(rnd, -2, 2), a: rr(rnd, 2.5, 4.5), b: d * rr(rnd, 0.3, 0.5), h: rr(rnd, 1, 2.2) });
+    rubble(m, rnd, cx, cz, Math.max(w, d) * 0.8, 4, 0.3, 1.4);
   }
   m.push(new THREE.Matrix4().makeTranslation(-18, 0, -17));
   wall(m, rnd, { L: 14, t: 0.9, depth: -2, ch: [0.4, 0.6], bl: [0.9, 1.8], top: (u) => 0.2 + 2.4 * vnoise(u * 0.4, 3, seed) });
   m.pop();
   column(m, rnd, { x: 4, z: 0.5, y0: -1.2, r: 0.5, h: 4.4, brk: rr(rnd, 2, 3.2), base: true });
-  for (let i = 0; i < 10; i++) chunk(m, rnd, rr(rnd, -22, 22), rr(rnd, -22, 22), rr(rnd, 0.4, 1.6));
+  for (let i = 0; i < 6; i++) chunk(m, rnd, rr(rnd, -20, 20), rr(rnd, -20, 20), rr(rnd, 0.4, 1.6));
   drift(m, { x: -22, z: 4, a: 8, b: 9, h: 1.6 });
   drift(m, { x: 0, z: 0, a: 7, b: 3, h: 0.8, lee: true });
   drift(m, { x: 12, z: -14, a: 6, b: 5, h: 1.1 });
@@ -1082,7 +1101,7 @@ function theatre(m: Mesh, rnd: Rnd) {
       if (vnoise(ang * 3, t * 0.7, seed) < 0.3 && t > 2 && rnd() < 0.85) continue; // collapsed stretches
       const arc = (Math.PI * R) / n;
       const x = Math.cos(ang) * R + 8, z = Math.sin(ang) * R;
-      block(m, rnd, x, ytop - 1.1, z, rowW, 1.1, arc * 1.03 + 0.04, -ang + Math.PI / 2 + Math.PI / 2, { bev: 0.08, jit: 0.04, chip: 0.14 });
+      block(m, rnd, x, -0.5, z, rowW, ytop + 0.5, arc * 1.03 + 0.04, -ang + Math.PI / 2 + Math.PI / 2, { bev: 0.08, jit: 0.04, chip: 0.14 });
     }
   }
   // outer arcade wall stumps behind the top rows
@@ -1120,6 +1139,7 @@ function theatre(m: Mesh, rnd: Rnd) {
 
 /** ONE tileable 60 m section of a colonnaded avenue along z (-30..30), columns at x = +-10 every 7.5 m. */
 function street(m: Mesh, rnd: Rnd) {
+  m.zLim = 30;
   const seed = 11;
   for (const sd of [-1, 1]) {
     m.push(new THREE.Matrix4().makeTranslation(sd * 10, 0, -30).multiply(new THREE.Matrix4().makeRotationY(-Math.PI / 2)));
@@ -1142,7 +1162,7 @@ function street(m: Mesh, rnd: Rnd) {
   for (const c of cols) {
     const r = 0.62, h = 11.5, base = c.y0 + 0.9 * r;
     const brk = (lo: number, hi: number) => Math.min(h, Math.max(0.5, rr(rnd, lo, hi) - base));
-    const o: ColOpt = { x: c.x, z: c.z, y0: c.st === 'low' ? -rr(rnd, 3.5, 4.6) : c.y0, r, h, segs: 8, dh: 3.8, lean: rr(rnd, -0.05, 0.05), leanDir: rnd() * 6.28 };
+    const o: ColOpt = { x: c.x, z: c.z, y0: c.st === 'low' ? -rr(rnd, 3.5, 4.6) : c.y0, r, h, segs: 8, dh: 3.8, lite: true, lean: rr(rnd, -0.05, 0.05), leanDir: rnd() * 6.28 };
     let nD = 0;
     if (c.st === 'full') topsAt.set(c.x + ':' + c.z, column(m, rnd, { ...o, cap: true }));
     else if (c.st === 'tall') { column(m, rnd, { ...o, brk: brk(6, 9.5) }); nD = 2; }
@@ -1153,7 +1173,7 @@ function street(m: Mesh, rnd: Rnd) {
     const dir = Math.atan2(-c.x, 0.001) * 0 + (c.x < 0 ? 0 : Math.PI) + rr(rnd, -0.6, 0.6);
     for (let k = 0; k < nD; k++) {
       const dd = 2.5 + k * rr(rnd, 2.6, 3.4), fx = c.x + Math.cos(dir) * dd, fz = c.z + Math.sin(dir) * dd;
-      if (Math.abs(fz) > 28.3) continue;
+      if (Math.abs(fz) > 27.3) continue;
       fallenDrum(m, rnd, fx, fz, 0.58, rr(rnd, 2.2, 3.4), dir + Math.PI / 2 + rr(rnd, -0.3, 0.3), undefined, rr(rnd, 0.2, 0.55), rnd() < 0.3);
     }
   }
@@ -1168,19 +1188,18 @@ function street(m: Mesh, rnd: Rnd) {
     block(m, rnd, (q.x + q2.x) / 2, y + 1.5, (q.z + q2.z) / 2, 1.5, 1.2, 6.8, 0, { bev: 0.1, jit: 0.04, chip: 0.2 });
   }
   // paving slabs showing between the drifts
-  for (let i = 0; i < 16; i++) block(m, rnd, rr(rnd, -7, 7), -0.5, rr(rnd, -27.5, 27.5), rr(rnd, 2.4, 3.4), 0.55, rr(rnd, 2, 3), rr(rnd, -0.15, 0.15), { jit: 0.04, bev: 0.05 });
-  for (let i = 0; i < 12; i++) chunk(m, rnd, rr(rnd, -14, 14), rr(rnd, -28, 28), rr(rnd, 0.3, 1.8));
-  for (let k = 0; k < 6; k++) {
-    const z = -25 + k * 10 + rr(rnd, -2, 2);
+  for (let i = 0; i < 12; i++) block(m, rnd, rr(rnd, -7, 7), -0.5, rr(rnd, -27.5, 27.5), rr(rnd, 2.4, 3.4), 0.55, rr(rnd, 2, 3), rr(rnd, -0.15, 0.15), { jit: 0.04, bev: 0.05 });
+  for (let i = 0; i < 8; i++) chunk(m, rnd, rr(rnd, -14, 14), rr(rnd, -28, 28), rr(rnd, 0.3, 1.8));
+  for (let k = 0; k < 5; k++) {
+    const z = -24 + k * 12 + rr(rnd, -2, 2);
     drift(m, { x: -11.8, z, a: 2.6, b: 3.6, h: rr(rnd, 1, 2.2) });
     if (k % 2 === 0) drift(m, { x: 11.5, z: z + 3, a: 3, b: 3.2, h: rr(rnd, 0.8, 1.8), lee: true });
-    if (k % 2 === 1) drift(m, { x: -9.5, z: z + 2, a: 3.5, b: 2.6, h: rr(rnd, 0.6, 1.2), lee: true });
   }
-  drift(m, { x: 0, z: rr(rnd, -12, 12), a: 4, b: 4.5, h: 1.0, lee: true });
 }
 
 /** ONE tileable 60 m section of city wall along z (-30..30), 8-12 m high, broken unevenly. */
 function wallrun(m: Mesh, rnd: Rnd) {
+  m.zLim = 30;
   const c1 = rr(rnd, 12, 28) , c2 = rr(rnd, 36, 50), r1 = rr(rnd, 4, 8), r2 = rr(rnd, 3, 6);
   const prof = (u: number) => 10.5 * (0.55 + 0.6 * vnoise(u * 0.09 + 3, 1, 17)) + (vnoise(u * 0.7, 5, 17) - 0.5) * 2.4;
   const top = (u: number) => {
@@ -1199,14 +1218,15 @@ function wallrun(m: Mesh, rnd: Rnd) {
   rubble(m, rnd, -5, c1 - 30, r1 + 3, 10, 0.5, 2.6);
   rubble(m, rnd, 4, c1 - 30, r1 + 1, 4, 0.5, 1.8);
   rubble(m, rnd, -4.5, c2 - 30, r2 + 3, 8, 0.5, 2.4);
-  for (let z = -26; z <= 26; z += 13) {
-    drift(m, { x: -3.2, z: z + rr(rnd, -3, 3), a: rr(rnd, 3, 5), b: rr(rnd, 6, 8), h: rr(rnd, 1.6, 3) });
+  for (let z = -22; z <= 22; z += 15) {
+    drift(m, { x: -3.2, z: z + rr(rnd, -3, 3), a: rr(rnd, 3, 5), b: rr(rnd, 5, 7), h: rr(rnd, 1.6, 3) });
     drift(m, { x: 3.2, z: z + rr(rnd, -3, 3), a: rr(rnd, 3, 4.5), b: rr(rnd, 4, 6), h: rr(rnd, 1, 2), lee: true });
   }
 }
 
 /** ONE tileable 60 m section of a two-tier arched aqueduct along z (-30..30). */
 function aqueduct(m: Mesh, rnd: Rnd) {
+  m.zLim = 30;
   const B = 7.5, cz0 = -26.25;
   const coll = rr(rnd, -22, 22);
   const buried = (i: number) => rr(rnd, 2.5, 5.5) + (i % 3) * 0.4;
@@ -1215,34 +1235,32 @@ function aqueduct(m: Mesh, rnd: Rnd) {
     const z = -30 + k * B, edge = k === 0 || k === 8, pz = edge ? 1.0 : 2.0, zc = edge ? (k === 0 ? -29.5 : 29.5) : z;
     const near = Math.abs(z - coll) < 8;
     const d = buried(k);
-    stack(m, rnd, 0, zc, 4.4, pz, -d, near && !edge ? rr(rnd, 2, 7) : 11.2, 0, 2.6);
-    if (!near || edge) stack(m, rnd, 0, zc, 3.6, pz * 0.85, 11.2, near ? 14.5 : 17.4, 0, 2.2);
+    stack(m, rnd, 0, zc, 4.4, pz, -d, near && !edge ? rr(rnd, 2, 7) : 11.2, 0, 3.4);
+    if (!near || edge) stack(m, rnd, 0, zc, 3.6, pz * 0.85, 11.2, near ? 14.5 : 17.4, 0, 3.2);
   }
   for (let i = 0; i < 8; i++) {
     const zc = cz0 + i * B, near = Math.abs(zc - coll) < 5;
-    if (!(near && rnd() < 0.5)) placed(m, 0, 0, zc, 0, Math.PI / 2, 0, () => archBand(m, rnd, { span: 5.4, spring: 7.0, t: 1.0, depth: 4.4, n: 6 }));
+    if (!(near && rnd() < 0.5)) placed(m, 0, 0, zc, 0, Math.PI / 2, 0, () => archBand(m, rnd, { span: 5.4, spring: 7.0, t: 1.0, depth: 4.4, n: 5 }));
     if (!near) {
-      placed(m, 0, 0, zc, 0, Math.PI / 2, 0, () => archBand(m, rnd, { span: 5.6, spring: 14.8 - 0.0, t: 0.8, depth: 3.6, n: 6 }));
+      placed(m, 0, 0, zc, 0, Math.PI / 2, 0, () => archBand(m, rnd, { span: 5.6, spring: 14.8, t: 0.8, depth: 3.6, n: 5 }));
       block(m, rnd, 0, 10.6, zc, 4.4, 0.7, B - 1.2, 0, { jit: 0.03 });
       block(m, rnd, 0, 18.6, zc, 4.8, 1.2, B + 0.2, 0, { bev: 0.1, jit: 0.04, chip: 0.1 });
       block(m, rnd, -2.2, 19.8, zc, 0.5, 0.8, B, 0, { jit: 0.04, chip: 0.15 });
       block(m, rnd, 2.2, 19.8, zc, 0.5, 0.8, B, 0, { jit: 0.04, chip: 0.15 });
-    } else if (rnd() < 0.7) {
-      block(m, rnd, 0, 10.6, zc, 4.4, 0.7, B - 1.2, 0, { jit: 0.03 });
     }
   }
   rubble(m, rnd, 0, coll, 9, 12, 0.6, 3.0);
   for (let i = 0; i < 8; i++) placed(m, rr(rnd, -7, 7), 0.2, rr(rnd, -28, 28), rr(rnd, -0.3, 0.3), rnd() * 3, rr(rnd, -0.3, 0.3), () => block(m, rnd, 0, -0.9, 0, rr(rnd, 1.6, 3.6), rr(rnd, 1, 1.8), rr(rnd, 1.2, 2.4), 0, { bev: 0.1, jit: 0.07, chip: 0.25 }));
-  for (let k = 0; k < 6; k++) {
-    const z = -25 + k * 10 + rr(rnd, -2, 2);
+  for (let k = 0; k < 4; k++) {
+    const z = -22 + k * 14 + rr(rnd, -2, 2);
     drift(m, { x: -3.2, z, a: rr(rnd, 3, 5), b: rr(rnd, 4, 6), h: rr(rnd, 2.5, 5) });
-    drift(m, { x: 3.2, z: z + 3, a: rr(rnd, 3, 5), b: rr(rnd, 3, 5), h: rr(rnd, 1.5, 3.5), lee: true });
+    if (k % 2) drift(m, { x: 3.2, z: z + 3, a: rr(rnd, 3, 5), b: rr(rnd, 3, 5), h: rr(rnd, 1.5, 3.5), lee: true });
   }
 }
 
 function amphitheatre(m: Mesh, rnd: Rnd) {
   const A = 75, Bz = 60, seed = rnd() * 40;
-  const NB = 40;
+  const NB = 32;
   const frame = (th: number, sc: number) => {
     const x = A * sc * Math.cos(th), z = Bz * sc * Math.sin(th);
     const nx = Math.cos(th) / A, nz = Math.sin(th) / Bz, l = Math.hypot(nx, nz);
@@ -1256,15 +1274,12 @@ function amphitheatre(m: Mesh, rnd: Rnd) {
     const v = vnoise(th * 2.3 + 1, 0.5, seed);
     const tiers = v > 0.62 ? 3 : v > 0.5 ? 2 : v > 0.36 ? 1 : 0;
     placed(m, f.x, 0, f.z, 0, f.ry, 0, () => {
-      const lowTop = tiers === 0 ? rr(rnd, 0.3, 3.5) : 0;
-      stack(m, rnd, -w / 2, 0, 2.8, 5.2, -3, tiers === 0 ? lowTop : 7, 0, 2.2);
-      if (i === NB - 1 || true) {
-        for (let j = 0; j < tiers; j++) {
-          const yb = 7 + j * 10 - (j > 0 ? 0 : 0);
-          const ytop = yb + 10;
-          if (j > 0) stack(m, rnd, -w / 2, 0, 2.6, 4.8, yb, ytop - (rnd() < 0.3 ? rr(rnd, 1, 5) : 0) , 0, 2.2);
-          if (rnd() < 0.85) archBand(m, rnd, { span: w - 2.8, spring: yb - 1.5 + (j === 0 ? 0 : 0), t: 1.0, depth: 5, n: 6 });
-        }
+      if (tiers === 0) stack(m, rnd, -w / 2, 0, 2.8, 5.2, -3, rr(rnd, 0.3, 3.5), 0, 2.6);
+      for (let j = 0; j < tiers; j++) {
+        const yb = j * 10 - 3;
+        const cut = j === tiers - 1 && rnd() < 0.35 ? rr(rnd, 1, 4) : 0;
+        stack(m, rnd, -w / 2, 0, 2.8, 5.2, yb, yb + 10 - cut, 0, 3);
+        if (!cut && rnd() < 0.85) archBand(m, rnd, { span: w - 2.8, spring: yb + 8.5, t: 1.0, depth: 5, n: 5 });
       }
     });
     if (tiers > 0 && rnd() < 0.25) chunk(m, rnd, f.x + Math.sin(f.ry) * 5, f.z + Math.cos(f.ry) * 5, rr(rnd, 1.5, 3));
@@ -1273,13 +1288,13 @@ function amphitheatre(m: Mesh, rnd: Rnd) {
   const rows = 6;
   for (let k = 0; k < rows; k++) {
     const sc = 0.9 - k * 0.075, top = 9.5 - k * 1.6;
-    const n = 30;
+    const n = 24;
     for (let i = 0; i < n; i++) {
       const th = ((i + 0.5) / n) * Math.PI * 2;
       if (vnoise(th * 3, k, seed + 7) < 0.3 && rnd() < 0.8) continue;
       const f = frame(th, sc);
       placed(m, f.x, 0, f.z, 0, f.ry, 0, () => {
-        block(m, rnd, 0, Math.max(top - 2.0, -0.3), 0, 13.5, top - Math.max(top - 2.0, -0.3), 3.4, 0, { bev: 0.08, jit: 0.05, chip: 0.15 });
+        block(m, rnd, 0, -0.5, 0, 16.5, top + 0.5, 3.4, 0, { bev: 0.08, jit: 0.05, chip: 0.15 });
       });
     }
   }
@@ -1370,15 +1385,12 @@ function basilica(m: Mesh, rnd: Rnd) {
       m.pop();
     });
   }
-  // two broken vault ribs springing from the long walls
-  for (const uu of [18, 36]) {
+  // two broken vault ribs springing from the long walls (only where the wall still stands high enough)
+  for (const uu of [13.5, 31.5]) {
     for (const sd of [-1, 1]) {
-      const ht = topLong(sd)(uu);
-      if (ht < 17) continue;
-      placed(m, -LX / 2 + uu, 0, sd * (LZ / 2 - t), 0, 0, 0, () => {
-        m.push(new THREE.Matrix4().makeTranslation(sd > 0 ? 0 : 0, 0, 0));
-        archBand(m, rnd, sd > 0 ? { span: 2 * (LZ / 2 - t) * 0 + 24, spring: 13, t: 1.4, depth: 3, n: 5, a0: Math.PI * 0.6, a1: Math.PI } : { span: 24, spring: 13, t: 1.4, depth: 3, n: 5, a0: 0, a1: Math.PI * 0.4 });
-        m.pop();
+      if (topLong(sd)(uu) < 20) continue;
+      placed(m, -LX / 2 + uu, 0, 0, 0, Math.PI / 2, 0, () => {
+        archBand(m, rnd, sd > 0 ? { span: 24, spring: 13, t: 1.4, depth: 3, n: 5, a0: Math.PI * 0.62, a1: Math.PI } : { span: 24, spring: 13, t: 1.4, depth: 3, n: 5, a0: 0, a1: Math.PI * 0.38 });
       });
     }
   }
@@ -1497,7 +1509,7 @@ function fusRing(x: number, np: number, twin: boolean): V[] {
   return r;
 }
 
-interface PieceO { brkA: boolean; brkB: boolean; base: RGB; rust: number; burn: number; twin: boolean; cockpit?: boolean }
+interface PieceO { brkA: boolean; brkB: boolean; base: RGB; rust: number; burn: number; twin: boolean; cockpit?: boolean; crush?: number; buckle?: number; fires?: V[] }
 /** A length of fuselage x0..x1 (local x from 0), ragged and burnt at its broken ends, cockpit open if asked. */
 function fusePiece(m: Mesh, rnd: Rnd, x0: number, x1: number, o: PieceO) {
   const np = 16;
@@ -1513,6 +1525,10 @@ function fusePiece(m: Mesh, rnd: Rnd, x0: number, x1: number, o: PieceO) {
       const up = Math.sin((j / np) * 6.283);
       let k = 0;
       if (t > 0 && up > 0.2) { k = t * sstep(0.2, 0.5, up); y = lerp(y, 0.12, k * 0.85); z *= lerp(1, 0.8, k); }
+      // crushed, buckled skin: waves in the shell, the section squashed to an oval
+      const bk = (o.buckle ?? 0.05) * (vnoise(x * 1.1, j * 0.9, 3.1) - 0.5) * 2 + (o.buckle ?? 0.05) * 0.5 * Math.sin(x * 3.1 + j * 1.7);
+      y *= 1 + bk; z *= 1 + bk * 0.8;
+      if (o.crush) { const mid = Math.sin((i / nSt) * Math.PI); y *= 1 - o.crush * (0.4 + 0.6 * mid); z *= 1 + o.crush * 0.35 * mid; if (up > 0.5) y -= o.crush * 0.25 * mid; }
       const jag = (i === 0 && o.brkA) || (i === nSt && o.brkB);
       if (jag) { xx += (rnd() - 0.5) * 1.1; y *= 0.95 + rnd() * 0.05; z *= 0.95 + rnd() * 0.05; y += (rnd() - 0.5) * 0.12; }
       else if ((i === 1 && o.brkA) || (i === nSt - 1 && o.brkB)) { y += (rnd() - 0.5) * 0.06; z += (rnd() - 0.5) * 0.06; }
@@ -1525,8 +1541,11 @@ function fusePiece(m: Mesh, rnd: Rnd, x0: number, x1: number, o: PieceO) {
     const p = rings[i][j], x = p[0] + x0;
     const dA = o.brkA ? x - x0 : 99, dB = o.brkB ? x1 - x : 99;
     const sootT = o.burn * Math.max(Math.exp(-dA / 1.6), Math.exp(-dB / 1.6));
-    let c = skin(o.base, sootT, o.rust, p[0], p[1], p[2]);
-    c = mulC(c, Math.floor(x * 0.8) % 2 ? 0.97 : 1.03);
+    let st2 = sootT;
+    if (o.fires) for (const f of o.fires) st2 = Math.max(st2, 0.95 * Math.exp(-Math.hypot(p[0] - f[0], p[1] - f[1], p[2] - f[2]) / 1.7));
+    let c = skin(o.base, st2, o.rust, p[0], p[1], p[2]);
+    // panel lines: a thin darker band at every third frame
+    if (i % 3 === 0) c = mulC(c, 0.9);
     return tint[i][j] > 0 ? mixC(c, DARKI, clamp(tint[i][j] * 1.3)) : c;
   };
   loft(m, rings, cf, { kind: KIND_METAL });
@@ -1581,24 +1600,23 @@ function nozzle(m: Mesh, rnd: Rnd, z: number, r: number, burn: number) {
   dish(m, inner, [0.0, 0, z], DARKI);
 }
 
-function jetPanel(m: Mesh, rnd: Rnd, x: number, z: number, s: number, base: RGB, burn: number, rust: number) {
+function jetPanel(m: Mesh, rnd: Rnd, x: number, z: number, s: number, base: RGB, burn: number, rust: number, asp = 1.3) {
   const n = 5 + Math.floor(rnd() * 3);
-  const bend = rr(rnd, -0.25, 0.25), bendAx = rnd() * 6.28;
+  const bend = rr(rnd, -0.35, 0.35), bendAx = rnd() * 6.28;
   const pts: V[] = [];
   const ang0 = rnd() * 6.28;
   for (let j = 0; j < n; j++) {
-    const a = ang0 + (j / n) * 6.283 + (rnd() - 0.5) * 0.5, r = s * rr(rnd, 0.45, 1) * (j % 2 ? 0.8 : 1);
-    const px = Math.cos(a) * r * 1.3, pz = Math.sin(a) * r;
-    pts.push([px, bend * (px * Math.cos(bendAx) + pz * Math.sin(bendAx)) * 0.5 + (rnd() - 0.5) * 0.04, pz]);
+    const a = ang0 + (j / n) * 6.283 + (rnd() - 0.5) * 0.5, r = s * rr(rnd, 0.4, 1) * (j % 2 ? 0.75 : 1);
+    const px = Math.cos(a) * r * asp, pz = Math.sin(a) * r;
+    pts.push([px, bend * (px * Math.cos(bendAx) + pz * Math.sin(bendAx)) * 0.5 + (rnd() - 0.5) * 0.05, pz]);
   }
-  const big = rnd() < 0.5;
+  const alt = rnd() < 0.3 ? BARE : base;
   const pc = (p: V, edge: boolean): RGB => {
-    const k = edge ? rnd() * burn : 0;
-    let c = skin(big ? base : rnd() < 0.3 ? BARE : base, k, rust, p[0] + x, p[1], p[2] + z);
-    if (edge && rnd() < 0.4) c = mulC(c, 0.55);
+    let c = skin(alt, edge ? burn * rnd() : burn * 0.3, rust, p[0] + x, p[1], p[2] + z);
+    if (edge && rnd() < 0.4) c = mulC(c, 0.6);
     return c;
   };
-  placed(m, x, rr(rnd, 0.0, 0.25), z, rr(rnd, -0.4, 0.4), rnd() * 6.28, rr(rnd, -0.4, 0.4), () => {
+  placed(m, x, rr(rnd, -0.05, 0.22), z, rr(rnd, -0.45, 0.45), rnd() * 6.28, rr(rnd, -0.45, 0.45), () => {
     const c: V = [0, 0, 0];
     const cc = pc(c, false), pcs = pts.map((p) => pc(p, true));
     for (let j = 0; j < n; j++) m.tri(c, pts[j], pts[(j + 1) % n], [cc, pcs[j], pcs[(j + 1) % n]], KIND_METAL);
@@ -1641,6 +1659,11 @@ function paramSheet(m: Mesh, nu: number, nv: number, P: (u: number, v: number) =
   }
 }
 
+interface Pose { x: number; y: number; z: number; rx: number; ry: number; rz: number }
+const poseM = (P: Pose) => new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(P.rx, P.ry, P.rz, 'YXZ')).setPosition(P.x, P.y, P.z);
+const poseAt = (P: Pose, l: V): V => { const v = new THREE.Vector3(l[0], l[1], l[2]).applyMatrix4(poseM(P)); return [v.x, v.y, v.z]; };
+const placeP = (m: Mesh, P: Pose, fn: () => void) => placed(m, P.x, P.y, P.z, P.rx, P.ry, P.rz, fn);
+
 /** A crash site: a jet broken up along a debris trail, merged and vertex-coloured, y = 0 the sand. */
 export function buildCrashedJet(rnd: Rnd): THREE.BufferGeometry {
   const m = new Mesh();
@@ -1651,135 +1674,166 @@ export function buildCrashedJet(rnd: Rnd): THREE.BufferGeometry {
   const burn = 0.3 + 0.6 * rnd() * (1 - age * 0.4);
   const rust = clamp(age * 1.1 - 0.15);
   const base = mixC(PAINT, SAND, age * 0.16);
-  m.dust = 0.25 + 0.55 * age;
+  const bleached = mixC(mixC(base, BARE, 0.35), SAND, 0.2);
+  m.dust = 0.3 + 0.55 * age;
   const zc = (x: number) => 1.8 * Math.sin(x * 0.05 + phase) + 0.6 * Math.sin(x * 0.13 + phase * 2);
-  const po: PieceO = { brkA: true, brkB: true, base, rust, burn, twin };
+  const po: PieceO = { brkA: true, brkB: true, base, rust, burn, twin, buckle: 0.06 };
   const noseOn = rnd() < 0.5;
+  const fires: number[][] = [];
+  const addFire = (P: Pose, l: V, heat: number) => { const w = poseAt(P, l); fires.push([+w[0].toFixed(2), +clamp(w[1], 0.3, 3).toFixed(2), +w[2].toFixed(2), heat]); };
+  const hugs = (P: Pose, len: number, h: number) => {
+    const c = poseAt(P, [len * 0.5, 0, 0]);
+    drift(m, { x: c[0], z: c[2], a: len * 0.32, b: 1.9, h, rot: P.ry });
+    const f = poseAt(P, [len + 0.6, 0, 0]);
+    drift(m, { x: f[0], z: f[2], a: 2.6, b: 2.8, h: h * 1.3 });
+  };
 
   // ---- forward fuselage with the cockpit, nosed into the sand
   const fx = 22 + rr(rnd, -3, 3);
-  placed(m, fx, 2.3 - age * 0.3, zc(fx) + 0.3, 0.6 * sg + rr(rnd, -0.2, 0.2), 0.12 + rr(rnd, -0.2, 0.2), -rr(rnd, 0.28, 0.4), () => {
-    fusePiece(m, rnd, 11.2, noseOn ? 17.3 : 15.4, { ...po, brkA: true, brkB: !noseOn, cockpit: true });
+  const PF: Pose = { x: fx, y: 1.1 - age * 0.2, z: zc(fx) + 0.3, rx: 0.6 * sg + rr(rnd, -0.2, 0.2), ry: 0.12 + rr(rnd, -0.2, 0.2), rz: -rr(rnd, 0.3, 0.4) };
+  const fireF: V = [0.7, -0.35, 0];
+  placeP(m, PF, () => {
+    fusePiece(m, rnd, 11.2, noseOn ? 17.3 : 15.4, { ...po, brkA: true, brkB: !noseOn, cockpit: true, fires: [fireF] });
     const x0 = 11.2;
-    // canopy bows (one snapped), seat and coaming
     const bow = (bx: number, frac: number) => {
       const pts: V[] = [];
       for (let k = 0; k <= 8; k++) {
         const a = Math.PI * (0.5 - frac * 0.5) + (k / 8) * Math.PI * frac, w = fusAt(bx)[1] * 0.78;
         pts.push([bx - x0 + (rnd() - 0.5) * 0.05, 0.12 + Math.sin(a) * 0.7 + (k > 5 ? -0.1 * (k - 5) : 0), Math.cos(a) * w]);
       }
-      tube(m, pts, 0.035, mulC(base, 0.6), 4);
+      tube(m, pts, 0.04, mulC(base, 0.6), 4);
     };
     bow(12.4, rnd() < 0.5 ? 1 : 0.55);
     bow(13.5, rnd() < 0.6 ? 0.45 : 0.9);
+    bow(14.1, 0.7);
+    for (const sd of [-1, 1]) {
+      const w = (x: number) => fusAt(x)[1] * 0.78 * sd;
+      tube(m, [[11.9 - x0, 0.3, w(11.9)], [12.9 - x0, 0.3, w(12.9)], [13.9 - x0, 0.28, w(13.9) * 0.95], [14.3 - x0, 0.25, w(14.3) * 0.8]], 0.035, mulC(base, 0.55), 4);
+    }
     mblock(m, 12.0 - x0, 0.15, 0, 0.8, 0.7, 0.45, srgb(0.06, 0.06, 0.065), rnd, 0.04);
     mblock(m, 12.0 - x0, 0.6, 0, 0.3, 0.45, 0.35, srgb(0.1, 0.1, 0.11), rnd, 0.04);
     mblock(m, 14.3 - x0, 0.33, 0, 0.6, 0.2, 1.1, srgb(0.08, 0.08, 0.09), rnd, 0.03);
   });
+  addFire(PF, fireF, 0.55);
+  hugs(PF, 6, 0.9);
+  const wreck: [number, number][] = [[fx + 2, PF.z]];
   if (!noseOn) {
-    // the radome lies ahead, cracked
-    const nx = fx + 8.5;
-    placed(m, nx, 0.5, zc(nx) + 3.5 * sg, rr(rnd, -0.5, 0.5), rr(rnd, 0, 6), rr(rnd, -0.3, 0.3), () => {
-      fusePiece(m, rnd, 15.3, 17.3, { ...po, brkA: true, brkB: false });
-    });
+    const PN: Pose = { x: fx + 8.5, y: 0.3, z: zc(fx) + 3.5 * sg, rx: rr(rnd, -0.5, 0.5), ry: rr(rnd, 0, 6), rz: rr(rnd, -0.3, 0.3) };
+    placeP(m, PN, () => fusePiece(m, rnd, 15.3, 17.3, { ...po, brkA: true, brkB: false }));
   }
 
-  // ---- centre section: intakes and a wing root, one stub of wing left on it
+  // ---- centre section: crushed oval shell, open intakes, a wing root with a stub of wing left on it
   const cx = 6 + rr(rnd, -2, 2);
-  placed(m, cx, 0.9 - age * 0.3, zc(cx) - 0.4 * sg, -0.5 * sg + rr(rnd, -0.2, 0.2), -0.3 + rr(rnd, -0.2, 0.2), rr(rnd, -0.12, 0.08), () => {
-    fusePiece(m, rnd, 5.4, 11.2, po);
+  const PC: Pose = { x: cx, y: 0.15 - age * 0.1, z: zc(cx) - 0.4 * sg, rx: -0.4 * sg + rr(rnd, -0.15, 0.15), ry: -0.3 + rr(rnd, -0.2, 0.2), rz: rr(rnd, -0.1, 0.06) };
+  const hwx = fusAt(9)[1] * (twin ? 1.1 : 1);
+  const fireC: V = [3.2, 0.12, sg * (hwx * 0.55 + 0.9)];
+  placeP(m, PC, () => {
+    fusePiece(m, rnd, 5.4, 11.2, { ...po, crush: 0.12, buckle: 0.07, fires: [fireC] });
     const x0 = 5.4;
     for (const s of [-1, 1]) {
-      const hwx = fusAt(9)[1] * (twin ? 1 : 1);
-      const dz = s * (hwx * 0.78);
-      const rect = (x: number, k: number, extra = 0): V[] => {
+      const dz = s * (hwx * 0.8);
+      const rect = (x: number, k: number): V[] => {
         const pts: [number, number][] = [[1, 0.6], [1, -0.6], [0.55, -1], [-0.55, -1], [-1, -0.6], [-1, 0.6], [-0.55, 1], [0.55, 1]];
-        return pts.map(([a, b]): V => [x - x0, -0.05 + b * 0.52 * k + extra, dz + a * 0.42 * k]);
+        return pts.map(([a, b]): V => [x - x0, -0.05 + b * 0.52 * k, dz + a * 0.42 * k]);
       };
-      const ductRings = [rect(8.2, 0.3), rect(9, 0.85), rect(10.5, 1.0)];
-      loft(m, ductRings, (_i, j) => skin(base, burn * 0.25, rust, 0, j, s), { kind: KIND_METAL });
-      const inner = rect(10.45, 0.86);
-      loft(m, [ductRings[2], inner], mulC(base, 0.5), { kind: KIND_METAL });
-      dish(m, inner, [9.6 - x0, -0.05, dz], DARKI);
-      // wing root stub, torn off 1.2 m out
+      const lip = rect(10.5, 1.0);
+      const duct = [rect(8.2, 0.3), rect(9, 0.85), lip];
+      loft(m, duct, (_i, j) => skin(base, burn * 0.25, rust, 0, j, s), { kind: KIND_METAL });
+      // the open intake: a bright lip, then a throat getting darker and darker
+      const throat = [rect(10.5, 1.0), rect(10.2, 0.92), rect(9.6, 0.78), rect(8.9, 0.55)];
+      const tc = [mulC(base, 0.9), srgb(0.2, 0.2, 0.21), srgb(0.09, 0.09, 0.1), srgb(0.04, 0.04, 0.045)];
+      loft(m, throat, (i) => tc[i], { kind: KIND_RAW });
+      dish(m, throat[3], [8.4 - x0, -0.05, dz], DARKI);
       if (s === sg || rnd() < 0.5) {
-        placed(m, 8.6 - x0, -0.15, s * (hwx * 0.9), 0, 0, 0, () => {
+        placed(m, 8.6 - x0, -0.15, s * (hwx * 0.55), 0, 0, 0, () => {
           m.push(new THREE.Matrix4().makeScale(1, 1, s));
-          wing(m, rnd, { rootC: 5.4, tipC: 4.9, span: rr(rnd, 0.9, 1.8), sweep: 0.5, t0: 0.28, base, rust, sootRoot: 0, sootTip: 0.9, tornRoot: false });
+          wing(m, rnd, { rootC: 5.4, tipC: 4.9, span: rr(rnd, 1.4, 2.4), sweep: 0.5, t0: 0.3, base, rust, sootRoot: 0, sootTip: 0.9, tornRoot: false });
           m.pop();
         });
       }
     }
   });
+  addFire(PC, fireC, 1.0);
+  hugs(PC, 5.8, 0.8 + age * 0.4);
+  wreck.push([cx + 3, PC.z]);
 
   // ---- rear fuselage: fin(s), stabilisers and the engine nozzle(s)
   const rx = -7 + rr(rnd, -3, 3);
-  placed(m, rx, 0.7, zc(rx) + 2.2 * sg, 1.25 * sg + rr(rnd, -0.25, 0.25), 0.5 * sg + rr(rnd, -0.3, 0.3), rr(rnd, -0.1, 0.1), () => {
-    fusePiece(m, rnd, 0, 5.4, { ...po, brkA: false, brkB: true });
+  const PR: Pose = { x: rx, y: 0.2, z: zc(rx) + 2.2 * sg, rx: 1.25 * sg + rr(rnd, -0.25, 0.25), ry: 0.5 * sg + rr(rnd, -0.3, 0.3), rz: rr(rnd, -0.1, 0.1) };
+  const fireR: V = [-0.2, 0.55, twin ? 0.6 : 0];
+  placeP(m, PR, () => {
+    fusePiece(m, rnd, 0, 5.4, { ...po, brkA: false, brkB: true, fires: [[-0.3, 0.2, twin ? 0.6 : 0]] });
     if (twin) { nozzle(m, rnd, -0.6, 0.48, burn); nozzle(m, rnd, 0.6, 0.48, burn); } else nozzle(m, rnd, 0, 0.58, burn);
     const finO: WingO = { rootC: 3.7, tipC: 1.3, span: 2.7, sweep: 2.0, t0: 0.15, base, rust, sootRoot: 0, sootTip: 0 };
-    const fins = twin ? [-1, 1] : [0];
-    for (const f of fins) {
-      const cant = f * 0.28;
+    for (const f of twin ? [-1, 1] : [0]) {
       const short = rnd() < broke * 0.7;
-      placed(m, 3.0, fusAt(2.5)[2] * 0.8, f * 0.62, -Math.PI / 2 + cant, 0, 0, () => {
+      placed(m, 3.0, 0.5, f * 0.62, -Math.PI / 2 + f * 0.28, 0, 0, () => {
         wing(m, rnd, { ...finO, span: short ? rr(rnd, 1.0, 1.8) : finO.span, sootTip: short ? 0.8 : 0 });
       });
     }
     for (const s of [-1, 1]) {
       if (rnd() < 0.2) continue;
-      placed(m, 1.4, -0.05, s * (fusAt(1.4)[1] * (twin ? 1.1 : 1) * 0.9), 0, 0, 0, () => {
+      placed(m, 1.4, -0.05, s * (fusAt(1.4)[1] * (twin ? 1.1 : 1) * 0.6), 0, 0, 0, () => {
         m.push(new THREE.Matrix4().makeScale(1, 1, s));
         const lost = rnd() < broke * 0.6;
-        wing(m, rnd, { rootC: 2.8, tipC: 1.1, span: lost ? rr(rnd, 0.6, 1.0) : 2.1, sweep: 1.6, t0: 0.09, base, rust, sootRoot: 0, sootTip: lost ? 0.8 : 0.1 });
+        wing(m, rnd, { rootC: 2.8, tipC: 1.1, span: lost ? rr(rnd, 1.2, 1.7) : 2.6, sweep: 1.6, t0: 0.09, base, rust, sootRoot: 0, sootTip: lost ? 0.8 : 0.1 });
         m.pop();
       });
     }
   });
+  addFire(PR, fireR, 0.8);
+  hugs(PR, 5.4, 0.7);
+  wreck.push([rx + 2, PR.z]);
 
   // ---- the wing that tore off, upside down further back
   const wx = -17 + rr(rnd, -4, 4);
-  placed(m, wx, 0.15 - age * 0.15, zc(wx) - 7.5 * sg, 2.65 * sg + rr(rnd, -0.2, 0.2), 0.4 + rr(rnd, -0.4, 0.4), 0.1, () => {
+  const PW: Pose = { x: wx, y: -0.1 - age * 0.15, z: zc(wx) - 7.5 * sg, rx: 2.65 * sg + rr(rnd, -0.2, 0.2), ry: 0.4 + rr(rnd, -0.4, 0.4), rz: 0.1 };
+  placeP(m, PW, () => {
     m.push(new THREE.Matrix4().makeScale(1, 1, -sg));
     wing(m, rnd, { rootC: 5.6, tipC: 1.7, span: 5.0, sweep: 3.6, t0: 0.3, base, rust, sootRoot: 1, sootTip: 0.12, tornRoot: true });
-    // a pylon and a hanging store
     mblock(m, 0.8, -0.35, 2.4, 1.2, 0.5, 0.15, mulC(base, 0.7), rnd);
     m.pop();
   });
+  if (rnd() < 0.5) addFire(PW, [-0.6, 0.45, -sg * 0.7], 0.3);
+  hugs({ ...PW, rx: 0 }, 4.2, 0.5 + age * 0.5);
+  wreck.push([wx, PW.z]);
 
-  // ---- scattered panels, equipment and wreckage along the trail
-  const nP = 22 + Math.floor(26 * broke);
+  // ---- debris along the trail: sun-bleached, sand-dusted, burnt dark near the wrecks
+  const burnAt = (x: number, z: number) => burn * wreck.reduce((a, [wx2, wz]) => Math.max(a, Math.exp(-((x - wx2) ** 2 + (z - wz) ** 2) / 70)), 0);
+  const nP = 14 + Math.floor(18 * broke);
   for (let i = 0; i < nP; i++) {
-    const x = rr(rnd, -35, 20) + (rnd() < 0.2 ? rr(rnd, 0, 12) : 0);
-    jetPanel(m, rnd, x, zc(x) + rr(rnd, -7, 7), rnd() < 0.15 ? rr(rnd, 1.3, 2.2) : rr(rnd, 0.35, 1.1), base, burn, rust);
+    const x = rr(rnd, -35, 24);
+    const lat = rnd() < 0.8 ? rr(rnd, -4, 4) : rr(rnd, -8, 8);
+    const z = zc(x) + lat;
+    const v = rnd();
+    if (v < 0.22) jetPanel(m, rnd, x, z, rr(rnd, 0.35, 0.8), bleached, burnAt(x, z), rust, 3.4);
+    else if (v < 0.3) placed(m, x, 0.1, z, rr(rnd, -0.5, 0.5), rnd() * 6, rr(rnd, -0.5, 0.5), () => mblock(m, 0, 0, 0, rr(rnd, 0.3, 0.9), rr(rnd, 0.2, 0.5), rr(rnd, 0.3, 0.8), pick(rnd, [srgb(0.12, 0.12, 0.13), mulC(bleached, 0.6), srgb(0.3, 0.28, 0.2)]), rnd, 0.1));
+    else jetPanel(m, rnd, x, z, rnd() < 0.12 ? rr(rnd, 1.3, 2.1) : rr(rnd, 0.3, 1.0), bleached, burnAt(x, z), rust);
   }
-  for (let i = 0; i < 5; i++) {
-    const x = rr(rnd, -30, 18);
-    placed(m, x, 0.1, zc(x) + rr(rnd, -6, 6), rr(rnd, -0.5, 0.5), rnd() * 6, rr(rnd, -0.5, 0.5), () => mblock(m, 0, 0, 0, rr(rnd, 0.3, 0.8), rr(rnd, 0.2, 0.5), rr(rnd, 0.3, 0.7), pick(rnd, [srgb(0.12, 0.12, 0.13), mulC(base, 0.6), srgb(0.3, 0.28, 0.2)]), rnd, 0.06));
-  }
-  for (let i = 0; i < 4; i++) {
-    const x = rr(rnd, -30, 12), z = zc(x) + rr(rnd, -5, 5), dir = rnd() * 6.28;
+  // two real cables lying on the surface
+  for (let i = 0; i < 2; i++) {
+    const x = rr(rnd, -26, 6), dir = rnd() * 6.28, z0 = zc(x) + rr(rnd, -3, 3);
     const pts: V[] = [];
-    for (let k = 0; k < 7; k++) pts.push([x + Math.cos(dir) * k * 0.7 + Math.sin(k * 1.7) * 0.25, 0.06 + (k % 3 === 1 ? 0.07 : 0), z + Math.sin(dir) * k * 0.7 + Math.cos(k * 1.3) * 0.25]);
-    tube(m, pts, 0.03, srgb(0.05, 0.05, 0.05), 4);
+    for (let k = 0; k < 8; k++) pts.push([x + Math.cos(dir) * k * 0.8 + Math.sin(k * 1.4) * 0.3, 0.07 + 0.05 * Math.sin(k * 1.1), z0 + Math.sin(dir) * k * 0.8 + Math.cos(k * 1.2) * 0.3]);
+    tube(m, pts, 0.055, srgb(0.1, 0.095, 0.09), 6);
   }
-  // landing gear leg with its wheel
+  // landing gear leg with its wheels
   {
     const gx = rr(rnd, -26, -12), gz = zc(gx) + rr(rnd, 3, 7) * -sg;
     placed(m, gx, 0.35, gz, rr(rnd, -0.3, 0.3), rnd() * 6, rr(rnd, 0.8, 1.3), () => {
-      tube(m, [[0, 0, 0], [0.05, 0.9, 0.0], [0.1, 1.7, 0.08]], 0.07, mulC(base, 0.8), 5);
-      tube(m, [[0.05, 0.5, 0], [0.6, 1.2, 0.2]], 0.035, mulC(base, 0.7), 4);
+      tube(m, [[0, 0, 0], [0.05, 0.9, 0.0], [0.1, 1.7, 0.08]], 0.08, mulC(bleached, 0.8), 5);
+      tube(m, [[0.05, 0.5, 0], [0.6, 1.2, 0.2]], 0.045, mulC(bleached, 0.7), 5);
       wheel(m, 0, -0.1, 0.18, 0.38, 0.14);
       wheel(m, 0, -0.1, -0.18, 0.38, 0.14);
     });
+    drift(m, { x: gx, z: gz, a: 1.4, b: 1.4, h: 0.4 });
   }
-  // a drop tank
   if (rnd() < 0.6) {
     const tx = rr(rnd, -24, -2), tz = zc(tx) + rr(rnd, 4, 8) * sg;
-    placed(m, tx, 0.2, tz, rr(rnd, -0.3, 0.3), rnd() * 6, rr(rnd, -0.2, 0.2), () => {
+    placed(m, tx, 0.15, tz, rr(rnd, -0.3, 0.3), rnd() * 6, rr(rnd, -0.2, 0.2), () => {
       const prof: [number, number][] = [[-1.8, 0], [-1.4, 0.22], [-0.8, 0.33], [0.8, 0.33], [1.4, 0.22], [1.8, 0]];
       const rings = prof.map(([x, r]) => Array.from({ length: 10 }, (_, j) => [x, Math.sin((j / 10) * 6.283) * Math.max(0.01, r), Math.cos((j / 10) * 6.283) * Math.max(0.01, r)] as V));
-      loft(m, rings, (i, j) => skin(mixC(base, BARE, 0.3), i === 0 ? burn * 0.5 : 0.05, rust, i, j, 0), { kind: KIND_METAL });
+      loft(m, rings, (i, j) => skin(mixC(bleached, BARE, 0.2), i === 0 ? burn * 0.5 : 0.05, rust, i, j, 0), { kind: KIND_METAL });
     });
   }
 
@@ -1792,16 +1846,14 @@ export function buildCrashedJet(rnd: Rnd): THREE.BufferGeometry {
       const env = sstep(0, 8, sx - s0) * (1 - sstep(0, 6, sx - (s1 - 6)));
       const hs = amp * (0.35 + 0.9 * vnoise(sx * 0.3, off, phase)) * env;
       const f = 1 - lat * lat;
-      return [sx, hs * f * f - 0.04, zc(sx) + off + lat * 1.6];
+      return [sx, hs * f * f - 0.02, zc(sx) + off + lat * 1.6];
     });
   }
-  drift(m, { x: -34, z: zc(-34), a: 3.2, b: 4, h: 0.7 });
+  drift(m, { x: -34, z: zc(-34), a: 3.2, b: 4, h: 0.7, lee: true });
   drift(m, { x: fx + 6.5, z: zc(fx + 6) + 0.5, a: 4.5, b: 4.5, h: 1.4 });
-  drift(m, { x: fx - 3, z: zc(fx) + 3 * sg, a: 4.5, b: 3.2, h: 0.9 });
-  drift(m, { x: cx - 1, z: zc(cx) - 3 * sg, a: 4.5, b: 3.2, h: 0.8 + age * 0.8 });
-  drift(m, { x: rx - 2.5, z: zc(rx) + 2.2 * sg, a: 3.5, b: 3.2, h: 0.8 + age * 0.8 });
-  drift(m, { x: wx - 1, z: zc(wx) - 7.5 * sg, a: 3.5, b: 3.5, h: 0.5 + age * 0.9 });
-  return m.geometry();
+  const geo = m.geometry();
+  geo.userData.fires = fires;
+  return geo;
 }
 
 /** Footprint radius of a crash site (m). */
