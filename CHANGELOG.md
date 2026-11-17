@@ -4,6 +4,13 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu the space updates.
 
+## v7.15.9 (2026-11-17)
+
+### Air Combat: No freeze when the flight begins
+
+- **Fixed: No freeze when the flight begins**
+  - The moment your jet appeared, the game could still freeze for a few seconds while the first frames finished their work. The loading screen now stays up at least 4 seconds longer while the flight is drawn behind it with your jet held still, and only lifts once it runs smoothly. On the Dune Sea, the ruins, cities and wrecks are all built during loading instead of in the first seconds of the flight.
+
 ## v7.15.8 (2026-11-17)
 
 ### Air Combat: No freeze when you start a flight

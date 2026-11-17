@@ -75,7 +75,8 @@ import { SpotterUi } from '../ui/spotterUi';
 const _rel = new THREE.Vector3();
 const _camInv = new THREE.Quaternion();
 
-export type GameState = 'menu' | 'loading' | 'playing' | 'paused' | 'map' | 'results' | 'replay' | 'briefing';
+/** settling: the flight drawn behind the loading screen, held, until its frames run smoothly */
+export type GameState = 'menu' | 'loading' | 'settling' | 'playing' | 'paused' | 'map' | 'results' | 'replay' | 'briefing';
 
 const GUN_WEAPONS = new Set(['M61', 'BK-27', 'GSh-30', '30M791', 'GUN']);
 const CLOUD_DENSITY: Record<string, number> = { low: 0.5, medium: 0.75, high: 1, ultra: 1.35 };
@@ -388,6 +389,10 @@ export class Game implements ModeHost {
     this.aimDir.copy(p.fm.fwd);
     this.cam.update(0.016, p, this.eyeWorld());
     await this.world.prewarm(p.fm.pos.clone(), this.renderer.camera, 12000);
+    // the Dune Sea's ruins, cities and wrecks: every model built now (after LAUNCH they were built one a
+    // frame, ~170 of them, and the first seconds of the flight stuttered)
+    onProgress(0.9, 'RAISING THE RUINS');
+    await this.world.desertProps?.buildGently(p.fm.pos, breathe);
     // build the 3D cockpit now so the first switch to it doesn't hitch
     const pv = this.combat.aircraftVis.get(p);
     const pit = pv?.getCockpit();
@@ -428,10 +433,35 @@ export class Game implements ModeHost {
       // (only ever a head start: the flight goes on without it)
       console.warn('warm-up', e);
     }
+    // the flight drawn for real behind the loading screen, the jet held, until the frames run smoothly
+    // (at least 4 s): whatever the first frames still have to do (the driver finishing its work, the
+    // terrain and trees streaming in round the jet) happens out of sight instead of as a freeze
+    onProgress(0.99, 'FINAL CHECKS');
+    await this.settle();
     onProgress(1, 'READY');
     this.goLive();
     this.lastT = performance.now();
     this.accumulator = 0;
+  }
+
+  /** Hold the flight behind the loading screen for at least `minMs`, until 30 frames in a row are smooth (at most `maxMs`). */
+  private async settle(minMs = 4000, maxMs = 15000): Promise<void> {
+    this.setState('settling');
+    const t0 = performance.now();
+    let last = t0, smooth = 0;
+    while (true) {
+      await new Promise<void>((r) => {
+        const t = setTimeout(r, 100);
+        requestAnimationFrame(() => {
+          clearTimeout(t);
+          r();
+        });
+      });
+      const now = performance.now();
+      smooth = now - last < 40 ? smooth + 1 : 0;
+      last = now;
+      if ((now - t0 >= minMs && smooth >= 30) || now - t0 >= maxMs) break;
+    }
   }
 
   private makeOnline(net: NetLink): OnlineMode {

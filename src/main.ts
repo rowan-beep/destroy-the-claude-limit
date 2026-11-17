@@ -370,7 +370,7 @@ async function boot(): Promise<void> {
     showMenus(s === 'menu');
     briefing.show(s === 'briefing' ? game.briefing : null);
     // (the airshow has its own screen: no flight HUD)
-    hud.setVisible((s === 'playing' || s === 'paused' || s === 'results' || s === 'map' || s === 'briefing') && !(game.config.mode === 'spotter' && game.mode));
+    hud.setVisible((s === 'playing' || s === 'settling' || s === 'paused' || s === 'results' || s === 'map' || s === 'briefing') && !(game.config.mode === 'spotter' && game.mode));
     game.spotterUi?.show(s === 'playing');
     pause.show(s === 'paused', !game.online);
     weather.show(s === 'playing' || s === 'paused');

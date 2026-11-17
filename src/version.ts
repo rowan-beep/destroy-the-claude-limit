@@ -41,6 +41,16 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.15.9',
+    date: '2026-11-17',
+    air: {
+      title: 'No freeze when the flight begins',
+      notes: [
+        fixed('No freeze when the flight begins', 'The moment your jet appeared, the game could still freeze for a few seconds while the first frames finished their work. The loading screen now stays up at least 4 seconds longer while the flight is drawn behind it with your jet held still, and only lifts once it runs smoothly. On the Dune Sea, the ruins, cities and wrecks are all built during loading instead of in the first seconds of the flight.'),
+      ],
+    },
+  },
+  {
     version: '7.15.8',
     date: '2026-11-17',
     air: {

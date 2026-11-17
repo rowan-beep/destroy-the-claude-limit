@@ -753,6 +753,20 @@ export class DesertProps {
     }
   }
 
+  /** Build every model before the flight, ~30 ms of building at a time with a frame in between. */
+  async buildGently(cam: THREE.Vector3, breathe: () => Promise<void>): Promise<void> {
+    let t = performance.now();
+    for (const c of this.copies) {
+      if (c.mesh) continue;
+      c.make();
+      c.update(cam);
+      if (performance.now() - t > 30) {
+        await breathe();
+        t = performance.now();
+      }
+    }
+  }
+
   /** Build every model now (the test pages, which take one picture straight away). */
   buildAll(cam: THREE.Vector3): void {
     for (const c of this.copies) {
