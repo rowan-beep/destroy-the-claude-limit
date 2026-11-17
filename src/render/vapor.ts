@@ -9,7 +9,8 @@
 //    own geometry) and ray-marched in the shader through a small 3-D noise;
 //  - vortex ropes (vaporRopes.ts): thin threads spun off the tips, strakes and
 //    tailplane tips that stay in the air behind the jet;
-//  - the transonic cone: near Mach 1 in damp low air a bell of cloud around the fuselage.
+//  - the sound barrier (shockCloud.ts): near Mach 1 a true 3-D cone of condensing cloud round the
+//    fuselage that slides aft as the jet speeds up.
 
 import * as THREE from 'three';
 import type { Aircraft } from '../aircraft/aircraft';
@@ -17,6 +18,7 @@ import type { AirframeVisual } from '../aircraft/models/visual';
 import { vaporNoiseTexture, vaporNoiseReady, startVaporNoise } from './vaporNoise';
 import { VortexRopes, type Rope, type RopeStyle } from './vaporRopes';
 import { newVaporLight, type VaporLight } from './vaporLight';
+import { ShockCloud, shockSamples } from './shockCloud';
 
 // ============================================================================
 // the lifting-surface volume
@@ -538,70 +540,6 @@ interface HullPart {
 }
 
 // ============================================================================
-// the transonic cone
-// ============================================================================
-
-const CONE_VERT = /* glsl */ `
-varying vec2 vUv;
-varying vec3 vN;
-varying vec3 vV;
-#include <common>
-#include <logdepthbuf_pars_vertex>
-void main() {
-  vUv = uv;
-  vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
-  vV = -mvPosition.xyz;
-  vN = normalize( normalMatrix * normal );
-  gl_Position = projectionMatrix * mvPosition;
-  #include <logdepthbuf_vertex>
-}
-`;
-
-const NOISE = /* glsl */ `
-float hash3( vec3 p ) { return fract( sin( dot( p, vec3( 127.1, 311.7, 74.7 ) ) ) * 43758.5453 ); }
-float vnoise( vec3 p ) {
-  vec3 i = floor( p ); vec3 f = fract( p );
-  f = f * f * ( 3.0 - 2.0 * f );
-  return mix( mix( mix( hash3( i ), hash3( i + vec3( 1, 0, 0 ) ), f.x ), mix( hash3( i + vec3( 0, 1, 0 ) ), hash3( i + vec3( 1, 1, 0 ) ), f.x ), f.y ),
-              mix( mix( hash3( i + vec3( 0, 0, 1 ) ), hash3( i + vec3( 1, 0, 1 ) ), f.x ), mix( hash3( i + vec3( 0, 1, 1 ) ), hash3( i + vec3( 1, 1, 1 ) ), f.x ), f.y ), f.z );
-}
-float fbm( vec3 p ) { return 0.5 * vnoise( p ) + 0.3 * vnoise( p * 2.07 ) + 0.2 * vnoise( p * 4.3 ); }
-`;
-
-// the cone: uv.x round the body, uv.y from the shock (0) to the frayed back (1)
-const CONE_FRAG = /* glsl */ `
-uniform float intensity;
-uniform float time;
-uniform vec3 cLit;
-uniform vec3 cShade;
-uniform vec3 sunView;
-varying vec2 vUv;
-varying vec3 vN;
-varying vec3 vV;
-#include <common>
-#include <logdepthbuf_pars_fragment>
-${NOISE}
-void main() {
-  #include <logdepthbuf_fragment>
-  float ang = vUv.x * 6.2831853;
-  vec2 cs = vec2( cos( ang ), sin( ang ) );
-  float v = vUv.y;
-  float streak = fbm( vec3( cs * 9.0, v * 2.2 - time * 9.0 ) );
-  float boil = fbm( vec3( cs * 2.2, v * 1.3 - time * 2.5 ) );
-  float front = smoothstep( 0.0, 0.05 + 0.04 * boil, v );
-  float back = 1.0 - smoothstep( 0.18, 0.9, v + ( streak - 0.5 ) * 0.6 );
-  vec3 n = normalize( vN );
-  vec3 e = normalize( vV );
-  float rim = pow( 1.0 - abs( dot( n, e ) ), 1.2 );
-  float clump = smoothstep( 0.3, 0.75, fbm( vec3( cs * 4.0, v * 3.5 - time * 5.0 ) ) );
-  float a = intensity * front * back * ( 0.4 + 0.22 * rim ) * ( 0.35 + 0.75 * streak ) * ( 0.45 + 0.8 * clump );
-  float lit = 0.55 + 0.45 * max( 0.0, dot( n, sunView ) * sign( dot( n, e ) ) + 0.3 );
-  vec3 col = mix( cShade, cLit, clamp( lit, 0.0, 1.0 ) );
-  gl_FragColor = vec4( col, clamp( a, 0.0, 0.8 ) );
-}
-`;
-
-// ============================================================================
 // the effect on one jet
 // ============================================================================
 
@@ -662,28 +600,9 @@ function makeHullMaterial(T0: number, seed: number, steps: number): THREE.Shader
   return mat;
 }
 
-/** the transonic cone's material */
-function makeConeMaterial(): THREE.ShaderMaterial {
-  return new THREE.ShaderMaterial({
-    vertexShader: CONE_VERT,
-    fragmentShader: CONE_FRAG,
-    uniforms: {
-      intensity: { value: 0 },
-      time: { value: 0 },
-      cLit: { value: new THREE.Color(0xf4f7fb) },
-      cShade: { value: new THREE.Color(0xaab4c2) },
-      sunView: { value: new THREE.Vector3(0, 1, 0) },
-    },
-    transparent: true,
-    depthWrite: false,
-    side: THREE.DoubleSide,
-  });
-}
-
 /**
- * Tiny stand-ins for the vapour (a lifting-surface prism, a vortex thread, the cone). The
- * loading screen draws them once, so the three shaders are compiled before the first hard
- * pull instead of freezing the picture for a moment in the middle of a dogfight.
+ * Tiny stand-ins for the vapour (a lifting-surface prism, a vortex thread, the barrier's cloud). The loading screen draws them once, so the shaders are compiled before the first hard
+ * pull or the first barrier break instead of freezing the picture for a moment in the middle of a fight.
  */
 export function vaporSamples(): THREE.Object3D[] {
   startVaporNoise();
@@ -691,9 +610,6 @@ export function vaporSamples(): THREE.Object3D[] {
   const hull = new THREE.Mesh<THREE.BufferGeometry, THREE.Material>(buildHull(st, 0.2), makeHullMaterial(0.2, 1, 18));
   hull.frustumCulled = false;
   hull.renderOrder = 15;
-  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1, 8), makeConeMaterial());
-  cone.frustumCulled = false;
-  cone.renderOrder = 15;
   const ropes = new VortexRopes(24);
   const r = ropes.create(TIP_STYLE);
   for (let i = 0; i < 4; i++) r.add(new THREE.Vector3(i * 3, 0, -3), 0, 1, 1);
@@ -702,15 +618,16 @@ export function vaporSamples(): THREE.Object3D[] {
   ropes.update(0, cam, newVaporLight(), 720);
   ropes.mesh.frustumCulled = false;
   const g = new THREE.Group();
-  g.add(hull, cone, ropes.mesh);
-  return [g];
+  g.add(hull, ropes.mesh);
+  return [g, ...shockSamples()];
 }
 
 export class VaporFx {
-  /** the cone (in the scene); the surface vapour lives on the airframe itself */
+  /** the barrier cloud (in the scene); the surface vapour lives on the airframe itself */
   readonly group = new THREE.Group();
-  private coneMat: THREE.ShaderMaterial;
-  private cone: THREE.Mesh;
+  private shock: ShockCloud;
+  /** past Mach 1 (the same hysteresis as the boom), for the cone's stages */
+  private shockSup: boolean;
   private hulls: HullPart[] = [];
   private emitters: Emitter[] = [];
   private t = Math.random() * 50;
@@ -723,7 +640,6 @@ export class VaporFx {
   lexK = 0;
   private hidden = false;
   private sunWorld = new THREE.Vector3(0, 1, 0);
-  private sunView = new THREE.Vector3();
   private steps = 18;
   private light: VaporLight | null = null;
 
@@ -738,23 +654,10 @@ export class VaporFx {
     startVaporNoise();
     const s = ac.spec;
     const L = s.length, b = s.span;
-    // ---- the cone: a bell from about the canopy to past the wingtips
-    const z0 = -L * 0.14, z1 = L * 0.3;
-    const r0 = Math.max(1.15, b * 0.14), r1 = b * 0.42;
-    const pts: THREE.Vector2[] = [];
-    const N = 14;
-    for (let i = 0; i <= N; i++) {
-      const u = i / N;
-      pts.push(new THREE.Vector2(r0 + (r1 - r0) * Math.pow(u, 0.5), z0 + (z1 - z0) * u));
-    }
-    const lathe = new THREE.LatheGeometry(pts, 48);
-    // (lathe builds round +Y with y from the profile: turn it onto the body axis, nose at -Z)
-    lathe.rotateX(Math.PI / 2);
-    this.coneMat = makeConeMaterial();
-    this.cone = new THREE.Mesh(lathe, this.coneMat);
-    this.cone.frustumCulled = false;
-    this.cone.renderOrder = 15;
-    this.group.add(this.cone);
+    // ---- the sound barrier: a true volume round the jet
+    this.shockSup = ac.fm.mach >= 1.0;
+    this.shock = new ShockCloud(L, b, quality === 'low' ? 10 : quality === 'medium' ? 14 : 18, vaporBench.toneMap);
+    this.group.add(this.shock.group);
 
     // ---- the lifting surfaces
     const p = planform(ac);
@@ -810,7 +713,7 @@ export class VaporFx {
       }
     }
     for (const h of this.hulls) h.mesh.visible = false;
-    this.group.visible = false;
+    // (the barrier cloud and its rings each show and hide themselves)
   }
 
   private addHull(parent: THREE.Object3D, st: Station[], T0: number, kind: 'wing' | 'tail', seed: number): void {
@@ -841,7 +744,7 @@ export class VaporFx {
   setHidden(h: boolean): void {
     this.hidden = h;
     if (h) {
-      this.group.visible = false;
+      this.shock.setHidden(true);
       for (const p of this.hulls) p.mesh.visible = false;
     }
   }
@@ -856,6 +759,9 @@ export class VaporFx {
     const hum = light.humidity;
     // damp low air makes vapour; high up there is too little water in it
     const damp = (1 - smoothstep(3500, 7500, alt)) * hum;
+    // the barrier's cloud wants moist air, but even high and dry the shock makes a thin veil of ice crystals,
+    // never quite none up to about 12 km
+    const shockDamp = Math.max(damp, 0.45 * (1 - smoothstep(9500, 13500, alt)));
     const m = fm.mach;
     const flying = !fm.onGround && this.ac.alive && !this.hidden;
     const g = fm.nz;
@@ -866,7 +772,8 @@ export class VaporFx {
     const hiA = smoothstep(13, 26, alpha) * smoothstep(55, 90, fm.tas) * (1 - smoothstep(48, 62, alpha));
     const liftWant = !flying ? 0 : Math.min(1, Math.max(pull, 0.85 * hiA) * damp);
     const transWant = !flying ? 0 : smoothstep(0.86, 0.95, m) * (1 - smoothstep(1.04, 1.14, m)) * Math.min(1.2, damp);
-    const coneWant = !flying ? 0 : smoothstep(0.93, 0.975, m) * (1 - smoothstep(1.02, 1.08, m)) * Math.min(1, damp);
+    // (a small cone forms at Mach 0.96, explodes at Mach 1, is small again by 1.015, and dissipates between 1.1 and 1.3; backwards when slowing)
+    const coneWant = !flying ? 0 : smoothstep(0.945, 0.965, m) * (1 - smoothstep(1.1, 1.3, m)) * Math.min(1, shockDamp);
     // the tailplane carries the load too, more the harder it is deflected
     const tailWant = liftWant * (0.5 + 0.5 * Math.min(1, Math.abs(fm.defl.e) * 1.4));
     const ropeWant = !flying ? 0 : Math.min(1, Math.max(smoothstep(3.8, 6.8, g) * fast, 0.8 * smoothstep(12, 22, alpha) * smoothstep(60, 110, fm.tas)) * damp);
@@ -901,19 +808,19 @@ export class VaporFx {
       (u.uAmbCol.value as THREE.Color).copy(light.ambCol);
     }
 
-    // ---- the cone
-    const coneOn = this.coneK > 0.01 && !this.hidden;
-    this.group.visible = coneOn;
-    if (coneOn) {
-      this.group.position.copy(fm.pos);
-      this.group.quaternion.copy(fm.quat);
-      this.coneMat.uniforms.intensity.value = this.coneK * (0.82 + 0.18 * Math.sin(this.t * 23.0) * Math.sin(this.t * 7.3 + 1.0));
-      this.coneMat.uniforms.time.value = this.t;
-      this.sunView.copy(light.sunDir).transformDirection(cam.matrixWorldInverse);
-      (this.coneMat.uniforms.sunView.value as THREE.Vector3).copy(this.sunView);
-      (this.coneMat.uniforms.cLit.value as THREE.Color).copy(light.sunCol).multiplyScalar(0.62).add(light.ambCol.clone().multiplyScalar(0.7));
-      (this.coneMat.uniforms.cShade.value as THREE.Color).copy(light.ambCol).multiplyScalar(1.5).addScalar(0.1);
+    // ---- the sound barrier
+    const noise = vaporNoiseReady();
+    const shockFlick = 0.96 + 0.04 * Math.sin(this.t * 23.0) * Math.sin(this.t * 7.3 + 1.0);
+    // the crossing of Mach 1 sets the cone off (the boom fires on the same crossing: game.watchBarrier)
+    if (!flying) this.shockSup = m >= 1.0;
+    else if (!this.shockSup && m >= 1.0) {
+      this.shockSup = true;
+      if (shockDamp > 0.08) this.shock.burst(1);
+    } else if (this.shockSup && m < 0.995) {
+      this.shockSup = false;
+      if (shockDamp > 0.08) this.shock.burst(0.6);
     }
+    this.shock.update(dt, now, fm.pos, fm.quat, m, Math.min(1, this.coneK * shockFlick), light, noise && !this.hidden, this.shockSup);
 
     // ---- the vortex ropes
     if (this.ropes) {
@@ -945,9 +852,8 @@ export class VaporFx {
   }
 
   dispose(): void {
+    this.shock.dispose();
     this.group.removeFromParent();
-    this.cone.geometry.dispose();
-    this.coneMat.dispose();
     for (const p of this.hulls) {
       p.mesh.removeFromParent();
       p.mesh.geometry.dispose();

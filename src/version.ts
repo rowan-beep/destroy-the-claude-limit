@@ -41,6 +41,17 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.15.10',
+    date: '2026-11-17',
+    air: {
+      title: 'Breaking the sound barrier',
+      notes: [
+        added('Breaking the sound barrier, for real', 'Near Mach 1 in damp air a true 3-D condensation cloud forms round your jet, as in the photographs: a small cone from Mach 0.96, then at Mach 1 it explodes outward in violent ripples, with the boom, a big smooth bright cone with a razor-sharp front edge. By Mach 1.015 it collapses back to the small cone, which dissipates from Mach 1.1 and is gone by 1.3. Slow down and it plays in reverse. High and dry it makes a thinner veil of ice crystals.'),
+        added('Sonic boom', 'Breaking the sound barrier now has its own sound: the air building up, a double crack and a deep thump, then a long rolling rumble, with a small jolt through the airframe. A new SONIC BOOM volume in Settings > Audio sets it (0 turns it off), with a PLAY button to hear it, and it also sets the boom of other supersonic jets passing close.'),
+      ],
+    },
+  },
+  {
     version: '7.15.9',
     date: '2026-11-17',
     air: {

@@ -548,7 +548,8 @@ export class CombatRenderer {
       if (fm.nz > 2.2 || fm.mach > 0.85 || fm.alpha > 0.15) startVaporNoise();
       // (only made once a jet gets anywhere near: most never do)
       const near = fm.mach > 0.9 || fm.nz > 3.6 || fm.alpha > 0.22;
-      if (!near || fm.onGround || fm.pos.y > 8000) return;
+      // (the barrier's cloud also shows high up, as a thinner veil, so the limit is the ceiling of where it forms)
+      if (!near || fm.onGround || fm.pos.y > 14500) return;
       // (the vapour is fitted to the jet's own airframe: the far mesh is a cheap copy to probe)
       vf = new VaporFx(a, v, this.ropes, v.farLod ? probeFromParts(v.farLod.parts) : null, this.vaporQuality);
       this.vapors.set(a, vf);

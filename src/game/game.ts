@@ -1130,6 +1130,7 @@ export class Game implements ModeHost {
       this.bombComputer.update(p, this.sim, dt);
       this.hud.update(dt, this);
       this.touch?.sync(this.throttleCmd);
+      this.watchBarrier(p);
       this.updateAudio(p);
     }
     this.renderer.render();
@@ -2144,6 +2145,37 @@ export class Game implements ModeHost {
 
   private missileIds = new WeakMap<object, number>();
   private nextMissileId = 1;
+
+  /** the jet whose Mach number is being watched, and whether it is supersonic now */
+  private machOwner: Aircraft | null = null;
+  private machSupersonic = false;
+
+  /**
+   * The moment the player's jet breaks the sound barrier (and, softer, drops back through it): the
+   * boom, and a jolt through the airframe. Each way takes a few hundredths of a Mach of margin, so a
+   * jet hovering round Mach 1 does not fire it over and over.
+   */
+  private watchBarrier(p: Aircraft): void {
+    const m = p.fm.mach;
+    if (this.machOwner !== p) {
+      this.machOwner = p;
+      this.machSupersonic = m >= 1.0;
+      return;
+    }
+    if (!p.alive || p.fm.onGround) {
+      this.machSupersonic = m >= 1.0;
+      return;
+    }
+    if (!this.machSupersonic && m >= 1.0) {
+      this.machSupersonic = true;
+      audio.barrierBreak(1, this.cam.mode === 'cockpit');
+      this.cam.addShake(0.32);
+    } else if (this.machSupersonic && m < 0.995) {
+      this.machSupersonic = false;
+      audio.barrierBreak(0.45, this.cam.mode === 'cockpit');
+      this.cam.addShake(0.12);
+    }
+  }
 
   private updateAudio(p: Aircraft): void {
     let rpm = 0;

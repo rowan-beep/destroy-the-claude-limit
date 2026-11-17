@@ -183,6 +183,71 @@ function renderSonicBoom(n: number, sr: number, r: Rng): Float32Array {
   return normalize(d, 0.95);
 }
 
+/**
+ * Breaking the sound barrier, the way a film would give it to you: the air bunching up ahead of the
+ * jet (a swell that builds for half a second), then the shock itself -- a hard double crack (the nose
+ * and tail shocks, about 90 ms apart) over a deep thump you feel in the chest -- the rush of air
+ * closing behind, the airframe rattling, and a long rolling rumble with echoes off the ground.
+ * (A real pilot hears none of this: the shock stays behind the cockpit. This is the cinema of it.)
+ */
+function renderBarrier(n: number, sr: number, r: Rng): Float32Array {
+  const d = new Float32Array(n);
+  const T = 0.55;
+  const t0 = Math.floor(sr * T);
+  // the swell: low pressurised air, building
+  const sw = pink(n, r);
+  Biquad.bp(sr, 190, 0.55).apply(sw);
+  const swk = 0.4 / Math.max(1e-9, rms(sw.subarray(0, sr)));
+  for (let i = 0; i < t0; i++) d[i] += sw[i] * swk * Math.pow(i / t0, 2.6);
+  // the double crack
+  nwave(d, t0, 1, sr * 0.006);
+  nwave(d, t0 + Math.floor(sr * 0.092), 0.82, sr * 0.0065);
+  nwave(d, t0 + Math.floor(sr * 0.0035), 0.5, sr * 0.002);
+  // the thump: a sine falling from 70 Hz to 28 Hz, and the body of the boom under it
+  let ph = 0;
+  for (let i = t0; i < n; i++) {
+    const t = (i - t0) / sr;
+    const f = 28 + 42 * Math.exp(-t / 0.18);
+    ph += (2 * Math.PI * f) / sr;
+    d[i] += Math.sin(ph) * 0.9 * Math.exp(-t / 0.42) * Math.min(1, t / 0.004);
+  }
+  const roll = brown(n, r);
+  Biquad.lp(sr, 120, 0.8).apply(roll);
+  const rk = 0.6 / Math.max(1e-9, rms(roll.subarray(0, sr)));
+  // the rush of air: bright at first, then dark as it closes
+  const hi = pink(n, r);
+  Biquad.bp(sr, 2400, 0.5).apply(hi);
+  const lo = pink(n, r);
+  Biquad.bp(sr, 520, 0.6).apply(lo);
+  const hk = 0.3 / Math.max(1e-9, rms(hi.subarray(0, sr)));
+  const lk = 0.34 / Math.max(1e-9, rms(lo.subarray(0, sr)));
+  // the airframe rattling: panels, canopy, loose fittings
+  const rat = new Float32Array(n);
+  crackleInto(rat, sr, 140, 1, r, 5, [0.2, 1.6]);
+  Biquad.hp(sr, 700, 0.7).apply(rat);
+  const tk = 0.1 / Math.max(1e-9, rms(rat.subarray(Math.floor(sr * 0.2), Math.floor(sr * 1.2))));
+  for (let i = t0; i < n; i++) {
+    const t = (i - t0) / sr;
+    d[i] += roll[i] * rk * Math.min(1, t / 0.03) * Math.exp(-t / 0.95);
+    const mix = Math.exp(-t / 0.4);
+    d[i] += (hi[i] * hk * mix + lo[i] * lk * (1 - mix)) * Math.min(1, t / 0.02) * Math.exp(-t / 0.75);
+    d[i] += rat[i] * tk * Math.min(1, t / 0.12) * Math.exp(-t / 0.7);
+  }
+  // echoes off the ground and the hills
+  const src = d.slice(t0, t0 + Math.floor(sr * 0.9));
+  onePole(src, sr, 1600);
+  for (const [delay, g] of [
+    [0.14, 0.3],
+    [0.31, 0.22],
+    [0.62, 0.14],
+    [1.05, 0.08],
+  ]) {
+    const o = t0 + Math.floor(sr * delay);
+    for (let i = 0; i < src.length && i + o < n; i++) d[i + o] += src[i] * g;
+  }
+  return normalize(d, 0.95);
+}
+
 /** A round passing close: the supersonic crack of the bullet's own shock. */
 function renderCrack(n: number, sr: number, r: Rng): Float32Array {
   const d = new Float32Array(n);
@@ -272,6 +337,8 @@ export function synthBank(sr: number): Bank {
   const n = Math.floor(sr * 2.4);
   bank.sonic = [renderSonicBoom(n, sr, rng(31)), renderSonicBoom(n, sr, rng(32))];
   bank.crackS = [renderCrack(Math.floor(sr * 0.06), sr, rng(33))];
+  const nb = Math.floor(sr * 4.2);
+  bank.barrier = [renderBarrier(nb, sr, rng(41)), renderBarrier(nb, sr, rng(42))];
   bank.reverb = reverbImpulse(sr, 2.8);
   return bank;
 }

@@ -46,6 +46,8 @@ export interface AudioLevels {
   effects: number;
   warnings: number;
   voice: boolean;
+  /** the sonic boom: breaking the barrier yourself, and a supersonic jet passing close (0 = silent) */
+  sonicBoom: number;
 }
 
 /** Another jet near the listener (for its own sound). */
@@ -295,7 +297,7 @@ const lerp = (a: number, b: number, x: number) => a + (b - a) * x;
 
 export class AudioEngine {
   ctx: BaseAudioContext | null = null;
-  levels: AudioLevels = { master: 0.8, engine: 0.8, effects: 0.9, warnings: 0.9, voice: true };
+  levels: AudioLevels = { master: 0.8, engine: 0.8, effects: 0.9, warnings: 0.9, voice: true, sonicBoom: 0.9 };
   muted = false;
 
   private master!: GainNode;
@@ -355,6 +357,10 @@ export class AudioEngine {
   private slots: Slot[] = [];
   private mslots: MissileSlot[] = [];
   private sonicB!: AudioBuffer;
+  /** breaking the sound barrier (the jet's own) */
+  private barrierB!: AudioBuffer;
+  /** the sonic boom's own bus: the SONIC BOOM volume in the settings, apart from the other effects */
+  private boomBus!: GainNode;
   private crackSB!: AudioBuffer;
   private boomBufs: AudioBuffer[] = [];
   // the cockpit: the airframe's low resonance, the warning duck
@@ -436,6 +442,7 @@ export class AudioEngine {
     this.boomB = this.boomBufs[0];
     this.sonicB = B('sonic');
     this.crackSB = B('crackS');
+    this.barrierB = B('barrier');
 
     // --- buses ---
     this.limiter = ctx.createDynamicsCompressor();
@@ -467,6 +474,9 @@ export class AudioEngine {
     this.cabinBus.connect(this.duck);
     this.fxBus = ctx.createGain();
     this.fxBus.connect(this.master);
+    this.boomBus = ctx.createGain();
+    this.boomBus.gain.value = this.levels.sonicBoom;
+    this.boomBus.connect(this.master);
     this.warnBus = ctx.createGain();
     this.warnBus.connect(this.master);
     this.uiBus = ctx.createGain();
@@ -713,6 +723,7 @@ export class AudioEngine {
     this.engineBus.gain.setTargetAtTime(jet, t, tc);
     this.cabinBus.gain.setTargetAtTime(jet, t, tc);
     this.fxBus.gain.setTargetAtTime(this.levels.effects, t, 0.05);
+    this.boomBus.gain.setTargetAtTime(this.levels.sonicBoom ?? 0.9, t, 0.05);
     this.warnBus.gain.setTargetAtTime(this.levels.warnings, t, 0.05);
     this.uiBus.gain.setTargetAtTime(Math.max(0.3, this.levels.effects), t, 0.05);
   }
@@ -1100,11 +1111,23 @@ export class AudioEngine {
 
   /** The shock cone of a supersonic jet passing: the double crack, deepened and muffled with distance. */
   sonicBoom(dist: number, rel?: [number, number, number], mach = 1.3): void {
-    if (!this.ctx) return;
+    if (!this.ctx || this.levels.sonicBoom < 0.01) return;
     const v = Math.min(1, 1.6 / (1 + dist / 300)) * Math.min(1, 0.7 + 0.3 * (mach - 1));
     if (v < 0.01) return;
     const lp = Math.max(200, 12000 / (1 + dist / 300));
-    this.play(this.sonicB, { vol: v, delay: Math.min(4, dist / 343), rate: Math.max(0.7, 1.05 - dist / 6000), lp, rel, reverb: 0.5 });
+    // (on the boom bus: the SONIC BOOM volume sets it; its reverb tail follows that level)
+    this.play(this.sonicB, { vol: v, delay: Math.min(4, dist / 343), rate: Math.max(0.7, 1.05 - dist / 6000), lp, rel, reverb: 0.5 * Math.min(1, this.levels.sonicBoom), bus: this.boomBus });
+  }
+
+  /**
+   * The player's jet breaks the sound barrier (k 1: speeding up through Mach 1; less on the way back
+   * down): the swell, the double crack and thump, the rush and the rumble. In the cockpit the canopy takes
+   * the edge off the crack; from outside it is all there. The SONIC BOOM volume sets its level; 0 is silent.
+   */
+  barrierBreak(k = 1, cockpit = true): void {
+    if (!this.ctx || this.levels.sonicBoom < 0.01) return;
+    const v = Math.min(1.2, 0.5 + 0.7 * k);
+    this.play(this.barrierB, { vol: v, lp: cockpit ? 3800 : 15000, bus: this.boomBus });
   }
 
   /** Up to four missiles near the listener: the motor tearing past, then the coasting airframe's whistle. */

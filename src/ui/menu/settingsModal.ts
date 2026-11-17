@@ -7,6 +7,7 @@ import { el, clearEl, button } from '../dom';
 import { GameSettings, GRAPHICS_PRESETS, GraphicsOptions, GraphicsPreset, defaultGraphics } from '../../core/settings';
 import { ACTION_LABELS, Action, DEFAULT_BINDINGS, Input } from '../../core/input';
 import { keyLabel } from './screens';
+import { audio } from '../../audio/audio';
 
 type Tab = 'graphics' | 'controls' | 'audio' | 'gameplay';
 
@@ -408,6 +409,15 @@ export class SettingsModal {
     this.slider(v, 'ENGINES & WIND', undefined, 0, 1, 0.05, a.engine, (x) => (a.engine = x), pct, true);
     this.slider(v, 'WEAPONS & EXPLOSIONS', undefined, 0, 1, 0.05, a.effects, (x) => (a.effects = x), pct, true);
     this.slider(v, 'WARNING TONES', 'Radar warning receiver and missile seeker tones.', 0, 1, 0.05, a.warnings, (x) => (a.warnings = x), pct, true);
+    this.slider(v, 'SONIC BOOM', 'The thump and crack when you break the sound barrier, and when a supersonic jet passes close. 0 turns it off.', 0, 1, 0.05, a.sonicBoom, (x) => (a.sonicBoom = x), pct, true);
+    // (a way to hear it at the level just set, without having to fly to Mach 1)
+    const t = this.row(v, 'SONIC BOOM TEST', 'Plays the barrier-breaking boom at the volume above.');
+    button('PLAY', 'small', t, () => {
+      audio.init();
+      audio.levels = { ...audio.levels, sonicBoom: a.sonicBoom };
+      audio.applyLevels();
+      audio.barrierBreak(1, false);
+    });
     const c = this.section('VOICE');
     this.toggle(c, 'VOICE WARNINGS', 'Cockpit voice calls: missile launches, altitude, fuel.', a.voice, (x) => (a.voice = x));
   }

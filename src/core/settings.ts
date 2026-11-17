@@ -6,7 +6,7 @@ import type { TimeOfDay } from '../render/environment';
 
 export interface GameSettings {
   graphics: GraphicsOptions;
-  audio: { master: number; engine: number; effects: number; warnings: number; voice: boolean };
+  audio: { master: number; engine: number; effects: number; warnings: number; voice: boolean; sonicBoom: number };
   gameplay: {
     labels: 'off' | 'dots' | 'full';
     units: 'imperial' | 'metric';
@@ -109,7 +109,7 @@ const F15_EVERYDAY = 'triad.f15everyday';
 export function defaultSettings(): GameSettings {
   return {
     graphics: defaultGraphics(),
-    audio: { master: 0.8, engine: 0.8, effects: 0.9, warnings: 0.9, voice: true },
+    audio: { master: 0.8, engine: 0.8, effects: 0.9, warnings: 0.9, voice: true, sonicBoom: 0.9 },
     gameplay: {
       labels: 'dots',
       units: 'imperial',
