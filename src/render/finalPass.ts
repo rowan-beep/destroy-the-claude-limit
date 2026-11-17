@@ -186,6 +186,14 @@ export class FinalPass extends Pass {
   render(renderer: THREE.WebGLRenderer, writeBuffer: THREE.WebGLRenderTarget, readBuffer: THREE.WebGLRenderTarget): void {
     this.uniforms.tDiffuse.value = readBuffer.texture;
     this.uniforms.toneMappingExposure.value = renderer.toneMappingExposure;
+    this.syncDefines(renderer);
+    renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer);
+    if (!this.renderToScreen && this.clear) renderer.clear();
+    this.quad.render(renderer);
+  }
+
+  /** Set the shader's switches for the renderer's tone mapping and output and this pass's options (so its program can be compiled ahead). */
+  syncDefines(renderer: THREE.WebGLRenderer): void {
     const tm = renderer.toneMapping, cs = renderer.outputColorSpace;
     const key = `${tm}|${cs}|${this.grade}|${this.finish}|${this.camera}`;
     if (key !== this.key) {
@@ -204,9 +212,6 @@ export class FinalPass extends Pass {
       this.material.defines = d;
       this.material.needsUpdate = true;
     }
-    renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer);
-    if (!this.renderToScreen && this.clear) renderer.clear();
-    this.quad.render(renderer);
   }
 
   dispose(): void {

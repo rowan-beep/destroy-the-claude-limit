@@ -144,21 +144,44 @@ export class World {
 
   /** Create render objects once the grid exists. */
   init(): void {
-    this.env = new Environment(this.scene);
-    this.ocean = new Ocean(this.scene, this.env, this.grid, this.shore);
-    this.terrain = new TerrainLOD(this.pool, this.grid);
-    this.scene.add(this.terrain.group);
-    this.trees = new TreeSystem(this.pool, this.scene);
-    this.clouds = new CloudSystem(this.scene, this.env, (x0, z0, x1, z1) => this.grid.maxInRect(x0, z0, x1, z1));
-    this.precip = new PrecipitationFx(this.scene);
-    this.precip.onThunder = (d) => this.onThunder?.(d);
-    this.setWeather(this.weather);
-    this.airfields = new AirfieldRenderer(this.scene);
-    this.carriers = new CarrierRenderer(this.scene, this.env);
-    this.desertProps = activeMap.id === 'dune' ? new DesertProps(this.scene) : null;
-    this.camels = activeMap.id === 'dune' ? new CamelHerds(this.scene) : null;
-    this.lightBaker = new TerrainLightBaker(this.grid, MAP_HALF);
+    for (const step of this.initSteps()) step();
     this.ready = true;
+  }
+
+  /** The same, a step at a time, letting the page draw in between (the loading screen and the music go on). */
+  async initGently(breathe: () => Promise<void>): Promise<void> {
+    for (const step of this.initSteps()) {
+      step();
+      await breathe();
+    }
+    this.ready = true;
+  }
+
+  private initSteps(): (() => void)[] {
+    return [
+      () => {
+        this.env = new Environment(this.scene);
+        this.ocean = new Ocean(this.scene, this.env, this.grid, this.shore);
+      },
+      () => {
+        this.terrain = new TerrainLOD(this.pool, this.grid);
+        this.scene.add(this.terrain.group);
+      },
+      () => (this.trees = new TreeSystem(this.pool, this.scene)),
+      () => (this.clouds = new CloudSystem(this.scene, this.env, (x0, z0, x1, z1) => this.grid.maxInRect(x0, z0, x1, z1))),
+      () => {
+        this.precip = new PrecipitationFx(this.scene);
+        this.precip.onThunder = (d) => this.onThunder?.(d);
+        this.setWeather(this.weather);
+        this.airfields = new AirfieldRenderer(this.scene);
+        this.carriers = new CarrierRenderer(this.scene, this.env);
+      },
+      () => (this.desertProps = activeMap.id === 'dune' ? new DesertProps(this.scene) : null),
+      () => {
+        this.camels = activeMap.id === 'dune' ? new CamelHerds(this.scene) : null;
+        this.lightBaker = new TerrainLightBaker(this.grid, MAP_HALF);
+      },
+    ];
   }
 
   /** Change the weather (clouds, deck, rain / snow, light and visibility). */

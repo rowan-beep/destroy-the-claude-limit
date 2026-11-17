@@ -196,6 +196,14 @@ export function prewarmAirframes(list: Aircraft[]): void {
   for (const a of list) template(a, a.isPlayer);
 }
 
+/** The same, one jet at a time, letting the page draw (the loading screen, the music) in between. */
+export async function prewarmAirframesGently(list: Aircraft[], breathe: () => Promise<void>): Promise<void> {
+  for (const a of list) {
+    template(a, a.isPlayer);
+    await breathe();
+  }
+}
+
 /** Put a paint job on one aircraft's visual (the player's jet, the hangar jet). */
 export function paintAirframe(v: AirframeVisual, cfg: PaintConfig | null): void {
   v.applyPaint(cfg, v.ac.type === 'F15EX' ? f15PlainLivery(v.ac.team) : v.ac.type === 'SU35' ? su35PlainLivery(v.ac.team) : null);

@@ -201,6 +201,10 @@ export class GameRenderer {
   /** shimmer behind hot engines */
   private hazePass: ShaderPass;
   private scenePass: ScenePass;
+  /** the HDR buffer the scene is drawn into (shaders made for it are the ones the flight uses) */
+  get sceneTarget(): THREE.WebGLRenderTarget {
+    return this.scenePass.msaa;
+  }
   private visionPass: ShaderPass;
   private nightPass: ShaderPass;
   private bloomPass: UnrealBloomPass;
@@ -555,6 +559,55 @@ export class GameRenderer {
     } finally {
       r.setRenderTarget(prev);
     }
+  }
+
+  /**
+   * Compile the screen-effect passes' shaders (the final pass, bloom, haze, droplets, sun shafts,
+   * night and vision, ...) in the background, for both the screen and the off-screen buffers they
+   * draw into. They are fullscreen quads the scene compile never sees, so they used to be made one
+   * after another on the flight's first frame, each holding the page (seconds on some drivers).
+   */
+  compilePasses(maxMs = 25000): Promise<unknown> {
+    const r = this.renderer;
+    const prev = r.getRenderTarget();
+    const jobs: Promise<unknown>[] = [];
+    // each pass draws through its own fullscreen quad (a mesh with an orthographic camera); compile
+    // that very mesh with every material the pass puts on it, so the programs are the ones it will ask for
+    const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const passes = [...this.composer.passes, (this.composer as unknown as { copyPass?: unknown }).copyPass];
+    for (const p of passes) {
+      if (!p || p === this.scenePass) continue;
+      (p as { syncDefines?: (r: THREE.WebGLRenderer) => void }).syncDefines?.(r);
+      const rec = p as unknown as Record<string, unknown>;
+      const mats = new Set<THREE.Material>();
+      const grab = (v: unknown, depth: number): void => {
+        if (!v || depth > 2) return;
+        if (v instanceof THREE.Material) mats.add(v);
+        else if (Array.isArray(v)) for (const x of v) grab(x, depth + 1);
+      };
+      for (const k of Object.keys(rec)) grab(rec[k], 0);
+      // every fullscreen quad the pass owns
+      const quads = Object.keys(rec)
+        .map((k) => rec[k] as { _mesh?: THREE.Mesh; material?: THREE.Material } | null)
+        .filter((q): q is { _mesh: THREE.Mesh; material: THREE.Material } => !!q && typeof q === 'object' && (q as { _mesh?: unknown })._mesh instanceof THREE.Mesh);
+      for (const q of quads) {
+        const own = q._mesh.material as THREE.Material;
+        mats.add(own);
+        try {
+          for (const m of mats) {
+            q._mesh.material = m;
+            for (const target of [null, this.scenePass.msaa]) {
+              r.setRenderTarget(target);
+              jobs.push(r.compileAsync(q._mesh, cam));
+            }
+          }
+        } finally {
+          q._mesh.material = own;
+          r.setRenderTarget(prev);
+        }
+      }
+    }
+    return Promise.race([Promise.all(jobs), new Promise((res) => setTimeout(res, maxMs))]);
   }
 
   /**

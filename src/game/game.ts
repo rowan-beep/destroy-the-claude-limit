@@ -59,7 +59,7 @@ import { ReplayRecorder, ReplayPlayer } from './replay';
 import { SortieRecorder, LogbookData, MissionOutcome, loadLogbook, saveLogbook, commitSortie, medalName } from './logbook';
 import { FLAP_BLOWUP_KTS } from '../aircraft/flightModel';
 import { NM } from '../core/constants';
-import { prewarmAirframes, setHeroDetail } from '../aircraft/models';
+import { prewarmAirframesGently, setHeroDetail } from '../aircraft/models';
 import { randomizeWind, wind } from '../core/weather';
 import { AutoFly, topSpeedKts } from './autoFly';
 import type { AutoFlyPanel, AutoFlyChoice } from '../ui/autoFlyPanel';
@@ -79,6 +79,18 @@ export type GameState = 'menu' | 'loading' | 'playing' | 'paused' | 'map' | 'res
 
 const GUN_WEAPONS = new Set(['M61', 'BK-27', 'GSh-30', '30M791', 'GUN']);
 const CLOUD_DENSITY: Record<string, number> = { low: 0.5, medium: 0.75, high: 1, ultra: 1.35 };
+
+/** Let the page draw a frame (and the music go on) before going on with a long job. */
+function breathe(): Promise<void> {
+  return new Promise((resolve) => {
+    // (a hidden tab gets no animation frames: the timeout carries on regardless)
+    const t = setTimeout(resolve, 50);
+    requestAnimationFrame(() => {
+      clearTimeout(t);
+      setTimeout(resolve, 0);
+    });
+  });
+}
 
 export class Game implements ModeHost {
   readonly renderer: GameRenderer;
@@ -249,9 +261,11 @@ export class Game implements ModeHost {
     await this.world.buildShore((f) => onProgress(0.72 + f * 0.08, 'MAPPING THE REEFS AND SHALLOWS'));
     await this.world.buildMapData((f) => onProgress(0.8 + f * 0.15, 'BUILDING THE DIGITAL MAP'));
     onProgress(0.97, 'BUILDING WORLD');
-    this.world.init();
+    await breathe();
+    await this.world.initGently(breathe);
     this.applySettings();
     this.onWorldBuilt?.();
+    await breathe();
     console.info(`theater ready in ${Math.round(performance.now() - t0)} ms${this.world.pool.usingFallback ? ' (main-thread fallback)' : ''}`);
   }
 
@@ -276,6 +290,9 @@ export class Game implements ModeHost {
     this.briefing = null;
     setMissionObjective(null);
     this.setState('loading');
+    // (every heavy step below lets the page breathe after it: the loading screen keeps drawing and the
+    // music keeps playing, where doing it all in one go froze the screen and the sound for seconds)
+    await breathe();
     if (!this.world.ready) {
       await this.ensureWorld((f, l) => progress(f * 0.6, l));
       onProgress = (f, l) => progress(0.6 + f * 0.4, l);
@@ -297,9 +314,12 @@ export class Game implements ModeHost {
       audio.explosion(d, size, this.relToCamera(pos));
       if (d < 1500) this.cam.addShake(Math.min(1.2, (size * 400) / Math.max(d, 50)));
     };
+    await breathe();
     this.world.env.setTimeOfDay(cfg.timeOfDay);
     this.world.env.buildEnvMap(this.renderer.renderer);
+    await breathe();
     this.world.bakeLighting(this.renderer.renderer);
+    await breathe();
     this.sim.sunDir.copy(this.world.env.sunDir);
     this.sim.humidity = humidityOf(this.world.weather.kind);
     this.hookEvents();
@@ -316,7 +336,7 @@ export class Game implements ModeHost {
     if (cfg.mode === 'team' || cfg.mode === 'ranked' || cfg.mode === 'recon' || cfg.mode === 'campaign') for (const t of enemyTypesFor(cfg.aircraft)) pre.push(new Aircraft(t, 'blue', 'PRE'));
     if (cfg.mode === 'ffa') pre.push(new Aircraft(cfg.aircraft, 'red', 'PRE'));
     // (the airshow builds each act's jet as it rolls out of the hangar, not every jet up front)
-    prewarmAirframes(pre);
+    await prewarmAirframesGently(pre, breathe);
     this.stopSpectating();
     resetRules();
     this.timeScale = 1;
@@ -350,6 +370,7 @@ export class Game implements ModeHost {
     // wash a daylight one out in green)
     NIGHT.nvg = false;
     this.mode.start();
+    await breathe();
     this.spotterUi?.dispose();
     this.spotterUi = null;
     if (this.mode instanceof SpotterMode) {
@@ -376,10 +397,31 @@ export class Game implements ModeHost {
     // going live and freezing the first seconds of the flight while it finishes.
     onProgress(0.98, 'PREPARING SHADERS');
     const r = this.renderer;
-    await Promise.all([
-      r.compileFor(r.scene, r.scene, r.camera, 25000),
-      pit ? r.compileFor(pit.root, this.cockpitView.scene, this.cockpitView.camera, 25000) : null,
-    ]).catch(() => undefined);
+    // (what a kill draws is compiled with the scene, just ahead of the camera, and taken away again)
+    const samples = this.combat.effectSamples();
+    const ahead = r.camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(40).add(r.camera.position);
+    for (const s of samples) {
+      s.position.copy(ahead);
+      r.scene.add(s);
+    }
+    try {
+      // first as seen from the cockpit (its lights, screens and the inside of the jet make shaders of
+      // their own), then from outside with every screen effect: everything the first frames draw
+      await this.compileFromCockpit(pit).catch(() => undefined);
+      await Promise.all([
+        r.compileFor(r.scene, r.scene, r.camera, 25000),
+        pit ? r.compileFor(pit.root, this.cockpitView.scene, this.cockpitView.camera, 25000) : null,
+        r.compilePasses(25000),
+      ]).catch(() => undefined);
+    } finally {
+      for (const s of samples) r.scene.remove(s);
+    }
+    // a browser without background shader compiling finishes each shader the first time it is asked
+    // about it: ask about them here, a few at a time with a frame in between, not all on the first frame
+    await this.finishShaders(breathe);
+    // the opening view's models go up to the graphics card a few at a time, a frame each (all at once,
+    // on the first frame, held the page for seconds)
+    await this.uploadGently(breathe);
     try {
       this.warmView();
     } catch (e) {
@@ -1188,6 +1230,131 @@ export class Game implements ModeHost {
       R.render(true);
     } finally {
       for (const s of samples) R.scene.remove(s);
+    }
+  }
+
+  /** Wait for every shader made so far to finish linking, ~30 ms of waiting at a time with a frame between. */
+  private async finishShaders(breathe: () => Promise<void>): Promise<void> {
+    const r = this.renderer.renderer;
+    const gl = r.getContext();
+    let t = performance.now();
+    for (const p of r.info.programs ?? []) {
+      const prog = (p as unknown as { program?: WebGLProgram }).program;
+      if (!prog) continue;
+      gl.getProgramParameter(prog, gl.LINK_STATUS);
+      if (performance.now() - t > 30) {
+        await breathe();
+        t = performance.now();
+      }
+    }
+  }
+
+  /** Put the view in the cockpit (as warmView does), compile what it draws in the background, and put it back. */
+  private async compileFromCockpit(pit: { root: THREE.Object3D } | null | undefined): Promise<void> {
+    const p = this.player;
+    const vis = p ? this.combat.aircraftVis.get(p) : undefined;
+    if (!p || !vis || !this.avionics || !pit || this.cam.mode === 'cockpit') return;
+    const R = this.renderer;
+    const mode = this.cam.mode;
+    const prev = this.cam.prevMode;
+    try {
+      this.cam.setMode('cockpit');
+      vis.setCockpitView(true);
+      this.cam.update(0.016, p, this.eyeWorld());
+      R.camera.updateMatrixWorld();
+      this.world.update(0, R.camera, p.fm.pos);
+      this.combat.update(0, R.camera);
+      this.updateCockpit(true);
+      this.avionics.update(0, true);
+      await Promise.all([
+        R.compileFor(R.scene, R.scene, R.camera, 25000),
+        R.compileFor(pit.root, this.cockpitView.scene, this.cockpitView.camera, 25000),
+      ]);
+    } finally {
+      vis.setCockpitView(false);
+      this.cam.setMode(mode);
+      this.updateCockpit(false);
+      this.cam.prevMode = prev;
+      this.cam.update(0.016, p, this.eyeWorld());
+    }
+  }
+
+  /**
+   * Draw the opening view's meshes a batch at a time into a 1-pixel corner of the scene buffer, a
+   * frame per batch, so each one's geometry is sent to the graphics card then, in small pieces,
+   * instead of all of it on the first frame. Only meshes the camera can see (what that first frame
+   * draws), and the 3D cockpit's.
+   */
+  private async uploadGently(breathe: () => Promise<void>): Promise<void> {
+    const p = this.player;
+    if (!p) return;
+    const R = this.renderer;
+    const gl = R.renderer;
+    const cam = R.camera;
+    this.cam.update(0.016, p, this.eyeWorld());
+    cam.updateMatrixWorld();
+    this.world.update(0, cam, p.fm.pos);
+    this.combat.update(0, cam);
+    this.ground?.update(0, cam);
+    const passes: [THREE.Scene, THREE.Camera][] = [[R.scene, cam]];
+    const pit = this.combat.aircraftVis.get(p)?.getCockpit();
+    if (pit) passes.push([this.cockpitView.scene, this.cockpitView.camera]);
+    const target = R.sceneTarget;
+    // about this much vertex data a frame (bytes)
+    const BUDGET = 8e6;
+    const frustum = new THREE.Frustum();
+    const sphere = new THREE.Sphere();
+    for (const [scene, camera] of passes) {
+      scene.updateMatrixWorld();
+      camera.updateMatrixWorld();
+      frustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+      const meshes: THREE.Mesh[] = [];
+      scene.traverseVisible((o) => {
+        const m = o as THREE.Mesh;
+        if (!m.isMesh || !m.geometry?.attributes.position) return;
+        if (m.frustumCulled) {
+          if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
+          sphere.copy(m.geometry.boundingSphere!).applyMatrix4(m.matrixWorld);
+          if (!frustum.intersectsSphere(sphere)) return;
+        }
+        meshes.push(m);
+      });
+      const bytes = (m: THREE.Mesh) => {
+        let b = m.geometry.index ? m.geometry.index.array.byteLength : 0;
+        for (const a of Object.values(m.geometry.attributes)) b += (a as THREE.BufferAttribute).array?.byteLength ?? 0;
+        return b;
+      };
+      // the meshes hidden for a batch, and put back after it
+      const all = new Set(meshes);
+      let i = 0;
+      while (i < meshes.length) {
+        const batch = new Set<THREE.Mesh>();
+        let sum = 0;
+        while (i < meshes.length && (batch.size === 0 || sum + bytes(meshes[i]) < BUDGET)) {
+          sum += bytes(meshes[i]);
+          batch.add(meshes[i++]);
+        }
+        const hidden: THREE.Object3D[] = [];
+        for (const m of all) if (!batch.has(m)) {
+          m.visible = false;
+          hidden.push(m);
+        }
+        const prevTarget = gl.getRenderTarget();
+        const vp = new THREE.Vector4();
+        gl.getViewport(vp);
+        try {
+          gl.setRenderTarget(target);
+          gl.setViewport(0, 0, 1, 1);
+          gl.render(scene, camera);
+        } catch (e) {
+          console.warn('upload', e);
+        } finally {
+          gl.setViewport(vp);
+          gl.setRenderTarget(prevTarget);
+          for (const h of hidden) h.visible = true;
+        }
+        await breathe();
+      }
     }
   }
 

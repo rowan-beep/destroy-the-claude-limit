@@ -27,7 +27,7 @@ import { SettingsModal } from './ui/menu/settingsModal';
 import { LogbookModal } from './ui/menu/logbookScreen';
 import { ReplayUi } from './ui/replayUi';
 import { MapView } from './ui/mapView';
-import { audio } from './audio/audio';
+import { audio, prepareAudio } from './audio/audio';
 import { applyMap, loadMapChoice } from './world/maps';
 import { refreshGciSites } from './game/teamPicture';
 import { activeMap } from './world/islands';
@@ -57,6 +57,8 @@ initAccount();
 startAnalytics();
 
 async function boot(): Promise<void> {
+  // the sound bank is made in a worker straight away, so the first click does not wait for it
+  prepareAudio();
   // the theater must be chosen before anything about the world is built
   applyMap(loadMapChoice());
   refreshGciSites();
@@ -147,6 +149,8 @@ async function boot(): Promise<void> {
     menu.show(false);
     loading.show(true);
     loading.set(0.05, 'PREPARING MISSION');
+    // (the loading screen up on screen before any of the work starts)
+    await new Promise<void>((r) => requestAnimationFrame(() => setTimeout(r, 0)));
     await game.startMission(c, (f, l) => loading.set(0.1 + f * 0.9, l));
     loading.show(false);
   };

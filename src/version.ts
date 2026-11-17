@@ -41,6 +41,16 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.15.8',
+    date: '2026-11-17',
+    air: {
+      title: 'No freeze when you start a flight',
+      notes: [
+        fixed('No freeze when you start a flight', 'Pressing LAUNCH froze the screen and the sound for seconds on every map. Measured: the game made all its sounds at the click, built everything in one go, and left over twenty screen-effect and cockpit shaders to compile one after another on the first frame. The sounds are now made in the background while you are in the menu, the loading work is done in small steps so the loading screen and the music keep going, and every shader the first frames need is compiled in the background behind the loading screen.'),
+      ],
+    },
+  },
+  {
     version: '7.15.7',
     date: '2026-11-17',
     air: {
