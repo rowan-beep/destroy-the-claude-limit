@@ -581,12 +581,16 @@ function archBand(m: Mesh, rnd: Rnd, o: { span: number; spring: number; t: numbe
 }
 
 // ---------------------------------------------------------------- the ruins
-export type RuinKind = 'colonnade' | 'temple' | 'arch' | 'wall' | 'tomb' | 'column' | 'statue' | 'gate' | 'houses' | 'well' | 'obelisk' | 'theatre';
-export const RUIN_KINDS: RuinKind[] = ['colonnade', 'temple', 'arch', 'wall', 'tomb', 'column', 'statue', 'gate', 'houses', 'well', 'obelisk', 'theatre'];
+export type RuinKind = 'colonnade' | 'temple' | 'arch' | 'wall' | 'tomb' | 'column' | 'statue' | 'gate' | 'houses' | 'well' | 'obelisk' | 'theatre' | 'street' | 'wallrun' | 'aqueduct' | 'amphitheatre' | 'forum' | 'basilica';
+export const RUIN_KINDS: RuinKind[] = ['colonnade', 'temple', 'arch', 'wall', 'tomb', 'column', 'statue', 'gate', 'houses', 'well', 'obelisk', 'theatre', 'street', 'wallrun', 'aqueduct', 'amphitheatre', 'forum', 'basilica'];
 
 const RADII: Record<RuinKind, number> = {
-  colonnade: 24, temple: 27, arch: 15, wall: 40, tomb: 13, column: 8, statue: 13, gate: 27, houses: 28, well: 9, obelisk: 15, theatre: 30,
+  colonnade: 48, temple: 56, arch: 28, wall: 74, tomb: 22, column: 17, statue: 15, gate: 48, houses: 30, well: 12, obelisk: 20, theatre: 80,
+  street: 33, wallrun: 33, aqueduct: 33, amphitheatre: 100, forum: 58, basilica: 50,
 };
+/** design-unit scale each kind is built at (monumental size) */
+const SCALE: Partial<Record<RuinKind, number>> = { colonnade: 1.9, temple: 2.0, arch: 1.7, wall: 1.8, tomb: 1.6, column: 2.0, gate: 1.7, well: 1.4, obelisk: 1.2 };
+
 
 function colonnade(m: Mesh, rnd: Rnd) {
   const N = 7, S = 3.8, rows = [-5.3, 5.3];
@@ -1112,9 +1116,285 @@ function theatre(m: Mesh, rnd: Rnd) {
   drift(m, { x: 8, z: 38, a: 18, b: 10, h: 2.5, rot: Math.PI / 2 });
 }
 
+// ---- city pieces (built directly in metres) ------------------------------------------------
+
+/** ONE tileable 60 m section of a colonnaded avenue along z (-30..30), columns at x = +-10 every 7.5 m. */
+function street(m: Mesh, rnd: Rnd) {
+  const seed = 11;
+  for (const sd of [-1, 1]) {
+    m.push(new THREE.Matrix4().makeTranslation(sd * 10, 0, -30).multiply(new THREE.Matrix4().makeRotationY(-Math.PI / 2)));
+    wall(m, rnd, { L: 60, t: 3.4, depth: -2, ch: [0.6, 0.9], bl: [3, 5], ends: false, top: (u) => -0.1 + 1.1 * vnoise(u * 0.25, sd, seed) });
+    m.pop();
+  }
+  type St = 'full' | 'tall' | 'mid' | 'low' | 'gone';
+  const cols: { x: number; z: number; st: St; y0: number }[] = [];
+  const pairs = new Set<string>();
+  for (const sd of [-1, 1]) {
+    const p = Math.floor(rnd() * 7);
+    if (rnd() < 0.7) { pairs.add(sd + ':' + p); pairs.add(sd + ':' + (p + 1)); }
+  }
+  for (const sd of [-1, 1]) for (let i = 0; i < 8; i++) {
+    const v = rnd();
+    const stt: St = pairs.has(sd + ':' + i) ? 'full' : v < 0.15 ? 'full' : v < 0.36 ? 'tall' : v < 0.6 ? 'mid' : v < 0.82 ? 'low' : 'gone';
+    cols.push({ x: sd * 10 + rr(rnd, -0.2, 0.2), z: -26.25 + i * 7.5, st: stt, y0: pairs.has(sd + ':' + i) ? -2.2 : -rr(rnd, 0.5, 4) });
+  }
+  const topsAt = new Map<string, number>();
+  for (const c of cols) {
+    const r = 0.62, h = 11.5, base = c.y0 + 0.9 * r;
+    const brk = (lo: number, hi: number) => Math.min(h, Math.max(0.5, rr(rnd, lo, hi) - base));
+    const o: ColOpt = { x: c.x, z: c.z, y0: c.st === 'low' ? -rr(rnd, 3.5, 4.6) : c.y0, r, h, segs: 8, dh: 3.8, lean: rr(rnd, -0.05, 0.05), leanDir: rnd() * 6.28 };
+    let nD = 0;
+    if (c.st === 'full') topsAt.set(c.x + ':' + c.z, column(m, rnd, { ...o, cap: true }));
+    else if (c.st === 'tall') { column(m, rnd, { ...o, brk: brk(6, 9.5) }); nD = 2; }
+    else if (c.st === 'mid') { column(m, rnd, { ...o, brk: brk(3, 6) }); nD = 2; }
+    else if (c.st === 'low') { column(m, rnd, { ...o, brk: brk(0.3, 2) }); nD = 1; }
+    else { block(m, rnd, c.x, -0.5, c.z, 1.8, 0.7, 1.8, rnd(), { jit: 0.04 }); nD = 3; }
+    // shaft sections fallen across the paving
+    const dir = Math.atan2(-c.x, 0.001) * 0 + (c.x < 0 ? 0 : Math.PI) + rr(rnd, -0.6, 0.6);
+    for (let k = 0; k < nD; k++) {
+      const dd = 2.5 + k * rr(rnd, 2.6, 3.4), fx = c.x + Math.cos(dir) * dd, fz = c.z + Math.sin(dir) * dd;
+      if (Math.abs(fz) > 28.3) continue;
+      fallenDrum(m, rnd, fx, fz, 0.58, rr(rnd, 2.2, 3.4), dir + Math.PI / 2 + rr(rnd, -0.3, 0.3), undefined, rr(rnd, 0.2, 0.55), rnd() < 0.3);
+    }
+  }
+  for (const sd of [-1, 1]) for (let i = 0; i < 7; i++) {
+    const a = topsAt.get(sd * 10 + ':' + 0), q = cols.find((c) => c.x * sd > 0 && Math.abs(c.z - (-26.25 + i * 7.5)) < 0.01), q2 = cols.find((c) => c.x * sd > 0 && Math.abs(c.z - (-26.25 + (i + 1) * 7.5)) < 0.01);
+    void a;
+    if (!q || !q2 || q.st !== 'full' || q2.st !== 'full') continue;
+    const ta = topsAt.get(q.x + ':' + q.z), tb = topsAt.get(q2.x + ':' + q2.z);
+    if (ta === undefined || tb === undefined || Math.abs(ta - tb) > 0.3) continue;
+    const y = Math.min(ta, tb);
+    block(m, rnd, (q.x + q2.x) / 2, y, (q.z + q2.z) / 2, 1.8, 1.5, 7.2, 0, { bev: 0.1, jit: 0.04, chip: 0.14 });
+    block(m, rnd, (q.x + q2.x) / 2, y + 1.5, (q.z + q2.z) / 2, 1.5, 1.2, 6.8, 0, { bev: 0.1, jit: 0.04, chip: 0.2 });
+  }
+  // paving slabs showing between the drifts
+  for (let i = 0; i < 16; i++) block(m, rnd, rr(rnd, -7, 7), -0.5, rr(rnd, -27.5, 27.5), rr(rnd, 2.4, 3.4), 0.55, rr(rnd, 2, 3), rr(rnd, -0.15, 0.15), { jit: 0.04, bev: 0.05 });
+  for (let i = 0; i < 12; i++) chunk(m, rnd, rr(rnd, -14, 14), rr(rnd, -28, 28), rr(rnd, 0.3, 1.8));
+  for (let k = 0; k < 6; k++) {
+    const z = -25 + k * 10 + rr(rnd, -2, 2);
+    drift(m, { x: -11.8, z, a: 2.6, b: 3.6, h: rr(rnd, 1, 2.2) });
+    if (k % 2 === 0) drift(m, { x: 11.5, z: z + 3, a: 3, b: 3.2, h: rr(rnd, 0.8, 1.8), lee: true });
+    if (k % 2 === 1) drift(m, { x: -9.5, z: z + 2, a: 3.5, b: 2.6, h: rr(rnd, 0.6, 1.2), lee: true });
+  }
+  drift(m, { x: 0, z: rr(rnd, -12, 12), a: 4, b: 4.5, h: 1.0, lee: true });
+}
+
+/** ONE tileable 60 m section of city wall along z (-30..30), 8-12 m high, broken unevenly. */
+function wallrun(m: Mesh, rnd: Rnd) {
+  const c1 = rr(rnd, 12, 28) , c2 = rr(rnd, 36, 50), r1 = rr(rnd, 4, 8), r2 = rr(rnd, 3, 6);
+  const prof = (u: number) => 10.5 * (0.55 + 0.6 * vnoise(u * 0.09 + 3, 1, 17)) + (vnoise(u * 0.7, 5, 17) - 0.5) * 2.4;
+  const top = (u: number) => {
+    const t = u / 60, b = prof(u) * (1 - t) + prof(u - 60) * t;
+    const f = Math.min(0.12 + 0.88 * sstep(0, r1, Math.abs(u - c1)), 0.2 + 0.8 * sstep(0, r2, Math.abs(u - c2)));
+    return Math.max(-0.5, b * f);
+  };
+  m.push(new THREE.Matrix4().makeTranslation(0, 0, -30).multiply(new THREE.Matrix4().makeRotationY(-Math.PI / 2)));
+  wall(m, rnd, { L: 60, t: 4.4, depth: -4, ch: [1.0, 1.5], bl: [2.4, 4.4], ends: false, miss: 0.03, top, hole: (u, y) => Math.abs(u - 46) < 1.3 && y > 3.2 && y < 6.5 });
+  m.pop();
+  if (rnd() < 0.5) {
+    const tz = rr(rnd, -12, 12);
+    tower(m, rnd, { cx: -3.5, cz: tz, rot: 0, w: 11, d: 12, t: 2.4, depth: -4, ch: [1.0, 1.5], bl: [2.2, 4], top: (k, u) => 13 * (0.5 + 0.6 * vnoise(u * 0.4, k + tz, 5)) - (u < 2 || u > 9 ? 3 * vnoise(u, k, 8) : 0) });
+    block(m, rnd, -3.5, -1, tz, 6, 8, 7, 0, { col: srgb(0.66, 0.52, 0.38), bev: 0.3, jit: 0.3, chip: 0.5 });
+  }
+  rubble(m, rnd, -5, c1 - 30, r1 + 3, 10, 0.5, 2.6);
+  rubble(m, rnd, 4, c1 - 30, r1 + 1, 4, 0.5, 1.8);
+  rubble(m, rnd, -4.5, c2 - 30, r2 + 3, 8, 0.5, 2.4);
+  for (let z = -26; z <= 26; z += 13) {
+    drift(m, { x: -3.2, z: z + rr(rnd, -3, 3), a: rr(rnd, 3, 5), b: rr(rnd, 6, 8), h: rr(rnd, 1.6, 3) });
+    drift(m, { x: 3.2, z: z + rr(rnd, -3, 3), a: rr(rnd, 3, 4.5), b: rr(rnd, 4, 6), h: rr(rnd, 1, 2), lee: true });
+  }
+}
+
+/** ONE tileable 60 m section of a two-tier arched aqueduct along z (-30..30). */
+function aqueduct(m: Mesh, rnd: Rnd) {
+  const B = 7.5, cz0 = -26.25;
+  const coll = rr(rnd, -22, 22);
+  const buried = (i: number) => rr(rnd, 2.5, 5.5) + (i % 3) * 0.4;
+  // piers at the bay boundaries (half piers on the tile edges so tiles join)
+  for (let k = 0; k <= 8; k++) {
+    const z = -30 + k * B, edge = k === 0 || k === 8, pz = edge ? 1.0 : 2.0, zc = edge ? (k === 0 ? -29.5 : 29.5) : z;
+    const near = Math.abs(z - coll) < 8;
+    const d = buried(k);
+    stack(m, rnd, 0, zc, 4.4, pz, -d, near && !edge ? rr(rnd, 2, 7) : 11.2, 0, 2.6);
+    if (!near || edge) stack(m, rnd, 0, zc, 3.6, pz * 0.85, 11.2, near ? 14.5 : 17.4, 0, 2.2);
+  }
+  for (let i = 0; i < 8; i++) {
+    const zc = cz0 + i * B, near = Math.abs(zc - coll) < 5;
+    if (!(near && rnd() < 0.5)) placed(m, 0, 0, zc, 0, Math.PI / 2, 0, () => archBand(m, rnd, { span: 5.4, spring: 7.0, t: 1.0, depth: 4.4, n: 6 }));
+    if (!near) {
+      placed(m, 0, 0, zc, 0, Math.PI / 2, 0, () => archBand(m, rnd, { span: 5.6, spring: 14.8 - 0.0, t: 0.8, depth: 3.6, n: 6 }));
+      block(m, rnd, 0, 10.6, zc, 4.4, 0.7, B - 1.2, 0, { jit: 0.03 });
+      block(m, rnd, 0, 18.6, zc, 4.8, 1.2, B + 0.2, 0, { bev: 0.1, jit: 0.04, chip: 0.1 });
+      block(m, rnd, -2.2, 19.8, zc, 0.5, 0.8, B, 0, { jit: 0.04, chip: 0.15 });
+      block(m, rnd, 2.2, 19.8, zc, 0.5, 0.8, B, 0, { jit: 0.04, chip: 0.15 });
+    } else if (rnd() < 0.7) {
+      block(m, rnd, 0, 10.6, zc, 4.4, 0.7, B - 1.2, 0, { jit: 0.03 });
+    }
+  }
+  rubble(m, rnd, 0, coll, 9, 12, 0.6, 3.0);
+  for (let i = 0; i < 8; i++) placed(m, rr(rnd, -7, 7), 0.2, rr(rnd, -28, 28), rr(rnd, -0.3, 0.3), rnd() * 3, rr(rnd, -0.3, 0.3), () => block(m, rnd, 0, -0.9, 0, rr(rnd, 1.6, 3.6), rr(rnd, 1, 1.8), rr(rnd, 1.2, 2.4), 0, { bev: 0.1, jit: 0.07, chip: 0.25 }));
+  for (let k = 0; k < 6; k++) {
+    const z = -25 + k * 10 + rr(rnd, -2, 2);
+    drift(m, { x: -3.2, z, a: rr(rnd, 3, 5), b: rr(rnd, 4, 6), h: rr(rnd, 2.5, 5) });
+    drift(m, { x: 3.2, z: z + 3, a: rr(rnd, 3, 5), b: rr(rnd, 3, 5), h: rr(rnd, 1.5, 3.5), lee: true });
+  }
+}
+
+function amphitheatre(m: Mesh, rnd: Rnd) {
+  const A = 75, Bz = 60, seed = rnd() * 40;
+  const NB = 40;
+  const frame = (th: number, sc: number) => {
+    const x = A * sc * Math.cos(th), z = Bz * sc * Math.sin(th);
+    const nx = Math.cos(th) / A, nz = Math.sin(th) / Bz, l = Math.hypot(nx, nz);
+    return { x, z, ry: Math.atan2(nx / l, nz / l), arc: (2 * Math.PI / 128) * 0 };
+  };
+  // outer arcade: tiers of piers and arch bands, standing in stretches, slumped to stubs between
+  for (let i = 0; i < NB; i++) {
+    const th = ((i + 0.5) / NB) * Math.PI * 2;
+    const f = frame(th, 1);
+    const w = (2 * Math.PI * Math.sqrt((A * A + Bz * Bz) / 2)) / NB;
+    const v = vnoise(th * 2.3 + 1, 0.5, seed);
+    const tiers = v > 0.62 ? 3 : v > 0.5 ? 2 : v > 0.36 ? 1 : 0;
+    placed(m, f.x, 0, f.z, 0, f.ry, 0, () => {
+      const lowTop = tiers === 0 ? rr(rnd, 0.3, 3.5) : 0;
+      stack(m, rnd, -w / 2, 0, 2.8, 5.2, -3, tiers === 0 ? lowTop : 7, 0, 2.2);
+      if (i === NB - 1 || true) {
+        for (let j = 0; j < tiers; j++) {
+          const yb = 7 + j * 10 - (j > 0 ? 0 : 0);
+          const ytop = yb + 10;
+          if (j > 0) stack(m, rnd, -w / 2, 0, 2.6, 4.8, yb, ytop - (rnd() < 0.3 ? rr(rnd, 1, 5) : 0) , 0, 2.2);
+          if (rnd() < 0.85) archBand(m, rnd, { span: w - 2.8, spring: yb - 1.5 + (j === 0 ? 0 : 0), t: 1.0, depth: 5, n: 6 });
+        }
+      }
+    });
+    if (tiers > 0 && rnd() < 0.25) chunk(m, rnd, f.x + Math.sin(f.ry) * 5, f.z + Math.cos(f.ry) * 5, rr(rnd, 1.5, 3));
+  }
+  // seating rows inside, the lowest half drowned in sand
+  const rows = 6;
+  for (let k = 0; k < rows; k++) {
+    const sc = 0.9 - k * 0.075, top = 9.5 - k * 1.6;
+    const n = 30;
+    for (let i = 0; i < n; i++) {
+      const th = ((i + 0.5) / n) * Math.PI * 2;
+      if (vnoise(th * 3, k, seed + 7) < 0.3 && rnd() < 0.8) continue;
+      const f = frame(th, sc);
+      placed(m, f.x, 0, f.z, 0, f.ry, 0, () => {
+        block(m, rnd, 0, Math.max(top - 2.0, -0.3), 0, 13.5, top - Math.max(top - 2.0, -0.3), 3.4, 0, { bev: 0.08, jit: 0.05, chip: 0.15 });
+      });
+    }
+  }
+  rubble(m, rnd, 0, 0, 70, 26, 0.6, 3.2);
+  // the arena half full of sand, deep drifts all round (deepest on the windward -x side)
+  drift(m, { x: 0, z: 0, a: 30, b: 22, h: 6, tail: 1.3 });
+  drift(m, { x: -10, z: 4, a: 14, b: 12, h: 5, lee: true });
+  for (let i = 0; i < 12; i++) {
+    const th = (i / 12) * Math.PI * 2 + rr(rnd, -0.1, 0.1), f = frame(th, 1.02);
+    const wind = 1.25 - 0.5 * Math.cos(th);
+    drift(m, { x: f.x, z: f.z, a: 8, b: 10, h: 3.2 * wind, rot: f.ry - Math.PI / 2 });
+  }
+}
+
+function forum(m: Mesh, rnd: Rnd) {
+  const W = 80, D = 60, seed = rnd() * 30;
+  for (let gx = 0; gx < 16; gx++) for (let gz = 0; gz < 12; gz++) {
+    if (vnoise(gx * 0.45, gz * 0.45, seed) < 0.54) continue;
+    block(m, rnd, -37.5 + gx * 5, -0.5, -27.5 + gz * 5, 4.85, 0.55, 4.85, 0, { jit: 0.05, bev: 0.04 });
+  }
+  const per: [number, number][] = [];
+  for (let i = 0; i <= 10; i++) { per.push([-35 + i * 7, -D / 2]); per.push([-35 + i * 7, D / 2]); }
+  for (let i = 1; i < 7; i++) { per.push([-W / 2, -D / 2 + i * 7]); per.push([W / 2, -D / 2 + i * 7]); }
+  const full: [number, number][] = [];
+  for (const [x, z] of per) {
+    const v = rnd();
+    const y0 = -rr(rnd, 0.5, 4);
+    const r = 0.7, h = 10;
+    const o: ColOpt = { x, z, y0, r, h, segs: 8, dh: 3.4, lean: rr(rnd, -0.05, 0.05), leanDir: rnd() * 6.28 };
+    const base = y0 + 0.63;
+    if (v < 0.12) { column(m, rnd, { ...o, cap: true }); full.push([x, z]); }
+    else if (v < 0.4) column(m, rnd, { ...o, brk: Math.min(h, Math.max(0.5, rr(rnd, 4.5, 8) - base)) });
+    else if (v < 0.7) column(m, rnd, { ...o, brk: Math.min(h, Math.max(0.5, rr(rnd, 1.2, 4) - base)) });
+    else if (v < 0.85) column(m, rnd, { ...o, y0: -rr(rnd, 3, 4), brk: 0.6 });
+    else block(m, rnd, x, -0.5, z, 2, 0.8, 2, rnd(), { jit: 0.04 });
+    if (v >= 0.12 && rnd() < 0.55) {
+      const dir = rnd() * 6.28, dd = rr(rnd, 2.6, 4);
+      fallenDrum(m, rnd, x + Math.cos(dir) * dd, z + Math.sin(dir) * dd, 0.64, rr(rnd, 2, 3.2), dir + Math.PI / 2, undefined, rr(rnd, 0.2, 0.55), rnd() < 0.3);
+    }
+  }
+  // rostra: a stepped podium
+  stack(m, rnd, 0, -D / 2 + 8, 16, 6, -3, 2.4, 0, 1.6);
+  stack(m, rnd, 0, -D / 2 + 8, 12, 4, 2.4, rr(rnd, 3.4, 5), 0, 1.4);
+  for (let i = 0; i < 6; i++) {
+    const x = -24 + i * 9.5 + rr(rnd, -1, 1), z = rr(rnd, -10, 10);
+    stack(m, rnd, x, z, 2.8, 2.8, -2.5, rr(rnd, 1.5, 3.2), rnd() * 0.3, 1.4);
+    if (rnd() < 0.6) {
+      placed(m, x + rr(rnd, 3, 5), 1.0, z + rr(rnd, -2, 2), -1.3, rnd() * 6, 0.2, () => {
+        const rg: V[][] = [];
+        for (let a = 0; a <= 6; a++) {
+          const la = 0.1 + (a / 6) * 2.5, r: V[] = [];
+          for (let j = 0; j < 10; j++) { const t = (j / 10) * 6.283; r.push([Math.sin(la) * Math.sin(t) * 0.9, Math.cos(la) * 1.3, Math.sin(la) * Math.cos(t) * 1.0]); }
+          rg.push(r);
+        }
+        smoothLoft(m, rg, stoneCol(rnd), false);
+      });
+    }
+  }
+  rubble(m, rnd, 0, 0, 40, 30, 0.4, 2.6);
+  apron(m, 0, 0, W + 6, D + 6, 2.2);
+  for (let i = 0; i < 7; i++) drift(m, { x: rr(rnd, -30, 30), z: rr(rnd, -20, 20), a: rr(rnd, 4, 9), b: rr(rnd, 4, 8), h: rr(rnd, 0.8, 2.2), lee: rnd() < 0.5 });
+}
+
+function basilica(m: Mesh, rnd: Rnd) {
+  const seed = rnd() * 40, LX = 60, LZ = 30, t = 3.0;
+  const topLong = (side: number) => (u: number) => {
+    const c = side > 0 ? 22 : 40, f = 0.15 + 0.85 * sstep(0, 9, Math.abs(u - c));
+    return Math.max(-0.5, 21 * (0.45 + 0.75 * vnoise(u * 0.08 + side * 7, 2, seed)) * f + (vnoise(u * 0.8, 6, seed) - 0.5) * 2);
+  };
+  const win = (u: number, y: number) => { const du = Math.abs(((u + 4.5) % 9) - 4.5); return du < 1.7 && y > 8 && y < 15.5 - (du / 1.7) * (du / 1.7) * 2.2; };
+  for (const sd of [-1, 1]) {
+    m.push(new THREE.Matrix4().makeTranslation(-LX / 2, 0, sd * (LZ / 2 - t / 2)).multiply(new THREE.Matrix4().makeRotationY(sd > 0 ? 0 : Math.PI)).multiply(new THREE.Matrix4().makeTranslation(sd > 0 ? 0 : -LX, 0, sd > 0 ? 0 : 0)));
+    wall(m, rnd, { L: LX, t, depth: -4, ch: [1.0, 1.6], bl: [2.4, 4.4], top: topLong(sd), hole: win });
+    m.pop();
+  }
+  // entrance wall (-x end) with a big doorway
+  m.push(new THREE.Matrix4().makeTranslation(-LX / 2 + t / 2, 0, -LZ / 2).multiply(new THREE.Matrix4().makeRotationY(-Math.PI / 2)));
+  wall(m, rnd, { L: LZ, t, depth: -4, ch: [1.0, 1.6], bl: [2.4, 4.4], top: (u) => 15 * (0.3 + 0.8 * vnoise(u * 0.15, 3, seed)), hole: (u, y) => Math.abs(u - LZ / 2) < 4 && y < 11 - ((u - LZ / 2) * (u - LZ / 2)) / 8 });
+  m.pop();
+  // apse: a half-ring of wall at the +x end
+  const nA = 7, RA = 14;
+  for (let i = 0; i < nA; i++) {
+    const a = -Math.PI / 2 + ((i + 0.5) / nA) * Math.PI, seg = (Math.PI * RA) / nA + 0.8;
+    if (vnoise(a * 2, 9, seed) < 0.25) continue;
+    placed(m, LX / 2 - 3 + Math.cos(a) * RA, 0, Math.sin(a) * RA, 0, a + Math.PI / 2 - Math.PI / 2 + Math.PI, 0, () => {
+      m.push(new THREE.Matrix4().makeTranslation(-seg / 2, 0, 0));
+      wall(m, rnd, { L: seg, t, depth: -4, ch: [1.0, 1.6], bl: [2.4, 4], top: (u) => 17 * (0.45 + 0.7 * vnoise(u * 0.2 + i * 3, 1, seed)), ends: false });
+      m.pop();
+    });
+  }
+  // two broken vault ribs springing from the long walls
+  for (const uu of [18, 36]) {
+    for (const sd of [-1, 1]) {
+      const ht = topLong(sd)(uu);
+      if (ht < 17) continue;
+      placed(m, -LX / 2 + uu, 0, sd * (LZ / 2 - t), 0, 0, 0, () => {
+        m.push(new THREE.Matrix4().makeTranslation(sd > 0 ? 0 : 0, 0, 0));
+        archBand(m, rnd, sd > 0 ? { span: 2 * (LZ / 2 - t) * 0 + 24, spring: 13, t: 1.4, depth: 3, n: 5, a0: Math.PI * 0.6, a1: Math.PI } : { span: 24, spring: 13, t: 1.4, depth: 3, n: 5, a0: 0, a1: Math.PI * 0.4 });
+        m.pop();
+      });
+    }
+  }
+  rubble(m, rnd, 0, 0, 38, 32, 0.6, 3.2);
+  for (let i = 0; i < 6; i++) chunk(m, rnd, rr(rnd, -30, 30), rr(rnd, -12, 12), rr(rnd, 2, 4.5));
+  apron(m, 0, 0, LX + 6, LZ + 6, 2.6);
+  drift(m, { x: -10, z: 0, a: 12, b: 9, h: 4.5, lee: true });
+  drift(m, { x: 12, z: 2, a: 10, b: 7, h: 3.5, lee: true });
+}
+
 /** A ruin, merged and vertex-coloured (linear RGB), y = 0 the sand surface; parts below it are buried. */
 export function buildRuin(kind: RuinKind, rnd: Rnd): THREE.BufferGeometry {
   const m = new Mesh();
+  const sc = SCALE[kind] ?? 1;
+  m.m = new THREE.Matrix4().makeScale(sc, sc, sc);
+  m.unit = 1 / sc;
   switch (kind) {
     case 'colonnade': colonnade(m, rnd); break;
     case 'temple': temple(m, rnd); break;
@@ -1128,6 +1408,12 @@ export function buildRuin(kind: RuinKind, rnd: Rnd): THREE.BufferGeometry {
     case 'well': well(m, rnd); break;
     case 'obelisk': obelisk(m, rnd); break;
     case 'theatre': theatre(m, rnd); break;
+    case 'street': street(m, rnd); break;
+    case 'wallrun': wallrun(m, rnd); break;
+    case 'aqueduct': aqueduct(m, rnd); break;
+    case 'amphitheatre': amphitheatre(m, rnd); break;
+    case 'forum': forum(m, rnd); break;
+    case 'basilica': basilica(m, rnd); break;
   }
   return m.geometry();
 }
