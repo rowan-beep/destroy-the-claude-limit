@@ -24,6 +24,7 @@ import { duneHeight, duneBase, CITY, OLD_STRIP, ROADS, WIND_X, WIND_Z, OASES, po
 import { AIRFIELDS } from './islands';
 import { buildRuin, ruinRadius, RUIN_KINDS, RuinKind, buildCrashedJet, CRASH_RADIUS } from './desertRuins';
 import { CrashFires } from './crashSmoke';
+import { buildCity } from './ancientCities';
 
 type Geo = THREE.BufferGeometry;
 type RGB = [number, number, number];
@@ -512,6 +513,22 @@ interface Placed {
   z: number;
   yaw: number;
   range: number;
+  /** drawn bigger than life (a pilot's eye: real-size ruins vanish from the air) */
+  scale?: number;
+}
+
+/** the lone ruins are drawn this much bigger than life (the cities set their own sizes) */
+const LONE_SCALE = 1.4;
+
+/** a one-off model of a city (its own geometry, not a copy of a ruin kind), built after loading like the copies */
+interface Extra {
+  build: () => Geo;
+  x: number;
+  y: number;
+  z: number;
+  yaw: number;
+  range: number;
+  scale: number;
 }
 
 /** how far off each kind is drawn (m): the great monuments from far away, the many small pieces only nearer */
@@ -521,109 +538,42 @@ const RANGE: Record<string, number> = {
 };
 const has = (k: string): k is RuinKind => (RUIN_KINDS as string[]).includes(k);
 
-/**
- * One of the ancient cities: walls round a square town with a gate on each side, the two colonnaded
- * main streets crossing at the forum, temples, a basilica and baths round it, a theatre, house blocks
- * filling the grid (most of them long since gone under the sand), outside the walls an amphitheatre,
- * tower tombs lining the road out of one gate, and an aqueduct striding in across the dunes.
- */
-function planCity(c: (typeof ANCIENT)[number], rnd: () => number, put: (kind: string, u: number, v: number, yaw: number) => void): void {
-  const H = c.H;
-  const SEC = 60;
-  const half = Math.PI / 2;
-  // the walls: sections along each side, some stretches fallen and gone; the gates where the main streets leave
-  for (let side = 0; side < 4; side++) {
-    for (let t = -H + SEC / 2; t < H; t += SEC) {
-      if (Math.abs(t) < 30) continue;
-      if (rnd() < 0.42) continue;
-      const [u, v, yaw] = side === 0 ? [-H, t, 0] : side === 1 ? [H, t, 0] : side === 2 ? [t, -H, half] : [t, H, half];
-      put('wallrun', u, v, yaw);
-    }
-    const [gu, gv, gy] = side === 0 ? [-H, 0, half] : side === 1 ? [H, 0, half] : side === 2 ? [0, -H, 0] : [0, H, 0];
-    put('gate', gu, gv, gy);
-  }
-  // the cardo (along v) and the decumanus (along u), colonnaded, crossing at the forum
-  const forum = { u: 0, v: 0 };
-  for (let t = -H + 40; t < H - 40; t += SEC) {
-    if (Math.abs(t) < 70) continue;
-    if (rnd() < 0.85) put('street', 0, t + SEC / 2 - 30, 0);
-    if (rnd() < 0.85) put('street', t + SEC / 2 - 30, 0, half);
-  }
-  // round the crossing: the forum, an arch over the decumanus, temples, the basilica and the baths
-  put('forum', forum.u + 110, forum.v - 100, 0);
-  put('arch', -150, 0, half);
-  put('temple', 120, 230, 0);
-  put('temple', -230, -170, half);
-  if (rnd() < 0.6) put('temple', 330, -330, 0);
-  put('basilica', -130, 180, half);
-  put('basilica', 380, 200, 0);
-  put('theatre', -H * 0.55, H * 0.5, Math.PI + 0.3);
-  put('colonnade', 250, -90, half);
-  // a library's two-storey columned façade facing the cardo, the hall behind it long gone
-  put('facade', 45, 330, -half);
-  put('obelisk', 40, -60, 0);
-  put('statue', 160, -40, rnd() * 6);
-  put('column', -60, 60, 0);
-  put('column', 70, 90, 0);
-  put('well', -90, -80, 0);
-  // the house blocks on the grid, most of them buried
-  const pitch = 100;
-  for (let bu = -H + pitch; bu < H - pitch / 2; bu += pitch) {
-    for (let bv = -H + pitch; bv < H - pitch / 2; bv += pitch) {
-      if (Math.abs(bu) < 60 || Math.abs(bv) < 60) continue;
-      // (the monuments' ground round the crossing, and the theatre's quarter)
-      if (Math.abs(bu) < 480 && Math.abs(bv) < 420) continue;
-      if (Math.hypot(bu + H * 0.55, bv - H * 0.5) < 160) continue;
-      if (rnd() < 0.3) put('houses', bu + (rnd() - 0.5) * 12, bv + (rnd() - 0.5) * 12, (rnd() < 0.5 ? 0 : half) + (rnd() - 0.5) * 0.06);
-    }
-  }
-  // outside: the amphitheatre beyond the east wall, tower tombs along the road from the south gate
-  put('amphitheatre', H + 420, -H * 0.35, half);
-  for (let i = 0; i < 9; i++) {
-    const v = -H - 120 - i * 70 - rnd() * 20;
-    put('tomb', (i % 2 ? 1 : -1) * (35 + rnd() * 25), v, rnd() * 0.3);
-  }
-  // the aqueduct: in from the north-west, 3-5 km of it, stretches fallen
-  const len = 3000 + rnd() * 2000;
-  const ang = -2.3 + (rnd() - 0.5) * 0.5;
-  const du = Math.cos(ang), dv = Math.sin(ang);
-  const yaw = Math.atan2(du, dv);
-  for (let s = H + 80; s < H + len; s += SEC) {
-    if (rnd() < 0.18) continue;
-    put('aqueduct', du * s, dv * s, yaw);
-  }
-}
-
 /** the big kinds are seen from further away */
 const BIG: Set<string> = new Set(['colonnade', 'temple', 'arch', 'wall', 'tomb', 'gate', 'houses', 'theatre']);
 
-function placeStone(): { ruins: Placed[][]; crashes: Placed[][] } {
+function placeStone(): { ruins: Placed[][]; crashes: Placed[][]; extras: Extra[] } {
   const rnd = mulberry32(0x5a7d01);
   const ruins: Placed[][] = RUIN_KINDS.flatMap(() => Array.from({ length: VERSIONS }, () => [] as Placed[]));
   const crashes: Placed[][] = Array.from({ length: CRASH_VERSIONS }, () => [] as Placed[]);
   const taken: { x: number; z: number; r: number }[] = [];
+  const extras: Extra[] = [];
   const free = (x: number, z: number, r: number) => !taken.some((t) => Math.hypot(x - t.x, z - t.z) < r + t.r + 60);
   // the wind blows toward +x in the models (their drifts are on the -x side): turn them to the real wind
   const windYaw = -Math.atan2(WIND_Z, WIND_X);
   const ruinAt = (kind: RuinKind, x: number, z: number): boolean => {
-    const r = ruinRadius(kind);
+    const r = ruinRadius(kind) * LONE_SCALE;
     if (!free(x, z, r) || nearRunway(x, z, 3000 + r) || !flatEnough(x, z, r, Math.max(4, r * 0.35))) return false;
     const k = RUIN_KINDS.indexOf(kind) * VERSIONS + Math.floor(rnd() * VERSIONS);
     // sunk to the lowest sand under it, a little more on a slope
-    ruins[k].push({ x, y: ground(x, z, Math.min(r, 40) * 0.6, 0.4), z, yaw: windYaw + (rnd() - 0.5) * 0.7, range: RANGE[kind] ?? (BIG.has(kind) ? 16000 : 10000) });
+    ruins[k].push({ x, y: ground(x, z, Math.min(r, 40) * 0.6, 0.4), z, yaw: windYaw + (rnd() - 0.5) * 0.7, range: RANGE[kind] ?? (BIG.has(kind) ? 16000 : 10000), scale: LONE_SCALE });
     taken.push({ x, z, r });
     return true;
   };
-  // the ancient cities first: every piece placed by the plan, on the levelled ground
+  // the ancient cities first: every piece placed by their plans (ancientCities.ts), on the levelled ground
   for (const c of ANCIENT) {
     const co = Math.cos(c.yaw), si = Math.sin(c.yaw);
-    planCity(c, rnd, (kind, u, v, yaw) => {
-      if (!has(kind)) return;
-      const r = ruinRadius(kind);
-      const x = c.x + u * co + v * si, z = c.z - u * si + v * co;
-      const k = RUIN_KINDS.indexOf(kind) * VERSIONS + Math.floor(rnd() * VERSIONS);
-      ruins[k].push({ x, y: ground(x, z, Math.min(r, 40) * 0.6, 0.4), z, yaw: c.yaw + yaw, range: RANGE[kind] ?? (BIG.has(kind) ? 16000 : 10000) });
-    });
+    const plan = buildCity(c, mulberry32(Math.floor(rnd() * 2 ** 31)));
+    for (const pc of plan.pieces) {
+      if (!has(pc.kind)) continue;
+      const r = ruinRadius(pc.kind) * pc.scale;
+      const x = c.x + pc.u * co + pc.v * si, z = c.z - pc.u * si + pc.v * co;
+      const k = RUIN_KINDS.indexOf(pc.kind) * VERSIONS + (pc.version ?? Math.floor(rnd() * VERSIONS)) % VERSIONS;
+      ruins[k].push({ x, y: ground(x, z, Math.min(r, 40) * 0.6, pc.sink ?? 0.4), z, yaw: c.yaw + pc.yaw, range: pc.range ?? RANGE[pc.kind] ?? (BIG.has(pc.kind) ? 16000 : 10000), scale: pc.scale });
+    }
+    for (const ex of plan.extras ?? []) {
+      const x = c.x + ex.u * co + ex.v * si, z = c.z - ex.u * si + ex.v * co;
+      extras.push({ build: ex.build, x, y: ground(x, z, ex.footprint * 0.6, ex.sink ?? 0.4), z, yaw: c.yaw + ex.yaw, range: ex.range, scale: ex.scale ?? 1 });
+    }
     // nothing else is placed inside them
     taken.push({ x: c.x, z: c.z, r: (c.H + ANCIENT_APRON) * 1.45 });
   }
@@ -664,7 +614,7 @@ function placeStone(): { ruins: Placed[][]; crashes: Placed[][] } {
     taken.push({ x, z, r: CRASH_RADIUS });
     n++;
   }
-  return { ruins, crashes };
+  return { ruins, crashes, extras };
 }
 
 /**
@@ -705,7 +655,7 @@ class Copies {
       const dx = cam.x - s.x, dz = cam.z - s.z;
       if (dx * dx + dz * dz > s.range * s.range) continue;
       this.q.setFromAxisAngle(this.up, s.yaw);
-      this.m.compose(this.p.set(s.x, s.y, s.z), this.q, this.one);
+      this.m.compose(this.p.set(s.x, s.y, s.z), this.q, this.one.setScalar(s.scale ?? 1));
       this.mesh.setMatrixAt(n++, this.m);
     }
     this.mesh.count = n;
@@ -769,7 +719,8 @@ export class DesertProps {
   constructor(scene: THREE.Scene) {
     scene.add(buildPonds());
     this.fires = new CrashFires(scene);
-    const { ruins, crashes } = placeStone();
+    const { ruins, crashes, extras } = placeStone();
+    for (const ex of extras) this.copies.push(new Copies(ex.build, this.mat, [ex], scene));
     let k = 0;
     for (const kind of RUIN_KINDS) {
       for (let v = 0; v < VERSIONS; v++, k++) {
