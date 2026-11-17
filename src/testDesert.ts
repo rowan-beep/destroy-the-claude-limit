@@ -2,6 +2,7 @@
 //   obj=camel            one camel (n=5: a row of five, each at its own gait phase)
 //   obj=ruin:<kind>      one ruin; obj=ruins: every kind in a row
 //   obj=jet              a crash site
+//   obj=city:<name>      one of the ancient cities' one-off models (cityModels.ts CITY_MODELS)
 //   view: az (deg, 0 = from -z), el (deg), dist (m), tgt=x,y,z, fov
 //   t=seconds            the camels' gait time (walk=0: standing still); live=1 keeps animating
 //   seed=n               the random seed for the model
@@ -10,6 +11,7 @@ import { mulberry32 } from './core/rng';
 import { buildCamel, camelMaterial } from './world/camel';
 import { buildRuin, ruinRadius, RUIN_KINDS, RuinKind, buildCrashedJet, CRASH_RADIUS } from './world/desertRuins';
 import { CrashFires } from './world/crashSmoke';
+import { CITY_MODELS } from './world/cityModels';
 
 export function runDesertTest(container: HTMLElement): void {
   const q = new URLSearchParams(location.search);
@@ -95,6 +97,12 @@ export function runDesertTest(container: HTMLElement): void {
       const local = (g.userData.fires as [number, number, number, number][] | undefined) ?? [[0, 0.5, 0, 1]];
       fires.add(local.map(([x, y, z, heat]) => ({ x, y, z, heat })));
     }
+  } else if (obj.startsWith('city:')) {
+    const g = CITY_MODELS[obj.split(':')[1]](mulberry32(seed));
+    count(g);
+    place(g, 0);
+    g.computeBoundingSphere();
+    size = g.boundingSphere!.radius * 1.6;
   } else {
     const kinds: RuinKind[] = obj === 'ruins' ? RUIN_KINDS : [obj.split(':')[1] as RuinKind];
     const widths = kinds.map((k) => ruinRadius(k) * 2 + 6);

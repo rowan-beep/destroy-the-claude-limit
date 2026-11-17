@@ -52,18 +52,102 @@ const MOUNTAINS = [
   { ...at(-29, -33), R: 9800, H: 1240, k: 3, ph: 0.7 },
 ];
 
+/** A hill in a city's frame (u across, v along its main street; m): a smooth dome, h above the floor, optionally cut in terraces. */
+export interface AncientHill { u: number; v: number; ru: number; rv: number; rot: number; h: number; terrace?: number }
+/** A raised (or, with a negative h, sunken) flat platform: half-sizes hu, hv, its sides sloping over edge metres. */
+export interface AncientPlat { u: number; v: number; hu: number; hv: number; h: number; edge: number }
+/** Where a theatre is cut into a hill: the hills are taken down to the floor within r, rising again over edge. */
+export interface AncientCut { u: number; v: number; r: number; edge: number }
+/** A tongue of dune running in over the city: from its tail (upwind, out in the erg) to its nose, w wide, h high. */
+export interface AncientTongue { u0: number; v0: number; u1: number; v1: number; w: number; h: number }
+
+export interface AncientSite {
+  x: number;
+  z: number;
+  /** the street grid's turn (rad) */
+  yaw: number;
+  /** the walls' half-width (m) */
+  H: number;
+  name: string;
+  /** which plan (ancientCities.ts) */
+  plan: 'palmyra' | 'ephesus' | 'paestum' | 'jerash';
+  hills: AncientHill[];
+  plats: AncientPlat[];
+  cuts: AncientCut[];
+  tongues: AncientTongue[];
+  /** the levelled floor (m; found once below) */
+  floor: number;
+}
+
 /**
- * The four ancient cities: Greco-Roman towns the sand took, laid out on a street grid inside their walls.
- * Centre, the grid's turn (rad), the walls' half-width (m) and a name.
+ * The four ancient cities: Greco-Roman towns the sand took (ancientCities.ts holds their plans). Centre,
+ * the grid's turn (rad), the walls' half-width (m), a name, and the ground they stand on: the hills, the
+ * raised terraces, the hollows and the tongues of dune that have run in over them, in the city's frame.
  */
-export const ANCIENT = [
-  { ...at(-20, 8), yaw: 0.18, H: 1050, name: 'APAMEA DESERTA' },
-  { ...at(22, 16), yaw: -0.3, H: 950, name: 'LEPTIS ARENARIA' },
-  { ...at(-8, -36), yaw: 0.05, H: 1100, name: 'PALMYRA MINOR' },
-  { ...at(30, -8), yaw: 0.42, H: 900, name: 'DURA SABULOSA' },
-].map((c) => ({ ...c, floor: 0 }));
-/** how far beyond its walls a city's ground is levelled (its amphitheatre and tombs stand out there) */
-export const ANCIENT_APRON = 700;
+export const ANCIENT: AncientSite[] = [
+  // a Palmyra: the great colonnade, the temenos of Bel, the valley of the tower tombs between two ridges to the south-west
+  {
+    ...at(-20, 8), yaw: 0.12, H: 1250, name: 'TADMOR', plan: 'palmyra',
+    hills: [
+      { u: -2090, v: 1450, ru: 1300, rv: 420, rot: -0.75, h: 70 },
+      { u: -1140, v: 1950, ru: 1250, rv: 380, rot: -0.75, h: 60 },
+      { u: -1600, v: -1500, ru: 420, rv: 340, rot: 0.4, h: 85 },
+    ],
+    plats: [{ u: 840, v: -100, hu: 150, hv: 150, h: 3, edge: 40 }],
+    cuts: [],
+    tongues: [
+      { u0: -3275, v0: -1540, u1: -500, v1: -700, w: 330, h: 30 },
+      { u0: -3625, v0: -140, u1: -850, v1: 700, w: 220, h: 18 },
+      { u0: -2575, v0: -1990, u1: 200, v1: -1150, w: 200, h: 16 },
+    ],
+    floor: 0,
+  },
+  // an Ephesus: the theatre cut into the west flank of a hill, the terraced houses on a second hill to the south, the harbour basin to the west
+  {
+    ...at(22, 16), yaw: -0.22, H: 1300, name: 'EPHESOS', plan: 'ephesus',
+    hills: [
+      { u: 820, v: -260, ru: 640, rv: 760, rot: 0.15, h: 75 },
+      { u: 520, v: 1080, ru: 1150, rv: 470, rot: -0.12, h: 110, terrace: 9 },
+    ],
+    plats: [{ u: -1650, v: -120, hu: 330, hv: 260, h: -7, edge: 70 }],
+    cuts: [{ u: 300, v: -230, r: 128, edge: 55 }],
+    tongues: [
+      { u0: -3800, v0: 930, u1: -900, v1: 800, w: 300, h: 26 },
+      { u0: -3600, v0: -870, u1: -700, v1: -1000, w: 260, h: 22 },
+    ],
+    floor: 0,
+  },
+  // a Paestum: three Doric temples in a row, the forum between them, a long circuit of walls on the flat
+  {
+    ...at(-8, -36), yaw: 0.05, H: 1250, name: 'POSEIDONIA', plan: 'paestum',
+    hills: [],
+    plats: [],
+    cuts: [],
+    tongues: [
+      { u0: -2325, v0: -1500, u1: 500, v1: -850, w: 340, h: 28 },
+      { u0: -3475, v0: 55, u1: -650, v1: 700, w: 240, h: 20 },
+      { u0: -2125, v0: 505, u1: 700, v1: 1150, w: 200, h: 16 },
+    ],
+    floor: 0,
+  },
+  // a Jerash: the oval plaza, the cardo, temples on raised terraces, the hippodrome outside the south gate
+  {
+    ...at(30, -8), yaw: 0.3, H: 1150, name: 'GERASA', plan: 'jerash',
+    hills: [{ u: -1050, v: 450, ru: 520, rv: 950, rot: 0.05, h: 35 }],
+    plats: [
+      { u: -330, v: -80, hu: 175, hv: 130, h: 13, edge: 45 },
+      { u: -330, v: 820, hu: 120, hv: 95, h: 11, edge: 40 },
+    ],
+    cuts: [],
+    tongues: [
+      { u0: 950, v0: -3600, u1: 750, v1: 200, w: 420, h: 34 },
+      { u0: -3190, v0: -2030, u1: -700, v1: -750, w: 260, h: 22 },
+    ],
+    floor: 0,
+  },
+];
+/** how far beyond its walls a city's ground is levelled (its tombs, hippodrome and aqueduct stand out there) */
+export const ANCIENT_APRON = 1100;
 
 /** places the big dunes stand back from: the two runways and the city */
 const CLEAR = [{ ...at(-46, -6), r: 7000 }, { ...at(46, 6), r: 7000 }, { x: CITY.x, z: CITY.z, r: 6000 }];
@@ -201,16 +285,65 @@ function rawHeight(x: number, z: number, out?: { small: number; base: number }):
 for (const c of ANCIENT) c.floor = duneBase(c.x, c.z) + 2;
 
 /** A point in an ancient city's own frame (u across, v along its main street), or null when well outside them all. */
-export function ancientLocal(x: number, z: number): { c: (typeof ANCIENT)[number]; u: number; v: number } | null {
+export function ancientLocal(x: number, z: number): { c: AncientSite; u: number; v: number } | null {
   for (const c of ANCIENT) {
     const dx = x - c.x, dz = z - c.z;
-    const reach = c.H + ANCIENT_APRON + 2400;
+    const reach = c.H + ANCIENT_APRON + 2900;
     if (dx * dx + dz * dz > reach * reach * 2) continue;
     const co = Math.cos(c.yaw), si = Math.sin(c.yaw);
     // (the inverse of placing a local point at x = cx + u cos + v sin, z = cz - u sin + v cos)
     return { c, u: dx * co - dz * si, v: dx * si + dz * co };
   }
   return null;
+}
+
+/**
+ * The shape of a city's ground above its floor at a point of its frame (m), without the dunes lying
+ * over it: its hills (terraced where they are, taken down where a theatre is cut into them), its
+ * raised terraces and its sunken basins.
+ */
+export function ancientGround(c: AncientSite, u: number, v: number): number {
+  let hill = 0;
+  for (const k of c.hills) {
+    const du = u - k.u, dv = v - k.v;
+    const co = Math.cos(k.rot), si = Math.sin(k.rot);
+    const a = (du * co + dv * si) / k.ru, b = (dv * co - du * si) / k.rv;
+    const q2 = a * a + b * b;
+    if (q2 >= 1) continue;
+    let y = k.h * (1 - q2) * (1 - q2);
+    if (k.terrace) {
+      const t = y / k.terrace, f = Math.floor(t);
+      y = k.terrace * (f + smoothstep(0.68, 1, t - f));
+    }
+    hill += y;
+  }
+  for (const k of c.cuts) {
+    const d = Math.hypot(u - k.u, v - k.v);
+    if (d < k.r + k.edge) hill *= smoothstep(k.r, k.r + k.edge, d);
+  }
+  let r = hill;
+  for (const p of c.plats) {
+    const ou = Math.abs(u - p.u) - p.hu, ov = Math.abs(v - p.v) - p.hv;
+    if (ou > p.edge || ov > p.edge) continue;
+    r += p.h * (1 - smoothstep(0, p.edge, Math.hypot(Math.max(ou, 0), Math.max(ov, 0))));
+  }
+  return r;
+}
+
+/** The depth of the tongues of dune lying over a city at a point of its frame (m; small: the little dunes riding on them). */
+export function ancientDrift(c: AncientSite, u: number, v: number, small = 0): number {
+  let r = 0;
+  for (const t of c.tongues) {
+    const eu = t.u1 - t.u0, ev = t.v1 - t.v0, L2 = eu * eu + ev * ev;
+    const pr = ((u - t.u0) * eu + (v - t.v0) * ev) / L2;
+    const pc = pr < 0 ? 0 : pr > 1 ? 1 : pr;
+    const d = Math.hypot(u - t.u0 - eu * pc, v - t.v0 - ev * pc);
+    // (the nose, downwind, rounder and steeper: a slip face)
+    const w = t.w * (1 - 0.45 * smoothstep(0, 1, ((pr - 1) * Math.sqrt(L2)) / t.w));
+    if (d >= w) continue;
+    r += (t.h + small * 0.5) * (1 - smoothstep(0.22, 1, d / w));
+  }
+  return r;
 }
 
 // ---------------------------------------------------------------------------
@@ -301,17 +434,14 @@ const _raw = { small: 0, base: 0 };
 /** Ground height of the Dune Sea (m above sea level, always well above it). */
 export function duneHeight(x: number, z: number): number {
   let h = rawHeight(x, z, _raw);
-  // an ancient city: its ground levelled inside and round its walls, the small dunes still drifting
-  // through the streets, and tongues of the big dunes reaching in over a part of it
+  // an ancient city: its ground levelled inside and round its walls (its hills, terraces and tongues of dune
+  // on it), blending out into the erg over two kilometres along a wandering edge
   const al = ancientLocal(x, z);
   if (al) {
     const flat = al.c.H + ANCIENT_APRON;
-    const d = Math.max(Math.abs(al.u), Math.abs(al.v));
-    let w = 1 - smoothstep(flat, flat + 2200, d);
-    if (w > 0) {
-      w *= 1 - 0.75 * smoothstep(0.25, 0.65, N2.noise(x / 1600 + 11, z / 1600 - 4)) * smoothstep(al.c.H * 0.35, al.c.H, d);
-      h = lerp(h, al.c.floor + _raw.small * 0.4 + 3 * N.noise(x / 300, z / 300), w);
-    }
+    const d = Math.max(Math.abs(al.u), Math.abs(al.v)) + 450 * N2.noise(x / 2600 + 11, z / 2600 - 4);
+    const w = 1 - smoothstep(flat, flat + 2000, d);
+    if (w > 0) h = lerp(h, al.c.floor + 1.2 * N.noise(x / 300, z / 300) + _raw.small * 0.12 + ancientGround(al.c, al.u, al.v) + ancientDrift(al.c, al.u, al.v, _raw.small), w);
   }
   const near = oasisNear(x, z);
   if (!near) return h;
@@ -397,6 +527,13 @@ export function sandColor(x: number, z: number, h: number, slope: number, field:
   if (sw > 0) mixc(out, 0.6, 0.5, 0.37, sw * 0.8);
   const dc = Math.hypot(x - CITY.x, z - CITY.z);
   mixc(out, 0.78, 0.67, 0.5, (1 - smoothstep(CITY.r * 0.6, CITY.r * 1.1, dc)) * 0.45);
+  // the ancient cities: warmer, trodden ground inside the walls (the pale stone stands out on it), the drifts on it paler
+  const al = ancientLocal(x, z);
+  if (al) {
+    const d = Math.max(Math.abs(al.u), Math.abs(al.v));
+    const inner = (1 - smoothstep(al.c.H - 150, al.c.H + 450, d)) * (1 - smoothstep(5, 15, h - al.c.floor)) * (1 - lee);
+    mixc(out, 0.79 + 0.03 * n1, 0.63 + 0.03 * n1, 0.43, inner * (0.4 + 0.15 * n2));
+  }
   // the airfields: packed, dark sand
   if (field > 0.3) mixc(out, 0.56, 0.46, 0.34, smoothstep(0.3, 0.9, field) * 0.85);
   // oases: green ground round the pond in patches, wet dark sand at the shore, the pond bed dark
