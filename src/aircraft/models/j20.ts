@@ -477,13 +477,13 @@ export function buildJ20(v: AirframeVisual): void {
     const pivot = new THREE.Group();
     pivot.position.set(NAC_X * sx, ENG_Y, NOZZLE_Z);
     v.body.add(pivot);
-    const nz = nozzleJ20B({ cx: 0, cy: 0, z0: 0, z1: 1.2, r0: 0.53, r1: 0.45, floor: 0.15, shroud: 0.566 });
+    const nz = nozzleJ20B({ cx: 0, cy: 0, z0: 0, z1: 1.05, r0: 0.53, r1: 0.45, floor: 0.15, shroud: 0.566 });
     const nzOut = v.addMesh(nz.outer, nz.mat, pivot);
     const nzIn = v.addMesh(nz.inner, pm.nozzleIn, pivot);
     nzIn.userData.detail = true;
     v.morphNozzle(nzOut, nzIn);
     v.addMesh(lathe([[0.545, -0.1], [0.565, -0.04], [0.565, 0.06], [0.54, 0.12]], 32), pm.darkMetal, pivot);
-    v.nozzles.push({ pos: new THREE.Vector3(0, 0, 1.15), radius: 0.42, parent: pivot, depth: 1.0, area: nz.area });
+    v.nozzles.push({ pos: new THREE.Vector3(0, 0, 1.0), radius: 0.42, parent: pivot, depth: 0.88, area: nz.area });
     v.vectoring.push({ pivot, side: sx });
   }
   v.buildFlames(6.4, 'blue');

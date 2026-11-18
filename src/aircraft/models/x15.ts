@@ -80,6 +80,8 @@ const BODY_SUB = [3, 3, 2, 1, 2, 1, 3, 1, 2, 1, 2, 2, 2, 2, 1];
 const TAIL_Z = 7.85;
 /** the XLR99's bell: throat (z0, r0) about a metre inside the base, exit (z1, r1) just proud of it, the chamber's end (floor) */
 const X15_BELL = { z0: TAIL_Z - 1.0, r0: 0.13, z1: TAIL_Z + 0.035, r1: 0.455, floor: TAIL_Z - 1.3 };
+/** the silver base plate's outer radius, round the bell */
+const X15_PLATE = 0.6;
 
 // the canopy: a hump on top of the forward fuselage with the two small windows,
 // faired back into the spine behind the pilot (the crown 1.0 m over the datum)
@@ -263,14 +265,25 @@ export function buildX15(v: AirframeVisual): void {
   // the blunt base around the rocket, closing the whole tail (tunnels and all), open in the middle
   // where the rocket's bell runs in (nozzles.ts lays the silver base plate and the bell in it)
   {
-    const rim = loftProfile({ stations: [TAIL_Z - 0.004, TAIL_Z], profile: BODY, sub: BODY_SUB }).toNonIndexed();
+    const rimIdx = loftProfile({ stations: [TAIL_Z - 0.004, TAIL_Z], profile: BODY, sub: BODY_SUB });
+    // the cap's edge is the rim's own last ring (the whole loop, both sides: BODY() is only the right
+    // half), so the two meet with no gap
+    const rp = rimIdx.attributes.position;
+    const n = rp.count / 2;
+    const loop: THREE.Vector2[] = [];
+    for (let j = n; j < 2 * n; j++) {
+      const q = new THREE.Vector2(rp.getX(j), rp.getY(j));
+      if (!loop.length || q.distanceTo(loop[loop.length - 1]) > 1e-5) loop.push(q);
+    }
+    if (loop.length > 2 && loop[0].distanceTo(loop[loop.length - 1]) < 1e-5) loop.pop();
+    const rim = rimIdx.toNonIndexed();
     rim.computeVertexNormals();
     v.addMesh(rim, pm.darkMetal);
-    const loop = BODY(TAIL_Z).map(([x, y]) => new THREE.Vector2(x, y));
     if (THREE.ShapeUtils.isClockWise(loop)) loop.reverse();
     const sh = new THREE.Shape(loop);
+    // (open out to the silver base plate's edge, which lies 3 mm proud of the cap: no overlap to flicker)
     const hole = new THREE.Path();
-    hole.absarc(0, 0, X15_BELL.r1 * 1.02, 0, Math.PI * 2, true);
+    hole.absarc(0, 0, X15_PLATE - 0.004, 0, Math.PI * 2, true);
     sh.holes.push(hole);
     const cap = new THREE.ShapeGeometry(sh, 24);
     cap.translate(0, 0, TAIL_Z);
@@ -357,7 +370,7 @@ export function buildX15(v: AirframeVisual): void {
 
   // --- the XLR99 rocket: one bell in the base, its copper-ringed lip just proud of the base plate --------
   {
-    const nz = nozzleX15({ cx: 0, cy: 0, ...X15_BELL, base: TAIL_Z, plate: 0.6 });
+    const nz = nozzleX15({ cx: 0, cy: 0, ...X15_BELL, base: TAIL_Z, plate: X15_PLATE });
     const nzOut = v.addMesh(nz.outer, nz.mat);
     const nzIn = v.addMesh(nz.inner, pm.nozzleIn);
     nzIn.userData.detail = true;

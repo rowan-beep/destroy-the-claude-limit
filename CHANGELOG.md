@@ -4,6 +4,15 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu the space updates.
 
+## v7.15.13 (2026-11-18)
+
+### Air Combat: X-15 tail fixed, shorter J-20B nozzles
+
+- **Fixed: X-15 tail**
+  - The back of the X-15 was see-through on one side and flickered round the rocket: its base is closed again all the way across, and the silver plate round the rocket bell no longer fights with the base behind it.
+- **Improved: J-20B nozzles**
+  - The J-20B's nozzles are a little shorter.
+
 ## v7.15.12 (2026-11-18)
 
 ### Air Combat: Every jet has its own exhaust nozzles

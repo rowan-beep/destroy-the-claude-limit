@@ -41,6 +41,17 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.15.13',
+    date: '2026-11-18',
+    air: {
+      title: 'X-15 tail fixed, shorter J-20B nozzles',
+      notes: [
+        fixed('X-15 tail', 'The back of the X-15 was see-through on one side and flickered round the rocket: its base is closed again all the way across, and the silver plate round the rocket bell no longer fights with the base behind it.'),
+        improved('J-20B nozzles', 'The J-20B\'s nozzles are a little shorter.'),
+      ],
+    },
+  },
+  {
     version: '7.15.12',
     date: '2026-11-18',
     air: {
