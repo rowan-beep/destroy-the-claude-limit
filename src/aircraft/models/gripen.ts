@@ -11,7 +11,8 @@ import { AirframeVisual } from './visual';
 import { addPilot } from './pilot';
 import { Section } from './builder';
 import { P2, loftProfile, keyedProfile, stations, mergeStations, wing, WingStation, finMatrix, both, mirror, join, stamp, lathe, Livery, skinMaterial, line, rivets, weather, prng, roundel, LINE, LINE_LIGHT, curve, sstep, roundBox } from './kit';
-import { nozzle, intake, partMaterials, blade, probe, formationStrip } from './parts';
+import { intake, partMaterials, blade, probe, formationStrip } from './parts';
+import { nozzleGripen } from './nozzles';
 import { buildCanopy, buildGearSet, wingPanels, finPanels, sectionsFromProfile } from './common';
 
 function circ(R: number, yc: number): P2[] {
@@ -331,8 +332,8 @@ export function buildGripen(v: AirframeVisual): void {
   skin(fillet);
 
   // --- the F414G nozzle, on the engine axis above the nose line
-  const nz = nozzle({ cx: 0, cy: 0.155, z0: 6.5, z1: 7.58, r0: 0.5, r1: 0.4, petals: 14, saw: 0.05, floor: 6.62 });
-  const nzOut = v.addMesh(nz.outer, pm.nozzle);
+  const nz = nozzleGripen({ cx: 0, cy: 0.155, z0: 6.5, z1: 7.58, r0: 0.5, r1: 0.4, floor: 6.62 });
+  const nzOut = v.addMesh(nz.outer, nz.mat);
   const nzIn = v.addMesh(nz.inner, pm.nozzleIn);
   nzIn.userData.detail = true;
   v.morphNozzle(nzOut, nzIn);

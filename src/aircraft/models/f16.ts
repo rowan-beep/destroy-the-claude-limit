@@ -14,7 +14,8 @@ import { AirframeVisual } from './visual';
 import { addPilot } from './pilot';
 import { Section } from './builder';
 import { P2, loftProfile, keyedProfile, stations, mergeStations, wing, WingStation, mirror, join, stamp, lathe, ring, mirrorHalf, Livery, skinMaterial, line, rivets, weather, prng, roundel, stencil, LINE, LINE_LIGHT, curve, sstep, roundBox } from './kit';
-import { nozzle, intake, partMaterials, blade, probe, formationStrip, acrylic } from './parts';
+import { intake, partMaterials, blade, probe, formationStrip, acrylic } from './parts';
+import { nozzleF16 } from './nozzles';
 import { buildCanopy, buildGearSet, wingPanels, finPanels, sectionsFromProfile } from './common';
 import { finMatrix } from './kit';
 
@@ -464,9 +465,9 @@ export function buildF16(v: AirframeVisual): void {
   skin(ventral);
   skin(mirror(ventral));
 
-  // --- the F110 and its nozzle
-  const nz = nozzle({ cx: 0, cy: 0.0, z0: 5.75, z1: 6.76, r0: 0.54, r1: 0.43, petals: 15, saw: 0.05, floor: 5.84 });
-  const nzOut = v.addMesh(nz.outer, pm.nozzle);
+  // --- the F110 and its nozzle (nozzles.ts: polished flaps with stepped tips, golden seal tiles)
+  const nz = nozzleF16({ cx: 0, cy: 0.0, z0: 5.75, z1: 6.76, r0: 0.54, r1: 0.43, floor: 5.84 });
+  const nzOut = v.addMesh(nz.outer, nz.mat);
   const nzIn = v.addMesh(nz.inner, pm.nozzleIn);
   nzIn.userData.detail = true;
   v.morphNozzle(nzOut, nzIn);

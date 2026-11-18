@@ -116,6 +116,7 @@ const FLAME_VERT = /* glsl */ `
 varying vec2 vUv;
 varying vec3 vN;
 varying vec3 vV;
+varying vec3 vAx;
 #include <common>
 #include <logdepthbuf_pars_vertex>
 void main() {
@@ -123,6 +124,8 @@ void main() {
   vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
   vV = -mvPosition.xyz;
   vN = normalize( normalMatrix * normal );
+  // the plume's axis (the layer's +z, aft) in view space
+  vAx = ( modelViewMatrix * vec4( 0.0, 0.0, 1.0, 0.0 ) ).xyz;
   gl_Position = projectionMatrix * mvPosition;
   #include <logdepthbuf_vertex>
 }
@@ -142,6 +145,7 @@ uniform vec3 cDiamond;
 varying vec2 vUv;
 varying vec3 vN;
 varying vec3 vV;
+varying vec3 vAx;
 #include <common>
 #include <logdepthbuf_pars_fragment>
 float hash3( vec3 p ) { return fract( sin( dot( p, vec3( 127.1, 311.7, 74.7 ) ) ) * 43758.5453 ); }
@@ -186,7 +190,12 @@ void main() {
     float lick = smoothstep( 0.5, 0.85, n );
     float body = 1.0 - smoothstep( 0.0, 1.0, along + ( n - 0.5 ) * 0.6 );
     vec3 col = mix( cMid, cTail, along );
-    e = col * body * ( intensity * ( 0.02 + 0.22 * lick * ( 1.0 - along ) ) ) + mix( cDry, cTail, along ) * body * dry * 0.03 * ( 0.6 + 0.8 * n );
+    // (the dry-power tint is a thin veil seen across the jet; looking straight up the exhaust you would
+    // see through its whole length at once -- an orange disc over the nozzle, nothing like the dark
+    // nozzles in photos taken from behind -- so it fades out as the view lines up with the axis)
+    float endOn = abs( dot( normalize( vV ), normalize( vAx ) ) );
+    float veil = 1.0 - smoothstep( 0.5, 0.9, endOn );
+    e = col * body * ( intensity * ( 0.02 + 0.22 * lick * ( 1.0 - along ) ) ) + mix( cDry, cTail, along ) * body * dry * 0.03 * ( 0.6 + 0.8 * n ) * veil;
   }
   // no hard spike where a layer closes to its tip
   e *= soft * ( 1.0 - smoothstep( 0.72, 1.0, along ) );

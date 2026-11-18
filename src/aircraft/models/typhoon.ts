@@ -9,7 +9,8 @@ import { AirframeVisual } from './visual';
 import { addPilot } from './pilot';
 import { Section, sectionArch, sectionAt } from './builder';
 import { P2, loftProfile, keyedProfile, stations, mergeStations, wing, WingStation, finMatrix, mirror, join, stamp, lathe, ring, mirrorHalf, Livery, skinMaterial, line, rivets, weather, prng, roundel, LINE, LINE_LIGHT, curve, sstep, roundBox, strip } from './kit';
-import { nozzle, intake, partMaterials, blade, probe, formationStrip } from './parts';
+import { intake, partMaterials, blade, probe, formationStrip } from './parts';
+import { nozzleTyphoon } from './nozzles';
 import { buildCanopy, buildGearSet, wingPanels, finPanels, sectionsFromProfile } from './common';
 
 function circ(R: number, yc: number): P2[] {
@@ -325,8 +326,8 @@ export function buildTyphoon(v: AirframeVisual): void {
 
   // --- engines, brake-chute fairing
   for (const sx of [-1, 1]) {
-    const nz = nozzle({ cx: 0.5 * sx, cy: -0.1, z0: 5.9, z1: 6.87, r0: 0.47, r1: 0.39, petals: 12, saw: 0.06, floor: 5.97 });
-    const nzOut = v.addMesh(nz.outer, pm.nozzle);
+    const nz = nozzleTyphoon({ cx: 0.5 * sx, cy: -0.1, z0: 5.9, z1: 6.87, r0: 0.47, r1: 0.39, floor: 5.97 });
+    const nzOut = v.addMesh(nz.outer, nz.mat);
     const nzIn = v.addMesh(nz.inner, pm.nozzleIn);
     nzIn.userData.detail = true;
     v.morphNozzle(nzOut, nzIn);

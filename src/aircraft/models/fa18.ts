@@ -10,7 +10,8 @@ import { AirframeVisual } from './visual';
 import { addPilot } from './pilot';
 import { Section } from './builder';
 import { P2, loftProfile, keyedProfile, stations, mergeStations, wing, WingStation, finMatrix, both, mirror, join, stamp, lathe, rrect, Livery, skinMaterial, line, rivets, weather, prng, roundel, LINE, LINE_LIGHT, curve, sstep, roundBox } from './kit';
-import { nozzle, intake, partMaterials, blade, probe, formationStrip } from './parts';
+import { intake, partMaterials, blade, probe, formationStrip } from './parts';
+import { nozzleFA18 } from './nozzles';
 import { buildCanopy, buildGearSet, wingPanels, finPanels, sectionsFromProfile } from './common';
 
 function circ(R: number, yc: number): P2[] {
@@ -360,8 +361,8 @@ export function buildFA18(v: AirframeVisual): void {
 
   // --- engines, tail hook
   for (const sx of [-1, 1]) {
-    const nz = nozzle({ cx: 0.56 * sx, cy: 0.03, z0: 7.85, z1: 8.5, r0: 0.49, r1: 0.38, petals: 12, saw: 0.07, floor: 7.92 });
-    const nzOut = v.addMesh(nz.outer, pm.nozzle);
+    const nz = nozzleFA18({ cx: 0.56 * sx, cy: 0.03, z0: 7.85, z1: 8.5, r0: 0.49, r1: 0.38, floor: 7.92 });
+    const nzOut = v.addMesh(nz.outer, nz.mat);
     const nzIn = v.addMesh(nz.inner, pm.nozzleIn);
     nzIn.userData.detail = true;
     v.morphNozzle(nzOut, nzIn);

@@ -94,13 +94,15 @@ export function burnerMaterial(): THREE.MeshStandardMaterial {
     vec3 col = mix( lip, mid, smoothstep( 0.0, 0.5, h ) );
     col = mix( col, core, smoothstep( 0.45, 0.95, h ) * min( b, 1.0 ) * ( 0.35 + 0.65 * centre ) );
     col = mix( col, vec3( 1.0, 0.97, 0.9 ), smoothstep( 0.7, 1.0, h ) * centre * centre * min( b, 1.0 ) );
-    float I = b * ( 0.35 + 2.2 * pow( h, 1.6 ) * ( 0.55 + 0.9 * centre ) ) + dry * ( 0.01 + 0.12 * h * h );
+    // (at military power only a faint glow deep in the can: in daylight photos the inside of a
+    // nozzle reads dark, the flame holders grey against the black can)
+    float I = b * ( 0.35 + 2.2 * pow( h, 1.6 ) * ( 0.55 + 0.9 * centre ) ) + dry * ( 0.0003 + 0.003 * h * h );
     I *= 1.0 - 0.6 * holder;
     totalEmissiveRadiance += col * I * fl;
   }`,
       );
   };
-  m.customProgramCacheKey = () => 'nozzle-burner-v4';
+  m.customProgramCacheKey = () => 'nozzle-burner-v6';
   return m;
 }
 

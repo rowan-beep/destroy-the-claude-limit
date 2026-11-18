@@ -17,7 +17,8 @@ import {
   P2, loftProfile, keyedProfile, stations, mergeStations, wing, WingStation, finMatrix, both, mirror, join, stamp, lathe, rrect,
   Livery, skinMaterial, line, rivets, weather, prng, LINE, LINE_LIGHT, curve, sstep, roundBox,
 } from './kit';
-import { nozzle, intake, partMaterials, blade, probe, formationStrip } from './parts';
+import { intake, partMaterials, blade, probe, formationStrip } from './parts';
+import { nozzleMig31 } from './nozzles';
 import { buildCanopy, buildGearSet, wingPanels, finPanels, sectionsFromProfile } from './common';
 
 function circ(R: number, yc: number): P2[] {
@@ -316,12 +317,6 @@ function star(g: CanvasRenderingContext2D, x: number, y: number, r: number): voi
 const liveries = new Map<string, Livery>();
 
 /** Tint a nozzle mesh's vertex colours toward heat-blued, straw-and-bronze titanium. */
-function bronze(g: THREE.BufferGeometry): THREE.BufferGeometry {
-  const c = g.attributes.color as THREE.BufferAttribute | undefined;
-  if (!c) return g;
-  for (let i = 0; i < c.count; i++) c.setXYZ(i, Math.min(1, c.getX(i) * 1.18 + 0.05), c.getY(i) * 0.92 + 0.02, c.getZ(i) * 0.66);
-  return g;
-}
 
 export function buildMig31(v: AirframeVisual): void {
   const pm = partMaterials();
@@ -518,10 +513,10 @@ export function buildMig31(v: AirframeVisual): void {
     skin(wing({ sections: VENTRAL, chordPts: 20, spanSub: 3, tip: 'flat', root: 'flat', matrix: vm }));
   }
 
-  // --- engines: two D-30F6 nozzles, short and wide, heat-tinted titanium ----------------------------------------
+  // --- engines: two D-30F6 nozzles: big plain shrouds of burnt steel, the flaps inside (nozzles.ts) ------------
   for (const sx of [-1, 1] as const) {
-    const nz = nozzle({ cx: NAC_X * sx, cy: -0.3, z0: NOZZLE_Z, z1: 10.25, r0: 0.62, r1: 0.56, petals: 18, saw: 0.06, floor: NOZZLE_Z + 0.15 });
-    const nzOut = v.addMesh(bronze(nz.outer), pm.nozzle);
+    const nz = nozzleMig31({ cx: NAC_X * sx, cy: -0.3, z0: NOZZLE_Z, z1: 10.25, r0: 0.62, r1: 0.56, floor: NOZZLE_Z + 0.15 });
+    const nzOut = v.addMesh(nz.outer, nz.mat);
     const nzIn = v.addMesh(nz.inner, pm.nozzleIn);
     nzIn.userData.detail = true;
     v.morphNozzle(nzOut, nzIn);

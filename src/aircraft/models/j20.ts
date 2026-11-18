@@ -14,7 +14,8 @@ import { AirframeVisual } from './visual';
 import { addPilot } from './pilot';
 import { Section } from './builder';
 import { P2, loftProfile, keyedProfile, stations, mergeStations, wing, WingStation, finMatrix, both, mirror, join, stamp, lathe, rrect, Livery, skinMaterial, line, rivets, weather, prng, LINE, LINE_LIGHT, curve, sstep } from './kit';
-import { nozzle, intake, partMaterials, blade, probe, formationStrip, tintedCanopyGlass } from './parts';
+import { intake, partMaterials, blade, probe, formationStrip, tintedCanopyGlass } from './parts';
+import { nozzleJ20B } from './nozzles';
 import { buildCanopy, buildGearSet, wingPanels, sectionsFromProfile } from './common';
 import { bayInteriorMaterial, skinPanel, swingSign } from './f22';
 
@@ -476,8 +477,8 @@ export function buildJ20(v: AirframeVisual): void {
     const pivot = new THREE.Group();
     pivot.position.set(NAC_X * sx, ENG_Y, NOZZLE_Z);
     v.body.add(pivot);
-    const nz = nozzle({ cx: 0, cy: 0, z0: 0, z1: 1.2, r0: 0.53, r1: 0.45, petals: 16, saw: 0.08, floor: 0.15 });
-    const nzOut = v.addMesh(nz.outer, pm.nozzle, pivot);
+    const nz = nozzleJ20B({ cx: 0, cy: 0, z0: 0, z1: 1.2, r0: 0.53, r1: 0.45, floor: 0.15, shroud: 0.566 });
+    const nzOut = v.addMesh(nz.outer, nz.mat, pivot);
     const nzIn = v.addMesh(nz.inner, pm.nozzleIn, pivot);
     nzIn.userData.detail = true;
     v.morphNozzle(nzOut, nzIn);

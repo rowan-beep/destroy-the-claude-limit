@@ -10,7 +10,8 @@ import { AirframeVisual } from './visual';
 import { addPilot } from './pilot';
 import { Section } from './builder';
 import { P2, loftProfile, keyedProfile, stations, mergeStations, wing, WingStation, finMatrix, both, mirror, join, stamp, lathe, Livery, skinMaterial, line, rivets, weather, prng, roundel, LINE, LINE_LIGHT, curve, sstep, roundBox } from './kit';
-import { nozzle, intake, partMaterials, blade, probe, formationStrip } from './parts';
+import { intake, partMaterials, blade, probe, formationStrip } from './parts';
+import { nozzleRafale } from './nozzles';
 import { buildCanopy, buildGearSet, wingPanels, finPanels, sectionsFromProfile } from './common';
 
 const ANG = [-90, -72, -52, -34, -14, -4, 4, 14, 34, 52, 72, 90];
@@ -370,8 +371,9 @@ export function buildRafale(v: AirframeVisual): void {
 
   // --- two close-set M88 nozzles, ending 0.9 m short of the SPECTRA pod
   for (const sx of [-1, 1]) {
-    const nz = nozzle({ cx: 0.72 * sx, cy: 0.03, z0: 5.95, z1: 6.36, r0: 0.44, r1: 0.39, petals: 12, saw: 0.05, floor: 6.02 });
-    const nzOut = v.addMesh(nz.outer, pm.nozzle);
+    // (the can's floor just behind the body's flat end at 6.15, which would otherwise show inside the nozzle)
+    const nz = nozzleRafale({ cx: 0.72 * sx, cy: 0.03, z0: 5.95, z1: 6.36, r0: 0.44, r1: 0.39, floor: 6.16 });
+    const nzOut = v.addMesh(nz.outer, nz.mat);
     const nzIn = v.addMesh(nz.inner, pm.nozzleIn);
     nzIn.userData.detail = true;
     v.morphNozzle(nzOut, nzIn);

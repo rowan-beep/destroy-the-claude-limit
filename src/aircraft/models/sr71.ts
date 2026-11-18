@@ -16,7 +16,8 @@ import {
   P2, loftProfile, keyedProfile, stations, mergeStations, wing, WingStation, finMatrix, both, mirror, join, stamp, lathe,
   Livery, skinMaterial, line, rivets, weather, prng, LINE, LINE_LIGHT, sstep,
 } from './kit';
-import { nozzle, partMaterials, blade, probe, formationStrip } from './parts';
+import { partMaterials, blade, probe, formationStrip } from './parts';
+import { nozzleSr71 } from './nozzles';
 import { buildCanopy, buildGearSet, wingPanels, sectionsFromProfile } from './common';
 
 /** the chine edge lies in the wing plane */
@@ -434,8 +435,8 @@ export function buildSr71(v: AirframeVisual): void {
 
   // --- engines: two J58 ejector nozzles --------------------------------------------------------
   for (const sx of [-1, 1] as const) {
-    const nz = nozzle({ cx: NAC_X * sx, cy: NAC_Y, z0: NOZZLE_Z, z1: 10.85, r0: 0.9, r1: 0.86, petals: 26, saw: 0.04, floor: NOZZLE_Z + 0.15 });
-    const nzOut = v.addMesh(nz.outer, pm.nozzle);
+    const nz = nozzleSr71({ cx: NAC_X * sx, cy: NAC_Y, z0: NOZZLE_Z, z1: 10.85, r0: 0.9, r1: 0.86, floor: NOZZLE_Z + 0.15 });
+    const nzOut = v.addMesh(nz.outer, nz.mat);
     const nzIn = v.addMesh(nz.inner, pm.nozzleIn);
     nzIn.userData.detail = true;
     v.morphNozzle(nzOut, nzIn);

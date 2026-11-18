@@ -12,7 +12,8 @@ import { AirframeVisual } from './visual';
 import { addPilot } from './pilot';
 import { Section } from './builder';
 import { P2, loftProfile, keyedProfile, stations, mergeStations, wing, WingStation, finMatrix, both, mirror, join, stamp, lathe, rrect, Livery, skinMaterial, line, rivets, weather, prng, LINE, LINE_LIGHT, curve, sstep } from './kit';
-import { nozzle, intake, partMaterials, blade, probe, formationStrip } from './parts';
+import { intake, partMaterials, blade, probe, formationStrip } from './parts';
+import { nozzleSu57 } from './nozzles';
 import { buildCanopy, buildGearSet, wingPanels, finPanels, sectionsFromProfile } from './common';
 import { bayInteriorMaterial, skinPanel, swingSign } from './f22';
 
@@ -420,8 +421,8 @@ export function buildSu57(v: AirframeVisual): void {
     const pivot = new THREE.Group();
     pivot.position.set(NAC_X * sx, -0.2, NOZZLE_Z);
     v.body.add(pivot);
-    const nz = nozzle({ cx: 0, cy: 0, z0: 0, z1: 1.25, r0: 0.53, r1: 0.45, petals: 16, saw: 0.05, floor: 0.15 });
-    const nzOut = v.addMesh(nz.outer, pm.nozzle, pivot);
+    const nz = nozzleSu57({ cx: 0, cy: 0, z0: 0, z1: 1.25, r0: 0.53, r1: 0.45, floor: 0.15 });
+    const nzOut = v.addMesh(nz.outer, nz.mat, pivot);
     const nzIn = v.addMesh(nz.inner, pm.nozzleIn, pivot);
     nzIn.userData.detail = true;
     v.morphNozzle(nzOut, nzIn);

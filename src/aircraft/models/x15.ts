@@ -13,7 +13,8 @@ import { AirframeVisual } from './visual';
 import { addPilot } from './pilot';
 import { Section, loft } from './builder';
 import { P2, loftProfile, keyedProfile, stations, mergeStations, wing, WingStation, finMatrix, both, mirror, join, stamp, Livery, skinMaterial, line, rivets, weather, prng, LINE, LINE_LIGHT, curve } from './kit';
-import { nozzle, partMaterials, blade, probe } from './parts';
+import { partMaterials, blade, probe } from './parts';
+import { nozzleX15 } from './nozzles';
 import { buildCanopy, buildGearSet, wingPanels, sectionsFromProfile } from './common';
 
 /**
@@ -77,6 +78,8 @@ const BODY_KEYS: [number, number, number][] = [
 const BODY = keyedProfile(BODY_KEYS.map(([z, R, w]) => ({ z, pts: tunnelled(R, w) })));
 const BODY_SUB = [3, 3, 2, 1, 2, 1, 3, 1, 2, 1, 2, 2, 2, 2, 1];
 const TAIL_Z = 7.85;
+/** the XLR99's bell: throat (z0, r0) about a metre inside the base, exit (z1, r1) just proud of it, the chamber's end (floor) */
+const X15_BELL = { z0: TAIL_Z - 1.0, r0: 0.13, z1: TAIL_Z + 0.035, r1: 0.455, floor: TAIL_Z - 1.3 };
 
 // the canopy: a hump on top of the forward fuselage with the two small windows,
 // faired back into the spine behind the pilot (the crown 1.0 m over the datum)
@@ -257,11 +260,21 @@ export function buildX15(v: AirframeVisual): void {
   const zs = mergeStations(stations(-7.55, -4.0, 36, 0.6, 0), stations(-4.0, 5.6, 50), stations(5.6, TAIL_Z, 14, 0, 0));
   skin(loftProfile({ stations: zs, profile: BODY, sub: BODY_SUB }));
   v.fuselageSections = sectionsFromProfile(BODY, -7.4, TAIL_Z - 0.05, 30);
-  // the blunt base around the rocket, closing the whole tail (tunnels and all)
+  // the blunt base around the rocket, closing the whole tail (tunnels and all), open in the middle
+  // where the rocket's bell runs in (nozzles.ts lays the silver base plate and the bell in it)
   {
-    const base = loftProfile({ stations: [TAIL_Z - 0.004, TAIL_Z], profile: BODY, sub: BODY_SUB, capEnd: true }).toNonIndexed();
-    base.computeVertexNormals();
-    v.addMesh(base, pm.darkMetal);
+    const rim = loftProfile({ stations: [TAIL_Z - 0.004, TAIL_Z], profile: BODY, sub: BODY_SUB }).toNonIndexed();
+    rim.computeVertexNormals();
+    v.addMesh(rim, pm.darkMetal);
+    const loop = BODY(TAIL_Z).map(([x, y]) => new THREE.Vector2(x, y));
+    if (THREE.ShapeUtils.isClockWise(loop)) loop.reverse();
+    const sh = new THREE.Shape(loop);
+    const hole = new THREE.Path();
+    hole.absarc(0, 0, X15_BELL.r1 * 1.02, 0, Math.PI * 2, true);
+    sh.holes.push(hole);
+    const cap = new THREE.ShapeGeometry(sh, 24);
+    cap.translate(0, 0, TAIL_Z);
+    v.addMesh(cap, pm.darkMetal);
   }
   // the ball nose: the polished air-data sphere that read angle of attack and sideslip at Mach 6
   {
@@ -342,14 +355,14 @@ export function buildX15(v: AirframeVisual): void {
   });
   v.hideInCockpit.push(v.addMesh(shroud, pm.seat));
 
-  // --- the XLR99 rocket: one bell nozzle in the base, its lip just proud of it ---------------------
+  // --- the XLR99 rocket: one bell in the base, its copper-ringed lip just proud of the base plate --------
   {
-    const nz = nozzle({ cx: 0, cy: 0, z0: TAIL_Z - 0.42, z1: TAIL_Z + 0.08, r0: 0.4, r1: 0.47, petals: 56, saw: 0, floor: TAIL_Z - 0.28 });
-    const nzOut = v.addMesh(nz.outer, pm.nozzle);
+    const nz = nozzleX15({ cx: 0, cy: 0, ...X15_BELL, base: TAIL_Z, plate: 0.6 });
+    const nzOut = v.addMesh(nz.outer, nz.mat);
     const nzIn = v.addMesh(nz.inner, pm.nozzleIn);
     nzIn.userData.detail = true;
     v.morphNozzle(nzOut, nzIn);
-    v.nozzles.push({ pos: new THREE.Vector3(0, 0, TAIL_Z + 0.04), radius: 0.44, depth: 0.5, area: nz.area });
+    v.nozzles.push({ pos: new THREE.Vector3(0, 0, TAIL_Z + 0.04), radius: 0.44, depth: X15_BELL.z1 - X15_BELL.z0, area: nz.area });
   }
   // the rocket plume: short and bright, widening as the air thins
   v.buildFlames(9);

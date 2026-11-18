@@ -16,7 +16,8 @@ import {
   P2, loftProfile, keyedProfile, stations, mergeStations, wing, WingStation, finMatrix, both, mirror, join, stamp, lathe, rrect,
   Livery, skinMaterial, line, rivets, weather, prng, LINE, LINE_LIGHT, curve, sstep,
 } from './kit';
-import { nozzle, intake, partMaterials, blade, probe, formationStrip } from './parts';
+import { intake, partMaterials, blade, probe, formationStrip } from './parts';
+import { nozzleSu35 } from './nozzles';
 import { buildCanopy, buildGearSet, wingPanels, finPanels, sectionsFromProfile } from './common';
 
 function circ(R: number, yc: number): P2[] {
@@ -460,8 +461,8 @@ export function buildSu35(v: AirframeVisual): void {
     v.body.add(pivot);
     // the burner can ends just behind the gimbal: everything on the pivot swings
     // with the nozzle, so nothing long may reach forward into the nacelle
-    const nz = nozzle({ cx: 0, cy: 0, z0: 0, z1: 1.35, r0: 0.55, r1: 0.47, petals: 16, saw: 0.05, floor: 0.15 });
-    const nzOut = v.addMesh(nz.outer, pm.nozzle, pivot);
+    const nz = nozzleSu35({ cx: 0, cy: 0, z0: 0, z1: 1.35, r0: 0.55, r1: 0.47, floor: 0.15 });
+    const nzOut = v.addMesh(nz.outer, nz.mat, pivot);
     const nzIn = v.addMesh(nz.inner, pm.nozzleIn, pivot);
     nzIn.userData.detail = true;
     v.morphNozzle(nzOut, nzIn);

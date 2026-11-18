@@ -12,7 +12,8 @@ import {
   P2, loftProfile, keyedProfile, stations, mergeStations, wing, WingStation, finMatrix, both, mirror, join, stamp, lathe, rrect, ring, mirrorHalf,
   Livery, skinMaterial, line, rivets, weather, prng, roundel, LINE, LINE_LIGHT, deform, sstep, curve, crSeg, offsetLoop, colorize,
 } from './kit';
-import { nozzle, intake, partMaterials, blade, probe, formationStrip } from './parts';
+import { intake, partMaterials, blade, probe, formationStrip } from './parts';
+import { nozzleF15EX } from './nozzles';
 import { buildCanopy, buildGearSet, wingPanels, finPanels, sectionsFromProfile } from './common';
 
 /** 12 points on a circle (bottom centre -> top centre, right half). */
@@ -1839,16 +1840,12 @@ export function buildF15EX(v: AirframeVisual): void {
   }
 
   // --- engines -----------------------------------------------------------------------
-  // Two bare F110 nozzles (no turkey feathers, as on the photos) between the booms, 0.75 m ahead of
-  // the boom tails and the stabilators' roots: the stabilators reach a good metre past the exits.
-  // (their own material: the bare shroud and flaps are dull, sooty metal in the photos, not the bright
-  // polished finish of the other jets' feathered nozzles)
-  const bareNozzleMat = pm.nozzle.clone();
-  bareNozzleMat.roughness = 0.8;
-  bareNozzleMat.metalness = 0.38;
+  // Two F110-GE-129 nozzles between the booms, 0.75 m ahead of the boom tails and the stabilators'
+  // roots: the stabilators reach a good metre past the exits. (nozzles.ts: the F110's black band,
+  // flat grey flaps with stepped tips and pale seal tiles, as on the photos)
   for (const sx of [-1, 1]) {
-    const nz = nozzle({ cx: NOZ.x * sx, cy: NOZ.y, z0: NOZ.z0, z1: NOZ.z1, r0: NOZ.r0, r1: NOZ.r1, petals: 16, saw: 0.05, floor: AFT_END, bare: { shroud: 0.52 } });
-    const nzOut = v.addMesh(nz.outer, bareNozzleMat);
+    const nz = nozzleF15EX({ cx: NOZ.x * sx, cy: NOZ.y, z0: NOZ.z0, z1: NOZ.z1, r0: NOZ.r0, r1: NOZ.r1, floor: AFT_END });
+    const nzOut = v.addMesh(nz.outer, nz.mat);
     const nzIn = v.addMesh(nz.inner, pm.nozzleIn);
     nzIn.userData.detail = true;
     v.morphNozzle(nzOut, nzIn);

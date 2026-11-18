@@ -4,6 +4,15 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu the space updates.
 
+## v7.15.12 (2026-11-18)
+
+### Air Combat: Every jet has its own exhaust nozzles
+
+- **Improved: Every jet has its own exhaust nozzles**
+  - Each jet's nozzles are now modelled on photographs of its own engine instead of one shared design: the F-15EX's F110 with its black band and notched flaps, the F-16's polished flaps and golden tiles, the Super Hornet's boat-tail with white pads inside, the Typhoon's flaps that flare open with gaps between them when parked, the Su-35's long rainbow-tinted titanium, the Rafale's short dark nozzles with their ring of brackets, the F-22's pointed chevron flaps, the MiG-31's huge burnt-steel shrouds, the SR-71's corrugated ejectors, the X-15's rocket bell, the Su-57's bronze and gunmetal, the Gripen's zig-zag seams and the J-20B's saw-toothed edges. Seen from behind at normal power the inside is now dark with the flame holders showing, as in photos, instead of an orange disc; the afterburner glows as before.
+- **Fixed: Rafale nozzles**
+  - A grey disc no longer shows inside the Rafale's nozzles.
+
 ## v7.15.11 (2026-11-18)
 
 ### Air Combat: A shorter shock cloud
