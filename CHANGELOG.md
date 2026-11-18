@@ -4,6 +4,13 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu the space updates.
 
+## v7.15.11 (2026-11-18)
+
+### Air Combat: A shorter shock cloud
+
+- **Improved: A shorter shock cloud**
+  - After the cloud bursts at Mach 1, the small cone left behind now fades from Mach 1.05 and is gone by Mach 1.07, instead of lingering until Mach 1.3. Slowing down, it forms again at Mach 1.07.
+
 ## v7.15.10 (2026-11-17)
 
 ### Air Combat: Breaking the sound barrier

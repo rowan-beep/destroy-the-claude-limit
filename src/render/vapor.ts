@@ -772,8 +772,8 @@ export class VaporFx {
     const hiA = smoothstep(13, 26, alpha) * smoothstep(55, 90, fm.tas) * (1 - smoothstep(48, 62, alpha));
     const liftWant = !flying ? 0 : Math.min(1, Math.max(pull, 0.85 * hiA) * damp);
     const transWant = !flying ? 0 : smoothstep(0.86, 0.95, m) * (1 - smoothstep(1.04, 1.14, m)) * Math.min(1.2, damp);
-    // (a small cone forms at Mach 0.96, explodes at Mach 1, is small again by 1.015, and dissipates between 1.1 and 1.3; backwards when slowing)
-    const coneWant = !flying ? 0 : smoothstep(0.945, 0.965, m) * (1 - smoothstep(1.1, 1.3, m)) * Math.min(1, shockDamp);
+    // (a small cone forms at Mach 0.96, explodes at Mach 1, is small again by 1.015, and fully gone by 1.07 (fading from 1.05); backwards when slowing)
+    const coneWant = !flying ? 0 : smoothstep(0.945, 0.965, m) * (1 - smoothstep(1.05, 1.07, m)) * Math.min(1, shockDamp);
     // the tailplane carries the load too, more the harder it is deflected
     const tailWant = liftWant * (0.5 + 0.5 * Math.min(1, Math.abs(fm.defl.e) * 1.4));
     const ropeWant = !flying ? 0 : Math.min(1, Math.max(smoothstep(3.8, 6.8, g) * fast, 0.8 * smoothstep(12, 22, alpha) * smoothstep(60, 110, fm.tas)) * damp);

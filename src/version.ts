@@ -41,6 +41,16 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.15.11',
+    date: '2026-11-18',
+    air: {
+      title: 'A shorter shock cloud',
+      notes: [
+        improved('A shorter shock cloud', 'After the cloud bursts at Mach 1, the small cone left behind now fades from Mach 1.05 and is gone by Mach 1.07, instead of lingering until Mach 1.3. Slowing down, it forms again at Mach 1.07.'),
+      ],
+    },
+  },
+  {
     version: '7.15.10',
     date: '2026-11-17',
     air: {

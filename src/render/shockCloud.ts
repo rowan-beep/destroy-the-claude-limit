@@ -12,7 +12,7 @@
 //   1.0         it EXPLODES outward, overshooting, with violent ripples running aft along it
 //               (paired with the boom: game.watchBarrier fires at the same moment);
 //   1.015       it collapses back to its small shape (held at least ~0.7 s so the blast always reads);
-//   1.1 - 1.3   and the small cone dissipates, fully gone by 1.3.
+//   1.05 - 1.07 and the small cone fades away, fully gone by 1.07.
 //
 // Here it is ray-marched in the shader through the vapour noise volume (vaporNoise.ts),
 // not painted on a shell: it has depth, it is lit by the sun, it shades itself (from astern:
