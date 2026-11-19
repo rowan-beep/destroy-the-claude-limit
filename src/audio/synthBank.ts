@@ -151,101 +151,138 @@ function renderBoom(n: number, sr: number, r: Rng): Float32Array {
   return normalize(d, 0.95);
 }
 
-/**
- * A sonic boom heard from the ground or another jet: the nose and tail shocks
- * as a double N-wave crack, the rumble under them and the echoes.
- */
-function renderSonicBoom(n: number, sr: number, r: Rng): Float32Array {
-  const d = new Float32Array(n);
-  nwave(d, Math.floor(sr * 0.005), 1, sr * 0.004);
-  nwave(d, Math.floor(sr * 0.125), 0.85, sr * 0.0045);
-  const roll = brown(n, r);
-  Biquad.lp(sr, 140, 0.8).apply(roll);
-  const rk = 0.5 / Math.max(1e-9, rms(roll.subarray(0, sr)));
-  const air = pink(n, r);
-  Biquad.bp(sr, 900, 0.5).apply(air);
-  const ak = 0.25 / Math.max(1e-9, rms(air.subarray(0, sr)));
-  for (let i = 0; i < n; i++) {
-    const t = i / sr;
-    d[i] += roll[i] * rk * Math.min(1, t / 0.02) * Math.exp(-t / 0.55);
-    d[i] += air[i] * ak * Math.min(1, t / 0.01) * Math.exp(-t / 0.12);
-  }
-  const src = d.slice(0, Math.floor(sr * 0.6));
-  onePole(src, sr, 1500);
-  for (const [delay, g] of [
-    [0.09, 0.3],
-    [0.23, 0.2],
-    [0.5, 0.12],
-  ]) {
-    const o = Math.floor(sr * delay);
-    for (let i = 0; i < src.length && i + o < n; i++) d[i + o] += src[i] * g;
-  }
-  return normalize(d, 0.95);
-}
 
 /**
- * Breaking the sound barrier, the way a film would give it to you: the air bunching up ahead of the
- * jet (a swell that builds for half a second), then the shock itself -- a hard double crack (the nose
- * and tail shocks, about 90 ms apart) over a deep thump you feel in the chest -- the rush of air
- * closing behind, the airframe rattling, and a long rolling rumble with echoes off the ground.
- * (A real pilot hears none of this: the shock stays behind the cockpit. This is the cinema of it.)
+ * A sonic boom as a thunderclap: what lightning striking right next to you sounds like. A ripping,
+ * tearing crack (the nose and tail shocks inside a cluster of smaller ones), the blast's deep punch
+ * and roar, then the thunder rolling away for seconds in uneven waves, each later one darker and
+ * fainter, and the echoes off the ground and the hills. The body is driven into the soft saturation
+ * of a recording of something too loud for the microphone; the crack stays clean on top of it.
+ * `t0s`: where the crack falls (s); `gap`: nose to tail shock (s); `rollSec`: how long it rolls.
  */
-function renderBarrier(n: number, sr: number, r: Rng): Float32Array {
+function renderThunder(n: number, sr: number, r: Rng, t0s: number, gap: number, rollSec: number): Float32Array {
+  // the crack (d) and the body under it (b), mixed at the end
   const d = new Float32Array(n);
-  const T = 0.55;
-  const t0 = Math.floor(sr * T);
-  // the swell: low pressurised air, building
-  const sw = pink(n, r);
-  Biquad.bp(sr, 190, 0.55).apply(sw);
-  const swk = 0.4 / Math.max(1e-9, rms(sw.subarray(0, sr)));
-  for (let i = 0; i < t0; i++) d[i] += sw[i] * swk * Math.pow(i / t0, 2.6);
-  // the double crack
-  nwave(d, t0, 1, sr * 0.006);
-  nwave(d, t0 + Math.floor(sr * 0.092), 0.82, sr * 0.0065);
-  nwave(d, t0 + Math.floor(sr * 0.0035), 0.5, sr * 0.002);
-  // the thump: a sine falling from 70 Hz to 28 Hz, and the body of the boom under it
-  let ph = 0;
-  for (let i = t0; i < n; i++) {
-    const t = (i - t0) / sr;
-    const f = 28 + 42 * Math.exp(-t / 0.18);
-    ph += (2 * Math.PI * f) / sr;
-    d[i] += Math.sin(ph) * 0.9 * Math.exp(-t / 0.42) * Math.min(1, t / 0.004);
+  const b = new Float32Array(n);
+  const t0 = Math.floor(sr * t0s);
+  // the crack: the nose and tail shocks
+  nwave(d, t0, 1, sr * 0.005);
+  nwave(d, t0 + Math.floor(sr * gap), 0.9, sr * 0.0055);
+  // (it is rendered at start-up, so each layer is only as long as it is heard, and the slow
+  // envelopes are worked out every 32 samples and drawn straight between)
+  const len = (sec: number) => Math.min(n - t0, Math.floor(sr * sec));
+  // the tearing round them: bright noise opened by a cluster of small shocks, thinning out
+  const nt = len(0.6);
+  const tear = white(nt, r);
+  Biquad.hp(sr, 1300, 0.6).apply(tear);
+  const tk = 1 / Math.max(1e-9, rms(tear));
+  const gate = new Float32Array(nt);
+  const span = Math.floor(sr * 0.34);
+  for (let k = 0; k < 80; k++) {
+    const at = Math.floor(Math.pow(r(), 1.7) * span);
+    const amp = (0.3 + 0.7 * r()) * (1 - at / span) ** 0.5;
+    const ln = Math.max(8, Math.floor(sr * (0.002 + 0.012 * r())));
+    nwave(d, t0 + at, 0.18 * amp * (r() < 0.5 ? 1 : 0.6), ln * 0.4);
+    for (let i = 0, g = amp, kd = Math.exp(-1 / (ln * 0.35)); i < ln && at + i < nt; i++, g *= kd) gate[at + i] = Math.max(gate[at + i], g);
   }
-  const roll = brown(n, r);
-  Biquad.lp(sr, 120, 0.8).apply(roll);
-  const rk = 0.6 / Math.max(1e-9, rms(roll.subarray(0, sr)));
-  // the rush of air: bright at first, then dark as it closes
-  const hi = pink(n, r);
-  Biquad.bp(sr, 2400, 0.5).apply(hi);
-  const lo = pink(n, r);
-  Biquad.bp(sr, 520, 0.6).apply(lo);
-  const hk = 0.3 / Math.max(1e-9, rms(hi.subarray(0, sr)));
-  const lk = 0.34 / Math.max(1e-9, rms(lo.subarray(0, sr)));
-  // the airframe rattling: panels, canopy, loose fittings
-  const rat = new Float32Array(n);
-  crackleInto(rat, sr, 140, 1, r, 5, [0.2, 1.6]);
-  Biquad.hp(sr, 700, 0.7).apply(rat);
-  const tk = 0.1 / Math.max(1e-9, rms(rat.subarray(Math.floor(sr * 0.2), Math.floor(sr * 1.2))));
-  for (let i = t0; i < n; i++) {
-    const t = (i - t0) / sr;
-    d[i] += roll[i] * rk * Math.min(1, t / 0.03) * Math.exp(-t / 0.95);
-    const mix = Math.exp(-t / 0.4);
-    d[i] += (hi[i] * hk * mix + lo[i] * lk * (1 - mix)) * Math.min(1, t / 0.02) * Math.exp(-t / 0.75);
-    d[i] += rat[i] * tk * Math.min(1, t / 0.12) * Math.exp(-t / 0.7);
+  for (let i = 0, f = 0.25, kf = Math.exp(-1 / (sr * 0.05)); i < nt; i++, f *= kf) d[t0 + i] += tear[i] * tk * (0.5 * gate[i] + f) * Math.min(1, i / (sr * 0.0015));
+  // the punch: a sine falling from 90 Hz to 30 Hz, felt more than heard
+  {
+    const np = len(2.5);
+    const kf = Math.exp(-1 / (sr * 0.11)), ka = Math.exp(-1 / (sr * 0.38));
+    let ph = 0, fx = 60, a = 1.15;
+    for (let i = 0; i < np; i++, fx *= kf, a *= ka) {
+      ph += (2 * Math.PI * (30 + fx)) / sr;
+      b[t0 + i] += Math.sin(ph) * a * Math.min(1, i / (sr * 0.003));
+    }
   }
+  // the blast's roar, gone in a breath
+  {
+    const nb = len(1.6);
+    const blast = pink(nb, r);
+    mixInto(blast, brown(nb, r), 1);
+    Biquad.lp(sr, 1800, 0.6).apply(blast);
+    const bk = 0.6 / Math.max(1e-9, rms(blast.subarray(0, Math.min(nb, sr))));
+    const ka = Math.exp(-1 / (sr * 0.24));
+    for (let i = 0, a = bk; i < nb; i++, a *= ka) b[t0 + i] += blast[i] * a * Math.min(1, i / (sr * 0.004));
+  }
+  // the thunder rolling: deep rumble with some low-mid growl, in waves
+  const nr = n - t0;
+  const rum = brown(nr, r);
+  Biquad.lp(sr, 115, 0.8).apply(rum);
+  const ng = len(4);
+  const growl = pink(ng, r);
+  Biquad.bp(sr, 280, 0.7).apply(growl);
+  const rk = 0.75 / Math.max(1e-9, rms(rum.subarray(0, Math.min(nr, sr))));
+  const gk = 0.32 / Math.max(1e-9, rms(growl.subarray(0, Math.min(ng, sr))));
+  const waves: [number, number, number][] = [[0.03, 1, 0.55]];
+  let amp = 0.8;
+  for (let at = 0.35 + 0.25 * r(); at < rollSec * 0.8; at += 0.3 + 0.55 * r()) {
+    waves.push([at, amp * (0.6 + 0.4 * r()), 0.25 + 0.5 * r()]);
+    amp *= 0.72;
+  }
+  const env = (t: number): number => {
+    let e = 0;
+    for (const [at, a, w] of waves) {
+      const u = t - at;
+      if (u > 0) e += a * (1 - Math.exp(-u / 0.06)) * Math.exp(-u / w);
+    }
+    // the long tail under the rolls, fading by the end
+    return e + 0.35 * Math.min(1, t / 0.1) * Math.exp(-t / (rollSec * 0.4));
+  };
+  const B = 32;
+  let e0 = env(0), g0 = gk;
+  for (let j = 0; j < nr; j += B) {
+    const t1 = (j + B) / sr;
+    const e1 = env(t1), g1 = gk * Math.exp(-t1 / 0.9);
+    for (let k = 0; k < B && j + k < nr; k++) {
+      const i = j + k, x = k / B;
+      const gr = i < ng ? growl[i] * (g0 + (g1 - g0) * x) : 0;
+      b[t0 + i] += (e0 + (e1 - e0) * x) * (rum[i] * rk + gr);
+    }
+    e0 = e1;
+    g0 = g1;
+  }
+  // too loud for the microphone: soft saturation lifts the body and the rolls; the crack rides on top
+  normalize(b, 1);
+  const drive = 2.4, dk = 1 / Math.tanh(drive);
+  for (let i = 0; i < n; i++) b[i] = Math.tanh(b[i] * drive) * dk;
+  normalize(d, 1);
+  for (let i = 0; i < n; i++) d[i] += b[i] * 0.55;
   // echoes off the ground and the hills
   const src = d.slice(t0, t0 + Math.floor(sr * 0.9));
-  onePole(src, sr, 1600);
+  onePole(src, sr, 1500);
   for (const [delay, g] of [
-    [0.14, 0.3],
-    [0.31, 0.22],
-    [0.62, 0.14],
-    [1.05, 0.08],
+    [0.12, 0.32],
+    [0.29, 0.22],
+    [0.6, 0.15],
+    [1.1, 0.09],
+    [1.7, 0.05],
   ]) {
     const o = t0 + Math.floor(sr * delay);
     for (let i = 0; i < src.length && i + o < n; i++) d[i + o] += src[i] * g;
   }
+  // a gentle limit on the sum, so the crack and the punch together do not leave the rest quiet
+  normalize(d, 1);
+  for (let i = 0; i < n; i++) d[i] = Math.tanh(d[i] * 1.4) / Math.tanh(1.4);
+  // and a short fade so the end never clicks
+  const fo = Math.floor(sr * 0.3);
+  for (let i = 0; i < fo; i++) d[n - 1 - i] *= i / fo;
   return normalize(d, 0.95);
+}
+
+/** A sonic boom heard from the ground or another jet: the thunderclap, the shocks a little apart. */
+function renderSonicBoom(n: number, sr: number, r: Rng): Float32Array {
+  return renderThunder(n, sr, r, 0.005, 0.12, 4.2);
+}
+
+/**
+ * Breaking the sound barrier yourself: the thunderclap the moment the jet passes Mach 1 (no build-up:
+ * it lands with the explosion of the shock cone), the shocks close together.
+ * (A real pilot hears none of this: the shock stays behind the cockpit. This is the cinema of it.)
+ */
+function renderBarrier(n: number, sr: number, r: Rng): Float32Array {
+  return renderThunder(n, sr, r, 0.008, 0.09, 5);
 }
 
 /** A round passing close: the supersonic crack of the bullet's own shock. */
@@ -334,10 +371,10 @@ export function synthBank(sr: number): Bank {
     const n = Math.floor(sr * sec);
     bank['boom' + i] = [renderBoom(n, sr, rng(seed)), renderBoom(n, sr, rng(seed + 1))];
   });
-  const n = Math.floor(sr * 2.4);
+  const n = Math.floor(sr * 5);
   bank.sonic = [renderSonicBoom(n, sr, rng(31)), renderSonicBoom(n, sr, rng(32))];
   bank.crackS = [renderCrack(Math.floor(sr * 0.06), sr, rng(33))];
-  const nb = Math.floor(sr * 4.2);
+  const nb = Math.floor(sr * 6);
   bank.barrier = [renderBarrier(nb, sr, rng(41)), renderBarrier(nb, sr, rng(42))];
   bank.reverb = reverbImpulse(sr, 2.8);
   return bank;
