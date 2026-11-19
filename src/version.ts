@@ -41,6 +41,17 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.15.14',
+    date: '2026-11-19',
+    air: {
+      title: 'Every cockpit like the real one',
+      notes: [
+        improved('Every cockpit like the real one', 'Each jet\'s cockpit now follows photographs of its own: the F-16\'s centre column of round standby instruments and its side-stick, the F-15EX\'s up-front controller under a slim HUD over its big touch screen, the Typhoon\'s round HUD and light grey panel, the Super Hornet\'s DDIs and big centre display, the Su-35\'s and MiG-31\'s turquoise panels with Russian placards, the Rafale\'s head-level display and side-stick, the F-22\'s six displays and side-stick, the SR-71\'s all-analog panel of round gauges, the X-15\'s pale blue arched panel, the Su-57\'s twin wide screens, the Gripen\'s wide-area display and the J-20B\'s big panoramic screen.'),
+        improved('More realistic cockpits', 'Real switches, knobs, buttons and guarded switches between the displays, worn paint, fasteners and placards, glass over the screens that reflects the sky, round gauges in round bezels, and a cockpit lit like a daylight photo instead of a dark hole.'),
+      ],
+    },
+  },
+  {
     version: '7.15.13',
     date: '2026-11-18',
     air: {

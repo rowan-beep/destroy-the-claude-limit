@@ -45,10 +45,17 @@ const PANEL_TITLES = [
   'FUEL CONTROL', 'ENGINE CONTROL', 'COMM', 'IFF', 'ANTI-ICE', 'EXT LIGHTS', 'INT LIGHTS', 'OXYGEN', 'ECS', 'SENSOR',
   'NAV', 'ICS', 'KY-58', 'CANOPY', 'EMER', 'BATT / GEN', 'FCS', 'TRIM', 'JETT', 'MASTER ARM', 'RADAR', 'EW', 'CMDS', 'VIDEO',
 ];
+const PANEL_TITLES_RU = [
+  'ТОПЛИВО', 'ДВИГАТЕЛЬ', 'СВЯЗЬ', 'ОПОЗН.', 'ПОС', 'АНО', 'ОСВЕЩ.', 'КИСЛОРОД', 'СКВ', 'РЛС', 'НАВИГ.', 'СПУ', 'ФОНАРЬ', 'АВАР.', 'АКК. / ГЕН.', 'СДУ', 'ТРИМ.', 'СБРОС', 'ГЛАВН. ВЫКЛ.', 'РЭБ',
+];
+const SWITCH_LABELS_RU = ['ВКЛ', 'ОТКЛ', 'АВТ', 'НОРМ', 'БОЕВ', 'ПРЕДОХР', 'РЕЗЕРВ', 'КОНТР', 'РУЧН', 'ЛЕВ', 'ПРАВ', 'ОБА'];
 const SWITCH_LABELS = ['ON', 'OFF', 'AUTO', 'NORM', 'ARM', 'SAFE', 'STBY', 'OVRD', 'TEST', 'MAN', 'L', 'R', 'BOTH', 'PRI', 'SEC', 'RST', 'DIM', 'BRT'];
 
 /** Console top: a column of switch panels. */
-export function consoleTexture(base: number, seed: number): THREE.CanvasTexture {
+/** (`ru`: the placards in Russian, as in the Sukhoi and MiG cockpits) */
+export function consoleTexture(base: number, seed: number, ru = false): THREE.CanvasTexture {
+  const titles = ru ? PANEL_TITLES_RU : PANEL_TITLES;
+  const legends = ru ? SWITCH_LABELS_RU : SWITCH_LABELS;
   const W = 512, H = 1024;
   const c = document.createElement('canvas');
   c.width = W;
@@ -75,7 +82,7 @@ export function consoleTexture(base: number, seed: number): THREE.CanvasTexture 
     g.fillStyle = '#e8e8e0';
     g.font = 'bold 22px Arial, sans-serif';
     g.textAlign = 'center';
-    g.fillText(PANEL_TITLES[Math.floor(rnd() * PANEL_TITLES.length)], W / 2, y + 28);
+    g.fillText(titles[Math.floor(rnd() * titles.length)], W / 2, y + 28);
     // controls
     const n = 2 + Math.floor(rnd() * 3);
     for (let i = 0; i < n; i++) {
@@ -92,8 +99,8 @@ export function consoleTexture(base: number, seed: number): THREE.CanvasTexture 
         g.fillRect(cx - 4, cy - 26, 8, 26);
         g.fillStyle = '#e8e8e0';
         g.font = '16px Arial, sans-serif';
-        g.fillText(SWITCH_LABELS[Math.floor(rnd() * SWITCH_LABELS.length)], cx, cy - 34);
-        g.fillText(SWITCH_LABELS[Math.floor(rnd() * SWITCH_LABELS.length)], cx, cy + 30);
+        g.fillText(legends[Math.floor(rnd() * legends.length)], cx, cy - 34);
+        g.fillText(legends[Math.floor(rnd() * legends.length)], cx, cy + 30);
       } else if (kind < 0.8) {
         // rotary knob with a pointer and scale
         g.strokeStyle = '#e8e8e0';
@@ -124,7 +131,7 @@ export function consoleTexture(base: number, seed: number): THREE.CanvasTexture 
         g.strokeRect(cx - 14, cy - 22, 28, 40);
         g.fillStyle = '#e8e8e0';
         g.font = '15px Arial, sans-serif';
-        g.fillText(rnd() < 0.5 ? 'EMER' : 'JETT', cx, cy + 36);
+        g.fillText(rnd() < 0.5 ? (ru ? 'АВАР' : 'EMER') : ru ? 'СБРОС' : 'JETT', cx, cy + 36);
       }
     }
     y += h;
@@ -132,62 +139,136 @@ export function consoleTexture(base: number, seed: number): THREE.CanvasTexture 
   return tex(c);
 }
 
-/** Instrument panel face: matte paint, seams, fasteners, placards. */
-export function panelTexture(base: number, label: string): THREE.CanvasTexture {
-  const W = 1024, H = 512;
+/** A control set into the instrument panel (drawn here, built in 3D by the cockpit). */
+export interface PanelControl {
+  px: number;
+  py: number;
+  kind: 'knob' | 'toggle' | 'button' | 'guard';
+  label: string;
+}
+
+export interface PanelFace {
+  /** the panel's half width and height (m) */
+  hw: number;
+  h: number;
+  /** where the displays sit: centre and size (m), so the plates go round them */
+  keep: { px: number; py: number; w: number; h: number }[];
+  controls: PanelControl[];
+  ru: boolean;
+}
+
+/**
+ * Instrument panel face, as the photos show it: matte paint worn lighter where hands go and grimier
+ * low down; every display set in its own mounting plate with fasteners; between them small sub-panels
+ * carrying the switches, knobs and buttons (built in 3D on top) with their legends and scales; seams;
+ * the jet's placard at the bottom. Mapped by the panel face's own outline (x across, y down).
+ */
+export function panelTexture(base: number, label: string, face?: PanelFace): THREE.CanvasTexture {
+  const W = 2048, H = 1024;
   const c = document.createElement('canvas');
   c.width = W;
   c.height = H;
   const g = c.getContext('2d')!;
   g.fillStyle = hex(base);
   g.fillRect(0, 0, W, H);
-  // subtle mottling
-  const rnd = mulberry32(label.length * 977);
-  for (let i = 0; i < 1400; i++) {
-    g.fillStyle = `rgba(255,255,255,${rnd() * 0.02})`;
-    g.fillRect(rnd() * W, rnd() * H, 2 + rnd() * 6, 2 + rnd() * 6);
+  const rnd = mulberry32(label.length * 977 + 13);
+  // matte paint: a fine mottle, a darker grime toward the bottom, lighter worn patches up top
+  for (let i = 0; i < 5000; i++) {
+    g.fillStyle = rnd() < 0.5 ? `rgba(255,255,255,${rnd() * 0.025})` : `rgba(0,0,0,${rnd() * 0.035})`;
+    g.fillRect(rnd() * W, rnd() * H, 2 + rnd() * 7, 2 + rnd() * 7);
   }
-  // seams
-  g.strokeStyle = shade(base, 0.6);
+  const grime = g.createLinearGradient(0, 0, 0, H);
+  grime.addColorStop(0, 'rgba(255,255,255,0.05)');
+  grime.addColorStop(0.5, 'rgba(0,0,0,0)');
+  grime.addColorStop(1, 'rgba(0,0,0,0.22)');
+  g.fillStyle = grime;
+  g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 26; i++) {
+    const x = rnd() * W, y = rnd() * H * 0.5, r = 20 + rnd() * 70;
+    const wear = g.createRadialGradient(x, y, 1, x, y, r);
+    wear.addColorStop(0, 'rgba(255,255,255,0.06)');
+    wear.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = wear;
+    g.fillRect(x - r, y - r, 2 * r, 2 * r);
+  }
+  const ink = '#e6e4da';
+  if (face) {
+    const X = (px: number) => ((px + face.hw) / (2 * face.hw)) * W;
+    const Y = (py: number) => (py / face.h) * H;
+    const sx = W / (2 * face.hw), sy = H / face.h;
+    // each display's mounting plate: a slightly darker plate, a seam round it, fasteners at the corners
+    for (const k of face.keep) {
+      const x0 = X(k.px - k.w / 2 - 0.012), y0 = Y(k.py - k.h / 2 - 0.012);
+      const w = (k.w + 0.024) * sx, h = (k.h + 0.024) * sy;
+      g.fillStyle = shade(base, 0.82);
+      g.fillRect(x0, y0, w, h);
+      g.strokeStyle = shade(base, 0.45);
+      g.lineWidth = 4;
+      g.strokeRect(x0, y0, w, h);
+      for (const [fx, fy] of [[x0 + 12, y0 + 12], [x0 + w - 12, y0 + 12], [x0 + 12, y0 + h - 12], [x0 + w - 12, y0 + h - 12]]) screw(g, fx, fy, 6);
+    }
+    // the controls' sub-panels: a plate each, a legend above, a scale or the positions round it
+    for (const ctl of face.controls) {
+      const cx = X(ctl.px), cy = Y(ctl.py);
+      const pw = 0.04 * sx, ph = 0.044 * sy;
+      g.fillStyle = shade(base, 0.92 + rnd() * 0.08);
+      g.fillRect(cx - pw / 2, cy - ph / 2, pw, ph);
+      g.strokeStyle = shade(base, 0.5);
+      g.lineWidth = 3;
+      g.strokeRect(cx - pw / 2, cy - ph / 2, pw, ph);
+      screw(g, cx - pw / 2 + 8, cy - ph / 2 + 8, 4);
+      screw(g, cx + pw / 2 - 8, cy + ph / 2 - 8, 4);
+      g.fillStyle = ink;
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.font = `bold ${Math.round(0.0062 * sy)}px Arial, sans-serif`;
+      g.fillText(ctl.label, cx, cy - ph / 2 + 0.008 * sy);
+      g.font = `${Math.round(0.0052 * sy)}px Arial, sans-serif`;
+      if (ctl.kind === 'knob') {
+        g.strokeStyle = ink;
+        g.lineWidth = 2;
+        for (let i = 0; i < 9; i++) {
+          const ang = -2.3 + (4.6 * i) / 8;
+          const r0 = 0.0125 * sx, r1 = 0.0155 * sx;
+          g.beginPath();
+          g.moveTo(cx + Math.sin(ang) * r0, cy + 0.003 * sy - Math.cos(ang) * r0);
+          g.lineTo(cx + Math.sin(ang) * r1, cy + 0.003 * sy - Math.cos(ang) * r1);
+          g.stroke();
+        }
+      } else if (ctl.kind === 'toggle') {
+        g.fillText(face.ru ? 'ВКЛ' : 'ON', cx, cy - 0.009 * sy);
+        g.fillText(face.ru ? 'ОТКЛ' : 'OFF', cx, cy + 0.016 * sy);
+      } else if (ctl.kind === 'guard') {
+        g.fillStyle = '#c8a53a';
+        g.fillRect(cx - 0.012 * sx, cy - 0.006 * sy, 0.024 * sx, 0.02 * sy);
+        g.strokeStyle = '#1a1a1a';
+        g.lineWidth = 5;
+        for (let k = -2; k < 3; k++) {
+          g.beginPath();
+          g.moveTo(cx - 0.012 * sx + k * 14, cy + 0.014 * sy);
+          g.lineTo(cx - 0.012 * sx + k * 14 + 20, cy - 0.006 * sy);
+          g.stroke();
+        }
+      }
+    }
+  }
+  // seams between the panel's sections and the placard
+  g.strokeStyle = shade(base, 0.55);
   g.lineWidth = 3;
-  for (const x of [W * 0.22, W * 0.78]) {
+  for (const x of [W * 0.2, W * 0.8]) {
     g.beginPath();
-    g.moveTo(x, 0);
-    g.lineTo(x, H);
+    g.moveTo(x, H * 0.03);
+    g.lineTo(x, H * 0.97);
     g.stroke();
   }
-  g.beginPath();
-  g.moveTo(0, H * 0.62);
-  g.lineTo(W, H * 0.62);
-  g.stroke();
-  // fasteners along the seams and edges
-  for (let x = 20; x < W; x += 60) {
-    screw(g, x, 14, 4);
-    screw(g, x, H - 14, 4);
+  for (let x = 30; x < W; x += 90) {
+    screw(g, x, 16, 5);
+    screw(g, x, H - 16, 5);
   }
-  for (let y = 40; y < H; y += 60) {
-    screw(g, W * 0.22 - 10, y, 4);
-    screw(g, W * 0.78 + 10, y, 4);
-  }
-  // placards
-  g.fillStyle = '#e8e8e0';
-  g.font = 'bold 20px Arial, sans-serif';
+  g.fillStyle = ink;
+  g.font = 'bold 30px Arial, sans-serif';
   g.textAlign = 'center';
-  g.fillText(label, W / 2, H - 30);
-  g.font = '16px Arial, sans-serif';
-  g.fillText('EMER JETT', W * 0.9, H * 0.72);
-  g.fillText('MASTER ARM', W * 0.1, H * 0.72);
-  g.fillText('ARM   SAFE', W * 0.1, H * 0.8);
-  g.fillStyle = '#c8a53a';
-  g.fillRect(W * 0.9 - 30, H * 0.75, 60, 40);
-  g.strokeStyle = '#1a1a1a';
-  g.lineWidth = 6;
-  for (let k = -2; k < 4; k++) {
-    g.beginPath();
-    g.moveTo(W * 0.9 - 30 + k * 16, H * 0.75 + 40);
-    g.lineTo(W * 0.9 - 30 + k * 16 + 40, H * 0.75);
-    g.stroke();
-  }
+  g.fillText(label, W / 2, H - 44);
   return tex(c);
 }
 
@@ -228,14 +309,15 @@ export function keypadTexture(base: number): THREE.CanvasTexture {
 }
 
 /** Yellow/black striped texture for the ejection handle. */
-export function stripeTexture(): THREE.CanvasTexture {
+/** Diagonal hazard stripes: yellow and black, or (a Russian seat's handles) red and white. */
+export function stripeTexture(a = '#e8c21a', b = '#141414'): THREE.CanvasTexture {
   const c = document.createElement('canvas');
   c.width = 128;
   c.height = 32;
   const g = c.getContext('2d')!;
-  g.fillStyle = '#e8c21a';
+  g.fillStyle = a;
   g.fillRect(0, 0, 128, 32);
-  g.fillStyle = '#141414';
+  g.fillStyle = b;
   for (let x = -32; x < 160; x += 32) {
     g.beginPath();
     g.moveTo(x, 32);

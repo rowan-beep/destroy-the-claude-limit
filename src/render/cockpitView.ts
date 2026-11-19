@@ -120,10 +120,11 @@ export class CockpitView {
     this.sun.target.updateMatrixWorld();
     this.hemi.color.copy(env.hemi.color);
     this.hemi.groundColor.copy(env.hemi.groundColor);
-    // a bubble canopy floods the cockpit with skylight
-    this.hemi.intensity = env.hemi.intensity * 1.05;
+    // a bubble canopy floods the cockpit with skylight, and the sunlit sills, seat and pilot bounce
+    // more of it round the tub (cockpit photos in daylight read clearly, not as a dark hole)
+    this.hemi.intensity = env.hemi.intensity * 1.55;
     this.scene.environment = worldScene.environment;
-    this.scene.environmentIntensity = worldScene.environmentIntensity * 0.8;
+    this.scene.environmentIntensity = worldScene.environmentIntensity * 1.05;
     // low sun: the panel floodlights come on
     const dark = Math.min(1, Math.max(0, (0.22 - env.sunDir.y) / 0.3));
     this.flood.intensity = dark * 0.5;

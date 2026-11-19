@@ -591,6 +591,8 @@ export class HudPainter {
   drawHmd(g: Game): void {
     const p = g.player;
     if (!p || !p.headLos) return;
+    // (the SR-71's pressure-suited pilot and the X-15's had no helmet display)
+    if (p.type === 'SR71' || p.type === 'X15') return;
     const cam = g.renderer.camera;
     const offDeg = Math.acos(clamp(p.headLos.dot(p.fm.fwd), -1, 1)) / DEG;
     if (offDeg < 12) return;

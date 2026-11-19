@@ -77,6 +77,8 @@ export interface DisplayDef {
   slots?: number[];
   /** which round instrument a 'gauge' display shows */
   gauge?: GaugeId;
+  /** the panel colour round a gauge's bezel (default dark grey) */
+  bg?: string;
 }
 
 export class Portal {
@@ -218,7 +220,7 @@ export class Avionics {
         drawEfd(d.pen, d.def.w, d.def.h, this);
         return;
       case 'gauge':
-        drawGauge(ctx, d.def.w, d.def.h, this, d.def.gauge ?? 'adi');
+        drawGauge(ctx, d.def.w, d.def.h, this, d.def.gauge ?? 'adi', d.def.bg);
         return;
     }
     for (const portal of d.portals) {

@@ -1,10 +1,14 @@
-// Round analog instruments for the X-15's 1960s panel: white needles on black
-// dials, each in its own bezel. One gauge per display canvas.
+// Round analog instruments for the jets with steam-gauge panels (the X-15, the SR-71, the MiG-31):
+// white needles on black dials, each in its own bezel. One gauge per display canvas. The engine
+// gauges come per engine: 'rpm1' is the left engine, 'rpm2' the right.
 
 import type { Avionics } from './avionics';
-import { FT } from '../core/constants';
+import { FT, KT } from '../core/constants';
 
-export type GaugeId = 'adi' | 'mach' | 'alt' | 'alpha' | 'vvi' | 'g' | 'pc' | 'prop' | 'hdg';
+export type GaugeId =
+  | 'adi' | 'mach' | 'alt' | 'alpha' | 'vvi' | 'g' | 'pc' | 'prop' | 'hdg'
+  | 'kias' | 'tdi' | 'fuel' | 'clock'
+  | 'rpm1' | 'rpm2' | 'egt1' | 'egt2' | 'noz1' | 'noz2' | 'ff1' | 'ff2';
 
 const FACE = '#0b0c0d';
 const INK = '#e9e6dc';
@@ -194,29 +198,131 @@ function adi(ctx: CanvasRenderingContext2D, cx: number, cy: number, R: number, p
   ctx.fill();
 }
 
-export function drawGauge(ctx: CanvasRenderingContext2D, w: number, h: number, av: Avionics, id: GaugeId): void {
+/** The SR-71's triple display indicator: three counter windows, KEAS, Mach and altitude, in one box. */
+function tdi(ctx: CanvasRenderingContext2D, w: number, h: number, keas: number, mach: number, altFt: number): void {
+  ctx.fillStyle = '#141516';
+  ctx.fillRect(w * 0.04, h * 0.04, w * 0.92, h * 0.92);
+  const rows: [string, string][] = [
+    ['KEAS', String(Math.round(keas)).padStart(3, '0')],
+    ['MACH', mach.toFixed(2)],
+    ['ALT FT', String(Math.max(0, Math.round(altFt / 10) * 10)).padStart(5, '0')],
+  ];
+  rows.forEach(([label, val], i) => {
+    const y = h * (0.2 + i * 0.29);
+    ctx.fillStyle = INK_DIM;
+    ctx.font = `bold ${Math.round(h * 0.07)}px ${FONT}`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, w * 0.1, y);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(w * 0.38, y - h * 0.09, w * 0.52, h * 0.18);
+    ctx.strokeStyle = '#3c3f43';
+    ctx.lineWidth = h * 0.012;
+    ctx.strokeRect(w * 0.38, y - h * 0.09, w * 0.52, h * 0.18);
+    ctx.fillStyle = INK;
+    ctx.font = `bold ${Math.round(h * 0.13)}px 'Consolas', monospace`;
+    ctx.textAlign = 'right';
+    ctx.fillText(val, w * 0.87, y + h * 0.005);
+  });
+}
+
+export function drawGauge(ctx: CanvasRenderingContext2D, w: number, h: number, av: Avionics, id: GaugeId, bg = PANEL): void {
   const fm = av.p.fm;
-  ctx.fillStyle = PANEL;
+  const spec = av.p.spec;
+  ctx.fillStyle = bg;
   ctx.fillRect(0, 0, w, h);
   const cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.42;
+  if (id === 'tdi') {
+    tdi(ctx, w, h, fm.cas / KT, fm.mach, fm.pos.y / FT);
+    return;
+  }
   bezel(ctx, cx, cy, R);
+  // engine gauges: which engine, and how hard it is working
+  const eng = /[12]$/.test(id) ? Math.min(fm.rpm.length - 1, Number(id.slice(-1)) - 1) : 0;
+  const rpm = fm.rpm[eng] ?? 0;
+  const ab = fm.ab[eng] ?? 0;
+  const out = fm.engineOut[eng] ?? false;
+  // (the dials follow the jet: a Mach 3 jet's dial runs to 4, the X-15's to 8; altitude in thousands of feet)
+  const machHi = spec.maxMach > 4.5 ? 8 : 4;
+  const altHi = spec.ceilingFt > 150000 ? 400 : 100;
   switch (id) {
+    case 'kias': {
+      ticks(ctx, cx, cy, R, 0, 800, 25, 100, (v) => String(v / 100));
+      title(ctx, cx, cy + R * 0.34, R, 'KNOTS', 0.12);
+      title(ctx, cx, cy + R * 0.5, R, 'x100', 0.1);
+      needle(ctx, cx, cy, R, sweep(fm.cas / KT, 0, 800));
+      return;
+    }
+    case 'rpm1':
+    case 'rpm2': {
+      const pct = out ? 0 : 60 + rpm * 42;
+      ticks(ctx, cx, cy, R, 0, 110, 5, 10, (v) => (v % 20 === 0 ? String(v) : null));
+      title(ctx, cx, cy + R * 0.34, R, eng === 0 ? 'RPM L' : 'RPM R', 0.12);
+      title(ctx, cx, cy + R * 0.5, R, '%', 0.1);
+      needle(ctx, cx, cy, R, sweep(pct, 0, 110));
+      return;
+    }
+    case 'egt1':
+    case 'egt2': {
+      const c = out ? 60 : 380 + rpm * 420 + ab * 120;
+      ticks(ctx, cx, cy, R, 0, 1000, 50, 200, (v) => String(v / 100));
+      title(ctx, cx, cy + R * 0.34, R, eng === 0 ? 'EGT L' : 'EGT R', 0.12);
+      title(ctx, cx, cy + R * 0.5, R, 'C x100', 0.1);
+      needle(ctx, cx, cy, R, sweep(c, 0, 1000));
+      return;
+    }
+    case 'noz1':
+    case 'noz2': {
+      // nozzle area: open at idle and in the burner, closed down at military power
+      const pct = out ? 100 : ab > 0.02 ? 40 + 60 * ab : 100 - 85 * Math.min(1, rpm);
+      ticks(ctx, cx, cy, R, 0, 100, 5, 25, (v) => String(v));
+      title(ctx, cx, cy + R * 0.34, R, eng === 0 ? 'NOZ L' : 'NOZ R', 0.12);
+      title(ctx, cx, cy + R * 0.5, R, '% OPEN', 0.1);
+      needle(ctx, cx, cy, R, sweep(pct, 0, 100));
+      return;
+    }
+    case 'ff1':
+    case 'ff2': {
+      const pph = (fm.fuelFlow * 7936.6) / Math.max(1, fm.rpm.length) / 1000;
+      ticks(ctx, cx, cy, R, 0, 60, 2.5, 10, (v) => String(v));
+      title(ctx, cx, cy + R * 0.34, R, eng === 0 ? 'FF L' : 'FF R', 0.12);
+      title(ctx, cx, cy + R * 0.5, R, 'PPH x1000', 0.1);
+      needle(ctx, cx, cy, R, sweep(pph, 0, 60));
+      return;
+    }
+    case 'fuel': {
+      const lb = (fm.fuelTotal * 2.2046) / 1000;
+      const hi = Math.max(10, Math.ceil(((spec.internalFuel + fm.fuelExternalCap) * 2.2046) / 10000) * 10);
+      ticks(ctx, cx, cy, R, 0, hi, hi / 20, hi / 5, (v) => String(Math.round(v)));
+      title(ctx, cx, cy + R * 0.34, R, 'FUEL', 0.12);
+      title(ctx, cx, cy + R * 0.5, R, 'LB x1000', 0.1);
+      needle(ctx, cx, cy, R, sweep(lb, 0, hi));
+      return;
+    }
+    case 'clock': {
+      const d = new Date();
+      const hr = (d.getHours() % 12) + d.getMinutes() / 60;
+      ticks(ctx, cx, cy, R, 0, 60, 1, 5, (v) => (v === 0 ? null : String(v / 5)), -90, 270);
+      needle(ctx, cx, cy, R, sweep(hr * 5, 0, 60, -90, 270), 0.55, 0.06);
+      needle(ctx, cx, cy, R, sweep(d.getMinutes() + d.getSeconds() / 60, 0, 60, -90, 270), 0.85, 0.04);
+      return;
+    }
     case 'adi':
       adi(ctx, cx, cy, R, fm.pitchAngle, fm.bank);
       return;
     case 'mach': {
-      ticks(ctx, cx, cy, R, 0, 8, 0.5, 1, (v) => String(v));
+      ticks(ctx, cx, cy, R, 0, machHi, machHi / 16, machHi / 8, (v) => String(v));
       title(ctx, cx, cy + R * 0.42, R, 'MACH');
-      needle(ctx, cx, cy, R, sweep(fm.mach, 0, 8));
+      needle(ctx, cx, cy, R, sweep(fm.mach, 0, machHi));
       return;
     }
     case 'alt': {
       const kft = fm.pos.y / FT / 1000;
-      ticks(ctx, cx, cy, R, 0, 400, 25, 50, (v) => String(v));
+      ticks(ctx, cx, cy, R, 0, altHi, altHi / 16, altHi / 8, (v) => String(v));
       title(ctx, cx, cy - R * 0.3, R, 'ALT', 0.14);
       title(ctx, cx, cy - R * 0.14, R, 'x1000 FT', 0.1);
       drum(ctx, cx, cy + R * 0.42, R, String(Math.max(0, Math.round(fm.pos.y / FT))).padStart(6, '0'));
-      needle(ctx, cx, cy, R, sweep(kft, 0, 400));
+      needle(ctx, cx, cy, R, sweep(kft, 0, altHi));
       return;
     }
     case 'alpha': {
