@@ -4,6 +4,17 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu the space updates.
 
+## v7.15.16 (2026-11-19)
+
+### Air Combat: Cockpit fixes
+
+- **Fixed: Cockpit displays in their places**
+  - Every cockpit was checked display by display: screens and gauges no longer overlap each other, hang off the edge of the panel or over the cut-out for your knees, and none hide behind the side consoles any more (the F/A-18, F-16, F-22, Su-57 and X-15 had some out of place).
+- **Fixed: Cockpit walls and consoles**
+  - The side walls no longer cut through the edges of the instrument panel (most visible in the Typhoon, Su-35 and Rafale), the consoles sit inside the walls, and the Su-35's control unit stands on the glare shield instead of hanging off its end.
+- **Fixed: Cockpit labels**
+  - The labels on the console panels stay inside their plates, and the up-front display's text fits its window instead of running off the side (the Super Hornet's was cut off).
+
 ## v7.15.15 (2026-11-19)
 
 ### Air Combat: The sonic boom is a thunderclap

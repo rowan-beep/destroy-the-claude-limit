@@ -41,6 +41,18 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.15.16',
+    date: '2026-11-19',
+    air: {
+      title: 'Cockpit fixes',
+      notes: [
+        fixed('Cockpit displays in their places', 'Every cockpit was checked display by display: screens and gauges no longer overlap each other, hang off the edge of the panel or over the cut-out for your knees, and none hide behind the side consoles any more (the F/A-18, F-16, F-22, Su-57 and X-15 had some out of place).'),
+        fixed('Cockpit walls and consoles', 'The side walls no longer cut through the edges of the instrument panel (most visible in the Typhoon, Su-35 and Rafale), the consoles sit inside the walls, and the Su-35\'s control unit stands on the glare shield instead of hanging off its end.'),
+        fixed('Cockpit labels', 'The labels on the console panels stay inside their plates, and the up-front display\'s text fits its window instead of running off the side (the Super Hornet\'s was cut off).'),
+      ],
+    },
+  },
+  {
     version: '7.15.15',
     date: '2026-11-19',
     air: {
