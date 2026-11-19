@@ -4,6 +4,13 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu the space updates.
 
+## v7.15.15 (2026-11-19)
+
+### Air Combat: The sonic boom is a thunderclap
+
+- **Improved: Sonic boom like a thunderclap**
+  - Breaking the sound barrier now goes off like lightning striking close by: a ripping crack and a deep blast the moment you pass Mach 1, landing together with the shock cone's explosion, then thunder rolling away for several seconds with echoes off the ground and hills. It is about 6 dB louder than before and lasts longer. In the cockpit the canopy only takes the top off the sound. Other supersonic jets passing close boom the same way, still delayed and muffled by distance.
+
 ## v7.15.14 (2026-11-19)
 
 ### Air Combat: Every cockpit like the real one

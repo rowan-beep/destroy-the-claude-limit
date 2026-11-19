@@ -1121,13 +1121,13 @@ export class AudioEngine {
 
   /**
    * The player's jet breaks the sound barrier (k 1: speeding up through Mach 1; less on the way back
-   * down): the swell, the double crack and thump, the rush and the rumble. In the cockpit the canopy takes
-   * the edge off the crack; from outside it is all there. The SONIC BOOM volume sets its level; 0 is silent.
+   * down): a thunderclap, the crack and blast and then the thunder rolling away. In the cockpit the canopy
+   * takes only the top off; from outside it is all there. The SONIC BOOM volume sets its level; 0 is silent.
    */
   barrierBreak(k = 1, cockpit = true): void {
     if (!this.ctx || this.levels.sonicBoom < 0.01) return;
-    const v = Math.min(1.2, 0.5 + 0.7 * k);
-    this.play(this.barrierB, { vol: v, lp: cockpit ? 3800 : 15000, bus: this.boomBus });
+    const v = Math.min(1.35, 0.55 + 0.8 * k);
+    this.play(this.barrierB, { vol: v, lp: cockpit ? 7000 : 16000, bus: this.boomBus });
   }
 
   /** Up to four missiles near the listener: the motor tearing past, then the coasting airframe's whistle. */

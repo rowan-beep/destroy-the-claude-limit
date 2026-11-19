@@ -41,6 +41,16 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.15.15',
+    date: '2026-11-19',
+    air: {
+      title: 'The sonic boom is a thunderclap',
+      notes: [
+        improved('Sonic boom like a thunderclap', 'Breaking the sound barrier now goes off like lightning striking close by: a ripping crack and a deep blast the moment you pass Mach 1, landing together with the shock cone\'s explosion, then thunder rolling away for several seconds with echoes off the ground and hills. It is about 6 dB louder than before and lasts longer. In the cockpit the canopy only takes the top off the sound. Other supersonic jets passing close boom the same way, still delayed and muffled by distance.'),
+      ],
+    },
+  },
+  {
     version: '7.15.14',
     date: '2026-11-19',
     air: {
