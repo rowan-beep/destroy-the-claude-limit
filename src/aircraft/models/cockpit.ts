@@ -364,6 +364,20 @@ export class Cockpit {
   // structure
   // -------------------------------------------------------------------------
 
+  /** the canopy sill's height at z (the top of the tub's side walls) */
+  private tubSill(z: number): number {
+    const can = this.v.canopySections;
+    return can.length ? (sectionAt(can, clamp(z, can[0].z, can[can.length - 1].z)).y ?? this.sillY) : this.sillY;
+  }
+
+  /** the tub's inner half width at z (its side walls) */
+  private tubHalfWidth(z: number): number {
+    const fus = this.v.fuselageSections;
+    const fs = fus.length ? sectionAt(fus, z) : ({ z, w: 0.6, top: 0.6, bot: 0.6 } as Section);
+    // (never narrower than the instrument panel: its edges must not poke through the side walls)
+    return Math.max(0.36, sectionHalfWidthAt(fs, this.tubSill(z)) * 0.93, this.layout.panelHalfWidth + 0.03);
+  }
+
   private buildTub(M: ReturnType<Cockpit['makeMaterials']>): void {
     const v = this.v;
     const eye = this.eye;
@@ -373,10 +387,10 @@ export class Cockpit {
     const fus = v.fuselageSections;
     const can = v.canopySections;
     const N = 12;
+    void fus;
     const profile = (z: number): [number, number][] => {
-      const sill = can.length ? (sectionAt(can, clamp(z, can[0].z, can[can.length - 1].z)).y ?? this.sillY) : this.sillY;
-      const fs = fus.length ? sectionAt(fus, z) : ({ z, w: 0.6, top: 0.6, bot: 0.6 } as Section);
-      const hw = Math.max(0.36, sectionHalfWidthAt(fs, sill) * 0.93);
+      const sill = this.tubSill(z);
+      const hw = this.tubHalfWidth(z);
       const fy = this.floorY;
       return [
         [-hw, sill + 0.01],
@@ -444,7 +458,7 @@ export class Cockpit {
     const L = this.layout;
     const W = L.panelHalfWidth, H = L.panelHeight;
     const s = new THREE.Shape();
-    const notchW = 0.12, notchH = 0.09;
+    const notchW = 0.12, notchH = this.kneeNotch();
     if (L.panelShape === 'arch') {
       // a D-shaped panel: straight sides, the top a round arch peaking over the middle
       s.moveTo(-W, -H * 0.42);
@@ -456,10 +470,12 @@ export class Cockpit {
     }
     s.lineTo(W, -H + 0.05);
     s.lineTo(W - 0.05, -H);
-    s.lineTo(notchW, -H);
-    s.lineTo(notchW - 0.03, -H + notchH);
-    s.lineTo(-notchW + 0.03, -H + notchH);
-    s.lineTo(-notchW, -H);
+    if (notchH > 0) {
+      s.lineTo(notchW, -H);
+      s.lineTo(notchW - 0.03, -H + notchH);
+      s.lineTo(-notchW + 0.03, -H + notchH);
+      s.lineTo(-notchW, -H);
+    }
     s.lineTo(-W + 0.05, -H);
     s.lineTo(-W, -H + 0.05);
     if (L.panelShape === 'arch') s.lineTo(-W, -H * 0.42);
@@ -481,6 +497,18 @@ export class Cockpit {
     const p = this.panelPoint(0, H, -0.18);
     kw.translate(p.x, p.y - 0.15, p.z);
     this.addStatic(kw, M.panelPlain);
+  }
+
+  /**
+   * How deep the knee notch in the panel's lower edge can be: 9 cm, less where a display reaches down
+   * over it (a display must never hang over the cut-out), none when there is no room for one.
+   */
+  private kneeNotch(): number {
+    const H = this.layout.panelHeight;
+    let low = 0;
+    for (const k of this.panelKeep()) if (Math.abs(k.px) - k.w / 2 < 0.12) low = Math.max(low, k.py + k.h / 2);
+    const d = Math.min(0.09, H - low - 0.006);
+    return d >= 0.025 ? d : 0;
   }
 
   /** The panel's displays (on the panel itself) as rectangles, with their bezels. */
@@ -512,6 +540,7 @@ export class Cockpit {
       ? ['ОСВ', 'ЯРК', 'ПИТ', 'КОНТР', 'РЕЖ', 'ТОПЛ', 'СВЕТ', 'СВЯЗЬ', 'АВАР', 'ОТКАЗ', 'ПРОВ', 'ПРФ', 'ИЗД', 'ГЕН', 'ВЫКЛ']
       : ['BRT', 'MODE', 'TEST', 'PWR', 'CMPTR', 'FUEL', 'LIGHTS', 'COMM', 'EMER', 'RESET', 'HUD', 'IFF', 'NAV', 'GEN', 'ANTI-SKID', 'PROBE', 'ALT FLAPS', 'HOOK'];
     const kinds: PanelControl['kind'][] = ['knob', 'toggle', 'toggle', 'button', 'knob', 'guard'];
+    const notch = this.kneeNotch();
     const out: PanelControl[] = [];
     const clear = (x: number, y: number) =>
       keep.every((k) => Math.abs(x - k.px) > k.w / 2 + 0.03 || Math.abs(y - k.py) > k.h / 2 + 0.03);
@@ -522,7 +551,7 @@ export class Cockpit {
         const h = Math.abs(Math.sin(n * 12.9898 + L.label.length * 78.233) * 43758.5453) % 1;
         if (h < 0.35) continue;
         if (!clear(x, y)) continue;
-        if (Math.abs(x) < 0.15 && y > H - 0.11) continue; // the knee notch
+        if (notch > 0 && Math.abs(x) < 0.15 && y > H - notch - 0.02) continue; // the knee notch
         if (x < -W + 0.12 && y > H - 0.17) continue; // the gear handle
         if (L.panelShape === 'arch' && y < 0.42 * H * Math.pow(Math.abs(x) / W, 2.2) + 0.03) continue;
         out.push({ px: x, py: y, kind: kinds[Math.floor(h * 997) % kinds.length], label: labels[Math.floor(h * 7919) % labels.length] });
@@ -696,7 +725,9 @@ export class Cockpit {
       const pl = (o: THREE.Object3D, px: number, py: number, off: number, yw = 0) => (mount.onGlare ? this.placeOnGlare(o, px, py, off, yw) : this.placeOnPanel(o, px, py, off, yw));
       if (mount.onGlare) {
         // the box it lives in, standing on the glare shield
-        const extra = mount.def.kind === 'ufc' ? 0.2 : 0.02;
+        // (the keypads either side only on a UFC centred under the HUD: one beside it, like the Su-35's
+        // PUI, is a small box of its own and must stay on the glare shield, clear of the HUD's posts)
+        const extra = mount.def.kind === 'ufc' && mount.px === 0 ? 0.2 : 0.03;
         const house = new THREE.BoxGeometry(bw + extra, bh + 0.08, 0.09);
         house.translate(0, -0.03, -0.045);
         this.addStatic(xf(house, mount.px, mount.py, 0, yaw), M.dark);
@@ -768,7 +799,7 @@ export class Cockpit {
           this.addStatic(xf(wall, mount.px, mount.py, 0.0, yaw), M.bezel);
         }
       }
-      if (mount.def.kind === 'ufc') {
+      if (mount.def.kind === 'ufc' && !(mount.onGlare && mount.px !== 0)) {
         // keypad plate beside the scratchpad
         const kp = new THREE.PlaneGeometry(0.075, mount.sh + 0.03);
         kp.translate(mount.sw / 2 + margin + 0.04, 0, 0.0215);
@@ -881,10 +912,14 @@ export class Cockpit {
     const can = this.v.canopySections;
     const hwSill = can.length ? sectionHalfWidthAt(sectionAt(can, eye.z), this.sillY + 0.02) : 0.45;
     const inner = 0.19;
-    const outer = hwSill - 0.03;
+    // (inside the tub's side walls all along its length, so the walls never cover its outer edge)
+    // (the front ends stop short of the panel's line of sight: no instrument low on the panel hides behind them)
+    const z0 = eye.z - 0.38, z1 = eye.z + 0.45;
+    let wall = Infinity;
+    for (let k = 0; k <= 8; k++) wall = Math.min(wall, this.tubHalfWidth(lerp(z0, z1, k / 8)) * 0.97);
+    const outer = Math.min(hwSill - 0.03, wall - 0.01);
     const top = this.consoleY;
     const bottom = this.floorY + 0.15;
-    const z0 = eye.z - 0.45, z1 = eye.z + 0.45;
     for (const sx of [-1, 1]) {
       const w = outer - inner;
       const box = new THREE.BoxGeometry(w, top - bottom, z1 - z0);

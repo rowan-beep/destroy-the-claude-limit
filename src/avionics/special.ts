@@ -4,7 +4,7 @@
 
 import { weaponCode } from '../weapons/weaponSpecs';
 import type { Avionics } from './avionics';
-import { Pen, C } from './draw';
+import { Pen, C, MFD_FONT } from './draw';
 import { FT, KT, DEG, LB } from '../core/constants';
 import { clamp, wrap360 } from '../core/math';
 import { fmtBrg } from './nav';
@@ -48,7 +48,11 @@ export function drawUfc(pen: Pen, w: number, h: number, av: Avionics): void {
     `FUEL ${Math.round(plan.totalLb / 100) * 100}   ${clock}`,
   ];
   const size = Math.floor(h / (lines.length + 1));
-  lines.forEach((l, i) => pen.text(l, 10, size * (i + 0.9), { size: size * 0.8, color: g }));
+  // (the text shrinks to fit the window's width: a narrow window must not cut the lines off)
+  pen.ctx.font = `${size * 0.8}px ${MFD_FONT}`;
+  const widest = Math.max(...lines.map((l) => pen.ctx.measureText(l).width));
+  const fs = size * 0.8 * Math.min(1, (w - 20) / Math.max(1, widest));
+  lines.forEach((l, i) => pen.text(l, 10, size * (i + 0.9), { size: fs, color: g }));
 }
 
 /** Standby flight display: attitude ball, airspeed, altitude, heading. */

@@ -65,9 +65,11 @@ export function consoleTexture(base: number, seed: number, ru = false): THREE.Ca
   g.fillStyle = shade(base, 0.9);
   g.fillRect(0, 0, W, H);
   let y = 8;
-  while (y < H - 60) {
-    const ph = 90 + Math.floor(rnd() * 140);
-    const h = Math.min(ph, H - 8 - y);
+  // (each plate tall enough for its title and a switch with a legend above and below it, all inside
+  // its edges; the last one takes what is left rather than being cut short)
+  while (y < H - 8 - 150) {
+    const ph = 150 + Math.floor(rnd() * 110);
+    const h = H - 8 - y - ph < 150 ? H - 8 - y : ph;
     // panel plate
     g.fillStyle = shade(base, 1.0 + rnd() * 0.08);
     g.fillRect(10, y, W - 20, h - 8);
@@ -82,12 +84,14 @@ export function consoleTexture(base: number, seed: number, ru = false): THREE.Ca
     g.fillStyle = '#e8e8e0';
     g.font = 'bold 22px Arial, sans-serif';
     g.textAlign = 'center';
-    g.fillText(titles[Math.floor(rnd() * titles.length)], W / 2, y + 28);
+    // (kept clear of the screws in the corners)
+    g.fillText(titles[Math.floor(rnd() * titles.length)], W / 2, y + 28, W - 90);
     // controls
     const n = 2 + Math.floor(rnd() * 3);
     for (let i = 0; i < n; i++) {
       const cx = 50 + ((W - 100) * (i + 0.5)) / n;
-      const cy = y + 40 + (h - 60) * 0.55;
+      // (below the title, centred in the room left: the legends 34 px above and below stay on the plate)
+      const cy = y + 44 + (h - 8 - 44 - 12) / 2;
       const kind = rnd();
       if (kind < 0.45) {
         // toggle switch: base nut + bat handle
