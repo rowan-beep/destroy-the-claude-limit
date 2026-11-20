@@ -4,6 +4,15 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu the space updates.
 
+## v7.15.17 (2026-11-20)
+
+### Air Combat: Real missile racks
+
+- **Improved: Real missile racks**
+  - Every jet now carries its weapons on its own racks, modelled from photographs: the F-15EX's long deep pylons with LAU-128 launchers on their flanks, the Super Hornet's raked pylons reaching ahead of the wing, the F-16's slim pylons and LAU-129s, the Flankers' APU-170 and P-72 rails, the MiG-31's boxy pylons, the Typhoon's, Rafale's and Gripen's own launchers, and the F-22's and Su-57's bay launchers that lower the missiles on their arms.
+- **Fixed: Pylons and stores aligned**
+  - Pylons now meet the wing instead of hanging below it, wingtip missiles hang under their rails instead of on a second one, the X-15's drop tanks no longer sink into the fuselage, and the Super Hornet's two bombs on each mid pylon ride side by side instead of one inside the other.
+
 ## v7.15.16 (2026-11-19)
 
 ### Air Combat: Cockpit fixes

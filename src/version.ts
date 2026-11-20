@@ -41,6 +41,17 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.15.17',
+    date: '2026-11-20',
+    air: {
+      title: 'Real missile racks',
+      notes: [
+        improved('Real missile racks', 'Every jet now carries its weapons on its own racks, modelled from photographs: the F-15EX\'s long deep pylons with LAU-128 launchers on their flanks, the Super Hornet\'s raked pylons reaching ahead of the wing, the F-16\'s slim pylons and LAU-129s, the Flankers\' APU-170 and P-72 rails, the MiG-31\'s boxy pylons, the Typhoon\'s, Rafale\'s and Gripen\'s own launchers, and the F-22\'s and Su-57\'s bay launchers that lower the missiles on their arms.'),
+        fixed('Pylons and stores aligned', 'Pylons now meet the wing instead of hanging below it, wingtip missiles hang under their rails instead of on a second one, the X-15\'s drop tanks no longer sink into the fuselage, and the Super Hornet\'s two bombs on each mid pylon ride side by side instead of one inside the other.'),
+      ],
+    },
+  },
+  {
     version: '7.15.16',
     date: '2026-11-19',
     air: {

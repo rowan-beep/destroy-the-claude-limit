@@ -524,9 +524,9 @@ export function hungOnRack(store: StoreType): boolean {
   return store === 'TANK' || isBomb(store);
 }
 
-/** Sideways position of the store: a tank on a twin rack hangs from the pylon centre. */
+/** Sideways position of the store: a tank on a twin rack hangs from the pylon centre (bombs on a dual rack side by side). */
 export function storeCenterX(def: StationDef, store: StoreType): number {
-  return def.rack !== undefined && hungOnRack(store) ? def.rack : def.pos[0];
+  return def.rack !== undefined && hungOnRack(store) && !(def.dual && isBomb(store)) ? def.rack : def.pos[0];
 }
 
 /**

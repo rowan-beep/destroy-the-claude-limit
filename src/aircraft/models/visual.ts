@@ -12,6 +12,7 @@ import type { WeaponBay, StoreType } from '../specs';
 import { airframeMaterials, Section } from './builder';
 import { storeGeometry, pylonGeometry, shoulderGeometry, storeCenterY, storeCenterX, onShoulder, storeRadius, PYLON_DROP } from './stores';
 import { shinyStores } from './missiles';
+import { jetRacks, bayLauncher } from './racks';
 import { DEG } from '../../core/constants';
 import { clamp, smoothstep } from '../../core/math';
 import { makeInsignia } from './decals';
@@ -991,6 +992,9 @@ export class AirframeVisual {
       py.geometry.dispose();
     }
     this.pylons = [];
+    // the jet's own racks (racks.ts): its real pylons, launchers and ejectors, fitted to the skin
+    const racks = jetRacks(this.ac.spec, this.ac.stations.flatMap((s) => (s.store ? [{ def: s.def, store: s.store }] : [])));
+
     // the pylons never leave: all of them are one mesh (one draw call)
     const pylons: THREE.BufferGeometry[] = [];
     // a quad rack with its lower tier loaded: every missile on it shares one blade reaching down
@@ -1008,6 +1012,13 @@ export class AirframeVisual {
         const store = this.storeMesh(st.store);
         store.castShadow = true;
         g.add(store);
+        // the launcher it comes down on (racks.ts)
+        const lau = bayLauncher(this.ac.spec, st.def, st.store);
+        if (lau) {
+          const m = new THREE.Mesh(lau, storeMaterial());
+          m.castShadow = true;
+          g.add(m);
+        }
         g.visible = false;
         const p = st.def.pos;
         this.bayStores.push({ id: st.def.id, g, bay: st.def.bay, from: new THREE.Vector3(p[0], p[1], p[2]), to: new THREE.Vector3(o[0], o[1], o[2]) });
@@ -1024,6 +1035,12 @@ export class AirframeVisual {
       const store = this.storeMesh(st.store, this.ac.type);
       store.castShadow = true;
       g.add(store);
+      if (racks.handled.has(st.def.id)) {
+        this.body.add(g);
+        this.stationMeshes.set(st.def.id, g);
+        continue;
+      }
+
       const drop = st.def.mount === 'pylon' ? (st.def.hang !== undefined ? PYLON_DROP : 0.55) : 0.1;
       // (extra blade below this missile when the rack's lower tier is loaded beneath it)
       const below = st.def.rack !== undefined ? (rackLow.get(st.def.rack) ?? 0) - (st.def.rackLow ?? 0) : 0;
@@ -1033,6 +1050,7 @@ export class AirframeVisual {
       this.body.add(g);
       this.stationMeshes.set(st.def.id, g);
     }
+    if (racks.geo) pylons.push(racks.geo);
     const same = pylons.every((g) => Object.keys(g.attributes).sort().join() === Object.keys(pylons[0].attributes).sort().join() && !!g.index === !!pylons[0].index);
     const geo = pylons.length && same ? mergeGeometries(pylons, false) : null;
     if (!geo)
