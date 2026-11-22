@@ -526,7 +526,8 @@ export function hungOnRack(store: StoreType): boolean {
 
 /** Sideways position of the store: a tank on a twin rack hangs from the pylon centre (bombs on a dual rack side by side). */
 export function storeCenterX(def: StationDef, store: StoreType): number {
-  return def.rack !== undefined && hungOnRack(store) && !(def.dual && isBomb(store)) ? def.rack : def.pos[0];
+  if (def.rack !== undefined && hungOnRack(store)) return def.dual && isBomb(store) ? def.pos[0] : def.rack;
+  return def.attachX ?? def.pos[0];
 }
 
 /**
@@ -534,6 +535,8 @@ export function storeCenterX(def: StationDef, store: StoreType): number {
  * underside by the pylon (or rail) and its own radius, or the fixed pos[1].
  */
 export function storeCenterY(def: StationDef, store: StoreType): number {
+  // (a station with its own attach line: the same rules, measured from it instead of from hang)
+  if (def.attach !== undefined && def.hang !== undefined) return storeCenterY({ ...def, hang: def.attach, attach: undefined }, store);
   if (def.hang === undefined) return def.pos[1];
   if (onShoulder(def, store)) return def.hang - SHOULDER_DROP - (def.rackLow ?? 0);
   const r = storeRadius(store);

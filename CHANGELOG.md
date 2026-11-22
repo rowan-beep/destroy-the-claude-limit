@@ -4,6 +4,15 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu the space updates.
 
+## v7.15.18 (2026-11-22)
+
+### Air Combat: Missile racks, station by station
+
+- **Improved: Missile racks, station by station**
+  - Each jet's racks now follow photographs station by station: the F-15EX's short outer pylons and long inner ones with LAU-128s on ADU-552 adapters, the Super Hornet's two AMRAAMs side by side on a LAU-115, and the right pylon for every other station on the F-16, Typhoon, Su-35, MiG-31, Rafale, Gripen and Su-57.
+- **Fixed: Gripen centreline tank**
+  - The Gripen's centreline drop tank no longer sinks into the belly.
+
 ## v7.15.17 (2026-11-20)
 
 ### Air Combat: Real missile racks

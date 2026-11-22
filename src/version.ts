@@ -41,6 +41,17 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.15.18',
+    date: '2026-11-22',
+    air: {
+      title: 'Missile racks, station by station',
+      notes: [
+        improved('Missile racks, station by station', 'Each jet\'s racks now follow photographs station by station: the F-15EX\'s short outer pylons and long inner ones with LAU-128s on ADU-552 adapters, the Super Hornet\'s two AMRAAMs side by side on a LAU-115, and the right pylon for every other station on the F-16, Typhoon, Su-35, MiG-31, Rafale, Gripen and Su-57.'),
+        fixed('Gripen centreline tank', 'The Gripen\'s centreline drop tank no longer sinks into the belly.'),
+      ],
+    },
+  },
+  {
     version: '7.15.17',
     date: '2026-11-20',
     air: {

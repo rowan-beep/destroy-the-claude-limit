@@ -56,6 +56,18 @@ export interface StationDef {
    * sitting at pos[1].
    */
   hang?: number;
+  /**
+   * Where the store's pylon / rail attaches under the airframe (m, body y), when it is not `hang`
+   * (the racks of racks.ts are drawn to the measured skin, so `hang` is no longer the wing underside on
+   * some jets). Only the store's height reads it: storeCenterY uses attach ?? hang. `hang` keeps its old meaning.
+   */
+  attach?: number;
+  /**
+   * Where the store hangs sideways when it is not pos[0] (m, body x): the Hornet's two AMRAAMs on a LAU-115
+   * ride 0.34 m apart, not as far apart as their stations' x says. Only the store's drawn and launch
+   * position read it (storeCenterX); roll inertia keeps using pos[0].
+   */
+  attachX?: number;
   /** twin rack with a dual bomb rack (the Super Hornet's BRU-55): two bombs ride side by side, each at its own x, not one at the pylon centre */
   dual?: boolean;
   /**
@@ -463,16 +475,16 @@ const FA18: AircraftSpec = {
   },
   stations: [
     { id: 1, label: 'LWT', pos: [-6.46, -0.085, 2.4], allowed: [AIM9], mount: 'rail' },
-    { id: 2, label: 'LW OB', pos: [-5.3, -0.7, 1.7], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.08 },
+    { id: 2, label: 'LW OB', pos: [-5.3, -0.7, 1.7], allowed: [AIM120, AIM9], mount: 'pylon', hang: 0.11, attach: -0.08 },
     // station 3: LAU-115 with two LAU-127 shoulder rails (a tank hangs from the pylon centre)
-    { id: 3, label: 'LW MID-O', pos: [-4.2, -0.1, FA18_RZ], allowed: [AIM120, AIM9, TANK, GBU32], mount: 'pylon', hang: -0.1, rack: -3.9, dual: true },
-    { id: 4, label: 'LW MID-I', pos: [-3.6, -0.1, FA18_RZ], allowed: [AIM120, TANK, GBU32], mount: 'pylon', hang: -0.1, rack: -3.9, dual: true },
+    { id: 3, label: 'LW MID-O', pos: [-4.2, -0.1, FA18_RZ], allowed: [AIM120, AIM9, TANK, GBU32], mount: 'pylon', hang: 0.16, attach: -0.1, attachX: -4.07, rack: -3.9, dual: true },
+    { id: 4, label: 'LW MID-I', pos: [-3.6, -0.1, FA18_RZ], allowed: [AIM120, TANK, GBU32], mount: 'pylon', hang: 0.16, attach: -0.1, attachX: -3.73, rack: -3.9, dual: true },
     { id: 5, label: 'L FUS', pos: [-1.04, -0.84, 0.7], allowed: [AIM120], mount: 'semi-recessed' },
     { id: 6, label: 'CL', pos: [0, -1.15, 0.6], allowed: [TANK], mount: 'pylon' },
     { id: 7, label: 'R FUS', pos: [1.04, -0.84, 0.7], allowed: [AIM120], mount: 'semi-recessed' },
-    { id: 8, label: 'RW MID-I', pos: [3.6, -0.1, FA18_RZ], allowed: [AIM120, TANK, GBU32], mount: 'pylon', hang: -0.1, rack: 3.9, dual: true },
-    { id: 9, label: 'RW MID-O', pos: [4.2, -0.1, FA18_RZ], allowed: [AIM120, AIM9, TANK, GBU32], mount: 'pylon', hang: -0.1, rack: 3.9, dual: true },
-    { id: 10, label: 'RW OB', pos: [5.3, -0.7, 1.7], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.08 },
+    { id: 8, label: 'RW MID-I', pos: [3.6, -0.1, FA18_RZ], allowed: [AIM120, TANK, GBU32], mount: 'pylon', hang: 0.16, attach: -0.1, attachX: 3.73, rack: 3.9, dual: true },
+    { id: 9, label: 'RW MID-O', pos: [4.2, -0.1, FA18_RZ], allowed: [AIM120, AIM9, TANK, GBU32], mount: 'pylon', hang: 0.16, attach: -0.1, attachX: 4.07, rack: 3.9, dual: true },
+    { id: 10, label: 'RW OB', pos: [5.3, -0.7, 1.7], allowed: [AIM120, AIM9], mount: 'pylon', hang: 0.11, attach: -0.08 },
     { id: 11, label: 'RWT', pos: [6.46, -0.085, 2.4], allowed: [AIM9], mount: 'rail' },
   ],
   loadouts: [
@@ -1394,13 +1406,13 @@ const F16: AircraftSpec = {
   },
   stations: [
     { id: 1, label: 'LWT', pos: [-4.69, -0.18, 1.75], allowed: [AIM120, AIM9], mount: 'rail' },
-    { id: 2, label: 'LW OB', pos: [-3.95, -0.3, 1.3], allowed: [AIM120, AIM9], mount: 'pylon', hang: 0.17 },
+    { id: 2, label: 'LW OB', pos: [-3.95, -0.3, 1.3], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.04, attach: 0.17 },
     { id: 3, label: 'LW MID', pos: [-3.0, -0.35, F16_RZ], allowed: [AIM120, AIM9, GBU31, GBU32], mount: 'pylon', hang: -0.045 },
     { id: 4, label: 'LW IB', pos: [-2.05, -0.38, 0.25], allowed: [TANK, GBU31, GBU32], mount: 'pylon', hang: -0.05 },
     { id: 5, label: 'CL', pos: [0, -1.57, 0.2], allowed: [TANK], mount: 'pylon' },
     { id: 6, label: 'RW IB', pos: [2.05, -0.38, 0.25], allowed: [TANK, GBU31, GBU32], mount: 'pylon', hang: -0.05 },
     { id: 7, label: 'RW MID', pos: [3.0, -0.35, F16_RZ], allowed: [AIM120, AIM9, GBU31, GBU32], mount: 'pylon', hang: -0.045 },
-    { id: 8, label: 'RW OB', pos: [3.95, -0.3, 1.3], allowed: [AIM120, AIM9], mount: 'pylon', hang: 0.17 },
+    { id: 8, label: 'RW OB', pos: [3.95, -0.3, 1.3], allowed: [AIM120, AIM9], mount: 'pylon', hang: -0.04, attach: 0.17 },
     { id: 9, label: 'RWT', pos: [4.69, -0.18, 1.75], allowed: [AIM120, AIM9], mount: 'rail' },
   ],
   loadouts: [
@@ -1516,18 +1528,18 @@ const SU57: AircraftSpec = {
     port: [0.98, 0.12, -3.3],
   },
   stations: [
-    { id: 1, label: 'LW OB', pos: [-5.1, -0.36, 3.1], allowed: [R74, R77], mount: 'pylon', hang: -0.1 },
-    { id: 2, label: 'LW MID', pos: [-3.9, -0.4, 2.55], allowed: [R77, R74, KAB], mount: 'pylon', hang: -0.12 },
-    { id: 3, label: 'LW IB', pos: [-2.7, -0.44, 2.0], allowed: [R77, KAB], mount: 'pylon', hang: -0.14 },
+    { id: 1, label: 'LW OB', pos: [-5.1, -0.36, 3.1], allowed: [R74, R77], mount: 'pylon', hang: -0.32, attach: -0.1 },
+    { id: 2, label: 'LW MID', pos: [-3.9, -0.4, 2.55], allowed: [R77, R74, KAB], mount: 'pylon', hang: -0.36, attach: -0.12 },
+    { id: 3, label: 'LW IB', pos: [-2.7, -0.44, 2.0], allowed: [R77, KAB], mount: 'pylon', hang: -0.4, attach: -0.14 },
     { id: 4, label: 'L LEX BAY', pos: [-1.82, -0.06, -1.25], allowed: [R74], mount: 'internal', bay: 'left', bayOut: [-1.95, -0.5, -1.25] },
     { id: 5, label: 'BAY F-L', pos: [-0.33, -0.16, 0.65], allowed: [R77, KAB], mount: 'internal', bay: 'main', bayOut: [-0.33, -0.66, 0.65] },
     { id: 6, label: 'BAY F-R', pos: [0.33, -0.16, 0.65], allowed: [R77, KAB], mount: 'internal', bay: 'main', bayOut: [0.33, -0.66, 0.65] },
     { id: 7, label: 'BAY A-L', pos: [-0.33, -0.14, 4.75], allowed: [R77], mount: 'internal', bay: 'main', bayOut: [-0.33, -0.62, 4.75] },
     { id: 8, label: 'BAY A-R', pos: [0.33, -0.14, 4.75], allowed: [R77], mount: 'internal', bay: 'main', bayOut: [0.33, -0.62, 4.75] },
     { id: 9, label: 'R LEX BAY', pos: [1.82, -0.06, -1.25], allowed: [R74], mount: 'internal', bay: 'right', bayOut: [1.95, -0.5, -1.25] },
-    { id: 10, label: 'RW IB', pos: [2.7, -0.44, 2.0], allowed: [R77, KAB], mount: 'pylon', hang: -0.14 },
-    { id: 11, label: 'RW MID', pos: [3.9, -0.4, 2.55], allowed: [R77, R74, KAB], mount: 'pylon', hang: -0.12 },
-    { id: 12, label: 'RW OB', pos: [5.1, -0.36, 3.1], allowed: [R74, R77], mount: 'pylon', hang: -0.1 },
+    { id: 10, label: 'RW IB', pos: [2.7, -0.44, 2.0], allowed: [R77, KAB], mount: 'pylon', hang: -0.4, attach: -0.14 },
+    { id: 11, label: 'RW MID', pos: [3.9, -0.4, 2.55], allowed: [R77, R74, KAB], mount: 'pylon', hang: -0.36, attach: -0.12 },
+    { id: 12, label: 'RW OB', pos: [5.1, -0.36, 3.1], allowed: [R74, R77], mount: 'pylon', hang: -0.32, attach: -0.1 },
   ],
   loadouts: [
     {
@@ -1644,7 +1656,8 @@ const GRIPEN: AircraftSpec = {
     { id: 2, label: 'LW OB', pos: [-3.4, -0.48, 3.85], allowed: [IRIS, MTR, AIM120], mount: 'pylon', hang: -0.41 },
     { id: 3, label: 'LW MID', pos: [-2.55, -0.52, 2.95], allowed: [MTR, AIM120, TANK, GBU39, PW4], mount: 'pylon', hang: -0.4 },
     { id: 4, label: 'LW IB', pos: [-1.65, -0.56, 2.1], allowed: [MTR, TANK, PW4], mount: 'pylon', hang: -0.385 },
-    { id: 5, label: 'CL', pos: [0, -0.85, 0.4], allowed: [TANK, MTR], mount: 'pylon' },
+    // (the centreline tank hangs under the belly: higher, it sat 28 cm inside it; tools/checkRacks.js)
+    { id: 5, label: 'CL', pos: [0, -1.16, 0.4], allowed: [TANK, MTR], mount: 'pylon' },
     { id: 6, label: 'R FUS', pos: [0.8, -0.6, -1.0], allowed: [MTR, AIM120], mount: 'pylon' },
     { id: 7, label: 'RW IB', pos: [1.65, -0.56, 2.1], allowed: [MTR, TANK, PW4], mount: 'pylon', hang: -0.385 },
     { id: 8, label: 'RW MID', pos: [2.55, -0.52, 2.95], allowed: [MTR, AIM120, TANK, GBU39, PW4], mount: 'pylon', hang: -0.4 },

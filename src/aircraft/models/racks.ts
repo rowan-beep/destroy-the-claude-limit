@@ -13,7 +13,9 @@ import { storeCenterX, storeCenterY, storeRadius, hungOnRack, onShoulder } from 
 type V3 = THREE.Vector3;
 const v3 = (x: number, y: number, z: number): V3 => new THREE.Vector3(x, y, z);
 // (rounded boxes with one bevel step: the small fittings need no more, and the racks stay as light as the old pylons)
-const rb = (w: number, h: number, d: number, r: number, seg = 1) => roundBox(w, h, d, r, seg);
+// (kit's roundBox bevels outward by 0.9 r on every side, so the shape is shrunk by that much here: the
+// box comes out exactly w x h, the size measured from the photographs, and a launcher's nose meets it flush)
+const rb = (w: number, h: number, d: number, r: number, seg = 1) => roundBox(Math.max(0.002, w - 1.8 * r), Math.max(0.002, h - 1.8 * r), d, r, seg);
 
 // ---------------------------------------------------------------------------
 // The skin above a station
@@ -54,6 +56,12 @@ function skinSpan(s: Skin): [number, number] {
   let a = -1, b = -1;
   for (let i = 0; i < n; i++) if (s.y[i] !== null) { if (a < 0) a = i; b = i; }
   return [a <= 0 ? -Infinity : z0 + a * SKIN_STEP, b < 0 || b === n - 1 ? Infinity : z0 + b * SKIN_STEP];
+}
+
+/** The measured skin height above (x, z) on a jet, or null where nothing was measured (for tests/air/racks.test.ts). */
+export function skinHeight(type: string, x: number, z: number): number | null {
+  const s = skinFor(type, x, z);
+  return s ? skinFn(s)(z) : null;
 }
 
 function skinFor(type: string, x: number, z: number): Skin | null {
@@ -155,17 +163,24 @@ function slab(o: SlabOpts): THREE.BufferGeometry {
  * (its centre at the origin, nose to -z): a long box with a raked nose fairing, the T-rail and its
  * hooks under it, the umbilical hump and the aft cap. Returns its top height.
  */
-function lauUS(parts: THREE.BufferGeometry[], r: number, len: number, zc: number, w = 0.11, h = 0.1): number {
+function lauUS(parts: THREE.BufferGeometry[], r: number, len: number, zc: number, w = 0.11, h = 0.1, dome = false): number {
   const yb = r + 0.014;
   const yc = yb + h / 2;
   const body = rb(w, h, len, 0.02, 2);
   body.translate(0, yc, zc);
   parts.push(body);
-  // the raked nose fairing (the forward end is cut down at an angle toward the missile)
+  // the nose: the LAU-127 / LAU-129's raked fairing (cut down at an angle toward the missile), or the
+  // LAU-128's rounded domed cap (the F-15EX's, in the photo of its loaded wing)
+  const nl = dome ? 0.2 : 0.32;
   const nose = loftProfile({
-    stations: stations(0, 0.32, 5),
+    stations: stations(0, nl, 5),
     profile: (z) => {
-      const u = z / 0.32;
+      const u = z / nl;
+      if (dome) {
+        const e = Math.max(0.1, Math.sqrt(1 - (1 - u) * (1 - u)));
+        const hw = (w / 2 + 0.002) * e, hh = (h / 2 + 0.002) * e;
+        return [[0, yc - hh], [hw * 0.85, yc - hh], [hw, yc], [hw * 0.85, yc + hh], [0, yc + hh]] as P2[];
+      }
       const hw = (w / 2) * (0.55 + 0.45 * Math.sqrt(u));
       const top = yb + h * (0.25 + 0.75 * Math.sqrt(u));
       return [[0, yb], [hw, yb], [hw, top - 0.01], [0, top]] as P2[];
@@ -173,7 +188,7 @@ function lauUS(parts: THREE.BufferGeometry[], r: number, len: number, zc: number
     sub: 2,
     capStart: true,
   });
-  nose.translate(0, 0, zc - len / 2 - 0.32 + 0.01);
+  nose.translate(0, 0, zc - len / 2 - nl + 0.01);
   parts.push(nose);
   // the T-rail under it, and its three hooks' shoes
   const rail = rb(0.045, 0.016, len * 0.94, 0.005);
@@ -268,6 +283,60 @@ function ejector(parts: THREE.BufferGeometry[], x: number, y: number, z: number,
   }
 }
 
+/**
+ * The F-15's ADU-552 shoulder adapter, in the missile's frame: a thick block bolted to the pylon's flank
+ * holding the LAU-128 out beside it, its ends wedged down toward the launcher (the photo of the EX's loaded
+ * wing), with two attach lugs on top. `dx` is the pylon's centre line from the missile (signed), `half` the
+ * pylon's half thickness, `ytop` the launcher's top.
+ */
+function adu552(parts: THREE.BufferGeometry[], dx: number, half: number, ytop: number, w: number, zc: number): void {
+  const s = Math.sign(dx) || 1;
+  const x0 = s * (w / 2 - 0.01), x1 = dx - s * (half - 0.015);
+  const L = 1.0, h = 0.1;
+  const ad = loftProfile({
+    full: true,
+    stations: stations(-L / 2, L / 2, 6),
+    profile: (z) => {
+      // the ends wedge down to the launcher's top over their last 0.22 m
+      const u = Math.min(1, (L / 2 - Math.abs(z)) / 0.22);
+      const yt = ytop - 0.01 + h * (0.25 + 0.75 * u);
+      const yb = ytop - 0.045;
+      const a = Math.min(x0, x1), b = Math.max(x0, x1);
+      return [[a, yb], [b, yb], [b, yt], [a, yt]] as P2[];
+    },
+    sub: 1,
+    capStart: true,
+    capEnd: true,
+  });
+  ad.translate(0, 0, zc - 0.12);
+  parts.push(ad);
+  for (const dz of [-0.24, 0.24]) parts.push(rod(v3((x0 + x1) / 2, ytop + h - 0.01, zc - 0.12 + dz), v3((x0 + x1) / 2, ytop + h + 0.025, zc - 0.12 + dz), 0.03, 0.03, 8));
+}
+
+/**
+ * The Hornet's LAU-115 dual-rail adapter under the pylon (the photo of a Hornet with ten AMRAAMs): a
+ * beam between the two LAU-127s, a little above their missiles' centre lines, as long as the launchers,
+ * with a rounded nose; the launchers hang on its flanks. In the rack's frame (its centre line at x = 0).
+ */
+function lau115(parts: THREE.BufferGeometry[], ytop: number, ybot: number, len: number, zc: number, half: number): void {
+  const nl = 0.3;
+  const g = loftProfile({
+    stations: stations(-len / 2, len / 2, 12, 0.35, 0.1),
+    profile: (z) => {
+      const u = Math.min(1, (z + len / 2) / nl);
+      const e = Math.max(0.12, Math.sqrt(1 - (1 - u) * (1 - u)));
+      const w = half * (0.4 + 0.6 * e);
+      const yb = ytop - (ytop - ybot) * e;
+      return [[0, yb], [w * 0.85, yb], [w, yb + 0.03], [w, ytop - 0.005], [0, ytop]] as P2[];
+    },
+    sub: 2,
+    capStart: true,
+    capEnd: true,
+  });
+  g.translate(0, 0, zc);
+  parts.push(g);
+}
+
 /** A bomb rack's (BRU / MER) ejector feet and four sway-brace arms on a hung store, below a pylon keel at `yk`. */
 function swayBraces(parts: THREE.BufferGeometry[], x: number, yk: number, y: number, z: number, r: number, span: number): void {
   const yt = y + r;
@@ -320,8 +389,25 @@ interface RackStyle {
    * Hornet's): the top line drops from the wing at the leading edge to this fraction of the depth at the nose.
    */
   rake?: number;
+  /** the US launcher's nose: the LAU-128's rounded dome (F-15) instead of the LAU-127 / 129's raked fairing */
+  dome?: boolean;
+  /** what holds a twin rack's two missiles: the F-15's ADU-552s on the pylon's flanks, or the Hornet's LAU-115 beam under it */
+  adapter?: 'adu552' | 'lau115';
+  /**
+   * Stations that differ from the rest (each rack is its own part on the real jet: the F-15EX's outer pylon
+   * is short with a rounded leading edge, its inner one long): the first entry whose range holds the
+   * station's |x| (or its rack's) overrides these fields.
+   */
+  by?: { min: number; max?: number; s: Partial<RackStyle> }[];
   pylon: string;
   rail: string;
+}
+
+/** a jet's rack style at a station (|x| of the station, or of its rack line) */
+function styleAt(st: RackStyle, x: number): RackStyle {
+  const ax = Math.abs(x);
+  const o = st.by?.find((b) => ax >= b.min - 1e-3 && ax <= (b.max ?? Infinity) + 1e-3);
+  return o ? { ...st, ...o.s } : st;
 }
 
 const IR = new Set<StoreType>(['AIM9X', 'R74M', 'MICAIR', 'IRIST']);
@@ -331,43 +417,63 @@ const RU_STORE = new Set<StoreType>(['R77M', 'R74M', 'R37M']);
 /** what each jet's pylons and launchers look like (from the photographs; see each entry) */
 const RACKS: Partial<Record<string, RackStyle>> = {
   // F-15E / EX (photos: the station 2 pylon with its LAU-128s from the front, a bare pylon on a cart from the
-  // side, the EX with twelve): a long, deep, flat-sided slab, square-ended aft, a rounded blunt nose, the
-  // BRU-47's hooks along its keel; the LAU-128s on its flanks; all in the jet's grey.
-  F15EX: { len: 3.5, front: 1.25, half: 0.075, nose: 0.55, tail: 0.25, noseCut: 0.15, keel: 0.92, below: 0.27, launcher: 'us', lauLen: [2.9, 2.9], lauAft: 0.05, lauW: 0.11, lauH: 0.1, pylon: '#6e757b', rail: '#646b71' },
+  // side, the EX with twelve, and an EX on the ramp with both wing pylons loaded, TWZ, 2024): the inner
+  // (station 2 / 8) pylon a long, deep, flat-sided slab, square-ended aft, its BRU-47's hooks along the keel;
+  // the EX's outer (station 1 / 9) pylon a SHORT one, its front a rounded vertical edge about level with the
+  // missiles' middle; on both, LAU-128s with rounded domed caps, each held out from the pylon's flank by a
+  // thick ADU-552 adapter wedged at its ends, with two attach lugs; all in the jet's grey.
+  F15EX: {
+    len: 3.5, front: 1.25, half: 0.075, nose: 0.55, tail: 0.25, noseCut: 0.15, keel: 0.92, below: 0.27, launcher: 'us', lauLen: [2.9, 2.9], lauAft: 0.05, lauW: 0.11, lauH: 0.1, dome: true, adapter: 'adu552', pylon: '#6e757b', rail: '#646b71',
+    by: [{ min: 4.2, s: { len: 1.9, front: 0.45, nose: 0.28, noseCut: 0, tail: 0.18, half: 0.07, below: 0.17 } }],
+  },
   // F/A-18E/F (photos: a RAAF Rhino from below, a VX-9 jet's pylon and LAU-127 from the side): the SUU-79
   // pylons, deep, reaching well ahead of the leading edge with the front edge raked forward and down to a
   // low nose; the LAU-127 along the keel with its pointed fairing; the AIM-9X under the wingtip's own rail;
-  // the AMRAAMs on the nacelles' LAU-116s; light grey.
-  FA18EF: { len: 3.4, front: 1.3, heavyLen: 3.6, heavyFront: 1.6, half: 0.11, nose: 0.3, tail: 0.3, noseCut: 0.5, keel: 0.9, below: 0.2, launcher: 'us', lauLen: [2.95, 2.7], lauAft: 0.1, lauW: 0.13, lauH: 0.14, rake: 0.3, pylon: '#9aa0a4', rail: '#8d9498' },
+  // the AMRAAMs on the nacelles' LAU-116s; light grey. The mid pylons' two AMRAAMs hang on a LAU-115 beam under
+  // the pylon, close together (the photo of a Hornet with ten AMRAAMs, Wikimedia).
+  FA18EF: { len: 3.4, front: 1.3, heavyLen: 3.6, heavyFront: 1.6, half: 0.11, nose: 0.3, tail: 0.3, noseCut: 0.5, keel: 0.9, below: 0.2, launcher: 'us', lauLen: [2.95, 2.7], lauAft: 0.1, lauW: 0.13, lauH: 0.14, rake: 0.3, adapter: 'lau115', pylon: '#9aa0a4', rail: '#8d9498' },
   // F-16C (photos: a Ukrainian jet's wing from the front, AIM-120 on the tip, AIM-9X at station 2 on its short
   // adapter, an empty LAU-129 under station 3's pylon, a 370 gal tank at 4): slim pylons kept under the wing,
   // a rounded nose, the LAU-129 under them; station 2's launcher almost straight under the wing.
-  F16C: { len: 2.2, front: 0.85, heavyLen: 2.7, heavyFront: 1.25, half: 0.06, nose: 0.45, tail: 0.3, noseCut: 0.35, keel: 0.9, launcher: 'us', lauLen: [2.75, 2.55], lauAft: 0.05, lauW: 0.11, lauH: 0.12, over: 0.25, pylon: '#8a9095', rail: '#82898e' },
+  // Each station its own: station 2 / 8 only the short missile adapter (16S210) under the wing, station 3 / 7
+  // the weapons pylon, 4 / 6 the long tank pylons.
+  F16C: { len: 2.2, front: 0.85, heavyLen: 2.7, heavyFront: 1.25, half: 0.06, nose: 0.45, tail: 0.3, noseCut: 0.35, keel: 0.9, launcher: 'us', lauLen: [2.75, 2.55], lauAft: 0.05, lauW: 0.11, lauH: 0.12, over: 0.25, by: [{ min: 3.8, max: 4.1, s: { len: 1.5, front: 0.55, half: 0.05, nose: 0.28, tail: 0.2 } }], pylon: '#8a9095', rail: '#82898e' },
   // Typhoon (photo: an RAF FGR4 from the side with ASRAAMs, AMRAAMs and tanks): the outboard missile
   // launchers are long slim rails nearly flush under the wing; the wing pylons long, with a long tapering
   // nose; the AMRAAMs semi-recessed in the belly on their ejectors; the jet's light grey.
-  TYPHOON: { len: 2.7, front: 1.15, heavyLen: 3.2, heavyFront: 1.55, half: 0.075, nose: 0.8, tail: 0.3, noseCut: 0.75, keel: 0.88, launcher: 'eu', lauLen: [3.0, 2.85], lauAft: 0.1, lauW: 0.11, lauH: 0.1, over: 0.35, pylon: '#8f979c', rail: '#878f94' },
+  // Each station its own (an RAF FGR4 from below, Flickr): the inner (tank) pylon the longest, reaching back to
+  // the trailing edge; the mid pylon long and slim; the outer station only the ASRAAM rail.
+  TYPHOON: { len: 2.7, front: 1.15, heavyLen: 3.2, heavyFront: 1.55, half: 0.075, nose: 0.8, tail: 0.3, noseCut: 0.75, keel: 0.88, launcher: 'eu', lauLen: [3.0, 2.85], lauAft: 0.1, lauW: 0.11, lauH: 0.1, over: 0.35, by: [{ min: 3.5, max: 4.2, s: { len: 2.6, front: 1.0, half: 0.065 } }, { min: 2.5, max: 3.2, s: { len: 3.0, front: 1.3 } }], pylon: '#8f979c', rail: '#878f94' },
   // Su-35S (photos: a fully armed jet from below with each store named, an R-77M close-up under the wing):
   // short, thick wing pylons with rounded noses; long APU-170 rails for the R-77s (a long pointed front
   // fairing reaching forward), shorter P-72s for the R-73 / R-74; the R-77s under the intakes on their
   // launchers right against the duct; R-74s under the wingtips' own rails; the underside's pale blue.
-  SU35: { len: 2.0, front: 0.75, heavyLen: 2.7, heavyFront: 1.2, half: 0.075, nose: 0.45, tail: 0.3, noseCut: 0.4, keel: 0.9, launcher: 'ru', lauLen: [3.35, 2.55], lauAft: 0.2, lauH: 0.16, over: 0.3, pylon: '#a9bcc8', rail: '#c2c8cb' },
+  // Each station its own (the labelled photo from below): the outer pylon small (R-73), the inner the biggest,
+  // long pylons between the engines in the tunnel.
+  SU35: { len: 2.0, front: 0.75, heavyLen: 2.7, heavyFront: 1.2, half: 0.075, nose: 0.45, tail: 0.3, noseCut: 0.4, keel: 0.9, launcher: 'ru', lauLen: [3.35, 2.55], lauAft: 0.2, lauH: 0.16, over: 0.3, by: [{ min: 5.5, max: 6.0, s: { len: 1.6, front: 0.55, half: 0.065, nose: 0.35 } }, { min: 2.9, max: 3.3, s: { len: 2.4, front: 0.9 } }, { min: 0, max: 0.2, s: { len: 2.4, front: 0.9, half: 0.09 } }], pylon: '#a9bcc8', rail: '#c2c8cb' },
   // MiG-31BM (photos: the wing pylons from behind at an air show, R-37Ms under the belly on the ramp): short,
   // shallow, boxy pylons with flat keels and blunt ends; P-72s for the R-73 / R-74 under them; the R-37Ms
   // on AKU-410 ejectors right against the flat belly; grey.
-  MIG31: { len: 2.2, front: 0.85, heavyLen: 2.8, heavyFront: 1.3, half: 0.1, nose: 0.28, tail: 0.15, noseCut: 0.1, keel: 0.97, round: 0.07, launcher: 'ru', lauLen: [3.4, 2.55], lauAft: 0.15, lauH: 0.15, over: 0.3, pylon: '#aeb5ba', rail: '#bfc5c9' },
+  // The outer pylon (R-73) smaller than the inner (R-37M / tank).
+  MIG31: { len: 2.2, front: 0.85, heavyLen: 2.8, heavyFront: 1.3, half: 0.1, nose: 0.28, tail: 0.15, noseCut: 0.1, keel: 0.97, round: 0.07, launcher: 'ru', lauLen: [3.4, 2.55], lauAft: 0.15, lauH: 0.15, over: 0.3, by: [{ min: 4.8, max: 5.3, s: { len: 1.6, front: 0.55, half: 0.085 } }], pylon: '#aeb5ba', rail: '#bfc5c9' },
   // Rafale (photos: a Rafale M's Meteor wing pylon and its MICA fuselage stations at a show): flat-sided
   // pylons, not deep, with a long launcher beam along the bottom and a tapered front; light grey MICA rails
   // tight against the fuselage; the MICAs under the wingtips' own rails; the jet's grey.
-  RAFALE: { len: 2.8, front: 1.15, heavyLen: 3.1, heavyFront: 1.45, half: 0.075, nose: 0.5, tail: 0.25, noseCut: 0.55, keel: 0.92, round: 0.12, launcher: 'eu', lauLen: [3.05, 2.75], lauAft: 0.15, lauW: 0.1, lauH: 0.1, over: 0.3, pylon: '#8b9398', rail: '#a7adb1' },
+  // Each station its own: the outer wing pylon a small MICA pylon; the fuselage pylons short (1.9 m) with their
+  // front edge leaning back from a low nose, starting just ahead of the missile's middle (a Greek Rafale's
+  // Meteor station close up; an empty one after a Meteor launch, omnirole-rafale.com).
+  RAFALE: { len: 2.8, front: 1.15, heavyLen: 3.1, heavyFront: 1.45, half: 0.075, nose: 0.5, tail: 0.25, noseCut: 0.55, keel: 0.92, round: 0.12, launcher: 'eu', lauLen: [3.05, 2.75], lauAft: 0.15, lauW: 0.1, lauH: 0.1, over: 0.3, by: [{ min: 4.0, max: 4.5, s: { len: 1.9, front: 0.65, half: 0.06 } }, { min: 0.5, max: 0.9, s: { len: 1.9, front: 0.35, half: 0.06, rake: 0.35, nose: 0.2, noseCut: 0 } }], pylon: '#8b9398', rail: '#a7adb1' },
   // Gripen E (photo: a Meteor under the wing beside the main gear, on the ramp): short, compact pylons with
   // rounded noses, a bulky launcher right under them and the missile tucked close; IRIS-Ts under the
   // wingtips' own rails; the jet's grey.
-  GRIPEN: { len: 2.0, front: 0.75, heavyLen: 2.5, heavyFront: 1.05, half: 0.09, nose: 0.4, tail: 0.25, noseCut: 0.3, keel: 0.95, round: 0.12, launcher: 'eu', lauLen: [2.7, 2.5], lauAft: 0.1, lauW: 0.13, lauH: 0.13, over: 0.3, pylon: '#90979c', rail: '#868d92' },
+  // Each station its own (a Gripen E from the front in the hangar): the outer pylon the smallest, the inner the
+  // longest (tanks), the fuselage pylon short.
+  GRIPEN: { len: 2.0, front: 0.75, heavyLen: 2.5, heavyFront: 1.05, half: 0.09, nose: 0.4, tail: 0.25, noseCut: 0.3, keel: 0.95, round: 0.12, launcher: 'eu', lauLen: [2.7, 2.5], lauAft: 0.1, lauW: 0.13, lauH: 0.13, over: 0.3, by: [{ min: 3.2, max: 3.6, s: { len: 1.6, front: 0.55, half: 0.075 } }, { min: 1.5, max: 1.8, s: { len: 2.3, front: 0.9 } }, { min: 0.6, max: 1.0, s: { len: 1.6, front: 0.5, half: 0.07 } }], pylon: '#90979c', rail: '#868d92' },
   // Su-57 (photos: the jet showing its loaded bays with the R-74Ms out on their side-bay rails, its clean
   // underside): short, slim, sharp-nosed pylons on the wings with APU-170 / P-72 rails under them; the bays'
   // ejectors and swing-out rails (bayLauncher); the underside's blue-grey.
-  SU57: { len: 2.0, front: 0.8, heavyLen: 2.7, heavyFront: 1.2, half: 0.07, nose: 0.6, tail: 0.35, noseCut: 0.6, keel: 0.8, launcher: 'ru', lauLen: [3.3, 2.5], lauAft: 0.2, lauH: 0.15, over: 0.3, pylon: '#919ea8', rail: '#b4bcc2' },
+  // The outer pylon the smallest, the inner the longest.
+  SU57: { len: 2.0, front: 0.8, heavyLen: 2.7, heavyFront: 1.2, half: 0.07, nose: 0.6, tail: 0.35, noseCut: 0.6, keel: 0.8, launcher: 'ru', lauLen: [3.3, 2.5], lauAft: 0.2, lauH: 0.15, over: 0.3, by: [{ min: 4.9, max: 5.3, s: { len: 1.6, front: 0.6, half: 0.06 } }, { min: 2.5, max: 2.9, s: { len: 2.3, front: 0.95 } }], pylon: '#919ea8', rail: '#b4bcc2' },
   // X-15A-2 (photo: the jet under the B-52's wing with its tanks fitted, Air Force museum archive): the two
   // drop tanks right under the side fairings, almost touching them, on short attachments; black like the jet.
   X15: { len: 2.2, front: 1.0, heavyLen: 2.4, heavyFront: 1.2, half: 0.06, nose: 0.4, tail: 0.3, noseCut: 0.3, keel: 0.9, launcher: 'us', lauLen: [2.6, 2.4], lauAft: 0, over: 0.3, pylon: '#1d1e21', rail: '#2a2c30' },
@@ -446,20 +552,20 @@ export function jetRacks(spec: AircraftSpec, loaded: Loaded[]): JetRacks {
 
   // the pylon's top line: the skin (sunk a little into it), or, for a raked pylon reaching ahead of the
   // leading edge, dropping from the edge forward and down to its nose
-  const pylonTop = (sk: Skin, z0: number, keel: number): ((z: number) => number) => {
+  const pylonTop = (ss: RackStyle, sk: Skin, z0: number, keel: number): ((z: number) => number) => {
     const top = skinFn(sk);
-    const rake = st.rake;
+    const rake = ss.rake;
     if (rake === undefined) return (z) => top(z) + 0.03;
     const zr = Math.max(skinSpan(sk)[0] + 0.05, z0 + 0.6);
     const yr = top(zr) + 0.03;
     return (z) => (z >= zr ? top(z) + 0.03 : keel + (yr - keel) * (rake + (1 - rake) * Math.pow(Math.max(0, (z - z0) / (zr - z0)), 0.85)));
   };
-  const pylon = (x: number, z0: number, len: number, sk: Skin, keel: number) => {
+  const pylon = (ss: RackStyle, x: number, z0: number, len: number, sk: Skin, keel: number) => {
     let z1 = z0 + len;
-    if (st.rake === undefined) {
+    if (ss.rake === undefined) {
       // kept under the wing: no pylon hanging in the air ahead of the leading edge
       const [a, b] = skinSpan(sk);
-      const over = st.over ?? 0.15;
+      const over = ss.over ?? 0.15;
       z0 = Math.max(z0, a - over);
       z1 = Math.min(z1, b + over);
       if (z1 - z0 < 0.7) {
@@ -467,7 +573,7 @@ export function jetRacks(spec: AircraftSpec, loaded: Loaded[]): JetRacks {
         (z0 = m - 0.35), (z1 = m + 0.35);
       }
     }
-    return slab({ x, z0, z1, top: pylonTop(sk, z0, keel), bot: () => keel, half: st.half, nose: Math.min(st.nose, (z1 - z0) * 0.35), tail: Math.min(st.tail, (z1 - z0) * 0.3), noseCut: st.noseCut, keel: st.keel, round: st.round });
+    return slab({ x, z0, z1, top: pylonTop(ss, sk, z0, keel), bot: () => keel, half: ss.half, nose: Math.min(ss.nose, (z1 - z0) * 0.35), tail: Math.min(ss.tail, (z1 - z0) * 0.3), noseCut: ss.noseCut, keel: ss.keel, round: ss.round });
   };
 
   // twin racks: one pylon per rack line, every loaded missile on its own shoulder launcher
@@ -482,26 +588,35 @@ export function jetRacks(spec: AircraftSpec, loaded: Loaded[]): JetRacks {
   for (const [, group] of racks) {
     const d0 = group[0].def;
     const x = d0.rack as number;
+    const ss = styleAt(st, x);
     const zc = d0.pos[2];
     const sk = skinFor(spec.type, x, zc);
     if (!sk) continue;
     const shoulders = group.filter((l) => onShoulder(l.def, l.store));
     const hung = group.filter((l) => !onShoulder(l.def, l.store));
-    // the keel: below the lowest shoulder launcher, or down to a hung store's back
+    const lauW = ss.lauW ?? 0.11, lauH = ss.lauH ?? 0.1;
+    // the launchers' tops (all shoulder missiles on a rack ride at one height per tier)
+    let lauTop = -Infinity;
+    for (const l of shoulders) lauTop = Math.max(lauTop, storeCenterY(l.def, l.store) + storeRadius(l.store) + 0.014 + lauH);
+    const beam = ss.adapter === 'lau115' && shoulders.length > 0;
+    // the keel: below the lowest shoulder launcher, or (a LAU-115) just above the beam, or down to a hung store's back
     let keel = Infinity;
-    for (const l of shoulders) keel = Math.min(keel, storeCenterY(l.def, l.store) - (st.below ?? 0.15) + 0.05);
+    if (beam) keel = lauTop + 0.09;
+    else for (const l of shoulders) keel = Math.min(keel, storeCenterY(l.def, l.store) - (ss.below ?? 0.15) + 0.05);
     const side = hung.length > 1 || hung.some((l) => storeCenterX(l.def, l.store) !== x);
     for (const l of hung) keel = Math.min(keel, storeCenterY(l.def, l.store) + storeRadius(l.store) + (side ? 0.16 : 0.1));
     const heavy = hung.length > 0;
-    const len = heavy ? st.heavyLen ?? st.len : st.len;
-    const z0 = zc - (heavy ? st.heavyFront ?? st.front : st.front);
+    const len = heavy ? ss.heavyLen ?? ss.len : ss.len;
+    const z0 = zc - (heavy ? ss.heavyFront ?? ss.front : ss.front);
     let p0 = parts.length;
-    parts.push(pylon(x, z0, len, sk, keel));
-    // the bomb rack's hooks along the keel
-    for (const dz of [-0.36, 0.36]) {
-      const hk = rb(0.07, 0.05, 0.12, 0.01);
-      hk.translate(x, keel - 0.02, zc + 0.05 + dz);
-      parts.push(hk);
+    parts.push(pylon(ss, x, z0, len, sk, keel));
+    if (!beam) {
+      // the bomb rack's hooks along the keel
+      for (const dz of [-0.36, 0.36]) {
+        const hk = rb(0.07, 0.05, 0.12, 0.01);
+        hk.translate(x, keel - 0.02, zc + 0.05 + dz);
+        parts.push(hk);
+      }
     }
     tint(p0, pylonC);
     p0 = parts.length;
@@ -509,27 +624,56 @@ export function jetRacks(spec: AircraftSpec, loaded: Loaded[]): JetRacks {
       // a dual rack (the BRU-55) under the keel: a beam out to both bombs
       const xs = hung.map((l) => storeCenterX(l.def, l.store));
       const lo = Math.min(x, ...xs), hi = Math.max(x, ...xs);
-      const beam = rb(hi - lo + 0.22, 0.07, 1.05, 0.025);
-      beam.translate((lo + hi) / 2, keel - 0.04, zc + 0.05);
-      parts.push(beam);
+      const bm = rb(hi - lo + 0.22, 0.07, 1.05, 0.025);
+      bm.translate((lo + hi) / 2, keel - 0.04, zc + 0.05);
+      parts.push(bm);
     }
     for (const l of hung) {
       const y = storeCenterY(l.def, l.store), r = storeRadius(l.store);
       swayBraces(parts, storeCenterX(l.def, l.store), side ? keel - 0.07 : keel, y, zc, r, 0.76);
     }
     tint(p0, metal);
+    // the LAU-115 beam between the two launchers, hung from the keel
+    let beamHalf = 0;
+    if (beam) {
+      let gap = Infinity;
+      for (const l of shoulders) gap = Math.min(gap, Math.abs(storeCenterX(l.def, l.store) - x) - lauW / 2);
+      beamHalf = Math.max(0.04, Math.min(0.1, gap - 0.012));
+      const L = ss.lauLen[0] * 0.92;
+      const pb = parts.length;
+      const lp: THREE.BufferGeometry[] = [];
+      lau115(lp, keel + 0.02, lauTop - lauH * 0.85, L, ss.lauAft + 0.05, beamHalf);
+      for (const g of lp) g.translate(x, 0, zc);
+      parts.push(...lp);
+      tint(pb, railC);
+    }
     for (const l of shoulders) {
       const cx = storeCenterX(l.def, l.store), cy = storeCenterY(l.def, l.store), r = storeRadius(l.store);
       const lp: THREE.BufferGeometry[] = [];
-      const L = st.lauLen[isIr(l.store) ? 1 : 0];
-      const ytop = lauUS(lp, r, L, st.lauAft, st.lauW, st.lauH);
-      // the adapter from the pylon's flank out to the launcher
-      const s = Math.sign(x - cx);
-      const reach = Math.abs(x - cx) - st.half + 0.02 - 0.05;
-      if (reach > 0.01) {
-        const ad = rb(reach, 0.075, 0.95, 0.02);
-        ad.translate(s * (0.05 + reach / 2 - 0.01), ytop - 0.045, st.lauAft - 0.1);
-        lp.push(ad);
+      const L = ss.lauLen[isIr(l.store) ? 1 : 0];
+      const ytop = lauUS(lp, r, L, ss.lauAft, lauW, lauH, ss.dome);
+      const dx = x - cx;
+      if (ss.adapter === 'adu552') adu552(lp, dx, ss.half, ytop, lauW, ss.lauAft);
+      else if (beam) {
+        // the LAU-127's side lugs onto the beam's flank
+        const sgn = Math.sign(dx) || 1;
+        const reach = Math.abs(dx) - lauW / 2 - beamHalf + 0.02;
+        if (reach > 0.005) {
+          for (const dz of [-0.4, 0.35]) {
+            const lug = rb(reach, lauH * 0.55, 0.16, 0.01);
+            lug.translate(sgn * (lauW / 2 + reach / 2 - 0.01), ytop - lauH * 0.4, ss.lauAft + dz);
+            lp.push(lug);
+          }
+        }
+      } else {
+        // a plain block out to the pylon's flank
+        const sgn = Math.sign(dx);
+        const reach = Math.abs(dx) - ss.half + 0.02 - 0.05;
+        if (reach > 0.01) {
+          const ad = rb(reach, 0.075, 0.95, 0.02);
+          ad.translate(sgn * (0.05 + reach / 2 - 0.01), ytop - 0.045, ss.lauAft - 0.1);
+          lp.push(ad);
+        }
       }
       for (const g of lp) g.translate(cx, cy, l.def.pos[2]);
       p0 = parts.length;
@@ -544,6 +688,7 @@ export function jetRacks(spec: AircraftSpec, loaded: Loaded[]): JetRacks {
   for (const l of loaded) {
     const d = l.def;
     if (d.mount === 'internal' || handled.has(d.id) || (d.rack !== undefined && d.hang !== undefined)) continue;
+    const ss = styleAt(st, d.pos[0]);
     const cx = storeCenterX(d, l.store), cy = storeCenterY(d, l.store), r = storeRadius(l.store);
     const z = d.pos[2];
     const sk = skinFor(spec.type, d.pos[0], z);
@@ -567,20 +712,20 @@ export function jetRacks(spec: AircraftSpec, loaded: Loaded[]): JetRacks {
     } else if (heavy) {
       // (a store hung close under the skin gets a shallow rack, not a pylon reaching up inside the airframe)
       const keel = cy + r + Math.min(0.1, Math.max(0.012, gap0 * 0.55));
-      const z0 = z - (st.heavyFront ?? st.front);
-      parts.push(pylon(cx, z0, st.heavyLen ?? st.len, sk, keel));
+      const z0 = z - (ss.heavyFront ?? ss.front);
+      parts.push(pylon(ss, cx, z0, ss.heavyLen ?? ss.len, sk, keel));
       tint(p0, pylonC);
       const p1 = parts.length;
       swayBraces(parts, cx, keel, cy, z, r, 0.76);
       tint(p1, metal);
     } else {
-      const L = st.lauLen[isIr(l.store) ? 1 : 0];
-      const ru = st.launcher === 'ru' || RU_STORE.has(l.store);
-      const ytop = ru ? lauRU(lp, r, L, st.lauAft, isIr(l.store), (st.lauH ?? 0.16) / 0.16) : st.launcher === 'eu' ? lauEU(lp, r, L, st.lauAft, st.lauW, st.lauH) : lauUS(lp, r, L, st.lauAft, st.lauW, st.lauH);
+      const L = ss.lauLen[isIr(l.store) ? 1 : 0];
+      const ru = ss.launcher === 'ru' || RU_STORE.has(l.store);
+      const ytop = ru ? lauRU(lp, r, L, ss.lauAft, isIr(l.store), (ss.lauH ?? 0.16) / 0.16) : ss.launcher === 'eu' ? lauEU(lp, r, L, ss.lauAft, ss.lauW, ss.lauH) : lauUS(lp, r, L, ss.lauAft, ss.lauW, ss.lauH, ss.dome);
       for (const g of lp) g.translate(cx, cy, z);
       const keel = cy + ytop - 0.02;
       if (top(z) - keel > 0.04) {
-        parts.push(pylon(cx, z - st.front, st.len, sk, keel));
+        parts.push(pylon(ss, cx, z - ss.front, ss.len, sk, keel));
         tint(p0, pylonC);
       }
       const p1 = parts.length;
