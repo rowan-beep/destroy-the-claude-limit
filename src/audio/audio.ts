@@ -39,6 +39,7 @@ import { activeMap } from '../world/islands';
 import { Bank, synthBank, CRACKLE } from './synthBank';
 import SynthWorker from './synthWorker?worker&inline';
 import { WEATHER_NOW } from '../world/weather';
+import { toneAt, warningPhrase, warningSetFor, type WarnEvent, type WarningSet } from './warningSets';
 
 export interface AudioLevels {
   master: number;
@@ -388,6 +389,8 @@ export class AudioEngine {
   private lastVs = 0;
   private seamDist = 0;
   private lastVoice = new Map<string, number>();
+  /** the player's jet's warning system (tones, voice language, phrases) */
+  private warnSet: WarningSet = warningSetFor('F15EX');
 
   constructor() {
     this.gun = { src: null, gain: null as unknown as GainNode, filter: null as unknown as BiquadFilterNode, rpm: 0, firing: false };
@@ -647,7 +650,7 @@ export class AudioEngine {
 
     // --- RWR / stall tone ---
     const ro = ctx.createOscillator();
-    ro.type = 'square';
+    ro.type = this.warnSet.tones.wave;
     const rf = ctx.createBiquadFilter();
     rf.type = 'lowpass';
     rf.frequency.value = 2600;
@@ -694,6 +697,14 @@ export class AudioEngine {
       this.waves.set(type, w);
     }
     return w;
+  }
+
+  /** the player's jet's warning system: its tones' wave shape changes with it */
+  private setWarningSet(type: string): void {
+    const ws = warningSetFor(type);
+    if (ws === this.warnSet) return;
+    this.warnSet = ws;
+    if (this.rwr) this.rwr.osc.type = ws.tones.wave;
   }
 
   private setVoice(type: string): void {
@@ -771,6 +782,7 @@ export class AudioEngine {
     this.lastT = t;
     const type = s.type && VOICES[s.type] ? s.type : this.voiceName || 'F15EX';
     this.setVoice(type);
+    this.setWarningSet(type);
     const v = VOICES[type];
     const on = s.alive ? 1 : 0;
     const rpm = clamp01(s.rpm);
@@ -967,18 +979,19 @@ export class AudioEngine {
     } else gw.gain.gain.setTargetAtTime(0, t, 0.03);
 
     // --- RWR / stall ---
+    // (each jet's own tones: warningSets.ts)
+    const tones = this.warnSet.tones;
     let rOn = false;
     let rf = 1000;
-    if (s.rwr === 'missile') {
-      rOn = true;
-      rf = Math.floor(t * 12) % 2 === 0 ? 1650 : 1250;
-    } else if (s.rwr === 'lock') {
-      rOn = Math.floor(t * 3.5) % 4 !== 3;
-      rf = 1020;
+    if (s.rwr === 'missile' || s.rwr === 'lock') {
+      const st = toneAt(s.rwr === 'missile' ? tones.missile : tones.lock, t);
+      rOn = st.on;
+      rf = st.f;
     }
     if (s.stall && !rOn && s.alive) {
-      rOn = Math.floor(t * 5) % 2 === 0;
-      rf = 560;
+      const st = toneAt(tones.stall, t);
+      rOn = st.on;
+      rf = st.f;
     }
     this.rwr.osc.frequency.setTargetAtTime(rf, t, 0.004);
     this.rwr.gain.gain.setTargetAtTime(rOn ? 0.045 : 0, t, 0.006);
@@ -1522,17 +1535,112 @@ export class AudioEngine {
     this.tone(2300, 1900, 0.025, 0.02, 'sine', 0, this.uiBus);
   }
 
-  /** New radar lock on us: the RWR's rising double chirp. */
+  /** New radar lock on us: the RWR's chirps (the player's jet's own). */
   rwrNewThreat(): void {
-    this.beep(1150, 0.05, 0.05, 'square');
-    this.beep(1450, 0.05, 0.05, 'square', 0.07);
-    this.beep(1150, 0.05, 0.05, 'square', 0.16);
-    this.beep(1450, 0.05, 0.05, 'square', 0.23);
+    const w = this.warnSet.tones;
+    for (const [f, at] of w.newThreat) this.beep(f, 0.05, 0.05, w.wave, at);
   }
 
+  /** A new radar searching: the RWR's blip (the player's jet's own). */
+  rwrSearch(): void {
+    const w = this.warnSet.tones;
+    this.beep(w.search[0], w.search[1], 0.04, w.wave);
+  }
+
+  /** Master caution: the player's jet's caution tone. */
   masterCaution(): void {
-    this.beep(880, 0.12, 0.07, 'square');
-    this.beep(880, 0.12, 0.07, 'square', 0.2);
+    const w = this.warnSet.tones;
+    for (const [f, dur, at] of w.caution) this.beep(f, dur, 0.07, w.wave, at);
+  }
+
+  /** the player's jet's warning system (for the HUD / tests) */
+  get warningSet(): WarningSet {
+    return this.warnSet;
+  }
+
+  /** the player's jet changed: its warning system with it (before its first flight frame) */
+  setWarningJet(type: string | undefined): void {
+    this.setWarningSet(type ?? 'F15EX');
+  }
+
+  /**
+   * A cockpit warning in the player's jet's own warning voice: its phrase in its language when the device has a
+   * voice for that language, in English otherwise. Nothing when the jet's system has no such call (an SR-71 or
+   * X-15 has no voice at all). Returns whether a call was made.
+   */
+  warn(ev: WarnEvent, cooldown = 6, key: string = ev): boolean {
+    const ws = this.warnSet;
+    if (!ws.say[ev] && !ws.en[ev]) return false;
+    const native = this.voiceFor(ws.lang, ws.voiceHint);
+    const text = warningPhrase(ws, ev, !!native);
+    if (!text) return false;
+    if (!this.canSpeak(key, cooldown, true)) return false;
+    const att = ws.tones.attention;
+    if (att) {
+      // the attention-getter first, then the voice
+      for (const [f, dur, at] of att) this.beep(f, dur, 0.06, ws.tones.wave, at);
+      const lead = Math.max(...att.map(([, d, a]) => a + d)) + 0.05;
+      setTimeout(() => this.speak(text, native, ws.rate), lead * 1000);
+    } else this.speak(text, native, ws.rate);
+    return true;
+  }
+
+  /** The pilot's launch / release call in the jet's language (English jets: the given English call). */
+  launchCall(kind: 'radar' | 'ir' | 'bomb', english?: string): void {
+    const ws = this.warnSet;
+    const native = this.voiceFor(ws.lang, ws.voiceHint);
+    const l = ws.launch;
+    const en = /^en/i.test(ws.lang);
+    const text = en && english ? english : native ? (kind === 'bomb' ? l.bomb : kind === 'ir' ? l.ir : l.radar) : kind === 'bomb' ? l.enBomb : kind === 'ir' ? l.enIr : l.enRadar;
+    if (!this.canSpeak('launch', kind === 'bomb' ? 1.2 : 1.5, true)) return;
+    this.speak(text, native, ws.rate);
+  }
+
+  /** the cooldown: whether `key` may speak now (and, with `mark`, start its cooldown) */
+  private canSpeak(key: string, cooldown: number, mark: boolean): boolean {
+    if (!this.levels.voice || this.muted) return false;
+    const now = performance.now() / 1000;
+    if (now - (this.lastVoice.get(key) ?? -1e9) < cooldown) return false;
+    if (mark) this.lastVoice.set(key, now);
+    return true;
+  }
+
+  /** the device's voice for a language (BCP-47): the region's own first, a name matching `hint` preferred; null when it has none */
+  private voiceFor(lang: string, hint: string): SpeechSynthesisVoice | null {
+    try {
+      const voices = window.speechSynthesis?.getVoices() ?? [];
+      const base = lang.split('-')[0].toLowerCase();
+      const norm = (l: string) => l.replace('_', '-').toLowerCase();
+      const same = voices.filter((v) => norm(v.lang).split('-')[0] === base);
+      if (!same.length) return null;
+      const re = new RegExp(hint, 'i');
+      const female = /female|zira|samantha|victoria|karen|serena|aria|jenny|hazel|irina|xiaoxiao|huihui|julie|hortense|hedvig/i;
+      const region = same.filter((v) => norm(v.lang) === lang.toLowerCase());
+      // (every one of these systems speaks with a woman's voice: a female voice of the language before a male one)
+      return region.find((v) => re.test(v.name)) ?? same.find((v) => re.test(v.name)) ?? same.find((v) => female.test(v.name)) ?? region[0] ?? same[0];
+    } catch {
+      return null;
+    }
+  }
+
+  /** speak a warning: in `v` (the jet's language), or in an English female voice when there is none */
+  private speak(text: string, v: SpeechSynthesisVoice | null, rate: number): void {
+    try {
+      const synth = window.speechSynthesis;
+      if (!synth || !this.levels.voice || this.muted) return;
+      const u = new SpeechSynthesisUtterance(text);
+      u.rate = rate;
+      u.pitch = 1.0;
+      u.volume = Math.min(1, this.levels.master * this.levels.warnings);
+      const voice = v ?? synth.getVoices().find((vv) => /female|zira|samantha|victoria|karen|serena|aria|jenny/i.test(vv.name) && /en/i.test(vv.lang));
+      if (voice) {
+        u.voice = voice;
+        u.lang = voice.lang;
+      }
+      synth.speak(u);
+    } catch {
+      /* speech unavailable */
+    }
   }
 
   /** Voice warnings ("Bitching Betty") via speech synthesis where available. */

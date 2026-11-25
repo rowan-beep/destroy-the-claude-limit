@@ -4,6 +4,15 @@ Every update gets a version number and notes here. The game shows the same
 notes under **NOTES** in each menu: the air combat menu lists the air combat
 updates and the space menu the space updates.
 
+## v7.15.19 (2026-11-25)
+
+### Air Combat: Each jet's own warning voice
+
+- **New: Each jet's own warning voice**
+  - Every jet now warns you with its own system in its own language: Bitchin' Betty in the American jets, Nagging Nora in the Typhoon, Rita in Russian in the Su-35S, MiG-31 and Su-57, and a Chinese voice in the J-20, with French in the Rafale and Swedish in the Gripen. If your device has no voice for that language, you hear it in English.
+- **Improved: Warning tones**
+  - RWR, stall and caution tones now differ by jet family, the master caution now sounds a tone, and the Super Hornet calls "Roll left / right" when you are upside down near the ground.
+
 ## v7.15.18 (2026-11-22)
 
 ### Air Combat: Missile racks, station by station

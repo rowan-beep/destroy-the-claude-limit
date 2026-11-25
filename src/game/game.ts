@@ -157,6 +157,9 @@ export class Game implements ModeHost {
   private ejectHold = 0;
   rearmTimer = -1;
   private prevRwr: string | null = null;
+  /** last frame's own radar lock and master caution (their calls sound when they come on) */
+  private prevOwnLock = false;
+  private prevCaution = false;
   private lastWarn = '';
   private deathHandled = false;
   timeScale = 1;
@@ -1879,8 +1882,7 @@ export class Game implements ModeHost {
     p.releaseBomb(this.sim, t, aim, (b) => {
       b.tof = pred.tof;
       this.message(`${weaponShort(type)} AWAY → ${t.label} · IMPACT ${Math.round(pred.tof)} S${pred.hit ? '' : ' (OUTSIDE THE ZONE: IT WILL FALL SHORT)'}`, pred.hit ? 'good' : 'warn', 3);
-      const ru = p.type === 'SU35' || p.type === 'MIG31' || p.type === 'SU57';
-      audio.voice(ru ? 'Sbros' : 'Pickle', 'launch', 1.2, ru ? 'Сброс!' : undefined);
+      audio.launchCall('bomb');
       // the computer moves on to the next target nobody has a bomb on
       if (t.claimed > 0 && p.groundTarget === t) {
         p.groundTarget = null;
@@ -1913,8 +1915,7 @@ export class Game implements ModeHost {
     // (from a weapons bay it leaves once the doors are fully open)
     p.fireMissile(this.sim, w, target, () => {
       if (!target) this.message('MADDOG LAUNCH — NO TARGET TRACK', 'warn', 2.5);
-      const call = launchCall(w);
-      audio.voice(call.voice, 'launch', 1.5, call.voiceRu);
+      audio.launchCall(isIrMissile(w) ? 'ir' : 'radar', launchCall(w).voice);
     });
   }
 
@@ -2113,26 +2114,55 @@ export class Game implements ModeHost {
       this.message(gl.text, gl.grade === 'HARD' || gl.grade === 'OFF RUNWAY' ? 'warn' : 'good', 7);
       this.sim.events.emit('landing', { aircraft: p, grade: gl });
     }
+    // (each jet's own warning system: its tones, its voice's language and phrases; src/audio/warningSets.ts)
+    audio.setWarningJet(p.type);
     // RWR tones
     const lvl = p.rwr.level;
     if (lvl !== this.prevRwr) {
-      if (lvl === 'missile') this.voice('Missile, missile');
-      else if (lvl === 'lock') audio.rwrNewThreat();
-      else if (lvl === 'search' && !this.prevRwr) audio.beep(1200, 0.05, 0.04, 'square');
+      if (lvl === 'missile') audio.warn('missile');
+      else if (lvl === 'lock') {
+        audio.rwrNewThreat();
+        audio.warn('rwrLock', 4);
+      } else if (lvl === 'search' && !this.prevRwr) {
+        audio.rwrSearch();
+        audio.warn('rwrSearch', 8);
+      }
       this.prevRwr = lvl;
     }
+    // our own radar lock (the F-16's "Lock")
+    const ownLock = !!p.lockedTarget;
+    if (ownLock && !this.prevOwnLock) audio.warn('lock', 2);
+    this.prevOwnLock = ownLock;
     // ground proximity
     const vs = fm.vel.y;
     if (!fm.onGround && fm.gearPos < 0.5) {
       const tti = vs < -5 ? fm.agl / -vs : Infinity;
-      if (tti < 5 && fm.agl < 1500) this.voice('Pull up', 'pullup', 2.5);
-      else if (fm.agl < 150 && vs < -3) this.voice('Altitude', 'alt', 4);
+      if (tti < 5 && fm.agl < 1500) {
+        // upside down, a jet that says so calls the roll first (the shorter way to wings level)
+        const inverted = fm.up.y < 0;
+        if (!(inverted && audio.warn(fm.right.y < 0 ? 'rollLeft' : 'rollRight', 2.5, 'pullup'))) audio.warn('pullUp', 2.5);
+      } else if (fm.agl < 150 && vs < -3) audio.warn('altitude', 4);
     }
+    // low and slow with the gear up (Rita: "Выпусти шасси")
+    if (!fm.onGround && fm.gearPos < 0.5 && fm.agl < 150 && fm.tas < 100 && vs < -2) audio.warn('gear', 8);
+    // angle of attack at the limit: the stall tone, and the voice where the jet has one
+    if (!fm.onGround && fm.stallWarning) audio.warn('aoa', 6);
     const plan = this.avionics?.nav.fuelPlan(p);
-    if (plan && plan.belowBingo && fm.fuelTotal > 0) this.voice('Bingo, bingo', 'bingo', 60);
-    if (fm.fuelTotal <= 0) this.voice('Fuel low, engines out', 'fuelout', 30);
-    if (fm.overG > 0.5) this.voice('Over G', 'overg', 8);
-    if (p.damage.fire > 0) this.voice('Engine fire', 'fire', 10);
+    if (plan && plan.belowBingo && fm.fuelTotal > 0) audio.warn('bingo', 60);
+    if (fm.fuelTotal <= 0) audio.warn('fuelOut', 30);
+    if (fm.overG > 0.5) audio.warn('overG', 8);
+    const d = p.damage;
+    if (d.fire > 0) {
+      const side = d.fireComponent === 'engineL' ? 'fireL' : d.fireComponent === 'engineR' ? 'fireR' : null;
+      if (!(side && audio.warn(side, 10, 'fire'))) audio.warn('fire', 10);
+    }
+    // master caution: its tone (and the voice where the jet has one) as it comes on
+    const caution = d.fire > 0 || fm.engineOut.some((e) => e) || d.leak > 0 || d.hydraulics < 0.7 || !!plan?.belowBingo || fm.overG > 0.2;
+    if (caution && !this.prevCaution) {
+      audio.masterCaution();
+      audio.warn('caution', 10);
+    }
+    this.prevCaution = caution;
     void dt;
   }
 

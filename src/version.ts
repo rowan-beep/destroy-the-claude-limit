@@ -41,6 +41,17 @@ const note = (h: string, ...d: string[]): Note => ({ h, d });
 
 export const RELEASES: Release[] = [
   {
+    version: '7.15.19',
+    date: '2026-11-25',
+    air: {
+      title: 'Each jet\'s own warning voice',
+      notes: [
+        added('Each jet\'s own warning voice', 'Every jet now warns you with its own system in its own language: Bitchin\' Betty in the American jets, Nagging Nora in the Typhoon, Rita in Russian in the Su-35S, MiG-31 and Su-57, and a Chinese voice in the J-20, with French in the Rafale and Swedish in the Gripen. If your device has no voice for that language, you hear it in English.'),
+        improved('Warning tones', 'RWR, stall and caution tones now differ by jet family, the master caution now sounds a tone, and the Super Hornet calls "Roll left / right" when you are upside down near the ground.'),
+      ],
+    },
+  },
+  {
     version: '7.15.18',
     date: '2026-11-22',
     air: {
